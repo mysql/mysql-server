@@ -64,8 +64,10 @@ select a as my_col from t1;
 connection default;
 grant select on mysqltest.t1 to second_user@localhost
 identified by 'looser' ;
+--sorted_result
 show grants for second_user@localhost ;
 drop table mysqltest.t9 ;
+--sorted_result
 show grants for second_user@localhost ;
 
 
@@ -73,6 +75,7 @@ show grants for second_user@localhost ;
 ## switch to the second session
 connection con3;
 ######## Question 1: The table t1 should be now accessible. ########
+--sorted_result
 show grants for second_user@localhost ;
 prepare s_t1 from 'select a as my_col from t1' ;
 execute s_t1 ;

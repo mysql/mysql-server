@@ -3,7 +3,7 @@ describe how to install MariaDB; However all documentation at www.mysql.com
 also applies.
 
 
-2.9. Installing MariaDB from tar.gz Packages on Other Unix-Like Systems
+2.2. Installing MariaDB from Generic Binaries on Unix/Linux
 
    This section covers the installation of MariaDB binary distributions
    that are provided for various platforms in the form of compressed
@@ -22,11 +22,13 @@ also applies.
      * A reasonable tar to unpack the distribution. GNU tar is known
        to work. Some operating systems come with a preinstalled
        version of tar that is known to have problems. For example,
-       the tar provided with early versions of Mac OS X, SunOS 4.x
-       and Solaris 8 and earlier are known to have problems with long
-       file names. On Mac OS X, you can use the preinstalled gnutar
-       program. On other systems with a deficient tar, you should
-       install GNU tar first.
+       the tar provided with early versions of Mac OS X, SunOS 4.x,
+       Solaris 8, Solaris 9, Solaris 10 and OpenSolaris, and HP-UX
+       are known to have problems with long file names. On Mac OS X,
+       you can use the preinstalled gnutar program. On Solaris 10 and
+       OpenSolaris you can use the preinstalled gtar. On other
+       systems with a deficient tar, you should install GNU tar
+       first.
 
    If you run into problems and need to file a bug report,
    please report them to: http://bugs.launchpad.net/maria
@@ -52,7 +54,7 @@ shell> bin/mysqld_safe --user=mysql &
 Note
 
    This procedure does not set up any passwords for MariaDB accounts.
-   After following the procedure, proceed to Section 2.11,
+   After following the procedure, proceed to Section 2.13,
    "Post-Installation Setup and Testing."
 
    A more detailed version of the preceding description for
@@ -147,7 +149,7 @@ shell> chown -R mysql data
        machine, you can copy support-files/mysql.server to the
        location where your system has its startup files. More
        information can be found in the support-files/mysql.server
-       script itself and in Section 2.11.2.2, "Starting and Stopping
+       script itself and in Section 2.13.1.2, "Starting and Stopping
        MariaDB Automatically."
    10. You can set up new accounts using the bin/mysql_setpermission
        script if you install the DBI and DBD::mysql Perl modules. See
@@ -186,5 +188,5 @@ Note
 
    The accounts that are listed in the MariaDB grant tables initially
    have no passwords. After starting the server, you should set up
-   passwords for them using the instructions in Section 2.11,
+   passwords for them using the instructions in Section 2.13,
    "Post-Installation Setup and Testing."

@@ -82,9 +82,10 @@ static char	dict_ibfk[] = "_ibfk_";
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
-index. */
+index.
+@return TRUE if the column names were found */
 static
-void
+ibool
 dict_index_find_cols(
 /*=================*/
 	dict_table_t*	table,	/*!< in: table */
@@ -1169,7 +1170,7 @@ dict_col_name_is_reserved(
 	ulint			i;
 
 	for (i = 0; i < UT_ARR_SIZE(reserved_names); i++) {
-		if (strcmp(name, reserved_names[i]) == 0) {
+		if (innobase_strcasecmp(name, reserved_names[i]) == 0) {
 
 			return(TRUE);
 		}
@@ -1431,7 +1432,7 @@ add_field_size:
 
 /**********************************************************************//**
 Adds an index to the dictionary cache.
-@return	DB_SUCCESS or DB_TOO_BIG_RECORD */
+@return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
 ulint
 dict_index_add_to_cache(
@@ -1457,7 +1458,10 @@ dict_index_add_to_cache(
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
-	dict_index_find_cols(table, index);
+	if (!dict_index_find_cols(table, index)) {
+
+		return(DB_CORRUPTION);
+	}
 
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
@@ -1665,9 +1669,10 @@ dict_index_remove_from_cache(
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
-index. */
+index.
+@return TRUE if the column names were found */
 static
-void
+ibool
 dict_index_find_cols(
 /*=================*/
 	dict_table_t*	table,	/*!< in: table */
@@ -1692,17 +1697,21 @@ dict_index_find_cols(
 			}
 		}
 
+#ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
 		fputs("InnoDB: Error: no matching column for ", stderr);
 		ut_print_name(stderr, NULL, FALSE, field->name);
 		fputs(" in ", stderr);
 		dict_index_name_print(stderr, NULL, index);
 		fputs("!\n", stderr);
-		ut_error;
+#endif /* UNIV_DEBUG */
+		return(FALSE);
 
 found:
 		;
 	}
+
+	return(TRUE);
 }
 #endif /* !UNIV_HOTBACKUP */
 

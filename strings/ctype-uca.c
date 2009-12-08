@@ -36,6 +36,12 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+
+#define MY_UCA_CNT_FLAG_SIZE 4096
+#define MY_UCA_CNT_FLAG_MASK 4095
+#define MY_UCA_CNT_HEAD 1
+#define MY_UCA_CNT_TAIL 2
+
 #ifdef HAVE_UCA_COLLATIONS
 
 #define MY_UCA_NPAGES 256
@@ -6713,6 +6719,16 @@ static const char hungarian[]=
     "&U < \\u00FC <<< \\u00DC << \\u0171 <<< \\u0170";
 
 
+static const char croatian[]=
+
+"&C <  \\u010D <<< \\u010C < \\u0107 <<< \\u0106 "
+"&D <  d\\u017E <<< \\u01C6 <<< D\\u017E <<< \\u01C5 <<< D\\u017D <<< \\u01C4 "
+"   <  \\u0111 <<< \\u0110 "
+"&L < lj <<< \\u01C9 <<< Lj <<< \\u01C8 <<< LJ <<< \\u01C7 "
+"&N < nj <<< \\u01CC <<< Nj <<< \\u01CB <<< NJ <<< \\u01CA "
+"&S < \\u0161 <<< \\u0160 "
+"&Z < \\u017E <<< \\u017D";
+
 /*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
@@ -6726,7 +6742,7 @@ typedef struct my_uca_scanner_st
   const uchar  *send;	/* End of the input string                */
   uchar *uca_length;
   uint16 **uca_weight;
-  uint16 *contractions;
+  MY_CONTRACTIONS *contractions;
   uint16 implicit[2];
   int page;
   int code;
@@ -6746,6 +6762,75 @@ typedef struct my_uca_scanner_handler_st
 
 static uint16 nochar[]= {0,0};
 
+/********** Helper functions to handle contraction ************/
+
+
+/**
+  Mark a character as a contraction part
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Unicode code point
+  @flag     flag: "is contraction head", "is contraction tail"
+*/
+
+static void
+my_uca_add_contraction_flag(CHARSET_INFO *cs, my_wc_t wc, int flag)
+{
+  cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK]|= flag;
+}
+
+
+/**
+  Add a new contraction into contraction list
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Unicode code points of the characters
+  @len      Number of characters
+  
+  @return   New contraction
+  @retval   Pointer to a newly added contraction
+*/
+
+static MY_CONTRACTION *
+my_uca_add_contraction(CHARSET_INFO *cs,
+                       my_wc_t *wc, int len __attribute__((unused)))
+{
+  MY_CONTRACTIONS *list= cs->contractions;
+  MY_CONTRACTION *next= &list->item[list->nitems];
+  DBUG_ASSERT(len == 2); /* We currently support only contraction2 */
+  next->ch[0]= wc[0];
+  next->ch[1]= wc[1];
+  list->nitems++;
+  return next;
+}
+
+
+/**
+  Allocate and initialize memory for contraction list and flags
+  
+  @cs       Pointer to CHARSET_INFO data
+  @alloc    Memory allocation function (typically points to my_alloc_once)
+  @n        Number of contractions
+  
+  @return   Error code
+  @retval   0 - memory allocated successfully
+  @retval   1 - not enough memory
+*/
+
+static my_bool
+my_uca_alloc_contractions(CHARSET_INFO *cs, void *(*alloc)(size_t), size_t n)
+{
+  uint size= n * sizeof(MY_CONTRACTION);
+  if (!(cs->contractions= (*alloc)(sizeof(MY_CONTRACTIONS))))
+    return 1;
+  bzero(cs->contractions, sizeof(MY_CONTRACTIONS));
+  if (!(cs->contractions->item= (*alloc)(size)) ||
+      !(cs->contractions->flags= (char*) (*alloc)(MY_UCA_CNT_FLAG_SIZE)))
+    return 1;
+  bzero((void*) cs->contractions->item, size);
+  bzero((void*) cs->contractions->flags, MY_UCA_CNT_FLAG_SIZE);
+  return 0;
+}
 
 #ifdef HAVE_CHARSET_ucs2
 /*
@@ -6766,7 +6851,7 @@ static uint16 nochar[]= {0,0};
 */
 
 static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
-                                     CHARSET_INFO *cs __attribute__((unused)),
+                                     CHARSET_INFO *cs,
                                      const uchar *str, size_t length)
 {
   scanner->wbeg= nochar; 
@@ -6777,6 +6862,7 @@ static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
     scanner->uca_length= cs->sort_order;
     scanner->uca_weight= cs->sort_order_big;
     scanner->contractions= cs->contractions;
+    scanner->cs= cs;
     return;
   }
 
@@ -6865,18 +6951,23 @@ static int my_uca_scanner_next_ucs2(my_uca_scanner *scanner)
     
     if (scanner->contractions && (scanner->sbeg <= scanner->send))
     {
-      int cweight;
+      my_wc_t wc1= ((scanner->page << 8) | scanner->code);
       
-      if (!scanner->page && !scanner->sbeg[0] &&
-          (scanner->sbeg[1] > 0x40) && (scanner->sbeg[1] < 0x80) &&
-          (scanner->code > 0x40) && (scanner->code < 0x80) &&
-          (cweight= scanner->contractions[(scanner->code-0x40)*0x40+scanner->sbeg[1]-0x40]))
+      if (my_uca_can_be_contraction_head(scanner->cs, wc1))
+      {
+        uint16 *cweight;
+        my_wc_t wc2= (((my_wc_t) scanner->sbeg[0]) << 8) | scanner->sbeg[1];
+        if (my_uca_can_be_contraction_tail(scanner->cs, wc2) &&
+          (cweight= my_uca_contraction2_weight(scanner->cs,
+                                               scanner->code,
+                                               scanner->sbeg[1])))
         {
           scanner->implicit[0]= 0;
           scanner->wbeg= scanner->implicit;
           scanner->sbeg+=2;
-          return cweight;
+          return *cweight;
         }
+      }
     }
     
     if (!ucaw[scanner->page])
@@ -6959,23 +7050,22 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     scanner->code= wc & 0xFF;
     scanner->sbeg+= mb_len;
     
-    if (scanner->contractions && !scanner->page &&
-        (scanner->code > 0x40) && (scanner->code < 0x80))
+    if (my_uca_have_contractions(scanner->cs) &&
+        my_uca_can_be_contraction_head(scanner->cs, wc))
     {
-      uint page1, code1, cweight;
+      my_wc_t wc2;
+      uint16 *cweight;
       
-      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc,
+      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc2,
                                             scanner->sbeg, 
                                             scanner->send)) >=0) &&
-           (!(page1= (wc >> 8))) &&
-           ((code1= (wc & 0xFF)) > 0x40) &&
-           (code1 < 0x80) && 
-           (cweight= scanner->contractions[(scanner->code-0x40)*0x40 + code1-0x40]))
+           my_uca_can_be_contraction_tail(scanner->cs, wc2) &&
+          (cweight= my_uca_contraction2_weight(scanner->cs, wc, wc2)))
       {
         scanner->implicit[0]= 0;
         scanner->wbeg= scanner->implicit;
         scanner->sbeg+= mb_len;
-        return cweight;
+        return *cweight;
       }
     }
     
@@ -7011,6 +7101,33 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
   my_uca_scanner_init_any,
   my_uca_scanner_next_any
 };
+
+
+
+/**
+  Helper function:
+  Find address of weights of the given character.
+
+  @weights  UCA weight array
+  @lengths  UCA length array
+  @ch       character Unicode code point
+
+  @return Weight array
+  @retval  pointer to weight array for the given character,
+           or NULL if this page does not have implicit weights.
+*/
+
+static inline uint16 *
+my_char_weight_addr(CHARSET_INFO *cs, uint wc)
+{
+  uint page= (wc >> 8);
+  uint ofst= wc & 0xFF;
+  return cs->sort_order_big[page] ?
+         cs->sort_order_big[page] + ofst * cs->sort_order[page] :
+         NULL;
+}
+
+
 
 /*
   Compares two strings according to the collation
@@ -7683,8 +7800,8 @@ ex:
 
 typedef struct my_coll_rule_item_st
 {
-  uint base;     /* Base character                             */
-  uint curr[2];  /* Current character                          */
+  my_wc_t base;     /* Base character                             */
+  my_wc_t curr[2];  /* Current character                          */
   int diff[3];   /* Primary, Secondary and Tertiary difference */
 } MY_COLL_RULE;
 
@@ -7834,6 +7951,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
 static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
 {
   MY_COLL_RULE rule[MY_MAX_COLL_RULE];
+  MY_COLL_RULE *r, *rfirst, *rlast;
   char errstr[128];
   uchar   *newlengths;
   uint16 **newweights;
@@ -7857,6 +7975,12 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     */
     return 1;
   }
+  
+  rfirst= rule;
+  rlast= rule + rc;
+  
+  if (!cs->caseinfo)
+    cs->caseinfo= my_unicase_default;
   
   if (!(newweights= (uint16**) (*alloc)(256*sizeof(uint16*))))
     return 1;
@@ -7938,44 +8062,21 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
   /* Now process contractions */
   if (ncontractions)
   {
-    /*
-      8K for weights for basic latin letter pairs,
-      plus 256 bytes for "is contraction part" flags.
-    */
-    uint size= 0x40*0x40*sizeof(uint16) + 256;
-    char *contraction_flags;
-    if (!(cs->contractions= (uint16*) (*alloc)(size)))
-        return 1;
-    bzero((void*)cs->contractions, size);
-    contraction_flags= ((char*) cs->contractions) + 0x40*0x40;
-    for (i=0; i < rc; i++)
+    if (my_uca_alloc_contractions(cs, alloc, ncontractions))
+      return 1;
+    for (r= rfirst; r < rlast; r++)
     {
-      if (rule[i].curr[1])
+      uint16 *to;
+      if (r->curr[1]) /* Contraction */
       {
-        uint pageb= (rule[i].base >> 8) & 0xFF;
-        uint chb= rule[i].base & 0xFF;
-        uint16 *offsb= defweights[pageb] + chb*deflengths[pageb];
-        uint offsc;
-        
-        if (offsb[1] || 
-            rule[i].curr[0] < 0x40 || rule[i].curr[0] > 0x7f ||
-            rule[i].curr[1] < 0x40 || rule[i].curr[1] > 0x7f)
-        {
-          /* 
-           TODO: add error reporting;
-           We support only basic latin letters contractions at this point.
-           Also, We don't support contractions with weight longer than one.
-           Otherwise, we'd need much more memory.
-          */
-          return 1;
-        }
-        offsc= (rule[i].curr[0]-0x40)*0x40+(rule[i].curr[1]-0x40);
-        
-        /* Copy base weight applying primary difference */
-        cs->contractions[offsc]= offsb[0] + rule[i].diff[0];
-        /* Mark both letters as "is contraction part */
-        contraction_flags[rule[i].curr[0]]= 1;
-        contraction_flags[rule[i].curr[1]]= 1;
+        /* Mark both letters as "is contraction part" */
+        my_uca_add_contraction_flag(cs, r->curr[0], MY_UCA_CNT_HEAD);
+        my_uca_add_contraction_flag(cs, r->curr[1], MY_UCA_CNT_TAIL);
+        to= my_uca_add_contraction(cs, r->curr, 2)->weight;
+        /* Copy weight from the reset character */
+        to[0]= my_char_weight_addr(cs, r->base)[0];
+        /* Apply primary difference */
+        to[0]+= r->diff[0];
       }
     }
   }
@@ -8698,6 +8799,39 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
 };
 
 
+CHARSET_INFO my_charset_ucs2_croatian_uca_ci=
+{
+    149,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",              /* cs name    */
+    "ucs2_croatian_ci",  /* name         */
+    "",                  /* comment      */
+    croatian,            /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -9355,6 +9489,113 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     &my_collation_any_uca_handler
 };
 
+CHARSET_INFO my_charset_utf8_croatian_uca_ci=
+{
+    213,0,0,            /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",             /* cs name    */
+    "utf8_croatian_ci", /* name         */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen     */
+    3,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
 #endif /* HAVE_CHARSET_utf8 */
 
 #endif /* HAVE_UCA_COLLATIONS */
+
+/**
+  Check if UCA data has contractions (public version)
+
+  @cs       Pointer to CHARSET_INFO data
+  @retval   0 - no contraction, 1 - have contractions.
+*/
+
+my_bool
+my_uca_have_contractions(CHARSET_INFO *cs)
+{
+  return cs->contractions != NULL;
+}
+
+/**
+  Check if a character can be contraction head
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction head
+  @retval   1 - can be contraction head
+*/
+
+my_bool
+my_uca_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
+}
+
+
+/**
+  Check if a character can be contraction tail
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction tail
+  @retval   1 - can be contraction tail
+*/
+
+my_bool
+my_uca_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
+}
+
+
+/**
+  Find a contraction and return its weight array
+  
+  @cs       Pointer to CHARSET data
+  @wc1      First character
+  @wc2      Second character
+  
+  @return   Weight array
+  @retval   NULL - no contraction found
+  @retval   ptr  - contraction weight array
+*/
+
+uint16 *
+my_uca_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
+{
+  MY_CONTRACTIONS *list= cs->contractions;
+  MY_CONTRACTION *c, *last;
+  for (c= list->item, last= &list->item[list->nitems]; c < last; c++)
+  {
+    if (c->ch[0] == wc1 && c->ch[1] == wc2)
+    {
+      return c->weight;
+    }
+  }
+  return NULL;
+}
+

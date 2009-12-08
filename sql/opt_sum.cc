@@ -97,7 +97,8 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
 
   @note
     This function is only called for queries with sum functions and no
-    GROUP BY part.
+    GROUP BY part. This means that the result set shall contain a single
+    row only
 
   @retval
     0                    no errors

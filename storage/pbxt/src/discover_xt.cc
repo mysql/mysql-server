@@ -1256,7 +1256,7 @@ static bool mysql_create_table_no_lock(THD *thd,
       (!thd->current_stmt_binlog_row_based ||
        (thd->current_stmt_binlog_row_based &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   error= FALSE;
 unlock_and_end:
   pthread_mutex_unlock(&LOCK_open);

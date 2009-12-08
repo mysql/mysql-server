@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file dict/dict0load.c
 Loads to the memory cache database object definitions
 from dictionary tables
 
@@ -24,9 +25,7 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "dict0load.h"
-#ifndef UNIV_HOTBACKUP
 #include "mysql_version.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
@@ -42,17 +41,17 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
-/********************************************************************
-Returns TRUE if index's i'th column's name is 'name' .*/
+/****************************************************************//**
+Compare the name of an index column.
+@return	TRUE if the i'th column of index is 'name'. */
 static
 ibool
 name_of_col_is(
 /*===========*/
-				/* out: */
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index,	/* in: index */
-	ulint		i,	/* in:  */
-	const char*	name)	/* in: name to compare to */
+	const dict_table_t*	table,	/*!< in: table */
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			i,	/*!< in: index field offset */
+	const char*		name)	/*!< in: name to compare to */
 {
 	ulint	tmp = dict_col_get_no(dict_field_get_col(
 					      dict_index_get_nth_field(
@@ -61,16 +60,15 @@ name_of_col_is(
 	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
 }
 
-/************************************************************************
-Finds the first table name in the given database. */
+/********************************************************************//**
+Finds the first table name in the given database.
+@return own: table name, NULL if does not exist; the caller must free
+the memory in the string! */
 UNIV_INTERN
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
-				/* out, own: table name, NULL if
-				does not exist; the caller must
-				free the memory in the string! */
-	const char*	name)	/* in: database name which ends in '/' */
+	const char*	name)	/*!< in: database name which ends in '/' */
 {
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -145,7 +143,7 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
+/********************************************************************//**
 Prints to the standard output information on all tables found in the data
 dictionary system table. */
 UNIV_INTERN
@@ -238,16 +236,15 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
-Determine the flags of a table described in SYS_TABLES. */
+/********************************************************************//**
+Determine the flags of a table described in SYS_TABLES.
+@return compressed page size in kilobytes; or 0 if the tablespace is
+uncompressed, ULINT_UNDEFINED on error */
 static
 ulint
 dict_sys_tables_get_flags(
 /*======================*/
-				/* out: compressed page size in kilobytes;
-				or 0 if the tablespace is uncompressed,
-				ULINT_UNDEFINED on error */
-	const rec_t*	rec)	/* in: a record of SYS_TABLES */
+	const rec_t*	rec)	/*!< in: a record of SYS_TABLES */
 {
 	const byte*	field;
 	ulint		len;
@@ -301,7 +298,7 @@ dict_sys_tables_get_flags(
 	return(flags);
 }
 
-/************************************************************************
+/********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespaces().
@@ -313,7 +310,7 @@ UNIV_INTERN
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
-	ibool	in_crash_recovery)	/* in: are we doing a crash recovery */
+	ibool	in_crash_recovery)	/*!< in: are we doing a crash recovery */
 {
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
@@ -423,14 +420,14 @@ loop:
 	goto loop;
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for table columns. */
 static
 void
 dict_load_columns(
 /*==============*/
-	dict_table_t*	table,	/* in: table */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_columns;
 	dict_index_t*	sys_index;
@@ -529,14 +526,14 @@ dict_load_columns(
 	mtr_commit(&mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for index fields. */
 static
 void
 dict_load_fields(
 /*=============*/
-	dict_index_t*	index,	/* in: index whose fields to load */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_index_t*	index,	/*!< in: index whose fields to load */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_fields;
 	dict_index_t*	sys_index;
@@ -630,19 +627,17 @@ next_rec:
 	mtr_commit(&mtr);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads definitions for table indexes. Adds them to the data dictionary
-cache. */
+cache.
+@return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
+table or DB_UNSUPPORTED if table has unknown index type */
 static
 ulint
 dict_load_indexes(
 /*==============*/
-				/* out: DB_SUCCESS if ok, DB_CORRUPTION
-				if corruption of dictionary table or
-				DB_UNSUPPORTED if table has unknown index
-				type */
-	dict_table_t*	table,	/* in: table */
-	mem_heap_t*	heap)	/* in: memory heap for temporary storage */
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -805,22 +800,20 @@ func_exit:
 	return(error);
 }
 
-/************************************************************************
+/********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table. Adds all these to the data
-dictionary cache. */
+dictionary cache.
+@return table, NULL if does not exist; if the table is stored in an
+.ibd file, but the file does not exist, then we set the
+ibd_file_missing flag TRUE in the table object we return */
 UNIV_INTERN
 dict_table_t*
 dict_load_table(
 /*============*/
-				/* out: table, NULL if does not exist;
-				if the table is stored in an .ibd file,
-				but the file does not exist,
-				then we set the ibd_file_missing flag TRUE
-				in the table object we return */
-	const char*	name)	/* in: table name in the
+	const char*	name)	/*!< in: table name in the
 				databasename/tablename format */
 {
 	ibool		ibd_file_missing	= FALSE;
@@ -960,7 +953,7 @@ err_exit:
 	mem_heap_empty(heap);
 
 	err = dict_load_indexes(table, heap);
-#ifndef UNIV_HOTBACKUP
+
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
@@ -971,7 +964,7 @@ err_exit:
 		dict_table_remove_from_cache(table);
 		table = NULL;
 	}
-# if 0
+#if 0
 	if (err != DB_SUCCESS && table != NULL) {
 
 		mutex_enter(&dict_foreign_err_mutex);
@@ -994,21 +987,20 @@ err_exit:
 
 		mutex_exit(&dict_foreign_err_mutex);
 	}
-# endif /* 0 */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* 0 */
 	mem_heap_free(heap);
 
 	return(table);
 }
 
-/***************************************************************************
-Loads a table object based on the table id. */
+/***********************************************************************//**
+Loads a table object based on the table id.
+@return	table; NULL if table does not exist */
 UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-				/* out: table; NULL if table does not exist */
-	dulint	table_id)	/* in: table id */
+	dulint	table_id)	/*!< in: table id */
 {
 	byte		id_buf[8];
 	btr_pcur_t	pcur;
@@ -1092,7 +1084,7 @@ dict_load_table_on_id(
 	return(table);
 }
 
-/************************************************************************
+/********************************************************************//**
 This function is called when the database is booted. Loads system table
 index definitions except for the clustered index which is added to the
 dictionary cache at booting before calling this function. */
@@ -1100,7 +1092,7 @@ UNIV_INTERN
 void
 dict_load_sys_table(
 /*================*/
-	dict_table_t*	table)	/* in: system table */
+	dict_table_t*	table)	/*!< in: system table */
 {
 	mem_heap_t*	heap;
 
@@ -1113,16 +1105,15 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
-#ifndef UNIV_HOTBACKUP
-/************************************************************************
+/********************************************************************//**
 Loads foreign key constraint col names (also for the referenced table). */
 static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/* in: foreign constraint id as a
+	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
-	dict_foreign_t*	foreign)/* in: foreign constraint object */
+	dict_foreign_t*	foreign)/*!< in: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
 	dict_index_t*	sys_index;
@@ -1186,17 +1177,17 @@ dict_load_foreign_cols(
 	mtr_commit(&mtr);
 }
 
-/***************************************************************************
-Loads a foreign key constraint to the dictionary cache. */
+/***********************************************************************//**
+Loads a foreign key constraint to the dictionary cache.
+@return	DB_SUCCESS or error code */
 static
 ulint
 dict_load_foreign(
 /*==============*/
-				/* out: DB_SUCCESS or error code */
-	const char*	id,	/* in: foreign constraint id as a
+	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
 	ibool		check_charsets)
-				/* in: TRUE=check charset compatibility */
+				/*!< in: TRUE=check charset compatibility */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1311,19 +1302,19 @@ dict_load_foreign(
 	return(dict_foreign_add_to_cache(foreign, check_charsets));
 }
 
-/***************************************************************************
+/***********************************************************************//**
 Loads foreign key constraints where the table is either the foreign key
 holder or where the table is referenced by a foreign key. Adds these
 constraints to the data dictionary. Note that we know that the dictionary
 cache already contains all constraints where the other relevant table is
-already in the dictionary cache. */
+already in the dictionary cache.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 dict_load_foreigns(
 /*===============*/
-					/* out: DB_SUCCESS or error code */
-	const char*	table_name,	/* in: table name */
-	ibool		check_charsets)	/* in: TRUE=check charset
+	const char*	table_name,	/*!< in: table name */
+	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
 {
 	btr_pcur_t	pcur;
@@ -1457,4 +1448,3 @@ load_next_index:
 
 	return(DB_SUCCESS);
 }
-#endif /* !UNIV_HOTBACKUP */

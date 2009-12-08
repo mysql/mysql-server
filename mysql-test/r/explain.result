@@ -159,6 +159,14 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 DROP TABLE t1;
+CREATE TABLE t1(a LONGTEXT);
+INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
+INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
+EXPLAIN SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+WHERE t1.a = d1.a;
+ERROR 42S22: Unknown column 'd1.a' in 'where clause'
+DROP TABLE t1;
 #
 # Bug#37870: Usage of uninitialized value caused failed assertion.
 #
@@ -186,4 +194,20 @@ dt
 2001-01-01 01:01:01
 2001-01-01 01:01:01
 drop tables t1, t2;
+#
+# Bug#48295:
+# explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
+#
+CREATE TABLE t1 (f1 INT);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+EXPLAIN EXTENDED SELECT 1 FROM t1
+WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SHOW WARNINGS;
+Level	Code	Message
+Error	1140	Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+Note	1003	select 1 AS `1` from `test`.`t1` where <not>(<exists>(...))
+SET SESSION sql_mode=@old_sql_mode;
+DROP TABLE t1;
 End of 5.1 tests.

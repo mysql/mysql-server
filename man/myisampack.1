@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -652,9 +652,11 @@ After join
 The number of distinct Huffman trees left after joining trees to save some header space\&.
 .RE
 .PP
-After a table has been compressed,
+After a table has been compressed, the
+Field
+lines displayed by
 \fBmyisamchk \-dvv\fR
-prints additional information about each column:
+include additional information about each column:
 .sp
 .RS 4
 .ie n \{\

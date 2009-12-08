@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2482,94 +2482,9 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg,
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  DBUG_ASSERT(precision >= dec);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size= my_decimal_get_binary_size(precision, dec);
-}
-
-
-/**
-  Create a field to hold a decimal value from an item.
-
-  @remark The MySQL DECIMAL data type has a characteristic that needs to be
-          taken into account when deducing the type from a Item_decimal.
-
-  But first, let's briefly recap what is the new MySQL DECIMAL type:
-
-  The declaration syntax for a decimal is DECIMAL(M,D), where:
-
-  * M is the maximum number of digits (the precision).
-    It has a range of 1 to 65.
-  * D is the number of digits to the right of the decimal separator (the scale).
-    It has a range of 0 to 30 and must be no larger than M.
-
-  D and M are used to determine the storage requirements for the integer
-  and fractional parts of each value. The integer part is to the left of
-  the decimal separator and to the right is the fractional part. Hence:
-
-  M is the number of digits for the integer and fractional part.
-  D is the number of digits for the fractional part.
-
-  Consequently, M - D is the number of digits for the integer part. For
-  example, a DECIMAL(20,10) column has ten digits on either side of
-  the decimal separator.
-
-  The characteristic that needs to be taken into account is that the
-  backing type for Item_decimal is a my_decimal that has a higher
-  precision (DECIMAL_MAX_POSSIBLE_PRECISION, see my_decimal.h) than
-  DECIMAL.
-
-  Drawing a comparison between my_decimal and DECIMAL:
-
-  * M has a range of 1 to 81.
-  * D has a range of 0 to 81.
-
-  There can be a difference in range if the decimal contains a integer
-  part. This is because the fractional part must always be on a group
-  boundary, leaving at least one group for the integer part. Since each
-  group is 9 (DIG_PER_DEC1) digits and there are 9 (DECIMAL_BUFF_LENGTH)
-  groups, the fractional part is limited to 72 digits if there is at
-  least one digit in the integral part.
-
-  Although the backing type for a DECIMAL is also my_decimal, every
-  time a my_decimal is stored in a DECIMAL field, the precision and
-  scale are explicitly capped at 65 (DECIMAL_MAX_PRECISION) and 30
-  (DECIMAL_MAX_SCALE) digits, following my_decimal truncation procedure
-  (FIX_INTG_FRAC_ERROR).
-*/
-
-Field_new_decimal *
-Field_new_decimal::new_decimal_field(const Item *item)
-{
-  uint32 len;
-  uint intg= item->decimal_int_part(), scale= item->decimals;
-
-  DBUG_ASSERT(item->decimal_precision() >= item->decimals);
-
-  /*
-    Employ a procedure along the lines of the my_decimal truncation process:
-    - If the integer part is equal to or bigger than the maximum precision:
-      Truncate integer part to fit and the fractional becomes zero.
-    - Otherwise:
-      Truncate fractional part to fit.
-  */
-  if (intg >= DECIMAL_MAX_PRECISION)
-  {
-    intg= DECIMAL_MAX_PRECISION;
-    scale= 0;
-  }
-  else
-  {
-    uint room= min(DECIMAL_MAX_PRECISION - intg, DECIMAL_MAX_SCALE);
-    if (scale > room)
-      scale= room;
-  }
-
-  len= my_decimal_precision_to_length(intg + scale, scale, item->unsigned_flag);
-
-  return new Field_new_decimal(len, item->maybe_null, item->name, scale,
-                               item->unsigned_flag);
 }
 
 
@@ -6556,20 +6471,9 @@ uint Field::is_equal(Create_field *new_field)
 }
 
 
-/* If one of the fields is binary and the other one isn't return 1 else 0 */
-
-bool Field_str::compare_str_field_flags(Create_field *new_field, uint32 flag_arg)
-{
-  return (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          !(flag_arg & (BINCMP_FLAG | BINARY_FLAG))) ||
-         (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
-          (flag_arg & (BINCMP_FLAG | BINARY_FLAG))));
-}
-
-
 uint Field_str::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == real_type()) &&
@@ -8335,7 +8239,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
-  if (compare_str_field_flags(new_field, flags))
+  if (field_flags_are_binary() != new_field->field_flags_are_binary())
     return 0;
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
@@ -8839,38 +8743,81 @@ bool Field::eq_def(Field *field)
 
 
 /**
+  Compare the first t1::count type names.
+
+  @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
+*/
+
+static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+{
+  for (uint i= 0; i < t1->count; i++)
+    if (my_strnncoll(charset,
+                     (const uchar*) t1->type_names[i],
+                     t1->type_lengths[i],
+                     (const uchar*) t2->type_names[i],
+                     t2->type_lengths[i]))
+      return FALSE;
+  return TRUE;
+}
+
+/**
   @return
   returns 1 if the fields are equally defined
 */
 
 bool Field_enum::eq_def(Field *field)
 {
+  TYPELIB *values;
+
   if (!Field::eq_def(field))
-    return 0;
-  return compare_enum_values(((Field_enum*) field)->typelib);
-}
+    return FALSE;
 
+  values= ((Field_enum*) field)->typelib;
 
-bool Field_enum::compare_enum_values(TYPELIB *values)
-{
+  /* Definition must be strictly equal. */
   if (typelib->count != values->count)
     return FALSE;
-  for (uint i= 0; i < typelib->count; i++)
-    if (my_strnncoll(field_charset,
-                     (const uchar*) typelib->type_names[i],
-                     typelib->type_lengths[i],
-                     (const uchar*) values->type_names[i],
-                     values->type_lengths[i]))
-      return FALSE;
-  return TRUE;
+
+  return compare_type_names(field_charset, typelib, values);
 }
 
+
+/**
+  Check whether two fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they retain the same
+  pack length and if new members are added to the end of the list.
+
+  @return IS_EQUAL_YES if fields are compatible.
+          IS_EQUAL_NO otherwise.
+*/
 
 uint Field_enum::is_equal(Create_field *new_field)
 {
-  if (!Field_str::is_equal(new_field))
-    return 0;
-  return compare_enum_values(new_field->interval);
+  TYPELIB *values= new_field->interval;
+
+  /*
+    The fields are compatible if they have the same flags,
+    type, charset and have the same underlying length.
+  */
+  if (new_field->field_flags_are_binary() != field_flags_are_binary() ||
+      new_field->sql_type != real_type() ||
+      new_field->charset != field_charset ||
+      new_field->pack_length != pack_length())
+    return IS_EQUAL_NO;
+
+  /*
+    Changing the definition of an ENUM or SET column by adding a new
+    enumeration or set members to the end of the list of valid member
+    values only alters table metadata and not table data.
+  */
+  if (typelib->count > values->count)
+    return IS_EQUAL_NO;
+
+  /* Check whether there are modification before the end. */
+  if (! compare_type_names(field_charset, typelib, new_field->interval))
+    return IS_EQUAL_NO;
+
+  return IS_EQUAL_YES;
 }
 
 
@@ -9608,13 +9555,13 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   interval_list.empty();
 
   comment= *fld_comment;
-  vcol_info= fld_vcol_info;
   stored_in_db= TRUE;
 
   /* Initialize data for a computed field */
   if ((uchar)fld_type == (uchar)MYSQL_TYPE_VIRTUAL)
   {
     DBUG_ASSERT(vcol_info && vcol_info->expr_item);
+    vcol_info= fld_vcol_info;
     stored_in_db= vcol_info->is_stored();
     /*
       Walk through the Item tree checking if all items are valid
@@ -9634,6 +9581,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     */
     sql_type= fld_type= vcol_info->get_real_type();
   }
+  else
+    vcol_info= NULL;
 
   /*
     Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
@@ -9654,7 +9603,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
 
     if (length == 0)
-      fld_length= 0; /* purecov: inspected */
+      fld_length= NULL; /* purecov: inspected */
   }
 
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
@@ -9806,8 +9755,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIMESTAMP:
     if (fld_length == NULL)
     {
-      /* Compressed date YYYYMMDDHHMMSS */
-      length= MAX_DATETIME_COMPRESSED_WIDTH;
+      length= MAX_DATETIME_WIDTH;
     }
     else if (length != MAX_DATETIME_WIDTH)
     {
@@ -9871,7 +9819,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     sql_type= MYSQL_TYPE_NEWDATE;
     /* fall trough */
   case MYSQL_TYPE_NEWDATE:
-    length= 10;
+    length= MAX_DATE_WIDTH;
     break;
   case MYSQL_TYPE_TIME:
     length= 10;
@@ -9950,6 +9898,17 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
     DBUG_RETURN(TRUE);
+  }
+
+  switch (fld_type) {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    charset= &my_charset_bin;
+    flags|= BINCMP_FLAG;
+  default: break;
   }
 
   DBUG_RETURN(FALSE); /* success */

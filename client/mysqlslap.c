@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -423,6 +423,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   stats *sptr;
   conclusions conclusion;
   unsigned long long client_limit;
+  int sysret;
 
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
@@ -472,7 +473,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
     if (pre_system)
-      if (system(pre_system)) { /* Ignore for now */ }
+      if ((sysret= system(pre_system)) != 0)
+        fprintf(stderr,
+                "Warning: Execution of pre_system option returned %d.\n", 
+                sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -487,8 +491,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
       run_statements(mysql, post_statements);
 
     if (post_system)
-      if (system(post_system)) { /* Ignore for now */ }
-
+      if ((sysret= system(post_system)) != 0)
+        fprintf(stderr,
+                "Warning: Execution of post_system option returned %d.\n", 
+                sysret);
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       drop_primary_key_list();
@@ -597,8 +603,8 @@ static struct my_option my_long_options[] =
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Comma separated list of storage engines to use for creating the table."
-     "The test is run for each engine. You can also specify an option for an engine"
-     "after a `:', like memory:max_row=2300",
+     " The test is run for each engine. You can also specify an option for an engine"
+     " after a `:', like memory:max_row=2300",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
@@ -1942,7 +1948,7 @@ end:
   if (!opt_only_print) 
     mysql_close(mysql);
 
-  my_thread_end();
+  mysql_thread_end();
 
   pthread_mutex_lock(&counter_mutex);
   thread_counter--;

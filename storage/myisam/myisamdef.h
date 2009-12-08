@@ -725,7 +725,7 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
     /* Functions needed by mi_check */
-volatile int *killed_ptr(HA_CHECK *param);
+int killed_ptr(HA_CHECK *param);
 void mi_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void mi_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...));
 void mi_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));

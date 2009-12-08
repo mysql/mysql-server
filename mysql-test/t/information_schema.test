@@ -5,6 +5,9 @@
 # on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+# Check that InnoDB/XtraDB was compiled in as result depends on it
+-- source include/have_innodb.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

@@ -13,9 +13,6 @@ When applying the patch, the following files will be modified:
   * CMakeLists.txt
   * sql/CMakeLists.txt
   * win/configure.js
-  * win/build-vs71.bat
-  * win/build-vs8.bat
-  * win/build-vs8_x64.bat
 
 Also, two new files will be added:
 

@@ -76,6 +76,8 @@ my_bool ft_boolean_check_syntax_string(const uchar *);
 
 extern const HA_KEYSEG ft_keysegs[FT_SEGS];
 
+typedef union {int32 i; float f;} FT_WEIGTH;
+
 #ifdef  __cplusplus
 }
 #endif

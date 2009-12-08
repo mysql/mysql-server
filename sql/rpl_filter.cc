@@ -157,8 +157,10 @@ Rpl_filter::db_ok(const char* db)
     and db was not selected, do not replicate.
   */
   if (!db)
+  {
+    DBUG_PRINT("exit", ("Don't replicate"));
     DBUG_RETURN(0);
-
+  }
   if (!do_db.is_empty()) // if the do's are not empty
   {
     I_List_iterator<i_string> it(do_db);
@@ -169,6 +171,7 @@ Rpl_filter::db_ok(const char* db)
       if (!strcmp(tmp->ptr, db))
 	DBUG_RETURN(1); // match
     }
+    DBUG_PRINT("exit", ("Don't replicate"));
     DBUG_RETURN(0);
   }
   else // there are some elements in the don't, otherwise we cannot get here
@@ -179,7 +182,10 @@ Rpl_filter::db_ok(const char* db)
     while ((tmp=it++))
     {
       if (!strcmp(tmp->ptr, db))
+      {
+        DBUG_PRINT("exit", ("Don't replicate"));
 	DBUG_RETURN(0); // match
+      }
     }
     DBUG_RETURN(1);
   }

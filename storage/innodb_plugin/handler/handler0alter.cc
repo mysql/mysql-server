@@ -628,7 +628,7 @@ ha_innobase::add_index(
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
-	ulint		error;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -656,14 +656,18 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
-	/* Check that index keys are sensible */
-
-	error = innobase_check_index_keys(key_info, num_of_keys);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
+		error = -1;
+	} else {
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
+	}
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:
 		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx_free_for_mysql(trx);
 		trx_commit_for_mysql(prebuilt->trx);
 		DBUG_RETURN(error);
@@ -801,7 +805,7 @@ error_handling:
 	alter table t drop index b, add index (b);
 
 	The fix will have to parse the SQL and note that the index
-	being added has the same name as the the one being dropped and
+	being added has the same name as the one being dropped and
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
@@ -863,6 +867,7 @@ error_handling:
 		indexed_table->n_mysql_handles_opened++;
 
 		error = row_merge_drop_table(trx, innodb_table);
+		innodb_table = indexed_table;
 		goto convert_error;
 
 	case DB_TOO_BIG_RECORD:

@@ -169,11 +169,11 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 
 static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
-  char *end, *start, *docend= param->doc + param->length;
+  char *end, *start, *docend= (char *)param->doc + param->length;
 
   number_of_calls++;
 
-  for (end= start= param->doc;; end++)
+  for (end= start= (char *)param->doc;; end++)
   {
     if (end == docend)
     {

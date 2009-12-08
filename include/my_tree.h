@@ -51,7 +51,7 @@ typedef struct st_tree {
   TREE_ELEMENT *root,null_element;
   TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element;
-  ulong memory_limit, allocated;
+  size_t memory_limit, allocated;
   qsort_cmp2 compare;
   void *custom_arg;
   MEM_ROOT mem_root;
@@ -61,7 +61,7 @@ typedef struct st_tree {
 } TREE;
 
 	/* Functions on whole tree */
-void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
+void init_tree(TREE *tree, size_t default_alloc_size, size_t memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
 	       tree_element_free free_element, void *custom_arg);
 void delete_tree(TREE*);

@@ -876,6 +876,7 @@ GRANT INSERT, SELECT, CREATE, ALTER, DROP ON mysqltest1.t2 TO mysqltest_1@localh
 DROP TABLE mysqltest1.t2;
 
 connect (conn42,localhost,mysqltest_1,,mysqltest1);
+--sorted_result
 SHOW GRANTS;
 RENAME TABLE t1 TO t2;
 RENAME TABLE t2 TO t1;
@@ -887,6 +888,7 @@ REVOKE DROP, INSERT ON mysqltest1.t1 FROM mysqltest_1@localhost;
 REVOKE DROP, INSERT ON mysqltest1.t2 FROM mysqltest_1@localhost;
 
 connect (conn42,localhost,mysqltest_1,,mysqltest1);
+--sorted_result
 SHOW GRANTS;
 --error ER_TABLEACCESS_DENIED_ERROR
 RENAME TABLE t1 TO t2;
