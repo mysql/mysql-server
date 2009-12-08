@@ -3342,9 +3342,14 @@ end_with_restore_list:
     thd->options|= OPTION_TABLE_LOCK;
     thd->in_lock_tables=1;
 
-    res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
-                                       MYSQL_OPEN_TAKE_UPGRADABLE_MDL) ||
-          thd->locked_tables_list.init_locked_tables(thd));
+    {
+      Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+
+      res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
+                                         MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                                         &lock_tables_prelocking_strategy) ||
+            thd->locked_tables_list.init_locked_tables(thd));
+    }
 
     thd->in_lock_tables= 0;
 

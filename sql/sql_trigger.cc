@@ -19,6 +19,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "parse_file.h"
+#include "sp.h"
 
 /*************************************************************************/
 
@@ -2014,6 +2015,57 @@ bool Table_triggers_list::process_triggers(THD *thd,
   thd->restore_sub_statement_state(&statement_state);
 
   return err_status;
+}
+
+
+/**
+  Add triggers for table to the set of routines used by statement.
+  Add tables used by them to statement table list. Do the same for
+  routines used by triggers.
+
+  @param thd             Thread context.
+  @param prelocking_ctx  Prelocking context of the statement.
+  @param table_list      Table list element for table with trigger.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure.
+*/
+
+bool
+Table_triggers_list::
+add_tables_and_routines_for_triggers(THD *thd,
+                                     Query_tables_list *prelocking_ctx,
+                                     TABLE_LIST *table_list)
+{
+  DBUG_ASSERT(static_cast<int>(table_list->lock_type) >=
+              static_cast<int>(TL_WRITE_ALLOW_WRITE));
+
+  for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
+  {
+    if (table_list->trg_event_map &
+        static_cast<uint8>(1 << static_cast<int>(i)))
+    {
+      for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
+      {
+        /* We can have only one trigger per action type currently */
+        sp_head *trigger= table_list->table->triggers->bodies[i][j];
+
+        if (trigger && sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                                           &trigger->m_sroutines_key,
+                                           table_list->belong_to_view))
+        {
+          trigger->add_used_tables_to_table_list(thd,
+                                            &prelocking_ctx->query_tables_last,
+                                            table_list->belong_to_view);
+          sp_update_stmt_used_routines(thd, prelocking_ctx,
+                                       &trigger->m_sroutines,
+                                       table_list->belong_to_view);
+          trigger->propagate_attributes(prelocking_ctx);
+        }
+      }
+    }
+  }
+  return FALSE;
 }
 
 

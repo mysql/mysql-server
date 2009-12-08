@@ -38,6 +38,7 @@ class sp_rcontext;
 class sp_cache;
 class Parser_state;
 class Rows_log_event;
+class Sroutine_hash_entry;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -1178,6 +1179,89 @@ public:
 
 private:
   Internal_error_handler *m_err_handler;
+};
+
+
+/**
+  An abstract class for a strategy specifying how the prelocking
+  algorithm should extend the prelocking set while processing
+  already existing elements in the set.
+*/
+
+class Prelocking_strategy
+{
+public:
+  virtual ~Prelocking_strategy() { }
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking) = 0;
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
+};
+
+
+/**
+  A Strategy for prelocking algorithm suitable for DML statements.
+
+  Ensures that all tables used by all statement's SF/SP/triggers and
+  required for foreign key checks are prelocked and SF/SPs used are
+  cached.
+*/
+
+class DML_prelocking_strategy : public Prelocking_strategy
+{
+public:
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  A strategy for prelocking algorithm to be used for LOCK TABLES
+  statement.
+*/
+
+class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
+{
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  Strategy for prelocking algorithm to be used for ALTER TABLE statements.
+
+  Unlike DML or LOCK TABLES strategy, it doesn't
+  prelock triggers, views or stored routines, since they are not
+  used during ALTER.
+*/
+
+class Alter_table_prelocking_strategy : public Prelocking_strategy
+{
+public:
+
+  Alter_table_prelocking_strategy(Alter_info *alter_info)
+    : m_alter_info(alter_info)
+  {}
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+
+private:
+  Alter_info *m_alter_info;
 };
 
 
