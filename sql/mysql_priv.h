@@ -1047,6 +1047,7 @@ bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
 bool table_def_init(void);
+void table_def_start_shutdown(void);
 void table_def_free(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
