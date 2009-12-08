@@ -4181,6 +4181,8 @@ bugtest_28116()
     return 0;
   }
 
+  calcTups(true);
+
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     CHK((g_con = g_ndb->startTransaction()) != 0);
