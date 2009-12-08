@@ -13,6 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+ # On Solaris, /opt/csw often contains a newer bison 
+ IF(NOT BISON_EXECUTABLE AND EXISTS /opt/csw/bin/bison)
+   SET(BISON_EXECUTABLE /opt/csw/bin/bison)
+ ENDIF()
+ENDIF()
 FIND_PROGRAM(BISON_EXECUTABLE bison DOC "path to the bison executable")
 MARK_AS_ADVANCED(BISON_EXECUTABLE "")
 IF(NOT BISON_EXECUTABLE)

@@ -92,7 +92,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
    # mininal architecture flags, i486 enables GCC atomics
    ADD_DEFINITIONS(-march=i486)
   ENDIF()
-ENDIF(CMAKE_COMPILER_IS_GNUCXX)
+ENDIF()
 
 
 # Large files
@@ -150,9 +150,10 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" )
   ENDIF()
 ENDIF()
 
+# Ensure we have clean build for shared libraries
+# without extra dependencies and without unresolved symbols
+# (on system that support it)
 IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # Ensure we have clean build for shared libraries
-  # without extra dependencies and without unresolved symbols
   FOREACH(LANG C CXX)
   STRING(REPLACE "-rdynamic" "" 
     CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS
@@ -163,7 +164,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed")
   SET(LINK_FLAG_NO_UNDEFINED "--Wl,--no-undefined")
 ENDIF()
-
 
 #Some OS specific hacks
 IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
@@ -276,15 +276,17 @@ IF(UNIX)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNLS)
-  MY_SEARCH_LIBS(bind bind LIBBIND)
+  MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
+  MY_SEARCH_LIBS(sched_yield rt LIBRT)
   FIND_PACKAGE(Threads)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
-    ${LIBM} ${LIBNLS} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT})
+    ${LIBM} ${LIBNLS} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
 
+  LIST(REMOVE_DUPLICATES CMAKE_REQUIRED_LIBRARIES)
   LINK_LIBRARIES(${CMAKE_THREAD_LIBS_INIT})
   
   OPTION(WITH_LIBWRAP "Compile with tcp wrappers support" OFF)
