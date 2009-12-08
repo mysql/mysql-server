@@ -3443,6 +3443,21 @@ Dbdict::restartCreateObj_getTabInfoConf(Signal* signal)
 }
 
 void
+Dbdict::restartCreateObj_fail(CreateObjRecordPtr createObjPtr)
+{
+  jam();
+  char msg[128];
+  BaseString::snprintf(msg, sizeof(msg),
+                       "Failure to recreate object %u during restart, error %u."
+                       " Check configuration changes and instructions from"
+                       " \'perror --ndb %u\'"
+                       ,c_restartRecord.activeTable
+                       ,createObjPtr.p->m_errorCode
+                       ,createObjPtr.p->m_errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+}
+
+void
 Dbdict::restartCreateObj_readConf(Signal* signal,
 				  Uint32 callbackData, 
 				  Uint32 returnCode)
@@ -3451,6 +3466,8 @@ Dbdict::restartCreateObj_readConf(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   PageRecordPtr pageRecPtr;
@@ -3478,6 +3495,8 @@ Dbdict::restartCreateObj_prepare_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   Callback callback;
@@ -3499,6 +3518,8 @@ Dbdict::restartCreateObj_write_complete(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
   
   SectionHandle handle(this, createObjPtr.p->m_obj_info_ptr_i);
@@ -3524,6 +3545,8 @@ Dbdict::restartCreateObj_prepare_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   createObjPtr.p->m_callback.m_callbackFunction = 
@@ -3545,6 +3568,8 @@ Dbdict::restartCreateObj_commit_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   createObjPtr.p->m_callback.m_callbackFunction = 
@@ -3567,6 +3592,8 @@ Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
   
   c_opCreateObj.release(createObjPtr);
@@ -3578,6 +3605,22 @@ Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
 /**
  * Drop object during NR/SR
  */
+
+void
+Dbdict::restartDropObj_fail(DropObjRecordPtr dropObjPtr)
+{
+  jam();
+  char msg[128];
+  BaseString::snprintf(msg, sizeof(msg),
+                       "Failure to drop object %u during restart, error %u."
+                       " Check configuration changes and instructions from"
+                       " \'perror --ndb %u\'"
+                       ,c_restartRecord.activeTable
+                       ,dropObjPtr.p->m_errorCode
+                       ,dropObjPtr.p->m_errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+}
+
 void
 Dbdict::restartDropObj(Signal* signal, 
                        Uint32 tableId, 
@@ -3790,6 +3833,8 @@ Dbdict::restartDropObj_prepare_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3811,6 +3856,8 @@ Dbdict::restartDropObj_prepare_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3832,6 +3879,8 @@ Dbdict::restartDropObj_commit_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3872,6 +3921,8 @@ Dbdict::restartDropObj_commit_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   c_opDropObj.release(dropObjPtr);
