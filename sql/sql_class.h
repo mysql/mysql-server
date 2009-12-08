@@ -1192,7 +1192,7 @@ private:
   Therefore, we can't allocate metadata locks on execution memory
   root -- as well as tables, the locks need to stay around till
   UNLOCK TABLES is called.
-  The locks are allocated in the memory root encapsulate in this
+  The locks are allocated in the memory root encapsulated in this
   class.
 
   Some SQL commands, like FLUSH TABLE or ALTER TABLE, demand that
@@ -1211,10 +1211,21 @@ private:
   MEM_ROOT m_locked_tables_root;
   TABLE_LIST *m_locked_tables;
   TABLE_LIST **m_locked_tables_last;
+  /** An auxiliary array used only in reopen_tables(). */
+  TABLE **m_reopen_array;
+  /**
+    Count the number of tables in m_locked_tables list. We can't
+    rely on thd->lock->table_count because it excludes
+    non-transactional temporary tables. We need to know
+    an exact number of TABLE objects.
+  */
+  size_t m_locked_tables_count;
 public:
   Locked_tables_list()
     :m_locked_tables(NULL),
-    m_locked_tables_last(&m_locked_tables)
+    m_locked_tables_last(&m_locked_tables),
+    m_reopen_array(NULL),
+    m_locked_tables_count(0)
   {
     init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
   }
@@ -1228,7 +1239,9 @@ public:
   MEM_ROOT *locked_tables_root() { return &m_locked_tables_root; }
   void unlink_from_list(THD *thd, TABLE_LIST *table_list,
                         bool remove_from_locked_tables);
-  void unlink_all_closed_tables();
+  void unlink_all_closed_tables(THD *thd,
+                                MYSQL_LOCK *lock,
+                                size_t reopen_count);
   bool reopen_tables(THD *thd);
 };
 

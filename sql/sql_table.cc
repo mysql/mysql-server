@@ -4515,7 +4515,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   }
 
 end:
-  thd->locked_tables_list.unlink_all_closed_tables();
+  thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   if (table == &tmp_table)
   {
     pthread_mutex_lock(&LOCK_open);
@@ -7597,7 +7597,7 @@ err_with_mdl:
     remove all references to the altered table from the list of locked
     tables and release the exclusive metadata lock.
   */
-  thd->locked_tables_list.unlink_all_closed_tables();
+  thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   if (target_mdl_request)
   {
     thd->mdl_context.release_lock(target_mdl_request->ticket);
