@@ -140,7 +140,6 @@ static Uint64 *p_latest_trans_gci= 0;
 */
 static TABLE *ndb_binlog_index= 0;
 static TABLE_LIST binlog_tables;
-static MDL_request binlog_mdl_request;
 
 /*
   Helper functions
@@ -2337,13 +2336,10 @@ static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
   const char *save_proc_info= thd->proc_info;
   TABLE_LIST *tables= &binlog_tables;
 
-  bzero((char*) tables, sizeof(*tables));
-  tables->db= repdb;
-  tables->alias= tables->table_name= reptable;
-  tables->lock_type= TL_WRITE;
+  tables->init_one_table(repdb, strlen(repdb), reptable, strlen(reptable),
+                         reptable, TL_WRITE);
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
-  binlog_mdl_request.init(0, tables->db, tables->table_name);
-  tables->mdl_request= &binlog_mdl_request;
+
   tables->required_type= FRMTYPE_TABLE;
   uint counter;
   thd->clear_error();

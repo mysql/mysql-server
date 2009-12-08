@@ -194,7 +194,6 @@ void MDL_context::init(THD *thd_arg)
     rely here on the default constructors of I_P_List
     to empty the list.
   */
-  m_requests.empty();
   m_tickets.empty();
 }
 
@@ -213,7 +212,6 @@ void MDL_context::init(THD *thd_arg)
 
 void MDL_context::destroy()
 {
-  DBUG_ASSERT(m_requests.is_empty());
   DBUG_ASSERT(m_tickets.is_empty());
   DBUG_ASSERT(! m_has_global_shared_lock);
 }
@@ -231,10 +229,8 @@ void MDL_context::destroy()
 
 void MDL_context::backup_and_reset(MDL_context *backup)
 {
-  DBUG_ASSERT(backup->m_requests.is_empty());
   DBUG_ASSERT(backup->m_tickets.is_empty());
 
-  m_requests.swap(backup->m_requests);
   m_tickets.swap(backup->m_tickets);
 
   backup->m_has_global_shared_lock= m_has_global_shared_lock;
@@ -254,11 +250,9 @@ void MDL_context::backup_and_reset(MDL_context *backup)
 
 void MDL_context::restore_from_backup(MDL_context *backup)
 {
-  DBUG_ASSERT(m_requests.is_empty());
   DBUG_ASSERT(m_tickets.is_empty());
   DBUG_ASSERT(m_has_global_shared_lock == FALSE);
 
-  m_requests.swap(backup->m_requests);
   m_tickets.swap(backup->m_tickets);
   m_has_global_shared_lock= backup->m_has_global_shared_lock;
 }
@@ -271,17 +265,8 @@ void MDL_context::restore_from_backup(MDL_context *backup)
 void MDL_context::merge(MDL_context *src)
 {
   MDL_ticket *ticket;
-  MDL_request *mdl_request;
 
   DBUG_ASSERT(m_thd == src->m_thd);
-
-  if (!src->m_requests.is_empty())
-  {
-    Request_iterator it(src->m_requests);
-    while ((mdl_request= it++))
-      m_requests.push_front(mdl_request);
-    src->m_requests.empty();
-  }
 
   if (!src->m_tickets.is_empty())
   {
@@ -315,15 +300,11 @@ void MDL_context::merge(MDL_context *src)
   for example in the grant subsystem, to lock privilege tables.
 
   The MDL subsystem does not own or manage memory of lock requests.
-  Instead it assumes that the life time of every lock request (including
-  encompassed members db/name) encloses calls to MDL_context::add_request()
-  and MDL_context::remove_request() or MDL_context::remove_all_requests().
 
   @param  type       Id of type of object to be locked
   @param  db         Name of database to which the object belongs
   @param  name       Name of of the object
-
-  The initialized lock request will have MDL_SHARED type.
+  @param  mdl_type   The MDL lock type for the request.
 
   Suggested lock types: TABLE - 0 PROCEDURE - 1 FUNCTION - 2
   Note that tables and views must have the same lock type, since
@@ -332,10 +313,11 @@ void MDL_context::merge(MDL_context *src)
 
 void MDL_request::init(unsigned char type_arg,
                        const char *db_arg,
-                       const char *name_arg)
+                       const char *name_arg,
+                       enum enum_mdl_type mdl_type_arg)
 {
   key.mdl_key_init(type_arg, db_arg, name_arg);
-  type= MDL_SHARED;
+  type= mdl_type_arg;
   ticket= NULL;
 }
 
@@ -360,88 +342,17 @@ void MDL_request::init(unsigned char type_arg,
 
 MDL_request *
 MDL_request::create(unsigned char type, const char *db,
-                    const char *name, MEM_ROOT *root)
+                    const char *name, enum_mdl_type mdl_type,
+                    MEM_ROOT *root)
 {
   MDL_request *mdl_request;
 
   if (!(mdl_request= (MDL_request*) alloc_root(root, sizeof(MDL_request))))
     return NULL;
 
-  mdl_request->init(type, db, name);
+  mdl_request->init(type, db, name, mdl_type);
 
   return mdl_request;
-}
-
-
-/**
-  Add a lock request to the list of lock requests of the context.
-
-  The procedure to acquire metadata locks is:
-    - allocate and initialize lock requests
-    (MDL_request::create())
-    - associate them with a context (MDL_context::add_request())
-    - call MDL_context::acquire_shared_lock() and
-    MDL_context::release_lock() (maybe repeatedly).
-
-  Associates a lock request with the given context.
-  There should be no more than one context per connection, to
-  avoid deadlocks.
-
-  @param  mdl_request   The lock request to be added.
-*/
-
-void MDL_context::add_request(MDL_request *mdl_request)
-{
-  DBUG_ENTER("MDL_context::add_request");
-  DBUG_ASSERT(mdl_request->ticket == NULL);
-  m_requests.push_front(mdl_request);
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Remove a lock request from the list of lock requests.
-
-  Disassociates a lock request from the given context.
-
-  @param  mdl_request   The lock request to be removed.
-
-  @pre The lock request being removed should correspond to a ticket that
-       was released or was not acquired.
-
-  @note Resets lock request back to its initial state
-        (i.e. sets type to MDL_SHARED).
-*/
-
-void MDL_context::remove_request(MDL_request *mdl_request)
-{
-  DBUG_ENTER("MDL_context::remove_request");
-  /* Reset lock request back to its initial state. */
-  mdl_request->type= MDL_SHARED;
-  mdl_request->ticket= NULL;
-  m_requests.remove(mdl_request);
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Clear all lock requests in the context.
-  Disassociates lock requests from the context.
-
-  Also resets lock requests back to their initial state (i.e. MDL_SHARED).
-*/
-
-void MDL_context::remove_all_requests()
-{
-  MDL_request *mdl_request;
-  Request_iterator it(m_requests);
-  while ((mdl_request= it++))
-  {
-    /* Reset lock request back to its initial state. */
-    mdl_request->type= MDL_SHARED;
-    mdl_request->ticket= NULL;
-  }
-  m_requests.empty();
 }
 
 
@@ -636,8 +547,10 @@ MDL_global_lock::is_lock_type_compatible(enum_mdl_type type,
 /**
   Check if request for the lock can be satisfied given current state of lock.
 
-  @param  lock        Lock.
-  @param  mdl_request Request for lock.
+  @param  requestor_ctx  The context that identifies the owner of the request.
+  @param  type_arg       The requested lock type.
+  @param  is_upgrade     Must be set to TRUE when we are upgrading
+                         a shared upgradable lock to exclusive.
 
   @retval TRUE   Lock request can be satisfied
   @retval FALSE  There is some conflicting lock.
@@ -731,7 +644,7 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
 
 /**
   Check whether the context already holds a compatible lock ticket
-  on a object. Only shared locks can be recursive.
+  on an object.
 
   @param mdl_request  Lock request object for lock to be acquired
 
@@ -743,8 +656,6 @@ MDL_context::find_ticket(MDL_request *mdl_request)
 {
   MDL_ticket *ticket;
   Ticket_iterator it(m_tickets);
-
-  DBUG_ASSERT(mdl_request->is_shared());
 
   while ((ticket= it++))
   {
@@ -762,35 +673,33 @@ MDL_context::find_ticket(MDL_request *mdl_request)
 
   Unlike exclusive locks, shared locks are acquired one by
   one. This is interface is chosen to simplify introduction of
-  the new locking API to the system. MDL_context::acquire_shared_lock()
+  the new locking API to the system. MDL_context::try_acquire_shared_lock()
   is currently used from open_table(), and there we have only one
   table to work with.
 
   In future we may consider allocating multiple shared locks at once.
 
-  This function must be called after the lock is added to a context.
+  @param mdl_request [in/out] Lock request object for lock to be acquired
 
-  @param mdl_request [in] Lock request object for lock to be acquired
-  @param retry      [out] Indicates that conflicting lock exists and another
-                          attempt should be made after releasing all current
-                          locks and waiting for conflicting lock go away
-                          (using MDL_context::wait_for_locks()).
-
-  @retval  FALSE   Success.
-  @retval  TRUE    Failure. Either error occurred or conflicting lock exists.
-                   In the latter case "retry" parameter is set to TRUE.
+  @retval  FALSE   Success. The lock may have not been acquired.
+                   Check the ticket, if it's NULL, a conflicting lock
+                   exists and another attempt should be made after releasing
+                   all current locks and waiting for conflicting lock go
+                   away (using MDL_context::wait_for_locks()).
+  @retval  TRUE    Out of resources, an error has been reported.
 */
 
 bool
-MDL_context::acquire_shared_lock(MDL_request *mdl_request, bool *retry)
+MDL_context::try_acquire_shared_lock(MDL_request *mdl_request)
 {
   MDL_lock *lock;
   MDL_key *key= &mdl_request->key;
   MDL_ticket *ticket;
-  *retry= FALSE;
 
   DBUG_ASSERT(mdl_request->is_shared() && mdl_request->ticket == NULL);
 
+  /* Don't take chances in production. */
+  mdl_request->ticket= NULL;
   safe_mutex_assert_not_owner(&LOCK_open);
 
   if (m_has_global_shared_lock &&
@@ -807,6 +716,8 @@ MDL_context::acquire_shared_lock(MDL_request *mdl_request, bool *retry)
   if ((ticket= find_ticket(mdl_request)))
   {
     DBUG_ASSERT(ticket->m_state == MDL_ACQUIRED);
+    /* Only shared locks can be recursive. */
+    DBUG_ASSERT(ticket->is_shared());
     mdl_request->ticket= ticket;
     return FALSE;
   }
@@ -816,8 +727,7 @@ MDL_context::acquire_shared_lock(MDL_request *mdl_request, bool *retry)
   if (!global_lock.is_lock_type_compatible(mdl_request->type, FALSE))
   {
     pthread_mutex_unlock(&LOCK_mdl);
-    *retry= TRUE;
-    return TRUE;
+    return FALSE;
   }
 
   if (!(ticket= MDL_ticket::create(this, mdl_request->type)))
@@ -854,13 +764,11 @@ MDL_context::acquire_shared_lock(MDL_request *mdl_request, bool *retry)
   {
     /* We can't get here if we allocated a new lock. */
     DBUG_ASSERT(! lock->is_empty());
-    *retry= TRUE;
     MDL_ticket::destroy(ticket);
   }
-
   pthread_mutex_unlock(&LOCK_mdl);
 
-  return *retry;
+  return FALSE;
 }
 
 
@@ -889,6 +797,19 @@ static bool notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
 
 
 /**
+  Acquire a single exclusive lock. A convenience
+  wrapper around the method acquiring a list of locks.
+*/
+
+bool MDL_context::acquire_exclusive_lock(MDL_request *mdl_request)
+{
+  MDL_request_list mdl_requests;
+  mdl_requests.push_front(mdl_request);
+  return acquire_exclusive_locks(&mdl_requests);
+}
+
+
+/**
   Acquire exclusive locks. The context must contain the list of
   locks to be acquired. There must be no granted locks in the
   context.
@@ -903,7 +824,7 @@ static bool notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
   @retval TRUE   Failure
 */
 
-bool MDL_context::acquire_exclusive_locks()
+bool MDL_context::acquire_exclusive_locks(MDL_request_list *mdl_requests)
 {
   MDL_lock *lock;
   bool signalled= FALSE;
@@ -911,9 +832,11 @@ bool MDL_context::acquire_exclusive_locks()
   MDL_request *mdl_request;
   MDL_ticket *ticket;
   st_my_thread_var *mysys_var= my_thread_var;
-  Request_iterator it(m_requests);
+  MDL_request_list::Iterator it(*mdl_requests);
 
   safe_mutex_assert_not_owner(&LOCK_open);
+  /* Exclusive locks must always be acquired first, all at once. */
+  DBUG_ASSERT(! has_locks());
 
   if (m_has_global_shared_lock)
   {
@@ -930,6 +853,9 @@ bool MDL_context::acquire_exclusive_locks()
     MDL_key *key= &mdl_request->key;
     DBUG_ASSERT(mdl_request->type == MDL_EXCLUSIVE &&
                 mdl_request->ticket == NULL);
+
+    /* Don't take chances in production. */
+    mdl_request->ticket= NULL;
 
     /* Early allocation: ticket is used as a shortcut to the lock. */
     if (!(ticket= MDL_ticket::create(this, mdl_request->type)))
@@ -1024,10 +950,7 @@ bool MDL_context::acquire_exclusive_locks()
   return FALSE;
 
 err:
-  /*
-    Remove our pending lock requests from the locks.
-    Ignore those lock requests which were not made MDL_PENDING.
-  */
+  /* Remove our pending tickets from the locks. */
   it.rewind();
   while ((mdl_request= it++) && mdl_request->ticket)
   {
@@ -1163,17 +1086,16 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   @param mdl_request [in] The lock request
   @param conflict   [out] Indicates that conflicting lock exists
 
-  @retval TRUE  Failure either conflicting lock exists or some error
-                occurred (probably OOM).
-  @retval FALSE Success, lock was acquired.
+  @retval TRUE  Failure: some error occurred (probably OOM).
+  @retval FALSE Success: the lock might have not been acquired,
+                         check request.ticket to find out.
 
   FIXME: Compared to lock_table_name_if_not_cached()
          it gives slightly more false negatives.
 */
 
 bool
-MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request,
-                                        bool *conflict)
+MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request)
 {
   MDL_lock *lock;
   MDL_ticket *ticket;
@@ -1184,7 +1106,7 @@ MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request,
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
-  *conflict= FALSE;
+  mdl_request->ticket= NULL;
 
   pthread_mutex_lock(&LOCK_mdl);
 
@@ -1197,7 +1119,8 @@ MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request,
     {
       MDL_ticket::destroy(ticket);
       MDL_lock::destroy(lock);
-      goto err;
+      pthread_mutex_unlock(&LOCK_mdl);
+      return TRUE;
     }
     mdl_request->ticket= ticket;
     lock->type= MDL_lock::MDL_LOCK_EXCLUSIVE;
@@ -1206,16 +1129,9 @@ MDL_context::try_acquire_exclusive_lock(MDL_request *mdl_request,
     ticket->m_state= MDL_ACQUIRED;
     ticket->m_lock= lock;
     global_lock.active_intention_exclusive++;
-    pthread_mutex_unlock(&LOCK_mdl);
-    return FALSE;
   }
-
-  /* There is some lock for the object. */
-  *conflict= TRUE;
-
-err:
   pthread_mutex_unlock(&LOCK_mdl);
-  return TRUE;
+  return FALSE;
 }
 
 
@@ -1262,7 +1178,7 @@ bool MDL_context::acquire_global_shared_lock()
 
 /**
   Wait until there will be no locks that conflict with lock requests
-  in the context.
+  in the given list.
 
   This is a part of the locking protocol and must be used by the
   acquirer of shared locks after a back-off.
@@ -1274,11 +1190,11 @@ bool MDL_context::acquire_global_shared_lock()
 */
 
 bool
-MDL_context::wait_for_locks()
+MDL_context::wait_for_locks(MDL_request_list *mdl_requests)
 {
   MDL_lock *lock;
   MDL_request *mdl_request;
-  Request_iterator it(m_requests);
+  MDL_request_list::Iterator it(*mdl_requests);
   const char *old_msg;
   st_my_thread_var *mysys_var= my_thread_var;
 
@@ -1380,8 +1296,7 @@ void MDL_context::release_ticket(MDL_ticket *ticket)
 
 
 /**
-  Release all locks associated with the context, but leave them
-  in the context as lock requests.
+  Release all locks associated with the context.
 
   This function is used to back off in case of a lock conflict.
   It is also used to release shared locks in the end of an SQL
@@ -1395,15 +1310,6 @@ void MDL_context::release_all_locks()
   DBUG_ENTER("MDL_context::release_all_locks");
 
   safe_mutex_assert_not_owner(&LOCK_open);
-
-  /* Detach lock tickets from the requests for back off. */
-  {
-    MDL_request *mdl_request;
-    Request_iterator it(m_requests);
-
-    while ((mdl_request= it++))
-      mdl_request->ticket= NULL;
-  }
 
   if (m_tickets.is_empty())
     DBUG_VOID_RETURN;
@@ -1444,7 +1350,7 @@ void MDL_context::release_lock(MDL_ticket *ticket)
 
 /**
   Release all locks in the context which correspond to the same name/
-  object as this lock request, remove lock requests from the context.
+  object as this lock request.
 
   @param ticket    One of the locks for the name/object for which all
                    locks should be released.
@@ -1454,19 +1360,6 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
 {
   /* Use MDL_ticket::lock to identify other locks for the same object. */
   MDL_lock *lock= name->m_lock;
-
-  /* Remove matching lock requests from the context. */
-  MDL_request *mdl_request;
-  Request_iterator it_mdl_request(m_requests);
-
-  while ((mdl_request= it_mdl_request++))
-  {
-    DBUG_ASSERT(mdl_request->ticket &&
-                mdl_request->ticket->m_state == MDL_ACQUIRED);
-
-    if (mdl_request->ticket->m_lock == lock)
-      remove_request(mdl_request);
-  }
 
   /* Remove matching lock tickets from the context. */
   MDL_ticket *ticket;
@@ -1537,16 +1430,11 @@ bool
 MDL_context::is_exclusive_lock_owner(unsigned char type,
                                      const char *db, const char *name)
 {
-  MDL_key key(type, db, name);
-  MDL_ticket *ticket;
-  MDL_context::Ticket_iterator it(m_tickets);
+  MDL_request mdl_request;
+  mdl_request.init(type, db, name, MDL_EXCLUSIVE);
+  MDL_ticket *ticket= find_ticket(&mdl_request);
 
-  while ((ticket= it++))
-  {
-    if (ticket->m_lock->type == MDL_lock::MDL_LOCK_EXCLUSIVE &&
-        ticket->m_lock->key.is_equal(&key))
-      break;
-  }
+  DBUG_ASSERT(ticket == NULL || ticket->m_state == MDL_ACQUIRED);
 
   return ticket;
 }

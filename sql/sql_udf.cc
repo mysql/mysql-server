@@ -138,11 +138,7 @@ void udf_init()
   lex_start(new_thd);
   new_thd->set_db(db, sizeof(db)-1);
 
-  bzero((uchar*) &tables,sizeof(tables));
-  tables.alias= tables.table_name= (char*) "func";
-  tables.lock_type = TL_READ;
-  tables.db= db;
-  alloc_mdl_requests(&tables, new_thd->mem_root);
+  tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
@@ -483,10 +479,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* create entry in mysql.func table */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) "func";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
   /* Allow creation of functions even if we can't open func table */
   if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
     goto err;
@@ -562,10 +555,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (udf->dlhandle && !find_udf_dl(udf->dl))
     dlclose(udf->dlhandle);
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db=(char*) "mysql";
-  tables.table_name= tables.alias= (char*) "func";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
+
   if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
     goto err;
   table->use_all_columns();
@@ -579,15 +570,16 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     if ((error = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
-  close_thread_tables(thd);
-
   rw_unlock(&THR_LOCK_udf);
 
-  /* Binlog the drop function. */
+  /*
+    Binlog the drop function. Keep the table open and locked
+    while binlogging, to avoid binlog inconsistency.
+  */
   write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
   DBUG_RETURN(0);
- err:
+err:
   rw_unlock(&THR_LOCK_udf);
   DBUG_RETURN(1);
 }

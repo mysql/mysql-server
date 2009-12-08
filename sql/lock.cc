@@ -952,26 +952,18 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 
 bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 {
+  MDL_request_list mdl_requests;
   TABLE_LIST *lock_table;
-  MDL_request *mdl_request;
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
-    mdl_request= MDL_request::create(0, lock_table->db, lock_table->table_name,
-                                     thd->mem_root);
-    if (!mdl_request)
-      goto end;
-    mdl_request->set_type(MDL_EXCLUSIVE);
-    thd->mdl_context.add_request(mdl_request);
-    lock_table->mdl_request= mdl_request;
+    lock_table->mdl_request.init(0, lock_table->db, lock_table->table_name,
+                                 MDL_EXCLUSIVE);
+    mdl_requests.push_front(&lock_table->mdl_request);
   }
-  if (thd->mdl_context.acquire_exclusive_locks())
-    goto end;
+  if (thd->mdl_context.acquire_exclusive_locks(&mdl_requests))
+    return 1;
   return 0;
-
-end:
-  thd->mdl_context.remove_all_requests();
-  return 1;
 }
 
 
@@ -987,7 +979,6 @@ void unlock_table_names(THD *thd)
 {
   DBUG_ENTER("unlock_table_names");
   thd->mdl_context.release_all_locks();
-  thd->mdl_context.remove_all_requests();
   DBUG_VOID_RETURN;
 }
 

@@ -388,7 +388,6 @@ int ha_myisammrg::add_children_list(void)
 {
   TABLE_LIST  *parent_l= this->table->pos_in_table_list;
   TABLE_LIST  *child_l;
-  THD         *thd= current_thd;
   DBUG_ENTER("ha_myisammrg::add_children_list");
   DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", this->table->s->db.str,
                       this->table->s->table_name.str, (long) this->table));
@@ -434,15 +433,12 @@ int ha_myisammrg::add_children_list(void)
     /* Copy select_lex. Used in unique_table() at least. */
     child_l->select_lex= parent_l->select_lex;
 
-    child_l->mdl_request= NULL; /* Safety, if alloc_mdl_requests fails. */
-
     /* Break when this was the last child. */
     if (&child_l->next_global == this->children_last_l)
       break;
   }
 
-  alloc_mdl_requests(children_l, thd->locked_tables_root ?
-                     thd->locked_tables_root : thd->mem_root);
+  init_mdl_requests(children_l);
 
   /* Insert children into the table list. */
   if (parent_l->next_global)
@@ -819,6 +815,8 @@ int ha_myisammrg::detach_children(void)
       Clear the table reference.
     */
     child_l->table= NULL;
+    /* Similarly, clear the ticket reference. */
+    child_l->mdl_request.ticket= NULL;
 
     /* Break when this was the last child. */
     if (&child_l->next_global == this->children_last_l)

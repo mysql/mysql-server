@@ -1349,7 +1349,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 #ifdef EMBEDDED_LIBRARY
   bool table_exists;
 #endif /* EMBEDDED_LIBRARY */
-  MDL_request mdl_request;
   DBUG_ENTER("plugin_load");
 
   if (!(new_thd= new THD))
@@ -1363,12 +1362,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   lex_start(new_thd);
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
-  bzero((uchar*)&tables, sizeof(tables));
-  tables.alias= tables.table_name= (char*)"plugin";
-  tables.lock_type= TL_READ;
-  tables.db= new_thd->db;
-  tables.mdl_request= &mdl_request;
-  mdl_request.init(0, tables.db, tables.table_name);
+  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
 #ifdef EMBEDDED_LIBRARY
   /*
@@ -1656,13 +1650,9 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
-  bzero(&tables, sizeof(tables));
-  tables.db= (char *)"mysql";
-  tables.table_name= tables.alias= (char *)"plugin";
+  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
   if (check_table_access(thd, INSERT_ACL, &tables, FALSE, 1, FALSE))
     DBUG_RETURN(TRUE);
-
-  alloc_mdl_requests(&tables, thd->mem_root);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table = open_ltable(thd, &tables, TL_WRITE, 0)))
@@ -1734,10 +1724,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
 
-  bzero(&tables, sizeof(tables));
-  tables.db= (char *)"mysql";
-  tables.table_name= tables.alias= (char *)"plugin";
-  alloc_mdl_requests(&tables, thd->mem_root);
+  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
