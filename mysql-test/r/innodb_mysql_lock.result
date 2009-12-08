@@ -1,0 +1,24 @@
+#
+# Bug #22876 Four-way deadlock
+#
+DROP TABLE IF EXISTS t1;
+# Connection 1
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+# Connection 2
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (1);
+# Connection 3
+set @@autocommit=0;
+DROP TABLE t1;
+# Connection 1
+# Connection 1 is now holding the lock.
+# Issuing insert from connection 1 while connection 2&3 
+# is waiting for the lock should give a deadlock error.
+INSERT INTO t1 VALUES (2);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Cleanup
+commit;
+commit;

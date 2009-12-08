@@ -82,3 +82,48 @@ FLUSH LOGS;
 FLUSH LOGS;
 DROP DATABASE mysqltest1;
 End of 5.1 tests
+#
+# Bug#39675 rename tables on innodb tables with pending 
+# transactions causes slave data issue.
+#
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (
+id INT PRIMARY KEY auto_increment,
+b INT DEFAULT NULL
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id INT PRIMARY KEY auto_increment,
+b INT DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES (1),(2),(3);
+BEGIN;
+INSERT INTO t1(b) VALUES (4);
+-------- switch to master1 --------
+RENAME TABLE t1 TO t3, t2 TO t1;;
+-------- switch to master --------
+COMMIT;
+-------- switch to master1 --------
+-------- switch to master --------
+SELECT * FROM t1;
+id	b
+SELECT * FROM t3;
+id	b
+1	1
+2	2
+3	3
+4	4
+-------- switch to slave --------
+SELECT * FROM t1;
+id	b
+SELECT * FROM t3;
+id	b
+1	1
+2	2
+3	3
+4	4
+-------- switch to master --------
+DROP TABLE t1;
+DROP TABLE t3;
+End of 6.0 tests

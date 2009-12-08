@@ -319,5 +319,27 @@ alter table t1 add column j int;
 unlock tables;
 drop table t1;
 #
+# Bug#45066 FLUSH TABLES WITH READ LOCK deadlocks against 
+#           LOCK TABLE 
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+LOCK TABLE t1 READ;
+FLUSH TABLES;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+LOCK TABLE t1 WRITE;
+FLUSH TABLES;
+#
+# If you allow the next combination, you reintroduce bug Bug#45066
+# 
+LOCK TABLE t1 READ;
+FLUSH TABLES WITH READ LOCK;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+#
 # End of 6.0 tests.
 #
