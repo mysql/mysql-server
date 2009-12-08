@@ -2980,8 +2980,11 @@ Locked_tables_list::init_locked_tables(THD *thd)
 {
   DBUG_ASSERT(thd->locked_tables_mode == LTM_NONE);
   DBUG_ASSERT(m_locked_tables == NULL);
+  DBUG_ASSERT(m_reopen_array == NULL);
+  DBUG_ASSERT(m_locked_tables_count == 0);
 
-  for (TABLE *table= thd->open_tables; table; table= table->next)
+  for (TABLE *table= thd->open_tables; table;
+       table= table->next, m_locked_tables_count++)
   {
     TABLE_LIST *src_table_list= table->pos_in_table_list;
     char *db, *table_name, *alias;
@@ -3021,7 +3024,24 @@ Locked_tables_list::init_locked_tables(THD *thd)
     m_locked_tables_last= &dst_table_list->next_global;
     table->pos_in_locked_tables= dst_table_list;
   }
+  if (m_locked_tables_count)
+  {
+    /**
+      Allocate an auxiliary array to pass to mysql_lock_tables()
+      in reopen_tables(). reopen_tables() is a critical
+      path and we don't want to complicate it with extra allocations.
+    */
+    m_reopen_array= (TABLE**)alloc_root(&m_locked_tables_root,
+                                        sizeof(TABLE*) *
+                                        (m_locked_tables_count+1));
+    if (m_reopen_array == NULL)
+    {
+      unlock_locked_tables(0);
+      return TRUE;
+    }
+  }
   thd->locked_tables_mode= LTM_LOCK_TABLES;
+
   return FALSE;
 }
 
@@ -3070,6 +3090,8 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
   free_root(&m_locked_tables_root, MYF(0));
   m_locked_tables= NULL;
   m_locked_tables_last= &m_locked_tables;
+  m_reopen_array= NULL;
+  m_locked_tables_count= 0;
 }
 
 
@@ -3141,8 +3163,39 @@ void Locked_tables_list::unlink_from_list(THD *thd,
   @note This function is a no-op if we're not under LOCK TABLES.
 */
 
-void Locked_tables_list::unlink_all_closed_tables()
+void Locked_tables_list::
+unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
 {
+  /* If we managed to take a lock, unlock tables and free the lock. */
+  if (lock)
+    mysql_unlock_tables(thd, lock);
+  /*
+    If a failure happened in reopen_tables(), we may have succeeded
+    reopening some tables, but not all.
+    This works when the connection was killed in mysql_lock_tables().
+  */
+  if (reopen_count)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    while (reopen_count--)
+    {
+      /*
+        When closing the table, we must remove it
+        from thd->open_tables list.
+        We rely on the fact that open_table() that was used
+        in reopen_tables() always links the opened table
+        to the beginning of the open_tables list.
+      */
+      DBUG_ASSERT(thd->open_tables == m_reopen_array[reopen_count]);
+
+      thd->open_tables->pos_in_locked_tables->table= NULL;
+
+      close_thread_table(thd, &thd->open_tables);
+    }
+    broadcast_refresh();
+    pthread_mutex_unlock(&LOCK_open);
+  }
+  /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
        table_list->next_global)
   {
@@ -3176,12 +3229,13 @@ Locked_tables_list::reopen_tables(THD *thd)
 {
   enum enum_open_table_action ot_action_unused;
   bool lt_refresh_unused;
+  size_t reopen_count= 0;
+  MYSQL_LOCK *lock;
+  MYSQL_LOCK *merged_lock;
 
   for (TABLE_LIST *table_list= m_locked_tables;
        table_list; table_list= table_list->next_global)
   {
-    MYSQL_LOCK *lock;
-
     if (table_list->table)                      /* The table was not closed */
       continue;
 
@@ -3189,33 +3243,42 @@ Locked_tables_list::reopen_tables(THD *thd)
     if (open_table(thd, table_list, thd->mem_root, &ot_action_unused,
                    MYSQL_OPEN_REOPEN))
     {
-      unlink_all_closed_tables();
+      unlink_all_closed_tables(thd, 0, reopen_count);
       return TRUE;
     }
     table_list->table->pos_in_locked_tables= table_list;
     /* See also the comment on lock type in init_locked_tables(). */
     table_list->table->reginfo.lock_type= table_list->lock_type;
+
+    DBUG_ASSERT(reopen_count < m_locked_tables_count);
+    m_reopen_array[reopen_count++]= table_list->table;
+  }
+  if (reopen_count)
+  {
     thd->in_lock_tables= 1;
-    lock= mysql_lock_tables(thd, &table_list->table, 1,
+    /*
+      We re-lock all tables with mysql_lock_tables() at once rather
+      than locking one table at a time because of the case
+      reported in Bug#45035: when the same table is present
+      in the list many times, thr_lock.c fails to grant READ lock
+      on a table that is already locked by WRITE lock, even if
+      WRITE lock is taken by the same thread. If READ and WRITE
+      lock are passed to thr_lock.c in the same list, everything
+      works fine. Patching legacy code of thr_lock.c is risking to
+      break something else.
+    */
+    lock= mysql_lock_tables(thd, m_reopen_array, reopen_count,
                             MYSQL_OPEN_REOPEN, &lt_refresh_unused);
     thd->in_lock_tables= 0;
-    if (lock)
-      lock= mysql_lock_merge(thd->lock, lock);
-    if (lock == NULL)
+    if (lock == NULL || (merged_lock=
+                         mysql_lock_merge(thd->lock, lock)) == NULL)
     {
-      /*
-        No one's seen this branch work. Recover and report an
-        error just in case.
-      */
-      pthread_mutex_lock(&LOCK_open);
-      close_thread_table(thd, &thd->open_tables);
-      pthread_mutex_unlock(&LOCK_open);
-      table_list->table= 0;
-      unlink_all_closed_tables();
-      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      unlink_all_closed_tables(thd, lock, reopen_count);
+      if (! thd->killed)
+        my_error(ER_LOCK_DEADLOCK, MYF(0));
       return TRUE;
     }
-    thd->lock= lock;
+    thd->lock= merged_lock;
   }
   return FALSE;
 }
