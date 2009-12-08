@@ -3714,34 +3714,99 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 
 
 /*
+  Perform steps of prelocking algorithm for elements of the
+  prelocking set other than tables. E.g. cache routines and, if
+  prelocking strategy prescribes so, extend the prelocking set with
+  tables and routines used by them.
+
+  @param[in]  thd                  Thread context.
+  @param[in]  prelocking_ctx       Prelocking context.
+  @param[in]  start                First element in the list representing
+                                   subset of the prelocking set to be
+                                   processed.
+  @param[in]  prelocking_strategy  Strategy which specifies how the
+                                   prelocking set should be extended when
+                                   one of its elements is processed.
+  @param[out] need_prelocking      Set to TRUE  if it was detected that this
+                                   statement will require prelocked mode for
+                                   its execution, not touched otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (Conflicting metadata lock, OOM, other errors).
+*/
+
+static bool
+open_routines(THD *thd, Query_tables_list *prelocking_ctx,
+              Sroutine_hash_entry *start,
+              Prelocking_strategy *prelocking_strategy,
+              bool *need_prelocking)
+{
+  DBUG_ENTER("open_routines");
+
+  for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
+  {
+    int type= rt->key.str[0];
+
+    switch (type)
+    {
+    case TYPE_ENUM_FUNCTION:
+    case TYPE_ENUM_PROCEDURE:
+      {
+        sp_name name(thd, rt->key.str, rt->key.length);
+        sp_head *sp;
+
+        if (sp_cache_routine(thd, type, &name, &sp))
+          DBUG_RETURN(TRUE);
+
+        if (sp)
+        {
+          prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
+                                              need_prelocking);
+        }
+      }
+      break;
+    case TYPE_ENUM_TRIGGER:
+      break;
+    default:
+      /* Impossible type value. */
+      DBUG_ASSERT(0);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
   Open all tables in list
 
-  SYNOPSIS
-    open_tables()
-    thd - thread handler
-    start - list of tables in/out
-    counter - number of opened tables will be return using this parameter
-    flags   - bitmap of flags to modify how the tables will be open:
-              MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-              done a flush or namelock on it.
+  @param[in]     thd      Thread context.
+  @param[in,out] start    List of tables to be open (it can be adjusted for
+                          statement that uses tables only implicitly, e.g.
+                          for "SELECT f1()").
+  @param[out]    counter  Number of tables which were open.
+  @param[in]     flags    Bitmap of flags to modify how the tables will be
+                          open, see open_table() description for details.
+  @param[in]     prelocking_strategy  Strategy which specifies how prelocking
+                                      algorithm should work for this statement.
 
-  NOTE
-    Unless we are already in prelocked mode, this function will also precache
-    all SP/SFs explicitly or implicitly (via views and triggers) used by the
-    query and add tables needed for their execution to table list. If resulting
-    tables list will be non empty it will mark query as requiring precaching.
+  @note
+    Unless we are already in prelocked mode and prelocking strategy prescribes
+    so this function will also precache all SP/SFs explicitly or implicitly
+    (via views and triggers) used by the query and add tables needed for their
+    execution to table list. Statement that uses SFs, invokes triggers or
+    requires foreign key checks will be marked as requiring prelocking.
     Prelocked mode will be enabled for such query during lock_tables() call.
 
     If query for which we are opening tables is already marked as requiring
     prelocking it won't do such precaching and will simply reuse table list
     which is already built.
 
-  RETURN
-    0  - OK
-    -1 - error
+  @retval  0   OK
+  @retval  -1  Error.
 */
 
-int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
+int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
+                Prelocking_strategy *prelocking_strategy)
 {
   TABLE_LIST *tables= NULL;
   Open_table_context ot_ctx(thd);
@@ -3786,13 +3851,14 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       !thd->lex->requires_prelocking() &&
       thd->lex->uses_stored_routines())
   {
-    bool first_no_prelocking, need_prelocking;
+    bool need_prelocking= FALSE;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
-    sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
 
-    if (sp_cache_routines_and_add_tables(thd, thd->lex, first_no_prelocking))
+    if (open_routines(thd, thd->lex,
+                      (Sroutine_hash_entry *)thd->lex->sroutines_list.first,
+                      prelocking_strategy, &need_prelocking))
     {
       /*
         Serious error during reading stored routines from mysql.proc table.
@@ -3973,27 +4039,54 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 
     /*
       If we are not already in prelocked mode and extended table list is not
-      yet built and we have trigger for table being opened then we should
-      cache all routines used by its triggers and add their tables to
-      prelocking list.
-      If we lock table for reading we won't update it so there is no need to
-      process its triggers since they never will be activated.
+      yet built we might have to build the prelocking set for this statement.
+
+      Since currently no prelocking strategy prescribes doing anything for
+      tables which are only read, we do below checks only if table is going
+      to be changed.
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         !thd->lex->requires_prelocking() &&
-        tables->trg_event_map && tables->table->triggers &&
         tables->lock_type >= TL_WRITE_ALLOW_WRITE)
     {
-      if (!query_tables_last_own)
-        query_tables_last_own= thd->lex->query_tables_last;
-      if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                        tables))
+      bool need_prelocking= FALSE;
+      bool not_used;
+      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+      Sroutine_hash_entry **sroutines_next= 
+        (Sroutine_hash_entry **)thd->lex->sroutines_list.next;
+
+      /*
+        Extend statement's table list and the prelocking set with
+        tables and routines according to the current prelocking
+        strategy.
+
+        For example, for DML statements we need to add tables and routines
+        used by triggers which are going to be invoked for this element of
+        table list and also add tables required for handling of foreign keys.
+      */
+      error= prelocking_strategy->handle_table(thd, thd->lex, tables,
+                                               &need_prelocking);
+
+      if (need_prelocking && ! query_tables_last_own)
+        query_tables_last_own= save_query_tables_last;
+
+      if (error)
       {
-        /*
-          Serious error during reading stored routines from mysql.proc table.
-          Something's wrong with the table or its contents, and an error has
-          been emitted; we must abort.
-        */
+        result= -1;
+        goto err;
+      }
+
+      /*
+        Process elements of the prelocking set which were added
+        by the above invocation of Prelocking_strategy method.
+
+        For example, if new element is a routine, cache it and then, if
+        prelocking strategy prescribes so, add tables it uses to the table
+        list and routines it might invoke to the prelocking set.
+      */
+      if (open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
+                        &not_used))
+      {
         result= -1;
         goto err;
       }
@@ -4039,13 +4132,27 @@ process_view_routines:
     */
     if (tables->view &&
         thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        !thd->lex->requires_prelocking() &&
-        tables->view->uses_stored_routines())
+        !thd->lex->requires_prelocking())
     {
-      /* We have at least one table in TL here. */
-      if (!query_tables_last_own)
-        query_tables_last_own= thd->lex->query_tables_last;
-      if (sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables))
+      bool need_prelocking= FALSE;
+      bool not_used;
+      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+      Sroutine_hash_entry **sroutines_next= 
+        (Sroutine_hash_entry **)thd->lex->sroutines_list.next;
+
+      error= prelocking_strategy->handle_view(thd, thd->lex, tables,
+                                              &need_prelocking);
+
+      if (need_prelocking && ! query_tables_last_own)
+        query_tables_last_own= save_query_tables_last;
+
+      if (error)
+      {
+        result= -1;
+        goto err;
+      }
+      if (open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
+                        &not_used))
       {
         /*
           Serious error during reading stored routines from mysql.proc table.
@@ -4094,6 +4201,220 @@ process_view_routines:
   }
   DBUG_PRINT("tcache", ("returning: %d", result));
   DBUG_RETURN(result);
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle routines:
+  - For CALL statements we do unrolling (i.e. open and lock tables for each
+    sub-statement individually). So for such statements prelocking is enabled
+    only if stored functions are used in parameter list and only for period
+    during which we calculate values of parameters. Thus in this strategy we
+    ignore procedure which is directly called by such statement and extend
+    the prelocking set only with tables/functions used by SF called from the
+    parameter list.
+  - For any other statement any routine which is directly or indirectly called
+    by statement is going to be executed in prelocked mode. So in this case we
+    simply add all tables and routines used by it to the prelocking set.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  rt               Prelocking set element describing routine.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+{
+  /*
+    We assume that for any "CALL proc(...)" statement sroutines_list will
+    have 'proc' as first element (it may have several, consider e.g.
+    "proc(sp_func(...)))". This property is currently guaranted by the
+    parser.
+  */
+
+  if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+      rt->key.str[0] != TYPE_ENUM_PROCEDURE)
+  {
+    *need_prelocking= TRUE;
+    sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
+                                 rt->belong_to_view);
+    (void)sp->add_used_tables_to_table_list(thd,
+                                            &prelocking_ctx->query_tables_last,
+                                            rt->belong_to_view);
+  }
+  sp->propagate_attributes(prelocking_ctx);
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle table list
+  elements:
+  - If table has triggers we should add all tables and routines
+    used by them to the prelocking set.
+
+  We do not need to acquire metadata locks on trigger names
+  in DML statements, since all DDL statements
+  that change trigger metadata always lock their
+  subject tables.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  /* We rely on a caller to check that table is going to be changed. */
+  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  if (table_list->trg_event_map)
+  {
+    if (table_list->table->triggers)
+    {
+      *need_prelocking= TRUE;
+
+      if (table_list->table->triggers->
+          add_tables_and_routines_for_triggers(thd, prelocking_ctx, table_list))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle view -
+  all view routines should be added to the prelocking set.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for view.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  if (table_list->view->uses_stored_routines())
+  {
+    *need_prelocking= TRUE;
+
+    sp_update_stmt_used_routines(thd, prelocking_ctx,
+                                 &table_list->view->sroutines_list,
+                                 table_list->top_table());
+  }
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for LOCK TABLES statement should handle
+  table list elements.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool Lock_tables_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  if (DML_prelocking_strategy::handle_table(thd, prelocking_ctx, table_list,
+                                            need_prelocking))
+    return TRUE;
+
+  /* We rely on a caller to check that table is going to be changed. */
+  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement should handle
+  routines - do nothing as this statement is not supposed to call routines.
+
+  We still can end up in this method when someone tries
+  to define a foreign key referencing a view, and not just
+  a simple view, but one that uses stored routines.
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+{
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement should handle
+  table list elements.
+
+  Unlike in DML, we do not process triggers here.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement
+  should handle view - do nothing. We don't need to add view
+  routines to the prelocking set in this case as view is not going
+  to be materialized.
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  return FALSE;
 }
 
 
@@ -4312,34 +4633,35 @@ end:
 }
 
 
-/*
+/**
   Open all tables in list, locks them and optionally process derived tables.
 
-  SYNOPSIS
-    open_and_lock_tables_derived()
-    thd		- thread handler
-    tables	- list of tables for open&locking
-    flags       - set of options to be used to open and lock tables (see
-                  open_tables() and mysql_lock_tables() for details).
-    derived     - if to handle derived tables
+  @param thd		      Thread context.
+  @param tables	              List of tables for open and locking.
+  @param derived              If to handle derived tables.
+  @param flags                Bitmap of options to be used to open and lock
+                              tables (see open_tables() and mysql_lock_tables()
+                              for details).
+  @param prelocking_strategy  Strategy which specifies how prelocking algorithm
+                              should work for this statement.
 
-  RETURN
-    FALSE - ok
-    TRUE  - error
-
-  NOTE
+  @note
     The lock will automaticaly be freed by close_thread_tables()
 
-  NOTE
-    There are two convenience functions:
+  @note
+    There are several convenience functions, e.g. :
     - simple_open_n_lock_tables(thd, tables)  without derived handling
     - open_and_lock_tables(thd, tables)       with derived handling
     Both inline functions call open_and_lock_tables_derived() with
     the third argument set appropriately.
+
+  @retval FALSE  OK.
+  @retval TRUE   Error
 */
 
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived,
-                                 uint flags)
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags,
+                                 Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
   bool need_reopen;
@@ -4349,7 +4671,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived,
 
   for ( ; ; ) 
   {
-    if (open_tables(thd, &tables, &counter, flags))
+    if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
       DBUG_RETURN(-1);
 
     DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {

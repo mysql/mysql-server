@@ -1474,10 +1474,26 @@ int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
-int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
+int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
+                Prelocking_strategy *prelocking_strategy);
+inline int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_tables(thd, tables, counter, flags, &prelocking_strategy);
+}
 /* open_and_lock_tables with optional derived handling */
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived,
-                                 uint flags);
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags,
+                                 Prelocking_strategy *prelocking_strategy);
+inline int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                        bool derived, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_and_lock_tables_derived(thd, tables, derived, flags,
+                                      &prelocking_strategy);
+}
 /* simple open_and_lock_tables without derived handling */
 inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
