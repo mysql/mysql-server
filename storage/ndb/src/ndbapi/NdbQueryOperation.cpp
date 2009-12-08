@@ -2982,7 +2982,7 @@ NdbQueryOperationImpl::isBatchComplete() const {
   assert(m_resultStreams!=NULL);
   assert(this == &getRoot());
 #ifndef NDEBUG
-  int count = 0;
+  Uint32 count = 0;
   for(Uint32 i = 0; i < m_queryImpl.getRootFragCount(); i++){
     if(!m_resultStreams[i]->isBatchComplete()){
       count++;

@@ -453,6 +453,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 {
   DBUG_ENTER("make_pushed_join");
   const JOIN *join = join_tabs->join;
+  (void)join; // remove compiler warning
   Item_field* join_items[MAX_LINKED_KEYS+1];
 
   DBUG_ASSERT (m_pushed_join == NULL);
