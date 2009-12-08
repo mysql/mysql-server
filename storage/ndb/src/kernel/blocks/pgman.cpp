@@ -72,9 +72,9 @@ Pgman::Pgman(Block_context& ctx) :
   m_stats_loop_on = false;
   m_busy_loop_on = false;
   m_cleanup_loop_on = false;
-  m_lcp_loop_on = false;
 
   // LCP variables
+  m_lcp_state = LS_LCP_OFF;
   m_last_lcp = 0;
   m_last_lcp_complete = 0;
   m_lcp_curr_bucket = ~(Uint32)0;
@@ -231,11 +231,13 @@ Pgman::execCONTINUEB(Signal* signal)
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
     if (data1 != RNIL)
     {
+      jam();
       pl.getPtr(ptr, data1);
       process_lcp_locked(signal, ptr);
     }
     else
     {
+      jam();
       if (ERROR_INSERTED(11007))
       {
         ndbout << "No more writes..." << endl;
@@ -245,6 +247,7 @@ Pgman::execCONTINUEB(Signal* signal)
       }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      m_lcp_state = LS_LCP_OFF;
     }
     return;
   }
@@ -823,40 +826,35 @@ Pgman::do_cleanup_loop(Signal* signal)
 }
 
 void
-Pgman::do_lcp_loop(Signal* signal, bool direct)
+Pgman::do_lcp_loop(Signal* signal)
 {
 #ifdef VM_TRACE
-  debugOut << "PGMAN: >do_lcp_loop on=" << m_lcp_loop_on
-           << " direct=" << direct << endl;
+  debugOut << "PGMAN: >do_lcp_loop m_lcp_state=" << Uint32(m_lcp_state)
+           << endl;
 #endif
-  Uint32 restart = false;
-  if (direct)
-  {
-    ndbrequire(! m_lcp_loop_on);
-    restart = true;
-    m_lcp_loop_on = true;
-  }
-  else
-  {
-    ndbrequire(m_lcp_loop_on);
-    restart += process_lcp(signal);
-    if (! restart)
-    {
-      m_lcp_loop_on = false;
-    }
-  }
-  if (restart)
-  {
-    Uint32 delay = m_param.m_lcp_loop_delay;
+  ndbrequire(m_lcp_state != LS_LCP_OFF);
+  LCP_STATE newstate = process_lcp(signal);
+
+  switch(newstate) {
+  case LS_LCP_OFF:
+    jam();
+    break;
+  case LS_LCP_ON:
+    jam();
     signal->theData[0] = PgmanContinueB::LCP_LOOP;
-    if (delay)
-      sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
-    else
-      sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+    sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+    break;
+  case LS_LCP_MAX_LCP_OUTSTANDING: // wait until io is completed
+    jam();
+    break;
+  case LS_LCP_LOCKED:
+    jam();
+    break;
   }
+  m_lcp_state = newstate;
 #ifdef VM_TRACE
-  debugOut << "PGMAN: <do_lcp_loop on=" << m_lcp_loop_on
-           << " restart=" << restart << endl;
+  debugOut << "PGMAN: <do_lcp_loop m_lcp_state=" << m_lcp_state
+           << endl;
 #endif
 }
 
@@ -1257,17 +1255,20 @@ Pgman::execEND_LCP_REQ(Signal* signal)
 #endif
 
   m_last_lcp_complete = m_last_lcp;
-  
-  do_lcp_loop(signal, true);
+  ndbrequire(m_lcp_state == LS_LCP_OFF);
+  m_lcp_state = LS_LCP_ON;
+  do_lcp_loop(signal);
 }
 
-bool
+Pgman::LCP_STATE
 Pgman::process_lcp(Signal* signal)
 {
   Page_hashlist& pl_hash = m_page_hashlist;
 
   int max_count = 0;
-  if (m_param.m_max_io_waits > m_stats.m_current_io_waits) {
+  if (m_param.m_max_io_waits > m_stats.m_current_io_waits)
+  {
+    jam();
     max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
     max_count = max_count / 2 + 1;
   }
@@ -1283,6 +1284,7 @@ Pgman::process_lcp(Signal* signal)
   // start or re-start from beginning of current hash bucket
   if (m_lcp_curr_bucket != ~(Uint32)0)
   {
+    jam();
     Page_hashlist::Iterator iter;
     pl_hash.next(m_lcp_curr_bucket, iter);
     Uint32 loop = 0;
@@ -1290,6 +1292,7 @@ Pgman::process_lcp(Signal* signal)
 	   m_lcp_outstanding < (Uint32) max_count &&
 	   (loop ++ < 32 || iter.bucket == m_lcp_curr_bucket))
     {
+      jam();
       Ptr<Page_entry>& ptr = iter.curr;
       Page_state state = ptr.p->m_state;
       
@@ -1299,6 +1302,7 @@ Pgman::process_lcp(Signal* signal)
           (state & Page_entry::DIRTY) &&
 	  (! (state & Page_entry::LOCKED)))
       {
+        jam();
         if(! (state & Page_entry::BOUND))
         {
           ndbout << ptr << endl;
@@ -1306,21 +1310,24 @@ Pgman::process_lcp(Signal* signal)
         }
         if (state & Page_entry::BUSY)
         {
-	  DBG_LCP(" BUSY" << endl);
+          jam();
+          DBG_LCP(" BUSY" << endl);
           break;  // wait for it
         } 
 	else if (state & Page_entry::PAGEOUT)
         {
-	  DBG_LCP(" PAGEOUT -> state |= LCP" << endl);
+          jam();
+          DBG_LCP(" PAGEOUT -> state |= LCP" << endl);
           set_page_state(ptr, state | Page_entry::LCP);
         }
         else
         {
-	  DBG_LCP(" pageout()" << endl);
+          jam();
+          DBG_LCP(" pageout()" << endl);
           ptr.p->m_state |= Page_entry::LCP;
-	  c_tup->disk_page_unmap_callback(0,
-					  ptr.p->m_real_page_i, 
-					  ptr.p->m_dirty_count);
+          c_tup->disk_page_unmap_callback(0,
+                                          ptr.p->m_real_page_i, 
+                                          ptr.p->m_dirty_count);
           pageout(signal, ptr);
         }
         ptr.p->m_last_lcp = m_last_lcp;
@@ -1328,7 +1335,8 @@ Pgman::process_lcp(Signal* signal)
       }
       else
       {
-	DBG_LCP(" NOT DIRTY" << endl);
+        jam();
+        DBG_LCP(" NOT DIRTY" << endl);
       }	
       pl_hash.next(iter);
     }
@@ -1342,7 +1350,9 @@ Pgman::process_lcp(Signal* signal)
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
     if (pl.first(ptr))
     {
+      jam();
       process_lcp_locked(signal, ptr);
+      return LS_LCP_LOCKED;
     }
     else
     {
@@ -1355,11 +1365,17 @@ Pgman::process_lcp(Signal* signal)
       }
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      return LS_LCP_OFF;
     }
-    return false;
+  }
+
+  if (m_lcp_outstanding >= (Uint32) max_count)
+  {
+    jam();
+    return LS_LCP_MAX_LCP_OUTSTANDING;
   }
   
-  return true;
+  return LS_LCP_ON;
 }
 
 void
@@ -1566,6 +1582,12 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   
   set_page_state(ptr, state);
   do_busy_loop(signal, true);
+
+  if (m_lcp_state == LS_LCP_MAX_LCP_OUTSTANDING)
+  {
+    jam();
+    do_lcp_loop(signal);
+  }
 }
 
 // file system interface
@@ -2222,7 +2244,7 @@ Pgman::verify_page_lists()
     << " stats:" << m_stats_loop_on
     << " busy:" << m_busy_loop_on
     << " cleanup:" << m_cleanup_loop_on
-    << " lcp:" << m_lcp_loop_on << endl;
+    << " lcp:" << Uint32(m_lcp_state) << endl;
 
   debugOut
     << "PGMAN:"
