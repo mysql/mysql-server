@@ -132,13 +132,17 @@ TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysys dbug strings vio regex ${SQL_LIB}   
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
+
+# Provide plugins with minimal set of libraries
+SET(INTERFACE_LIBS ${LIBRT})
+IF(INTERFACE_LIBS)
+ SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
+  "${INTERFACE_LIBS}")
+ENDIF()
+
 INSTALL(TARGETS mysqld DESTINATION bin)
 INSTALL_DEBUG_SYMBOLS(mysqld)
   
-
-FIND_PROGRAM(BISON_EXECUTABLE bison DOC "path to the bison executable")
-MARK_AS_ADVANCED(BISON_EXECUTABLE "")
-
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
