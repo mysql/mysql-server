@@ -487,7 +487,7 @@ static void ndbcluster_binlog_wait(THD *thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
     pthread_mutex_lock(&injector_mutex);
-    while (!thd->killed && count && ndb_binlog_running &&
+    while (!(thd && thd->killed) && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < wait_epoch))
     {
