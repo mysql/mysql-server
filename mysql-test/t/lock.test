@@ -346,5 +346,45 @@ drop table t1;
 
 
 --echo #
+--echo # Bug#45035 " Altering table under LOCK TABLES results in 
+--echo # "Error 1213 Deadlock found..."
+--echo #
+--echo # When reopening tables under LOCK TABLES after ALTER TABLE,
+--echo # 6.0 used to be taking thr_lock locks one by one, and
+--echo # that would lead to a lock conflict. 
+--echo # Check that taking all locks at once works.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+create temporary table t1 (i int);
+--echo #
+--echo # This is just for test coverage purposes, 
+--echo # when this is allowed, remove the --error.
+--echo #
+--error ER_CANT_REOPEN_TABLE
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+--echo #
+--echo # Separate case for partitioned tables is important
+--echo # because each partition has an own thr_lock object.
+--echo #
+create table t1 (i int) partition by list (i)
+  (partition p0 values in (1),
+   partition p1 values in (2,3),
+   partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+
+--echo #
 --echo # End of 6.0 tests.
 --echo #
