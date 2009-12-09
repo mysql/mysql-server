@@ -69,8 +69,9 @@ sp_drop_routine(THD *thd, int type, sp_name *name);
   used by statement or routine.
 */
 
-struct Sroutine_hash_entry
+class Sroutine_hash_entry
 {
+public:
   /**
     Set key consisting of one-byte routine type and quoted routine name.
   */
