@@ -443,6 +443,11 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 
   /* We also don't allow creation of triggers on views. */
   tables->required_type= FRMTYPE_TABLE;
+  /*
+    Also prevent DROP TRIGGER from opening temporary table which might
+    shadow base table on which trigger to be dropped is defined.
+  */
+  tables->skip_temporary= TRUE;
 
   /* Keep consistent with respect to other DDL statements */
   mysql_ha_rm_tables(thd, tables);
