@@ -1639,3 +1639,33 @@ END ;|
 
 DROP TABLE t1;
 DROP TABLE B;
+
+
+--echo #
+--echo # Bug #47107 assert in notify_shared_lock on incorrect 
+--echo #            CREATE TABLE , HANDLER
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(f1 integer);
+
+--echo # The following CREATE TABLEs before gave an assert.
+
+HANDLER t1 OPEN AS A;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1 SELECT 1 AS f2;
+
+HANDLER t1 OPEN AS A;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1(f1 integer);
+
+CREATE TABLE t2(f1 integer);
+HANDLER t1 OPEN AS A;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1 LIKE t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
