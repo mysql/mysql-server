@@ -1179,9 +1179,9 @@ int plugin_init(int *argc, char **argv, int flags)
            embedded server with different options than the regular server,
            the only way was to disable PBXT from here.
       */
-      if (!my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
-                        4, (const uchar*) "PBXT", 4))
-        continue;
+      //if (!my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
+      //                  4, (const uchar*) "PBXT", 4))
+      //  continue;
 
 #endif
       bzero(&tmp, sizeof(tmp));
