@@ -4878,6 +4878,7 @@ send_result_message:
       close_thread_tables(thd);
       if (!thd->locked_tables_mode)
         thd->mdl_context.release_all_locks();
+      DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       protocol->store(STRING_WITH_LEN(
           "Table does not support optimize, doing recreate + analyze instead"),
@@ -4911,6 +4912,8 @@ send_result_message:
         if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
             ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
+        if (result_code)  // analyze failed
+          table->table->file->print_error(result_code, MYF(0));
       }
       /* Start a new row for the final status row */
       protocol->prepare_for_resend();
