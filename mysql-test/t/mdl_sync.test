@@ -3,6 +3,10 @@
 #
 --source include/have_debug_sync.inc
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+
 # Clean up resources used in this test case.
 --disable_warnings
 SET DEBUG_SYNC= 'RESET';
@@ -67,3 +71,76 @@ disconnect con3;
 --disable_warnings
 SET DEBUG_SYNC= 'RESET';
 --enable_warnings
+
+
+--echo #
+--echo # Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
+--echo # on INSERT + CREATE TRIGGER".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2, t3, t4, t5;
+--enable_warnings
+--echo # Let us simulate scenario in which we open some tables from extended
+--echo # part of prelocking set but then encounter conflicting metadata lock,
+--echo # so have to back-off and wait for it to go away.
+connect (con1root,localhost,root,,test,,);
+connect (con2root,localhost,root,,test,,);
+connection default;
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+create table t4 (l int);
+create trigger t1_bi before insert on t1 for each row
+  insert into t2 values (new.i);
+create trigger t2_bi before insert on t2 for each row
+  insert into t3 values (new.j);
+--echo #
+--echo # Switching to connection 'con1root'.
+connection con1root;
+lock tables t4 read;
+--echo #
+--echo # Switching to connection 'con2root'.
+connection con2root;
+--echo # Send :
+--send rename table t3 to t5, t4 to t3;
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above RENAME TABLE adds pending requests for exclusive
+--echo # metadata lock on its tables and blocks due to 't4' being used by LOCK
+--echo # TABLES.
+let $wait_condition= select count(*)= 1 from information_schema.processlist
+                       where state= 'Waiting for table' and
+                             info='rename table t3 to t5, t4 to t3';
+--source include/wait_condition.inc
+--echo # Send :
+--send insert into t1 values (1);
+--echo #
+--echo # Switching to connection 'con1root'.
+connection con1root;
+--echo # Wait until INSERT statement waits due to encountering pending
+--echo # exclusive metadata lock on 't3'.
+let $wait_condition= select count(*)= 1 from information_schema.processlist
+                       where state= 'Waiting for table' and
+                             info='insert into t1 values (1)';
+--source include/wait_condition.inc
+unlock tables;
+--echo #
+--echo # Switching to connection 'con2root'.
+connection con2root;
+--echo # Reap RENAME TABLE.
+--reap
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap INSERT.
+--reap
+--echo # Clean-up.
+disconnect con1root;
+disconnect con2root;
+drop tables t1, t2, t3, t5;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
