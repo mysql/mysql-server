@@ -1780,16 +1780,16 @@ void write_bin_log(THD *thd, bool clear_error,
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
-  bool error= FALSE, need_start_waiting= FALSE;
+  bool error;
   Drop_table_error_handler err_handler(thd->get_internal_handler());
+
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
 
   if (!drop_temporary)
   {
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       DBUG_RETURN(TRUE);
   }
 
@@ -1797,8 +1797,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
   thd->pop_internal_handler();
 
-
-  if (need_start_waiting)
+  if (thd->global_read_lock_protection > 0)
     start_waiting_global_read_lock(thd);
 
   if (error)

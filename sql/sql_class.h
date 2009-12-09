@@ -1874,6 +1874,7 @@ public:
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
+  uint       global_read_lock_protection;// GRL protection count
   uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
