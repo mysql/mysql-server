@@ -63,7 +63,7 @@ source include/diff_master_slave.inc;
 DROP DATABASE d1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
-DROP DATABASE d2;
+DROP DATABASE IF EXISTS d2;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
 CREATE EVENT e2
