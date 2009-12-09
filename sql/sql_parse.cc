@@ -197,6 +197,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -221,8 +223,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
                                             CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -237,34 +238,35 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_AUTHORS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
-  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
+  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_WARNS]=       CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]=      CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
   sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROCESSLIST]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_GRANTS]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_GRANTS]=      CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PROFILES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PROFILE]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILES]=    CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILE]=     CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
@@ -273,37 +275,52 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
 
+
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_DB]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
+
   /*
     The following is used to preserver CF_ROW_COUNT during the
     a CALL or EXECUTE statement, so the value generated by the
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_CALL]=      CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_EXECUTE]=   CF_HAS_ROW_COUNT;
 
   /*
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_CREATE_USER]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_USER]=        CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_RENAME_USER]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE]=           CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_GRANT]=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=   CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]=  CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=    CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=     CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
 
