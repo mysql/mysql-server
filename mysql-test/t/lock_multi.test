@@ -664,5 +664,63 @@ connection flush;
 --reap
 connection default;
 disconnect flush;
+
+
+--echo #
+--echo # Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+--enable_warnings
+
+--echo #
+--echo # Test 1: LOCK TABLES v1 WRITE, t1 READ;
+--echo #
+
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+
+--echo # Connection 2
+connect (con2,localhost,root);
+LOCK TABLES v1 WRITE, t1 READ;
+FLUSH TABLE t1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection 1
+connection default;
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;                                    # Assertion happened here
+
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+
+--echo #
+--echo # Test 2: LOCK TABLES t1 WRITE, v1 READ;
+--echo #
+
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+
+--echo # Connection 2
+connect (con2,localhost,root);
+LOCK TABLES t1 WRITE, v1 READ;
+FLUSH TABLE t1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection 1
+connection default;
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;                                    # Assertion happened here
+
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
