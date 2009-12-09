@@ -73,9 +73,10 @@ class Sroutine_hash_entry
 {
 public:
   /**
-    Set key consisting of one-byte routine type and quoted routine name.
+    Metadata lock request for routine.
+    MDL_key in this request is also used as a key for set.
   */
-  LEX_STRING key;
+  MDL_request mdl_request;
   /**
     Next element in list linking all routines in set. See also comments
     for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
@@ -96,7 +97,7 @@ public:
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type);
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         const LEX_STRING *key, TABLE_LIST *belong_to_view);
+                         const MDL_key *key, TABLE_LIST *belong_to_view);
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,

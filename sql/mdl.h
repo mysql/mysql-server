@@ -52,9 +52,14 @@ enum enum_mdl_state { MDL_PENDING, MDL_ACQUIRED };
  
   Different types of objects exist in different namespaces
    - MDL_TABLE is for tables and views.
-   - MDL_PROCEDURE is for stored procedures, stored functions and UDFs.
+   - MDL_FUNCTION is for stored functions.
+   - MDL_PROCEDURE is for stored procedures.
+   - MDL_TRIGGER is for triggers.
+  Note that although there isn't metadata locking on triggers,
+  it's necessary to have a separate namespace for them since
+  MDL_key is also used outside of the MDL subsystem.
 */
-enum enum_mdl_namespace { MDL_TABLE=0, MDL_PROCEDURE };
+enum enum_mdl_namespace { MDL_TABLE=0, MDL_FUNCTION, MDL_PROCEDURE, MDL_TRIGGER };
 
 /** Maximal length of key for metadata locking subsystem. */
 #define MAX_MDLKEY_LENGTH (1 + NAME_LEN + 1 + NAME_LEN + 1)
@@ -78,8 +83,11 @@ public:
   const char *db_name() const { return m_ptr + 1; }
   uint db_name_length() const { return m_db_name_length; }
 
-  const char *table_name() const { return m_ptr + m_db_name_length + 2; }
-  uint table_name_length() const { return m_length - m_db_name_length - 3; }
+  const char *name() const { return m_ptr + m_db_name_length + 2; }
+  uint name_length() const { return m_length - m_db_name_length - 3; }
+
+  enum_mdl_namespace mdl_namespace() const
+  { return (enum_mdl_namespace)(m_ptr[0]); }
 
   /**
     Construct a metadata lock key from a triplet (mdl_namespace, database and name).
@@ -179,6 +187,7 @@ public:
 public:
   void init(enum_mdl_namespace namespace_arg, const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg);
+  void init(const MDL_key *key_arg, enum_mdl_type mdl_type_arg);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
   {

@@ -109,35 +109,20 @@ public:
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
-  /**
-    Key representing routine in the set of stored routines used by statement.
-    Consists of 1-byte routine type and m_qname (which usually refences to
-    same buffer). Note that one must complete initialization of the key by
-    calling set_routine_type().
-  */
-  LEX_STRING m_sroutines_key;
   bool       m_explicit_name;                   /**< Prepend the db name? */
 
   sp_name(LEX_STRING db, LEX_STRING name, bool use_explicit_name)
     : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
   {
-    m_qname.str= m_sroutines_key.str= 0;
-    m_qname.length= m_sroutines_key.length= 0;
+    m_qname.str= 0;
+    m_qname.length= 0;
   }
 
-  /**
-    Creates temporary sp_name object from key, used mainly
-    for SP-cache lookups.
-  */
-  sp_name(THD *thd, char *key, uint key_len);
+  /** Create temporary sp_name object from MDL key. */
+  sp_name(const MDL_key *key, char *qname_buff);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
-
-  void set_routine_type(char type)
-  {
-    m_sroutines_key.str[0]= type;
-  }
 
   ~sp_name()
   {}
@@ -181,12 +166,6 @@ public:
   ulong m_sql_mode;		///< For SHOW CREATE and execution
   LEX_STRING m_qname;		///< db.name
   bool m_explicit_name;         ///< Prepend the db name? */
-  /**
-    Key representing routine in the set of stored routines used by statement.
-    [routine_type]db.name
-    @sa sp_name::m_sroutines_key
-  */
-  LEX_STRING m_sroutines_key;
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
