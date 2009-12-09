@@ -343,6 +343,43 @@ disconnect con46044;
 disconnect con46044_2;
 drop table t1;
 
+
+--echo #
+--echo # Test for bug #46673 "Deadlock between FLUSH TABLES WITH READ LOCK
+--echo #                      and DML".
+--echo #
+--disable_warnings
+drop tables if exists t1;
+--enable_warnings
+connect (con46673, localhost, root,,);
+connection default;
+create table t1 (i int);
+
+--echo # Switching to connection 'con46673'.
+connection con46673;
+begin;
+insert into t1 values (1);
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Statement below should not get blocked. And if after some
+--echo # changes to code it is there should not be a deadlock between
+--echo # it and transaction from connection 'con46673'.
+flush tables with read lock;
+unlock tables;
+
+--echo # Switching to connection 'con46673'.
+connection con46673;
+delete from t1 where i = 1;
+commit;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Clean-up
+disconnect con46673;
+drop table t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

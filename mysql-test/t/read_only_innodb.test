@@ -16,8 +16,6 @@ DROP TABLE IF EXISTS table_11733 ;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
 connect (con1,localhost,test,,test);
-connect (con2,localhost,root,,);
-
 
 connection default;
 set global read_only=0;
@@ -30,22 +28,15 @@ BEGIN;
 insert into table_11733 values(11733);
 
 connection default;
-send set global read_only=1;
-
-connection con2;
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "set global read_only=1";
---source include/wait_condition.inc
+set global read_only=1;
 
 connection con1;
 select @@global.read_only;
---error ER_LOCK_DEADLOCK
 select * from table_11733 ;
+--error ER_OPTION_PREVENTS_STATEMENT
 COMMIT;
 
 connection default;
-reap;
 set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
@@ -90,6 +81,5 @@ DROP TABLE t1;
 DROP USER test@localhost;
 
 disconnect con1;
-disconnect con2;
 
 --echo echo End of 5.1 tests 
