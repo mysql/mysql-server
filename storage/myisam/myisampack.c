@@ -3245,4 +3245,4 @@ static int fakecmp(my_off_t **count1, my_off_t **count2)
 }
 #endif
 
-
+#include "mi_extrafunc.h"
