@@ -2070,6 +2070,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
       else
         my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
+      goto error;
     }
   }
   share= table->s;
