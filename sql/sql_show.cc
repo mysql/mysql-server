@@ -2867,6 +2867,10 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   @param[in]      thd                      thread handler
   @param[in]      tables                   TABLE_LIST for I_S table
   @param[in]      schema_table             pointer to I_S structure
+  @param[in]      can_deadlock             Indicates that deadlocks are possible
+                                           due to metadata locks, so to avoid
+                                           them we should not wait in case if
+                                           conflicting lock is present.
   @param[in]      open_tables_state_backup pointer to Open_tables_state object
                                            which is used to save|restore original
                                            status of variables related to
@@ -2880,6 +2884,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 static int 
 fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                               ST_SCHEMA_TABLE *schema_table,
+                              bool can_deadlock,
                               Open_tables_state *open_tables_state_backup)
 {
   LEX *lex= thd->lex;
@@ -2908,7 +2913,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
   res= open_normal_and_derived_tables(thd, show_table_list,
-                                      MYSQL_LOCK_IGNORE_FLUSH);
+                                      (MYSQL_LOCK_IGNORE_FLUSH |
+                                       (can_deadlock ?
+                                        MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
@@ -3047,12 +3054,16 @@ uint get_table_open_method(TABLE_LIST *tables,
 
 
 /**
-   Acquire high priority share metadata lock on a table.
+   Try acquire high priority share metadata lock on a table (with
+   optional wait for conflicting locks to go away).
 
    @param thd            Thread context.
    @param mdl_request    Pointer to memory to be used for MDL_request
                          object for a lock request.
    @param table          Table list element for the table
+   @param can_deadlock   Indicates that deadlocks are possible due to
+                         metadata locks, so to avoid them we should not
+                         wait in case if conflicting lock is present.
 
    @note This is an auxiliary function to be used in cases when we want to
          access table's description by looking up info in TABLE_SHARE without
@@ -3060,19 +3071,21 @@ uint get_table_open_method(TABLE_LIST *tables,
    @note This function assumes that there are no other metadata lock requests
          in the current metadata locking context.
 
-   @retval FALSE  Success
+   @retval FALSE  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
+                  is set to non-NULL value.
    @retval TRUE   Some error occured (probably thread was killed).
 */
 
 static bool
-acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table)
+try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
+                                      bool can_deadlock)
 {
   bool error;
   table->mdl_request.init(MDL_TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
   while (!(error=
            thd->mdl_context.try_acquire_shared_lock(&table->mdl_request)) &&
-         !table->mdl_request.ticket)
+         !table->mdl_request.ticket && !can_deadlock)
   {
     MDL_request_list mdl_requests;
     mdl_requests.push_front(&table->mdl_request);
@@ -3092,6 +3105,10 @@ acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table)
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      schema_table_idx         I_S table index
+  @param[in]      can_deadlock             Indicates that deadlocks are possible
+                                           due to metadata locks, so to avoid
+                                           them we should not wait in case if
+                                           conflicting lock is present.
 
   @return         Operation status
     @retval       0           Table is processed and we can continue
@@ -3104,13 +3121,14 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
                                       ST_SCHEMA_TABLE *schema_table, 
                                       LEX_STRING *db_name,
                                       LEX_STRING *table_name,
-                                      enum enum_schema_tables schema_table_idx)
+                                      enum enum_schema_tables schema_table_idx,
+                                      bool can_deadlock)
 {
   TABLE_SHARE *share;
   TABLE tbl;
   TABLE_LIST table_list;
   uint res= 0;
-  int error;
+  int not_used;
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
@@ -3143,7 +3161,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
           simply obtaining internal lock of data-dictionary (ATM it
           is LOCK_open) instead of obtaning full-blown metadata lock.
   */
-  if (acquire_high_prio_shared_mdl_lock(thd, &table_list))
+  if (try_acquire_high_prio_shared_mdl_lock(thd, &table_list, can_deadlock))
   {
     /*
       Some error occured (most probably we have been killed while
@@ -3153,14 +3171,30 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
     return 1;
   }
 
+  if (! table_list.mdl_request.ticket)
+  {
+    /*
+      We are in situation when we have encountered conflicting metadata
+      lock and deadlocks can occur due to waiting for it to go away.
+      So instead of waiting skip this table with an appropriate warning.
+    */
+    DBUG_ASSERT(can_deadlock);
+
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_I_S_SKIPPED_TABLE,
+                        ER(ER_WARN_I_S_SKIPPED_TABLE),
+                        table_list.db, table_list.table_name);
+    return 0;
+  }
+
   key_length= create_table_def_key(thd, key, &table_list, 0);
   pthread_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, OPEN_VIEW, &error);
+                         key_length, OPEN_VIEW, &not_used);
   if (!share)
   {
     res= 0;
-    goto err_unlock;
+    goto end_unlock;
   }
  
   if (share->is_view)
@@ -3169,7 +3203,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
     {
       /* skip view processing */
       res= 0;
-      goto err_share;
+      goto end_share;
     }
     else if (schema_table->i_s_requested_object & OPEN_VIEW_FULL)
     {
@@ -3178,7 +3212,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
         open_normal_and_derived_tables()
       */
       res= 1;
-      goto err_share;
+      goto end_share;
     }
   }
 
@@ -3194,15 +3228,16 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     closefrm(&tbl, true);
-    goto err_unlock;
+    goto end_unlock;
   }
 
-err_share:
+end_share:
   release_table_share(share);
 
-err_unlock:
+end_unlock:
   pthread_mutex_unlock(&LOCK_open);
 
+end:
   thd->mdl_context.release_lock(table_list.mdl_request.ticket);
   thd->clear_error();
   return res;
@@ -3254,7 +3289,19 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   Security_context *sctx= thd->security_ctx;
 #endif
   uint table_open_method;
+  bool can_deadlock;
   DBUG_ENTER("get_all_tables");
+
+  /*
+    In cases when SELECT from I_S table being filled by this call is
+    part of statement which also uses other tables or is being executed
+    under LOCK TABLES or is part of transaction which also uses other
+    tables waiting for metadata locks which happens below might result
+    in deadlocks.
+    To avoid them we don't wait if conflicting metadata lock is
+    encountered and skip table with emitting an appropriate warning.
+  */
+  can_deadlock= thd->mdl_context.has_locks();
 
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
@@ -3275,6 +3322,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   if (lsel && lsel->table_list.first)
   {
     error= fill_schema_show_cols_or_idxs(thd, tables, schema_table,
+                                         can_deadlock,
                                          &open_tables_state_backup);
     goto err;
   }
@@ -3390,7 +3438,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                 !with_i_schema)
             {
               if (!fill_schema_table_from_frm(thd, table, schema_table, db_name,
-                                              table_name, schema_table_idx))
+                                              table_name, schema_table_idx,
+                                              can_deadlock))
                 continue;
             }
 
@@ -3415,7 +3464,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
             res= open_normal_and_derived_tables(thd, show_table_list,
-                                                MYSQL_LOCK_IGNORE_FLUSH);
+                   (MYSQL_LOCK_IGNORE_FLUSH |
+                    (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
             lex->sql_command= save_sql_command;
             /*
               XXX:  show_table_list has a flag i_is_requested,
