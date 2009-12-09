@@ -130,6 +130,8 @@ static bool tdc_wait_for_old_versions(THD *thd,
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 
+TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+                                  const char *table_name);
 
 uint cached_open_tables(void)
 {
@@ -999,8 +1001,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
          table_list= table_list->next_global)
     {
       /* A check that the table was locked for write is done by the caller. */
-      TABLE *table= find_locked_table(thd->open_tables, table_list->db,
-                                      table_list->table_name);
+      TABLE *table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+                                               table_list->table_name);
 
       /* May return NULL if this table has already been closed via an alias. */
       if (! table)
@@ -2939,6 +2941,34 @@ TABLE *find_write_locked_table(TABLE *list, const char *db, const char *table_na
     }
   }
   return tab;
+}
+
+
+/**
+   Find instance of TABLE with MDL_SHARED_UPGRADABLE or
+   MDL_EXCLUSIVE lock from the list of open tables.
+
+   @param list       List of TABLE objects to be searched
+   @param db         Database name.
+   @param table_name Name of table.
+
+   @return Pointer to MDL_SHARED_UPGRADABLE or MDL_EXCLUSIVE
+           TABLE instance, NULL otherwise.
+*/
+
+TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+                                  const char *table_name)
+{
+  TABLE *tab= find_locked_table(list, db, table_name);
+
+  while (tab != NULL)
+  {
+    if (tab->mdl_ticket != NULL &&
+        tab->mdl_ticket->is_upgradable_or_exclusive())
+      return tab;
+    tab= find_locked_table(tab->next, db, table_name);
+  }
+  return NULL;
 }
 
 

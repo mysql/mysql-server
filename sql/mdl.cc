@@ -1005,6 +1005,9 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   if (m_type == MDL_EXCLUSIVE)
     DBUG_RETURN(FALSE);
 
+  /* Only allow upgrades from MDL_SHARED_UPGRADABLE */
+  DBUG_ASSERT(m_type == MDL_SHARED_UPGRADABLE);
+
   pthread_mutex_lock(&LOCK_mdl);
 
   old_msg= MDL_ENTER_COND(thd, mysys_var);
