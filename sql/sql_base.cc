@@ -3801,17 +3801,16 @@ open_routines(THD *thd, Query_tables_list *prelocking_ctx,
     prelocking it won't do such precaching and will simply reuse table list
     which is already built.
 
-  @retval  0   OK
-  @retval  -1  Error.
+  @retval  FALSE  Success.
+  @retval  TRUE   Error, reported.
 */
 
-int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
+bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
                 Prelocking_strategy *prelocking_strategy)
 {
   TABLE_LIST *tables= NULL;
   Open_table_context ot_ctx(thd);
-  int result=0;
-  bool error;
+  bool error= FALSE;
   MEM_ROOT new_frm_mem;
   /* Also used for indicating that prelocking is need */
   TABLE_LIST **query_tables_last_own;
@@ -3856,16 +3855,16 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
 
-    if (open_routines(thd, thd->lex,
-                      (Sroutine_hash_entry *)thd->lex->sroutines_list.first,
-                      prelocking_strategy, &need_prelocking))
+    error= open_routines(thd, thd->lex,
+                         (Sroutine_hash_entry *)thd->lex->sroutines_list.first,
+                         prelocking_strategy, &need_prelocking);
+    if (error)
     {
       /*
         Serious error during reading stored routines from mysql.proc table.
         Something's wrong with the table or its contents, and an error has
         been emitted; we must abort.
       */
-      result= -1;
       goto err;
     }
     else if (need_prelocking)
@@ -3924,7 +3923,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
       {
         continue;
       }
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
                           tables->db, tables->table_name, (long) tables));
@@ -3979,10 +3978,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
           it may change in future.
         */
         if (ot_ctx.recover_from_failed_open_table_attempt(thd, tables))
-        {
-          result= -1;
           goto err;
-        }
+
+        error= FALSE;
 	goto restart;
       }
 
@@ -3990,10 +3988,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
       {
         DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
                             tables->db, tables->alias));
+        error= FALSE;
         continue;
       }
-
-      result= -1;				// Fatal error
       goto err;
     }
 
@@ -4071,10 +4068,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
         query_tables_last_own= save_query_tables_last;
 
       if (error)
-      {
-        result= -1;
         goto err;
-      }
 
       /*
         Process elements of the prelocking set which were added
@@ -4084,12 +4078,10 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
         prelocking strategy prescribes so, add tables it uses to the table
         list and routines it might invoke to the prelocking set.
       */
-      if (open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
-                        &not_used))
-      {
-        result= -1;
+      error= open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
+                           &not_used);
+      if (error)
         goto err;
-      }
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
@@ -4105,12 +4097,10 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     tables->table->grant= tables->grant;
 
     /* Check and update metadata version of a base table. */
-    if (check_and_update_table_version(thd, tables, tables->table->s))
-    {
-      result= -1;
-      goto err;
-    }
+    error= check_and_update_table_version(thd, tables, tables->table->s);
 
+    if (error)
+      goto err;
     /*
       After opening a MERGE table add the children to the query list of
       tables, so that they are opened too.
@@ -4121,7 +4111,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     /* Non-MERGE tables ignore this call. */
     if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
     {
-      result= -1;
+      error= TRUE;
       goto err;
     }
 
@@ -4147,19 +4137,18 @@ process_view_routines:
         query_tables_last_own= save_query_tables_last;
 
       if (error)
-      {
-        result= -1;
         goto err;
-      }
-      if (open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
-                        &not_used))
+
+      error= open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
+                           &not_used);
+
+      if (error)
       {
         /*
           Serious error during reading stored routines from mysql.proc table.
           Something is wrong with the table or its contents, and an error has
           been emitted; we must abort.
         */
-        result= -1;
         goto err;
       }
     }
@@ -4182,25 +4171,25 @@ process_view_routines:
       DBUG_ASSERT(tbl->pos_in_table_list == tables);
       if (tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
-        result= -1;
+        error= TRUE;
         goto err;
       }
     }
   }
 
- err:
+err:
   thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
   if (query_tables_last_own)
     thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
 
-  if (result && tables)
+  if (error && tables)
   {
     tables->table= NULL;
   }
-  DBUG_PRINT("tcache", ("returning: %d", result));
-  DBUG_RETURN(result);
+  DBUG_PRINT("open_tables", ("returning: %d", (int) error));
+  DBUG_RETURN(error);
 }
 
 
@@ -4659,9 +4648,9 @@ end:
   @retval TRUE   Error
 */
 
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                 bool derived, uint flags,
-                                 Prelocking_strategy *prelocking_strategy)
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                  bool derived, uint flags,
+                                  Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
   bool need_reopen;
@@ -4672,8 +4661,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
   for ( ; ; ) 
   {
     if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
-      DBUG_RETURN(-1);
-
+      DBUG_RETURN(TRUE);
     DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
       const char *old_proc_info= thd->proc_info;
       thd->proc_info= "DBUG sleep";
@@ -4684,11 +4672,11 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
                      &need_reopen))
       break;
     if (!need_reopen)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     if (thd->in_multi_stmt_transaction() && has_locks)
     {
       my_error(ER_LOCK_DEADLOCK, MYF(0));
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     close_tables_for_reopen(thd, &tables);
   }
@@ -4697,7 +4685,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
        (thd->fill_derived_tables() &&
         mysql_handle_derived(thd->lex, &mysql_derived_filling))))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -4791,7 +4779,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
    @param tables Tables involved in the query
  */
 
-int decide_logging_format(THD *thd, TABLE_LIST *tables)
+bool decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
   /*
     In SBR mode, we are only proceeding if we are binlogging this
@@ -4889,7 +4877,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info", ("error: %d", error));
 
     if (error)
-      return -1;
+      return TRUE;
 
     /*
       We switch to row-based format if we are in mixed mode and one of
@@ -4910,7 +4898,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     }
   }
 
-  return 0;
+  return FALSE;
 }
 
 /*
@@ -4942,8 +4930,8 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
    -1	Error
 */
 
-int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
-                uint flags, bool *need_reopen)
+bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
+                 uint flags, bool *need_reopen)
 {
   TABLE_LIST *table;
 
@@ -4975,7 +4963,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
     TABLE **start,**ptr;
 
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     for (table= tables; table; table= table->next_global)
     {
       if (!table->placeholder())
@@ -5002,7 +4990,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
                                         flags, need_reopen)))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)
@@ -5030,7 +5018,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
           {
             mysql_unlock_tables(thd, thd->lock);
             thd->lock= 0;
-            DBUG_RETURN(-1);
+            DBUG_RETURN(TRUE);
           }
         }
       }
@@ -5075,14 +5063,14 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count,
           {
             my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
                      table->table->s->table_name.str);
-            DBUG_RETURN(-1);
+            DBUG_RETURN(TRUE);
           }
         }
       }
 
       if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
     }
     /*

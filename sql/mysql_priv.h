@@ -1474,19 +1474,20 @@ int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
-int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
+bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                 Prelocking_strategy *prelocking_strategy);
-inline int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
+inline bool
+open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 /* open_and_lock_tables with optional derived handling */
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
                                  bool derived, uint flags,
                                  Prelocking_strategy *prelocking_strategy);
-inline int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+inline bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
                                         bool derived, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
@@ -1495,12 +1496,12 @@ inline int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
                                       &prelocking_strategy);
 }
 /* simple open_and_lock_tables without derived handling */
-inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, FALSE, 0);
 }
 /* open_and_lock_tables with derived handling */
-inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, TRUE, 0);
 }
@@ -1508,9 +1509,9 @@ inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
-int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
+bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
                 bool *need_reopen);
-int decide_logging_format(THD *thd, TABLE_LIST *tables);
+bool decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(handlerton *base, char *path);
