@@ -1883,7 +1883,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
-  if (thd->mdl_context.is_exclusive_lock_owner(0, db, old_table))
+  if (thd->mdl_context.is_exclusive_lock_owner(MDL_TABLE, db, old_table))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
 

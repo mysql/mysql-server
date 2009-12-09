@@ -957,7 +957,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
-    lock_table->mdl_request.init(0, lock_table->db, lock_table->table_name,
+    lock_table->mdl_request.init(MDL_TABLE, lock_table->db, lock_table->table_name,
                                  MDL_EXCLUSIVE);
     mdl_requests.push_front(&lock_table->mdl_request);
   }
