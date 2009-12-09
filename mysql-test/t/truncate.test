@@ -69,3 +69,26 @@ drop table t1;
 
 # End of 5.0 tests
 
+--echo #
+--echo # Bug#46452 Crash in MDL, HANDLER OPEN + TRUNCATE TABLE
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 AS SELECT 1 AS f1;
+
+HANDLER t1 OPEN;
+--echo # Here comes the crash.
+TRUNCATE t1;
+
+--echo # Currently TRUNCATE, just like other DDL, implicitly closes
+--echo # open HANDLER table.
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+
+# Cleanup
+DROP TABLE t1;
+
+--echo # End of 6.0 tests
+

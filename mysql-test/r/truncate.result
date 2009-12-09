@@ -60,3 +60,17 @@ truncate table v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 drop view v1;
 drop table t1;
+#
+# Bug#46452 Crash in MDL, HANDLER OPEN + TRUNCATE TABLE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 AS SELECT 1 AS f1;
+HANDLER t1 OPEN;
+# Here comes the crash.
+TRUNCATE t1;
+# Currently TRUNCATE, just like other DDL, implicitly closes
+# open HANDLER table.
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+DROP TABLE t1;
+# End of 6.0 tests
