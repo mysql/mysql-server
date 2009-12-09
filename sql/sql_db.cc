@@ -541,6 +541,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       file.  In this case it's best to just continue as if nothing has
       happened.  (This is a very unlikely senario)
     */
+    thd->clear_error();
   }
   
   if (!silent)
@@ -644,6 +645,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   if (mysql_bin_log.is_open())
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
 			  /* suppress_use */ TRUE, THD::NOT_KILLED);
 
@@ -655,7 +657,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db     = db;
     qinfo.db_len = (uint) strlen(db);
 
-    thd->clear_error();
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
     mysql_bin_log.write(&qinfo);
   }
@@ -769,6 +770,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     if (mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, query, query_length, 0, 
 			    /* suppress_use */ TRUE, THD::NOT_KILLED);
       /*
@@ -779,7 +781,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       qinfo.db     = db;
       qinfo.db_len = (uint) strlen(db);
 
-      thd->clear_error();
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
