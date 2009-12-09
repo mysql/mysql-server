@@ -2350,7 +2350,10 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
       return 1;
     if (mdl_request->ticket == NULL)
     {
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT);
+      if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
+        my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), table_list->db, table_list->table_name);
+      else
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT);
       return 1;
     }
   }

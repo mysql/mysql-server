@@ -6242,6 +6242,8 @@ ER_UNKNOWN_LOCALE
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
 
+ER_WARN_I_S_SKIPPED_TABLE
+  eng "Table '%s'.'%s' was skipped since its definition is being modified by concurrent DDL statement"
 ER_SAME_NAME_PARTITION_FIELD
   eng "Duplicate partition field name '%-.192s'"
 ER_PARTITION_COLUMN_LIST_ERROR

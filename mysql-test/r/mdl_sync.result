@@ -62,3 +62,114 @@ unlock tables;
 # Reap INSERT.
 # Clean-up.
 drop tables t1, t2, t3, t5;
+#
+# Bug #46044 "MDL deadlock on LOCK TABLE + CREATE TABLE HIGH_PRIORITY
+#             FOR UPDATE"
+#
+drop tables if exists t1, t2;
+create table t1 (i int);
+# Let us check that we won't deadlock if during filling
+# of I_S table we encounter conflicting metadata lock
+# which owner is in its turn waiting for our connection.
+lock tables t1 write;
+# Switching to connection 'con46044'.
+# Sending:
+create table t2 select * from t1;;
+# Switching to connection 'default'.
+# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# First let us check that SHOW FIELDS/DESCRIBE doesn't
+# gets blocked and emits and error.
+show fields from t2;
+ERROR HY000: Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+# Now test for I_S query which reads only .FRMs.
+#
+# Query below should only emit a warning.
+select column_name from information_schema.columns
+where table_schema='test' and table_name='t2';
+column_name
+Warnings:
+Warning	1652	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+# Finally, test for I_S query which does full-blown table open.
+#
+# Query below should not be blocked. Warning message should be
+# stored in the 'table_comment' column.
+select table_name, table_type, auto_increment, table_comment
+from information_schema.tables where table_schema='test' and table_name='t2';
+table_name	table_type	auto_increment	table_comment
+t2	BASE TABLE	NULL	Table 'test'.'t2' was skipped since its definition is being modified by concurre
+# Switching to connection 'default'.
+unlock tables;
+# Switching to connection 'con46044'.
+# Reaping CREATE TABLE ... SELECT ... .
+drop table t2;
+#
+# Let us also check that queries to I_S wait for conflicting metadata
+# locks to go away instead of skipping table with a warning in cases
+# when deadlock is not possible. This is a nice thing from compatibility
+# and ease of use points of view.
+#
+# We check same three queries to I_S in this new situation.
+# Switching to connection 'con46044_2'.
+lock tables t1 write;
+# Switching to connection 'con46044'.
+# Sending:
+create table t2 select * from t1;;
+# Switching to connection 'default'.
+# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# Let us check that SHOW FIELDS/DESCRIBE gets blocked.
+# Sending:
+show fields from t2;;
+# Switching to connection 'con46044_2'.
+# Wait until SHOW FIELDS gets blocked.
+unlock tables;
+# Switching to connection 'con46044'.
+# Reaping CREATE TABLE ... SELECT ... .
+# Switching to connection 'default'.
+# Reaping SHOW FIELDS ...
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+drop table t2;
+# Switching to connection 'con46044_2'.
+lock tables t1 write;
+# Switching to connection 'con46044'.
+# Sending:
+create table t2 select * from t1;;
+# Switching to connection 'default'.
+# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# Check that I_S query which reads only .FRMs gets blocked.
+# Sending:
+select column_name from information_schema.columns where table_schema='test' and table_name='t2';;
+# Switching to connection 'con46044_2'.
+# Wait until SELECT COLUMN_NAME FROM I_S.COLUMNS  gets blocked.
+unlock tables;
+# Switching to connection 'con46044'.
+# Reaping CREATE TABLE ... SELECT ... .
+# Switching to connection 'default'.
+# Reaping SELECT COLUMN_NAME FROM I_S.COLUMNS
+column_name
+i
+drop table t2;
+# Switching to connection 'con46044_2'.
+lock tables t1 write;
+# Switching to connection 'con46044'.
+# Sending:
+create table t2 select * from t1;;
+# Switching to connection 'default'.
+# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# Finally, check that I_S query which does full-blown table open
+# also gets blocked.
+# Sending:
+select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t2';;
+# Switching to connection 'con46044_2'.
+# Wait until SELECT ... FROM I_S.TABLES gets blocked.
+unlock tables;
+# Switching to connection 'con46044'.
+# Reaping CREATE TABLE ... SELECT ... .
+# Switching to connection 'default'.
+# Reaping SELECT ... FROM I_S.TABLES
+table_name	table_type	auto_increment	table_comment
+t2	BASE TABLE	NULL	
+drop table t2;
+# Switching to connection 'default'.
+# Clean-up.
+drop table t1;

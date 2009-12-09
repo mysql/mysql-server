@@ -6236,12 +6236,13 @@ ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
 ER_UNKNOWN_LOCALE                                                                                                                                                                    
-        eng "Unknown locale: '%-.64s'"
-
+  eng "Unknown locale: '%-.64s'"
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
 ER_QUERY_CACHE_DISABLED
   eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
+ER_WARN_I_S_SKIPPED_TABLE
+  eng "Table '%s'.'%s' was skipped since its definition is being modified by concurrent DDL statement"
 ER_SAME_NAME_PARTITION_FIELD
   eng "Duplicate partition field name '%-.192s'"
 ER_PARTITION_COLUMN_LIST_ERROR
