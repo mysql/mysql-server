@@ -321,6 +321,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
         can close a single table only.
       */
       close_thread_tables(thd);
+      thd->mdl_context.release_all_locks();
       my_error(ER_ILLEGAL_HA, MYF(0), hash_tables->alias);
       error= TRUE;
     }
