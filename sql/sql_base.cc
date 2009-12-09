@@ -3753,16 +3753,13 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 
 
 /*
-  Perform steps of prelocking algorithm for elements of the
-  prelocking set other than tables. E.g. cache routines and, if
-  prelocking strategy prescribes so, extend the prelocking set with
-  tables and routines used by them.
+  Handle element of prelocking set other than table. E.g. cache routine
+  and, if prelocking strategy prescribes so, extend the prelocking set
+  with tables and routines used by it.
 
   @param[in]  thd                  Thread context.
   @param[in]  prelocking_ctx       Prelocking context.
-  @param[in]  start                First element in the list representing
-                                   subset of the prelocking set to be
-                                   processed.
+  @param[in]  rt                   Element of prelocking set to be processed.
   @param[in]  prelocking_strategy  Strategy which specifies how the
                                    prelocking set should be extended when
                                    one of its elements is processed.
@@ -3775,43 +3772,290 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 */
 
 static bool
-open_routines(THD *thd, Query_tables_list *prelocking_ctx,
-              Sroutine_hash_entry *start,
-              Prelocking_strategy *prelocking_strategy,
-              bool *need_prelocking)
+open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                         Sroutine_hash_entry *rt,
+                         Prelocking_strategy *prelocking_strategy,
+                         bool *need_prelocking)
 {
-  DBUG_ENTER("open_routines");
+  int type= rt->key.str[0];
 
-  for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
+  DBUG_ENTER("open_and_process_routine");
+
+  switch (type)
   {
-    int type= rt->key.str[0];
-
-    switch (type)
+  case TYPE_ENUM_FUNCTION:
+  case TYPE_ENUM_PROCEDURE:
     {
-    case TYPE_ENUM_FUNCTION:
-    case TYPE_ENUM_PROCEDURE:
+      sp_name name(thd, rt->key.str, rt->key.length);
+      sp_head *sp;
+
+      if (sp_cache_routine(thd, type, &name, &sp))
+        DBUG_RETURN(TRUE);
+
+      if (sp)
       {
-        sp_name name(thd, rt->key.str, rt->key.length);
-        sp_head *sp;
-
-        if (sp_cache_routine(thd, type, &name, &sp))
-          DBUG_RETURN(TRUE);
-
-        if (sp)
-        {
-          prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
-                                              need_prelocking);
-        }
+        prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
+                                            need_prelocking);
       }
-      break;
-    case TYPE_ENUM_TRIGGER:
-      break;
-    default:
-      /* Impossible type value. */
-      DBUG_ASSERT(0);
     }
+    break;
+  case TYPE_ENUM_TRIGGER:
+    break;
+  default:
+    /* Impossible type value. */
+    DBUG_ASSERT(0);
   }
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Handle table list element by obtaining metadata lock, opening table or view
+  and, if prelocking strategy prescribes so, extending the prelocking set with
+  tables and routines used by it.
+
+  @param[in]     thd                  Thread context.
+  @param[in]     lex                  LEX structure for statement.
+  @param[in]     tables               Table list element to be processed.
+  @param[in,out] counter              Number of tables which are open.
+  @param[in]     flags                Bitmap of flags to modify how the tables
+                                      will be open, see open_table() description
+                                      for details.
+  @param[in]     prelocking_strategy  Strategy which specifies how the
+                                      prelocking set should be extended
+                                      when table or view is processed.
+  @param[in]     has_prelocking_list  Indicates that prelocking set/list for
+                                      this statement has already been built.
+  @param[in]     ot_ctx               Context used to recover from a failed
+                                      open_table() attempt.
+  @param[in]     new_frm_mem          Temporary MEM_ROOT to be used for
+                                      parsing .FRMs for views.
+
+  @retval  FALSE  Success.
+  @retval  TRUE   Error, reported unless there is a chance to recover from it.
+*/
+
+static bool
+open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
+                       uint *counter, uint flags,
+                       Prelocking_strategy *prelocking_strategy,
+                       bool has_prelocking_list,
+                       Open_table_context *ot_ctx,
+                       MEM_ROOT *new_frm_mem)
+{
+  bool error= FALSE;
+  bool safe_to_ignore_table= FALSE;
+  DBUG_ENTER("open_and_process_table");
+
+  /*
+    Ignore placeholders for derived tables. After derived tables
+    processing, link to created temporary table will be put here.
+    If this is derived table for view then we still want to process
+    routines used by this view.
+  */
+  if (tables->derived)
+  {
+    if (!tables->view)
+      goto end;
+    /*
+      We restore view's name and database wiped out by derived tables
+      processing and fall back to standard open process in order to
+      obtain proper metadata locks and do other necessary steps like
+      stored routine processing.
+    */
+    tables->db= tables->view_db.str;
+    tables->db_length= tables->view_db.length;
+    tables->table_name= tables->view_name.str;
+    tables->table_name_length= tables->view_name.length;
+  }
+  /*
+    If this TABLE_LIST object is a placeholder for an information_schema
+    table, create a temporary table to represent the information_schema
+    table in the query. Do not fill it yet - will be filled during
+    execution.
+  */
+  if (tables->schema_table)
+  {
+    /*
+      If this information_schema table is merged into a mergeable
+      view, ignore it for now -- it will be filled when its respective
+      TABLE_LIST is processed. This code works only during re-execution.
+    */
+    if (tables->view)
+      goto process_view_routines;
+    if (!mysql_schema_table(thd, lex, tables) &&
+        !check_and_update_table_version(thd, tables, tables->table->s))
+    {
+      goto end;
+    }
+    error= TRUE;
+    goto end;
+  }
+  DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: %p",
+                        tables->db, tables->table_name, tables)); //psergey: invalid read of size 1 here
+  (*counter)++;
+
+  /* Not a placeholder: must be a base table or a view. Let us open it. */
+  DBUG_ASSERT(!tables->table);
+
+  if (tables->prelocking_placeholder)
+  {
+    /*
+      For the tables added by the pre-locking code, attempt to open
+      the table but fail silently if the table does not exist.
+      The real failure will occur when/if a statement attempts to use
+      that table.
+    */
+    Prelock_error_handler prelock_handler;
+    thd->push_internal_handler(& prelock_handler);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    thd->pop_internal_handler();
+    safe_to_ignore_table= prelock_handler.safely_trapped_errors();
+  }
+  else
+    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+
+  free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
+
+  if (error)
+  {
+    if (! ot_ctx->can_recover_from_failed_open_table() && safe_to_ignore_table)
+    {
+      DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
+                          tables->db, tables->alias));
+      error= FALSE;
+    }
+    goto end;
+  }
+
+  /*
+    We can't rely on simple check for TABLE_LIST::view to determine
+    that this is a view since during re-execution we might reopen
+    ordinary table in place of view and thus have TABLE_LIST::view
+    set from repvious execution and TABLE_LIST::table set from
+    current.
+  */
+  if (!tables->table && tables->view)
+  {
+    /* VIEW placeholder */
+    (*counter)--;
+
+    /*
+      tables->next_global list consists of two parts:
+      1) Query tables and underlying tables of views.
+      2) Tables used by all stored routines that this statement invokes on
+         execution.
+      We need to know where the bound between these two parts is. If we've
+      just opened a view, which was the last table in part #1, and it
+      has added its base tables after itself, adjust the boundary pointer
+      accordingly.
+    */
+    if (lex->query_tables_own_last == &(tables->next_global) &&
+        tables->view->query_tables)
+      lex->query_tables_own_last= tables->view->query_tables_last;
+    /*
+      Let us free memory used by 'sroutines' hash here since we never
+      call destructor for this LEX.
+    */
+    my_hash_free(&tables->view->sroutines);
+    goto process_view_routines;
+  }
+
+  /*
+    Special types of open can succeed but still don't set
+    TABLE_LIST::table to anything.
+  */
+  if (tables->open_strategy && !tables->table)
+    goto end;
+
+  /*
+    If we are not already in prelocked mode and extended table list is not
+    yet built we might have to build the prelocking set for this statement.
+
+    Since currently no prelocking strategy prescribes doing anything for
+    tables which are only read, we do below checks only if table is going
+    to be changed.
+  */
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      ! has_prelocking_list &&
+      tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+  {
+    bool need_prelocking= FALSE;
+    TABLE_LIST **save_query_tables_last= lex->query_tables_last;
+    /*
+      Extend statement's table list and the prelocking set with
+      tables and routines according to the current prelocking
+      strategy.
+
+      For example, for DML statements we need to add tables and routines
+      used by triggers which are going to be invoked for this element of
+      table list and also add tables required for handling of foreign keys.
+    */
+    error= prelocking_strategy->handle_table(thd, lex, tables,
+                                             &need_prelocking);
+
+    if (need_prelocking && ! lex->requires_prelocking())
+      lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+    if (error)
+      goto end;
+  }
+
+  if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
+  {
+    if (tables->lock_type == TL_WRITE_DEFAULT)
+      tables->table->reginfo.lock_type= thd->update_lock_default;
+    else if (tables->lock_type == TL_READ_DEFAULT)
+      tables->table->reginfo.lock_type=
+        read_lock_type_for_table(thd, tables->table);
+    else
+      tables->table->reginfo.lock_type= tables->lock_type;
+  }
+  tables->table->grant= tables->grant;
+
+  /* Check and update metadata version of a base table. */
+  error= check_and_update_table_version(thd, tables, tables->table->s);
+
+  if (error)
+    goto end;
+  /*
+    After opening a MERGE table add the children to the query list of
+    tables, so that they are opened too.
+    Note that placeholders don't have the handler open.
+  */
+  /* MERGE tables need to access parent and child TABLE_LISTs. */
+  DBUG_ASSERT(tables->table->pos_in_table_list == tables);
+  /* Non-MERGE tables ignore this call. */
+  if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
+  {
+    error= TRUE;
+    goto end;
+  }
+
+process_view_routines:
+  /*
+    Again we may need cache all routines used by this view and add
+    tables used by them to table list.
+  */
+  if (tables->view &&
+      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      ! has_prelocking_list)
+  {
+    bool need_prelocking= FALSE;
+    TABLE_LIST **save_query_tables_last= lex->query_tables_last;
+
+    error= prelocking_strategy->handle_view(thd, lex, tables,
+                                            &need_prelocking);
+
+    if (need_prelocking && ! lex->requires_prelocking())
+      lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+    if (error)
+      goto end;
+  }
+
+end:
+  DBUG_RETURN(error);
 }
 
 
@@ -3847,26 +4091,21 @@ open_routines(THD *thd, Query_tables_list *prelocking_ctx,
 bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
                 Prelocking_strategy *prelocking_strategy)
 {
-  TABLE_LIST *tables= NULL;
+  /*
+    We use pointers to "next_global" member in the last processed TABLE_LIST
+    element and to the "next" member in the last processed Sroutine_hash_entry
+    element as iterators over, correspondingly, the table list and stored routines
+    list which stay valid and allow to continue iteration when new elements are
+    added to the tail of the lists.
+  */
+  TABLE_LIST **table_to_open;
+  Sroutine_hash_entry **sroutine_to_open;
+  TABLE_LIST *tables;
   Open_table_context ot_ctx(thd);
   bool error= FALSE;
   MEM_ROOT new_frm_mem;
-  /* Also used for indicating that prelocking is need */
-  TABLE_LIST **query_tables_last_own;
-  bool safe_to_ignore_table;
+  bool has_prelocking_list= thd->lex->requires_prelocking();
   DBUG_ENTER("open_tables");
-  /*
-    temporary mem_root for new .frm parsing.
-    TODO: variables for size
-  */
-  init_sql_alloc(&new_frm_mem, 8024, 8024);
-
-  thd->current_tablenr= 0;
- restart:
-  *counter= 0;
-  query_tables_last_own= 0;
-  thd_proc_info(thd, "Opening tables");
-
   /*
     Close HANDLER tables which are marked for flush or against which there
     are pending exclusive metadata locks. Note that we do this not to avoid
@@ -3880,316 +4119,116 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     mysql_ha_flush(thd);
 
   /*
-    If we are not already executing prelocked statement and don't have
-    statement for which table list for prelocking is already built, let
-    us cache routines and try to build such table list.
+    temporary mem_root for new .frm parsing.
+    TODO: variables for size
   */
+  init_sql_alloc(&new_frm_mem, 8024, 8024);
 
-  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-      !thd->lex->requires_prelocking() &&
-      thd->lex->uses_stored_routines())
-  {
-    bool need_prelocking= FALSE;
-    TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
-
-    DBUG_ASSERT(thd->lex->query_tables == *start);
-
-    error= open_routines(thd, thd->lex,
-                         (Sroutine_hash_entry *)thd->lex->sroutines_list.first,
-                         prelocking_strategy, &need_prelocking);
-    if (error)
-    {
-      /*
-        Serious error during reading stored routines from mysql.proc table.
-        Something's wrong with the table or its contents, and an error has
-        been emitted; we must abort.
-      */
-      goto err;
-    }
-    else if (need_prelocking)
-    {
-      query_tables_last_own= save_query_tables_last;
-      *start= thd->lex->query_tables;
-    }
-  }
+  thd->current_tablenr= 0;
+ restart:
+  table_to_open= start;
+  sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
+  *counter= 0;
+  thd_proc_info(thd, "Opening tables");
 
   /*
-    For every table in the list of tables to open, try to find or open
-    a table.
+    Perform steps of prelocking algorithm until there are unprocessed
+    elements in prelocking list/set.
   */
-  for (tables= *start; tables ;tables= tables->next_global)
+  while (*table_to_open  ||
+         (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+          ! has_prelocking_list &&
+          *sroutine_to_open))
   {
-    safe_to_ignore_table= FALSE;
-
     /*
-      Ignore placeholders for derived tables. After derived tables
-      processing, link to created temporary table will be put here.
-      If this is derived table for view then we still want to process
-      routines used by this view.
-     */
-    if (tables->derived)
-    {
-      if (!tables->view)
-        continue;
-      /*
-        We restore view's name and database wiped out by derived tables
-        processing and fall back to standard open process in order to
-        obtain proper metadata locks and do other necessary steps like
-        stored routine processing.
-      */
-      tables->db= tables->view_db.str;
-      tables->db_length= tables->view_db.length;
-      tables->table_name= tables->view_name.str;
-      tables->table_name_length= tables->view_name.length;
-    }
-    /*
-      If this TABLE_LIST object is a placeholder for an information_schema
-      table, create a temporary table to represent the information_schema
-      table in the query. Do not fill it yet - will be filled during
-      execution.
+      For every table in the list of tables to open, try to find or open
+      a table.
     */
-    if (tables->schema_table)
+    for (tables= *table_to_open; tables;
+         table_to_open= &tables->next_global, tables= tables->next_global)
     {
-      /*
-        If this information_schema table is merged into a mergeable
-        view, ignore it for now -- it will be filled when its respective
-        TABLE_LIST is processed. This code works only during re-execution.
-      */
-      if (tables->view)
-        goto process_view_routines;
-      if (!mysql_schema_table(thd, thd->lex, tables) &&
-          !check_and_update_table_version(thd, tables, tables->table->s))
+      error= open_and_process_table(thd, thd->lex, tables, counter,
+                                    flags, prelocking_strategy,
+                                    has_prelocking_list, &ot_ctx,
+                                    &new_frm_mem);
+
+      if (error)
       {
-        continue;
+        if (ot_ctx.can_recover_from_failed_open_table())
+        {
+          /*
+            We have met exclusive metadata lock or old version of table.
+            Now we have to close all tables and release metadata locks.
+            We also have to throw away set of prelocked tables (and thus
+            close tables from this set that were open by now) since it
+            is possible that one of tables which determined its content
+            was changed.
+
+            Instead of implementing complex/non-robust logic mentioned
+            above we simply close and then reopen all tables.
+
+            We have to save pointer to table list element for table which we
+            have failed to open since closing tables can trigger removal of
+            elements from the table list (if MERGE tables are involved),
+          */
+          TABLE_LIST *failed_table= *table_to_open;
+          close_tables_for_reopen(thd, start);
+          /*
+            Here we rely on the fact that 'tables' still points to the valid
+            TABLE_LIST element. Altough currently this assumption is valid
+            it may change in future.
+          */
+          if (ot_ctx.recover_from_failed_open_table_attempt(thd, failed_table))
+            goto err;
+
+          error= FALSE;
+          goto restart;
+        }
+        goto err;
       }
-      DBUG_RETURN(TRUE);
     }
-    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
-                          tables->db, tables->table_name, (long) tables));
-    (*counter)++;
 
-    /* Not a placeholder: must be a base table or a view. Let us open it. */
-    DBUG_ASSERT(!tables->table);
-
-    if (tables->prelocking_placeholder)
+    /*
+      If we are not already in prelocked mode and extended table list is
+      not yet built for our statement we need to cache routines it uses
+      and build the prelocking list for it.
+    */
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES && ! has_prelocking_list)
     {
+      bool need_prelocking= FALSE;
+      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
       /*
-        For the tables added by the pre-locking code, attempt to open
-        the table but fail silently if the table does not exist.
-        The real failure will occur when/if a statement attempts to use
-        that table.
+        Process elements of the prelocking set which are present there
+        since parsing stage or were added to it by invocations of
+        Prelocking_strategy methods in the above loop over tables.
+
+        For example, if element is a routine, cache it and then,
+        if prelocking strategy prescribes so, add tables it uses to the
+        table list and routines it might invoke to the prelocking set.
       */
-      Prelock_error_handler prelock_handler;
-      thd->push_internal_handler(& prelock_handler);
-      error= open_table(thd, tables, &new_frm_mem, &ot_ctx, flags);
-      thd->pop_internal_handler();
-      safe_to_ignore_table= prelock_handler.safely_trapped_errors();
-    }
-    else
-      error= open_table(thd, tables, &new_frm_mem, &ot_ctx, flags);
-
-    free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
-
-    if (error)
-    {
-      if (ot_ctx.can_recover_from_failed_open_table())
+      for (Sroutine_hash_entry *rt= *sroutine_to_open; rt;
+           sroutine_to_open= &rt->next, rt= rt->next)
       {
-        /*
-          We have met exclusive metadata lock or old version of table. Now we
-          have to close all tables which are not up to date/release metadata
-          locks. We also have to throw away set of prelocked tables (and thus
-          close tables from this set that were open by now) since it possible
-          that one of tables which determined its content was changed.
+        error= open_and_process_routine(thd, thd->lex, rt,
+                                        prelocking_strategy,
+                                        &need_prelocking);
 
-          Instead of implementing complex/non-robust logic mentioned
-          above we simply close and then reopen all tables.
-
-          In order to prepare for recalculation of set of prelocked tables
-          we pretend that we have finished calculation which we were doing
-          currently.
-        */
-        if (query_tables_last_own)
-          thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-        close_tables_for_reopen(thd, start);
-        /*
-          Here we rely on the fact that 'tables' still points to the valid
-          TABLE_LIST element. Altough currently this assumption is valid
-          it may change in future.
-        */
-        if (ot_ctx.recover_from_failed_open_table_attempt(thd, tables))
+        if (error)
+        {
+          /*
+            Serious error during reading stored routines from mysql.proc table.
+            Something is wrong with the table or its contents, and an error has
+            been emitted; we must abort.
+          */
           goto err;
-
-        error= FALSE;
-	goto restart;
+        }
       }
 
-      if (safe_to_ignore_table)
-      {
-        DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
-                            tables->db, tables->alias));
-        error= FALSE;
-        continue;
-      }
-      goto err;
-    }
+      if (need_prelocking && ! thd->lex->requires_prelocking())
+        thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
 
-    /*
-      We can't rely on simple check for TABLE_LIST::view to determine
-      that this is a view since during re-execution we might reopen
-      ordinary table in place of view and thus have TABLE_LIST::view
-      set from repvious execution and TABLE_LIST::table set from
-      current.
-    */
-    if (!tables->table && tables->view)
-    {
-      /* VIEW placeholder */
-      (*counter)--;
-
-      /*
-        tables->next_global list consists of two parts:
-        1) Query tables and underlying tables of views.
-        2) Tables used by all stored routines that this statement invokes on
-           execution.
-        We need to know where the bound between these two parts is. If we've
-        just opened a view, which was the last table in part #1, and it
-        has added its base tables after itself, adjust the boundary pointer
-        accordingly.
-      */
-      if (query_tables_last_own == &(tables->next_global) &&
-          tables->view->query_tables)
-        query_tables_last_own= tables->view->query_tables_last;
-      /*
-        Let us free memory used by 'sroutines' hash here since we never
-        call destructor for this LEX.
-      */
-      my_hash_free(&tables->view->sroutines);
-      goto process_view_routines;
-    }
-
-    /*
-      Special types of open can succeed but still don't set
-      TABLE_LIST::table to anything.
-    */
-    if (tables->open_strategy && !tables->table)
-      continue;
-
-    /*
-      If we are not already in prelocked mode and extended table list is not
-      yet built we might have to build the prelocking set for this statement.
-
-      Since currently no prelocking strategy prescribes doing anything for
-      tables which are only read, we do below checks only if table is going
-      to be changed.
-    */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        !thd->lex->requires_prelocking() &&
-        tables->lock_type >= TL_WRITE_ALLOW_WRITE)
-    {
-      bool need_prelocking= FALSE;
-      bool not_used;
-      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
-      Sroutine_hash_entry **sroutines_next= 
-        (Sroutine_hash_entry **)thd->lex->sroutines_list.next;
-
-      /*
-        Extend statement's table list and the prelocking set with
-        tables and routines according to the current prelocking
-        strategy.
-
-        For example, for DML statements we need to add tables and routines
-        used by triggers which are going to be invoked for this element of
-        table list and also add tables required for handling of foreign keys.
-      */
-      error= prelocking_strategy->handle_table(thd, thd->lex, tables,
-                                               &need_prelocking);
-
-      if (need_prelocking && ! query_tables_last_own)
-        query_tables_last_own= save_query_tables_last;
-
-      if (error)
-        goto err;
-
-      /*
-        Process elements of the prelocking set which were added
-        by the above invocation of Prelocking_strategy method.
-
-        For example, if new element is a routine, cache it and then, if
-        prelocking strategy prescribes so, add tables it uses to the table
-        list and routines it might invoke to the prelocking set.
-      */
-      error= open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
-                           &not_used);
-      if (error)
-        goto err;
-    }
-
-    if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
-    {
-      if (tables->lock_type == TL_WRITE_DEFAULT)
-        tables->table->reginfo.lock_type= thd->update_lock_default;
-      else if (tables->lock_type == TL_READ_DEFAULT)
-        tables->table->reginfo.lock_type=
-          read_lock_type_for_table(thd, tables->table);
-      else
-        tables->table->reginfo.lock_type= tables->lock_type;
-    }
-    tables->table->grant= tables->grant;
-
-    /* Check and update metadata version of a base table. */
-    error= check_and_update_table_version(thd, tables, tables->table->s);
-
-    if (error)
-      goto err;
-    /*
-      After opening a MERGE table add the children to the query list of
-      tables, so that they are opened too.
-      Note that placeholders don't have the handler open.
-    */
-    /* MERGE tables need to access parent and child TABLE_LISTs. */
-    DBUG_ASSERT(tables->table->pos_in_table_list == tables);
-    /* Non-MERGE tables ignore this call. */
-    if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
-    {
-      error= TRUE;
-      goto err;
-    }
-
-process_view_routines:
-    /*
-      Again we may need cache all routines used by this view and add
-      tables used by them to table list.
-    */
-    if (tables->view &&
-        thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        !thd->lex->requires_prelocking())
-    {
-      bool need_prelocking= FALSE;
-      bool not_used;
-      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
-      Sroutine_hash_entry **sroutines_next= 
-        (Sroutine_hash_entry **)thd->lex->sroutines_list.next;
-
-      error= prelocking_strategy->handle_view(thd, thd->lex, tables,
-                                              &need_prelocking);
-
-      if (need_prelocking && ! query_tables_last_own)
-        query_tables_last_own= save_query_tables_last;
-
-      if (error)
-        goto err;
-
-      error= open_routines(thd, thd->lex, *sroutines_next, prelocking_strategy,
-                           &not_used);
-
-      if (error)
-      {
-        /*
-          Serious error during reading stored routines from mysql.proc table.
-          Something is wrong with the table or its contents, and an error has
-          been emitted; we must abort.
-        */
-        goto err;
-      }
+      if (need_prelocking && ! *start)
+        *start= thd->lex->query_tables;
     }
   }
 
@@ -4220,12 +4259,9 @@ err:
   thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
-  if (query_tables_last_own)
-    thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-
-  if (error && tables)
+  if (error && *table_to_open)
   {
-    tables->table= NULL;
+    (*table_to_open)->table= NULL;
   }
   DBUG_PRINT("open_tables", ("returning: %d", (int) error));
   DBUG_RETURN(error);
