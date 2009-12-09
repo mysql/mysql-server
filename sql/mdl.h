@@ -254,6 +254,10 @@ public:
                          mdl_cached_object_release_hook release_hook);
   const MDL_context *get_ctx() const { return m_ctx; }
   bool is_shared() const { return m_type < MDL_EXCLUSIVE; }
+  bool is_upgradable_or_exclusive() const
+  {
+    return m_type == MDL_SHARED_UPGRADABLE || m_type == MDL_EXCLUSIVE;
+  }
   bool upgrade_shared_lock_to_exclusive();
   void downgrade_exclusive_lock();
 private:
