@@ -173,3 +173,24 @@ drop table t2;
 # Switching to connection 'default'.
 # Clean-up.
 drop table t1;
+#
+# Test for bug #46673 "Deadlock between FLUSH TABLES WITH READ LOCK
+#                      and DML".
+#
+drop tables if exists t1;
+create table t1 (i int);
+# Switching to connection 'con46673'.
+begin;
+insert into t1 values (1);
+# Switching to connection 'default'.
+# Statement below should not get blocked. And if after some
+# changes to code it is there should not be a deadlock between
+# it and transaction from connection 'con46673'.
+flush tables with read lock;
+unlock tables;
+# Switching to connection 'con46673'.
+delete from t1 where i = 1;
+commit;
+# Switching to connection 'default'.
+# Clean-up
+drop table t1;
