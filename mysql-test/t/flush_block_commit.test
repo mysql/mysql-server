@@ -29,26 +29,25 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 --echo # Switch to connection con2
 connection con2;
---send FLUSH TABLES WITH READ LOCK
+FLUSH TABLES WITH READ LOCK;
 --echo # Switch to connection con1
 connection con1;
 --echo # Sending:
-COMMIT;
+--send COMMIT
 --echo # Switch to connection con2
 connection con2;
---reap
 --echo # Wait until COMMIT gets blocked.
-#let $wait_condition=
-#  select count(*) = 1 from information_schema.processlist
-#  where state = "Waiting for release of readlock" and info = "COMMIT";
-#--source include/wait_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock" and info = "COMMIT";
+--source include/wait_condition.inc
 --echo # Verify that 'con1' was blocked and data did not move.
 SELECT * FROM t1;
 UNLOCK TABLES;
 --echo # Switch to connection con1
 connection con1;
-#--echo # Reaping COMMIT
-#--reap
+--echo # Reaping COMMIT
+--reap
 
 # No deadlock ?
 

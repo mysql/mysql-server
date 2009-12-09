@@ -7,10 +7,12 @@ insert into table_11733 values(11733);
 set global read_only=1;
 select @@global.read_only;
 @@global.read_only
-0
+1
 select * from table_11733 ;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+a
+11733
 COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;

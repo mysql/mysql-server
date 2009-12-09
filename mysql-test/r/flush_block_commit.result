@@ -17,9 +17,9 @@ COMMIT;
 # Verify that 'con1' was blocked and data did not move.
 SELECT * FROM t1;
 a
-1
 UNLOCK TABLES;
 # Switch to connection con1
+# Reaping COMMIT
 # Switch to connection con1
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;

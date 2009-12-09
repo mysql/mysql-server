@@ -2648,7 +2648,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(FALSE);
   }
 
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
   if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
+#endif
   {
     if (!(share= get_table_share_with_create(thd, table_list, key,
                                              key_length, OPEN_VIEW,
@@ -2714,13 +2716,16 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
       goto err_unlock;
 
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
     /*
       We are going to to store extra reference to the share in MDL-subsystem
       so we need to increase reference counter;
     */
     reference_table_share(share);
     mdl_ticket->set_cached_object(share, table_share_release_hook);
+#endif
   }
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
   else
   {
     if (table_list->view)
@@ -2741,6 +2746,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     reference_table_share(share);
   }
+#endif
 
   if (share->version != refresh_version)
   {
