@@ -1830,7 +1830,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
      * We havent started syncing yet
      */
     sendSubCreateRef(signal, senderRef, senderData,
-                     SubCreateRef::NF_FakeErrorREF);
+                     SubCreateRef::NotStarted);
     return;
   }
 
@@ -2736,7 +2736,7 @@ Suma::execSUB_START_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStartRef(signal,
-                    senderRef, senderData, SubStartRef::NF_FakeErrorREF);
+                    senderRef, senderData, SubStartRef::NotStarted);
     return;
   }
 
@@ -3341,7 +3341,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStopRef(signal,
-                   senderRef, senderData, SubStopRef::NF_FakeErrorREF);
+                   senderRef, senderData, SubStopRef::NotStarted);
     return;
   }
 
@@ -4736,7 +4736,7 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
     /**
      * We havent started syncing yet
      */
-    sendSubRemoveRef(signal,  req, SubRemoveRef::NF_FakeErrorREF);
+    sendSubRemoveRef(signal,  req, SubRemoveRef::NotStarted);
     return;
   }
 
