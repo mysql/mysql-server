@@ -193,7 +193,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen, counter;
-  int           error;
+  bool          error;
   TABLE         *backup_open_tables;
   MDL_context   backup_mdl_context;
   DBUG_ENTER("mysql_ha_open");
@@ -321,8 +321,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
         can close a single table only.
       */
       close_thread_tables(thd);
-      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
-      error= 1;
+      my_error(ER_ILLEGAL_HA, MYF(0), hash_tables->alias);
+      error= TRUE;
     }
     else
     {
