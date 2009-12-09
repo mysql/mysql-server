@@ -4609,4 +4609,14 @@ HAVING v <= 't'
 ORDER BY pk;
 v
 DROP TABLE t1;
+#
+# Bug#49489 Uninitialized cache led to a wrong result.
+#
+CREATE TABLE t1(c1 DOUBLE(5,4));
+INSERT INTO t1 VALUES (9.1234);
+SELECT * FROM t1 WHERE c1 < 9.12345;
+c1
+9.1234
+DROP TABLE t1;
+# End of test for bug#49489.
 End of 5.1 tests
