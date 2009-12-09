@@ -2502,4 +2502,34 @@ c1
 DROP TRIGGER t2_au;
 DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2, t3, t4, t5;
+#
+# Bug47098 assert in MDL_context::destroy on HANDLER
+#          <damaged merge table> OPEN
+#
+# Test that merge tables are closed correctly when opened using 
+# HANDLER ... OPEN.
+# The general case.
+DROP TABLE IF EXISTS t1, t2, t3;
+# Connection con1.
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+START TRANSACTION;
+HANDLER t3 OPEN;
+ERROR HY000: Table storage engine for 't3' doesn't have this option
+DROP TABLE t1, t2, t3;
+# Connection default.
+# Disconnecting con1, all mdl_tickets must have been released.
+# The bug-specific case.
+# Connection con1.
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+DROP TABLE t2;
+START TRANSACTION;
+HANDLER t3 OPEN;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t3;
+# Connection default.
+# Disconnecting con1, all mdl_tickets must have been released.
 End of 6.0 tests
