@@ -2311,6 +2311,12 @@ case SQLCOM_PREPARE:
       thd->work_part_info= part_info;
     }
 #endif
+
+    /*
+      Close any open handlers for the table
+    */
+    mysql_ha_rm_tables(thd, create_table);
+
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
