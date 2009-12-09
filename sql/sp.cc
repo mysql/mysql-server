@@ -1391,8 +1391,8 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first)
 {
   Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
-  *plen= rn->key.length;
-  return (uchar *)rn->key.str;
+  *plen= rn->mdl_request.key.length();
+  return (uchar *)rn->mdl_request.key.ptr();
 }
 
 
@@ -1430,23 +1430,19 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
 */
 
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         const LEX_STRING *key, TABLE_LIST *belong_to_view)
+                         const MDL_key *key, TABLE_LIST *belong_to_view)
 {
   my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
                    Query_tables_list::START_SROUTINES_HASH_SIZE,
                    0, 0, sp_sroutine_key, 0, 0);
 
-  if (!my_hash_search(&prelocking_ctx->sroutines, (uchar *)key->str,
-                      key->length))
+  if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
   {
     Sroutine_hash_entry *rn=
-      (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
-                                          key->length + 1);
+      (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->key.length= key->length;
-    rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
-    memcpy(rn->key.str, key->str, key->length + 1);
+    rn->mdl_request.init(key, MDL_SHARED);
     my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn);
     prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
@@ -1477,8 +1473,9 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type)
 {
-  rt->set_routine_type(rt_type);
-  (void)sp_add_used_routine(prelocking_ctx, arena, &rt->m_sroutines_key, 0);
+  MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_FUNCTION : MDL_PROCEDURE,
+              rt->m_db.str, rt->m_name.str);
+  (void)sp_add_used_routine(prelocking_ctx, arena, &key, 0);
   prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
   prelocking_ctx->sroutines_list_own_elements=
                     prelocking_ctx->sroutines_list.elements;
@@ -1535,7 +1532,8 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    if (!my_hash_search(dst, (uchar *)rt->key.str, rt->key.length))
+    if (!my_hash_search(dst, (uchar *)rt->mdl_request.key.ptr(),
+                        rt->mdl_request.key.length()))
       my_hash_insert(dst, (uchar *)rt);
   }
 }
@@ -1562,8 +1560,8 @@ sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena, &rt->key,
-                              belong_to_view);
+    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                              &rt->mdl_request.key, belong_to_view);
   }
 }
 
@@ -1587,8 +1585,8 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 {
   for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
        rt; rt= rt->next)
-    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena, &rt->key,
-                              belong_to_view);
+    (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                              &rt->mdl_request.key, belong_to_view);
 }
 
 

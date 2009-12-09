@@ -2055,17 +2055,21 @@ add_tables_and_routines_for_triggers(THD *thd,
         /* We can have only one trigger per action type currently */
         sp_head *trigger= table_list->table->triggers->bodies[i][j];
 
-        if (trigger && sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                                           &trigger->m_sroutines_key,
-                                           table_list->belong_to_view))
+        if (trigger)
         {
-          trigger->add_used_tables_to_table_list(thd,
-                                            &prelocking_ctx->query_tables_last,
-                                            table_list->belong_to_view);
-          sp_update_stmt_used_routines(thd, prelocking_ctx,
-                                       &trigger->m_sroutines,
-                                       table_list->belong_to_view);
-          trigger->propagate_attributes(prelocking_ctx);
+          MDL_key key(MDL_TRIGGER, trigger->m_db.str, trigger->m_name.str);
+
+          if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                                  &key, table_list->belong_to_view))
+          {
+            trigger->add_used_tables_to_table_list(thd,
+                       &prelocking_ctx->query_tables_last,
+                       table_list->belong_to_view);
+            sp_update_stmt_used_routines(thd, prelocking_ctx,
+                                         &trigger->m_sroutines,
+                                         table_list->belong_to_view);
+            trigger->propagate_attributes(prelocking_ctx);
+          }
         }
       }
     }

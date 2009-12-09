@@ -382,31 +382,34 @@ error:
 }
 
 
-/*
- *
- *  sp_name
- *
- */
+/**
+  Create temporary sp_name object from MDL key.
 
-sp_name::sp_name(THD *thd, char *key, uint key_len)
+  @note The lifetime of this object is bound to the lifetime of the MDL_key.
+        This should be fine as sp_name objects created by this constructor
+        are mainly used for SP-cache lookups.
+
+  @param key         MDL key containing database and routine name.
+  @param qname_buff  Buffer to be used for storing quoted routine name
+                     (should be at least 2*NAME_LEN+1+1 bytes).
+*/
+
+sp_name::sp_name(const MDL_key *key, char *qname_buff)
 {
-  m_sroutines_key.str= key;
-  m_sroutines_key.length= key_len;
-  m_qname.str= ++key;
-  m_qname.length= key_len - 1;
-  if ((m_name.str= strchr(m_qname.str, '.')))
+  m_db.str= (char*)key->db_name();
+  m_db.length= key->db_name_length();
+  m_name.str= (char*)key->name();
+  m_name.length= key->name_length();
+  m_qname.str= qname_buff;
+  if (m_db.length)
   {
-    m_db.length= m_name.str - key;
-    m_db.str= strmake_root(thd->mem_root, key, m_db.length);
-    m_name.str++;
-    m_name.length= m_qname.length - m_db.length - 1;
+    strxmov(qname_buff, m_db.str, ".", m_name.str, NullS);
+    m_qname.length= m_db.length + 1 + m_name.length;
   }
   else
   {
-    m_name.str= m_qname.str;
-    m_name.length= m_qname.length;
-    m_db.str= 0;
-    m_db.length= 0;
+    strmov(qname_buff, m_name.str);
+    m_qname.length= m_name.length;
   }
   m_explicit_name= false;
 }
@@ -419,12 +422,10 @@ void
 sp_name::init_qname(THD *thd)
 {
   const uint dot= !!m_db.length;
-  /* m_sroutines format: m_type + [database + dot] + name + nul */
-  m_sroutines_key.length= 1 + m_db.length + dot + m_name.length;
-  if (!(m_sroutines_key.str= (char*) thd->alloc(m_sroutines_key.length + 1)))
+  /* m_qname format: [database + dot] + name + '\0' */
+  m_qname.length= m_db.length + dot + m_name.length;
+  if (!(m_qname.str= (char*) thd->alloc(m_qname.length + 1)))
     return;
-  m_qname.length= m_sroutines_key.length - 1;
-  m_qname.str= m_sroutines_key.str + 1;
   sprintf(m_qname.str, "%.*s%.*s%.*s",
           (int) m_db.length, (m_db.length ? m_db.str : ""),
           dot, ".",
@@ -585,9 +586,6 @@ sp_head::init(LEX *lex)
   m_defstr.str= NULL;
   m_defstr.length= 0;
 
-  m_sroutines_key.str= NULL;
-  m_sroutines_key.length= 0;
-
   m_return_field_def.charset= NULL;
 
   DBUG_VOID_RETURN;
@@ -617,14 +615,10 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   if (spname->m_qname.length == 0)
     spname->init_qname(thd);
 
-  m_sroutines_key.length= spname->m_sroutines_key.length;
-  m_sroutines_key.str= (char*) memdup_root(thd->mem_root,
-                                           spname->m_sroutines_key.str,
-                                           spname->m_sroutines_key.length + 1);
-  m_sroutines_key.str[0]= static_cast<char>(m_type);
-
-  m_qname.length= m_sroutines_key.length - 1;
-  m_qname.str= m_sroutines_key.str + 1;
+  m_qname.length= spname->m_qname.length;
+  m_qname.str= (char*) memdup_root(thd->mem_root,
+                                   spname->m_qname.str,
+                                   spname->m_qname.length + 1);
 
   DBUG_VOID_RETURN;
 }
