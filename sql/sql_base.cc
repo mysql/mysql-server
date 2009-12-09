@@ -5104,19 +5104,31 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
 {
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+  TABLE_LIST *tmp;
+
   /*
     If table list consists only from tables from prelocking set, table list
     for new attempt should be empty, so we have to update list's root pointer.
   */
-  if (thd->lex->first_not_own_table() == *tables)
+  if (first_not_own_table == *tables)
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
   sp_remove_not_own_routines(thd->lex);
-  for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
+  for (tmp= *tables; tmp; tmp= tmp->next_global)
   {
     tmp->table= 0;
     tmp->mdl_request.ticket= NULL;
   }
+  /*
+    Metadata lock requests for tables from extended part of prelocking set
+    are part of list of requests to be waited for in Open_table_context.
+    So to satisfy assumptions in MDL_context::wait_for_locks(), which will
+    performs the waiting, we have to reset MDL_request::ticket values for
+    them as well.
+  */
+  for (tmp= first_not_own_table; tmp; tmp= tmp->next_global)
+    tmp->mdl_request.ticket= NULL;
   close_thread_tables(thd);
   if (!thd->locked_tables_mode)
     thd->mdl_context.release_all_locks();

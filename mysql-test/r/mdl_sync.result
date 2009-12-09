@@ -19,3 +19,46 @@ connection: con2
 ERROR 42S02: Unknown table 't1'
 drop table t3;
 SET DEBUG_SYNC= 'RESET';
+#
+# Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
+# on INSERT + CREATE TRIGGER".
+#
+drop tables if exists t1, t2, t3, t4, t5;
+# Let us simulate scenario in which we open some tables from extended
+# part of prelocking set but then encounter conflicting metadata lock,
+# so have to back-off and wait for it to go away.
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+create table t4 (l int);
+create trigger t1_bi before insert on t1 for each row
+insert into t2 values (new.i);
+create trigger t2_bi before insert on t2 for each row
+insert into t3 values (new.j);
+#
+# Switching to connection 'con1root'.
+lock tables t4 read;
+#
+# Switching to connection 'con2root'.
+# Send :
+rename table t3 to t5, t4 to t3;;
+#
+# Switching to connection 'default'.
+# Wait until the above RENAME TABLE adds pending requests for exclusive
+# metadata lock on its tables and blocks due to 't4' being used by LOCK
+# TABLES.
+# Send :
+insert into t1 values (1);;
+#
+# Switching to connection 'con1root'.
+# Wait until INSERT statement waits due to encountering pending
+# exclusive metadata lock on 't3'.
+unlock tables;
+#
+# Switching to connection 'con2root'.
+# Reap RENAME TABLE.
+#
+# Switching to connection 'default'.
+# Reap INSERT.
+# Clean-up.
+drop tables t1, t2, t3, t5;
