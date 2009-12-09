@@ -3777,17 +3777,18 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                          Prelocking_strategy *prelocking_strategy,
                          bool *need_prelocking)
 {
-  int type= rt->key.str[0];
-
   DBUG_ENTER("open_and_process_routine");
 
-  switch (type)
+  switch (rt->mdl_request.key.mdl_namespace())
   {
-  case TYPE_ENUM_FUNCTION:
-  case TYPE_ENUM_PROCEDURE:
+  case MDL_FUNCTION:
+  case MDL_PROCEDURE:
     {
-      sp_name name(thd, rt->key.str, rt->key.length);
+      char qname_buff[NAME_LEN*2+1+1];
+      sp_name name(&rt->mdl_request.key, qname_buff);
       sp_head *sp;
+      int type= (rt->mdl_request.key.mdl_namespace() == MDL_FUNCTION) ?
+                TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE;
 
       if (sp_cache_routine(thd, type, &name, &sp))
         DBUG_RETURN(TRUE);
@@ -3799,7 +3800,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       }
     }
     break;
-  case TYPE_ENUM_TRIGGER:
+  case MDL_TRIGGER:
     break;
   default:
     /* Impossible type value. */
@@ -4304,7 +4305,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   */
 
   if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
-      rt->key.str[0] != TYPE_ENUM_PROCEDURE)
+      rt->mdl_request.key.mdl_namespace() != MDL_PROCEDURE)
   {
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
@@ -8302,7 +8303,7 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     while ((mdl_request= it++))
     {
       if ((share= get_cached_table_share(mdl_request->key.db_name(),
-                                         mdl_request->key.table_name())) &&
+                                         mdl_request->key.name())) &&
           share->version != refresh_version &&
           !share->used_tables.is_empty())
         break;

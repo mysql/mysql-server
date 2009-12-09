@@ -319,6 +319,24 @@ void MDL_request::init(enum_mdl_namespace mdl_namespace,
 
 
 /**
+  Initialize a lock request using pre-built MDL_key.
+
+  @sa MDL_request::init(namespace, db, name, type).
+
+  @param key_arg       The pre-built MDL key for the request.
+  @param mdl_type_arg  The MDL lock type for the request.
+*/
+
+void MDL_request::init(const MDL_key *key_arg,
+                       enum enum_mdl_type mdl_type_arg)
+{
+  key.mdl_key_init(key_arg);
+  type= mdl_type_arg;
+  ticket= NULL;
+}
+
+
+/**
   Allocate and initialize one lock request.
 
   Same as mdl_init_lock(), but allocates the lock and the key buffer
@@ -1254,7 +1272,7 @@ void MDL_context::release_ticket(MDL_ticket *ticket)
   MDL_lock *lock= ticket->m_lock;
   DBUG_ENTER("release_ticket");
   DBUG_PRINT("enter", ("db=%s name=%s", lock->key.db_name(),
-                                        lock->key.table_name()));
+                                        lock->key.name()));
 
   safe_mutex_assert_owner(&LOCK_mdl);
 
@@ -1526,7 +1544,7 @@ MDL_ticket::set_cached_object(void *cached_object,
 {
   DBUG_ENTER("mdl_set_cached_object");
   DBUG_PRINT("enter", ("db=%s name=%s cached_object=%p",
-                        m_lock->key.db_name(), m_lock->key.table_name(),
+                        m_lock->key.db_name(), m_lock->key.name(),
                         cached_object));
   /*
     TODO: This assumption works now since we do get_cached_object()
