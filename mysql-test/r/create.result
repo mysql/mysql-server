@@ -1964,6 +1964,7 @@ DROP TABLE B;
 #
 # Bug #47107 assert in notify_shared_lock on incorrect 
 #            CREATE TABLE , HANDLER
+#
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(f1 integer);
 # The following CREATE TABLEs before gave an assert.
