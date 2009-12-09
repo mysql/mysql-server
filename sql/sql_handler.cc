@@ -264,7 +264,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    hash_tables->mdl_request.init(0, db, name, MDL_SHARED);
+    hash_tables->mdl_request.init(MDL_TABLE, db, name, MDL_SHARED);
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))

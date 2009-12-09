@@ -3981,7 +3981,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
-      table->mdl_request.init(0, table->db, table->table_name, MDL_SHARED);
+      table->mdl_request.init(MDL_TABLE, table->db, table->table_name, MDL_SHARED);
 
       /* Everyting else should be zeroed */
 
@@ -4023,7 +4023,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->lock_type= locktype;
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
-  table->mdl_request.init(0, table->db, table->table_name, MDL_SHARED);
+  table->mdl_request.init(MDL_TABLE, table->db, table->table_name, MDL_SHARED);
 
   lex->add_to_query_tables(table);
   return table;
