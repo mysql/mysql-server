@@ -3964,4 +3964,13 @@ ORDER BY pk;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#49489 Uninitialized cache led to a wrong result.
+--echo #
+CREATE TABLE t1(c1 DOUBLE(5,4));
+INSERT INTO t1 VALUES (9.1234);
+SELECT * FROM t1 WHERE c1 < 9.12345;
+DROP TABLE t1;
+--echo # End of test for bug#49489.
+
 --echo End of 5.1 tests
