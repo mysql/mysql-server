@@ -186,6 +186,14 @@ INSERT INTO global_suppressions VALUES
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
 
+ /*
+   BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
+   table cause warnings in errlog
+   Note: This is a temporary suppression until Bug#42147 can be 
+   fixed properly. See bug page for more information.
+  */
+ ("Found lock of type 6 that is write and read locked"),
+
  ("THE_LAST_SUPPRESSION")||
 
 
