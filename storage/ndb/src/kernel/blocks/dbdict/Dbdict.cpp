@@ -10992,17 +10992,27 @@ void Dbdict::execSUB_CREATE_REF(Signal* signal)
   evntRecPtr.i = ref->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-  if (ref->errorCode)
+  if (ref->errorCode == SubCreateRef::NotStarted)
   {
+    jam();
+    // ignore (was previously NF_FakeErrorREF)
+    // NOTE: different handling then rest of execSUB_XXX_REF
+    // note to mess with GSN_CREATE_EVNT
+  }
+  else if (ref->errorCode)
+  {
+    jam();
     evntRecPtr.p->m_errorCode = ref->errorCode;
     evntRecPtr.p->m_errorLine = __LINE__;
+    evntRecPtr.p->m_errorNode = reference();
   }
   else
   {
+    jam();
     evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
+    evntRecPtr.p->m_errorNode = reference();
   }
-  evntRecPtr.p->m_errorNode = reference();
 
   createEvent_sendReply(signal, evntRecPtr);
   DBUG_VOID_RETURN;
@@ -11270,6 +11280,22 @@ busy:
   }
 }
 
+bool
+Dbdict::upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const
+{
+  /**
+   * Check that receiver can handle 1428,
+   *   else return true if error code should be replaced by NF_FakeErrorREF
+   */
+  if (err == 1428)
+  {
+    jam();
+    if (!ndb_suma_not_started_ref(getNodeInfo(refToNode(ref)).m_version))
+      return true;
+  }
+  return false;
+}
+
 void Dbdict::execSUB_START_REF(Signal* signal)
 {
   jamEntry();
@@ -11281,7 +11307,8 @@ void Dbdict::execSUB_START_REF(Signal* signal)
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
@@ -11291,7 +11318,12 @@ void Dbdict::execSUB_START_REF(Signal* signal)
     ndbout_c("DBDICT(Participant) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
 
-    jam();
+    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+    {
+      jam();
+      err = SubStartRef::NF_FakeErrorREF;
+    }
+
     SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
@@ -11308,10 +11340,13 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
-  if (err == SubStartRef::NF_FakeErrorREF){
+  if (err == SubStartRef::NF_FakeErrorREF || err == SubStartRef::NotStarted)
+  {
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (subbPtr.p->m_errorCode == 0)
     {
@@ -11541,11 +11576,19 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
     jam();
+
+    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+    {
+      jam();
+      err = SubStopRef::NF_FakeErrorREF;
+    }
+
     SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
@@ -11559,10 +11602,13 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
-  if (err == SubStopRef::NF_FakeErrorREF){
+  if (err == SubStopRef::NF_FakeErrorREF || err == SubStopRef::NotStarted)
+  {
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (subbPtr.p->m_errorCode == 0)
     {
@@ -11914,14 +11960,17 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
   Uint32 senderRef = ref->senderRef;
   Uint32 err= ref->errorCode;
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
     jam();
     OpSubEventPtr subbPtr;
     c_opSubEvent.getPtr(subbPtr, ref->senderData);
-    if (err == 1407) {
+    if (err == SubRemoveRef::NoSuchSubscription)
+    {
+      jam();
       // conf this since this may occur if a nodefailure has occured
       // earlier so that the systable was not cleared
       SubRemoveConf* conf = (SubRemoveConf*) signal->getDataPtrSend();
@@ -11929,7 +11978,17 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
       conf->senderData = subbPtr.p->m_senderData;
       sendSignal(subbPtr.p->m_senderRef, GSN_SUB_REMOVE_CONF,
 		 signal, SubRemoveConf::SignalLength, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
+
+      if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+      {
+        jam();
+        err = SubRemoveRef::NF_FakeErrorREF;
+      }
+
       SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->senderData = subbPtr.p->m_senderData;
@@ -11946,10 +12005,13 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
   ndbrequire(refToBlock(senderRef) == DBDICT);
   OpDropEventPtr eventRecPtr;
   c_opDropEvent.getPtr(eventRecPtr, ref->senderData);
-  if (err == SubRemoveRef::NF_FakeErrorREF){
+  if (err == SubRemoveRef::NF_FakeErrorREF || err == SubRemoveRef::NotStarted)
+  {
     jam();
     eventRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (eventRecPtr.p->m_errorCode == 0)
     {

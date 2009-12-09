@@ -2350,6 +2350,7 @@ private:
 			  LinearSectionPtr dataPtr);
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
+  bool upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const;
 
   // create trigger
   void createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,
