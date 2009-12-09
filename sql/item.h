@@ -25,7 +25,7 @@ bool trace_unsupported_func(const char *where, const char *processor_name)
   sprintf(buff, "%s::%s", where, processor_name);
   DBUG_ENTER(buff);
   sprintf(buff, "%s returns TRUE: unsupported function", processor_name);
-  DBUG_PRINT("info", (buff));
+  DBUG_PRINT("info", ("%s", buff));
   DBUG_RETURN(TRUE);
 }
 
