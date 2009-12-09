@@ -4548,6 +4548,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     char table_name[NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
+    bool open_error;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
     DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
@@ -4575,12 +4576,22 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_and_lock_tables_derived(thd, table, TRUE,
-                                   MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+      open_error= open_and_lock_tables_derived(thd, table, TRUE,
+                                               MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
+      /*
+        Under locked tables, we know that the table can be opened,
+        so any errors opening the table are logical errors.
+        In these cases it does not make sense to try to repair.
+      */
+      if (open_error && thd->locked_tables_mode)
+      {
+        result_code= HA_ADMIN_FAILED;
+        goto send_result;
+      }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if (table->table)
       {
