@@ -2071,6 +2071,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_OPEN_GET_NEW_TABLE                0x0080
 /** Don't look up the table in the list of temporary tables. */
 #define MYSQL_OPEN_SKIP_TEMPORARY               0x0100
+/** Fail instead of waiting when conficting metadata lock is discovered. */
+#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0200
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
