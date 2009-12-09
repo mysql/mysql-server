@@ -1762,7 +1762,6 @@ int
 mysql_execute_command(THD *thd)
 {
   int res= FALSE;
-  bool need_start_waiting= FALSE; // have protection against global read lock
   int  up_result= 0;
   LEX  *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
@@ -2039,7 +2038,7 @@ mysql_execute_command(THD *thd)
       break;
 
     if (!thd->locked_tables_mode && lex->protect_against_global_read_lock &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -2309,10 +2308,9 @@ case SQLCOM_PREPARE:
       read lock when it succeeds. This needs to be released by
       start_waiting_global_read_lock(). We protect the normal CREATE
       TABLE in the same way. That way we avoid that a new table is
-      created during a gobal read lock.
+      created during a global read lock.
     */
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       goto end_with_restore_list;
@@ -2617,8 +2615,7 @@ end_with_restore_list:
                             "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
 
-      if (!thd->locked_tables_mode &&
-          !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       {
         res= 1;
         break;
@@ -2852,8 +2849,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
@@ -2891,7 +2887,7 @@ end_with_restore_list:
     */
     if (!thd->locked_tables_mode &&
         lex->sql_command == SQLCOM_UPDATE_MULTI &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     res= mysql_multi_update_prepare(thd);
@@ -2993,8 +2989,7 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3033,8 +3028,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (! thd->locked_tables_mode &&
-        ! (need_start_waiting= ! wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3104,7 +3098,7 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    if (!(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (wait_if_global_read_lock(thd, 0, 1))
       goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
@@ -3116,8 +3110,7 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3137,8 +3130,7 @@ end_with_restore_list:
       (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *del_result;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3282,8 +3274,7 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
@@ -3357,7 +3348,7 @@ end_with_restore_list:
                            FALSE, UINT_MAX, FALSE))
       goto error;
     if (lex->protect_against_global_read_lock &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     init_mdl_requests(all_tables);
@@ -4575,7 +4566,7 @@ error:
   res= TRUE;
 
 finish:
-  if (need_start_waiting)
+  if (thd->global_read_lock_protection > 0)
   {
     /*
       Release the protection against the global read lock and wake
