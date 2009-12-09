@@ -301,22 +301,18 @@ void MDL_context::merge(MDL_context *src)
 
   The MDL subsystem does not own or manage memory of lock requests.
 
-  @param  type       Id of type of object to be locked
-  @param  db         Name of database to which the object belongs
-  @param  name       Name of of the object
-  @param  mdl_type   The MDL lock type for the request.
-
-  Suggested lock types: TABLE - 0 PROCEDURE - 1 FUNCTION - 2
-  Note that tables and views must have the same lock type, since
-  they share the same name space in the SQL standard.
+  @param  mdl_namespace  Id of namespace of object to be locked
+  @param  db             Name of database to which the object belongs
+  @param  name           Name of of the object
+  @param  mdl_type       The MDL lock type for the request.
 */
 
-void MDL_request::init(unsigned char type_arg,
+void MDL_request::init(enum_mdl_namespace mdl_namespace,
                        const char *db_arg,
                        const char *name_arg,
                        enum enum_mdl_type mdl_type_arg)
 {
-  key.mdl_key_init(type_arg, db_arg, name_arg);
+  key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type= mdl_type_arg;
   ticket= NULL;
 }
@@ -329,10 +325,10 @@ void MDL_request::init(unsigned char type_arg,
   on a memory root. Necessary to lock ad-hoc tables, e.g.
   mysql.* tables of grant and data dictionary subsystems.
 
-  @param  type       Id of type of object to be locked
-  @param  db         Name of database to which object belongs
-  @param  name       Name of of object
-  @param  root       MEM_ROOT on which object should be allocated
+  @param  mdl_namespace  Id of namespace of object to be locked
+  @param  db             Name of database to which object belongs
+  @param  name           Name of of object
+  @param  root           MEM_ROOT on which object should be allocated
 
   @note The allocated lock request will have MDL_SHARED type.
 
@@ -341,7 +337,7 @@ void MDL_request::init(unsigned char type_arg,
 */
 
 MDL_request *
-MDL_request::create(unsigned char type, const char *db,
+MDL_request::create(enum_mdl_namespace mdl_namespace, const char *db,
                     const char *name, enum_mdl_type mdl_type,
                     MEM_ROOT *root)
 {
@@ -350,7 +346,7 @@ MDL_request::create(unsigned char type, const char *db,
   if (!(mdl_request= (MDL_request*) alloc_root(root, sizeof(MDL_request))))
     return NULL;
 
-  mdl_request->init(type, db, name, mdl_type);
+  mdl_request->init(mdl_namespace, db, name, mdl_type);
 
   return mdl_request;
 }
@@ -1418,20 +1414,20 @@ void MDL_context::release_global_shared_lock()
   Auxiliary function which allows to check if we have exclusive lock
   on the object.
 
-  @param type    Id of object type
-  @param db      Name of the database
-  @param name    Name of the object
+  @param mdl_namespace Id of object namespace
+  @param db            Name of the database
+  @param name          Name of the object
 
   @return TRUE if current context contains exclusive lock for the object,
           FALSE otherwise.
 */
 
 bool
-MDL_context::is_exclusive_lock_owner(unsigned char type,
+MDL_context::is_exclusive_lock_owner(enum_mdl_namespace mdl_namespace,
                                      const char *db, const char *name)
 {
   MDL_request mdl_request;
-  mdl_request.init(type, db, name, MDL_EXCLUSIVE);
+  mdl_request.init(mdl_namespace, db, name, MDL_EXCLUSIVE);
   MDL_ticket *ticket= find_ticket(&mdl_request);
 
   DBUG_ASSERT(ticket == NULL || ticket->m_state == MDL_ACQUIRED);
@@ -1444,19 +1440,19 @@ MDL_context::is_exclusive_lock_owner(unsigned char type,
   Auxiliary function which allows to check if we have some kind of lock on
   a object.
 
-  @param type    Id of object type
-  @param db      Name of the database
-  @param name    Name of the object
+  @param mdl_namespace Id of object namespace
+  @param db            Name of the database
+  @param name          Name of the object
 
   @return TRUE if current context contains satisfied lock for the object,
           FALSE otherwise.
 */
 
 bool
-MDL_context::is_lock_owner(unsigned char type,
+MDL_context::is_lock_owner(enum_mdl_namespace mdl_namespace,
                            const char *db, const char *name)
 {
-  MDL_key key(type, db, name);
+  MDL_key key(mdl_namespace, db, name);
   MDL_ticket *ticket;
   MDL_context::Ticket_iterator it(m_tickets);
 

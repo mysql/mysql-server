@@ -47,6 +47,14 @@ enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
 
 enum enum_mdl_state { MDL_PENDING, MDL_ACQUIRED };
 
+/**
+  Object namespaces
+ 
+  Different types of objects exist in different namespaces
+   - MDL_TABLE is for tables and views.
+   - MDL_PROCEDURE is for stored procedures, stored functions and UDFs.
+*/
+enum enum_mdl_namespace { MDL_TABLE=0, MDL_PROCEDURE };
 
 /** Maximal length of key for metadata locking subsystem. */
 #define MAX_MDLKEY_LENGTH (1 + NAME_LEN + 1 + NAME_LEN + 1)
@@ -74,18 +82,18 @@ public:
   uint table_name_length() const { return m_length - m_db_name_length - 3; }
 
   /**
-    Construct a metadata lock key from a triplet (type, database and name).
+    Construct a metadata lock key from a triplet (mdl_namespace, database and name).
 
-    @remark The key for a table is <0 (=table)>+<database name>+<table name>
+    @remark The key for a table is <mdl_namespace>+<database name>+<table name>
 
-    @param  type   Id of type of object to be locked
-    @param  db     Name of database to which the object belongs
-    @param  name   Name of of the object
-    @param  key    Where to store the the MDL key.
+    @param  mdl_namespace Id of namespace of object to be locked
+    @param  db            Name of database to which the object belongs
+    @param  name          Name of of the object
+    @param  key           Where to store the the MDL key.
   */
-  void mdl_key_init(char type, const char *db, const char *name)
+  void mdl_key_init(enum_mdl_namespace mdl_namespace, const char *db, const char *name)
   {
-    m_ptr[0]= type;
+    m_ptr[0]= (char) mdl_namespace;
     m_db_name_length= (uint) (strmov(m_ptr + 1, db) - m_ptr - 1);
     m_length= (uint) (strmov(m_ptr + m_db_name_length + 2, name) - m_ptr + 1);
   }
@@ -104,11 +112,12 @@ public:
   {
     mdl_key_init(rhs);
   }
-  MDL_key(char type_arg, const char *db_arg, const char *name_arg)
+  MDL_key(enum_mdl_namespace namespace_arg, const char *db_arg, const char *name_arg)
   {
-    mdl_key_init(type_arg, db_arg, name_arg);
+    mdl_key_init(namespace_arg, db_arg, name_arg);
   }
   MDL_key() {} /* To use when part of MDL_request. */
+
 private:
   char m_ptr[MAX_MDLKEY_LENGTH];
   uint m_length;
@@ -168,7 +177,7 @@ public:
   MDL_key key;
 
 public:
-  void init(unsigned char type_arg, const char *db_arg, const char *name_arg,
+  void init(enum_mdl_namespace namespace_arg, const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
@@ -178,7 +187,7 @@ public:
   }
   bool is_shared() const { return type < MDL_EXCLUSIVE; }
 
-  static MDL_request *create(unsigned char type, const char *db,
+  static MDL_request *create(enum_mdl_namespace mdl_namespace, const char *db,
                              const char *name, enum_mdl_type mdl_type,
                              MEM_ROOT *root);
 
@@ -318,10 +327,10 @@ public:
   void release_lock(MDL_ticket *ticket);
   void release_global_shared_lock();
 
-  bool is_exclusive_lock_owner(unsigned char type,
+  bool is_exclusive_lock_owner(enum_mdl_namespace mdl_namespace,
                                const char *db,
                                const char *name);
-  bool is_lock_owner(unsigned char type, const char *db, const char *name);
+  bool is_lock_owner(enum_mdl_namespace mdl_namespace, const char *db, const char *name);
 
   inline bool has_locks() const
   {

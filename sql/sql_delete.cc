@@ -1177,7 +1177,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
-    mdl_request.init(0, table_list->db, table_list->table_name, MDL_EXCLUSIVE);
+    mdl_request.init(MDL_TABLE, table_list->db, table_list->table_name, MDL_EXCLUSIVE);
     if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
       DBUG_RETURN(TRUE);
 

@@ -474,7 +474,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     To be able perform any operation on table we should own
     some kind of metadata lock on it.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(0, table_list->db,
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_TABLE, table_list->db,
                                              table_list->table_name));
 
   /* Read table definition from cache */
@@ -2541,7 +2541,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       TABLES breaks metadata locking protocol (potentially can lead
       to deadlocks) it should be disallowed.
     */
-    if (thd->mdl_context.is_lock_owner(0, table_list->db,
+    if (thd->mdl_context.is_lock_owner(MDL_TABLE, table_list->db,
                                        table_list->table_name))
     {
       char path[FN_REFLEN + 1];
@@ -8158,7 +8158,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   safe_mutex_assert_owner(&LOCK_open);
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
-              thd->mdl_context.is_exclusive_lock_owner(0, db, table_name));
+              thd->mdl_context.is_exclusive_lock_owner(MDL_TABLE, db, table_name));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
