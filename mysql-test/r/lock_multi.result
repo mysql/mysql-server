@@ -219,3 +219,34 @@ flush tables with read lock;;
 connection: default
 flush tables;
 drop table t1;
+#
+# Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+#
+# Test 1: LOCK TABLES v1 WRITE, t1 READ;
+#
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+# Connection 2
+LOCK TABLES v1 WRITE, t1 READ;
+FLUSH TABLE t1;
+# Connection 1
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Test 2: LOCK TABLES t1 WRITE, v1 READ;
+#
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+# Connection 2
+LOCK TABLES t1 WRITE, v1 READ;
+FLUSH TABLE t1;
+# Connection 1
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;
+DROP TABLE t1;
+DROP VIEW v1;
