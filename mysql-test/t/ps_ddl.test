@@ -642,6 +642,9 @@ deallocate prepare stmt;
 --echo Part 16: VIEW -> TEMPORARY TABLE transitions
 --echo =====================================================================
 
+--echo #
+--echo # Test 1: Merged view
+--echo #
 create table t2 (a int);
 insert into t2 (a) values (1);
 create view t1 as select * from t2;
@@ -651,13 +654,65 @@ execute stmt;
 call p_verify_reprepare_count(0);
 
 create temporary table t1 (a int);
+# t1 still refers to the view - no reprepare has been done.
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
+
 drop view t1;
+# t1 still refers to the, now deleted, view - no reprepare has been done.
+--error ER_NO_SUCH_TABLE
 execute stmt;
 call p_verify_reprepare_count(0);
 
 drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+
+--echo #
+--echo # Test 2: Materialized view
+--echo #
+create table t2 (a int);
+insert into t2 (a) values (1);
+create algorithm = temptable view t1 as select * from t2;
+
+prepare stmt from "select * from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+
+create temporary table t1 (a int);
+# t1 still refers to the view - no reprepare has been done.
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop view t1;
+# t1 still refers to the, now deleted, view - no reprepare has been done.
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+
+--echo #
+--echo # Test 3: View referencing an Information schema table
+--echo #
+create view t1 as select table_name from information_schema.views;
+
+prepare stmt from "select * from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+
+create temporary table t1 (a int);
+# t1 has been substituted with a reference to the IS table
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop view t1;
+# Since the IS table has been substituted in, the statement still works
+execute stmt;
+call p_verify_reprepare_count(0);
+
 drop temporary table t1;
 deallocate prepare stmt;
 

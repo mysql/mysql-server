@@ -1137,6 +1137,20 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view_db.length= table->db_length;
   table->view_name.str= table->table_name;
   table->view_name.length= table->table_name_length;
+  /*
+    We don't invalidate a prepared statement when a view changes,
+    or when someone creates a temporary table.
+    Instead, the view is inlined into the body of the statement
+    upon the first execution. Below, make sure that on
+    re-execution of a prepared statement we don't prefer
+    a temporary table to the view, if the view name was shadowed
+    with a temporary table with the same name.
+    This assignment ensures that on re-execution open_table() will
+    not try to call find_temporary_table() for this TABLE_LIST,
+    but will invoke open_table_from_share(), which will
+    eventually call this function.
+  */
+  table->open_type= OT_BASE_ONLY;
 
   /*TODO: md5 test here and warning if it is differ */
 
