@@ -307,7 +307,7 @@ void MDL_context::merge(MDL_context *src)
   @param  mdl_type       The MDL lock type for the request.
 */
 
-void MDL_request::init(enum_mdl_namespace mdl_namespace,
+void MDL_request::init(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *db_arg,
                        const char *name_arg,
                        enum enum_mdl_type mdl_type_arg)
@@ -355,7 +355,7 @@ void MDL_request::init(const MDL_key *key_arg,
 */
 
 MDL_request *
-MDL_request::create(enum_mdl_namespace mdl_namespace, const char *db,
+MDL_request::create(MDL_key::enum_mdl_namespace mdl_namespace, const char *db,
                     const char *name, enum_mdl_type mdl_type,
                     MEM_ROOT *root)
 {
@@ -1444,7 +1444,7 @@ void MDL_context::release_global_shared_lock()
 */
 
 bool
-MDL_context::is_exclusive_lock_owner(enum_mdl_namespace mdl_namespace,
+MDL_context::is_exclusive_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                                      const char *db, const char *name)
 {
   MDL_request mdl_request;
@@ -1470,7 +1470,7 @@ MDL_context::is_exclusive_lock_owner(enum_mdl_namespace mdl_namespace,
 */
 
 bool
-MDL_context::is_lock_owner(enum_mdl_namespace mdl_namespace,
+MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                            const char *db, const char *name)
 {
   MDL_key key(mdl_namespace, db, name);

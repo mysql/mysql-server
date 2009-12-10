@@ -4822,7 +4822,8 @@ size_t max_row_length(TABLE *table, const uchar *data)
 void init_mdl_requests(TABLE_LIST *table_list)
 {
   for ( ; table_list ; table_list= table_list->next_global)
-    table_list->mdl_request.init(MDL_TABLE, table_list->db, table_list->table_name,
+    table_list->mdl_request.init(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
                                  MDL_SHARED);
 }
 
