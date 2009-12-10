@@ -4140,7 +4140,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    target_mdl_request.init(MDL_TABLE, db, table_name, MDL_EXCLUSIVE);
+    target_mdl_request.init(MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE);
     if (thd->mdl_context.try_acquire_exclusive_lock(&target_mdl_request))
     {
       result= TRUE;
@@ -4361,7 +4361,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     uint key_length;
 
     key_length= create_table_def_key(thd, key, table_list, 0);
-    table_list->mdl_request.init(MDL_TABLE, table_list->db, table_list->table_name,
+    table_list->mdl_request.init(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
                                  MDL_EXCLUSIVE);
     if (thd->mdl_context.acquire_exclusive_lock(&table_list->mdl_request))
       DBUG_RETURN(0);
@@ -5271,7 +5272,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
   else
   {
-    table->mdl_request.init(MDL_TABLE, db, table_name, MDL_EXCLUSIVE);
+    table->mdl_request.init(MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE);
     if (thd->mdl_context.try_acquire_exclusive_lock(&table->mdl_request))
       DBUG_RETURN(TRUE);
 
@@ -6637,7 +6638,8 @@ view_err:
       }
       else
       {
-        target_mdl_request.init(MDL_TABLE, new_db, new_name, MDL_EXCLUSIVE);
+        target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
+                                MDL_EXCLUSIVE);
         if (thd->mdl_context.try_acquire_exclusive_lock(&target_mdl_request))
           DBUG_RETURN(TRUE);
         if (target_mdl_request.ticket == NULL)

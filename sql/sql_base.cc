@@ -476,7 +476,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     To be able perform any operation on table we should own
     some kind of metadata lock on it.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_TABLE, table_list->db,
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, table_list->db,
                                              table_list->table_name));
 
   /* Read table definition from cache */
@@ -2546,7 +2546,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       TABLES breaks metadata locking protocol (potentially can lead
       to deadlocks) it should be disallowed.
     */
-    if (thd->mdl_context.is_lock_owner(MDL_TABLE, table_list->db,
+    if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, table_list->db,
                                        table_list->table_name))
     {
       char path[FN_REFLEN + 1];
@@ -3781,13 +3781,13 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
 
   switch (rt->mdl_request.key.mdl_namespace())
   {
-  case MDL_FUNCTION:
-  case MDL_PROCEDURE:
+  case MDL_key::FUNCTION:
+  case MDL_key::PROCEDURE:
     {
       char qname_buff[NAME_LEN*2+1+1];
       sp_name name(&rt->mdl_request.key, qname_buff);
       sp_head *sp;
-      int type= (rt->mdl_request.key.mdl_namespace() == MDL_FUNCTION) ?
+      int type= (rt->mdl_request.key.mdl_namespace() == MDL_key::FUNCTION) ?
                 TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE;
 
       if (sp_cache_routine(thd, type, &name, &sp))
@@ -3800,7 +3800,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       }
     }
     break;
-  case MDL_TRIGGER:
+  case MDL_key::TRIGGER:
     break;
   default:
     /* Impossible type value. */
@@ -4305,7 +4305,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   */
 
   if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
-      rt->mdl_request.key.mdl_namespace() != MDL_PROCEDURE)
+      rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
   {
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
@@ -8234,7 +8234,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   safe_mutex_assert_owner(&LOCK_open);
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
-              thd->mdl_context.is_exclusive_lock_owner(MDL_TABLE, db, table_name));
+              thd->mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
+                                                       db, table_name));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
