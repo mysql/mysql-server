@@ -13487,7 +13487,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->type != JT_NEXT && 
+    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
              tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
