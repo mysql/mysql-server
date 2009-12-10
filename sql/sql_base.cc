@@ -2840,7 +2840,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table exists now we should downgrade our exclusive metadata
     lock on this table to shared metadata lock.
   */
-  if (table_list->lock_strategy == TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL)
+  if (table_list->lock_strategy == TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL &&
+      !(flags & MYSQL_OPEN_HAS_MDL_LOCK))
     mdl_ticket->downgrade_exclusive_lock();
 
   table->mdl_ticket= mdl_ticket;
