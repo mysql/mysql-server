@@ -151,7 +151,13 @@ operator<<(NdbOut& out, Operation_t op)
 
 const Uint32 NR_ScanNo = 0;
 
-#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+#ifndef NDBD_TRACENR
+#if defined VM_TRACE
+#define NDBD_TRACENR
+#endif
+#endif
+
+#ifdef NDBD_TRACENR
 #include <NdbConfig.h>
 static NdbOut * tracenrout = 0;
 static int TRACENR_FLAG = 0;
@@ -165,7 +171,7 @@ static int TRACENR_FLAG = 0;
 #define CLEAR_TRACENR_FLAG
 #endif
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)
 #else
@@ -590,7 +596,7 @@ void Dblqh::execSTTOR(Signal* signal)
     ndbrequire(c_tup != 0 && c_acc != 0);
     sendsttorryLab(signal);
     
-#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+#ifdef NDBD_TRACENR
 #ifdef VM_TRACE
     out = globalSignalLoggers.getOutputStream();
 #endif
@@ -601,7 +607,7 @@ void Dblqh::execSTTOR(Signal* signal)
     tracenrout = new NdbOut(* new FileOutputStream(out));
 #endif
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
     traceopout = &ndbout;
 #endif
     
@@ -20428,7 +20434,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(arg != 2308);
   }
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
   if (arg == 5712 || arg == 5713)
   {
     if (arg == 5712)
@@ -20889,7 +20895,7 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
   logP.p->logPageWord[ZPOS_IN_WRITING]= 1;
 }
 
-#if defined ERROR_INSERT
+#ifdef NDBD_TRACENR
 void
 Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
 {
