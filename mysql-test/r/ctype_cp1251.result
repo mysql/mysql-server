@@ -70,3 +70,14 @@ we_ivo	NULL
 we_martin	NULL
 we_toshko	NULL
 drop table t1;
+CREATE TABLE t1 (
+e1 enum('ябълка'),
+e2 enum('мляко')
+) ENGINE=MYISAM character set cp1251;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `e1` enum('ябълка') DEFAULT NULL,
+  `e2` enum('мляко') DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=cp1251
+DROP TABLE t1;
