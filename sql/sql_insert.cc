@@ -1974,6 +1974,11 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       }
       pthread_mutex_unlock(&di->mutex);
       thd_proc_info(thd, "got old table");
+      if (thd->killed)
+      {
+        di->unlock();
+        goto end_create;
+      }
       if (di->thd.killed)
       {
         if (di->thd.is_error())
@@ -1981,19 +1986,18 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
           /*
             Copy the error message. Note that we don't treat fatal
             errors in the delayed thread as fatal errors in the
-            main thread. Use of my_message will enable stored
-            procedures continue handlers.
+            main thread. If delayed thread was killed, we don't
+            want to send "Server shutdown in progress" in the
+            INSERT THREAD.
           */
-          my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
-                     MYF(0));
-	}
-	di->unlock();
+          if (di->thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+            my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
+          else
+            my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
+                       MYF(0));
+        }
+        di->unlock();
         goto end_create;
-      }
-      if (thd->killed)
-      {
-	di->unlock();
-	goto end_create;
       }
       pthread_mutex_lock(&LOCK_delayed_insert);
       delayed_threads.append(di);
@@ -2061,7 +2065,11 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       goto error;
     if (dead)
     {
-      my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
+      /* Don't copy over "Server shutdown in progress". */
+      if (thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+        my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
+      else
+        my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
       goto error;
     }
   }
@@ -2412,7 +2420,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
     for (;;)
     {
-      if (thd->killed == THD::KILL_CONNECTION)
+      if (thd->killed)
       {
         uint lock_count;
         /*
@@ -2474,7 +2482,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       }
       thd_proc_info(&(di->thd), 0);
 
-      if (di->tables_in_use && ! thd->lock)
+      if (di->tables_in_use && ! thd->lock && !thd->killed)
       {
         bool need_reopen;
         /*
@@ -2491,14 +2499,15 @@ pthread_handler_t handle_delayed_insert(void *arg)
                                             MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
                                             &need_reopen)))
         {
-          if (need_reopen)
+          if (need_reopen && !thd->killed)
           {
             /*
               We were waiting to obtain TL_WRITE_DELAYED (probably due to
               someone having or requesting TL_WRITE_ALLOW_READ) and got
               aborted. Try to reopen table and if it fails die.
             */
-            close_thread_tables(thd);
+            TABLE_LIST *tl_ptr = &di->table_list;
+            close_tables_for_reopen(thd, &tl_ptr);
             di->table= 0;
             if (di->open_and_lock_table())
             {

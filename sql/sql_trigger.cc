@@ -328,7 +328,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
-  bool need_start_waiting= FALSE;
   bool lock_upgrade_done= FALSE;
   MDL_ticket *mdl_ticket= NULL;
 
@@ -386,8 +385,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     LOCK_open is not enough because global read lock is held without holding
     LOCK_open).
   */
-  if (!thd->locked_tables_mode &&
-      !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+  if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(TRUE);
 
   if (!create)
@@ -521,7 +519,7 @@ end:
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_ticket->downgrade_exclusive_lock();
 
-  if (need_start_waiting)
+  if (thd->global_read_lock_protection > 0)
     start_waiting_global_read_lock(thd);
 
   if (!result)

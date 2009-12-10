@@ -197,6 +197,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -221,8 +223,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
                                             CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -237,34 +238,35 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_AUTHORS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_AUTHORS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_WARNS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
-  sql_command_flags[SQLCOM_SHOW_ERRORS]= CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
+  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_WARNS]=       CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]=      CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
   sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROCESSLIST]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_GRANTS]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_GRANTS]=      CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_DB]=   CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PROFILES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_PROFILE]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_PROC_CODE]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILES]=    CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PROFILE]=     CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
@@ -273,37 +275,52 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
 
+
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_DB]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
+
   /*
     The following is used to preserver CF_ROW_COUNT during the
     a CALL or EXECUTE statement, so the value generated by the
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_CALL]=      CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_EXECUTE]=   CF_HAS_ROW_COUNT;
 
   /*
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND |
-                                              CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_CREATE_USER]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_USER]=        CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_RENAME_USER]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE]=           CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_GRANT]=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=   CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]=  CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=    CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=     CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
 
@@ -1745,7 +1762,6 @@ int
 mysql_execute_command(THD *thd)
 {
   int res= FALSE;
-  bool need_start_waiting= FALSE; // have protection against global read lock
   int  up_result= 0;
   LEX  *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
@@ -2022,7 +2038,7 @@ mysql_execute_command(THD *thd)
       break;
 
     if (!thd->locked_tables_mode && lex->protect_against_global_read_lock &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -2292,10 +2308,9 @@ case SQLCOM_PREPARE:
       read lock when it succeeds. This needs to be released by
       start_waiting_global_read_lock(). We protect the normal CREATE
       TABLE in the same way. That way we avoid that a new table is
-      created during a gobal read lock.
+      created during a global read lock.
     */
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       goto end_with_restore_list;
@@ -2311,6 +2326,12 @@ case SQLCOM_PREPARE:
       thd->work_part_info= part_info;
     }
 #endif
+
+    /*
+      Close any open handlers for the table
+    */
+    mysql_ha_rm_tables(thd, create_table);
+
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -2594,8 +2615,7 @@ end_with_restore_list:
                             "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
 
-      if (!thd->locked_tables_mode &&
-          !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       {
         res= 1;
         break;
@@ -2829,8 +2849,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
@@ -2868,7 +2887,7 @@ end_with_restore_list:
     */
     if (!thd->locked_tables_mode &&
         lex->sql_command == SQLCOM_UPDATE_MULTI &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     res= mysql_multi_update_prepare(thd);
@@ -2970,8 +2989,7 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3010,8 +3028,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (! thd->locked_tables_mode &&
-        ! (need_start_waiting= ! wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3081,7 +3098,7 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    if (!(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (wait_if_global_read_lock(thd, 0, 1))
       goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
@@ -3093,8 +3110,7 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3114,8 +3130,7 @@ end_with_restore_list:
       (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *del_result;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
     {
       res= 1;
       break;
@@ -3259,8 +3274,7 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
-    if (!thd->locked_tables_mode &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
@@ -3334,7 +3348,7 @@ end_with_restore_list:
                            FALSE, UINT_MAX, FALSE))
       goto error;
     if (lex->protect_against_global_read_lock &&
-        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+        wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     init_mdl_requests(all_tables);
@@ -4552,7 +4566,7 @@ error:
   res= TRUE;
 
 finish:
-  if (need_start_waiting)
+  if (thd->global_read_lock_protection > 0)
   {
     /*
       Release the protection against the global read lock and wake

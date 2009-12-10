@@ -452,6 +452,7 @@ THD::THD()
    examined_row_count(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
+   global_read_lock_protection(0),
    global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
