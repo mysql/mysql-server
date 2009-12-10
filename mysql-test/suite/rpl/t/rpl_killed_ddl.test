@@ -277,6 +277,11 @@ source include/kill_query_and_diff_master_slave.inc;
 
 ######## TRIGGER ########
 
+# Make sure table t4 exists
+connection master;
+CREATE TABLE IF NOT EXISTS t4 (a int);
+connection master1;
+
 let $diff_statement= SHOW TRIGGERS LIKE 'v%';
 
 DELIMITER //;
