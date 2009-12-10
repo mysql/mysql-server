@@ -6904,7 +6904,7 @@ int ndbcluster_drop_database_impl(const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -6914,7 +6914,7 @@ int ndbcluster_drop_database_impl(const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
   DBUG_RETURN(ret);      
 }
@@ -7067,7 +7067,7 @@ int ndbcluster_find_all_files(THD *thd)
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
 
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       if (discover)
       {
         /* ToDo 4.1 database needs to be created if missing */
@@ -7085,7 +7085,7 @@ int ndbcluster_find_all_files(THD *thd)
                                        TRUE);
       }
 #endif
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
   while (unhandled && retries);
@@ -7178,19 +7178,19 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                            file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         DBUG_PRINT("info", ("Table %s listed and need discovery",
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
           push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
           continue;
         }
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
@@ -7247,10 +7247,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
         tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       ndbcluster_create_binlog_setup(ndb, name, end-name,
                                      db, file_name_str, TRUE);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
 #endif
@@ -7299,7 +7299,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   // Create new files
   List_iterator_fast<char> it2(create_list);
   while ((file_name_str=it2++))
@@ -7314,7 +7314,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
@@ -8214,7 +8214,7 @@ int handle_trailing_share(NDB_SHARE *share)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
 
   pthread_mutex_lock(&ndbcluster_mutex);

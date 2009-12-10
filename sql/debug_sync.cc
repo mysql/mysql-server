@@ -221,14 +221,14 @@
   There are quite a few places in MySQL, where we use a synchronization
   pattern like this:
 
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   thd->enter_cond(&condition_variable, &mutex, new_message);
   #if defined(ENABLE_DEBUG_SYNC)
   if (!thd->killed && !end_of_wait_condition)
      DEBUG_SYNC(thd, "sync_point_name");
   #endif
   while (!thd->killed && !end_of_wait_condition)
-    pthread_cond_wait(&condition_variable, &mutex);
+    mysql_cond_wait(&condition_variable, &mutex);
   thd->exit_cond(old_message);
 
   Here some explanations:
@@ -264,12 +264,12 @@
 
   while (!thd->killed && !end_of_wait_condition)
   {
-    pthread_mutex_lock(&mutex);
+    mysql_mutex_lock(&mutex);
     thd->enter_cond(&condition_variable, &mutex, new_message);
     if (!thd->killed [&& !end_of_wait_condition])
     {
       [DEBUG_SYNC(thd, "sync_point_name");]
-      pthread_cond_wait(&condition_variable, &mutex);
+      mysql_cond_wait(&condition_variable, &mutex);
     }
     thd->exit_cond(old_message);
   }
@@ -285,7 +285,7 @@
   before sleeping, we hold the mutex, which is registered in mysys_var.
   The killing thread would try to acquire the mutex before signaling
   the condition variable. Since the mutex is only released implicitly in
-  pthread_cond_wait(), the signaling happens at the right place. We
+  mysql_cond_wait(), the signaling happens at the right place. We
   have a safe synchronization.
 
   === Co-work with the DBUG facility ===
@@ -373,8 +373,8 @@ struct st_debug_sync_control
 struct st_debug_sync_globals
 {
   String                ds_signal;              /* signal variable */
-  pthread_cond_t        ds_cond;                /* condition variable */
-  pthread_mutex_t       ds_mutex;               /* mutex variable */
+  mysql_cond_t          ds_cond;                /* condition variable */
+  mysql_mutex_t         ds_mutex;               /* mutex variable */
   ulonglong             dsp_hits;               /* statistics */
   ulonglong             dsp_executed;           /* statistics */
   ulonglong             dsp_max_active;         /* statistics */
@@ -425,6 +425,37 @@ static void debug_sync_C_callback(const char *sync_point_name,
     debug_sync(current_thd, sync_point_name, name_len);   
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_debug_sync_globals_ds_mutex;
+
+static PSI_mutex_info all_debug_sync_mutexes[]=
+{
+  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL}
+};
+
+static PSI_cond_key key_debug_sync_globals_ds_cond;
+
+static PSI_cond_info all_debug_sync_conds[]=
+{
+  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_GLOBAL}
+};
+
+static void init_debug_sync_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_debug_sync_mutexes);
+  PSI_server->register_mutex(category, all_debug_sync_mutexes, count);
+
+  count= array_elements(all_debug_sync_conds);
+  PSI_server->register_cond(category, all_debug_sync_conds, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 
 /**
   Initialize the debug sync facility at server start.
@@ -438,15 +469,21 @@ int debug_sync_init(void)
 {
   DBUG_ENTER("debug_sync_init");
 
+#ifdef HAVE_PSI_INTERFACE
+  init_debug_sync_psi_keys();
+#endif
+
   if (opt_debug_sync_timeout)
   {
     int rc;
 
     /* Initialize the global variables. */
     debug_sync_global.ds_signal.length(0);
-    if ((rc= pthread_cond_init(&debug_sync_global.ds_cond, NULL)) ||
-        (rc= pthread_mutex_init(&debug_sync_global.ds_mutex,
-                                MY_MUTEX_INIT_FAST)))
+    if ((rc= mysql_cond_init(key_debug_sync_globals_ds_cond,
+                             &debug_sync_global.ds_cond, NULL)) ||
+        (rc= mysql_mutex_init(key_debug_sync_globals_ds_mutex,
+                              &debug_sync_global.ds_mutex,
+                              MY_MUTEX_INIT_FAST)))
       DBUG_RETURN(rc); /* purecov: inspected */
 
     /* Set the call back pointer in C files. */
@@ -476,8 +513,8 @@ void debug_sync_end(void)
 
     /* Destroy the global variables. */
     debug_sync_global.ds_signal.free();
-    (void) pthread_cond_destroy(&debug_sync_global.ds_cond);
-    (void) pthread_mutex_destroy(&debug_sync_global.ds_mutex);
+    mysql_cond_destroy(&debug_sync_global.ds_cond);
+    mysql_mutex_destroy(&debug_sync_global.ds_mutex);
 
     /* Print statistics. */
     {
@@ -585,12 +622,12 @@ void debug_sync_end_thread(THD *thd)
     }
 
     /* Statistics. */
-    pthread_mutex_lock(&debug_sync_global.ds_mutex);
+    mysql_mutex_lock(&debug_sync_global.ds_mutex);
     debug_sync_global.dsp_hits+=           ds_control->dsp_hits;
     debug_sync_global.dsp_executed+=       ds_control->dsp_executed;
     if (debug_sync_global.dsp_max_active < ds_control->dsp_max_active)
       debug_sync_global.dsp_max_active=    ds_control->dsp_max_active;
-    pthread_mutex_unlock(&debug_sync_global.ds_mutex);
+    mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
     my_free(ds_control, MYF(0));
     thd->debug_sync_control= NULL;
@@ -824,9 +861,9 @@ static void debug_sync_reset(THD *thd)
   ds_control->ds_active= 0;
 
   /* Clear the global signal. */
-  pthread_mutex_lock(&debug_sync_global.ds_mutex);
+  mysql_mutex_lock(&debug_sync_global.ds_mutex);
   debug_sync_global.ds_signal.length(0);
-  pthread_mutex_unlock(&debug_sync_global.ds_mutex);
+  mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
   DBUG_VOID_RETURN;
 }
@@ -1659,7 +1696,7 @@ uchar *sys_var_debug_sync::value_ptr(THD *thd,
     static char on[]= "ON - current signal: '"; 
 
     // Ensure exclusive access to debug_sync_global.ds_signal
-    pthread_mutex_lock(&debug_sync_global.ds_mutex);
+    mysql_mutex_lock(&debug_sync_global.ds_mutex);
 
     size_t lgt= (sizeof(on) /* includes '\0' */ +
                  debug_sync_global.ds_signal.length() + 1 /* for '\'' */);
@@ -1676,7 +1713,7 @@ uchar *sys_var_debug_sync::value_ptr(THD *thd,
         *(vptr++)= '\'';
       *vptr= '\0'; /* We have one byte reserved for the worst case. */
     }
-    pthread_mutex_unlock(&debug_sync_global.ds_mutex);
+    mysql_mutex_unlock(&debug_sync_global.ds_mutex);
   }
   else
   {
@@ -1744,7 +1781,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       read access too, to create a memory barrier in order to avoid that
       threads just reads an old cached version of the signal.
     */
-    pthread_mutex_lock(&debug_sync_global.ds_mutex);
+    mysql_mutex_lock(&debug_sync_global.ds_mutex);
 
     if (action->signal.length())
     {
@@ -1758,15 +1795,15 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         debug_sync_emergency_disable(); /* purecov: tested */
       }
       /* Wake threads waiting in a sync point. */
-      pthread_cond_broadcast(&debug_sync_global.ds_cond);
+      mysql_cond_broadcast(&debug_sync_global.ds_cond);
       DBUG_PRINT("debug_sync_exec", ("signal '%s'  at: '%s'",
                                      sig_emit, dsp_name));
     } /* end if (action->signal.length()) */
 
     if (action->wait_for.length())
     {
-      pthread_mutex_t *old_mutex;
-      pthread_cond_t  *old_cond;
+      mysql_mutex_t *old_mutex;
+      mysql_cond_t  *old_cond;
       int             error= 0;
       struct timespec abstime;
 
@@ -1797,9 +1834,9 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       while (stringcmp(&debug_sync_global.ds_signal, &action->wait_for) &&
              !thd->killed && opt_debug_sync_timeout)
       {
-        error= pthread_cond_timedwait(&debug_sync_global.ds_cond,
-                                      &debug_sync_global.ds_mutex,
-                                      &abstime);
+        error= mysql_cond_timedwait(&debug_sync_global.ds_cond,
+                                    &debug_sync_global.ds_mutex,
+                                    &abstime);
         DBUG_EXECUTE("debug_sync", {
             /* Functions as DBUG_PRINT args can change keyword and line nr. */
             const char *sig_glob= debug_sync_global.ds_signal.c_ptr();
@@ -1832,18 +1869,17 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         protected mutex must always unlocked _before_ mysys_var->mutex
         is locked. (See comment in THD::exit_cond().)
       */
-      pthread_mutex_unlock(&debug_sync_global.ds_mutex);
-      pthread_mutex_lock(&thd->mysys_var->mutex);
+      mysql_mutex_unlock(&debug_sync_global.ds_mutex);
+      mysql_mutex_lock(&thd->mysys_var->mutex);
       thd->mysys_var->current_mutex= old_mutex;
       thd->mysys_var->current_cond= old_cond;
       thd_proc_info(thd, old_proc_info);
-      pthread_mutex_unlock(&thd->mysys_var->mutex);
-
+      mysql_mutex_unlock(&thd->mysys_var->mutex);
     }
     else
     {
       /* In case we don't wait, we just release the mutex. */
-      pthread_mutex_unlock(&debug_sync_global.ds_mutex);
+      mysql_mutex_unlock(&debug_sync_global.ds_mutex);
     } /* end if (action->wait_for.length()) */
 
   } /* end if (action->execute) */
