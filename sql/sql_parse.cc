@@ -182,14 +182,15 @@ void init_update_queries(void)
   memset(sql_command_flags, 0, sizeof(sql_command_flags));
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -207,17 +208,17 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
                                             CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
@@ -276,20 +277,21 @@ void init_update_queries(void)
                                                 CF_REEXECUTION_FRAGILE);
 
 
-  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_ALTER_DB]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
@@ -1969,6 +1971,17 @@ mysql_execute_command(THD *thd)
       thd->mdl_context.release_all_locks();
   }
 
+  /*
+    Check if this command needs protection against the global read lock
+    to avoid deadlock. See CF_PROTECT_AGAINST_GRL.
+    start_waiting_global_read_lock() is called at the end of
+    mysql_execute_command().
+  */
+  if (((sql_command_flags[lex->sql_command] & CF_PROTECT_AGAINST_GRL) != 0) &&
+      !thd->locked_tables_mode)
+    if (wait_if_global_read_lock(thd, FALSE, TRUE))
+      goto error;
+
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_EVENTS:
@@ -2309,12 +2322,9 @@ case SQLCOM_PREPARE:
       start_waiting_global_read_lock(). We protect the normal CREATE
       TABLE in the same way. That way we avoid that a new table is
       created during a global read lock.
+      Protection against grl is covered by the CF_PROTECT_AGAINST_GRL flag.
     */
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-    {
-      res= 1;
-      goto end_with_restore_list;
-    }
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
@@ -2617,12 +2627,6 @@ end_with_restore_list:
                             "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
 
-      if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-      {
-        res= 1;
-        break;
-      }
-
       thd->enable_slow_log= opt_log_slow_admin_statements;
       res= mysql_alter_table(thd, select_lex->db, lex->name.str,
                              &create_info,
@@ -2852,8 +2856,6 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-      goto error;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     MYSQL_UPDATE_START(thd->query());
@@ -2883,15 +2885,6 @@ end_with_restore_list:
     }
     else
       res= 0;
-
-    /*
-      Protection might have already been risen if its a fall through
-      from the SQLCOM_UPDATE case above.
-    */
-    if (!thd->locked_tables_mode &&
-        lex->sql_command == SQLCOM_UPDATE_MULTI &&
-        wait_if_global_read_lock(thd, 0, 1))
-      goto error;
 
     res= mysql_multi_update_prepare(thd);
 
@@ -2992,11 +2985,6 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-    {
-      res= 1;
-      break;
-    }
     MYSQL_INSERT_START(thd->query());
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
@@ -3031,11 +3019,6 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-    {
-      res= 1;
-      break;
-    }
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
@@ -3113,11 +3096,6 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-    {
-      res= 1;
-      break;
-    }
     MYSQL_DELETE_START(thd->query());
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
@@ -3132,12 +3110,6 @@ end_with_restore_list:
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *del_result;
-
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
-    {
-      res= 1;
-      break;
-    }
 
     if ((res= multi_delete_precheck(thd, all_tables)))
       break;
@@ -3275,9 +3247,6 @@ end_with_restore_list:
     }
 
     if (check_one_table_access(thd, privilege, all_tables))
-      goto error;
-
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
       goto error;
 
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
