@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ typedef struct st_key_cache
   uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
-  pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
+  mysql_mutex_t cache_lock;      /* to lock access to the cache structure    */
   KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
   /*
     Waiting for a zero resize count. Using a queue for symmetry though
