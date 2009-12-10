@@ -3906,3 +3906,24 @@ DROP TABLE t1;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+
+--echo #
+--echo # Bug #47335 assert in get_table_share
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (id INT);
+--error ER_NO_SUCH_TABLE
+ALTER VIEW t1 AS SELECT 1 AS f1;
+DROP TABLE t1;
+
+CREATE VIEW v1 AS SELECT 1 AS f1;
+CREATE TEMPORARY TABLE v1 (id INT);
+ALTER VIEW v1 AS SELECT 2 AS f1;
+DROP TABLE v1;
+SELECT * FROM v1;
+DROP VIEW v1;
