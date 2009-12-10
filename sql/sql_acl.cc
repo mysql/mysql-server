@@ -689,8 +689,7 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary=
-    tables[2].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
   init_mdl_requests(tables);
 
   if (simple_open_n_lock_tables(thd, tables))
@@ -3797,7 +3796,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.init_one_table("mysql", 5, "procs_priv",
                        strlen("procs_priv"), "procs_priv",
                        TL_READ);
-  table.skip_temporary= 1;
+  table.open_type= OT_BASE_ONLY;
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3863,7 +3862,7 @@ my_bool grant_reload(THD *thd)
   tables[0].db= tables[1].db= (char *) "mysql";
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
   init_mdl_requests(tables);
 
   /*

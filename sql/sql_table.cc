@@ -4084,7 +4084,6 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   pthread_mutex_unlock(&LOCK_open);
@@ -4109,21 +4108,18 @@ warn:
   Database and name-locking aware wrapper for mysql_create_table_no_lock(),
 */
 
-bool mysql_create_table(THD *thd, const char *db, const char *table_name,
+bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
-                        Alter_info *alter_info,
-                        bool internal_tmp_table,
-                        uint select_field_count)
+                        Alter_info *alter_info)
 {
-  MDL_request target_mdl_request;
-  bool has_target_mdl_lock= FALSE;
   bool result;
   DBUG_ENTER("mysql_create_table");
 
   /* Wait for any database locks */
   pthread_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
-         my_hash_search(&lock_db_cache,(uchar*) db, strlen(db)))
+         my_hash_search(&lock_db_cache, (uchar*)create_table->db,
+                        create_table->db_length))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
     pthread_mutex_lock(&LOCK_lock_db);
@@ -4137,47 +4133,47 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
   creating_table++;
   pthread_mutex_unlock(&LOCK_lock_db);
 
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  /*
+    Open or obtain an exclusive metadata lock on table being created.
+  */
+  if (open_and_lock_tables_derived(thd, thd->lex->query_tables, FALSE,
+                                   MYSQL_OPEN_TAKE_UPGRADABLE_MDL))
   {
-    target_mdl_request.init(MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE);
-    if (thd->mdl_context.try_acquire_exclusive_lock(&target_mdl_request))
-    {
-      result= TRUE;
-      goto unlock;
-    }
-    if (target_mdl_request.ticket == NULL)
-    {
-      /* Table exists and is locked by some other thread. */
-      if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-      {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                            ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                            table_name);
-        create_info->table_existed= 1;
-        result= FALSE;
-        write_create_table_bin_log(thd, create_info, internal_tmp_table);
-      }
-      else
-      {
-        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-        result= TRUE;
-      }
-      goto unlock;
-    }
-    /* Got lock. */
-    DEBUG_SYNC(thd, "locked_table_name");
-    has_target_mdl_lock= TRUE;
+    result= TRUE;
+    goto unlock;
   }
 
-  result= mysql_create_table_no_lock(thd, db, table_name, create_info,
-                                     alter_info,
-                                     internal_tmp_table,
-                                     select_field_count);
+  /* Got lock. */
+  DEBUG_SYNC(thd, "locked_table_name");
+
+  result= mysql_create_table_no_lock(thd, create_table->db,
+                                     create_table->table_name, create_info,
+                                     alter_info, FALSE, 0);
+
+  /*
+    Don't write statement if:
+    - Table creation has failed
+    - Table has already existed
+    - Row-based logging is used and we are creating a temporary table
+    Otherwise, the statement shall be binlogged.
+  */
+  if (!result &&
+      !create_info->table_existed &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  {
+    /*
+      close_thread_tables() takes care about both closing open tables (which
+      might be still around in case of error) and releasing metadata locks.
+    */
+    close_thread_tables(thd);
+  }
 
 unlock:
-  if (has_target_mdl_lock)
-    thd->mdl_context.release_lock(target_mdl_request.ticket);
-
   pthread_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
     pthread_cond_signal(&COND_refresh);
@@ -5158,55 +5154,6 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
-
-/**
-  @brief          Create frm file based on I_S table
-
-  @param[in]      thd                      thread handler
-  @param[in]      schema_table             I_S table           
-  @param[in]      dst_path                 path where frm should be created
-  @param[in]      create_info              Create info
-
-  @return         Operation status
-    @retval       0                        success
-    @retval       1                        error
-*/
-
-
-bool mysql_create_like_schema_frm(THD* thd, TABLE_LIST* schema_table,
-                                  char *dst_path, HA_CREATE_INFO *create_info)
-{
-  HA_CREATE_INFO local_create_info;
-  Alter_info alter_info;
-  bool tmp_table= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
-  uint keys= schema_table->table->s->keys;
-  uint db_options= 0;
-  DBUG_ENTER("mysql_create_like_schema_frm");
-
-  bzero((char*) &local_create_info, sizeof(local_create_info));
-  local_create_info.db_type= schema_table->table->s->db_type();
-  local_create_info.row_type= schema_table->table->s->row_type;
-  local_create_info.default_table_charset=default_charset_info;
-  alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
-  schema_table->table->use_all_columns();
-  if (mysql_prepare_alter_table(thd, schema_table->table,
-                                &local_create_info, &alter_info))
-    DBUG_RETURN(1);
-  if (mysql_prepare_create_table(thd, &local_create_info, &alter_info,
-                                 tmp_table, &db_options,
-                                 schema_table->table->file,
-                                 &schema_table->table->s->key_info, &keys, 0))
-    DBUG_RETURN(1);
-  local_create_info.max_rows= 0;
-  if (mysql_create_frm(thd, dst_path, NullS, NullS,
-                       &local_create_info, alter_info.create_list,
-                       keys, schema_table->table->s->key_info,
-                       schema_table->table->file))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
-}
-
-
 /*
   Create a table identical to the specified table
 
@@ -5225,12 +5172,8 @@ bool mysql_create_like_schema_frm(THD* thd, TABLE_LIST* schema_table,
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
-  char src_path[FN_REFLEN + 1], dst_path[FN_REFLEN + 1];
-  uint dst_path_length;
-  bool has_mdl_lock= FALSE;
-  char *db= table->db;
-  char *table_name= table->table_name;
-  int  err;
+  HA_CREATE_INFO local_create_info;
+  Alter_info local_alter_info;
   bool res= TRUE;
   uint not_used;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -5242,161 +5185,63 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
 
   /*
-    By opening source table and thus acquiring shared metadata lock on it
-    we guarantee that it exists and no concurrent DDL operation will mess
-    with it. Later we also take an exclusive metadata lock on target table
-    name, which makes copying of .frm file, call to ha_create_table() and
-    binlogging atomic against concurrent DML and DDL operations on target
-    table. Thus by holding both these "locks" we ensure that our statement
-    is properly isolated from all concurrent operations which matter.
+    We the open source table to get its description in HA_CREATE_INFO
+    and Alter_info objects. This also acquires a shared metadata lock
+    on this table which ensures that no concurrent DDL operation will
+    mess with it.
+    Also in case when we create non-temporary table open_tables()
+    call obtains an exclusive metadata lock on target table ensuring
+    that we can safely perform table creation.
+    Thus by holding both these locks we ensure that our statement is
+    properly isolated from all concurrent operations which matter.
   */
-  if (open_tables(thd, &src_table, &not_used, 0))
-    DBUG_RETURN(TRUE);
-
-  /*
-    For bug#25875, Newly created table through CREATE TABLE .. LIKE
-                   has no ndb_dd attributes;
-    Add something to get possible tablespace info from src table,
-    it can get valid tablespace name only for disk-base ndb table
-  */
-  if ((src_table->table->file->get_tablespace_name(thd, ts_name, FN_LEN)))
-  {
-    create_info->tablespace= ts_name;
-    create_info->storage_media= HA_SM_DISK;
-  }
-
-  strxmov(src_path, src_table->table->s->path.str, reg_ext, NullS);
-
-  DBUG_EXECUTE_IF("sleep_create_like_before_check_if_exists", my_sleep(6000000););
-
-  /*
-    Check that destination tables does not exist. Note that its name
-    was already checked when it was added to the table list.
-  */
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-  {
-    if (find_temporary_table(thd, db, table_name))
-      goto table_exists;
-    dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
-    create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
-  }
-  else
-  {
-    table->mdl_request.init(MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE);
-    if (thd->mdl_context.try_acquire_exclusive_lock(&table->mdl_request))
-      DBUG_RETURN(TRUE);
-
-    if (table->mdl_request.ticket == NULL)
-      goto table_exists;
-
-    DEBUG_SYNC(thd, "locked_table_name");
-    has_mdl_lock= TRUE;
-
-    dst_path_length= build_table_filename(dst_path, sizeof(dst_path) - 1,
-                                          db, table_name, reg_ext, 0);
-    if (!access(dst_path, F_OK))
-      goto table_exists;
-  }
-
-  DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
-
-  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-    flags|= MY_SYNC;
-
-  /*
-    Create a new table by copying from source table
-    and sync the new table if the flag MY_SYNC is set
-
-    TODO: Obtaining LOCK_open mutex here is actually a legacy from the
-          times when some operations (e.g. I_S implementation) ignored
-          exclusive metadata lock on target table. Also some engines
-          (e.g. NDB cluster) require that LOCK_open should be held
-          during the call to ha_create_table() (See bug #28614 for more
-          info). So we should double check and probably fix this code
-          to not acquire this mutex.
-  */
-  pthread_mutex_lock(&LOCK_open);
-  if (src_table->schema_table)
-  {
-    if (mysql_create_like_schema_frm(thd, src_table, dst_path, create_info))
-    {
-      pthread_mutex_unlock(&LOCK_open);
-      goto err;
-    }
-  }
-  else if (my_copy(src_path, dst_path, flags))
-  {
-    if (my_errno == ENOENT)
-      my_error(ER_BAD_DB_ERROR,MYF(0),db);
-    else
-      my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
-    pthread_mutex_unlock(&LOCK_open);
+  if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
     goto err;
-  }
+  src_table->table->use_all_columns();
 
-  /*
-    As mysql_truncate don't work on a new table at this stage of
-    creation, instead create the table directly (for both normal
-    and temporary tables).
-  */
+  /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
+  bzero((char*) &local_create_info, sizeof(local_create_info));
+  local_create_info.db_type= src_table->table->s->db_type();
+  local_create_info.row_type= src_table->table->s->row_type;
+  if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
+                                &local_alter_info))
+    goto err;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /*
-    For partitioned tables we need to copy the .par file as well since
-    it is used in open_table_def to even be able to create a new handler.
-    There is no way to find out here if the original table is a
-    partitioned table so we copy the file and ignore any errors.
-  */
-  fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(dst_path, tmp_path);
-  fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(src_path, tmp_path);
-  my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  /* Partition info is not handled by mysql_prepare_alter_table() call. */
+  if (src_table->table->part_info)
+    thd->work_part_info= src_table->table->part_info->get_clone();
 #endif
 
-  DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
+  /*
+    Adjust description of source table before using it for creation of
+    target table.
 
-  dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
-  if (thd->variables.keep_files_on_create)
-    create_info->options|= HA_CREATE_KEEP_FILES;
-  err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
-  pthread_mutex_unlock(&LOCK_open);
+    Similarly to SHOW CREATE TABLE we ignore MAX_ROWS attribute of
+    temporary table which represents I_S table.
+  */
+  if (src_table->schema_table)
+    local_create_info.max_rows= 0;
+  /* Set IF NOT EXISTS option as in the CREATE TABLE LIKE statement. */
+  local_create_info.options|= create_info->options&HA_LEX_CREATE_IF_NOT_EXISTS;
+  /* Replace type of source table with one specified in the statement. */
+  local_create_info.options&= ~HA_LEX_CREATE_TMP_TABLE;
+  local_create_info.options|= create_info->options & HA_LEX_CREATE_TMP_TABLE;
+  /* Reset auto-increment counter for the new table. */
+  local_create_info.auto_increment_value= 0;
 
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-  {
-    if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
-    {
-      (void) rm_temporary_table(create_info->db_type,
-				dst_path); /* purecov: inspected */
-      goto err;     /* purecov: inspected */
-    }
-    thd->thread_specific_used= TRUE;
-  }
-  else if (err)
-  {
-    (void) quick_rm_table(create_info->db_type, db,
-			  table_name, 0); /* purecov: inspected */
-    goto err;	    /* purecov: inspected */
-  }
-
-goto binlog;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-  }
-  else
-  {
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+  if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
+                                       &local_create_info, &local_alter_info,
+                                       FALSE, 0)) ||
+      local_create_info.table_existed)
     goto err;
-  }
 
-binlog:
-  DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
+  /*
+    Ensure that we have an exclusive lock on target table if we are creating
+    non-temporary table.
+  */
+  DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+              thd->mdl_context.is_exclusive_lock_owner(MDL_key::TABLE, table->db,
+                                                       table->table_name));
 
   /*
     We have to write the query before we unlock the tables.
@@ -5463,12 +5308,7 @@ binlog:
   else
     write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
-  res= FALSE;
-
 err:
-  if (has_mdl_lock)
-    thd->mdl_context.release_lock(table->mdl_request.ticket);
-
   DBUG_RETURN(res);
 }
 

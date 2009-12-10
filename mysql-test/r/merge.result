@@ -1149,7 +1149,8 @@ SHOW CREATE TABLE t3;
 ERROR 42S02: Table 'test.t3' doesn't exist
 DROP TABLE t1, t2;
 #
-# CREATE ... LIKE
+# Bug#37371 "CREATE TABLE LIKE merge loses UNION parameter"
+# Demonstrate that this is no longer the case.
 #
 # 1. Create like.
 CREATE TABLE t1 (c1 INT);
@@ -1164,26 +1165,26 @@ SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 INSERT INTO t4 VALUES (4);
-ERROR HY000: Table 't4' is read only
 DROP TABLE t4;
 #
 # 1. Create like with locked tables.
 LOCK TABLES t3 WRITE, t2 WRITE, t1 WRITE;
 CREATE TABLE t4 LIKE t3;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
 SHOW CREATE TABLE t4;
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
 INSERT INTO t4 VALUES (4);
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
+CREATE TEMPORARY TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+INSERT INTO t4 VALUES (4);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 UNLOCK TABLES;
-SHOW CREATE TABLE t4;
-Table	Create Table
-t4	CREATE TABLE `t4` (
-  `c1` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t4 VALUES (4);
-ERROR HY000: Table 't4' is read only
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t4;
 #
 # Rename child.
@@ -1210,6 +1211,7 @@ c1
 1
 2
 3
+4
 RENAME TABLE t2 TO t5;
 SELECT * FROM t3 ORDER BY c1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
@@ -1219,6 +1221,7 @@ c1
 1
 2
 3
+4
 #
 # 3. Normal rename with locked tables.
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
@@ -1227,6 +1230,7 @@ c1
 1
 2
 3
+4
 RENAME TABLE t2 TO t5;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
@@ -1234,6 +1238,7 @@ c1
 1
 2
 3
+4
 RENAME TABLE t5 TO t2;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
@@ -1241,6 +1246,7 @@ c1
 1
 2
 3
+4
 UNLOCK TABLES;
 #
 # 4. Alter table rename.
@@ -1253,6 +1259,7 @@ c1
 1
 2
 3
+4
 #
 # 5. Alter table rename with locked tables.
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
@@ -1268,6 +1275,7 @@ c1
 1
 2
 3
+4
 #
 # Rename parent.
 #
@@ -1278,6 +1286,7 @@ c1
 1
 2
 3
+4
 RENAME TABLE t3 TO t5;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
@@ -1285,6 +1294,7 @@ c1
 1
 2
 3
+4
 RENAME TABLE t5 TO t3;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
@@ -1292,6 +1302,7 @@ c1
 1
 2
 3
+4
 #
 # 5. Alter table rename with locked tables.
 ALTER TABLE t3 RENAME TO t5;
@@ -1306,6 +1317,7 @@ c1
 1
 2
 3
+4
 DROP TABLE t1, t2, t3;
 #
 # Drop locked tables.

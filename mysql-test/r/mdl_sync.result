@@ -63,6 +63,66 @@ unlock tables;
 # Clean-up.
 drop tables t1, t2, t3, t5;
 #
+# Bug#42546 - Backup: RESTORE fails, thinking it finds an existing table
+#
+DROP TABLE IF EXISTS t1;
+set @save_log_output=@@global.log_output;
+set global log_output=file;
+#
+# Test 1: CREATE TABLE
+#
+# Connection 2 
+# Start insert on the not-yet existing table
+# Wait after taking the MDL lock
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+INSERT INTO t1 VALUES(1,"def");
+# Connection 1
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Now INSERT has a MDL on the non-existent table t1.
+#
+# Continue the INSERT once CREATE waits for exclusive lock
+SET DEBUG_SYNC= 'mdl_acquire_exclusive_locks_wait SIGNAL finish';
+# Try to create that table.
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(100), KEY(c1));
+# Connection 2
+# Insert fails
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Connection 1
+SET DEBUG_SYNC= 'RESET';
+SHOW TABLES;
+Tables_in_test
+t1
+DROP TABLE IF EXISTS t1;
+#
+# Test 2: CREATE TABLE LIKE
+#
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100), KEY(c1));
+# Connection 2 
+# Start insert on the not-yet existing table
+# Wait after taking the MDL
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+INSERT INTO t1 VALUES(1,"def");
+# Connection 1
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Now INSERT has a MDL on the non-existent table t1.
+#
+# Continue the INSERT once CREATE waits for exclusive lock
+SET DEBUG_SYNC= 'mdl_acquire_exclusive_locks_wait SIGNAL finish';
+# Try to create that table.
+CREATE TABLE t1 LIKE t2;
+# Connection 2
+# Insert fails
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Connection 1
+SET DEBUG_SYNC= 'RESET';
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+DROP TABLE t2;
+DROP TABLE IF EXISTS t1;
+set global log_output=@save_log_output;
+#
 # Bug #46044 "MDL deadlock on LOCK TABLE + CREATE TABLE HIGH_PRIORITY
 #             FOR UPDATE"
 #

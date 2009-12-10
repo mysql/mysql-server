@@ -1033,6 +1033,7 @@ bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
+void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
@@ -1170,10 +1171,9 @@ int prepare_create_field(Create_field *sql_field,
 			 longlong table_flags);
 CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                     HA_CREATE_INFO *create_info);
-bool mysql_create_table(THD *thd,const char *db, const char *table_name,
+bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
-                        Alter_info *alter_info,
-                        bool tmp_table, uint select_field_count);
+                        Alter_info *alter_info);
 bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,

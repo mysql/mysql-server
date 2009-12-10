@@ -199,6 +199,7 @@ let $wait_condition=
   where state = "Waiting for table" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 # This must not block.
+--error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 (c1 int);
 UNLOCK TABLES;
 #
@@ -208,7 +209,7 @@ reap;
 UNLOCK TABLES;
 #
 connection default;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 #
 # Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
 #
