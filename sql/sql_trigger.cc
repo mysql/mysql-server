@@ -445,7 +445,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     Also prevent DROP TRIGGER from opening temporary table which might
     shadow base table on which trigger to be dropped is defined.
   */
-  tables->skip_temporary= TRUE;
+  tables->open_type= OT_BASE_ONLY;
 
   /* Keep consistent with respect to other DDL statements */
   mysql_ha_rm_tables(thd, tables);

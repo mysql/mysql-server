@@ -1259,7 +1259,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
          tbl;
          tbl= (view_tables_tail= tbl)->next_global)
     {
-      tbl->skip_temporary= 1;
+      tbl->open_type= OT_BASE_ONLY;
       tbl->belong_to_view= top_view;
       tbl->referencing_view= table;
       tbl->prelocking_placeholder= table->prelocking_placeholder;

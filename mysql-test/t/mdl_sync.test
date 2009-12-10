@@ -142,6 +142,101 @@ drop tables t1, t2, t3, t5;
 
 
 --echo #
+--echo # Bug#42546 - Backup: RESTORE fails, thinking it finds an existing table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+set @save_log_output=@@global.log_output;
+set global log_output=file;
+
+connect(con2, localhost, root,,);
+
+--echo #
+--echo # Test 1: CREATE TABLE
+--echo #
+
+--echo # Connection 2 
+connection con2;
+--echo # Start insert on the not-yet existing table
+--echo # Wait after taking the MDL lock
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+--send INSERT INTO t1 VALUES(1,"def")
+
+--echo # Connection 1
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Now INSERT has a MDL on the non-existent table t1.
+
+--echo #
+--echo # Continue the INSERT once CREATE waits for exclusive lock
+SET DEBUG_SYNC= 'mdl_acquire_exclusive_locks_wait SIGNAL finish';
+--echo # Try to create that table.
+--send CREATE TABLE t1 (c1 INT, c2 VARCHAR(100), KEY(c1))
+
+--echo # Connection 2
+--echo # Insert fails
+connection con2;
+--error ER_NO_SUCH_TABLE
+--reap
+
+--echo # Connection 1
+connection default;
+--reap;
+SET DEBUG_SYNC= 'RESET';
+SHOW TABLES;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Test 2: CREATE TABLE LIKE
+--echo #
+
+CREATE TABLE t2 (c1 INT, c2 VARCHAR(100), KEY(c1));
+
+--echo # Connection 2 
+connection con2;
+--echo # Start insert on the not-yet existing table
+--echo # Wait after taking the MDL
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+--send INSERT INTO t1 VALUES(1,"def")
+
+--echo # Connection 1
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Now INSERT has a MDL on the non-existent table t1.
+
+--echo #
+--echo # Continue the INSERT once CREATE waits for exclusive lock
+SET DEBUG_SYNC= 'mdl_acquire_exclusive_locks_wait SIGNAL finish';
+--echo # Try to create that table.
+--send CREATE TABLE t1 LIKE t2
+
+--echo # Connection 2
+--echo # Insert fails
+connection con2;
+--error ER_NO_SUCH_TABLE
+--reap
+
+--echo # Connection 1
+connection default;
+--reap
+SET DEBUG_SYNC= 'RESET';
+SHOW TABLES;
+
+DROP TABLE t2;
+disconnect con2;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+set global log_output=@save_log_output;
+
+
+--echo #
 --echo # Bug #46044 "MDL deadlock on LOCK TABLE + CREATE TABLE HIGH_PRIORITY
 --echo #             FOR UPDATE"
 --echo #

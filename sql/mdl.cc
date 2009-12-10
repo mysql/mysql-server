@@ -1051,6 +1051,9 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
         signalled|= notify_shared_lock(thd, conflicting_ticket);
     }
 
+    /* There is a shared or exclusive lock on the object. */
+    DEBUG_SYNC(thd, "mdl_upgrade_shared_lock_to_exclusive_wait");
+
     if (signalled)
       pthread_cond_wait(&COND_mdl, &LOCK_mdl);
     else

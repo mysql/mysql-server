@@ -1781,6 +1781,7 @@ create:
                                   ha_resolve_storage_engine_name(lex->create_info.db_type),
                                   $5->table.str);
             }
+            create_table_set_open_action_and_adjust_tables(lex);
           }
         | CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
           table_ident
@@ -3921,7 +3922,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning
+          opt_create_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -3955,9 +3956,9 @@ create2:
 
 create2a:
           create_field_list ')' opt_create_table_options
-          opt_partitioning
+          opt_create_partitioning
           create3 {}
-        |  opt_partitioning
+        |  opt_create_partitioning
            create_select ')'
            { Select->set_braces(1);}
            union_opt {}
@@ -3971,6 +3972,19 @@ create3:
         | opt_duplicate opt_as '(' create_select ')'
           { Select->set_braces(1);}
           union_opt {}
+        ;
+
+opt_create_partitioning:
+          opt_partitioning
+          {
+            /*
+              Remove all tables used in PARTITION clause from the global table
+              list. Partitioning with subqueries is not allowed anyway.
+            */
+            TABLE_LIST *last_non_sel_table= Lex->create_last_non_select_table;
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+          }
         ;
 
 /*
