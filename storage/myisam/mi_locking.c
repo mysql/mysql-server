@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   }
 
   flag=error=0;
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   if (share->kfile >= 0)		/* May only be false on windows */
   {
     switch (lock_type) {
@@ -88,11 +88,11 @@ int mi_lock_database(MI_INFO *info, int lock_type)
         (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
     {
       if (info->s->concurrent_insert)
-        rw_wrlock(&info->s->mmap_lock);
+        mysql_rwlock_wrlock(&info->s->mmap_lock);
       mi_remap_file(info, info->s->state.state.data_file_length);
       info->s->nonmmaped_inserts= 0;
       if (info->s->concurrent_insert)
-        rw_unlock(&info->s->mmap_lock);
+        mysql_rwlock_unlock(&info->s->mmap_lock);
     }
 #endif
 	  share->state.process= share->last_process=share->this_process;
@@ -103,9 +103,9 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->changed=0;
 	  if (myisam_flush)
 	  {
-	    if (my_sync(share->kfile, MYF(0)))
+            if (mysql_file_sync(share->kfile, MYF(0)))
 	      error= my_errno;
-	    if (my_sync(info->dfile, MYF(0)))
+            if (mysql_file_sync(info->dfile, MYF(0)))
 	      error= my_errno;
 	  }
 	  else
@@ -251,7 +251,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     }
   }
 #endif
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
 #if defined(FULL_LOG) || defined(_lint)
   lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */
   myisam_log_command(MI_LOG_LOCK,info,(uchar*) &lock_type,sizeof(lock_type),
@@ -458,8 +458,8 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
 #ifdef _WIN32
       if (myisam_flush)
       {
-        my_sync(share->kfile,0);
-        my_sync(info->dfile,0);
+        mysql_file_sync(share->kfile, 0);
+        mysql_file_sync(info->dfile, 0);
       }
 #endif
     }
@@ -539,9 +539,9 @@ int _mi_mark_file_changed(MI_INFO *info)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
-      DBUG_RETURN(my_pwrite(share->kfile,buff,sizeof(buff),
-                            sizeof(share->state.header),
-                            MYF(MY_NABP)));
+      DBUG_RETURN(mysql_file_pwrite(share->kfile, buff, sizeof(buff),
+                                    sizeof(share->state.header),
+                                    MYF(MY_NABP)));
     }
   }
   DBUG_RETURN(0);
@@ -568,9 +568,9 @@ int _mi_decrement_open_count(MI_INFO *info)
     {
       share->state.open_count--;
       mi_int2store(buff,share->state.open_count);
-      write_error=my_pwrite(share->kfile,buff,sizeof(buff),
-			    sizeof(share->state.header),
-			    MYF(MY_NABP));
+      write_error= mysql_file_pwrite(share->kfile, buff, sizeof(buff),
+                                     sizeof(share->state.header),
+                                     MYF(MY_NABP));
     }
     if (!lock_error)
       lock_error=mi_lock_database(info,old_lock);
