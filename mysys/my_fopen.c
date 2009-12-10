@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,18 +63,18 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       thread_safe_increment(my_stream_opened,&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
     }
-    pthread_mutex_lock(&THR_LOCK_open);
+    mysql_mutex_lock(&THR_LOCK_open);
     if ((my_file_info[filedesc].name= (char*)
 	 my_strdup(filename,MyFlags)))
     {
       my_stream_opened++;
       my_file_total_opened++;
       my_file_info[filedesc].type= STREAM_BY_FOPEN;
-      pthread_mutex_unlock(&THR_LOCK_open);
+      mysql_mutex_unlock(&THR_LOCK_open);
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
       DBUG_RETURN(fd);
     }
-    pthread_mutex_unlock(&THR_LOCK_open);
+    mysql_mutex_unlock(&THR_LOCK_open);
     (void) my_fclose(fd,MyFlags);
     my_errno=ENOMEM;
   }
@@ -98,7 +98,7 @@ int my_fclose(FILE *fd, myf MyFlags)
   DBUG_ENTER("my_fclose");
   DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d", (long) fd, MyFlags));
 
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
   file= my_fileno(fd);
 #ifndef _WIN32
   err= fclose(fd);
@@ -119,7 +119,7 @@ int my_fclose(FILE *fd, myf MyFlags)
     my_file_info[file].type = UNOPEN;
     my_free(my_file_info[file].name, MYF(MY_ALLOW_ZERO_PTR));
   }
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(err);
 } /* my_fclose */
 
@@ -149,7 +149,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   }
   else
   {
-    pthread_mutex_lock(&THR_LOCK_open);
+    mysql_mutex_lock(&THR_LOCK_open);
     my_stream_opened++;
     if ((uint) Filedes < (uint) my_file_limit)
     {
@@ -163,7 +163,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
       }
       my_file_info[Filedes].type = STREAM_BY_FDOPEN;
     }
-    pthread_mutex_unlock(&THR_LOCK_open);
+    mysql_mutex_unlock(&THR_LOCK_open);
   }
 
   DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));

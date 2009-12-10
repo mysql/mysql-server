@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
    Copyright (C) 2008 MySQL AB
+   Copyright (C) 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +20,11 @@
 #define SEMISYNC_MASTER_H
 
 #include "semisync.h"
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
+extern PSI_cond_key key_ss_cond_COND_binlog_send_;
+#endif
 
 /**
    This class manages memory for active transaction list.
@@ -49,7 +55,7 @@ private:
 
   int              num_transactions_;               /* maximum transactions */
   int              num_entries_;              /* maximum hash table entries */
-  pthread_mutex_t *lock_;                                     /* mutex lock */
+  mysql_mutex_t *lock_;                                     /* mutex lock */
 
   inline void assert_lock_owner();
 
@@ -74,7 +80,7 @@ private:
   }
 
 public:
-  ActiveTranx(int max_connections, pthread_mutex_t *lock,
+  ActiveTranx(int max_connections, mysql_mutex_t *lock,
 	      unsigned long trace_level);
   ~ActiveTranx();
 
@@ -124,14 +130,14 @@ class ReplSemiSyncMaster
   /* This cond variable is signaled when enough binlog has been sent to slave,
    * so that a waiting trx can return the 'ok' to the client for a commit.
    */
-  pthread_cond_t  COND_binlog_send_;
+  mysql_cond_t  COND_binlog_send_;
 
   /* Mutex that protects the following state variables and the active
    * transaction list.
    * Under no cirumstances we can acquire mysql_bin_log.LOCK_log if we are
    * already holding LOCK_binlog_ because it can cause deadlocks.
    */
-  pthread_mutex_t LOCK_binlog_;
+  mysql_mutex_t LOCK_binlog_;
 
   /* This is set to true when reply_file_name_ contains meaningful data. */
   bool            reply_file_name_inited_;

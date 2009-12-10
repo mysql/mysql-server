@@ -978,7 +978,7 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
 
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(1);
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   if ((lock_retcode = lock_table_name(thd, table_list, TRUE)) < 0)
     goto end;
   if (lock_retcode && wait_for_locked_table_names(thd, table_list))
@@ -989,7 +989,7 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
   error=0;
 
 end:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }
@@ -1118,7 +1118,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
   bool result=0;
   DBUG_ENTER("wait_for_locked_table_names");
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   while (locked_named_table(thd,table_list))
   {
@@ -1128,7 +1128,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
       break;
     }
     wait_for_condition(thd, &LOCK_open, &COND_refresh);
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
   }
   DBUG_RETURN(result);
 }
@@ -1508,7 +1508,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     threads could not close their tables. This would make a pretty
     deadlock.
   */
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
@@ -1622,7 +1622,7 @@ bool make_global_read_lock_block_commit(THD *thd)
 
 void broadcast_refresh(void)
 {
-  pthread_cond_broadcast(&COND_refresh);
+  mysql_cond_broadcast(&COND_refresh);
   pthread_cond_broadcast(&COND_global_read_lock);
 }
 
