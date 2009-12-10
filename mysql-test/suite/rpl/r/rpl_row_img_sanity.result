@@ -11,9 +11,30 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET @old_binlog_row_image= @@binlog_row_image;
+SET @old_binlog_row_image= @@binlog_row_image;
 #####################################################
 # (S4-7) basic assertion that binlog_row_image='FULL' is the
 ######################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/stop_slave.inc
+include/start_slave.inc
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 INSERT INTO t(c1,c3) VALUES (1, 'a');
 UPDATE t SET c1=2 WHERE c1=1;
@@ -729,7 +750,7 @@ DROP TABLE t;
 Could not execute Update_rows event on table test.t; Can't find record in 't', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.000001, end_log_pos 478
 include/stop_slave.inc
 DROP TABLE t;
-SET SESSION binlog_row_image= 'FULL';
-SET GLOBAL binlog_row_image= 'FULL';
-SET SESSION binlog_row_image= 'FULL';
-SET GLOBAL binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
