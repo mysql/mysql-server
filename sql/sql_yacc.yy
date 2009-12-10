@@ -418,6 +418,34 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   DBUG_RETURN(result);
 }
 
+
+static bool add_create_index_prepare (LEX *lex, Table_ident *table)
+{
+  lex->sql_command= SQLCOM_CREATE_INDEX;
+  if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
+                                              TL_OPTION_UPDATING))
+    return TRUE;
+  lex->alter_info.reset();
+  lex->alter_info.flags= ALTER_ADD_INDEX;
+  lex->col_list.empty();
+  lex->change= NullS;
+  return FALSE;
+}
+
+
+static bool add_create_index (LEX *lex, 
+  Key::Keytype type, const char *name, enum ha_key_alg key_alg,
+  bool generated= 0)
+{
+  Key *key= new Key(type, name, key_alg, generated, lex->col_list);
+  if (key == NULL)
+    return TRUE;
+
+  lex->alter_info.key_list.push_back(key);
+  lex->col_list.empty();
+  return FALSE;
+}
+
 %}
 %union {
   int  num;
@@ -1110,7 +1138,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-	key_type opt_unique_or_fulltext constraint_key_type
+	key_type opt_unique fulltext_or_spatial constraint_key_type
+	key_type_fulltext_or_spatial
 
 %type <key_alg>
 	key_alg opt_btree_or_rtree
@@ -1543,27 +1572,25 @@ create:
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
+	| CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
 	  {
-	    LEX *lex=Lex;
-	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
-							TL_OPTION_UPDATING))
-	      MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->alter_info.flags= ALTER_ADD_INDEX;
-	    lex->col_list.empty();
-	    lex->change=NullS;
-	  }
-	   '(' key_list ')'
-	  {
-	    LEX *lex=Lex;
-            Key *key= new Key($2, $4.str, $5, 0, lex->col_list);
-            if (key == NULL)
+            if (add_create_index_prepare (Lex, $7))
               MYSQL_YYABORT;
-
-            lex->alter_info.key_list.push_back(key);
-	    lex->col_list.empty();
+	  }
+	  '(' key_list ')'
+	  {
+            if (add_create_index (Lex, $2, $4.str, $5))
+              MYSQL_YYABORT;
+	  }
+	| CREATE fulltext_or_spatial INDEX_SYM ident ON table_ident
+	  {
+            if (add_create_index_prepare (Lex, $6))
+              MYSQL_YYABORT;
+	  }
+	  '(' key_list ')'
+	  {
+            if (add_create_index (Lex, $2, $4.str, HA_KEY_ALG_UNDEF))
+              MYSQL_YYABORT;
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
 	  {
@@ -3133,23 +3160,18 @@ column_def:
 key_def:
 	key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
-	    LEX *lex=Lex;
-            Key *key= new Key($1, $2, $7 ? $7 : $3, 0, lex->col_list);
-            if (key == NULL)
+            if (add_create_index (Lex, $1, $2, $7 ? $7 : $3))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-
-	    lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
+	| key_type_fulltext_or_spatial opt_ident '(' key_list ')'
+	  {
+            if (add_create_index (Lex, $1, $2, HA_KEY_ALG_UNDEF))
+              MYSQL_YYABORT;
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
-	    LEX *lex=Lex;
-	    const char *key_name= $3 ? $3:$1;
-            Key *key= new Key($2, key_name, $4, 0, lex->col_list);
-            if (key == NULL)
+            if (add_create_index (Lex, $2, $3 ? $3:$1, $4))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
@@ -3164,13 +3186,9 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            key= new Key(Key::MULTIPLE, key_name,
-                         HA_KEY_ALG_UNDEF, 1,
-                         lex->col_list);
-            if (key == NULL)
+            if (add_create_index (lex, Key::MULTIPLE, key_name,
+                                  HA_KEY_ALG_UNDEF, 1))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| constraint opt_check_constraint
 	  {
@@ -3630,7 +3648,10 @@ delete_option:
 
 key_type:
 	key_or_index			    { $$= Key::MULTIPLE; }
-	| FULLTEXT_SYM opt_key_or_index	    { $$= Key::FULLTEXT; }
+        ;
+
+key_type_fulltext_or_spatial:
+	FULLTEXT_SYM opt_key_or_index	    { $$= Key::FULLTEXT; }
 	| SPATIAL_SYM opt_key_or_index
 	  {
 #ifdef HAVE_SPATIAL
@@ -3660,10 +3681,8 @@ keys_or_index:
 	| INDEX_SYM {}
 	| INDEXES {};
 
-opt_unique_or_fulltext:
-	/* empty */	{ $$= Key::MULTIPLE; }
-	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
-	| FULLTEXT_SYM	{ $$= Key::FULLTEXT;}
+fulltext_or_spatial:
+	FULLTEXT_SYM	{ $$= Key::FULLTEXT;}
 	| SPATIAL_SYM
 	  {
 #ifdef HAVE_SPATIAL
@@ -3674,6 +3693,11 @@ opt_unique_or_fulltext:
 	    MYSQL_YYABORT;
 #endif
 	  }
+        ;
+
+opt_unique:
+	/* empty */	{ $$= Key::MULTIPLE; }
+	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
         ;
 
 key_alg:
