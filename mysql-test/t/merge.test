@@ -1985,6 +1985,43 @@ DROP TRIGGER t2_au;
 DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2, t3, t4, t5;
 
-
+--echo #
+--echo # Bug47098 assert in MDL_context::destroy on HANDLER
+--echo #          <damaged merge table> OPEN
+--echo #
+--echo # Test that merge tables are closed correctly when opened using 
+--echo # HANDLER ... OPEN.
+--echo # The general case.
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+--echo # Connection con1.
+connect (con1,localhost,root,,);
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+START TRANSACTION;
+--error ER_ILLEGAL_HA
+HANDLER t3 OPEN;
+DROP TABLE t1, t2, t3;
+--echo # Connection default.
+connection default;
+--echo # Disconnecting con1, all mdl_tickets must have been released.
+disconnect con1;
+--echo # The bug-specific case.
+--echo # Connection con1.
+connect (con1,localhost,root,,);
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+DROP TABLE t2;
+START TRANSACTION;
+--error ER_WRONG_MRG_TABLE
+HANDLER t3 OPEN;
+DROP TABLE t1, t3;
+--echo # Connection default.
+connection default;
+--echo # Disconnecting con1, all mdl_tickets must have been released.
+disconnect con1;
 
 --echo End of 6.0 tests

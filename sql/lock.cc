@@ -1099,6 +1099,19 @@ static volatile uint waiting_for_read_lock=0;
 #define GOT_GLOBAL_READ_LOCK               1
 #define MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT 2
 
+/**
+  Take global read lock, wait if there is protection against lock.
+
+  If the global read lock is already taken by this thread, then nothing is done.
+
+  See also "Handling of global read locks" above.
+
+  @param thd     Reference to thread.
+
+  @retval False  Success, global read lock set, commits are NOT blocked.
+  @retval True   Failure, thread was killed.
+*/
+
 bool lock_global_read_lock(THD *thd)
 {
   DBUG_ENTER("lock_global_read_lock");
@@ -1165,6 +1178,16 @@ bool lock_global_read_lock(THD *thd)
 }
 
 
+/**
+  Unlock global read lock.
+
+  Commits may or may not be blocked when this function is called.
+
+  See also "Handling of global read locks" above.
+
+  @param thd    Reference to thread.
+*/
+
 void unlock_global_read_lock(THD *thd)
 {
   uint tmp;
@@ -1191,6 +1214,25 @@ void unlock_global_read_lock(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Wait if the global read lock is set, and optionally seek protection against
+  global read lock.
+
+  See also "Handling of global read locks" above.
+
+  @param thd              Reference to thread.
+  @param abort_on_refresh If True, abort waiting if a refresh occurs,
+                          do NOT seek protection against GRL.
+                          If False, wait until the GRL is released and seek
+                          protection against GRL.
+  @param is_not_commit    If False, called from a commit operation,
+                          wait only if commit blocking is also enabled.
+
+  @retval False  Success, protection against global read lock is set
+                          (if !abort_on_refresh)
+  @retval True   Failure, wait was aborted or thread was killed.
+*/
+
 #define must_wait (global_read_lock &&                             \
                    (is_not_commit ||                               \
                     global_read_lock_blocks_commit))
@@ -1202,6 +1244,16 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   bool result= 0, need_exit_cond;
   DBUG_ENTER("wait_if_global_read_lock");
 
+  /*
+    If we already have protection against global read lock,
+    just increment the counter.
+  */
+  if (unlikely(thd->global_read_lock_protection > 0))
+  {
+    if (!abort_on_refresh)
+      thd->global_read_lock_protection++;
+    DBUG_RETURN(FALSE);
+  }
   /*
     Assert that we do not own LOCK_open. If we would own it, other
     threads could not close their tables. This would make a pretty
@@ -1238,7 +1290,12 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
       result=1;
   }
   if (!abort_on_refresh && !result)
+  {
+    thd->global_read_lock_protection++;
     protect_against_global_read_lock++;
+    DBUG_PRINT("sql_lock", ("protect_against_global_read_lock incr: %u",
+                            protect_against_global_read_lock));
+  }
   /*
     The following is only true in case of a global read locks (which is rare)
     and if old_message is set
@@ -1251,10 +1308,31 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
 }
 
 
+/**
+  Release protection against global read lock and restart
+  global read lock waiters.
+
+  Should only be called if we have protection against global read lock.
+
+  See also "Handling of global read locks" above.
+
+  @param thd     Reference to thread.
+*/
+
 void start_waiting_global_read_lock(THD *thd)
 {
   bool tmp;
   DBUG_ENTER("start_waiting_global_read_lock");
+  /*
+    Ignore request if we do not have protection against global read lock.
+    (Note that this is a violation of the interface contract, hence the assert).
+  */
+  DBUG_ASSERT(thd->global_read_lock_protection > 0);
+  if (unlikely(thd->global_read_lock_protection == 0))
+    DBUG_VOID_RETURN;
+  /* Decrement local read lock protection counter, return if we still have it */
+  if (unlikely(--thd->global_read_lock_protection > 0))
+    DBUG_VOID_RETURN;
   if (unlikely(thd->global_read_lock))
     DBUG_VOID_RETURN;
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
@@ -1267,6 +1345,21 @@ void start_waiting_global_read_lock(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Make global read lock also block commits.
+
+  The scenario is:
+   - This thread has the global read lock.
+   - Global read lock blocking of commits is not set.
+
+  See also "Handling of global read locks" above.
+
+  @param thd     Reference to thread.
+
+  @retval False  Success, global read lock set, commits are blocked.
+  @retval True   Failure, thread was killed.
+*/
 
 bool make_global_read_lock_block_commit(THD *thd)
 {
