@@ -47,20 +47,6 @@ enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
 
 enum enum_mdl_state { MDL_PENDING, MDL_ACQUIRED };
 
-/**
-  Object namespaces
- 
-  Different types of objects exist in different namespaces
-   - MDL_TABLE is for tables and views.
-   - MDL_FUNCTION is for stored functions.
-   - MDL_PROCEDURE is for stored procedures.
-   - MDL_TRIGGER is for triggers.
-  Note that although there isn't metadata locking on triggers,
-  it's necessary to have a separate namespace for them since
-  MDL_key is also used outside of the MDL subsystem.
-*/
-enum enum_mdl_namespace { MDL_TABLE=0, MDL_FUNCTION, MDL_PROCEDURE, MDL_TRIGGER };
-
 /** Maximal length of key for metadata locking subsystem. */
 #define MAX_MDLKEY_LENGTH (1 + NAME_LEN + 1 + NAME_LEN + 1)
 
@@ -77,6 +63,23 @@ enum enum_mdl_namespace { MDL_TABLE=0, MDL_FUNCTION, MDL_PROCEDURE, MDL_TRIGGER 
 class MDL_key
 {
 public:
+  /**
+    Object namespaces
+
+    Different types of objects exist in different namespaces
+     - TABLE is for tables and views.
+     - FUNCTION is for stored functions.
+     - PROCEDURE is for stored procedures.
+     - TRIGGER is for triggers.
+    Note that although there isn't metadata locking on triggers,
+    it's necessary to have a separate namespace for them since
+    MDL_key is also used outside of the MDL subsystem.
+  */
+  enum enum_mdl_namespace { TABLE=0,
+                            FUNCTION,
+                            PROCEDURE,
+                            TRIGGER };
+
   const uchar *ptr() const { return (uchar*) m_ptr; }
   uint length() const { return m_length; }
 
@@ -185,7 +188,8 @@ public:
   MDL_key key;
 
 public:
-  void init(enum_mdl_namespace namespace_arg, const char *db_arg, const char *name_arg,
+  void init(MDL_key::enum_mdl_namespace namespace_arg,
+            const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg);
   void init(const MDL_key *key_arg, enum_mdl_type mdl_type_arg);
   /** Set type of lock request. Can be only applied to pending locks. */
@@ -196,9 +200,9 @@ public:
   }
   bool is_shared() const { return type < MDL_EXCLUSIVE; }
 
-  static MDL_request *create(enum_mdl_namespace mdl_namespace, const char *db,
-                             const char *name, enum_mdl_type mdl_type,
-                             MEM_ROOT *root);
+  static MDL_request *create(MDL_key::enum_mdl_namespace mdl_namespace,
+                             const char *db, const char *name,
+                             enum_mdl_type mdl_type, MEM_ROOT *root);
 
   /*
     This is to work around the ugliness of TABLE_LIST
@@ -340,10 +344,11 @@ public:
   void release_lock(MDL_ticket *ticket);
   void release_global_shared_lock();
 
-  bool is_exclusive_lock_owner(enum_mdl_namespace mdl_namespace,
+  bool is_exclusive_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                                const char *db,
                                const char *name);
-  bool is_lock_owner(enum_mdl_namespace mdl_namespace, const char *db, const char *name);
+  bool is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
+                     const char *db, const char *name);
 
   inline bool has_locks() const
   {

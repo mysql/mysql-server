@@ -1888,7 +1888,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
-  if (thd->mdl_context.is_exclusive_lock_owner(MDL_TABLE, db, old_table))
+  if (thd->mdl_context.is_exclusive_lock_owner(MDL_key::TABLE, db, old_table))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
 
@@ -2057,7 +2057,7 @@ add_tables_and_routines_for_triggers(THD *thd,
 
         if (trigger)
         {
-          MDL_key key(MDL_TRIGGER, trigger->m_db.str, trigger->m_name.str);
+          MDL_key key(MDL_key::TRIGGER, trigger->m_db.str, trigger->m_name.str);
 
           if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
                                   &key, table_list->belong_to_view))

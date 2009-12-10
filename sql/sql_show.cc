@@ -3081,7 +3081,7 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock)
 {
   bool error;
-  table->mdl_request.init(MDL_TABLE, table->db, table->table_name,
+  table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
   while (!(error=
            thd->mdl_context.try_acquire_shared_lock(&table->mdl_request)) &&

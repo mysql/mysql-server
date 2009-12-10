@@ -922,7 +922,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PREV_SYM
 %token  PRIMARY_SYM                   /* SQL-2003-R */
 %token  PRIVILEGES                    /* SQL-2003-N */
-%token  PROCEDURE                     /* SQL-2003-R */
+%token  PROCEDURE_SYM                 /* SQL-2003-R */
 %token  PROCESS
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
@@ -5807,7 +5807,7 @@ alter:
             lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
             lex->name= $3;
           }
-        | ALTER PROCEDURE sp_name
+        | ALTER PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -9439,7 +9439,7 @@ dec_num:
 
 procedure_clause:
           /* empty */
-        | PROCEDURE ident /* Procedure name */
+        | PROCEDURE_SYM ident /* Procedure name */
           {
             LEX *lex=Lex;
 
@@ -9695,7 +9695,7 @@ drop:
             spname->init_qname(thd);
             lex->spname= spname;
           }
-        | DROP PROCEDURE if_exists sp_name
+        | DROP PROCEDURE_SYM if_exists sp_name
           {
             LEX *lex=Lex;
             if (lex->sphead)
@@ -10446,7 +10446,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
-        | CREATE PROCEDURE sp_name
+        | CREATE PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -10466,7 +10466,7 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE STATUS_SYM wild_and_where
+        | PROCEDURE_SYM STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
@@ -10480,7 +10480,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
-        | PROCEDURE CODE_SYM sp_name
+        | PROCEDURE_SYM CODE_SYM sp_name
           {
             Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
             Lex->spname= $3;
@@ -12671,7 +12671,7 @@ revoke_command:
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident FROM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -12713,7 +12713,7 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident TO_SYM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
           require_clause grant_options
           {
             LEX *lex= Lex;
@@ -13721,7 +13721,7 @@ sf_tail:
         ;
 
 sp_tail:
-          PROCEDURE remember_name sp_name
+          PROCEDURE_SYM remember_name sp_name
           {
             LEX *lex= Lex;
             sp_head *sp;

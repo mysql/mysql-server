@@ -1473,7 +1473,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type)
 {
-  MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_FUNCTION : MDL_PROCEDURE,
+  MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_key::FUNCTION :
+                                                MDL_key::PROCEDURE,
               rt->m_db.str, rt->m_name.str);
   (void)sp_add_used_routine(prelocking_ctx, arena, &key, 0);
   prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;

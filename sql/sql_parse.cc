@@ -6024,7 +6024,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_TABLE, ptr->db, ptr->table_name, MDL_SHARED);
+  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, MDL_SHARED);
   DBUG_RETURN(ptr);
 }
 
