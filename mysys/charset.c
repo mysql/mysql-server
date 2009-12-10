@@ -255,6 +255,9 @@ static int add_collation(CHARSET_INFO *cs)
       {
 #if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
+        newcs->ctype= my_charset_utf8_unicode_ci.ctype;
+        if (init_state_maps(newcs))
+          return MY_XML_ERROR;
 #endif
       }
       else

@@ -555,6 +555,7 @@ public:
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
+  void cache_const_exprs();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
