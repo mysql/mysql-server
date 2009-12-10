@@ -60,8 +60,11 @@ IF(UNIX)
     ALL
     DEPENDS ${output})
   SET_TARGET_PROPERTIES(symlink_${linkbasename}${ext} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-  # For Xcode, replace project config with install config
-  STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" output ${output})
+  IF(CMAKE_GENERATOR MATCHES "Xcode")
+    # For Xcode, replace project config with install config
+    STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
+      "\${CMAKE_INSTALL_CONFIG_NAME}" output ${output})
+  ENDIF()
   INSTALL(FILES ${output} DESTINATION ${destination})
 ENDIF()
 ENDMACRO()
