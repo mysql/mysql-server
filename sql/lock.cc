@@ -168,9 +168,8 @@ int mysql_lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
   DBUG_RETURN(0);
 }
 
-
 /**
-  Reset lock type in lock data and free.
+  Reset lock type in lock data
 
   @param mysql_lock Lock structures to reset.
 
@@ -328,6 +327,13 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     }
     else if (rc == 1)                           /* aborted or killed */
     {
+      /*
+        reset_lock_data is required here. If thr_multi_lock fails it
+        resets lock type for tables, which were locked before (and
+        including) one that caused error. Lock type for other tables
+        preserved.
+      */
+      reset_lock_data(sql_lock);
       thd->some_tables_deleted=1;		// Try again
       sql_lock->lock_count= 0;                  // Locks are already freed
       // Fall through: unlock, reset lock data, free and retry
