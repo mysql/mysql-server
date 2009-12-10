@@ -74,6 +74,7 @@
 */
 
 #include "mysql_priv.h"
+#include "debug_sync.h"
 #include <hash.h>
 #include <assert.h>
 
@@ -1119,9 +1120,33 @@ bool lock_global_read_lock(THD *thd)
   if (!thd->global_read_lock)
   {
     const char *old_message;
+    const char *new_message= "Waiting to get readlock";
     (void) pthread_mutex_lock(&LOCK_global_read_lock);
+
+#if defined(ENABLED_DEBUG_SYNC)
+    /*
+      The below sync point fires if we have to wait for
+      protect_against_global_read_lock.
+
+      WARNING: Beware to use WAIT_FOR with this sync point. We hold
+      LOCK_global_read_lock here.
+
+      Call the sync point before calling enter_cond() as it does use
+      enter_cond() and exit_cond() itself if a WAIT_FOR action is
+      executed in spite of the above warning.
+
+      Pre-set proc_info so that it is available immediately after the
+      sync point sends a SIGNAL. This makes tests more reliable.
+    */
+    if (protect_against_global_read_lock)
+    {
+      thd_proc_info(thd, new_message);
+      DEBUG_SYNC(thd, "wait_lock_global_read_lock");
+    }
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
     old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
-                                "Waiting to get readlock");
+                                new_message);
     DBUG_PRINT("info",
 	       ("waiting_for: %d  protect_against: %d",
 		waiting_for_read_lock, protect_against_global_read_lock));
