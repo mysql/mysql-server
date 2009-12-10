@@ -11096,6 +11096,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
                                  fields);
       rc= join->result->send_data(*columns_list);
     }
+    /*
+      An error can happen when evaluating the conds 
+      (the join condition and piece of where clause 
+      relevant to this join table).
+    */
+    if (join->thd->is_error())
+      error= NESTED_LOOP_ERROR;
   }
   else
   {
