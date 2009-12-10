@@ -273,21 +273,19 @@ FLUSH TABLES WITH READ LOCK;
 # Connection 2
 UNLOCK TABLES;
 # Connection 1
-DROP PROCEDURE p1;
 SET DEBUG_SYNC= 'RESET';
-# Test 2: CREATE USER
-# Start CREATE USER and open the grant tables
+# Test 2: DROP PROCEDURE
+# Start DROP PROCEDURE and open tables
 SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
-CREATE USER 'user_1@localhost';
+DROP PROCEDURE p1;
 # Connection 2
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
-# and let CREATE USER continue
+# and let DROP PROCEDURE continue
 SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
 # Connection 2
 UNLOCK TABLES;
 # Connection 1
-DROP USER 'user_1@localhost';
 SET DEBUG_SYNC= 'RESET';
