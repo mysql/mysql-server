@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #else
 #include <my_no_pthread.h>
 #endif
+#include <mysql/psi/mysql_file.h>
 
 #if defined(my_write) && !defined(MAP_TO_USE_RAID)
 #undef my_write				/* undef map from my_nosys; We need test-if-disk full */
@@ -213,13 +214,13 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     concurrent_insert;
 #ifdef THREAD
   THR_LOCK lock;
-  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
-  rw_lock_t *key_root_lock;
+  mysql_mutex_t intern_lock;            /* Locking for use with _locking */
+  mysql_rwlock_t *key_root_lock;
 #endif
   my_off_t mmaped_length;
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
-  rw_lock_t mmap_lock;
+  mysql_rwlock_t mmap_lock;
 } MYISAM_SHARE;
 
 
@@ -460,12 +461,12 @@ typedef struct st_mi_sort_param
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
 #ifdef THREAD
-extern pthread_mutex_t THR_LOCK_myisam;
+extern mysql_mutex_t THR_LOCK_myisam;
 #endif
 #if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
-#define rw_wrlock(A) {}
-#define rw_rdlock(A) {}
-#define rw_unlock(A) {}
+#define mysql_rwlock_wrlock(A) {}
+#define mysql_rwlock_rdlock(A) {}
+#define mysql_rwlock_unlock(A) {}
 #endif
 
 	/* Some extern variables */
@@ -784,4 +785,23 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef HAVE_PSI_INTERFACE
+C_MODE_START
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
+  mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+
+extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
+  mi_key_rwlock_MYISAM_SHARE_mmap_lock;
+
+extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
+
+extern PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
+  mi_key_file_log;
+
+extern PSI_thread_key mi_key_thread_find_all_keys;
+
+void init_myisam_psi_keys();
+C_MODE_END
+#endif /* HAVE_PSI_INTERFACE */
 
