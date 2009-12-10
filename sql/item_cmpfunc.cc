@@ -956,46 +956,54 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     if (agg_item_set_converter(coll, owner->func_name(),
                                b, 1, MY_COLL_CMP_CONV, 1))
       return 1;
-  } else if (type != ROW_RESULT && ((*a)->field_type() == MYSQL_TYPE_YEAR ||
-             (*b)->field_type() == MYSQL_TYPE_YEAR))
-  {
-    is_nulls_eq= is_owner_equal_func();
-    year_as_datetime= FALSE;
-
-    if ((*a)->is_datetime())
-    {
-      year_as_datetime= TRUE;
-      get_value_a_func= &get_datetime_value;
-    } else if ((*a)->field_type() == MYSQL_TYPE_YEAR)
-      get_value_a_func= &get_year_value;
-    else
-    {
-      /*
-        Because convert_constant_item is called only for EXECUTE in PS mode
-        the value of get_value_x_func set in PREPARE might be not
-        valid for EXECUTE.
-      */
-      get_value_a_func= NULL;
-    }
-
-    if ((*b)->is_datetime())
-    {
-      year_as_datetime= TRUE;
-      get_value_b_func= &get_datetime_value;
-    } else if ((*b)->field_type() == MYSQL_TYPE_YEAR)
-      get_value_b_func= &get_year_value;
-    else
-      get_value_b_func= NULL;
-
-    func= &Arg_comparator::compare_year;
-    return 0;
   }
+  else if (try_year_cmp_func(type))
+    return 0;
 
   a= cache_converted_constant(thd, a, &a_cache, type);
   b= cache_converted_constant(thd, b, &b_cache, type);
   return set_compare_func(owner_arg, type);
 }
 
+
+/*
+  Helper function to call from Arg_comparator::set_cmp_func()
+*/
+
+bool Arg_comparator::try_year_cmp_func(Item_result type)
+{
+  if (type == ROW_RESULT)
+    return FALSE;
+
+  bool a_is_year= (*a)->field_type() == MYSQL_TYPE_YEAR;
+  bool b_is_year= (*b)->field_type() == MYSQL_TYPE_YEAR;
+
+  if (!a_is_year && !b_is_year)
+    return FALSE;
+
+  if (a_is_year && b_is_year)
+  {
+    get_value_a_func= &get_year_value;
+    get_value_b_func= &get_year_value;
+  }
+  else if (a_is_year && (*b)->is_datetime())
+  {
+    get_value_a_func= &get_year_value;
+    get_value_b_func= &get_datetime_value;
+  }
+  else if (b_is_year && (*a)->is_datetime())
+  {
+    get_value_b_func= &get_year_value;
+    get_value_a_func= &get_datetime_value;
+  }
+  else
+    return FALSE;
+
+  is_nulls_eq= is_owner_equal_func();
+  func= &Arg_comparator::compare_datetime;
+
+  return TRUE;
+}
 
 /**
   Convert and cache a constant.
@@ -1147,7 +1155,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 
 /*
-  Retrieves YEAR value of 19XX form from given item.
+  Retrieves YEAR value of 19XX-00-00 00:00:00 form from given item.
 
   SYNOPSIS
     get_year_value()
@@ -1159,7 +1167,9 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
   DESCRIPTION
     Retrieves the YEAR value of 19XX form from given item for comparison by the
-    compare_year() function.
+    compare_datetime() function.
+    Converts year to DATETIME of form YYYY-00-00 00:00:00 for the compatibility
+    with the get_datetime_value function result.
 
   RETURN
     obtained value
@@ -1185,6 +1195,9 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
     value+= 100;
   if (value <= 1900)
     value+= 1900;
+
+  /* Convert year to DATETIME of form YYYY-00-00 00:00:00 (YYYY0000000000). */
+  value*= 10000000000LL;
 
   return value;
 }
@@ -1612,67 +1625,6 @@ int Arg_comparator::compare_e_row()
       return 0;
   }
   return 1;
-}
-
-
-/**
-  Compare values as YEAR.
-
-  @details
-    Compare items as YEAR for EQUAL_FUNC and for other comparison functions.
-    The YEAR values of form 19XX are obtained with help of the get_year_value()
-    function.
-    If one of arguments is of DATE/DATETIME type its value is obtained
-    with help of the get_datetime_value function. In this case YEAR values
-    prior to comparison are converted to the ulonglong YYYY-00-00 00:00:00
-    DATETIME form.
-    If an argument type neither YEAR nor DATE/DATEIME then val_int function
-    is used to obtain value for comparison.
-
-  RETURN
-    If is_nulls_eq is TRUE:
-       1    if items are equal or both are null
-       0    otherwise
-    If is_nulls_eq is FALSE:
-      -1   a < b
-       0   a == b or at least one of items is null
-       1   a > b
-    See the table:
-    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
-    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
-    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
-    result      | 1 | 0 | 0 |0/1| 0 | 0 | 0 |-1/0/1|
-*/
-
-int Arg_comparator::compare_year()
-{
-  bool a_is_null, b_is_null;
-  ulonglong val1= get_value_a_func ?
-                    (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null) :
-                    (*a)->val_int();
-  ulonglong val2= get_value_b_func ?
-                    (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null) :
-                    (*b)->val_int();
-  if (!(*a)->null_value)
-  {
-    if (!(*b)->null_value)
-    {
-      if (set_null)
-        owner->null_value= 0;
-      /* Convert year to DATETIME of form YYYY-00-00 00:00:00 when necessary. */
-      if((*a)->field_type() == MYSQL_TYPE_YEAR && year_as_datetime)
-        val1*= 10000000000LL;
-      if((*b)->field_type() == MYSQL_TYPE_YEAR && year_as_datetime)
-        val2*= 10000000000LL;
-
-      if (val1 < val2)	return is_nulls_eq ? 0 : -1;
-      if (val1 == val2)   return is_nulls_eq ? 1 : 0;
-      return is_nulls_eq ? 0 : 1;
-    }
-  }
-  if (set_null)
-    owner->null_value= is_nulls_eq ? 0 : 1;
-  return (is_nulls_eq && (*a)->null_value == (*b)->null_value) ? 1 : 0;
 }
 
 
