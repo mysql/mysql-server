@@ -3976,3 +3976,18 @@ SELECT * FROM v1;
 f1
 2
 DROP VIEW v1;
+#
+# Bug #47635 assert in start_waiting_global_read_lock 
+#            during CREATE VIEW
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS t2;
+CREATE TABLE t1 (f1 integer);
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (f1 integer);
+CREATE TEMPORARY TABLE t2 (f1 integer);
+DROP TABLE t1;
+FLUSH TABLES WITH READ LOCK;
+CREATE VIEW t2 AS SELECT * FROM t1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES;
+DROP TABLE t1, t2;
