@@ -279,6 +279,9 @@ IF(UNIX)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
   MY_SEARCH_LIBS(sched_yield rt LIBRT)
+  IF(NOT LIBRT)
+    MY_SEARCH_LIBS(clock_gettime rt LIBRT)
+  ENDIF()
   FIND_PACKAGE(Threads)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
