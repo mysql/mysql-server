@@ -44,6 +44,7 @@
 
 #define DATA_TMP_EXT		".TMD"
 #define OLD_EXT			".OLD"
+#define FRM_EXT                 ".frm"
 #define WRITE_COUNT		MY_HOW_OFTEN_TO_WRITE
 
 struct st_file_buffer {
@@ -125,6 +126,7 @@ static void get_options(int *argc,char ***argv);
 static MI_INFO *open_isam_file(char *name,int mode);
 static my_bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
 static int compress(PACK_MRG_INFO *file,char *join_name);
+static int create_dest_frm(char *source_table, char *dest_table);
 static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records);
 static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
@@ -216,9 +218,13 @@ int main(int argc, char **argv)
 
   error=ok=isamchk_neaded=0;
   if (join_table)
-  {						/* Join files into one */
+  {
+    /*
+      Join files into one and create FRM file for the compressed table only if
+      the compression succeeds
+    */
     if (open_isam_files(&merge,argv,(uint) argc) ||
-	compress(&merge,join_table))
+	compress(&merge, join_table) || create_dest_frm(argv[0], join_table))
       error=1;
   }
   else while (argc--)
@@ -758,6 +764,44 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   (void) fprintf(stderr, "Aborted: %s is not compressed\n", org_name);
   DBUG_RETURN(-1);
 }
+
+
+/** 
+  Create FRM for the destination table for --join operation
+  Copy the first table FRM as the destination table FRM file. Doing so
+  will help the mysql server to recognize the newly created table.
+  See Bug#36573.
+  
+  @param    source_table    Name of the source table 
+  @param    dest_table      Name of the destination table
+  @retval   0               Successful copy operation
+  
+  @note  We always return 0 because we don't want myisampack to report error
+  even if the copy operation fails.
+*/
+
+static int create_dest_frm(char *source_table, char *dest_table)
+{
+  char source_name[FN_REFLEN], dest_name[FN_REFLEN];
+  
+  DBUG_ENTER("create_dest_frm");
+  
+  (void) fn_format(source_name, source_table,
+                   "", FRM_EXT, MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
+  (void) fn_format(dest_name, dest_table,
+                   "", FRM_EXT, MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
+  /*
+    Error messages produced by my_copy() are suppressed as this
+    is not vital for --join operation. User shouldn't see any error messages 
+    like "source file frm not found" and "unable to create destination frm
+    file. So we don't pass the flag MY_WME -Write Message on Error to
+    my_copy()
+  */
+  (void) my_copy(source_name, dest_name, MYF(MY_DONT_OVERWRITE_FILE));
+  
+  return 0;
+}
+
 
 	/* Init a huff_count-struct for each field and init it */
 

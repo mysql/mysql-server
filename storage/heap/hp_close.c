@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (C) 2000-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +24,9 @@ int heap_close(HP_INFO *info)
 {
   int tmp;
   DBUG_ENTER("heap_close");
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   tmp= hp_close(info);
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(tmp);
 }
 

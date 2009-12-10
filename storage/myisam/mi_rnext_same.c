@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
     DBUG_RETURN(my_errno);
 
   if (info->s->concurrent_insert)
-    rw_rdlock(&info->s->key_root_lock[inx]);
+    mysql_rwlock_rdlock(&info->s->key_root_lock[inx]);
 
   switch (keyinfo->key_alg)
   {
@@ -81,7 +81,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
       }
   }
   if (info->s->concurrent_insert)
-    rw_unlock(&info->s->key_root_lock[inx]);
+    mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;
