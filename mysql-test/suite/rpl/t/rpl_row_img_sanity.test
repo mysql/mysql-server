@@ -37,11 +37,36 @@ call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");
 -- let IMG_BINLOG_FILE= $TMP_FILE
 
 -- source include/master-slave-reset.inc
+
+## save original 
+-- connection master
+SET @old_binlog_row_image= @@binlog_row_image;
+-- connection slave
+SET @old_binlog_row_image= @@binlog_row_image;
 -- connection master
 
 -- echo #####################################################
 -- echo # (S4-7) basic assertion that binlog_row_image='FULL' is the
 -- echo ######################################################
+
+-- source include/master-slave-reset.inc
+-- connection master
+# global so that flush tables restarts the 
+# insert dealyed thread
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+FLUSH TABLES;
+-- connection slave
+# global so that SQL thread also gets the change
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+
+-- source include/stop_slave.inc
+-- source include/start_slave.inc
+
+-- connection master
 
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 INSERT INTO t(c1,c3) VALUES (1, 'a');
@@ -816,10 +841,9 @@ DROP TABLE t;
 ## CLEAN UP
 
 -- connection master
-SET SESSION binlog_row_image= 'FULL';
-SET GLOBAL binlog_row_image= 'FULL';
-
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
 -- connection slave
-SET SESSION binlog_row_image= 'FULL';
-SET GLOBAL binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
 
