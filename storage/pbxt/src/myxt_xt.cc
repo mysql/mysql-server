@@ -3041,14 +3041,6 @@ xtPublic MX_CHARSET_INFO *myxt_getcharset(bool convert)
 	return (MX_CHARSET_INFO *)&my_charset_utf8_general_ci;
 }
 
-#ifdef DBUG_OFF
-//typedef struct st_plugin_int *plugin_ref;
-#define REF_MYSQL_PLUGIN(x)		(x)
-#else
-//typedef struct st_plugin_int **plugin_ref;
-#define REF_MYSQL_PLUGIN(x)		(*(x))
-#endif
-
 xtPublic void *myxt_create_thread()
 {
 #ifdef DRIZZLED
@@ -3109,14 +3101,18 @@ xtPublic void *myxt_create_thread()
 
 	/*
 	 * If PBXT is the default storage engine, then creating any THD objects will add extra 
-	 * references to the PBXT plugin object and will effectively deadlock the plugin so 
-	 * that server will have to force plugin shutdown. To avoid deadlocking and forced shutdown 
-	 * we must dereference the plugin after creating THD objects.
+	 * references to the PBXT plugin object. because the threads are created but PBXT
+	 * this creates a self reference, and the reference count does not go to zero
+	 * on shutdown.
+	 *
+	 * The server then issues a message that it is forcing shutdown of the plugin.
+	 *
+	 * However, the engine reference is not required by the THDs used by PBXT, so 
+	 * I just remove them here.
 	 */
-	LEX_STRING& plugin_name = REF_MYSQL_PLUGIN(new_thd->variables.table_plugin)->name;
-	if ((plugin_name.length == 4) && (strncmp(plugin_name.str, "PBXT", plugin_name.length) == 0)) {
-		REF_MYSQL_PLUGIN(new_thd->variables.table_plugin)->ref_count--;
-	}
+	plugin_unlock(NULL, new_thd->variables.table_plugin);
+	new_thd->variables.table_plugin = NULL;
+
 	new_thd->thread_stack = (char *) &new_thd;
 	new_thd->store_globals();
 	lex_start(new_thd);
@@ -3151,17 +3147,6 @@ xtPublic void myxt_destroy_thread(void *thread, xtBool end_threads)
 #else
 	close_thread_tables(thd);
 #endif
-
-	/*
-	 * In myxt_create_thread we decremented plugin ref-count to avoid dead-locking.
-	 * Here we need to increment ref-count to avoid assertion failures.
-	 */
-	if (thd->variables.table_plugin) {
-		LEX_STRING& plugin_name = REF_MYSQL_PLUGIN(thd->variables.table_plugin)->name;
-		if ((plugin_name.length == 4) && (strncmp(plugin_name.str, "PBXT", plugin_name.length) == 0)) {
-			REF_MYSQL_PLUGIN(thd->variables.table_plugin)->ref_count++;
-		}
-	}
 	
 	delete thd;
 
