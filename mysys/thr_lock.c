@@ -540,13 +540,31 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     /* Request for READ lock */
     if (lock->write.data)
     {
-      /* We can allow a read lock even if there is already a write lock
-	 on the table in one the following cases:
-	 - This thread alread have a write lock on the table
-	 - The write lock is TL_WRITE_ALLOW_READ or TL_WRITE_DELAYED
-           and the read lock is TL_READ_HIGH_PRIORITY or TL_READ
-         - The write lock is TL_WRITE_CONCURRENT_INSERT or TL_WRITE_ALLOW_WRITE
-	   and the read lock is not TL_READ_NO_INSERT
+      /*
+        We can allow a read lock even if there is already a
+        write lock on the table if they are owned by the same
+        thread or if they satisfy the following lock
+        compatibility matrix:
+
+           Request
+          /-------
+         H|++++  WRITE_ALLOW_WRITE
+         e|+++-  WRITE_ALLOW_READ
+         l|+++-  WRITE_CONCURRENT_INSERT
+         d|++++  WRITE_DELAYED
+           ||||
+           |||\= READ_NO_INSERT
+           ||\ = READ_HIGH_PRIORITY
+           |\  = READ_WITH_SHARED_LOCKS
+           \   = READ
+
+        + = Request can be satisified.
+        - = Request cannot be satisified.
+
+        READ_NO_INSERT and WRITE_ALLOW_WRITE should in principle
+        be incompatible. However this will cause starvation of
+        LOCK TABLE READ in InnoDB under high write load.
+        See Bug#42147 for more information.
       */
 
       DBUG_PRINT("lock",("write locked 1 by thread: 0x%lx",
