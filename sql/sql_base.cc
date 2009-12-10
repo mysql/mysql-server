@@ -1530,8 +1530,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   *table_ptr=table->next;
 
   table->mdl_ticket= NULL;
-  if (table->needs_reopen() ||
-      thd->version != refresh_version || !table->db_stat ||
+  if (table->s->needs_reopen() ||
+      thd->version != refresh_version || table->needs_reopen() ||
       table_def_shutdown_in_progress)
   {
     free_cache_entry(table);
@@ -8186,13 +8186,13 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use)
        thd_table= thd_table->next)
   {
     /*
-      Check for TABLE::db_stat is needed since in some places we call
+      Check for TABLE::needs_reopen() is needed since in some places we call
       handler::close() for table instance (and set TABLE::db_stat to 0)
       and do not remove such instances from the THD::open_tables
       for some time, during which other thread can see those instances
       (e.g. see partitioning code).
     */
-    if (thd_table->db_stat)
+    if (!thd_table->needs_reopen())
       signalled|= mysql_lock_abort_for_thread(thd, thd_table);
   }
   pthread_mutex_unlock(&LOCK_open);
