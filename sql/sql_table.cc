@@ -7049,6 +7049,10 @@ view_err:
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     thd_proc_info(thd, "copy to tmp table");
+    DBUG_EXECUTE_IF("abort_copy_table", {
+        my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+        goto err_new_table_cleanup;
+      });
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
