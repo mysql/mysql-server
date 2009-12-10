@@ -2437,7 +2437,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     same name. This block implements the behaviour.
     TODO: move this block into a separate function.
   */
-  if (!table_list->skip_temporary && ! (flags & MYSQL_OPEN_SKIP_TEMPORARY))
+  if (table_list->open_type != OT_BASE_ONLY &&
+      ! (flags & MYSQL_OPEN_SKIP_TEMPORARY))
   {
     for (table= thd->temporary_tables; table ; table=table->next)
     {
@@ -2469,10 +2470,16 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
-  if (flags & MYSQL_OPEN_TEMPORARY_ONLY)
+  if (table_list->open_type == OT_TEMPORARY_ONLY ||
+      (flags & MYSQL_OPEN_TEMPORARY_ONLY))
   {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
-    DBUG_RETURN(TRUE);
+    if (table_list->open_strategy == TABLE_LIST::OPEN_NORMAL)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
+      DBUG_RETURN(TRUE);
+    }
+    else
+      DBUG_RETURN(FALSE);
   }
 
   /*

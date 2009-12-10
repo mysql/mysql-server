@@ -1069,6 +1069,16 @@ public:
 };
 
 
+/**
+   Type of table which can be open for an element of table list.
+*/
+
+enum enum_open_type
+{
+  OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
+};
+
+
 /*
   Table reference in the FROM clause.
 
@@ -1330,7 +1340,11 @@ struct TABLE_LIST
   bool		cacheable_table;	/* stop PS caching */
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
-  bool		skip_temporary;		/* this table shouldn't be temporary */
+  /**
+     Specifies which kind of table should be open for this element
+     of table list.
+  */
+  enum enum_open_type open_type;
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */

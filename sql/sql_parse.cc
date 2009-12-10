@@ -2245,9 +2245,9 @@ case SQLCOM_PREPARE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
-    // Skip first table, which is the table we are creating
-    TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
-    TABLE_LIST *select_tables= lex->query_tables;
+    TABLE_LIST *create_table= first_table;
+    TABLE_LIST *select_tables= lex->create_last_non_select_table->next_global;
+
     /*
       Code below (especially in mysql_create_table() and select_create
       methods) may modify HA_CREATE_INFO structure in LEX, so we have to
@@ -2327,6 +2327,10 @@ case SQLCOM_PREPARE:
     }
 #endif
 
+    /* Set strategies: reset default or 'prepared' values. */
+    create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+    create_table->lock_strategy= TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL;
+
     /*
       Close any open handlers for the table
     */
@@ -2389,15 +2393,8 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
-      {
-        lex->link_first_table_back(create_table, link_to_local);
-        /* Set strategies: reset default or 'prepared' values. */
-        create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-        create_table->lock_strategy= TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL;
-      }
-
-      if (!(res= open_and_lock_tables(thd, lex->query_tables)))
+      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE,
+                                              MYSQL_OPEN_TAKE_UPGRADABLE_MDL)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -2406,7 +2403,6 @@ case SQLCOM_PREPARE:
         if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
-          create_table= lex->unlink_first_table(&link_to_local);
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
@@ -2433,6 +2429,13 @@ case SQLCOM_PREPARE:
         }
 
         /*
+          Remove target table from main select and name resolution
+          context. This can't be done earlier as it will break view merging in
+          statements like "CREATE TABLE IF NOT EXISTS existing_view SELECT".
+        */
+        lex->unlink_first_table(&link_to_local);
+
+        /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
         */
@@ -2451,33 +2454,32 @@ case SQLCOM_PREPARE:
           res= handle_select(thd, lex, result, 0);
           delete result;
         }
+        
+        lex->link_first_table_back(create_table, link_to_local);
       }
-      else if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
-        create_table= lex->unlink_first_table(&link_to_local);
-
     }
     else
     {
       /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
       if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
         thd->options|= OPTION_KEEP_LOG;
-      /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+      {
+        /* CREATE TABLE ... LIKE ... */
         res= mysql_create_like_table(thd, create_table, select_tables,
                                      &create_info);
+      }
       else
       {
-        res= mysql_create_table(thd, create_table->db,
-                                create_table->table_name, &create_info,
-                                &alter_info, 0, 0);
+        /* Regular CREATE TABLE */
+        res= mysql_create_table(thd, create_table,
+                                &create_info, &alter_info);
       }
       if (!res)
-	my_ok(thd);
+        my_ok(thd);
     }
 
-    /* put tables back for PS rexecuting */
 end_with_restore_list:
-    lex->link_first_table_back(create_table, link_to_local);
     break;
   }
   case SQLCOM_CREATE_INDEX:
@@ -2705,7 +2707,8 @@ end_with_restore_list:
         }
 
         /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
-        first_table->skip_temporary= 1;
+        first_table->open_type= OT_BASE_ONLY;
+
       }
       else
       {
@@ -7191,6 +7194,34 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+   Set proper open mode and table type for element representing target table
+   of CREATE TABLE statement, also adjust statement table list if necessary.
+*/
+
+void create_table_set_open_action_and_adjust_tables(LEX *lex)
+{
+  TABLE_LIST *create_table= lex->query_tables;
+
+  if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+    create_table->open_type= OT_TEMPORARY_ONLY;
+  else if (!lex->select_lex.item_list.elements)
+    create_table->open_type= OT_BASE_ONLY;
+
+  if (!lex->select_lex.item_list.elements)
+  {
+    /*
+      Avoid opening and locking target table for ordinary CREATE TABLE
+      or CREATE TABLE LIKE for write (unlike in CREATE ... SELECT we
+      won't do any insertions in it anyway). Not doing this causes
+      problems when running CREATE TABLE IF NOT EXISTS for already
+      existing log table.
+    */
+    create_table->lock_type= TL_READ;
+  }
 }
 
 

@@ -1660,39 +1660,35 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   bool res= FALSE;
-  /* Skip first table, which is the table we are creating */
   bool link_to_local;
-  TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
-  TABLE_LIST *tables= lex->query_tables;
+  TABLE_LIST *create_table= lex->query_tables;
+  TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
 
+   /*
+     The open and lock strategies will be set again once the
+     statement is executed. These values are only meaningful
+     for the prepare phase.
+   */
+  create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  create_table->lock_strategy= TABLE_LIST::SHARED_MDL;
+
   if (select_lex->item_list.elements)
   {
-    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
-    {
-      lex->link_first_table_back(create_table, link_to_local);
-      /*
-        The open and lock strategies will be set again once the
-        statement is executed. These values are only meaningful
-        for the prepare phase.
-      */
-      create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-      create_table->lock_strategy= TABLE_LIST::SHARED_MDL;
-    }
-
     if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
       DBUG_RETURN(TRUE);
 
-    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
-      create_table= lex->unlink_first_table(&link_to_local);
-
     select_lex->context.resolve_in_select_list= TRUE;
 
+    lex->unlink_first_table(&link_to_local);
+
     res= select_like_stmt_test(stmt, 0, 0);
+
+    lex->link_first_table_back(create_table, &link_to_local);
   }
-  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  else
   {
     /*
       Check that the source table exist, and also record
@@ -1704,8 +1700,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       DBUG_RETURN(TRUE);
   }
 
-  /* put tables back for PS rexecuting */
-  lex->link_first_table_back(create_table, link_to_local);
   DBUG_RETURN(res);
 }
 

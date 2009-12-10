@@ -4175,39 +4175,22 @@ bool mysql_unpack_partition(THD *thd,
              ha_resolve_storage_engine_name(default_db_type)));
   if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
-    if (old_lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
-    {
-      /*
-        This code is executed when we create table in CREATE TABLE t1 LIKE t2.
-        old_lex->query_tables contains table list element for t2 and the table
-        we are opening has name t1.
-      */
-      if (partition_default_handling(table, part_info, FALSE,
-                                     old_lex->query_tables->table->s->path.str))
-      {
-        result= TRUE;
-        goto end;
-      }
-    }
-    else
-    {
-      /*
-        When we come here we are doing a create table. In this case we
-        have already done some preparatory work on the old part_info
-        object. We don't really need this new partition_info object.
-        Thus we go back to the old partition info object.
-        We need to free any memory objects allocated on item_free_list
-        by the parser since we are keeping the old info from the first
-        parser call in CREATE TABLE.
-        We'll ensure that this object isn't put into table cache also
-        just to ensure we don't get into strange situations with the
-        item objects.
-      */
-      thd->free_items();
-      part_info= thd->work_part_info;
-      table->s->version= 0UL;
-      *work_part_info_used= true;
-    }
+    /*
+      When we come here we are doing a create table. In this case we
+      have already done some preparatory work on the old part_info
+      object. We don't really need this new partition_info object.
+      Thus we go back to the old partition info object.
+      We need to free any memory objects allocated on item_free_list
+      by the parser since we are keeping the old info from the first
+      parser call in CREATE TABLE.
+      We'll ensure that this object isn't put into table cache also
+      just to ensure we don't get into strange situations with the
+      item objects.
+    */
+    thd->free_items();
+    part_info= thd->work_part_info;
+    table->s->version= 0UL;
+    *work_part_info_used= true;
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);

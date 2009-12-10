@@ -3415,46 +3415,43 @@ void select_insert::abort() {
   CREATE TABLE (SELECT) ...
 ***************************************************************************/
 
-/*
+/**
   Create table from lists of fields and items (or just return TABLE
   object for pre-opened existing table).
 
-  SYNOPSIS
-    create_table_from_items()
-      thd          in     Thread object
-      create_info  in     Create information (like MAX_ROWS, ENGINE or
-                          temporary table flag)
-      create_table in     Pointer to TABLE_LIST object providing database
-                          and name for table to be created or to be open
-      alter_info   in/out Initial list of columns and indexes for the table
-                          to be created
-      items        in     List of items which should be used to produce rest
-                          of fields for the table (corresponding fields will
-                          be added to the end of alter_info->create_list)
-      lock         out    Pointer to the MYSQL_LOCK object for table created
-                          (or open temporary table) will be returned in this
-                          parameter. Since this table is not included in
-                          THD::lock caller is responsible for explicitly
-                          unlocking this table.
-      hooks
+  @param thd           [in]     Thread object
+  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+                                temporary table flag)
+  @param create_table  [in]     Pointer to TABLE_LIST object providing database
+                                and name for table to be created or to be open
+  @param alter_info    [in/out] Initial list of columns and indexes for the
+                                table to be created
+  @param items         [in]     List of items which should be used to produce
+                                rest of fields for the table (corresponding
+                                fields will be added to the end of
+                                alter_info->create_list)
+  @param lock          [out]    Pointer to the MYSQL_LOCK object for table
+                                created will be returned in this parameter.
+                                Since this table is not included in THD::lock
+                                caller is responsible for explicitly unlocking
+                                this table.
+  @param hooks         [in]     Hooks to be invoked before and after obtaining
+                                table lock on the table being created.
 
-  NOTES
-    This function behaves differently for base and temporary tables:
-    - For base table we assume that either table exists and was pre-opened
-      and locked at open_and_lock_tables() stage (and in this case we just
-      emit error or warning and return pre-opened TABLE object) or special
-      placeholder was put in table cache that guarantees that this table
-      won't be created or opened until the placeholder will be removed
-      (so there is an exclusive lock on this table).
-    - We don't pre-open existing temporary table, instead we either open
-      or create and then open table in this function.
+  @note
+    This function assumes that either table exists and was pre-opened and
+    locked at open_and_lock_tables() stage (and in this case we just emit
+    error or warning and return pre-opened TABLE object) or an exclusive
+    metadata lock was acquired on table so we can safely create, open and
+    lock table in it (we don't acquire metadata lock if this create is
+    for temporary table).
 
+  @note
     Since this function contains some logic specific to CREATE TABLE ...
     SELECT it should be changed before it can be used in other contexts.
 
-  RETURN VALUES
-    non-zero  Pointer to TABLE object for table created or opened
-    0         Error
+  @retval non-zero  Pointer to TABLE object for table created or opened
+  @retval 0         Error
 */
 
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
@@ -3529,14 +3526,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     open_table().
   */
   {
-    tmp_disable_binlog(thd);
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info, 0,
                                     select_field_count))
     {
-      if (create_info->table_existed &&
-          !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+      if (create_info->table_existed)
       {
         /*
           This means that someone created table underneath server
@@ -3572,8 +3567,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       {
         Open_table_context ot_ctx_unused(thd);
         if (open_table(thd, create_table, thd->mem_root, &ot_ctx_unused,
-                       MYSQL_OPEN_TEMPORARY_ONLY) &&
-            !create_info->table_existed)
+                       MYSQL_OPEN_TEMPORARY_ONLY))
         {
           /*
             This shouldn't happen as creation of temporary table should make
@@ -3586,7 +3580,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           table= create_table->table;
       }
     }
-    reenable_binlog(thd);
     if (!table)                                   // open failed
       DBUG_RETURN(0);
   }
@@ -3610,9 +3603,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       mysql_unlock_tables(thd, *lock);
       *lock= 0;
     }
-
-    if (!create_info->table_existed)
-      drop_open_table(thd, table, create_table->db, create_table->table_name);
+    drop_open_table(thd, table, create_table->db, create_table->table_name);
     DBUG_RETURN(0);
   }
   DBUG_RETURN(table);
@@ -3704,7 +3695,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
 
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&  create_table->table)
+  if (create_table->table)
   {
     /* Table already exists and was open at open_and_lock_tables() stage. */
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
