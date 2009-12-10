@@ -3959,3 +3959,20 @@ DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
+#
+# Bug #47335 assert in get_table_share
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+CREATE TEMPORARY TABLE t1 (id INT);
+ALTER VIEW t1 AS SELECT 1 AS f1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+DROP TABLE t1;
+CREATE VIEW v1 AS SELECT 1 AS f1;
+CREATE TEMPORARY TABLE v1 (id INT);
+ALTER VIEW v1 AS SELECT 2 AS f1;
+DROP TABLE v1;
+SELECT * FROM v1;
+f1
+2
+DROP VIEW v1;
