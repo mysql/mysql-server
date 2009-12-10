@@ -707,6 +707,9 @@ deallocate prepare stmt;
 =====================================================================
 Part 16: VIEW -> TEMPORARY TABLE transitions
 =====================================================================
+#
+# Test 1: Merged view
+#
 create table t2 (a int);
 insert into t2 (a) values (1);
 create view t1 as select * from t2;
@@ -720,16 +723,72 @@ SUCCESS
 create temporary table t1 (a int);
 execute stmt;
 a
-call p_verify_reprepare_count(1);
+1
+call p_verify_reprepare_count(0);
 SUCCESS
 
 drop view t1;
 execute stmt;
-a
+ERROR 42S02: Table 'test.t1' doesn't exist
 call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+#
+# Test 2: Materialized view
+#
+create table t2 (a int);
+insert into t2 (a) values (1);
+create algorithm = temptable view t1 as select * from t2;
+prepare stmt from "select * from t1";
+execute stmt;
+a
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create temporary table t1 (a int);
+execute stmt;
+a
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop view t1;
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+#
+# Test 3: View referencing an Information schema table
+#
+create view t1 as select table_name from information_schema.views;
+prepare stmt from "select * from t1";
+execute stmt;
+table_name
+t1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create temporary table t1 (a int);
+execute stmt;
+table_name
+t1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop view t1;
+execute stmt;
+table_name
+call p_verify_reprepare_count(0);
+SUCCESS
+
 drop temporary table t1;
 deallocate prepare stmt;
 =====================================================================
