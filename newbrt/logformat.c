@@ -187,7 +187,7 @@ static void __attribute__((format (printf, 3, 4))) fprintf2 (FILE *f1, FILE *f2,
     va_end(ap);
 }
 
-FILE *hf=0, *cf=0;
+FILE *hf=0, *cf=0, *pf=0;
 
 static void
 generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype *lts) {
@@ -446,54 +446,54 @@ generate_log_reader (void) {
 static void
 generate_logprint (void) {
     unsigned maxnamelen=0;
-    fprintf2(cf, hf, "int toku_logprint_one_record(FILE *outf, FILE *f)");
+    fprintf2(pf, hf, "int toku_logprint_one_record(FILE *outf, FILE *f)");
     fprintf(hf, ";\n");
-    fprintf(cf, " {\n");
-    fprintf(cf, "    int cmd, r;\n");
-    fprintf(cf, "    u_int32_t len1, crc_in_file;\n");
-    fprintf(cf, "    u_int32_t ignorelen=0;\n");
-    fprintf(cf, "    struct x1764 checksum;\n");
-    fprintf(cf, "    x1764_init(&checksum);\n");
-    fprintf(cf, "    r=toku_fread_u_int32_t(f, &len1, &checksum, &ignorelen);\n");
-    fprintf(cf, "    if (r==EOF) return EOF;\n");
-    fprintf(cf, "    cmd=fgetc(f);\n");
-    fprintf(cf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
-    fprintf(cf, "    u_int32_t len_in_file, len=1+4; // cmd + len1\n");
-    fprintf(cf, "    char charcmd = (char)cmd;\n");
-    fprintf(cf, "    x1764_add(&checksum, &charcmd, 1);\n");
-    fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
+    fprintf(pf, " {\n");
+    fprintf(pf, "    int cmd, r;\n");
+    fprintf(pf, "    u_int32_t len1, crc_in_file;\n");
+    fprintf(pf, "    u_int32_t ignorelen=0;\n");
+    fprintf(pf, "    struct x1764 checksum;\n");
+    fprintf(pf, "    x1764_init(&checksum);\n");
+    fprintf(pf, "    r=toku_fread_u_int32_t(f, &len1, &checksum, &ignorelen);\n");
+    fprintf(pf, "    if (r==EOF) return EOF;\n");
+    fprintf(pf, "    cmd=fgetc(f);\n");
+    fprintf(pf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
+    fprintf(pf, "    u_int32_t len_in_file, len=1+4; // cmd + len1\n");
+    fprintf(pf, "    char charcmd = (char)cmd;\n");
+    fprintf(pf, "    x1764_add(&checksum, &charcmd, 1);\n");
+    fprintf(pf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, { if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); });
     DO_LOGTYPES(lt, {
 		unsigned char cmd = (unsigned char)(0xff&lt->command_and_flags);
-		fprintf(cf, "    case LT_%s: \n", lt->name);
+		fprintf(pf, "    case LT_%s: \n", lt->name);
 		// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-		fprintf(cf, "        fprintf(outf, \"%%-%us \", \"%s\");\n", maxnamelen, lt->name);
-		if (isprint(cmd)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", cmd);
-		else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", cmd);
-		fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &checksum, &len, 0);     if (r!=0) return r;\n", "LSN");
+		fprintf(pf, "        fprintf(outf, \"%%-%us \", \"%s\");\n", maxnamelen, lt->name);
+		if (isprint(cmd)) fprintf(pf,"        fprintf(outf, \" '%c':\");\n", cmd);
+		else                      fprintf(pf,"        fprintf(outf, \"0%03o:\");\n", cmd);
+		fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &checksum, &len, 0);     if (r!=0) return r;\n", "LSN");
 		DO_FIELDS(ft, lt, {
-			    fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &checksum, &len,", ft->type, ft->name);
-			    if (ft->format) fprintf(cf, "\"%s\"", ft->format);
-			    else            fprintf(cf, "0");
-			    fprintf(cf, "); if (r!=0) return r;\n");
+			    fprintf(pf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &checksum, &len,", ft->type, ft->name);
+			    if (ft->format) fprintf(pf, "\"%s\"", ft->format);
+			    else            fprintf(pf, "0");
+			    fprintf(pf, "); if (r!=0) return r;\n");
 			});
-		fprintf(cf, "        {\n");
-		fprintf(cf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
-		fprintf(cf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(cf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
-		fprintf(cf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" actual_fingerprint=%%08x\", actual_murmur);\n");
-		fprintf(cf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(cf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
-		fprintf(cf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
-		fprintf(cf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
-		fprintf(cf, "        };\n");
-		fprintf(cf, "        fprintf(outf, \"\\n\");\n");
-		fprintf(cf, "        return 0;;\n\n");
+		fprintf(pf, "        {\n");
+		fprintf(pf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
+		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
+		fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" actual_fingerprint=%%08x\", actual_murmur);\n");
+		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(pf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
+		fprintf(pf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
+		fprintf(pf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
+		fprintf(pf, "        };\n");
+		fprintf(pf, "        fprintf(outf, \"\\n\");\n");
+		fprintf(pf, "        return 0;;\n\n");
 	    });
-    fprintf(cf, "    }\n");
-    fprintf(cf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
-    fprintf(cf, "    return DB_BADFORMAT;\n");
-    fprintf(cf, "}\n\n");
+    fprintf(pf, "    }\n");
+    fprintf(pf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
+    fprintf(pf, "    return DB_BADFORMAT;\n");
+    fprintf(pf, "}\n\n");
 }
 
 static void
@@ -592,6 +592,7 @@ generate_log_entry_functions(void) {
 }
 
 const char *codepath = "log_code.c";
+const char *printpath = "log_print.c";
 const char *headerpath = "log_header.h";
 int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
     chmod(codepath, S_IRUSR|S_IWUSR);
@@ -602,11 +603,12 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     if (cf==0) { int r = errno; printf("fopen of %s failed because of errno=%d (%s)\n", codepath, r, strerror(r)); } // sometimes this is failing, so let's make a better diagnostic
     assert(cf!=0);
     hf = fopen(headerpath, "w");     assert(hf!=0);
+    pf = fopen(printpath, "w");   assert(pf!=0);
     fprintf(hf, "#ifndef LOG_HEADER_H\n");
     fprintf(hf, "#define  LOG_HEADER_H\n");
     fprintf2(cf, hf, "/* Do not edit this file.  This code generated by logformat.c.  Copyright 2007, 2008 Tokutek.    */\n");
     fprintf2(cf, hf, "#ident \"Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved.\"\n");
-    fprintf(cf, "#include \"includes.h\"\n");
+    fprintf2(cf, pf, "#include \"includes.h\"\n");
     fprintf(hf, "#include \"brt-internal.h\"\n");
     fprintf(hf, "#include \"memarena.h\"\n");
     generate_enum();
@@ -614,15 +616,14 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     generate_dispatch();
     generate_log_writer();
     generate_log_reader();
-    generate_logprint();
     generate_rollbacks();
     generate_log_entry_functions();
+    generate_logprint();
     fprintf(hf, "#endif\n");
     {
-	int r=fclose(hf);
-	assert(r==0);
-	r=fclose(cf);
-	assert(r==0);
+	int r=fclose(hf); assert(r==0);
+	r=fclose(cf); assert(r==0);
+        r=fclose(pf); assert(r==0);
 	// Make it tougher to modify by mistake
 	chmod(codepath, S_IRUSR|S_IRGRP|S_IROTH);
 	chmod(headerpath, S_IRUSR|S_IRGRP|S_IROTH);
