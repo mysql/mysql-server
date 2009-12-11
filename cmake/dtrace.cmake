@@ -83,16 +83,30 @@ MACRO (DTRACE_INSTRUMENT target)
           -DOUTFILE=${outfile} 
           -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
           -DDTRACE_FLAGS=${DTRACE_FLAGS}
+          -DDIRS=.
           -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
         WORKING_DIRECTORY ${objdir}
       )
-      GET_TARGET_PROPERTY(target_link_flags ${target} LINK_FLAGS)
-      IF(NOT target_link_flags)
-       SET(target_link_flags) 
+      # Add full  object path to linker flags
+      GET_TARGET_PROPERTY(target_type ${target} TYPE)
+      IF(NOT target_type MATCHES "STATIC")
+        SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
+      ELSE()
+        # For static library flags, add the object to the library.
+        # Note: DTrace probes in static libraries are  unusable currently 
+        # (see http://opensolaris.org/jive/thread.jspa?messageID=432454)
+        # but maybe one day this will be fixed.
+        GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+        ADD_CUSTOM_COMMAND(
+         TARGET ${target} POST_BUILD
+         COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
+	 COMMAND ${CMAKE_RANLIB} ${target_location}
+        )
+
+       # Remember the object directory (it is used to workaround lack of static
+       # library support when linking mysqld)
+       SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
       ENDIF()
-        
-      SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS 
-         "${target_link_flags} ${outfile}")
     ENDIF()
   ENDIF()
 ENDMACRO()
