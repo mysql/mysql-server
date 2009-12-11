@@ -276,7 +276,6 @@ my_bool acl_init(bool dont_read_acl_tables)
     DBUG_RETURN(1); /* purecov: inspected */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
@@ -1655,8 +1654,8 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
-                      FALSE, FALSE, 0);
+    result= thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
+                              FALSE, FALSE, 0);
   }
 end:
   close_thread_tables(thd);
@@ -3262,7 +3261,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3427,7 +3426,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+      result= TRUE;
   }
 
   rw_unlock(&LOCK_grant);
@@ -3539,7 +3539,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3584,7 +3584,6 @@ my_bool grant_init()
     DBUG_RETURN(1);				/* purecov: deadcode */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
   return_val=  grant_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
@@ -3807,11 +3806,11 @@ static my_bool grant_reload_procs_priv(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
+  rw_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
 
-  rw_wrlock(&LOCK_grant);
   if ((return_val= grant_load_procs_priv(table.table)))
   {
     /* Error; Reverting to old hash */
@@ -5863,7 +5862,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
 
   if (some_users_created)
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5936,7 +5935,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -6021,7 +6020,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
   if (some_users_renamed && mysql_bin_log.is_open())
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -6203,15 +6202,17 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   pthread_mutex_unlock(&acl_cache->lock);
 
-  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  int binlog_error=
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  if (result)
+  /* error for writing binary log has already been reported */
+  if (result && !binlog_error)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(result || binlog_error);
 }
 
 

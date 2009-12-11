@@ -740,7 +740,9 @@ static void get_options(register int *argc,register char ***argv)
 {
   int ho_error;
 
-  load_defaults("my", load_default_groups, argc, argv);
+  if (load_defaults("my", load_default_groups, argc, argv))
+    exit(1);
+
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
@@ -1815,3 +1817,5 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   va_end(args);
   DBUG_VOID_RETURN;
 }
+
+#include "mi_extrafunc.h"

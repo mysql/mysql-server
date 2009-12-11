@@ -55,19 +55,18 @@ static const char *lock_descriptions[] =
 void
 print_where(COND *cond,const char *info, enum_query_type query_type)
 {
+  char buff[256];
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
   if (cond)
-  {
-    char buff[256];
-    String str(buff,(uint32) sizeof(buff), system_charset_info);
-    str.length(0);
     cond->print(&str, query_type);
-    str.append('\0');
-    DBUG_LOCK_FILE;
-    (void) fprintf(DBUG_FILE,"\nWHERE:(%s) ",info);
-    (void) fputs(str.ptr(),DBUG_FILE);
-    (void) fputc('\n',DBUG_FILE);
-    DBUG_UNLOCK_FILE;
-  }
+  str.append('\0');
+
+  DBUG_LOCK_FILE;
+  (void) fprintf(DBUG_FILE,"\nWHERE:(%s) %p ", info, cond);
+  (void) fputs(str.ptr(),DBUG_FILE);
+  (void) fputc('\n',DBUG_FILE);
+  DBUG_UNLOCK_FILE;
 }
 	/* This is for debugging purposes */
 

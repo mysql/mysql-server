@@ -1874,9 +1874,10 @@ void multi_update::abort()
         into repl event.
       */
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-      thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, errcode);
+      /* the error of binary logging is ignored */
+      (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
+                              thd->query(), thd->query_length(),
+                              transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
   }
