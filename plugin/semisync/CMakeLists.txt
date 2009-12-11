@@ -29,7 +29,7 @@ SET(SEMISYNC_SLAVE_SOURCES semisync.cc semisync_slave.cc semisync_slave_plugin.c
 
 ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
 ADD_LIBRARY(semisync_master SHARED ${SEMISYNC_MASTER_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_master  mysqld)
+TARGET_LINK_LIBRARIES(semisync_master  mysqlservices mysqld)
 ADD_LIBRARY(semisync_slave SHARED ${SEMISYNC_SLAVE_SOURCES})
 TARGET_LINK_LIBRARIES(semisync_slave  mysqld)
 MESSAGE("build SEMISYNC as DLL")
