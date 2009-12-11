@@ -103,10 +103,41 @@ MACRO (DTRACE_INSTRUMENT target)
 	 COMMAND ${CMAKE_RANLIB} ${target_location}
         )
 
-       # Remember the object directory (it is used to workaround lack of static
-       # library support when linking mysqld)
+       # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
        SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
       ENDIF()
     ENDIF()
   ENDIF()
+ENDMACRO()
+
+
+# Ugly workaround for Solaris' DTrace inability to use probes
+# from static libraries, discussed e.g in this thread
+# (http://opensolaris.org/jive/thread.jspa?messageID=432454)
+# We have to collect all object files that may be instrumented
+# and go into the mysqld (also those that come from in static libs)
+# run them again through dtrace -G to generate an ELF file that links
+# to mysqld.
+MACRO (DTRACE_INSTRUMENT_STATIC_LIBS target libs)
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
+  FOREACH(lib ${libs})
+    SET(dirs ${dirs} ${TARGET_OBJECT_DIRECTORY_${lib}})
+  ENDFOREACH()
+  SET (obj ${CMAKE_BINARY_DIR}/${target}_dtrace_all.o)
+  ADD_CUSTOM_COMMAND(
+  OUTPUT ${obj}
+  DEPENDS ${libs}
+  COMMAND ${CMAKE_COMMAND}
+   -DDTRACE=${DTRACE}	  
+   -DOUTFILE=${obj} 
+   -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
+   -DDTRACE_FLAGS=${DTRACE_FLAGS}
+   "-DDIRS=${dirs}"
+   -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
+   VERBATIM
+  )
+  ADD_CUSTOM_TARGET(${target}_dtrace_all  DEPENDS ${obj})
+  ADD_DEPENDENCIES(${target} ${target}_dtrace_all)
+  TARGET_LINK_LIBRARIES(${target} ${obj})
+ENDIF()
 ENDMACRO()
