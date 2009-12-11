@@ -43,7 +43,6 @@ IF(SSL_DEFINES)
 ENDIF()
 
 
-
 SET (SQL_SOURCE
                ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
@@ -85,22 +84,55 @@ SET (SQL_SOURCE
 
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY)
 
+ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
+DTRACE_INSTRUMENT(sql)
+TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+  mysys dbug strings vio regex   
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${SSL_LIBRARIES})
+
+
+
+# Ugly workaround for Solaris' DTrace inability to use probes
+# from static libraries currently, discussed e.g in this thread
+# (http://opensolaris.org/jive/thread.jspa?messageID=432454)
+# We have to collect all object files that may be instrumented
+# and go into the mysqld (also those that come from in static libs)
+# run them again through dtrace -G to generate an ELF file that links
+# to mysqld.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
+  SET(DTRACE_PROBES_ALL ${CMAKE_CURRENT_BINARY_DIR}/dtrace_probes_all.o)
+  SET(DTRACED_LIBS sql ${MYSQLD_STATIC_PLUGIN_LIBS} mysys)
+  FOREACH(lib ${DTRACED_LIBS})
+    SET(DTRACE_DIRS ${DTRACE_DIRS} ${TARGET_OBJECT_DIRECTORY_${lib}})
+  ENDFOREACH()
+ 
+  MESSAGE("DTRACE_DIRS=${DTRACE_DIRS}")
+  ADD_CUSTOM_COMMAND(
+  OUTPUT ${DTRACE_PROBES_ALL}
+  DEPENDS ${DTRACED_LIBS}
+  COMMAND ${CMAKE_COMMAND}
+   -DDTRACE=${DTRACE}	  
+   -DOUTFILE=${DTRACE_PROBES_ALL} 
+   -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
+   -DDTRACE_FLAGS=${DTRACE_FLAGS}
+   "-DDIRS=${DTRACE_DIRS}"
+   -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
+   VERBATIM
+  )
+ELSE()
+  SET(DTRACE_PROBES_ALL)
+ENDIF()
+
 
 IF(WIN32)
-  SET(SQL_SOURCE ${SQL_SOURCE} nt_servc.cc nt_servc.h)
-ENDIF()
-IF(MSVC)
-  ADD_LIBRARY(sql ${SQL_SOURCE})
-  ADD_EXECUTABLE(mysqld mysqld_dummy.cc)
-  ADD_CUSTOM_COMMAND( 
-        OUTPUT  mysqld_dummy.cc
-        COMMAND cmake ARGS -E touch mysqld_dummy.cc
-        VERBATIM)
-  SET(SQL_LIB  sql)
+  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h)
 ELSE()
-  ADD_EXECUTABLE(mysqld ${SQL_SOURCE})
-  DTRACE_INSTRUMENT(mysqld)
-ENDIF()  
+  SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
+ENDIF()
+
+ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE})
+ 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -128,11 +160,7 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})  
-TARGET_LINK_LIBRARIES(mysqld ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex ${SQL_LIB}   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
-
+TARGET_LINK_LIBRARIES(mysqld sql)
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
 IF(INTERFACE_LIBS)
