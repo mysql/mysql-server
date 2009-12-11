@@ -8,6 +8,15 @@
 drop table if exists t1;
 --enable_warnings
  
+--echo #
+--echo # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
+--echo # with temporary table and partitions
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
+--error ER_PARTITION_NO_TEMPORARY
+CREATE TEMPORARY TABLE tmp_t1 LIKE t1;
+DROP TABLE t1;
+
 #
 # Bug#38719: Partitioning returns a different error code for a
 # duplicate key error

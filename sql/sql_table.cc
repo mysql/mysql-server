@@ -5257,6 +5257,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
+    if (src_table->table->file->ht == partition_hton)
+    {
+      my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+      goto err;
+    }
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
     dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
@@ -5321,14 +5326,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     For partitioned tables we need to copy the .par file as well since
     it is used in open_table_def to even be able to create a new handler.
-    There is no way to find out here if the original table is a
-    partitioned table so we copy the file and ignore any errors.
   */
-  fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(dst_path, tmp_path);
-  fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
-  strmov(src_path, tmp_path);
-  my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  if (src_table->table->file->ht == partition_hton)
+  {
+    fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(dst_path, tmp_path);
+    fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+    strmov(src_path, tmp_path);
+    my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+  }
 #endif
 
   DBUG_EXECUTE_IF("sleep_create_like_before_ha_create", my_sleep(6000000););
