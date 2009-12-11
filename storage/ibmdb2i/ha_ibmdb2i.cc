@@ -284,7 +284,7 @@ static int ibmdb2i_init_func(void *p)
   was_ILE_inited = false;
   ibmdb2i_hton= (handlerton *)p;
   VOID(pthread_mutex_init(&ibmdb2i_mutex,MY_MUTEX_INIT_FAST));
-  (void) hash_init(&ibmdb2i_open_tables,system_charset_info,32,0,0,
+  (void) hash_init(&ibmdb2i_open_tables,table_alias_charset,32,0,0,
                    (hash_get_key) ibmdb2i_get_key,0,0);
 
   ibmdb2i_hton->state=   SHOW_OPTION_YES;
