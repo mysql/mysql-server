@@ -1521,21 +1521,29 @@ int ha_archive::info(uint flag)
 
   DBUG_PRINT("ha_archive", ("Stats rows is %d\n", (int)stats.records));
   /* Costs quite a bit more to get all information */
-  if (flag & HA_STATUS_TIME)
+  if (flag & (HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE))
   {
     MY_STAT file_stat;  // Stat information for the data file
 
     (void) my_stat(share->data_file_name, &file_stat, MYF(MY_WME));
 
-    stats.data_file_length= file_stat.st_size;
-    stats.create_time= (ulong) file_stat.st_ctime;
-    stats.update_time= (ulong) file_stat.st_mtime;
-    stats.mean_rec_length= stats.records ?
-      stats.data_file_length / stats.records : table->s->reclength;
-    stats.max_data_file_length= MAX_FILE_SIZE;
+    if (flag & HA_STATUS_TIME)
+      stats.update_time= (ulong) file_stat.st_mtime;
+    if (flag & HA_STATUS_CONST)
+    {
+      stats.max_data_file_length= share->rows_recorded * stats.mean_rec_length;
+      stats.max_data_file_length= MAX_FILE_SIZE;
+      stats.create_time= (ulong) file_stat.st_ctime;
+    }
+    if (flag & HA_STATUS_VARIABLE)
+    {
+      stats.delete_length= 0;
+      stats.data_file_length= file_stat.st_size;
+      stats.index_file_length=0;
+      stats.mean_rec_length= stats.records ?
+        stats.data_file_length / stats.records : table->s->reclength;
+    }
   }
-  stats.delete_length= 0;
-  stats.index_file_length=0;
 
   if (flag & HA_STATUS_AUTO)
   {

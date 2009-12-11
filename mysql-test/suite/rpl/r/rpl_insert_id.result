@@ -97,6 +97,7 @@ drop table t1;
 #
 # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
 #
+set @@session.sql_auto_is_null=1;
 create table t1(a int auto_increment, key(a)) engine=myisam;
 create table t2(a int) engine=myisam;
 insert into t1 (a) values (null);
@@ -531,3 +532,4 @@ id	last_id
 drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
+set @@session.sql_auto_is_null=default;

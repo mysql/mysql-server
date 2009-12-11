@@ -2874,7 +2874,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2906,7 +2906,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -2929,7 +2929,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3070,7 +3070,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        mysql_bin_log.write(&ev);
+        (void) mysql_bin_log.write(&ev);        /* error is ignored */
         mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
@@ -3911,7 +3911,8 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+          break;
       }
       my_ok(thd);
     } 
@@ -4483,12 +4484,12 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
-	  res= FALSE;
-	  my_ok(thd);
+          if (!res)
+            my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -6824,7 +6825,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     {
       thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
-      lex_start(thd);
     }
     
     if (thd)
@@ -7923,3 +7923,37 @@ bool parse_sql(THD *thd,
 /**
   @} (end of group Runtime_Environment)
 */
+
+
+
+/**
+  Check and merge "CHARACTER SET cs [ COLLATE cl ]" clause
+
+  @param cs character set pointer.
+  @param cl collation pointer.
+
+  Check if collation "cl" is applicable to character set "cs".
+
+  If "cl" is NULL (e.g. when COLLATE clause is not specified),
+  then simply "cs" is returned.
+  
+  @return Error status.
+    @retval NULL, if "cl" is not applicable to "cs".
+    @retval pointer to merged CHARSET_INFO on success.
+*/
+
+
+CHARSET_INFO*
+merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl)
+{
+  if (cl)
+  {
+    if (!my_charset_same(cs, cl))
+    {
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), cl->name, cs->csname);
+      return NULL;
+    }
+    return cl;
+  }
+  return cs;
+}

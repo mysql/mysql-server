@@ -137,28 +137,53 @@ void delegates_destroy()
  */
 #define FOREACH_OBSERVER(r, f, thd, args)                               \
   param.server_id= thd->server_id;                                      \
+  /*
+     Use a struct to make sure that they are allocated adjacent, check
+     delete_dynamic().
+  */                                                                    \
+  struct {                                                              \
+    DYNAMIC_ARRAY plugins;                                              \
+    /* preallocate 8 slots */                                           \
+    plugin_ref plugins_buffer[8];                                       \
+  } s;                                                                  \
+  DYNAMIC_ARRAY *plugins= &s.plugins;                                   \
+  plugin_ref *plugins_buffer= s.plugins_buffer;                         \
+  my_init_dynamic_array2(plugins, sizeof(plugin_ref),                   \
+                         plugins_buffer, 8, 8);                         \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
   Observer_info *info= iter++;                                          \
   for (; info; info= iter++)                                            \
   {                                                                     \
     plugin_ref plugin=                                                  \
-      my_plugin_lock(thd, &info->plugin);                               \
+      my_plugin_lock(0, &info->plugin);                                 \
     if (!plugin)                                                        \
     {                                                                   \
-      r= 1;                                                             \
+      /* plugin is not intialized or deleted, this is not an error */   \
+      r= 0;                                                             \
       break;                                                            \
     }                                                                   \
+    insert_dynamic(plugins, (uchar *)&plugin);                          \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
       r= 1;                                                             \
-      plugin_unlock(thd, plugin);                                       \
+      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
+                      info->plugin_int->name.str);                      \
       break;                                                            \
     }                                                                   \
-    plugin_unlock(thd, plugin);                                         \
   }                                                                     \
-  unlock()
+  unlock();                                                             \
+  /* 
+     Unlock plugins should be done after we released the Delegate lock
+     to avoid possible deadlock when this is the last user of the
+     plugin, and when we unlock the plugin, it will try to
+     deinitialize the plugin, which will try to lock the Delegate in
+     order to remove the observers.
+  */                                                                    \
+  plugin_unlock_list(0, (plugin_ref*)plugins->buffer,                   \
+                     plugins->elements);                                \
+  delete_dynamic(plugins)
 
 
 int Trans_delegate::after_commit(THD *thd, bool all)
