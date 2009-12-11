@@ -1355,14 +1355,18 @@ void _db_doprnt_(const char *format,...)
 }
 
 /*
+ * This function is intended as a
  * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
+ * However: full functionality for my_vsnprintf has not been backported yet,
+ * so code using "%g" or "%f" will have undefined behaviour.
  */
 static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
   size_t len;
-  len = my_vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
+  // Do not use my_vsnprintf, it does not support "%g".
+  len = vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
   (void) fprintf(stream, "%s\n", cvtbuf);
 }
 
