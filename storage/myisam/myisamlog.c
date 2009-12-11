@@ -845,3 +845,5 @@ static my_bool cmp_filename(struct file_info *file_info, char * name)
     return 1;
   return strcmp(file_info->name,name) ? 1 : 0;
 }
+
+#include "mi_extrafunc.h"
