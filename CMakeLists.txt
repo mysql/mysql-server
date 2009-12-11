@@ -146,6 +146,7 @@ IF(MSVC)
 ENDIF(MSVC)
 
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
+ADD_DEFINITIONS("-D_WIN32_WINNT=0x0500")
 
 # This definition is necessary to work around a bug with Intellisense described
 # here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
