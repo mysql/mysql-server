@@ -1046,18 +1046,21 @@ c1
 LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
 INSERT INTO t1 VALUES (1);
 TRUNCATE TABLE t3;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3;
 c1
-1
-2
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
 #
 # Truncate child table under locked tables.
+LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
 TRUNCATE TABLE t1;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3;
 c1
-1
 2
 UNLOCK TABLES;
 DROP TABLE t1, t2, t3;
@@ -1089,18 +1092,24 @@ INSERT INTO t1 VALUES (1);
 CREATE TABLE t4 (c1 INT, INDEX(c1));
 LOCK TABLE t4 WRITE;
 TRUNCATE TABLE t3;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3;
 c1
-1
-2
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
 #
 # Truncate temporary child table under locked tables.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
 TRUNCATE TABLE t1;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3;
 c1
-1
+2
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
 2
 UNLOCK TABLES;
 DROP TABLE t1, t2, t3, t4;
