@@ -254,3 +254,38 @@ commit;
 # Switching to connection 'default'.
 # Clean-up
 drop table t1;
+#
+# Bug#48210 FLUSH TABLES WITH READ LOCK deadlocks 
+#           against concurrent CREATE PROCEDURE
+#
+# Test 1: CREATE PROCEDURE
+# Connection 1
+# Start CREATE PROCEDURE and open mysql.proc
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+CREATE PROCEDURE p1() SELECT 1;
+# Connection 2
+SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+# Check that FLUSH must wait to get the GRL
+# and let CREATE PROCEDURE continue
+SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+FLUSH TABLES WITH READ LOCK;
+# Connection 1
+# Connection 2
+UNLOCK TABLES;
+# Connection 1
+SET DEBUG_SYNC= 'RESET';
+# Test 2: DROP PROCEDURE
+# Start DROP PROCEDURE and open tables
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+DROP PROCEDURE p1;
+# Connection 2
+SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+# Check that FLUSH must wait to get the GRL
+# and let DROP PROCEDURE continue
+SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+FLUSH TABLES WITH READ LOCK;
+# Connection 1
+# Connection 2
+UNLOCK TABLES;
+# Connection 1
+SET DEBUG_SYNC= 'RESET';

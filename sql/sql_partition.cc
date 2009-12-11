@@ -4183,13 +4183,13 @@ bool mysql_unpack_partition(THD *thd,
       We need to free any memory objects allocated on item_free_list
       by the parser since we are keeping the old info from the first
       parser call in CREATE TABLE.
-      We'll ensure that this object isn't put into table cache also
-      just to ensure we don't get into strange situations with the
-      item objects.
+
+      This table object can not be used any more. However, since
+      this is CREATE TABLE, we know that it will be destroyed by the
+      caller, and rely on that.
     */
     thd->free_items();
     part_info= thd->work_part_info;
-    table->s->version= 0UL;
     *work_part_info_used= true;
   }
   table->part_info= part_info;
@@ -4482,12 +4482,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 
   /*
     We are going to manipulate the partition info on the table object
-    so we need to ensure that the data structure of the table object
-    is freed by setting version to 0. table->s->version= 0 forces a
-    flush of the table object in close_thread_tables().
+    so we need to ensure that the table instance is removed from the
+    table cache.
   */
   if (table->part_info)
-    table->s->version= 0L;
+    table->m_needs_reopen= TRUE;
 
   thd->work_part_info= thd->lex->part_info;
   if (thd->work_part_info &&
@@ -6242,7 +6241,9 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
         alter_partition_lock_handling() and the table is closed
         by close_thread_tables() instead.
       */
-      table->s->version= 0;
+      tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
+                       table->s->db.str,
+                       table->s->table_name.str);
     }
   }
   pthread_mutex_unlock(&LOCK_open);
