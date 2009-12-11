@@ -94,6 +94,11 @@ static bool ndbcluster_show_status(handlerton *hton, THD*,
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
                                        st_alter_tablespace *info);
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                    THD *thd, 
+                                    TABLE_LIST *tables, 
+                                    COND *cond,
+                                    enum enum_schema_tables);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -6952,7 +6957,6 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
   newlex.current_select= NULL;
-  lex_start(thd);
   int res= ha_create_table_from_engine(thd, db, table_name);
   thd->lex= old_lex;
   return res;
@@ -7403,7 +7407,7 @@ static int ndbcluster_init(void *p)
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
-    h->fill_files_table= ndbcluster_fill_files_table;
+    h->fill_is_table=    ndbcluster_fill_is_table;
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
 #endif
@@ -7538,6 +7542,34 @@ ndbcluster_init_error:
 
   DBUG_RETURN(TRUE);
 }
+
+/**
+   Used to fill in INFORMATION_SCHEMA* tables.
+   
+   @param hton handle to the handlerton structure
+   @param thd the thread/connection descriptor
+   @param[in,out] tables the information schema table that is filled up
+   @param cond used for conditional pushdown to storage engine
+   @param schema_table_idx the table id that distinguishes the type of table
+   
+   @return Operation status
+ */
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                      THD *thd,
+                                      TABLE_LIST *tables,
+                                      COND *cond,
+                                      enum enum_schema_tables schema_table_idx)
+{
+  int ret= 0;
+  
+  if (schema_table_idx == SCH_FILES)
+  {
+    ret= ndbcluster_fill_files_table(hton, thd, tables, cond);
+  }
+  
+  return ret;
+}
+
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
@@ -9272,7 +9304,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
-  lex_start(thd);
   thd->init_for_queries();
   thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";
