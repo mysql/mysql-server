@@ -1130,10 +1130,10 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
   ulong pos;
 
   *ptr++= keyseg->type;
-  *ptr++= keyseg->language;
+  *ptr++= keyseg->language & 0xFF; /* Collation ID, low byte */
   *ptr++= keyseg->null_bit;
   *ptr++= keyseg->bit_start;
-  *ptr++= keyseg->bit_end;
+  *ptr++= keyseg->language >> 8; /* Collation ID, high byte */
   *ptr++= keyseg->bit_length;
   mi_int2store(ptr,keyseg->flag);	ptr+=2;
   mi_int2store(ptr,keyseg->length);	ptr+=2;
@@ -1152,12 +1152,13 @@ uchar *mi_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg)
    keyseg->language	= *ptr++;
    keyseg->null_bit	= *ptr++;
    keyseg->bit_start	= *ptr++;
-   keyseg->bit_end	= *ptr++;
+   keyseg->language	+= ((uint16) (*ptr++)) << 8;
    keyseg->bit_length   = *ptr++;
    keyseg->flag		= mi_uint2korr(ptr);  ptr +=2;
    keyseg->length	= mi_uint2korr(ptr);  ptr +=2;
    keyseg->start	= mi_uint4korr(ptr);  ptr +=4;
    keyseg->null_pos	= mi_uint4korr(ptr);  ptr +=4;
+   keyseg->bit_end= 0;
    keyseg->charset=0;				/* Will be filled in later */
    if (keyseg->null_bit)
      /* We adjust bit_pos if null_bit is last in the byte */

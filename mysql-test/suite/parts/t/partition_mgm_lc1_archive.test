@@ -32,6 +32,7 @@
 ##### Storage engine to be tested
 --source include/have_archive.inc
 let $engine= 'Archive';
+let $no_truncate= 1;
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines

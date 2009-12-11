@@ -1358,7 +1358,6 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
@@ -1926,7 +1925,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       return ERROR_STOP;
     }
 #endif 
-    if (init_io_cache(file, fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
+    if (init_io_cache(file, my_fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
     {
       error("Failed to init IO cache.");
@@ -2015,8 +2014,9 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
+  load_defaults("my", load_default_groups, &argc, &argv);
+  defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
-  defaults_argv=argv;
 
   if (!argc)
   {

@@ -1,3 +1,6 @@
+#ifndef SQL_UDF_INCLUDED
+#define SQL_UDF_INCLUDED
+
 /* Copyright (C) 2000-2001, 2003-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -140,3 +143,4 @@ void free_udf(udf_func *udf);
 int mysql_create_function(THD *thd,udf_func *udf);
 int mysql_drop_function(THD *thd,const LEX_STRING *name);
 #endif
+#endif /* SQL_UDF_INCLUDED */

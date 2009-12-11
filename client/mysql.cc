@@ -141,7 +141,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       default_charset_used= 0, opt_secure_auth= 0,
+	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
                ignore_spaces= 0;
@@ -155,7 +155,8 @@ static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
-            *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+            *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
+            *opt_init_command= 0;
 static char *histfile;
 static char *histfile_tmp;
 static String glob_buffer,old_buffer;
@@ -1398,6 +1399,10 @@ static struct my_option my_long_options[] =
   {"ignore-spaces", 'i', "Ignore space after function names.",
    (uchar**) &ignore_spaces, (uchar**) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+  {"init-command", OPT_INIT_COMMAND,
+   "SQL Command to execute when connecting to MySQL server. Will automatically be re-executed when reconnecting.",
+   (uchar**) &opt_init_command, (uchar**) &opt_init_command, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
    (uchar**) &opt_local_infile,
    (uchar**) &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1589,9 +1594,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_CHARSETS_DIR:
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
     charsets_dir = mysql_charsets_dir;
-    break;
-  case  OPT_DEFAULT_CHARSET:
-    default_charset_used= 1;
     break;
   case OPT_DELIMITER:
     if (argument == disabled_my_option) 
@@ -1797,10 +1799,6 @@ static int get_options(int argc, char **argv)
     connect_flag= 0; /* Not in interactive mode */
   }
   
-  if (strcmp(default_charset, charset_info->csname) &&
-      !(charset_info= get_charset_by_csname(default_charset, 
-					    MY_CS_PRIMARY, MYF(MY_WME))))
-    exit(1);
   if (argc > 1)
   {
     usage(0);
@@ -2928,7 +2926,6 @@ com_charset(String *buffer __attribute__((unused)), char *line)
     charset_info= new_cs;
     mysql_set_character_set(&mysql, charset_info->csname);
     default_charset= (char *)charset_info->csname;
-    default_charset_used= 1;
     put_info("Charset changed", INFO_INFO);
   }
   else put_info("Charset is not found", INFO_INFO);
@@ -4217,6 +4214,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_close(&mysql);
   }
   mysql_init(&mysql);
+  if (opt_init_command)
+    mysql_options(&mysql, MYSQL_INIT_COMMAND, opt_init_command);
   if (opt_connect_timeout)
   {
     uint timeout=opt_connect_timeout;
@@ -4250,8 +4249,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
-  if (default_charset_used)
-    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_STATEMENTS))
@@ -4266,6 +4266,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
     return -1;					// Retryable
   }
+  
+  charset_info= mysql.charset;
+  
   connected=1;
 #ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens

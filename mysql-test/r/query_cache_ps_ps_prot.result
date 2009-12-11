@@ -529,5 +529,46 @@ DROP DATABASE mysqltest1;
 use test;
 
 ########################################################################
+#
+# Bug#27430 Crash in subquery code when in PS and table DDL changed
+# after PREPARE
+# Check the effect of automatic reprepare on query cache
+#
+########################################################################
+drop table if exists t1;
+create table t1 (a varchar(255));
+insert into t1 (a) values ("Pack my box with five dozen liquor jugs.");
+flush status;
+prepare stmt from "select a from t1";
+execute stmt;
+a
+Pack my box with five dozen liquor jugs.
+set @@global.query_cache_size=0;
+alter table t1 add column b int;
+execute stmt;
+a
+Pack my box with five dozen liquor jugs.
+set @@global.query_cache_size=100000;
+execute stmt;
+a
+Pack my box with five dozen liquor jugs.
+execute stmt;
+a
+Pack my box with five dozen liquor jugs.
+#
+# Sic: ALTER TABLE caused an automatic reprepare 
+# of the prepared statement. Since the query cache was disabled
+# at the time of reprepare, the new prepared statement doesn't
+# work with it.
+# 
+show status like 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+show status like 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+# Cleanup
+deallocate prepare stmt;
+drop table t1;
 set @@global.query_cache_size=@initial_query_cache_size;
 flush status;

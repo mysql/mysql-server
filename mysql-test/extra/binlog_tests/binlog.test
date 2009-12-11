@@ -43,10 +43,10 @@ commit;
 drop table t1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000002' from 106;
+show binlog events in 'master-bin.000002' from 107;
 
 
 #

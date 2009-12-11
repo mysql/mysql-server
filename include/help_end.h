@@ -1,3 +1,6 @@
+#ifndef HELP_END_INCLUDED
+#define HELP_END_INCLUDED
+
 /* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -20,3 +23,4 @@
 #undef fputc
 #undef putchar
 #endif
+#endif /* HELP_END_INCLUDED */

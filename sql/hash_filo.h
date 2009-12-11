@@ -38,8 +38,8 @@ class hash_filo_element
 class hash_filo
 {
   const uint size, key_offset, key_length;
-  const hash_get_key get_key;
-  hash_free_key free_element;
+  const my_hash_get_key get_key;
+  my_hash_free_key free_element;
   bool init;
   CHARSET_INFO *hash_charset;
 
@@ -49,7 +49,7 @@ public:
   HASH cache;
 
   hash_filo(uint size_arg, uint key_offset_arg , uint key_length_arg,
-	    hash_get_key get_key_arg, hash_free_key free_element_arg,
+	    my_hash_get_key get_key_arg, my_hash_free_key free_element_arg,
 	    CHARSET_INFO *hash_charset_arg)
     :size(size_arg), key_offset(key_offset_arg), key_length(key_length_arg),
     get_key(get_key_arg), free_element(free_element_arg),init(0),
@@ -63,7 +63,7 @@ public:
     if (init)
     {
       if (cache.array.buffer)	/* Avoid problems with thread library */
-	(void) hash_free(&cache);
+	(void) my_hash_free(&cache);
       pthread_mutex_destroy(&lock);
     }
   }
@@ -76,8 +76,8 @@ public:
     }
     if (!locked)
       (void) pthread_mutex_lock(&lock);
-    (void) hash_free(&cache);
-    (void) hash_init(&cache,hash_charset,size,key_offset, 
+    (void) my_hash_free(&cache);
+    (void) my_hash_init(&cache,hash_charset,size,key_offset, 
     		     key_length, get_key, free_element,0);
     if (!locked)
       (void) pthread_mutex_unlock(&lock);
@@ -87,7 +87,7 @@ public:
   hash_filo_element *search(uchar* key, size_t length)
   {
     hash_filo_element *entry=(hash_filo_element*)
-      hash_search(&cache,(uchar*) key,length);
+      my_hash_search(&cache,(uchar*) key,length);
     if (entry)
     {						// Found; link it first
       if (entry != first_link)
@@ -113,7 +113,7 @@ public:
     {
       hash_filo_element *tmp=last_link;
       last_link=last_link->prev_used;
-      hash_delete(&cache,(uchar*) tmp);
+      my_hash_delete(&cache,(uchar*) tmp);
     }
     if (my_hash_insert(&cache,(uchar*) entry))
     {

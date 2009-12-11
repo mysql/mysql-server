@@ -15,7 +15,9 @@ main.plugin                              # Bug#47146 Linking problem with exampl
 main.plugin_load                         # Bug#47146
 
 rpl.rpl_cross_version*                   # Bug#48340 2009-12-01 Daogang rpl_cross_version: Found warnings/errors in server log file!
-rpl.rpl_get_master_version_and_clock*    # Bug #49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
+rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
+rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
+rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
 rpl.rpl_plugin_load*  @solaris           # Bug#47146

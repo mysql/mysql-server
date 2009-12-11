@@ -250,16 +250,10 @@ extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
 
 /*
   LEX_STRING -- a pair of a C-string and its length.
+  (it's part of the plugin API as a MYSQL_LEX_STRING)
 */
 
-#ifndef _my_plugin_h
-/* This definition must match the one given in mysql/plugin.h */
-struct st_mysql_lex_string
-{
-  char *str;
-  size_t length;
-};
-#endif
+#include <mysql/plugin.h>
 typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))

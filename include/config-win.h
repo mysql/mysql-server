@@ -1,3 +1,6 @@
+#ifndef CONFIG_WIN_INCLUDED
+#define CONFIG_WIN_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,6 +30,9 @@
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
+#include <sys/stat.h>
+#include <process.h>     /* getpid()*/
+
 
 #define HAVE_SMEM 1
 
@@ -65,7 +71,6 @@
 #endif
 
 /* File and lock constants */
-#define O_SHARE		0x1000		/* Open file in sharing mode */
 #ifdef __BORLANDC__
 #define F_RDLCK		LK_NBLCK	/* read lock */
 #define F_WRLCK		LK_NBRLCK	/* write lock */
@@ -175,7 +180,7 @@ typedef uint rf_SetTimer;
 #define SIZEOF_CHARP		4
 #endif
 #define HAVE_BROKEN_NETINET_INCLUDES
-#ifdef __NT__
+#ifdef _WIN32
 #define HAVE_NAMED_PIPE			/* We can only create pipes on NT */
 #endif
 
@@ -288,11 +293,6 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifndef __NT__
-#undef FILE_SHARE_DELETE
-#define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
-#endif
-
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf
@@ -336,13 +336,13 @@ inline ulonglong double2ulonglong(double d)
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
-#define OS_FILE_LIMIT	2048
+#define OS_FILE_LIMIT	UINT_MAX /* No limit*/
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 #define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
 /* The following is only used for statistics, so it should be good enough */
-#ifdef __NT__  /* This should also work on Win98 but .. */
+#ifdef _WIN32
 #define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
 #define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
 #endif
@@ -356,7 +356,6 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_OPENSSL 1
 #define HAVE_YASSL 1
 
-#define COMMUNITY_SERVER 1
 #define ENABLED_PROFILING 1
 
 /*
@@ -410,3 +409,5 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+
+#endif /* CONFIG_WIN_INCLUDED */

@@ -1,3 +1,6 @@
+#ifndef AUTHORS_INCLUDED
+#define AUTHORS_INCLUDED
+
 /* Copyright (C) 2005-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -36,6 +39,7 @@ struct show_table_authors_st {
 struct show_table_authors_st show_table_authors[]= {
   { "Brian (Krow) Aker", "Seattle, WA, USA",
     "Architecture, archive, federated, bunch of little stuff :)" },
+  { "Marc Alff", "Denver, CO, USA", "Signal, Resignal" },
   { "Venu Anuganti", "", "Client/server protocol (4.1)" },
   { "David Axmark", "Uppsala, Sweden",
     "Small stuff long time ago, Monty ripped it out!" },
@@ -150,3 +154,5 @@ struct show_table_authors_st show_table_authors[]= {
     "SHA1(), AES_ENCRYPT(), AES_DECRYPT(), bug fixing" },
   {NULL, NULL, NULL}
 };
+
+#endif /* AUTHORS_INCLUDED */

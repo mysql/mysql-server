@@ -20,7 +20,7 @@ REPLACE INTO t1 VALUES (4);
 DROP TABLE t1;
 FLUSH LOGS;
 
-exec $MYSQL_BINLOG --start-position=106 $MYSQLD_DATADIR/master-bin.000001 >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
+exec $MYSQL_BINLOG --start-position=107 $MYSQLD_DATADIR/master-bin.000001 >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
 --disable_query_log
 eval SELECT cont LIKE '%RELOAD DATABASE; # Shall generate syntax error%' AS `Contain RELOAD DATABASE` FROM (SELECT load_file('$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql') AS cont) AS tbl;
 --enable_query_log

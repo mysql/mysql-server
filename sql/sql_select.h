@@ -1,3 +1,6 @@
+#ifndef SQL_SELECT_INCLUDED
+#define SQL_SELECT_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -141,7 +144,6 @@ enum enum_nested_loop_state
 
 typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
-typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
 
 
@@ -169,7 +171,7 @@ typedef struct st_join_table {
   */
   uint          packed_info;
 
-  Read_record_func read_first_record;
+  READ_RECORD::Setup_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
@@ -177,8 +179,8 @@ typedef struct st_join_table {
     if it is executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
   */  
-  Read_record_func save_read_first_record;/* to save read_first_record */ 
-  int (*save_read_record) (READ_RECORD *);/* to save read_record.read_record */
+  READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
+  READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
   key_map	checked_keys;			/**< Keys checked in find_best */
@@ -224,6 +226,11 @@ typedef struct st_join_table {
     return (select && select->quick &&
             (select->quick->get_type() ==
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+  }
+  bool is_using_agg_loose_index_scan ()
+  {
+    return (is_using_loose_index_scan() &&
+            ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
   }
 } JOIN_TAB;
 
@@ -282,7 +289,7 @@ public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
-  TABLE    **table,**all_tables,*sort_by_table;
+  TABLE    **all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
   /**
@@ -438,7 +445,7 @@ public:
        select_result *result_arg)
   {
     join_tab= join_tab_save= 0;
-    table= 0;
+    all_tables= 0;
     tables= 0;
     const_tables= 0;
     join_list= 0;
@@ -587,6 +594,8 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item, uint convert_blob_length);
                                                                       
+bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
+
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
@@ -759,3 +768,4 @@ inline bool optimizer_flag(THD *thd, uint flag)
   return (thd->variables.optimizer_switch & flag);
 }
 
+#endif /* SQL_SELECT_INCLUDED */
