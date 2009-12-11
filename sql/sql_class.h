@@ -3341,6 +3341,16 @@ public:
 */
 #define CF_DIAGNOSTIC_STMT        (1U << 8)
 
+/**
+  SQL statements that must be protected against impending global read lock
+  to prevent deadlock. This deadlock could otherwise happen if the statement
+  starts waiting for the GRL to go away inside mysql_lock_tables while at the
+  same time having "old" opened tables. The thread holding the GRL can be
+  waiting for these "old" opened tables to be closed, causing a deadlock
+  (FLUSH TABLES WITH READ LOCK).
+ */
+#define CF_PROTECT_AGAINST_GRL  (1U << 10)
+
 /* Bits in server_command_flags */
 
 /**

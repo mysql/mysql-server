@@ -820,7 +820,7 @@ void mysql_ha_flush(THD *thd)
     if (hash_tables->table &&
         (hash_tables->table->mdl_ticket &&
          hash_tables->table->mdl_ticket->has_pending_conflicting_lock() ||
-         hash_tables->table->needs_reopen()))
+         hash_tables->table->s->needs_reopen()))
       mysql_ha_close_table(thd, hash_tables);
   }
 
