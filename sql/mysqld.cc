@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -648,7 +648,7 @@ SHOW_COMP_OPTION have_profiling;
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_thread_count,
-		LOCK_mapped_file, LOCK_global_read_lock,
+                LOCK_mapped_file, LOCK_global_read_lock,
 		LOCK_error_log, LOCK_uuid_generator,
 		LOCK_crypt,
 	        LOCK_global_system_variables,
@@ -964,9 +964,9 @@ static void close_connections(void)
       mysql_mutex_lock(&tmp->mysys_var->mutex);
       if (tmp->mysys_var->current_cond)
       {
-	mysql_mutex_lock(tmp->mysys_var->current_mutex);
-	mysql_cond_broadcast(tmp->mysys_var->current_cond);
-	mysql_mutex_unlock(tmp->mysys_var->current_mutex);
+        mysql_mutex_lock(tmp->mysys_var->current_mutex);
+        mysql_cond_broadcast(tmp->mysys_var->current_cond);
+        mysql_mutex_unlock(tmp->mysys_var->current_mutex);
       }
       mysql_mutex_unlock(&tmp->mysys_var->mutex);
     }
