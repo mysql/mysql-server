@@ -71,7 +71,7 @@ hex(a)
 1
 1
 alter table t1 add unique (a);
-ERROR 23000: Duplicate entry '' for key 'a'
+ERROR 23000: Duplicate entry '\x00' for key 'a'
 drop table t1;
 create table t1 (a bit(2));
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');

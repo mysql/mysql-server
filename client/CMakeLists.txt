@@ -14,13 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
-# We use the "mysqlclient_notls" library here just as safety, in case
-# any of the clients here would go beyond the client API and access the
-# Thread Local Storage directly.
-
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
@@ -30,27 +23,27 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/strings)
 
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c)
-TARGET_LINK_LIBRARIES(mysql mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysql mysqlclient)
 
 ADD_EXECUTABLE(mysqltest mysqltest.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex wsock32 dbug)
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex dbug)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient)
 
 ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c ../mysys/mf_getdate.c)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
 ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
 ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
 ADD_EXECUTABLE(mysqlshow mysqlshow.c)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
 ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/mf_tempdir.c
@@ -59,14 +52,14 @@ ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/my_bitmap.c
 			   ../mysys/my_vle.c
 			   ../mysys/base64.c)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient_notls wsock32)
+TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
 
 ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
+TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib dbug)
 
 ADD_EXECUTABLE(echo echo.c)
 

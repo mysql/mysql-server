@@ -1,0 +1,40 @@
+=====Configuring the enviroment=======;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+call mtr.add_suppression('Attempting backtrace');
+call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+CREATE TABLE t1(a INT, PRIMARY KEY(a)) engine=innodb;
+insert into t1(a) values(1);
+insert into t1(a) values(2);
+insert into t1(a) values(3);
+=====Inserting data on the master but without the SQL Thread being running=======;
+stop slave SQL_THREAD;
+insert into t1(a) values(4);
+insert into t1(a) values(5);
+insert into t1(a) values(6);
+=====Removing relay log files and crashing/recoverying the slave=======;
+stop slave IO_THREAD;
+SET SESSION debug="d,crash_before_rotate_relaylog";
+FLUSH LOGS;
+ERROR HY000: Lost connection to MySQL server during query
+=====Dumping and comparing tables=======;
+start slave;
+Comparing tables master:test.t1 and slave:test.t1
+=====Corrupting the master.info=======;
+stop slave;
+FLUSH LOGS;
+insert into t1(a) values(7);
+insert into t1(a) values(8);
+insert into t1(a) values(9);
+SET SESSION debug="d,crash_before_rotate_relaylog";
+FLUSH LOGS;
+ERROR HY000: Lost connection to MySQL server during query
+=====Dumping and comparing tables=======;
+start slave;
+Comparing tables master:test.t1 and slave:test.t1
+=====Clean up=======;
+drop table t1;

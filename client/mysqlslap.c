@@ -1204,7 +1204,7 @@ get_options(int *argc,char ***argv)
     
     if (opt_csv_str[0] == '-')
     {
-      csv_file= fileno(stdout);
+      csv_file= my_fileno(stdout);
     }
     else
     {

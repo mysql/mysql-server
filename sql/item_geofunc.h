@@ -1,3 +1,6 @@
+#ifndef ITEM_GEOFUNC_INCLUDED
+#define ITEM_GEOFUNC_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -386,3 +389,4 @@ public:
 
 #endif
 
+#endif /* ITEM_GEOFUNC_INCLUDED */

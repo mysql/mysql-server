@@ -17,9 +17,7 @@
 #include "mysys_err.h"
 #include <my_dir.h>
 #include <errno.h>
-#if defined(__WIN__)
-#include <share.h>
-#endif
+
 
 /*
   Open a file
@@ -43,29 +41,8 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   DBUG_ENTER("my_open");
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
-#if defined(__WIN__)
-  /* 
-    Check that we don't try to open or create a file name that may
-    cause problems for us in the future (like PRN)
-  */  
-  if (check_if_legal_filename(FileName))
-  {
-    errno= EACCES;
-    DBUG_RETURN(my_register_filename(-1, FileName, FILE_BY_OPEN,
-                                     EE_FILENOTFOUND, MyFlags));
-  }
-#ifndef __WIN__
-  if (Flags & O_SHARE)
-    fd = sopen((char *) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
-	       MY_S_IREAD | MY_S_IWRITE);
-  else
-    fd = open((char *) FileName, Flags | O_BINARY,
-	      MY_S_IREAD | MY_S_IWRITE);
-#else
-  fd= my_sopen((char *) FileName, (Flags & ~O_SHARE) | O_BINARY, SH_DENYNO,
-	       MY_S_IREAD | MY_S_IWRITE);
-#endif
-
+#if defined(_WIN32)
+  fd= my_win_open(FileName, Flags);
 #elif !defined(NO_OPEN_3)
   fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #else
@@ -94,11 +71,14 @@ int my_close(File fd, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
 
   pthread_mutex_lock(&THR_LOCK_open);
+#ifndef _WIN32
   do
   {
     err= close(fd);
   } while (err == -1 && errno == EINTR);
-
+#else
+  err= my_win_close(fd);
+#endif
   if (err)
   {
     DBUG_PRINT("error",("Got error %d on close",err));
@@ -109,7 +89,7 @@ int my_close(File fd, myf MyFlags)
   if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
     my_free(my_file_info[fd].name, MYF(0));
-#if defined(THREAD) && !defined(HAVE_PREAD)
+#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
     pthread_mutex_destroy(&my_file_info[fd].mutex);
 #endif
     my_file_info[fd].type = UNOPEN;
@@ -141,11 +121,11 @@ File my_register_filename(File fd, const char *FileName, enum file_type
 			  type_of_file, uint error_message_number, myf MyFlags)
 {
   DBUG_ENTER("my_register_filename");
-  if ((int) fd >= 0)
+  if ((int) fd >= MY_FILE_MIN)
   {
     if ((uint) fd >= my_file_limit)
     {
-#if defined(THREAD) && !defined(HAVE_PREAD)
+#if defined(THREAD) && !defined(HAVE_PREAD) 
       my_errno= EMFILE;
 #else
       thread_safe_increment(my_file_opened,&THR_LOCK_open);
@@ -160,7 +140,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
         my_file_opened++;
         my_file_total_opened++;
         my_file_info[fd].type = type_of_file;
-#if defined(THREAD) && !defined(HAVE_PREAD)
+#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
         pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);
 #endif
         pthread_mutex_unlock(&THR_LOCK_open);
@@ -187,188 +167,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
   DBUG_RETURN(-1);
 }
 
-#ifdef __WIN__
 
-extern void __cdecl _dosmaperr(unsigned long);
-
-/*
-  Open a file with sharing. Similar to _sopen() from libc, but allows managing
-  share delete on win32
-
-  SYNOPSIS
-    my_sopen()
-      path    fully qualified file name
-      oflag   operation flags
-      shflag	share flag
-      pmode   permission flags
-
-  RETURN VALUE
-    File descriptor of opened file if success
-    -1 and sets errno if fails.
-*/
-
-File my_sopen(const char *path, int oflag, int shflag, int pmode)
-{
-  int  fh;                                /* handle of opened file */
-  int mask;
-  HANDLE osfh;                            /* OS handle of opened file */
-  DWORD fileaccess;                       /* OS file access (requested) */
-  DWORD fileshare;                        /* OS file sharing mode */
-  DWORD filecreate;                       /* OS method of opening/creating */
-  DWORD fileattrib;                       /* OS file attribute flags */
-  SECURITY_ATTRIBUTES SecurityAttributes;
-
-  SecurityAttributes.nLength= sizeof(SecurityAttributes);
-  SecurityAttributes.lpSecurityDescriptor= NULL;
-  SecurityAttributes.bInheritHandle= !(oflag & _O_NOINHERIT);
-
-  /*
-   * decode the access flags
-   */
-  switch (oflag & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
-    case _O_RDONLY:         /* read access */
-      fileaccess= GENERIC_READ;
-      break;
-    case _O_WRONLY:         /* write access */
-      fileaccess= GENERIC_WRITE;
-      break;
-    case _O_RDWR:           /* read and write access */
-      fileaccess= GENERIC_READ | GENERIC_WRITE;
-      break;
-    default:                /* error, bad oflag */
-      errno= EINVAL;
-      _doserrno= 0L;        /* not an OS error */
-      return -1;
-  }
-
-  /*
-   * decode sharing flags
-   */
-  switch (shflag) {
-    case _SH_DENYRW:        /* exclusive access except delete */
-      fileshare= FILE_SHARE_DELETE;
-      break;
-    case _SH_DENYWR:        /* share read and delete access */
-      fileshare= FILE_SHARE_READ | FILE_SHARE_DELETE;
-      break;
-    case _SH_DENYRD:        /* share write and delete access */
-      fileshare= FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-      break;
-    case _SH_DENYNO:        /* share read, write and delete access */
-      fileshare= FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-      break;
-    case _SH_DENYRWD:       /* exclusive access */
-      fileshare= 0L;
-      break;
-    case _SH_DENYWRD:       /* share read access */
-      fileshare= FILE_SHARE_READ;
-      break;
-    case _SH_DENYRDD:       /* share write access */
-      fileshare= FILE_SHARE_WRITE;
-      break;
-    case _SH_DENYDEL:       /* share read and write access */
-      fileshare= FILE_SHARE_READ | FILE_SHARE_WRITE;
-      break;
-    default:                /* error, bad shflag */
-      errno= EINVAL;
-      _doserrno= 0L;        /* not an OS error */
-      return -1;
-  }
-
-  /*
-   * decode open/create method flags
-   */
-  switch (oflag & (_O_CREAT | _O_EXCL | _O_TRUNC)) {
-    case 0:
-    case _O_EXCL:                   /* ignore EXCL w/o CREAT */
-      filecreate= OPEN_EXISTING;
-      break;
-
-    case _O_CREAT:
-      filecreate= OPEN_ALWAYS;
-      break;
-
-    case _O_CREAT | _O_EXCL:
-    case _O_CREAT | _O_TRUNC | _O_EXCL:
-      filecreate= CREATE_NEW;
-      break;
-
-    case _O_TRUNC:
-    case _O_TRUNC | _O_EXCL:        /* ignore EXCL w/o CREAT */
-      filecreate= TRUNCATE_EXISTING;
-      break;
-
-    case _O_CREAT | _O_TRUNC:
-      filecreate= CREATE_ALWAYS;
-      break;
-
-    default:
-      /* this can't happen ... all cases are covered */
-      errno= EINVAL;
-      _doserrno= 0L;
-      return -1;
-  }
-
-  /*
-   * decode file attribute flags if _O_CREAT was specified
-   */
-  fileattrib= FILE_ATTRIBUTE_NORMAL;     /* default */
-  if (oflag & _O_CREAT) 
-  {
-    _umask((mask= _umask(0)));
-    
-    if (!((pmode & ~mask) & _S_IWRITE))
-      fileattrib= FILE_ATTRIBUTE_READONLY;
-  }
-
-  /*
-   * Set temporary file (delete-on-close) attribute if requested.
-   */
-  if (oflag & _O_TEMPORARY) 
-  {
-    fileattrib|= FILE_FLAG_DELETE_ON_CLOSE;
-    fileaccess|= DELETE;
-  }
-
-  /*
-   * Set temporary file (delay-flush-to-disk) attribute if requested.
-   */
-  if (oflag & _O_SHORT_LIVED)
-    fileattrib|= FILE_ATTRIBUTE_TEMPORARY;
-
-  /*
-   * Set sequential or random access attribute if requested.
-   */
-  if (oflag & _O_SEQUENTIAL)
-    fileattrib|= FILE_FLAG_SEQUENTIAL_SCAN;
-  else if (oflag & _O_RANDOM)
-    fileattrib|= FILE_FLAG_RANDOM_ACCESS;
-
-  /*
-   * try to open/create the file
-   */
-  if ((osfh= CreateFile(path, fileaccess, fileshare, &SecurityAttributes, 
-                        filecreate, fileattrib, NULL)) == INVALID_HANDLE_VALUE)
-  {
-    /*
-     * OS call to open/create file failed! map the error, release
-     * the lock, and return -1. note that it's not necessary to
-     * call _free_osfhnd (it hasn't been used yet).
-     */
-    _dosmaperr(GetLastError());     /* map error */
-    return -1;                      /* return error to caller */
-  }
-
-  if ((fh= _open_osfhandle((intptr_t)osfh, 
-                           oflag & (_O_APPEND | _O_RDONLY | _O_TEXT))) == -1)
-  {
-    _dosmaperr(GetLastError());     /* map error */
-    CloseHandle(osfh);
-  }
-
-  return fh;                        /* return handle */
-}
-#endif /* __WIN__ */
 
 
 #ifdef EXTRA_DEBUG

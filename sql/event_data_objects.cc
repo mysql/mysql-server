@@ -1225,7 +1225,9 @@ Event_timed::get_create_event(THD *thd, String *buf)
                                                             expression))
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
-  buf->append(STRING_WITH_LEN("CREATE EVENT "));
+  buf->append(STRING_WITH_LEN("CREATE "));
+  append_definer(thd, buf, &definer_user, &definer_host);
+  buf->append(STRING_WITH_LEN("EVENT "));
   append_identifier(thd, buf, name.str, name.length);
 
   if (expression)

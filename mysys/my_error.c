@@ -22,7 +22,6 @@
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
 
-
 /* Define some external variables for error handling */
 
 /*
@@ -49,11 +48,11 @@
 */
 static struct my_err_head
 {
-  struct my_err_head    *meh_next;      /* chain link */
-  const char            **meh_errmsgs;  /* error messages array */
-  int                   meh_first;      /* error number matching array slot 0 */
-  int                   meh_last;       /* error number matching last slot */
-} my_errmsgs_globerrs = {NULL, globerrs, EE_ERROR_FIRST, EE_ERROR_LAST};
+  struct my_err_head    *meh_next;         /* chain link */
+  const char**          (*get_errmsgs) (); /* returns error message format */
+  int                   meh_first;       /* error number matching array slot 0 */
+  int                   meh_last;          /* error number matching last slot */
+} my_errmsgs_globerrs = {NULL, get_global_errmsgs, EE_ERROR_FIRST, EE_ERROR_LAST};
 
 static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
 
@@ -67,12 +66,9 @@ static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
        MyFlags	Flags
        ...	variable list
 
-  RETURN
-    What (*error_handler_hook)() returns:
-    0   OK
 */
 
-int my_error(int nr, myf MyFlags, ...)
+void my_error(int nr, myf MyFlags, ...)
 {
   const char *format;
   struct my_err_head *meh_p;
@@ -88,15 +84,17 @@ int my_error(int nr, myf MyFlags, ...)
 
   /* get the error message string. Default, if NULL or empty string (""). */
   if (! (format= (meh_p && (nr >= meh_p->meh_first)) ?
-         meh_p->meh_errmsgs[nr - meh_p->meh_first] : NULL) || ! *format)
+                  meh_p->get_errmsgs()[nr - meh_p->meh_first] : NULL) || ! *format)
     (void) my_snprintf (ebuff, sizeof(ebuff), "Unknown error %d", nr);
   else
   {
     va_start(args,MyFlags);
-    (void) my_vsnprintf (ebuff, sizeof(ebuff), format, args);
+    (void) my_vsnprintf_ex(&my_charset_utf8_general_ci, ebuff,
+                           sizeof(ebuff), format, args);
     va_end(args);
   }
-  DBUG_RETURN((*error_handler_hook)(nr, ebuff, MyFlags));
+  (*error_handler_hook)(nr, ebuff, MyFlags);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -111,7 +109,7 @@ int my_error(int nr, myf MyFlags, ...)
       ...	variable list
 */
 
-int my_printf_error(uint error, const char *format, myf MyFlags, ...)
+void my_printf_error(uint error, const char *format, myf MyFlags, ...)
 {
   va_list args;
   char ebuff[ERRMSGSIZE];
@@ -120,9 +118,34 @@ int my_printf_error(uint error, const char *format, myf MyFlags, ...)
 		    error, MyFlags, errno, format));
 
   va_start(args,MyFlags);
-  (void) my_vsnprintf (ebuff, sizeof(ebuff), format, args);
+  (void) my_vsnprintf_ex(&my_charset_utf8_general_ci, ebuff,
+                         sizeof(ebuff), format, args);
   va_end(args);
-  DBUG_RETURN((*error_handler_hook)(error, ebuff, MyFlags));
+  (*error_handler_hook)(error, ebuff, MyFlags);
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Error with va_list
+
+  SYNOPSIS
+    my_printv_error()
+      error	Errno
+      format	Format string
+      MyFlags	Flags
+      ...	variable list
+*/
+
+void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
+{
+  char ebuff[ERRMSGSIZE];
+  DBUG_ENTER("my_printv_error");
+  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s",
+		    error, MyFlags, errno, format));
+
+  (void) my_vsnprintf(ebuff, sizeof(ebuff), format, ap);
+  (*error_handler_hook)(error, ebuff, MyFlags);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -135,9 +158,9 @@ int my_printf_error(uint error, const char *format, myf MyFlags, ...)
       MyFlags	Flags
 */
 
-int my_message(uint error, const char *str, register myf MyFlags)
+void my_message(uint error, const char *str, register myf MyFlags)
 {
-  return (*error_handler_hook)(error, str, MyFlags);
+  (*error_handler_hook)(error, str, MyFlags);
 }
 
 
@@ -163,7 +186,7 @@ int my_message(uint error, const char *str, register myf MyFlags)
     != 0        Error
 */
 
-int my_error_register(const char **errmsgs, int first, int last)
+int my_error_register(const char** (*get_errmsgs) (), int first, int last)
 {
   struct my_err_head *meh_p;
   struct my_err_head **search_meh_pp;
@@ -172,7 +195,7 @@ int my_error_register(const char **errmsgs, int first, int last)
   if (! (meh_p= (struct my_err_head*) my_malloc(sizeof(struct my_err_head),
                                                 MYF(MY_WME))))
     return 1;
-  meh_p->meh_errmsgs= errmsgs;
+  meh_p->get_errmsgs= get_errmsgs;
   meh_p->meh_first= first;
   meh_p->meh_last= last;
 
@@ -243,7 +266,7 @@ const char **my_error_unregister(int first, int last)
   *search_meh_pp= meh_p->meh_next;
 
   /* Save the return value and free the header. */
-  errmsgs= meh_p->meh_errmsgs;
+  errmsgs= meh_p->get_errmsgs();
   my_free((uchar*) meh_p, MYF(0));
   
   return errmsgs;

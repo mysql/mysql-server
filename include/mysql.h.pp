@@ -28,15 +28,15 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused0;
-  my_bool unused;
-  my_bool compress;
   my_bool unused1;
-  unsigned char *query_cache_query;
+  my_bool unused2;
+  my_bool compress;
+  my_bool unused3;
+  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
-  my_bool unused2;
-  my_bool return_errno;
+  my_bool unused4;
+  my_bool unused5;
   char last_error[512];
   char sqlstate[5 +1];
   void *extension;
@@ -277,10 +277,10 @@ struct st_mysql_options {
   unsigned long max_allowed_packet;
   my_bool use_ssl;
   my_bool compress,named_pipe;
-  my_bool rpl_probe;
-  my_bool rpl_parse;
-  my_bool no_master_reads;
-  my_bool separate_thread;
+  my_bool unused1;
+  my_bool unused2;
+  my_bool unused3;
+  my_bool unused4;
   enum mysql_option methods_to_use;
   char *client_ip;
   my_bool secure_auth;
@@ -300,10 +300,6 @@ enum mysql_protocol_type
 {
   MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
   MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
-};
-enum mysql_rpl_type
-{
-  MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 typedef struct character_set
 {
@@ -344,10 +340,8 @@ typedef struct st_mysql
   my_bool free_me;
   my_bool reconnect;
   char scramble[20 +1];
-  my_bool rpl_pivot;
-  struct st_mysql* master, *next_slave;
-  struct st_mysql* last_used_slave;
-  struct st_mysql* last_used_con;
+  my_bool unused1;
+  void *unused2, *unused3, *unused4, *unused5;
   LIST *stmts;
   const struct st_mysql_methods *methods;
   void *thd;
@@ -371,20 +365,6 @@ typedef struct st_mysql_res {
   my_bool unbuffered_fetch_cancelled;
   void *extension;
 } MYSQL_RES;
-typedef struct st_mysql_manager
-{
-  NET net;
-  char *host, *user, *passwd;
-  char *net_buf, *net_buf_pos, *net_data_end;
-  unsigned int port;
-  int cmd_status;
-  int last_errno;
-  int net_buf_size;
-  my_bool free_me;
-  my_bool eof;
-  char last_error[256];
-  void *extension;
-} MYSQL_MANAGER;
 typedef struct st_mysql_parameters
 {
   unsigned long *p_max_allowed_packet;
@@ -437,14 +417,6 @@ int mysql_real_query(MYSQL *mysql, const char *q,
      unsigned long length);
 MYSQL_RES * mysql_store_result(MYSQL *mysql);
 MYSQL_RES * mysql_use_result(MYSQL *mysql);
-my_bool mysql_master_query(MYSQL *mysql, const char *q,
-        unsigned long length);
-my_bool mysql_master_send_query(MYSQL *mysql, const char *q,
-      unsigned long length);
-my_bool mysql_slave_query(MYSQL *mysql, const char *q,
-       unsigned long length);
-my_bool mysql_slave_send_query(MYSQL *mysql, const char *q,
-            unsigned long length);
 void mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
 void
@@ -459,22 +431,6 @@ mysql_set_local_infile_handler(MYSQL *mysql,
                                void *);
 void
 mysql_set_local_infile_default(MYSQL *mysql);
-void mysql_enable_rpl_parse(MYSQL* mysql);
-void mysql_disable_rpl_parse(MYSQL* mysql);
-int mysql_rpl_parse_enabled(MYSQL* mysql);
-void mysql_enable_reads_from_master(MYSQL* mysql);
-void mysql_disable_reads_from_master(MYSQL* mysql);
-my_bool mysql_reads_from_master_enabled(MYSQL* mysql);
-enum mysql_rpl_type mysql_rpl_query_type(const char* q, int len);
-my_bool mysql_rpl_probe(MYSQL* mysql);
-int mysql_set_master(MYSQL* mysql, const char* host,
-      unsigned int port,
-      const char* user,
-      const char* passwd);
-int mysql_add_slave(MYSQL* mysql, const char* host,
-     unsigned int port,
-     const char* user,
-     const char* passwd);
 int mysql_shutdown(MYSQL *mysql,
                                        enum mysql_enum_shutdown_level
                                        shutdown_level);
@@ -521,18 +477,6 @@ void mysql_debug(const char *debug);
 void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);
-MYSQL_MANAGER* mysql_manager_init(MYSQL_MANAGER* con);
-MYSQL_MANAGER* mysql_manager_connect(MYSQL_MANAGER* con,
-           const char* host,
-           const char* user,
-           const char* passwd,
-           unsigned int port);
-void mysql_manager_close(MYSQL_MANAGER* con);
-int mysql_manager_command(MYSQL_MANAGER* con,
-      const char* cmd, int cmd_len);
-int mysql_manager_fetch_line(MYSQL_MANAGER* con,
-        char* res_buf,
-       int res_buf_size);
 my_bool mysql_read_query_result(MYSQL *mysql);
 enum enum_mysql_stmt_state
 {
@@ -616,7 +560,7 @@ typedef struct st_mysql_methods
   MYSQL_RES * (*use_result)(MYSQL *mysql);
   void (*fetch_lengths)(unsigned long *to,
    MYSQL_ROW column, unsigned int field_count);
-  void (*flush_use_result)(MYSQL *mysql);
+  void (*flush_use_result)(MYSQL *mysql, my_bool flush_all_results);
   MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
   my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (*stmt_execute)(MYSQL_STMT *stmt);
@@ -671,4 +615,5 @@ my_bool mysql_rollback(MYSQL * mysql);
 my_bool mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
 my_bool mysql_more_results(MYSQL *mysql);
 int mysql_next_result(MYSQL *mysql);
+int mysql_stmt_next_result(MYSQL_STMT *stmt);
 void mysql_close(MYSQL *sock);

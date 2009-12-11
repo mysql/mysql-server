@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -133,8 +133,8 @@ static int example_init_func(void *p)
 
   example_hton= (handlerton *)p;
   VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
-  (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
-                   (hash_get_key) example_get_key,0,0);
+  (void) my_hash_init(&example_open_tables,system_charset_info,32,0,0,
+                      (my_hash_get_key) example_get_key,0,0);
 
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
@@ -151,7 +151,7 @@ static int example_done_func(void *p)
 
   if (example_open_tables.records)
     error= 1;
-  hash_free(&example_open_tables);
+  my_hash_free(&example_open_tables);
   pthread_mutex_destroy(&example_mutex);
 
   DBUG_RETURN(0);
@@ -175,9 +175,9 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
   pthread_mutex_lock(&example_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(EXAMPLE_SHARE*) hash_search(&example_open_tables,
-                                           (uchar*) table_name,
-                                           length)))
+  if (!(share=(EXAMPLE_SHARE*) my_hash_search(&example_open_tables,
+                                              (uchar*) table_name,
+                                              length)))
   {
     if (!(share=(EXAMPLE_SHARE *)
           my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
@@ -222,7 +222,7 @@ static int free_share(EXAMPLE_SHARE *share)
   pthread_mutex_lock(&example_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&example_open_tables, (uchar*) share);
+    my_hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free(share, MYF(0));
@@ -921,6 +921,24 @@ static struct st_mysql_sys_var* example_system_variables[]= {
   NULL
 };
 
+// this is an example of SHOW_FUNC and of my_snprintf() service
+static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
+                             char *buf)
+{
+  var->type= SHOW_CHAR;
+  var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
+  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
+              "enum_var is %u, ulong_var is %lu, %.6b", // %b is MySQL extension
+              srv_enum_var, srv_ulong_var, "really");
+  return 0;
+}
+
+static struct st_mysql_show_var func_status[]=
+{
+  {"example_func_example",  (char *)show_func_example, SHOW_FUNC},
+  {0,0,SHOW_UNDEF}
+};
+
 mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -932,7 +950,7 @@ mysql_declare_plugin(example)
   example_init_func,                            /* Plugin Init */
   example_done_func,                            /* Plugin Deinit */
   0x0001 /* 0.1 */,
-  NULL,                                         /* status variables */
+  func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
   NULL                                          /* config options */
 }

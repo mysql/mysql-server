@@ -6712,6 +6712,34 @@ static const char hungarian[]=
     "&O < \\u00F6 <<< \\u00D6 << \\u0151 <<< \\u0150"
     "&U < \\u00FC <<< \\u00DC << \\u0171 <<< \\u0170";
 
+/*
+  SCCII Part 1 : Collation Sequence (SLS1134)
+  2006/11/24
+  Harshula Jayasuriya <harshula at gmail dot com>
+  Language Technology Research Lab, University of Colombo / ICTA
+*/
+#if 0
+static const char sinhala[]=
+    "& \\u0D96 < \\u0D82 < \\u0D83"
+    "& \\u0DA5 < \\u0DA4"
+    "& \\u0DD8 < \\u0DF2 < \\u0DDF < \\u0DF3"
+    "& \\u0DDE < \\u0DCA";
+#else
+static const char sinhala[]=
+    "& \\u0D96 < \\u0D82 < \\u0D83 < \\u0D9A < \\u0D9B < \\u0D9C < \\u0D9D"
+              "< \\u0D9E < \\u0D9F < \\u0DA0 < \\u0DA1 < \\u0DA2 < \\u0DA3"
+              "< \\u0DA5 < \\u0DA4 < \\u0DA6"
+              "< \\u0DA7 < \\u0DA8 < \\u0DA9 < \\u0DAA < \\u0DAB < \\u0DAC"
+              "< \\u0DAD < \\u0DAE < \\u0DAF < \\u0DB0 < \\u0DB1"
+              "< \\u0DB3 < \\u0DB4 < \\u0DB5 < \\u0DB6 < \\u0DB7 < \\u0DB8"
+              "< \\u0DB9 < \\u0DBA < \\u0DBB < \\u0DBD < \\u0DC0 < \\u0DC1"
+              "< \\u0DC2 < \\u0DC3 < \\u0DC4 < \\u0DC5 < \\u0DC6"
+              "< \\u0DCF"
+              "< \\u0DD0 < \\u0DD1 < \\u0DD2 < \\u0DD3 < \\u0DD4 < \\u0DD6"
+              "< \\u0DD8 < \\u0DF2 < \\u0DDF < \\u0DF3 < \\u0DD9 < \\u0DDA"
+              "< \\u0DDB < \\u0DDC < \\u0DDD < \\u0DDE < \\u0DCA";
+#endif
+
 
 /*
   Unicode Collation Algorithm:
@@ -8090,7 +8118,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
 CHARSET_INFO my_charset_ucs2_unicode_ci=
 {
     128,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_unicode_ci",	/* name         */
     "",			/* comment      */
@@ -8122,7 +8150,7 @@ CHARSET_INFO my_charset_ucs2_unicode_ci=
 CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
 {
     129,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_icelandic_ci",/* name         */
     "",			/* comment      */
@@ -8154,7 +8182,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
 CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
 {
     130,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_latvian_ci",	/* name         */
     "",			/* comment      */
@@ -8186,7 +8214,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
 CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
 {
     131,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_romanian_ci",	/* name         */
     "",			/* comment      */
@@ -8218,7 +8246,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
 CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
 {
     132,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_slovenian_ci",/* name         */
     "",			/* comment      */
@@ -8250,7 +8278,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
 CHARSET_INFO my_charset_ucs2_polish_uca_ci=
 {
     133,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_polish_ci",	/* name         */
     "",			/* comment      */
@@ -8282,7 +8310,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
 CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
 {
     134,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_estonian_ci",	/* name         */
     "",			/* comment      */
@@ -8314,7 +8342,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
 CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
 {
     135,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_spanish_ci",	/* name         */
     "",			/* comment      */
@@ -8346,7 +8374,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
 CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
 {
     136,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_swedish_ci",	/* name         */
     "",			/* comment      */
@@ -8378,7 +8406,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
 CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
 {
     137,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_turkish_ci",	/* name         */
     "",			/* comment      */
@@ -8410,7 +8438,7 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
 CHARSET_INFO my_charset_ucs2_czech_uca_ci=
 {
     138,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_czech_ci",	/* name         */
     "",			/* comment      */
@@ -8443,7 +8471,7 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci=
 CHARSET_INFO my_charset_ucs2_danish_uca_ci=
 {
     139,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_danish_ci",	/* name         */
     "",			/* comment      */
@@ -8475,7 +8503,7 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci=
 CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
 {
     140,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_lithuanian_ci",/* name         */
     "",			/* comment      */
@@ -8507,7 +8535,7 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
 CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
 {
     141,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_slovak_ci",	/* name         */
     "",			/* comment      */
@@ -8539,7 +8567,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
 CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
 {
     142,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_spanish2_ci",	/* name         */
     "",			/* comment      */
@@ -8572,7 +8600,7 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
 CHARSET_INFO my_charset_ucs2_roman_uca_ci=
 {
     143,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_roman_ci",	/* name         */
     "",			/* comment      */
@@ -8605,7 +8633,7 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
 CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 {
     144,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_persian_ci",	/* name         */
     "",			/* comment      */
@@ -8638,7 +8666,7 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 {
     145,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_esperanto_ci",/* name         */
     "",			/* comment      */
@@ -8671,7 +8699,7 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
 {
     146,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",		/* cs name    */
     "ucs2_hungarian_ci",/* name         */
     "",			/* comment      */
@@ -8696,6 +8724,39 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
+CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
+{
+    147,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",              /* csname    */
+    "ucs2_sinhala_ci",   /* name         */
+    "",                  /* comment      */
+    sinhala,             /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_uca_handler
 };
@@ -8751,7 +8812,7 @@ extern MY_CHARSET_HANDLER my_charset_utf8_handler;
 CHARSET_INFO my_charset_utf8_unicode_ci=
 {
     192,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_unicode_ci",	/* name         */
     "",			/* comment      */
@@ -8784,7 +8845,7 @@ CHARSET_INFO my_charset_utf8_unicode_ci=
 CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
 {
     193,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_icelandic_ci",/* name         */
     "",			/* comment      */
@@ -8816,7 +8877,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
 CHARSET_INFO my_charset_utf8_latvian_uca_ci=
 {
     194,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_latvian_ci",	/* name         */
     "",			/* comment      */
@@ -8848,7 +8909,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci=
 CHARSET_INFO my_charset_utf8_romanian_uca_ci=
 {
     195,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_romanian_ci",	/* name         */
     "",			/* comment      */
@@ -8880,7 +8941,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci=
 CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
 {
     196,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_slovenian_ci",/* name         */
     "",			/* comment      */
@@ -8912,7 +8973,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
 CHARSET_INFO my_charset_utf8_polish_uca_ci=
 {
     197,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_polish_ci",	/* name         */
     "",			/* comment      */
@@ -8944,7 +9005,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci=
 CHARSET_INFO my_charset_utf8_estonian_uca_ci=
 {
     198,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_estonian_ci",	/* name         */
     "",			/* comment      */
@@ -8976,7 +9037,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci=
 CHARSET_INFO my_charset_utf8_spanish_uca_ci=
 {
     199,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_spanish_ci",	/* name         */
     "",			/* comment      */
@@ -9008,7 +9069,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci=
 CHARSET_INFO my_charset_utf8_swedish_uca_ci=
 {
     200,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_swedish_ci",	/* name         */
     "",			/* comment      */
@@ -9040,7 +9101,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci=
 CHARSET_INFO my_charset_utf8_turkish_uca_ci=
 {
     201,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_turkish_ci",	/* name         */
     "",			/* comment      */
@@ -9072,7 +9133,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci=
 CHARSET_INFO my_charset_utf8_czech_uca_ci=
 {
     202,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_czech_ci",	/* name         */
     "",			/* comment      */
@@ -9105,7 +9166,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci=
 CHARSET_INFO my_charset_utf8_danish_uca_ci=
 {
     203,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_danish_ci",	/* name         */
     "",			/* comment      */
@@ -9137,7 +9198,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci=
 CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
 {
     204,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_lithuanian_ci",/* name         */
     "",			/* comment      */
@@ -9169,7 +9230,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
 CHARSET_INFO my_charset_utf8_slovak_uca_ci=
 {
     205,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_slovak_ci",	/* name         */
     "",			/* comment      */
@@ -9201,7 +9262,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
 CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
 {
     206,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_spanish2_ci",	/* name         */
     "",			/* comment      */
@@ -9233,7 +9294,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
 CHARSET_INFO my_charset_utf8_roman_uca_ci=
 {
     207,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_roman_ci",	/* name         */
     "",			/* comment      */
@@ -9265,7 +9326,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
 CHARSET_INFO my_charset_utf8_persian_uca_ci=
 {
     208,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_persian_ci",	/* name         */
     "",			/* comment      */
@@ -9297,7 +9358,7 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
 CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
 {
     209,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_esperanto_ci",/* name         */
     "",			/* comment      */
@@ -9329,7 +9390,7 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
 CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
 {
     210,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "utf8",		/* cs name    */
     "utf8_hungarian_ci",/* name         */
     "",			/* comment      */
@@ -9354,6 +9415,38 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
+{
+    211,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",              /* cs name      */
+    "utf8_sinhala_ci",   /* name         */
+    "",                  /* comment      */
+    sinhala,             /* tailoring    */
+    ctype_utf8,          /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    3,                   /* mbminlen     */
+    3,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler
 };

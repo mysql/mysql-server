@@ -1,3 +1,6 @@
+#ifndef SQL_ANALYSE_INCLUDED
+#define SQL_ANALYSE_INCLUDED
+
 /* Copyright (C) 2000-2003, 2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -355,3 +358,5 @@ public:
 				      select_result *result,
 				      List<Item> &field_list);
 };
+
+#endif /* SQL_ANALYSE_INCLUDED */

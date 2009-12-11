@@ -178,7 +178,7 @@ SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
   WHERE TRIGGER_SCHEMA="#mysql50#a@b" ORDER BY trigger_name;
 
 --echo mysqlcheck --fix-db-names --fix-table-names --all-databases
---exec $MYSQL_CHECK --fix-db-names --fix-table-names --all-databases
+--exec $MYSQL_CHECK --default-character-set=utf8 --fix-db-names --fix-table-names --all-databases
 
 USE `a@b`;
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS

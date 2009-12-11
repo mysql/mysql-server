@@ -20,9 +20,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 # Currently does not work with DBUG, there are missing symbols reported.
-IF(WIN32)
-  ADD_DEFINITIONS(-DUSE_TLS)
-ENDIF(WIN32)
 
 ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
 

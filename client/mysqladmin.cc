@@ -30,7 +30,7 @@
 #define MAX_TRUNC_LENGTH 3
 
 char *host= NULL, *user= 0, *opt_password= 0,
-     *default_charset= NULL;
+     *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
@@ -348,8 +348,7 @@ int main(int argc,char *argv[])
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (default_charset)
-    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   error_flags= (myf)(opt_nobeep ? 0 : ME_BELL);
 
   if (sql_connect(&mysql, option_wait))
