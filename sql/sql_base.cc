@@ -2118,13 +2118,15 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function)
 {
   enum thr_lock_type old_lock_type;
-
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  (void) table->file->extra(function);
+  /* Ensure no one can reopen table before it's removed */
+  pthread_mutex_lock(&LOCK_open);
+  table->s->version= 0;
+  pthread_mutex_unlock(&LOCK_open);
 
   old_lock_type= table->reginfo.lock_type;
   mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
@@ -2139,6 +2141,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
                    table->s->db.str, table->s->table_name.str);
   pthread_mutex_unlock(&LOCK_open);
+  /* extra() call must come only after all instances above are closed */
+  (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
 }
 
@@ -2165,6 +2169,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name)
 {
+  DBUG_ENTER("drop_open_table");
   if (table->s->tmp_table)
     close_temporary_table(thd, table, 1, 1);
   else
@@ -2176,10 +2181,12 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     table->s->version= 0;
 
     pthread_mutex_lock(&LOCK_open);
+    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
     quick_rm_table(table_type, db_name, table_name, 0);
     pthread_mutex_unlock(&LOCK_open);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3141,7 +3148,7 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
                      the locked tables list. Passing a TABLE_LIST
                      instance that is not part of locked tables
                      list will lead to a crash.
-  @parma  remove_from_locked_tables
+  @param  remove_from_locked_tables
                       TRUE if the table is removed from the list
                       permanently.
 
@@ -3443,7 +3450,6 @@ check_and_update_table_version(THD *thd,
   }
 
   DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
-
   return FALSE;
 }
 
@@ -4119,6 +4125,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   MEM_ROOT new_frm_mem;
   bool has_prelocking_list= thd->lex->requires_prelocking();
   DBUG_ENTER("open_tables");
+
   /*
     Close HANDLER tables which are marked for flush or against which there
     are pending exclusive metadata locks. Note that we do this not to avoid
