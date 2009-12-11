@@ -8324,8 +8324,7 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     {
       if ((share= get_cached_table_share(mdl_request->key.db_name(),
                                          mdl_request->key.name())) &&
-          share->version != refresh_version &&
-          !share->used_tables.is_empty())
+          share->version != refresh_version)
         break;
     }
     if (!mdl_request)
