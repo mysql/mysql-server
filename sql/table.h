@@ -294,6 +294,8 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db,
 
 struct TABLE_share;
 
+extern ulong refresh_version;
+
 /*
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -503,6 +505,14 @@ struct TABLE_SHARE
     return table_map_id;
   }
 
+
+  /*
+    Must all TABLEs be reopened?
+  */
+  inline bool needs_reopen()
+  {
+    return version != refresh_version;
+  }
   /**
     Convert unrelated members of TABLE_SHARE to one enum
     representing its type.
@@ -604,8 +614,6 @@ struct TABLE_SHARE
 
 };
 
-
-extern ulong refresh_version;
 
 /* Information for one open table */
 enum index_hint_type
@@ -804,6 +812,7 @@ public:
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  my_bool m_needs_reopen;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -853,7 +862,7 @@ public:
     Is this instance of the table should be reopen?
   */
   inline bool needs_reopen()
-  { return s->version != refresh_version; }
+  { return !db_stat || m_needs_reopen; }
 };
 
 
