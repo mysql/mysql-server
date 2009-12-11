@@ -148,8 +148,6 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
-#define pthread_yield() SwitchToThread()
-
 /* per the platform's documentation */
 #define pthread_yield() Sleep(0)
 
