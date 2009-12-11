@@ -1877,7 +1877,8 @@ sub environment_setup {
 
     my ($lib_semisync_master_plugin) = find_plugin("semisync_master", "plugin/semisync");
     my ($lib_semisync_slave_plugin) = find_plugin("semisync_slave", "plugin/semisync");
-  
+
+
     if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
     {
       $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);

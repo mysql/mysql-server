@@ -880,6 +880,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               bool no_error);
 bool check_host_name(LEX_STRING *str);
 
+CHARSET_INFO *merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
@@ -988,8 +990,8 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -2472,6 +2474,17 @@ inline void kill_delayed_threads(void) {}
 #define IS_FILES_CHECKSUM            35
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
+
+#define IS_TABLESPACES_TABLESPACE_NAME    0
+#define IS_TABLESPACES_ENGINE             1
+#define IS_TABLESPACES_TABLESPACE_TYPE    2
+#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
+#define IS_TABLESPACES_EXTENT_SIZE        4
+#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
+#define IS_TABLESPACES_MAXIMUM_SIZE       6
+#define IS_TABLESPACES_NODEGROUP_ID       7
+#define IS_TABLESPACES_TABLESPACE_COMMENT 8
+
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 

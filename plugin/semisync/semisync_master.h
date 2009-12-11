@@ -23,31 +23,26 @@
 /**
    This class manages memory for active transaction list.
 
-   We record each active transaction with a TranxNode.  Because each
-   session can only have only one open transaction, the total active
-   transaction nodes can not exceed the maximum sessions.  Currently
-   in MySQL, sessions are the same as connections.
+   We record each active transaction with a TranxNode, each session
+   can have only one open transaction. Because of EVENT, the total
+   active transaction nodes can exceed the maximum allowed
+   connections.
 */
 class ActiveTranx
   :public Trace {
 private:
   struct TranxNode {
-    char             *log_name_;
+    char             log_name_[FN_REFLEN];
     my_off_t          log_pos_;
     struct TranxNode *next_;            /* the next node in the sorted list */
     struct TranxNode *hash_next_;    /* the next node during hash collision */
   };
-
-  /* The following data structure maintains an active transaction list. */
-  TranxNode       *node_array_;
-  TranxNode       *free_pool_;
 
   /* These two record the active transaction list in sort order. */
   TranxNode       *trx_front_, *trx_rear_;
 
   TranxNode      **trx_htb_;        /* A hash table on active transactions. */
 
-  int              num_transactions_;               /* maximum transactions */
   int              num_entries_;              /* maximum hash table entries */
   pthread_mutex_t *lock_;                                     /* mutex lock */
 
@@ -74,8 +69,7 @@ private:
   }
 
 public:
-  ActiveTranx(int max_connections, pthread_mutex_t *lock,
-	      unsigned long trace_level);
+  ActiveTranx(pthread_mutex_t *lock, unsigned long trace_level);
   ~ActiveTranx();
 
   /* Insert an active transaction node with the specified position.
@@ -176,11 +170,6 @@ class ReplSemiSyncMaster
   unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
 
   bool            state_;                    /* whether semi-sync is switched */
-
-  /* The number of maximum active transactions.  This should be the same as
-   * maximum connections because MySQL does not do connection sharing now.
-   */
-  int             max_transactions_;
 
   void lock();
   void unlock();

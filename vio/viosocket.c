@@ -800,6 +800,7 @@ int vio_close_pipe(Vio * vio)
   int r;
   DBUG_ENTER("vio_close_pipe");
 
+  CancelIo(vio->hPipe);
   CloseHandle(vio->pipe_overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
   r= CloseHandle(vio->hPipe);
