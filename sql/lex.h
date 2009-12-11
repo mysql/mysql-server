@@ -1,3 +1,6 @@
+#ifndef LEX_INCLUDED
+#define LEX_INCLUDED
+
 /* Copyright (C) 2000-2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -96,6 +99,7 @@ static SYMBOL symbols[] = {
   { "CASCADE",		SYM(CASCADE)},
   { "CASCADED",         SYM(CASCADED)},
   { "CASE",		SYM(CASE_SYM)},
+  { "CATALOG_NAME",     SYM(CATALOG_NAME_SYM)},
   { "CHAIN",		SYM(CHAIN_SYM)},
   { "CHANGE",		SYM(CHANGE)},
   { "CHANGED",		SYM(CHANGED)},
@@ -105,6 +109,7 @@ static SYMBOL symbols[] = {
   { "CHECK",		SYM(CHECK_SYM)},
   { "CHECKSUM",		SYM(CHECKSUM_SYM)},
   { "CIPHER",		SYM(CIPHER_SYM)},
+  { "CLASS_ORIGIN",     SYM(CLASS_ORIGIN_SYM)},
   { "CLIENT",		SYM(CLIENT_SYM)},
   { "CLOSE",		SYM(CLOSE_SYM)},
   { "COALESCE",		SYM(COALESCE)},
@@ -112,6 +117,7 @@ static SYMBOL symbols[] = {
   { "COLLATE",		SYM(COLLATE_SYM)},
   { "COLLATION",	SYM(COLLATION_SYM)},
   { "COLUMN",		SYM(COLUMN_SYM)},
+  { "COLUMN_NAME",      SYM(COLUMN_NAME_SYM)},
   { "COLUMNS",		SYM(COLUMNS)},
   { "COMMENT",		SYM(COMMENT_SYM)},
   { "COMMIT",		SYM(COMMIT_SYM)},
@@ -124,6 +130,9 @@ static SYMBOL symbols[] = {
   { "CONNECTION",       SYM(CONNECTION_SYM)},
   { "CONSISTENT",	SYM(CONSISTENT_SYM)},
   { "CONSTRAINT",	SYM(CONSTRAINT)},
+  { "CONSTRAINT_CATALOG", SYM(CONSTRAINT_CATALOG_SYM)},
+  { "CONSTRAINT_NAME",  SYM(CONSTRAINT_NAME_SYM)},
+  { "CONSTRAINT_SCHEMA", SYM(CONSTRAINT_SCHEMA_SYM)},
   { "CONTAINS",         SYM(CONTAINS_SYM)},
   { "CONTEXT",    SYM(CONTEXT_SYM)},
   { "CONTINUE",         SYM(CONTINUE_SYM)},
@@ -138,6 +147,7 @@ static SYMBOL symbols[] = {
   { "CURRENT_TIMESTAMP", SYM(NOW_SYM)},
   { "CURRENT_USER",	SYM(CURRENT_USER)},
   { "CURSOR",           SYM(CURSOR_SYM)},
+  { "CURSOR_NAME",      SYM(CURSOR_NAME_SYM)},
   { "DATA",		SYM(DATA_SYM)},
   { "DATABASE",		SYM(DATABASE)},
   { "DATABASES",	SYM(DATABASES)},
@@ -241,6 +251,7 @@ static SYMBOL symbols[] = {
   { "IDENTIFIED",	SYM(IDENTIFIED_SYM)},
   { "IF",		SYM(IF)},
   { "IGNORE",		SYM(IGNORE_SYM)},
+  { "IGNORE_SERVER_IDS", SYM(IGNORE_SERVER_IDS_SYM)},
   { "IMPORT",		SYM(IMPORT)},
   { "IN",		SYM(IN_SYM)},
   { "INDEX",		SYM(INDEX_SYM)},
@@ -320,6 +331,7 @@ static SYMBOL symbols[] = {
   { "MASTER_SSL_KEY",   SYM(MASTER_SSL_KEY_SYM)},
   { "MASTER_SSL_VERIFY_SERVER_CERT", SYM(MASTER_SSL_VERIFY_SERVER_CERT_SYM)},
   { "MASTER_USER",           SYM(MASTER_USER_SYM)},
+  { "MASTER_HEARTBEAT_PERIOD", SYM(MASTER_HEARTBEAT_PERIOD_SYM)},
   { "MATCH",		SYM(MATCH)},
   { "MAX_CONNECTIONS_PER_HOUR", SYM(MAX_CONNECTIONS_PER_HOUR)},
   { "MAX_QUERIES_PER_HOUR", SYM(MAX_QUERIES_PER_HOUR)},
@@ -334,6 +346,7 @@ static SYMBOL symbols[] = {
   { "MEDIUMTEXT",	SYM(MEDIUMTEXT)},
   { "MEMORY",		SYM(MEMORY_SYM)},
   { "MERGE",		SYM(MERGE_SYM)},
+  { "MESSAGE_TEXT",     SYM(MESSAGE_TEXT_SYM)},
   { "MICROSECOND",	SYM(MICROSECOND_SYM)},
   { "MIDDLEINT",	SYM(MEDIUMINT)},	/* For powerbuilder */
   { "MIGRATE",          SYM(MIGRATE_SYM)},
@@ -350,6 +363,7 @@ static SYMBOL symbols[] = {
   { "MULTIPOINT",	SYM(MULTIPOINT)},
   { "MULTIPOLYGON",	SYM(MULTIPOLYGON)},
   { "MUTEX",  SYM(MUTEX_SYM)},
+  { "MYSQL_ERRNO",      SYM(MYSQL_ERRNO_SYM)},
   { "NAME",             SYM(NAME_SYM)},
   { "NAMES",		SYM(NAMES_SYM)},
   { "NATIONAL",		SYM(NATIONAL_SYM)},
@@ -426,6 +440,7 @@ static SYMBOL symbols[] = {
   { "REDUNDANT",	SYM(REDUNDANT_SYM)},
   { "REFERENCES",	SYM(REFERENCES)},
   { "REGEXP",		SYM(REGEXP)},
+  { "RELAYLOG",         SYM(RELAYLOG_SYM)},
   { "RELAY_LOG_FILE",   SYM(RELAY_LOG_FILE_SYM)},
   { "RELAY_LOG_POS",    SYM(RELAY_LOG_POS_SYM)},
   { "RELAY_THREAD",     SYM(RELAY_THREAD)},
@@ -441,6 +456,7 @@ static SYMBOL symbols[] = {
   { "REPEAT",           SYM(REPEAT_SYM)},
   { "REQUIRE",	        SYM(REQUIRE_SYM)},
   { "RESET",		SYM(RESET_SYM)},
+  { "RESIGNAL",         SYM(RESIGNAL_SYM)},
   { "RESTORE",		SYM(RESTORE_SYM)},
   { "RESTRICT",		SYM(RESTRICT)},
   { "RESUME",           SYM(RESUME_SYM)},
@@ -459,6 +475,7 @@ static SYMBOL symbols[] = {
   { "SAVEPOINT",	SYM(SAVEPOINT_SYM)},
   { "SCHEDULE",		SYM(SCHEDULE_SYM)},
   { "SCHEMA",		SYM(DATABASE)},
+  { "SCHEMA_NAME",      SYM(SCHEMA_NAME_SYM)},
   { "SCHEMAS",          SYM(DATABASES)},
   { "SECOND",		SYM(SECOND_SYM)},
   { "SECOND_MICROSECOND", SYM(SECOND_MICROSECOND_SYM)},
@@ -474,6 +491,7 @@ static SYMBOL symbols[] = {
   { "SHARE",		SYM(SHARE_SYM)},
   { "SHOW",		SYM(SHOW)},
   { "SHUTDOWN",		SYM(SHUTDOWN)},
+  { "SIGNAL",           SYM(SIGNAL_SYM)},
   { "SIGNED",		SYM(SIGNED_SYM)},
   { "SIMPLE",		SYM(SIMPLE_SYM)},
   { "SLAVE",            SYM(SLAVE)},
@@ -515,6 +533,7 @@ static SYMBOL symbols[] = {
   { "STORAGE",		SYM(STORAGE_SYM)},
   { "STRAIGHT_JOIN",	SYM(STRAIGHT_JOIN)},
   { "STRING",		SYM(STRING_SYM)},
+  { "SUBCLASS_ORIGIN",  SYM(SUBCLASS_ORIGIN_SYM)},
   { "SUBJECT",		SYM(SUBJECT_SYM)},
   { "SUBPARTITION",     SYM(SUBPARTITION_SYM)},
   { "SUBPARTITIONS",    SYM(SUBPARTITIONS_SYM)},
@@ -523,6 +542,7 @@ static SYMBOL symbols[] = {
   { "SWAPS",      SYM(SWAPS_SYM)},
   { "SWITCHES",   SYM(SWITCHES_SYM)},
   { "TABLE",		SYM(TABLE_SYM)},
+  { "TABLE_NAME",       SYM(TABLE_NAME_SYM)},
   { "TABLES",		SYM(TABLES)},
   { "TABLESPACE",	        SYM(TABLESPACE)},
   { "TABLE_CHECKSUM",	SYM(TABLE_CHECKSUM_SYM)},
@@ -593,6 +613,7 @@ static SYMBOL symbols[] = {
   { "X509",		SYM(X509_SYM)},
   { "XOR",		SYM(XOR)},
   { "XA",               SYM(XA_SYM)},
+  { "XML",              SYM(XML_SYM)}, /* LOAD XML Arnold/Erik */
   { "YEAR",		SYM(YEAR_SYM)},
   { "YEAR_MONTH",	SYM(YEAR_MONTH_SYM)},
   { "ZEROFILL",		SYM(ZEROFILL)},
@@ -634,3 +655,5 @@ static SYMBOL sql_functions[] = {
   { "VAR_POP",		SYM(VARIANCE_SYM)},
   { "VAR_SAMP",		SYM(VAR_SAMP_SYM)},
 };
+
+#endif /* LEX_INCLUDED */

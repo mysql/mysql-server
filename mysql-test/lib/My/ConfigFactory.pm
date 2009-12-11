@@ -40,7 +40,7 @@ sub fix_charset_dir {
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_basedir($group),
-		     \@share_locations, "english");
+		     \@share_locations);
 }
 
 sub fix_datadir {
@@ -142,8 +142,9 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  my $basedir= $self->get_basedir($group);
-  return "$basedir/mysql-test/std_data";
+  return my_find_dir($self->get_basedir($group),
+		     ["share/mysql-test", "mysql-test"],
+		     "std_data");
 }
 
 sub ssl_supported {
@@ -198,7 +199,7 @@ my @mysqld_rules=
  { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
- { 'language' => \&fix_language },
+ { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
@@ -357,11 +358,14 @@ sub post_check_client_group {
   
   if (IS_WINDOWS)
   {
-    # Shared memory base may or may not be defined (e.g not defined in embedded)
-    my $shm = $group_to_copy_from->option("shared-memory-base-name");
-    if (defined $shm)
+    if (! $self->{ARGS}->{embedded})
     {
-      $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
+      # Shared memory base may or may not be defined (e.g not defined in embedded)
+      my $shm = $group_to_copy_from->option("shared-memory-base-name");
+      if (defined $shm)
+      {
+        $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
+      }
     }
   }
 }

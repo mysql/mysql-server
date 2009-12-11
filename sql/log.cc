@@ -33,11 +33,12 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-#ifdef __NT__
+#ifdef _WIN32
 #include "message.h"
 #endif
 
 #include <mysql/plugin.h>
+#include "rpl_handler.h"
 
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
@@ -49,8 +50,7 @@
 
 LOGGER logger;
 
-MYSQL_BIN_LOG mysql_bin_log;
-ulong sync_binlog_counter= 0;
+MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
@@ -80,22 +80,27 @@ public:
 
   virtual ~Silence_log_table_errors() {}
 
-  virtual bool handle_error(uint sql_errno, const char *message,
-                            MYSQL_ERROR::enum_warning_level level,
-                            THD *thd);
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sql_state,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
   const char *message() const { return m_message; }
 };
 
 bool
-Silence_log_table_errors::handle_error(uint /* sql_errno */,
-                                       const char *message_arg,
-                                       MYSQL_ERROR::enum_warning_level /* level */,
-                                       THD * /* thd */)
+Silence_log_table_errors::handle_condition(THD *,
+                                           uint,
+                                           const char*,
+                                           MYSQL_ERROR::enum_warning_level,
+                                           const char* msg,
+                                           MYSQL_ERROR ** cond_hdl)
 {
-  strmake(m_message, message_arg, sizeof(m_message)-1);
+  *cond_hdl= NULL;
+  strmake(m_message, msg, sizeof(m_message)-1);
   return TRUE;
 }
-
 
 sql_print_message_func sql_print_message_handlers[3] =
 {
@@ -105,9 +110,16 @@ sql_print_message_func sql_print_message_handlers[3] =
 };
 
 
+/**
+  Create the name of the default general log file
+  
+  @param[IN] buff    Location for building new string.
+  @param[IN] log_ext The extension for the file (e.g .log)
+  @returns Pointer to a new string containing the name
+*/
 char *make_default_log_name(char *buff,const char* log_ext)
 {
-  strmake(buff, pidfile_name, FN_REFLEN-5);
+  strmake(buff, default_logfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
@@ -964,6 +976,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   uint user_host_len= 0;
   ulonglong query_utime, lock_utime;
 
+  DBUG_ASSERT(thd->enable_slow_log);
   /*
     Print the message to the buffer if we have slow log enabled
   */
@@ -1670,7 +1683,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   if (!thd->is_error())
     DBUG_RETURN(checked);
 
-  switch (thd->main_da.sql_errno())
+  switch (thd->stmt_da->sql_errno())
   {
     case ER_TRANS_CACHE_FULL:
     case ER_ERROR_ON_WRITE:
@@ -1798,7 +1811,7 @@ err:
   DBUG_RETURN(-1);
 }
 
-#ifdef __NT__
+#ifdef _WIN32
 static int eventSource = 0;
 
 static void setup_windows_event_source()
@@ -1833,7 +1846,7 @@ static void setup_windows_event_source()
   RegCloseKey(hRegKey);
 }
 
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 /**
@@ -1964,7 +1977,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif __NT__
+#elif _WIN32
 			"started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -2415,10 +2428,11 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 
 
-MYSQL_BIN_LOG::MYSQL_BIN_LOG()
+MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
-   is_relay_log(0),
+   sync_period_ptr(sync_period),
+   is_relay_log(0), signal_cnt(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
@@ -2926,7 +2940,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       }
       else
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_BINLOG_PURGE_FATAL_ERR,
                             "a problem with deleting %s; "
                             "consider examining correspondence "
@@ -2957,7 +2971,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     }
     else
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_BINLOG_PURGE_FATAL_ERR,
                           "a problem with deleting %s; "
                           "consider examining correspondence "
@@ -3288,7 +3302,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -3334,7 +3348,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         {
           if (thd)
           {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_BINLOG_PURGE_FATAL_ERR,
                                 "a problem with deleting %s; "
                                 "consider examining correspondence "
@@ -3433,7 +3447,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -3650,6 +3664,8 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
   }
   bytes_written+= ev->data_written;
   DBUG_PRINT("info",("max_size: %lu",max_size));
+  if (flush_and_sync(0))
+    goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
@@ -3680,6 +3696,8 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
     bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
+  if (flush_and_sync(0))
+    goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
@@ -3689,17 +3707,21 @@ err:
   DBUG_RETURN(error);
 }
 
-
-bool MYSQL_BIN_LOG::flush_and_sync()
+bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
 {
   int err=0, fd=log_file.file;
+  if (synced)
+    *synced= 0;
   safe_mutex_assert_owner(&LOCK_log);
   if (flush_io_cache(&log_file))
     return 1;
-  if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
+  uint sync_period= get_sync_period();
+  if (sync_period && ++sync_counter >= sync_period)
   {
-    sync_binlog_counter= 0;
+    sync_counter= 0;
     err=my_sync(fd, MYF(MY_WME));
+    if (synced)
+      *synced= 1;
   }
   return err;
 }
@@ -3990,7 +4012,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
     if (file == &log_file)
     {
-      error= flush_and_sync();
+      error= flush_and_sync(0);
       if (!error)
       {
         signal_update();
@@ -4176,8 +4198,16 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_and_sync())
+      bool synced= 0;
+      if (flush_and_sync(&synced))
 	goto err;
+
+      if (RUN_HOOK(binlog_storage, after_flush,
+                   (thd, log_file_name, file->pos_in_file, synced))) {
+        sql_print_error("Failed to run 'after_flush' hooks");
+        goto err;
+      }
+
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
@@ -4432,7 +4462,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   DBUG_ASSERT(carry == 0);
 
   if (sync_log)
-    flush_and_sync();
+    return flush_and_sync(0);
 
   return 0;                                     // All OK
 }
@@ -4446,9 +4476,9 @@ int query_error_code(THD *thd, bool not_killed)
   
   if (not_killed)
   {
-    error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+    error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
 
-    /* thd->main_da.sql_errno() might be ER_SERVER_SHUTDOWN or
+    /* thd->stmt_da->sql_errno() might be ER_SERVER_SHUTDOWN or
        ER_QUERY_INTERRUPTED, So here we need to make sure that error
        is not set to these errors when specified not_killed by the
        caller.
@@ -4479,7 +4509,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   ev.write(&log_file);
   if (lock)
   {
-    if (!error && !(error= flush_and_sync()))
+    if (!error && !(error= flush_and_sync(0)))
     {
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4567,7 +4597,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if (incident && write_incident(thd, FALSE))
         goto err;
 
-      if (flush_and_sync())
+      bool synced= 0;
+      if (flush_and_sync(&synced))
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
       if (cache->error)				// Error on read
@@ -4576,6 +4607,15 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
         write_error=1;				// Don't give more errors
         goto err;
       }
+
+      if (RUN_HOOK(binlog_storage, after_flush,
+                   (thd, log_file_name, log_file.pos_in_file, synced)))
+      {
+        sql_print_error("Failed to run 'after_flush' hooks");
+        write_error=1;
+        goto err;
+      }
+
       signal_update();
     }
 
@@ -4612,12 +4652,9 @@ err:
 
 
 /**
-  Wait until we get a signal that the binary log has been updated.
+  Wait until we get a signal that the relay log has been updated.
 
   @param thd		Thread variable
-  @param is_slave      If 0, the caller is the Binlog_dump thread from master;
-                       if 1, the caller is the SQL thread from the slave. This
-                       influences only thd->proc_info.
 
   @note
     One must have a lock on LOCK_log before calling this function.
@@ -4625,20 +4662,51 @@ err:
     THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_BIN_LOG::wait_for_update(THD* thd, bool is_slave)
+void MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd)
 {
   const char *old_msg;
-  DBUG_ENTER("wait_for_update");
+  DBUG_ENTER("wait_for_update_relay_log");
 
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           is_slave ?
-                           "Has read all relay log; waiting for the slave I/O "
-                           "thread to update it" :
-                           "Has sent all binlog to slave; waiting for binlog "
-                           "to be updated");
+                           "Slave has read all relay log; " 
+                           "waiting for the slave I/O "
+                           "thread to update it" );
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
   DBUG_VOID_RETURN;
+}
+
+/**
+  Wait until we get a signal that the binary log has been updated.
+  Applies to master only.
+     
+  NOTES
+  @param[in] thd        a THD struct
+  @param[in] timeout    a pointer to a timespec;
+                        NULL means to wait w/o timeout.
+  @retval    0          if got signalled on update
+  @retval    non-0      if wait timeout elapsed
+  @note
+    LOCK_log must be taken before calling this function.
+    LOCK_log is being released while the thread is waiting.
+    LOCK_log is released by the caller.
+*/
+
+int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
+                                           const struct timespec *timeout)
+{
+  int ret= 0;
+  const char* old_msg = thd->proc_info;
+  DBUG_ENTER("wait_for_update_bin_log");
+  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
+                           "Master has sent all binlog to slave; "
+                           "waiting for binlog to be updated");
+  if (!timeout)
+    pthread_cond_wait(&update_cond, &LOCK_log);
+  else
+    ret= pthread_cond_timedwait(&update_cond, &LOCK_log,
+                                const_cast<struct timespec *>(timeout));
+  DBUG_RETURN(ret);
 }
 
 
@@ -4853,11 +4921,12 @@ bool flush_error_log()
 void MYSQL_BIN_LOG::signal_update()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+  signal_cnt++;
   pthread_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
 
-#ifdef __NT__
+#ifdef _WIN32
 static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
                                         size_t length, size_t buffLen)
 {
@@ -4890,7 +4959,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 
   DBUG_VOID_RETURN;
 }
-#endif /* __NT__ */
+#endif /* _WIN32 */
 
 
 /**
@@ -4952,7 +5021,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   length= my_vsnprintf(buff, sizeof(buff), format, args);
   print_buffer_to_file(level, buff);
 
-#ifdef __NT__
+#ifdef _WIN32
   print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
 
@@ -5432,8 +5501,8 @@ int TC_LOG_MMAP::recover()
     goto err1;
   }
 
-  if (hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
-                sizeof(my_xid), 0, 0, MYF(0)))
+  if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
+                   sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   for ( ; p < end_p ; p++)
@@ -5446,12 +5515,12 @@ int TC_LOG_MMAP::recover()
   if (ha_recover(&xids))
     goto err2;
 
-  hash_free(&xids);
+  my_hash_free(&xids);
   bzero(data, (size_t)file_length);
   return 0;
 
 err2:
-  hash_free(&xids);
+  my_hash_free(&xids);
 err1:
   sql_print_error("Crash recovery failed. Either correct the problem "
                   "(if it's, for example, out of memory error) and restart, "
@@ -5635,8 +5704,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
   MEM_ROOT mem_root;
 
   if (! fdle->is_valid() ||
-      hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                sizeof(my_xid), 0, 0, MYF(0)))
+      my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
+                   sizeof(my_xid), 0, 0, MYF(0)))
     goto err1;
 
   init_alloc_root(&mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
@@ -5660,12 +5729,12 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     goto err2;
 
   free_root(&mem_root, MYF(0));
-  hash_free(&xids);
+  my_hash_free(&xids);
   return 0;
 
 err2:
   free_root(&mem_root, MYF(0));
-  hash_free(&xids);
+  my_hash_free(&xids);
 err1:
   sql_print_error("Crash recovery failed. Either correct the problem "
                   "(if it's, for example, out of memory error) and restart, "

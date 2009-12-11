@@ -251,13 +251,13 @@ insert t1 values ('cccc', 'tttt'),
 (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
 (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
 insert t1 (c) values ('cc22');
-ERROR 23000: Duplicate entry 'cc22' for key 'c'
+ERROR 23000: Duplicate entry 'cc' for key 'c'
 insert t1 (t) values ('ttt22');
-ERROR 23000: Duplicate entry 'ttt22' for key 't'
+ERROR 23000: Duplicate entry 'ttt' for key 't'
 insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry 'б!#"�' for key 'c'
+ERROR 23000: Duplicate entry '\0431!' for key 'c'
 insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry 'бб!#"б' for key 't'
+ERROR 23000: Duplicate entry '\0431\0431!' for key 't'
 select c from t1 where c='cccc';
 c
 cccc

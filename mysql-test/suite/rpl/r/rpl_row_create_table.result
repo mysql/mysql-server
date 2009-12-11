@@ -13,30 +13,30 @@ CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	#
-Pos	106
+Pos	107
 Event_type	Query
 Server_id	#
-End_log_pos	199
+End_log_pos	200
 Info	use `test`; CREATE TABLE t1 (a INT, b INT)
 Log_name	#
-Pos	199
+Pos	200
 Event_type	Query
 Server_id	#
-End_log_pos	305
+End_log_pos	306
 Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
 Log_name	#
-Pos	305
+Pos	306
 Event_type	Query
 Server_id	#
-End_log_pos	411
+End_log_pos	412
 Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
 Log_name	#
-Pos	411
+Pos	412
 Event_type	Query
 Server_id	#
-End_log_pos	530
+End_log_pos	531
 Info	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
 **** On Master ****
 SHOW CREATE TABLE t1;
@@ -137,7 +137,7 @@ RESET MASTER;
 include/start_slave.inc
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -147,13 +147,13 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	206	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	206	Query	#	274	BEGIN
-#	274	Table_map	#	316	table_id: # (test.t7)
-#	316	Write_rows	#	372	table_id: # flags: STMT_END_F
-#	372	Query	#	443	ROLLBACK
+#	107	Query	#	207	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+#	207	Query	#	275	BEGIN
+#	275	Table_map	#	317	table_id: # (test.t7)
+#	317	Write_rows	#	373	table_id: # flags: STMT_END_F
+#	373	Query	#	444	ROLLBACK
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -171,12 +171,12 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	174	BEGIN
-#	174	Table_map	#	216	table_id: # (test.t7)
-#	216	Write_rows	#	272	table_id: # flags: STMT_END_F
-#	272	Query	#	341	COMMIT
+#	107	Query	#	175	BEGIN
+#	175	Table_map	#	217	table_id: # (test.t7)
+#	217	Write_rows	#	273	table_id: # flags: STMT_END_F
+#	273	Query	#	342	COMMIT
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -216,10 +216,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	192	use `test`; CREATE TABLE t8 LIKE t4
-#	192	Query	#	331	use `test`; CREATE TABLE `t9` (
+#	107	Query	#	193	use `test`; CREATE TABLE t8 LIKE t4
+#	193	Query	#	332	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
@@ -296,38 +296,38 @@ a
 1
 2
 3
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
-#	192	Query	#	260	BEGIN
-#	260	Table_map	#	301	table_id: # (test.t1)
-#	301	Write_rows	#	345	table_id: # flags: STMT_END_F
-#	345	Query	#	414	COMMIT
-#	414	Query	#	482	BEGIN
-#	482	Query	#	607	use `test`; CREATE TABLE `t2` (
+#	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
+#	193	Query	#	261	BEGIN
+#	261	Table_map	#	302	table_id: # (test.t1)
+#	302	Write_rows	#	346	table_id: # flags: STMT_END_F
+#	346	Query	#	415	COMMIT
+#	415	Query	#	483	BEGIN
+#	483	Query	#	608	use `test`; CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	607	Table_map	#	648	table_id: # (test.t2)
-#	648	Write_rows	#	692	table_id: # flags: STMT_END_F
-#	692	Xid	#	719	COMMIT /* XID */
-#	719	Query	#	787	BEGIN
-#	787	Query	#	912	use `test`; CREATE TABLE `t3` (
+#	608	Table_map	#	649	table_id: # (test.t2)
+#	649	Write_rows	#	693	table_id: # flags: STMT_END_F
+#	693	Xid	#	720	COMMIT /* XID */
+#	720	Query	#	788	BEGIN
+#	788	Query	#	913	use `test`; CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	912	Table_map	#	953	table_id: # (test.t3)
-#	953	Write_rows	#	997	table_id: # flags: STMT_END_F
-#	997	Xid	#	1024	COMMIT /* XID */
-#	1024	Query	#	1092	BEGIN
-#	1092	Query	#	1217	use `test`; CREATE TABLE `t4` (
+#	913	Table_map	#	954	table_id: # (test.t3)
+#	954	Write_rows	#	998	table_id: # flags: STMT_END_F
+#	998	Xid	#	1025	COMMIT /* XID */
+#	1025	Query	#	1093	BEGIN
+#	1093	Query	#	1218	use `test`; CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
-#	1217	Table_map	#	1258	table_id: # (test.t4)
-#	1258	Write_rows	#	1302	table_id: # flags: STMT_END_F
-#	1302	Xid	#	1329	COMMIT /* XID */
-#	1329	Query	#	1397	BEGIN
-#	1397	Table_map	#	1438	table_id: # (test.t1)
-#	1438	Write_rows	#	1482	table_id: # flags: STMT_END_F
-#	1482	Query	#	1551	COMMIT
+#	1218	Table_map	#	1259	table_id: # (test.t4)
+#	1259	Write_rows	#	1303	table_id: # flags: STMT_END_F
+#	1303	Xid	#	1330	COMMIT /* XID */
+#	1330	Query	#	1398	BEGIN
+#	1398	Table_map	#	1439	table_id: # (test.t1)
+#	1439	Write_rows	#	1483	table_id: # flags: STMT_END_F
+#	1483	Query	#	1552	COMMIT
 SHOW TABLES;
 Tables_in_test
 t1
@@ -390,20 +390,20 @@ a
 4
 6
 9
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	192	use `test`; CREATE TABLE t1 (a INT)
-#	192	Query	#	260	BEGIN
-#	260	Table_map	#	301	table_id: # (test.t1)
-#	301	Write_rows	#	345	table_id: # flags: STMT_END_F
-#	345	Query	#	414	COMMIT
-#	414	Query	#	514	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
-#	514	Query	#	582	BEGIN
-#	582	Table_map	#	623	table_id: # (test.t2)
-#	623	Write_rows	#	667	table_id: # flags: STMT_END_F
-#	667	Table_map	#	708	table_id: # (test.t2)
-#	708	Write_rows	#	747	table_id: # flags: STMT_END_F
-#	747	Xid	#	774	COMMIT /* XID */
+#	107	Query	#	193	use `test`; CREATE TABLE t1 (a INT)
+#	193	Query	#	261	BEGIN
+#	261	Table_map	#	302	table_id: # (test.t1)
+#	302	Write_rows	#	346	table_id: # flags: STMT_END_F
+#	346	Query	#	415	COMMIT
+#	415	Query	#	515	use `test`; CREATE TABLE t2 (a INT) ENGINE=INNODB
+#	515	Query	#	583	BEGIN
+#	583	Table_map	#	624	table_id: # (test.t2)
+#	624	Write_rows	#	668	table_id: # flags: STMT_END_F
+#	668	Table_map	#	709	table_id: # (test.t2)
+#	709	Write_rows	#	748	table_id: # flags: STMT_END_F
+#	748	Xid	#	775	COMMIT /* XID */
 SELECT * FROM t2 ORDER BY a;
 a
 1
@@ -429,14 +429,14 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT * FROM t2 ORDER BY a;
 a
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	106	Query	#	174	BEGIN
-#	174	Table_map	#	215	table_id: # (test.t2)
-#	215	Write_rows	#	259	table_id: # flags: STMT_END_F
-#	259	Table_map	#	300	table_id: # (test.t2)
-#	300	Write_rows	#	339	table_id: # flags: STMT_END_F
-#	339	Query	#	410	ROLLBACK
+#	107	Query	#	175	BEGIN
+#	175	Table_map	#	216	table_id: # (test.t2)
+#	216	Write_rows	#	260	table_id: # flags: STMT_END_F
+#	260	Table_map	#	301	table_id: # (test.t2)
+#	301	Write_rows	#	340	table_id: # flags: STMT_END_F
+#	340	Query	#	411	ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;

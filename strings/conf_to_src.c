@@ -23,7 +23,7 @@
 #define ROW16_LEN	8
 #define MAX_BUF		64*1024
 
-static CHARSET_INFO all_charsets[256];
+static CHARSET_INFO all_charsets[512];
 
 
 void
@@ -63,7 +63,9 @@ print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
 static int get_charset_number(const char *charset_name)
 {
   CHARSET_INFO *cs;
-  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  for (cs= all_charsets;
+       cs < all_charsets + array_elements(all_charsets);
+       cs++)
   {
     if ( cs->name && !strcmp(cs->name, charset_name))
       return cs->number;
@@ -184,11 +186,12 @@ void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
   fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);
-  fprintf(f,"  MY_CS_COMPILED%s%s%s%s,\n",
+  fprintf(f,"  MY_CS_COMPILED%s%s%s%s%s,\n",
           cs->state & MY_CS_BINSORT         ? "|MY_CS_BINSORT"   : "",
           cs->state & MY_CS_PRIMARY         ? "|MY_CS_PRIMARY"   : "",
           is_case_sensitive(cs)             ? "|MY_CS_CSSORT"    : "",
-          my_charset_is_8bit_pure_ascii(cs) ? "|MY_CS_PUREASCII" : "");
+          my_charset_is_8bit_pure_ascii(cs) ? "|MY_CS_PUREASCII" : "",
+          !my_charset_is_ascii_compatible(cs) ? "|MY_CS_NONASCII": "");
   
   if (cs->name)
   {
@@ -287,7 +290,9 @@ main(int argc, char **argv  __attribute__((unused)))
   sprintf(filename,"%s/%s",argv[1],"Index.xml");
   my_read_charset_file(filename);
   
-  for (cs=all_charsets; cs < all_charsets+256; cs++)
+  for (cs= all_charsets;
+       cs < all_charsets + array_elements(all_charsets);
+       cs++)
   {
     if (cs->number && !(cs->state & MY_CS_COMPILED))
     {
@@ -312,7 +317,9 @@ main(int argc, char **argv  __attribute__((unused)))
   fprintf(f,"#include <m_ctype.h>\n\n");
   
   
-  for (cs=all_charsets; cs < all_charsets+256; cs++)
+  for (cs= all_charsets;
+       cs < all_charsets + array_elements(all_charsets);
+       cs++)
   {
     if (simple_cs_is_full(cs))
     {
@@ -329,7 +336,9 @@ main(int argc, char **argv  __attribute__((unused)))
   }
   
   fprintf(f,"CHARSET_INFO compiled_charsets[] = {\n");
-  for (cs=all_charsets; cs < all_charsets+256; cs++)
+  for (cs= all_charsets;
+       cs < all_charsets + array_elements(all_charsets);
+       cs++)
   {
     if (simple_cs_is_full(cs))
     {

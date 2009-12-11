@@ -1,0 +1,146 @@
+--source include/not_embedded.inc
+
+# Setup database, tables and user accounts
+--disable_warnings
+drop database if exists mysqltest_db1;
+--enable_warnings
+create database mysqltest_db1;
+use mysqltest_db1;
+create table t_column_priv_only (a int, b int);
+create table t_select_priv like t_column_priv_only;
+create table t_no_priv like t_column_priv_only;
+grant all privileges on test.* to mysqltest_u1@localhost;
+grant insert (a) on mysqltest_db1.t_column_priv_only to mysqltest_u1@localhost;
+grant select on mysqltest_db1.t_select_priv to mysqltest_u1@localhost;
+
+--echo ** Connect as restricted user mysqltest_u1.
+--echo
+connect (con1,localhost,mysqltest_u1,,);
+connection con1;
+
+########################################################################
+--echo ** Test column level privileges only. No SELECT privileges on the table.
+--echo ** INSERT INTO ... VALUES ...
+--echo ** Attempting to insert values to a table with only column privileges
+--echo ** should work.
+insert into mysqltest_db1.t_column_priv_only (a) VALUES (1);
+--echo
+
+#########################################################################
+--echo ** SHOW COLUMNS
+--echo ** Should succeed because we have privileges (any) on at least one of the columns.
+select column_name as 'Field',column_type as 'Type',is_nullable as 'Null',column_key as 'Key',column_default as 'Default',extra as 'Extra' from information_schema.columns where table_schema='mysqltest_db1' and table_name='t_column_priv_only';
+show columns from mysqltest_db1.t_column_priv_only;
+#########################################################################
+--echo ** SHOW COLUMNS
+--echo ** Should fail because there are no privileges on any column combination.
+--error 1142
+show columns from mysqltest_db1.t_no_priv;
+--echo ** However, select from I_S.COLUMNS will succeed but not show anything:
+select column_name as 'Field',column_type as 'Type',is_nullable as 'Null',column_key as 'Key',column_default as 'Default',extra as 'Extra' from information_schema.columns where table_schema='mysqltest_db1' and table_name='t_no_priv';
+--echo 
+#########################################################################
+--echo ** CREATE TABLE ... LIKE ... require SELECT privleges and will fail.
+--error 1142
+create table test.t_no_priv like mysqltest_db1.column_priv_only;
+--echo  
+#########################################################################
+--echo ** Just to be sure... SELECT also fails.
+--error 1142
+select * from mysqltest_db1.t_column_priv_only;
+--echo 
+#########################################################################
+--echo ** SHOW CREATE TABLE ... require any privileges on all columns (the entire table).
+--echo ** First we try and fail on a table with only one column privilege.
+--error 1142
+show create table mysqltest_db1.t_column_priv_only;
+--echo
+#########################################################################
+--echo ** Now we do the same on a table with SELECT privileges.
+--echo
+#########################################################################
+--echo ** SHOW COLUMNS
+--echo ** Success because we got some privileges on the table (SELECT_ACL)
+show columns from mysqltest_db1.t_select_priv;
+--echo
+#########################################################################
+--echo ** CREATE TABLE ... LIKE ... require SELECT privleges and will SUCCEED.
+--disable_warnings
+drop table if exists test.t_duplicated;
+--enable_warnings
+create table test.t_duplicated like mysqltest_db1.t_select_priv;
+drop table test.t_duplicated;
+--echo
+#########################################################################
+--echo ** SHOW CREATE TABLE will succeed because we have a privilege on all columns in the table (table-level privilege).
+show create table mysqltest_db1.t_select_priv;
+--echo
+#########################################################################
+--echo ** SHOW CREATE TABLE will fail if there is no grants at all: 
+--error 1142
+show create table mysqltest_db1.t_no_priv;
+--echo
+
+connection default;
+
+#
+# SHOW INDEX
+#
+use mysqltest_db1;
+CREATE TABLE t5 (s1 INT);
+CREATE INDEX i ON t5 (s1);
+CREATE TABLE t6 (s1 INT, s2 INT);
+CREATE VIEW v5 AS SELECT * FROM t5;
+CREATE VIEW v6 AS SELECT * FROM t6;
+CREATE VIEW v2 AS SELECT * FROM t_select_priv;
+CREATE VIEW v3 AS SELECT * FROM t_select_priv;
+CREATE INDEX i ON t6 (s1);
+GRANT UPDATE (s2) ON t6 to mysqltest_u1@localhost;
+GRANT UPDATE (s2) ON v6 to mysqltest_u1@localhost;
+GRANT SHOW VIEW ON v2 to mysqltest_u1@localhost;
+GRANT SHOW VIEW, SELECT ON v3 to mysqltest_u1@localhost;
+
+connection con1;
+use mysqltest_db1;
+--echo ** Connect as restricted user mysqltest_u1.
+--echo ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
+#
+# this result is wrong. reported as bug#34104
+#
+SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
+#
+# Bug27145 EXTRA_ACL trouble
+#
+--echo ** SHOW INDEX FROM t5 will fail because we don't have any privileges on any column combination.
+--error 1142
+SHOW INDEX FROM t5;
+--echo ** SHOW INDEX FROM t6 will succeed because there exist a privilege on a column combination on t6.
+SHOW INDEX FROM t6;
+
+# CHECK TABLE
+--echo ** CHECK TABLE requires any privilege on any column combination and should succeed for t6:
+CHECK TABLE t6;
+--echo ** With no privileges access is naturally denied:
+--error 1142
+CHECK TABLE t5;
+
+# CHECKSUM
+--echo ** CHECKSUM TABLE requires SELECT privileges on the table. The following should fail:
+--error 1142
+CHECKSUM TABLE t6;
+--echo ** And this should work:
+CHECKSUM TABLE t_select_priv;
+
+# SHOW CREATE VIEW
+--error 1142
+SHOW CREATE VIEW v5;
+--error 1142
+SHOW CREATE VIEW v6;
+--error 1142
+SHOW CREATE VIEW v2;
+SHOW CREATE VIEW v3;
+
+connection default;
+disconnect con1;
+drop database mysqltest_db1;
+drop user mysqltest_u1@localhost;

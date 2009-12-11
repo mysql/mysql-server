@@ -1,0 +1,35 @@
+# 
+# DROP-related tests which execution requires debug server.
+#
+--source include/have_debug.inc
+
+###########################################################################
+--echo
+--echo # --
+--echo # -- Bug#43138: DROP DATABASE failure does not clean up message list.
+--echo # --
+--echo
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysql_test;
+--enable_warnings
+
+--echo
+CREATE DATABASE mysql_test;
+CREATE TABLE mysql_test.t1(a INT);
+
+--echo
+SET SESSION DEBUG = "+d,bug43138";
+
+--echo
+DROP DATABASE mysql_test;
+
+--echo
+SET SESSION DEBUG = "-d,bug43138";
+
+--echo
+--echo # --
+--echo # -- End of Bug#43138.
+--echo # --
+
+###########################################################################

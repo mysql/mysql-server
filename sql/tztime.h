@@ -1,3 +1,6 @@
+#ifndef TZTIME_INCLUDED
+#define TZTIME_INCLUDED
+
 /* Copyright (C) 2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -79,3 +82,4 @@ static const int MY_TZ_TABLES_COUNT= 4;
 
 
 #endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
+#endif /* TZTIME_INCLUDED */

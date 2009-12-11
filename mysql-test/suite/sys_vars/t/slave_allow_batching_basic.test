@@ -130,7 +130,7 @@ SET @global_start_value = @@global.slave_allow_batching;
 #     Check if the value in GLOBAL Table matches value in variable     #
 #########################################################################
 
-#SELECT @@global.slave_allow_batching = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
+#SELECT IF(@@global.slave_allow_batching, "ON", "OFF") = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
 #SELECT @@global.slave_allow_batching;
 #SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='slave_allow_batching';
 #--echo 'Bug: value in information schema does not match'

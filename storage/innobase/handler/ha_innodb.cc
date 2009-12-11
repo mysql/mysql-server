@@ -1138,7 +1138,29 @@ innobase_mysql_tmpfile(void)
 		will be passed to fdopen(), it will be closed by invoking
 		fclose(), which in turn will invoke close() instead of
 		my_close(). */
+
+#ifdef _WIN32
+		/* Note that on Windows, the integer returned by mysql_tmpfile 
+		has no relation to C runtime file descriptor. Here, we need 
+		to call my_get_osfhandle to get the HANDLE and then convert it 
+		to C runtime filedescriptor. */
+		{
+			HANDLE hFile = my_get_osfhandle(fd);
+			HANDLE hDup;
+			BOOL bOK = 
+				DuplicateHandle(GetCurrentProcess(), hFile, GetCurrentProcess(),
+								&hDup, 0, FALSE, DUPLICATE_SAME_ACCESS);
+			if(bOK) {
+				fd2 = _open_osfhandle((intptr_t)hDup,0);
+			}
+			else {
+				my_osmaperr(GetLastError());
+				fd2 = -1;
+			}	
+		}
+#else
 		fd2 = dup(fd);
+#endif
 		if (fd2 < 0) {
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
 			my_errno=errno;
@@ -4514,7 +4536,7 @@ calc_row_difference(
 	upd_t*		uvect,		/*!< in/out: update vector */
 	uchar*		old_row,	/*!< in: old row in MySQL format */
 	uchar*		new_row,	/*!< in: new row in MySQL format */
-	struct st_table* table,		/*!< in: table in MySQL data
+	TABLE*          table,		/*!< in: table in MySQL data
 					dictionary */
 	uchar*		upd_buff,	/*!< in: buffer to use */
 	ulint		buff_len,	/*!< in: buffer length */
