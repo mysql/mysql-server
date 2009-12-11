@@ -47,4 +47,14 @@ insert into t1 (a) values ('air'),
 select * from t1 where a like 'we_%';
 drop table t1;
 
+#
+# Bug#158 ENUM and SET types does not accept valid cp1251 character
+#
+CREATE TABLE t1 (
+  e1 enum('ябълка'),
+  e2 enum('мляко')
+) ENGINE=MYISAM character set cp1251;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 # End of 4.1 tests
