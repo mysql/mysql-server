@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.

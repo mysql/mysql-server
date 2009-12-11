@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -994,7 +994,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 	{
 	  found=1;
           DBUG_PRINT("signal", ("Waiting for COND_refresh"));
-	  mysql_cond_wait(&COND_refresh, &LOCK_open);
+          mysql_cond_wait(&COND_refresh, &LOCK_open);
 	  break;
 	}
       }
@@ -2825,7 +2825,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       /* Avoid self-deadlocks by detecting self-dependencies. */
       if (table->open_placeholder && table->in_use == thd)
       {
-	mysql_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
         my_error(ER_UPDATE_TABLE_USED, MYF(0), table->s->table_name.str);
         DBUG_RETURN(0);
       }
@@ -2866,7 +2866,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       }
       else
       {
-	mysql_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
       /*
         There is a refresh in progress for this table.
@@ -8503,15 +8503,15 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
             ! in_use->killed)
         {
 	  in_use->killed= THD::KILL_CONNECTION;
-	  mysql_mutex_lock(&in_use->mysys_var->mutex);
+          mysql_mutex_lock(&in_use->mysys_var->mutex);
 	  if (in_use->mysys_var->current_cond)
 	  {
-	    mysql_mutex_lock(in_use->mysys_var->current_mutex);
+            mysql_mutex_lock(in_use->mysys_var->current_mutex);
             signalled= 1;
-	    mysql_cond_broadcast(in_use->mysys_var->current_cond);
-	    mysql_mutex_unlock(in_use->mysys_var->current_mutex);
+            mysql_cond_broadcast(in_use->mysys_var->current_cond);
+            mysql_mutex_unlock(in_use->mysys_var->current_mutex);
 	  }
-	  mysql_mutex_unlock(&in_use->mysys_var->mutex);
+          mysql_mutex_unlock(&in_use->mysys_var->mutex);
         }
         /*
 	  Now we must abort all tables locks used by this thread
