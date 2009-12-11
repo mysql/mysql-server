@@ -92,16 +92,13 @@ $partitioning;
 #----------- PARTITION BY RANGE
 if ($with_partitioning)
 {
---disable_query_log
-eval SET @aux = 'PARTITION BY RANGE((f_int1 + f_int2) DIV 2)
+let $partitioning= PARTITION BY RANGE((f_int1 + f_int2) DIV 2)
 (PARTITION parta VALUES LESS THAN (0),
 PARTITION partb VALUES LESS THAN ($max_row_div4),
 PARTITION partc VALUES LESS THAN ($max_row_div2),
 PARTITION partd VALUES LESS THAN ($max_row_div2 + $max_row_div4),
 PARTITION parte VALUES LESS THAN ($max_row),
-PARTITION partf VALUES LESS THAN $MAX_VALUE)';
-let $partitioning= `SELECT @aux`;
---enable_query_log
+PARTITION partf VALUES LESS THAN $MAX_VALUE);
 }
 eval CREATE TABLE t1 (
 $column_list
@@ -113,15 +110,11 @@ $partitioning;
 #----------- PARTITION BY RANGE -- SUBPARTITION BY HASH
 if ($with_partitioning)
 {
---disable_query_log
-eval SET @aux =
-'PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int2) SUBPARTITIONS 2
+let $partitioning= PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int2) SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0),
 PARTITION partb VALUES LESS THAN ($max_row_div4),
 PARTITION partc VALUES LESS THAN ($max_row_div2),
-PARTITION partd VALUES LESS THAN $MAX_VALUE)';
-let $partitioning= `SELECT @aux`;
---enable_query_log
+PARTITION partd VALUES LESS THAN $MAX_VALUE);
 }
 eval CREATE TABLE t1 (
 $column_list
@@ -133,8 +126,7 @@ $partitioning;
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
 if ($with_partitioning)
 {
---disable_query_log
-eval SET @aux = 'PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int2)
+let $partitioning= PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int2)
 (PARTITION part1 VALUES LESS THAN (0)
 (SUBPARTITION subpart11, SUBPARTITION subpart12),
 PARTITION part2 VALUES LESS THAN ($max_row_div4)
@@ -142,9 +134,7 @@ PARTITION part2 VALUES LESS THAN ($max_row_div4)
 PARTITION part3 VALUES LESS THAN ($max_row_div2)
 (SUBPARTITION subpart31, SUBPARTITION subpart32),
 PARTITION part4 VALUES LESS THAN $MAX_VALUE
-(SUBPARTITION subpart41, SUBPARTITION subpart42))';
-let $partitioning= `SELECT @aux`;
---enable_query_log
+(SUBPARTITION subpart41, SUBPARTITION subpart42));
 }
 eval CREATE TABLE t1 (
 $column_list
@@ -176,15 +166,11 @@ $partitioning;
 #----------- PARTITION BY LIST -- SUBPARTITION BY KEY
 if ($with_partitioning)
 {
---disable_query_log
-eval SET @aux =
-'PARTITION BY LIST(ABS(MOD(f_int1,2)))
+let $partitioning= PARTITION BY LIST(ABS(MOD(f_int1,2)))
 SUBPARTITION BY KEY(f_int2)  SUBPARTITIONS $sub_part_no
 (PARTITION part1 VALUES IN (0),
  PARTITION part2 VALUES IN (1),
- PARTITION part3 VALUES IN (NULL))';
-let $partitioning= `SELECT @aux`;
---enable_query_log
+ PARTITION part3 VALUES IN (NULL));
 }
 eval CREATE TABLE t1 (
 $column_list

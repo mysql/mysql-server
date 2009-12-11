@@ -403,6 +403,8 @@ public:
 struct LEX;
 class st_select_lex;
 class st_select_lex_unit;
+
+
 class st_select_lex_node {
 protected:
   st_select_lex_node *next, **prev,   /* neighbor list */
@@ -440,8 +442,17 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
-  st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
+
+  // Ensures that at least all members used during cleanup() are initialized.
+  st_select_lex_node()
+    : next(NULL), prev(NULL),
+      master(NULL), slave(NULL),
+      link_next(NULL), link_prev(NULL),
+      linkage(UNSPECIFIED_TYPE)
+  {
+  }
   virtual ~st_select_lex_node() {}
+
   inline st_select_lex_node* get_master() { return master; }
   virtual void init_query();
   virtual void init_select();
@@ -487,6 +498,8 @@ class select_result;
 class JOIN;
 class select_union;
 class Procedure;
+
+
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
@@ -498,6 +511,14 @@ protected:
   bool saved_error;
 
 public:
+  // Ensures that at least all members used during cleanup() are initialized.
+  st_select_lex_unit()
+    : union_result(NULL), table(NULL), result(NULL),
+      cleaned(false),
+      fake_select_lex(NULL)
+  {
+  }
+
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
@@ -638,11 +659,6 @@ public:
   uint select_n_where_fields;
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
-  /* 
-    PS or SP cond natural joins was alredy processed with permanent
-    arena and all additional items which we need alredy stored in it
-  */
-  bool conds_processed_with_permanent_arena;
 
   ulong table_join_options;
   uint in_sum_expr;
@@ -1413,6 +1429,17 @@ public:
 
   /** Interface with bison, value of the last token parsed. */
   LEX_YYSTYPE yylval;
+
+  /**
+    LALR(2) resolution, look ahead token.
+    Value of the next token to return, if any,
+    or -1, if no token was parsed in advance.
+    Note: 0 is a legal token, and represents YYEOF.
+  */
+  int lookahead_token;
+
+  /** LALR(2) resolution, value of the look ahead token.*/
+  LEX_YYSTYPE lookahead_yylval;
 
 private:
   /** Pointer to the current position in the raw input stream. */
