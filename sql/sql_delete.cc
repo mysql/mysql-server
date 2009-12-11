@@ -1098,9 +1098,15 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN + 1];
   TABLE *table;
-  bool error;
+  bool error= TRUE;
   uint path_length;
   MDL_request mdl_request;
+  /*
+    Is set if we're under LOCK TABLES, and used
+    to downgrade the exclusive lock after the
+    table was truncated.
+  */
+  MDL_ticket *mdl_ticket= NULL;
   bool has_mdl_lock= FALSE;
   DBUG_ENTER("mysql_truncate");
 
@@ -1119,7 +1125,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       goto trunc_by_del;
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    
+
     close_temporary_table(thd, table, 0, 0);    // Don't free share
     ha_create_table(thd, share->normalized_path.str,
                     share->db.str, share->table_name.str, &create_info, 1);
@@ -1177,21 +1183,47 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
-    mdl_request.init(MDL_key::TABLE, table_list->db, table_list->table_name, MDL_EXCLUSIVE);
-    if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
-      DBUG_RETURN(TRUE);
 
-    has_mdl_lock= TRUE;
+    if (thd->locked_tables_mode)
+    {
+      if (!(table= find_write_locked_table(thd->open_tables, table_list->db,
+                                           table_list->table_name)))
+        DBUG_RETURN(TRUE);
+      mdl_ticket= table->mdl_ticket;
+      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+        goto end;
+      close_all_tables_for_name(thd, table->s, FALSE);
+    }
+    else
+    {
+      /*
+        Even though we could use the previous execution branch
+        here just as well, we must not try to open the table: 
+        MySQL manual documents that TRUNCATE can be used to 
+        repair a damaged table, i.e. a table that can not be
+        fully "opened". In particular MySQL manual says:
 
-    pthread_mutex_lock(&LOCK_open);
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
-                     table_list->table_name);
-    pthread_mutex_unlock(&LOCK_open);
+        As long as the table format file tbl_name.frm  is valid,
+        the table can be re-created as an empty table with TRUNCATE
+        TABLE, even if the data or index files have become corrupted.
+      */
+      mdl_request.init(MDL_key::TABLE, table_list->db, table_list->table_name,
+                       MDL_EXCLUSIVE);
+      if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+        DBUG_RETURN(TRUE);
+      has_mdl_lock= TRUE;
+      pthread_mutex_lock(&LOCK_open);
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
+                       table_list->table_name);
+      pthread_mutex_unlock(&LOCK_open);
+    }
   }
 
-  // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
-  // crashes, replacement works.  *(path + path_length - reg_ext_length)=
-  // '\0';
+  /*
+    Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
+    crashes, replacement works.  *(path + path_length - reg_ext_length)=
+     '\0';
+  */
   path[path_length - reg_ext_length] = 0;
   pthread_mutex_lock(&LOCK_open);
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
@@ -1202,6 +1234,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 end:
   if (!dont_send_ok)
   {
+    if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+    /*
+      Even if we failed to reopen some tables,
+      the operation itself succeeded, write the binlog.
+    */
     if (!error)
     {
       /*
@@ -1213,12 +1251,11 @@ end:
     }
     if (has_mdl_lock)
       thd->mdl_context.release_lock(mdl_request.ticket);
+    if (mdl_ticket)
+      mdl_ticket->downgrade_exclusive_lock();
   }
-  else if (error)
-  {
-    if (has_mdl_lock)
-      thd->mdl_context.release_lock(mdl_request.ticket);
-  }
+
+  DBUG_PRINT("exit", ("error: %d", error));
   DBUG_RETURN(error);
 
 trunc_by_del:
