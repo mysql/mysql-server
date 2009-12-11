@@ -4309,7 +4309,7 @@ static void test_lc_time_sz()
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
-int main(int argc, char **argv)
+int mysqld_main(int argc, char **argv)
 #endif
 {
   MY_INIT(argv[0]);		// init my_sys library & pthreads
@@ -4699,7 +4699,7 @@ default_service_handling(char **argv,
 }
 
 
-int main(int argc, char **argv)
+int mysqld_main(int argc, char **argv)
 {
   /*
     When several instances are running on the same machine, we
