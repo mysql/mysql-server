@@ -250,7 +250,6 @@ engine = innodb
 partition by list (a)
 (partition p0 values in (0));
 
--- error ER_MIX_HANDLER_ERROR
 alter table t1 engine = x;
 show create table t1;
 drop table t1;
