@@ -801,7 +801,7 @@ int partition_info::compare_column_values(const void *first_arg,
     if (first->max_value || second->max_value)
     {
       if (first->max_value && second->max_value)
-        continue;
+        return 0;
       if (second->max_value)
         return -1;
       else
