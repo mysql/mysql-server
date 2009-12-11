@@ -91,39 +91,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
-
-
-# Ugly workaround for Solaris' DTrace inability to use probes
-# from static libraries currently, discussed e.g in this thread
-# (http://opensolaris.org/jive/thread.jspa?messageID=432454)
-# We have to collect all object files that may be instrumented
-# and go into the mysqld (also those that come from in static libs)
-# run them again through dtrace -G to generate an ELF file that links
-# to mysqld.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
-  SET(DTRACE_PROBES_ALL ${CMAKE_CURRENT_BINARY_DIR}/dtrace_probes_all.o)
-  SET(DTRACED_LIBS sql ${MYSQLD_STATIC_PLUGIN_LIBS} mysys)
-  FOREACH(lib ${DTRACED_LIBS})
-    SET(DTRACE_DIRS ${DTRACE_DIRS} ${TARGET_OBJECT_DIRECTORY_${lib}})
-  ENDFOREACH()
  
-  MESSAGE("DTRACE_DIRS=${DTRACE_DIRS}")
-  ADD_CUSTOM_COMMAND(
-  OUTPUT ${DTRACE_PROBES_ALL}
-  DEPENDS ${DTRACED_LIBS}
-  COMMAND ${CMAKE_COMMAND}
-   -DDTRACE=${DTRACE}	  
-   -DOUTFILE=${DTRACE_PROBES_ALL} 
-   -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
-   -DDTRACE_FLAGS=${DTRACE_FLAGS}
-   "-DDIRS=${DTRACE_DIRS}"
-   -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
-   VERBATIM
-  )
-ELSE()
-  SET(DTRACE_PROBES_ALL)
-ENDIF()
-
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h)
@@ -132,7 +100,6 @@ ELSE()
 ENDIF()
 
 ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE})
- 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -167,6 +134,11 @@ IF(INTERFACE_LIBS)
  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
   "${INTERFACE_LIBS}")
 ENDIF()
+
+# On Solaris, some extra effort is required in order to get dtrace probes
+# from static libraries
+DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
+ "sql;mysys;${MYSQLD_STATIC_PLUGIN_LIBS}")
 
 INSTALL(TARGETS mysqld DESTINATION bin)
 INSTALL_DEBUG_SYMBOLS(mysqld)
