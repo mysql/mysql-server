@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 MACRO (INSTALL_DEBUG_SYMBOLS targets)
   IF(MSVC)
   FOREACH(target ${targets})
@@ -68,4 +70,30 @@ IF(UNIX)
   INSTALL(FILES ${output} DESTINATION ${destination})
 ENDIF()
 ENDMACRO()
+
+# Installs targets, also installs pdbs on Windows.
+#
+# More stuff can be added later, e.g signing
+# or pre-link custom targets (one example is creating 
+# version resource for windows executables)
+
+FUNCTION(MYSQL_INSTALL_TARGETS)
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "DESTINATION"
+	""
+	${ARGN}
+  )
+  SET(TARGETS ${ARG_DEFAULT_ARGS})
+  IF(NOT TARGETS)
+    MESSAGE(FATAL_ERROR "Need target list for MYSQL_INSTALL_TARGETS")
+  ENDIF()
+  IF(NOT ARG_DESTINATION)
+     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for MYSQL_INSTALL_TARGETS")
+  ENDIF()
+  MESSAGE("INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION})")
+  INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION})
+  SET(INSTALL_LOCATION ${ARG_DESTINATION} )
+  INSTALL_DEBUG_SYMBOLS("${TARGETS}")
+  SET(INSTALL_LOCATION)
+ENDFUNCTION()
 

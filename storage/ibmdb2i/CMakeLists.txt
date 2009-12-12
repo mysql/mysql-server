@@ -13,7 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(IBMDB2I_PLUGIN_DYNAMIC "ha_ibmdb2i")
 CHECK_INCLUDE_FILES(qlgusr.h HAVE_PASE_ENVIRONMENT)
 IF(HAVE_PASE_ENVIRONMENT)
 
