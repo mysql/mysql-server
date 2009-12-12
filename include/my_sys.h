@@ -951,7 +951,6 @@ extern my_bool resolve_collation(const char *cl_name,
                                  CHARSET_INFO *default_cl,
                                  CHARSET_INFO **cl);
 
-extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);

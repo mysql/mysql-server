@@ -165,7 +165,6 @@ void my_end(int infoflag)
       my_print_open_files();
     }
   }
-  free_charsets();
   my_error_unregister_all();
   my_once_free();
 
