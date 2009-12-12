@@ -77,7 +77,7 @@ IF(UNIX)
   ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
   
-  INSTALL(TARGETS innochecksum mysql_waitpid resolve_stack_dump DESTINATION bin)
+  MYSQL_INSTALL_TARGETS(innochecksum mysql_waitpid resolve_stack_dump DESTINATION bin)
 ENDIF()
 
-INSTALL(TARGETS perror resolveip my_print_defaults replace DESTINATION bin)
+MYSQL_INSTALL_TARGETS(perror resolveip my_print_defaults DESTINATION bin)
