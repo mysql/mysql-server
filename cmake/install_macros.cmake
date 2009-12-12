@@ -73,18 +73,17 @@ ENDMACRO()
 
 IF(WIN32)
   OPTION(SIGNCODE "Sign executables and dlls with digital certificate" OFF)
+  MARK_AS_ADVANCED(SIGNCODE)
   IF(SIGNCODE)
    SET(SIGNTOOL_PARAMETERS 
      /a /t http://timestamp.verisign.com/scripts/timstamp.dll
      CACHE STRING "parameters for signtool (list)")
-   MARK_AS_ADVANCED(SIGNCODE SIGNTOOL_PARAMETERS)
-  ENDIF()
-  IF(SIGNCODE)
     FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool)
     IF(NOT SIGNTOOL_EXECUTABLE)
       MESSAGE(FATAL_ERROR 
       "signtool is not found. Signing executables not possible")
     ENDIF()
+    MARK_AS_ADVANCED(SIGNTOOL_EXECUTABLE  SIGNTOOL_PARAMETERS)
   ENDIF()
 ENDIF()
 
