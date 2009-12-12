@@ -475,8 +475,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
   int i;
   FTB_WORD   *ftbw;
 
-  if ((ftb->state != READY && ftb->state !=INDEX_DONE) ||
-      ftb->keynr == NO_SUCH_KEY)
+  if (ftb->state == UNINITIALIZED || ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
 
