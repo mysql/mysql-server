@@ -197,8 +197,7 @@ ELSEIF (MYSQL_VERSION_ID LESS "50137")
 		ADD_DEPENDENCIES(innobase GenError)
 	ENDIF()
 ELSE()
-	# New plugin support, cross-platform , name for shared library
-	# is given in INNOBASE_PLUGIN_STATIC and INNOBASE_PLUGIN_DYNAMIC
+	# New plugin support, cross-platform ,  base name for shared module is "ha_innodb"
 	MYSQL_ADD_PLUGIN(INNOBASE ${INNOBASE_SOURCES} STORAGE_ENGINE 
 		MODULE_OUTPUT_NAME ha_innodb
 		LINK_LIBRARIES ${ZLIB_LIBRARY})

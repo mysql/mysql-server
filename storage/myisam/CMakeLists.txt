@@ -13,9 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(MYISAM_PLUGIN_STATIC  "myisam")
-SET(MYISAM_PLUGIN_MANDATORY TRUE)
-
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
                                 ha_myisam.cc
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
@@ -68,4 +65,4 @@ IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
 
-INSTALL(TARGETS myisamchk myisamlog myisampack myisam_ftdump DESTINATION bin)
+MYSQL_INSTALL_TARGETS(myisamchk myisamlog myisampack myisam_ftdump DESTINATION bin)

@@ -26,7 +26,7 @@ MACRO(CMAKE_PARSE_ARGUMENTS prefix arg_names option_names)
 
   SET(current_arg_name DEFAULT_ARGS)
   SET(current_arg_list)
-  FOREACH(arg ${ARGN})            
+  FOREACH(arg ${ARGN})    
     SET(larg_names ${arg_names})    
     LIST(FIND larg_names "${arg}" is_arg_name)
     IF (is_arg_name GREATER -1)
