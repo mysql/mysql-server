@@ -140,9 +140,8 @@ ENDIF()
 DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
  "sql;mysys;${MYSQLD_STATIC_PLUGIN_LIBS}")
 
-INSTALL(TARGETS mysqld DESTINATION bin)
-INSTALL_DEBUG_SYMBOLS(mysqld)
-  
+MYSQL_INSTALL_TARGETS(mysqld DESTINATION bin)
+ 
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
