@@ -71,6 +71,43 @@ IF(UNIX)
 ENDIF()
 ENDMACRO()
 
+IF(WIN32)
+  OPTION(SIGNCODE "Sign executables and dlls with digital certificate" OFF)
+  IF(SIGNCODE)
+   SET(SIGNTOOL_PARAMETERS 
+     /a /t http://timestamp.verisign.com/scripts/timstamp.dll
+     CACHE STRING "parameters for signtool (list)")
+   MARK_AS_ADVANCED(SIGNCODE SIGNTOOL_PARAMETERS)
+  ENDIF()
+  IF(SIGNCODE)
+    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool)
+    IF(NOT SIGNTOOL_EXECUTABLE)
+      MESSAGE(FATAL_ERROR 
+      "signtool is not found. Signing executables not possible")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+MACRO(SIGN_TARGET target)
+ GET_TARGET_PROPERTY(target_type ${target} TYPE)
+ IF(target_type AND NOT target_type MATCHES "STATIC")
+   GET_TARGET_PROPERTY(target_location ${target}  LOCATION)
+   IF(CMAKE_GENERATOR MATCHES "Visual Studio")
+   STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" 
+     target_location ${target_location})
+   ENDIF()
+   INSTALL(CODE
+   "EXECUTE_PROCESS(COMMAND 
+     ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${target_location}
+     ERROR_VARIABLE ERR)
+    IF(NOT \${ERR} EQUAL 0)
+      MESSAGE(FATAL_ERROR \"Error signing  ${target_location}\")
+    ENDIF()
+   ")
+ ENDIF()
+ENDMACRO()
+
+
 # Installs targets, also installs pdbs on Windows.
 #
 # More stuff can be added later, e.g signing
@@ -80,8 +117,8 @@ ENDMACRO()
 FUNCTION(MYSQL_INSTALL_TARGETS)
   CMAKE_PARSE_ARGUMENTS(ARG
     "DESTINATION"
-	""
-	${ARGN}
+  ""
+  ${ARGN}
   )
   SET(TARGETS ${ARG_DEFAULT_ARGS})
   IF(NOT TARGETS)
@@ -90,6 +127,14 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   IF(NOT ARG_DESTINATION)
      MESSAGE(FATAL_ERROR "Need DESTINATION parameter for MYSQL_INSTALL_TARGETS")
   ENDIF()
+
+  # If signing is required, sign executables before installing
+  IF(SIGNCODE)
+    FOREACH(target ${TARGETS})
+      SIGN_TARGET(${target})
+    ENDFOREACH()
+  ENDIF()
+
   INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION})
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
   INSTALL_DEBUG_SYMBOLS("${TARGETS}")
