@@ -75,7 +75,7 @@ MACRO (DTRACE_INSTRUMENT target)
     IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
       SET(objdir ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir)
       SET(outfile ${objdir}/${target}_dtrace.o)
-  
+      GET_TARGET_PROPERTY(target_type ${target} TYPE)
       ADD_CUSTOM_COMMAND(
         TARGET ${target} PRE_LINK 
         COMMAND ${CMAKE_COMMAND}
@@ -84,6 +84,7 @@ MACRO (DTRACE_INSTRUMENT target)
           -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
           -DDTRACE_FLAGS=${DTRACE_FLAGS}
           -DDIRS=.
+          -DTYPE=${target_type}
           -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
         WORKING_DIRECTORY ${objdir}
       )
@@ -94,7 +95,7 @@ MACRO (DTRACE_INSTRUMENT target)
       ELSE()
         # For static library flags, add the object to the library.
         # Note: DTrace probes in static libraries are  unusable currently 
-        # (see http://opensolaris.org/jive/thread.jspa?messageID=432454)
+        # (see explanation for DTRACE_INSTRUMENT_STATIC_LIBS below)
         # but maybe one day this will be fixed.
         GET_TARGET_PROPERTY(target_location ${target} LOCATION)
         ADD_CUSTOM_COMMAND(
@@ -102,7 +103,6 @@ MACRO (DTRACE_INSTRUMENT target)
          COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
 	 COMMAND ${CMAKE_RANLIB} ${target_location}
         )
-
        # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
        SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
       ENDIF()
@@ -123,7 +123,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
   FOREACH(lib ${libs})
     SET(dirs ${dirs} ${TARGET_OBJECT_DIRECTORY_${lib}})
   ENDFOREACH()
-  SET (obj ${CMAKE_BINARY_DIR}/${target}_dtrace_all.o)
+  SET (obj ${CMAKE_CURRENT_BINARY_DIR}/${target}_dtrace_all.o)
   ADD_CUSTOM_COMMAND(
   OUTPUT ${obj}
   DEPENDS ${libs}
@@ -133,6 +133,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
    -DDFILE=${CMAKE_BINARY_DIR}/include/probes_mysql.d
    -DDTRACE_FLAGS=${DTRACE_FLAGS}
    "-DDIRS=${dirs}"
+   -DTYPE=MERGE
    -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
    VERBATIM
   )
