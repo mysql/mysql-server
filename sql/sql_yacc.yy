@@ -3931,7 +3931,7 @@ part_func_expr:
             lex->safe_to_cache_query= 1;
             if (not_corr_func)
             {
-              my_parse_error(ER(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             $$=$1;
