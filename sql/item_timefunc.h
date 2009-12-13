@@ -305,6 +305,16 @@ public:
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "unix_timestamp"; }
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  /*
+    UNIX_TIMESTAMP() depends on the current timezone
+    (and thus may not be used as a partitioning function)
+    when its argument is NOT of the TIMESTAMP type.
+  */
+  bool is_timezone_dependent_processor(uchar *int_arg)
+  {
+    return !has_timestamp_args();
+  }
   void fix_length_and_dec()
   {
     decimals=0;
