@@ -870,6 +870,8 @@ int check_signed_flag(partition_info *part_info)
     part_info            Reference to partitioning data structure
     is_sub_part          Is the table subpartitioned as well
     is_field_to_be_setup Flag if we are to set-up field arrays
+    is_create_table_ind  Indicator of whether openfrm was called as part of
+                         CREATE or ALTER TABLE
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -892,8 +894,9 @@ int check_signed_flag(partition_info *part_info)
     on the field object.
 */
 
-bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
-                          bool is_sub_part, bool is_field_to_be_setup)
+static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
+                          bool is_sub_part, bool is_field_to_be_setup,
+                          bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
@@ -1005,10 +1008,31 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   thd->where= save_where;
   if (unlikely(func_expr->const_item()))
   {
-    my_error(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+    my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
     clear_field_flag(table);
     goto end;
   }
+
+  /*
+    We don't allow creating partitions with timezone-dependent expressions as
+    a (sub)partitioning function, but we want to allow such expressions when
+    opening existing tables for easier maintenance. This exception should be
+    deprecated at some point in future so that we always throw an error.
+  */
+  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+                      0, NULL))
+  {
+    if (is_create_table_ind)
+    {
+      my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+      goto end;
+    }
+    else
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
+                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+  }
+
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
     goto end;
   result= FALSE;
@@ -1616,7 +1640,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
-                                        table, TRUE, TRUE)))
+                                        table, TRUE, TRUE,
+                                        is_create_table_ind)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1644,7 +1669,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE, TRUE)))
+                                        table, FALSE, TRUE,
+                                        is_create_table_ind)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
@@ -1658,7 +1684,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
   {
     const char *error_str;
     if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                      table, FALSE, TRUE)))
+                                      table, FALSE, TRUE,
+                                      is_create_table_ind)))
       goto end;
     if (part_info->part_type == RANGE_PARTITION)
     {
