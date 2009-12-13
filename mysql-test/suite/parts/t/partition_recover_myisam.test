@@ -1,7 +1,7 @@
 # test the auto-recover (--myisam-recover) of partitioned myisam tables
 
 call mtr.add_suppression("./test/t1_will_crash");
-call mtr.add_suppression("Got an error from unknown thread, ha_myisam.cc");
+call mtr.add_suppression("Got an error from unknown thread");
 
 --source include/have_partition.inc
 --disable_warnings
