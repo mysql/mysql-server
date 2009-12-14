@@ -23,16 +23,14 @@
 
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
-#include "NdbRecord.hpp"
 
 class Ndb;
-
+class NdbRecord;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
-
 
 /**
  * This is the API interface for building a (composite) query definition,
@@ -283,11 +281,11 @@ public:
   NdbConstOperand* constValue(double value); 
   NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar C-type string
 
-  // Raw data with specified length, with src type as specified by 'attr'.
+  // Raw data with specified length, with src type as specified by 'record.column[attrId]'.
   // Provide very basic type check to match destination column it is
   // used against.
   NdbConstOperand* constValue(const void* value,
-                              const NdbRecord::Attr* attr);
+                              const NdbRecord* record, Uint32 attrId);
 
   // ::paramValue()
   NdbParamOperand* paramValue(const char* name = 0);  // Parameterized
