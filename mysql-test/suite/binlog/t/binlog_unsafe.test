@@ -194,8 +194,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    # Note: we will expect 1 warning when BUG#45827 is fixed.
-    --let $CRC_ARG_expected_number_of_warnings= 0
+    --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
   if (`SELECT $unsafe_type = 5`) {
@@ -227,8 +226,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
-    # Note: we will expect 7 warnings when BUG#45827 is fixed.
-    --let $CRC_ARG_expected_number_of_warnings= 6
+    --let $CRC_ARG_expected_number_of_warnings= 7
   }
 
   if (`SELECT $unsafe_type = 8`) {
