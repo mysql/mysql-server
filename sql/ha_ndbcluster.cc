@@ -246,7 +246,8 @@ public:
 static bool
 field_ref_is_join_pushable(const JOIN_TAB* join_tabs, 
                            int inx,
-                           Item_field* join_items[MAX_LINKED_KEYS+1])
+                           Item* join_items[MAX_LINKED_KEYS+1],
+                           TABLE* &parent)
 {
   DBUG_ENTER("field_ref_is_join_pushable");
   COND_EQUAL* const cond_equal= join_tabs->join->cond_equal;
@@ -259,7 +260,6 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     DBUG_PRINT("info", ("  'key_parts >= MAX_LINKED_KEYS', can't append table:%d", inx+1));
     DBUG_RETURN(false);
   }
-
 
   DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", inx, join_tabs[inx].ref.key_parts));
 
@@ -282,29 +282,35 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
   table_map current_linked_parents= 0;
   table_map field_linked_parents= 0;
   table_map all_linked_parents= 0;
-  bool multiple_parents = false;
+  bool multiple_parents= false;
 
+  parent= NULL;
   for (uint keyPartNo = 0; keyPartNo < join_tabs[inx].ref.key_parts; keyPartNo++)
   {
     /* All parts of the key must be fields in some of the preceeding 
      * tables 
      */
-
     Item* const keyItem = join_tabs[inx].ref.items[keyPartNo];
-    if (keyItem->type() != Item::FIELD_ITEM)
+    join_items[keyPartNo] = keyItem;
+
+    if (keyItem->const_item())
+      continue;
+
+    if (keyItem->type()!=Item::FIELD_ITEM)
     {
-      DBUG_PRINT("info", ("  Not a FIELD_ITEM -> can't append table:%d\n",inx+1));
+      DBUG_PRINT("info", ("  Item type:%d not join_pushable -> can't append table:%d",
+                  keyItem->type(), inx+1));
       DBUG_RETURN(false);
     }
 
     Item_field* keyItemField = static_cast<Item_field*>(keyItem);
-    join_items[keyPartNo] = keyItemField;
     DBUG_PRINT("info", ("keyPartNo:%d, field:%s.%s",
                 keyPartNo, keyItemField->field->table->alias, keyItemField->field->field_name));
 
     field_linked_parents = keyItemField->field->table->map;
     current_linked_parents |= keyItemField->field->table->map;
     multiple_parents= (current_linked_parents != keyItemField->field->table->map);
+    parent= keyItemField->field->table;
 
     // 2) Aggregate alternative parents from equality set
     if (likely(cond_equal))
@@ -381,11 +387,15 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
       DBUG_PRINT("info", ("  Common parent is outside scope -> can't append table to pushed joins:%d\n",inx+1));
       DBUG_RETURN(false);
     }
+    parent = new_parent;
 
     // 2) Update join_items[] not already refering new_parent
     for (uint keyPartNo = 0; keyPartNo < join_tabs[inx].ref.key_parts; keyPartNo++)
     {
-      Item_field* keyItemField = join_items[keyPartNo];
+      if (join_items[keyPartNo]->type() != Item::FIELD_ITEM)
+        continue;
+
+      Item_field* keyItemField = static_cast<Item_field*>(join_items[keyPartNo]);
       if (keyItemField->field->table != new_parent)
       {
         Item_equal *item_equal= keyItemField->item_equal
@@ -405,11 +415,11 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
               break;
             }
           }
-        }
-        DBUG_PRINT("info", (" Replaced join_items[%d] %s.%s with %s.%s",
+          DBUG_PRINT("info", (" Replaced join_items[%d] %s.%s with %s.%s",
                     keyPartNo,
                     keyItemField->field->table->alias, keyItemField->field->field_name,
-                    join_items[keyPartNo]->field->table->alias, join_items[keyPartNo]->field->field_name));
+                    item_field->field->table->alias,   item_field->field->field_name));
+        }
       }
     } // for all 'key_parts'
   }
@@ -429,7 +439,7 @@ ha_ndbcluster::push_flags(uint flags) const
      *   - not LM_CommittedRead
      *   - uses blobs
      *
-     * But, lock-mode is upgraded to LM_Read is using blobs, so
+     * But, lock-mode is upgraded to LM_Read if using blobs, so
      *      it' sufficient to check that
      */
     THD *thd= current_thd;
@@ -454,7 +464,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   DBUG_ENTER("make_pushed_join");
   const JOIN *join = join_tabs->join;
   (void)join; // remove compiler warning
-  Item_field* join_items[MAX_LINKED_KEYS+1];
+  Item*  join_items[MAX_LINKED_KEYS+1];
+  TABLE* join_parent;
 
   DBUG_ASSERT (m_pushed_join == NULL);
   if (!(current_thd->variables.ndb_join_pushdown))
@@ -464,13 +475,17 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_RETURN(0);
 
   JOIN_TAB& join_root = join_tabs[0];
-  if (join_root.type != JT_EQ_REF &&  // Lookup with complete key specified
-      join_root.type != JT_CONST  &&  // 'EQ_REF' where key is constant
-      join_root.type != JT_REF    &&  // EQ-bounded index scan
-      join_root.type != JT_ALL    &&  // Table or index scan, optionally with bounds
-      join_root.type != JT_NEXT)      // Ordered index scan, optionally with bounds
-  {
-    DBUG_RETURN(0);
+  switch (join_root.type)
+  {                      // These are the pushable JT_xxx types:
+    case JT_EQ_REF:      // Lookup with complete key specified
+    case JT_CONST:       // 'EQ_REF' where key is constant
+    case JT_REF:         // EQ-bounded index scan
+    case JT_ALL:         // Table or index scan, optionally with bounds
+    case JT_NEXT:        // Ordered index scan, optionally with bounds
+      break;
+
+    default:
+      DBUG_RETURN(0);
   }
 
   if (join_tabs[1].table->file->ht != ht)
@@ -533,7 +548,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
   /****** TODO, END 'temporary limitations' *****************/
 
-  if (!field_ref_is_join_pushable(join_tabs, 1, join_items))
+  if (!field_ref_is_join_pushable(join_tabs, 1, join_items, join_parent))
   {
     DBUG_PRINT("info", ("First child table not EQ_REF pushable in join"));
     DBUG_RETURN(0);
@@ -576,7 +591,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     }
     rootKey[key_rec->noOfColumns]= NULL;
 
-    // Link on primary key assumed
+    // Primary key access assumed
     if (join_root.ref.key == (int)join_root.table->s->primary_key)
     {
       operationDefs[0]= builder.readTuple(m_table, rootKey);
@@ -687,19 +702,12 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   {
     const JOIN_TAB& join_tab = join_tabs[join_cnt];
     const ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(join_tab.table->file);
-    const NdbDictionary::Table* const table= handler->m_table;
-    const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
 
     if (join_cnt >= 2)    // First 2 tables are checked before we get here
     {
       if (handler->ht != ht)
       {
         DBUG_PRINT("info", ("Table %d not same SE, not pushable", join_cnt));
-        break;
-      }
-      if (!field_ref_is_join_pushable(join_tabs, join_cnt, join_items))
-      {
-        DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
         break;
       }
       if (handler->uses_blob_value(join_tab.table->read_set))
@@ -712,35 +720,52 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
         break;
       }
+      if (!field_ref_is_join_pushable(join_tabs, join_cnt, join_items, join_parent))
+      {
+        DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
+        break;
+      }
     }
 
     DBUG_PRINT("info", ("join_cnt:%d, key_parts:%d", join_cnt, join_tab.ref.key_parts));
+    // Find common parent operation for all 'ref.key_parts'
+    // Key may refer any of the preceeding parent tables
+    const NdbQueryOperationDef* parent= NULL;
+    for (const JOIN_TAB *ref = &join_tabs[join_cnt-1]; ref >= join_tabs; ref--)
+    {
+      if (join_parent == ref->table)
+      {
+        parent= operationDefs[ref-join_tabs];
+        break;
+      }
+    }
+
+    const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
+    const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
     for(uint keyPartNo = 0; 
         keyPartNo < join_tab.ref.key_parts;
         keyPartNo++)
     {
-      DBUG_ASSERT(join_items[keyPartNo]->type() == Item::FIELD_ITEM);
-      const Item_field* const keyItem= join_items[keyPartNo];
-
-      // Key may refer any of the preceeding parent tables
+      Item* const item = join_items[keyPartNo];
       linkedKey[keyPartNo]= NULL;
-      for (const JOIN_TAB *ref = &join_tabs[join_cnt-1]; ref >= join_tabs; ref--)
+      if (item->type()==Item::FIELD_ITEM)
       {
-        if (keyItem->field->table == ref->table)
-        {
-          DBUG_PRINT("info", ("keyPartNo:%d, field:%s", keyPartNo, keyItem->field->field_name));
-          const NdbQueryOperationDef* parent= operationDefs[ref-join_tabs];
-          linkedKey[keyPartNo]= builder.linkedValue(parent, keyItem->field->field_name);
-          // TODO use field_index ??
-
-          if (unlikely(!linkedKey[keyPartNo]))
-            DBUG_RETURN(0);
-          break;
-        }
+        DBUG_ASSERT(parent != NULL);
+        Item_field* const keyItem= static_cast<Item_field*>(item);
+        linkedKey[keyPartNo]= builder.linkedValue(parent, keyItem->field->field_name);
+        // TODO use field_index ??
+      }
+      else if (item->const_item())
+      {
+        const uchar* const_key = join_tab.ref.key_buff;
+        const NdbRecord::Attr* key_column= &key_record->columns[keyPartNo];
+        linkedKey[keyPartNo]= builder.constValue(const_key+key_column->offset, key_column);
       }
       if (unlikely(!linkedKey[keyPartNo]))
         DBUG_RETURN(0);
     }
+
+    const NdbDictionary::Table* const table= handler->m_table;
 
     // Link on primary key or an unique index
     if (join_tab.ref.key == (int)join_tab.table->s->primary_key)
@@ -753,6 +778,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       DBUG_ASSERT(index);
       operationDefs[join_cnt]= builder.readTuple(index, table, linkedKey);
     }
+
 //  DBUG_ASSERT(operationDefs[join_cnt]);
     if (unlikely(!operationDefs[join_cnt]))
       DBUG_RETURN(0);
