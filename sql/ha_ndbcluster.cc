@@ -268,24 +268,32 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
    * aggregate the 'table->map' bitmask for all possible parent table ref's.
    * Such that the refered table may be used as a source for all child refs.
    *
-   * 1) Collect (or-aggregate) the set of current parent references
-   *    in 'current_linked_parents'.
+   * 1) Calculate set of parent operation within scope of join_tabs[inx] 
    *
-   * 2) For each FIELD_ITEM in childs 'ref.key' aggregate 'table->map'
+   * 2) Collect (or-aggregate) the set of parents currently referred
+   *    by join_tabs[inx].ref in 'current_linked_parents'.
+   *
+   * 3) For each FIELD_ITEM in childs 'ref.key' aggregate 'table->map'
    *    bitmask for the table currently refered and alternative parents 
    *    from COND_EQUAL in 'field_linked_parents'
    *
-   * 3) Collect (and-aggregate) the total set of candidate parents being
+   * 4) Collect (and-aggregate) the total set of candidate parents being
    *    the single parent for this child in 'all_linked_parents'
    *    
    **/
+
+  // 1) Set up our parent scope:
+  table_map parents_in_scope= 0;
+  for (const JOIN_TAB* join_tab= join_tabs; join_tab < &join_tabs[inx]; join_tab++)
+    parents_in_scope |= join_tab->table->map;
+
   table_map current_linked_parents= 0;
   table_map field_linked_parents= 0;
   table_map all_linked_parents= 0;
   bool multiple_parents= false;
 
   parent= NULL;
-  for (uint keyPartNo = 0; keyPartNo < join_tabs[inx].ref.key_parts; keyPartNo++)
+  for (uint keyPartNo= 0; keyPartNo < join_tabs[inx].ref.key_parts; keyPartNo++)
   {
     /* All parts of the key must be fields in some of the preceeding 
      * tables 
@@ -294,8 +302,10 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     join_items[keyPartNo] = keyItem;
 
     if (keyItem->const_item())
+    {
+      DBUG_PRINT("info", ("keyPartNo:%d, is 'const_item'"));
       continue;
-
+    }
     if (keyItem->type()!=Item::FIELD_ITEM)
     {
       DBUG_PRINT("info", ("  Item type:%d not join_pushable -> can't append table:%d",
@@ -307,12 +317,13 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     DBUG_PRINT("info", ("keyPartNo:%d, field:%s.%s",
                 keyPartNo, keyItemField->field->table->alias, keyItemField->field->field_name));
 
-    field_linked_parents = keyItemField->field->table->map;
-    current_linked_parents |= keyItemField->field->table->map;
-    multiple_parents= (current_linked_parents != keyItemField->field->table->map);
-    parent= keyItemField->field->table;
+    // 2) Calculate current parent referrences
+    field_linked_parents= (keyItemField->field->table->map & parents_in_scope);
+    current_linked_parents |= field_linked_parents;
+    multiple_parents= (current_linked_parents != field_linked_parents);
+    parent= keyItemField->field->table;    // Assumed until further
 
-    // 2) Aggregate alternative parents from equality set
+    // 3) Aggregate alternative parents from equality set
     if (likely(cond_equal))
     {
       Item_equal *item_equal= keyItemField->item_equal
@@ -326,8 +337,8 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
         while ((item_field= it++))
         {
-          if (item_field               == keyItemField ||       // Current ref
-              item_field->field->table == join_tabs[inx].table) // Self ref
+          if (item_field                    == keyItemField ||       // Current ref
+              !(item_field->field->table->map & parents_in_scope))   // Outside linked scope
             continue;
 
           field_linked_parents |= item_field->field->table->map;
@@ -340,19 +351,16 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
       }
     } // if cond_equal
 
-    // 3) Aggregate set of possible single parent candidates serving all child refs
+    // 4) Aggregate set of possible single parent candidates serving all child refs
     if (keyPartNo > 0)
-    {
       all_linked_parents &= field_linked_parents;
-      if (all_linked_parents == 0)
-      {
-        DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",inx+1));
-        DBUG_RETURN(false);
-      }
-    }
     else
-    {
       all_linked_parents = field_linked_parents;
+
+    if (all_linked_parents == 0)
+    {
+      DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",inx+1));
+      DBUG_RETURN(false);
     }
   } // for all 'key_parts'
 
@@ -748,18 +756,18 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     {
       Item* const item = join_items[keyPartNo];
       linkedKey[keyPartNo]= NULL;
-      if (item->type()==Item::FIELD_ITEM)
+      if (item->const_item())
+      {
+        const uchar* const_key = join_tab.ref.key_buff;
+        const NdbRecord::Attr* key_attr = &key_record->columns[keyPartNo];
+        linkedKey[keyPartNo]= builder.constValue(const_key+key_attr->offset, key_record, keyPartNo);
+      }
+      else if (item->type()==Item::FIELD_ITEM)
       {
         DBUG_ASSERT(parent != NULL);
         Item_field* const keyItem= static_cast<Item_field*>(item);
         linkedKey[keyPartNo]= builder.linkedValue(parent, keyItem->field->field_name);
         // TODO use field_index ??
-      }
-      else if (item->const_item())
-      {
-        const uchar* const_key = join_tab.ref.key_buff;
-        const NdbRecord::Attr* key_attr = &key_record->columns[keyPartNo];
-        linkedKey[keyPartNo]= builder.constValue(const_key+key_attr->offset, key_record, keyPartNo);
       }
       if (unlikely(!linkedKey[keyPartNo]))
         DBUG_RETURN(0);
