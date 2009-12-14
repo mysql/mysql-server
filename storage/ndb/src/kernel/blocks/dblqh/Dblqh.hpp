@@ -238,6 +238,7 @@ class Dbtup;
 #define ZPREP_DROP_TABLE 20
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
+#define ZREBUILD_ORDERED_INDEXES 23
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2206,6 +2207,9 @@ private:
   void execTUX_ADD_ATTRCONF(Signal* signal);
   void execTUX_ADD_ATTRREF(Signal* signal);
 
+  void execBUILDINDXREF(Signal* signal);
+  void execBUILDINDXCONF(Signal* signal);
+
   // Statement blocks
 
   void init_acc_ptr_list(ScanRecord*);
@@ -2401,6 +2405,8 @@ private:
   void exitFromInvalidate(Signal* signal);
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
+
+  void rebuildOrderedIndexes(Signal* signal, Uint32 tableId);
 
   // Generated statement blocks
   void systemErrorLab(Signal* signal, int line);

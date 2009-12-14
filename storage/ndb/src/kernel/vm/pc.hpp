@@ -78,6 +78,31 @@
     ((theEmulatedJamBlockNumber << 20) | (line)); \
   theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
 
+#define thrjamEntry(base, idx) \
+  do { \
+    Uint32 i = * idx; Uint32 no = number(); \
+    *(Uint32*)((UintPtr)base + i) = ((no << 20) | __LINE__); \
+    i = (i + 4) & JAM_MASK; * idx = i; \
+  } while (0)
+#define thrjamEntryLine(base, idx, line) \
+  do { \
+    Uint32 i = * idx; Uint32 block = number(); \
+    *(Uint32*)((UintPtr)base + i) = ((no << 20) | (line)); \
+    i = (i + 4) & JAM_MASK; * idx = i; } \
+  while (0)
+#define thrjam(base, idx) \
+  do { \
+    Uint32 i = * idx;  \
+    *(Uint32*)((UintPtr)base + i) = __LINE__; \
+    i = (i + 4) & JAM_MASK; * idx = i; \
+  } while (0)
+#define thrjamLine(base, idx, line) \
+  do { \
+    Uint32 i = * idx; \
+    *(Uint32*)((UintPtr)base + i) = __LINE__; \
+    i = (i + 4) & JAM_MASK; * idx = i; } \
+  while (0)
+
 #endif
 
 #endif

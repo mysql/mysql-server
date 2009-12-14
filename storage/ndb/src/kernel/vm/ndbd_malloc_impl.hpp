@@ -87,6 +87,8 @@ public:
 private:
   void grow(Uint32 start, Uint32 cnt);
 
+  NdbMutex m_mutex;
+
 #define XX_RL_COUNT 4
   /**
    * Return pointer to free page data on page

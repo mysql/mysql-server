@@ -54,7 +54,7 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
   TreePos pos1 = scan.m_scanPos;
   TreePos pos2;
   { // as in scanFirst()
-    setKeyAttrs(frag);
+    setKeyAttrs(c_ctx, frag);
     const unsigned idir = 1;
     const ScanBound& bound = *scan.m_bound[idir];
     ScanBoundIterator iter;

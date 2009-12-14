@@ -217,6 +217,9 @@ AsyncFile::run()
     case Request::allocmem:
       allocMemReq(request);
       break;
+    case Request::buildindx:
+      buildIndxReq(request);
+      break;
     case Request:: end:
       if (isOpen())
         closeReq(request);
@@ -335,6 +338,16 @@ AsyncFile::allocMemReq(Request* request)
     request->error = 0;
   else
     request->error = 1;
+}
+
+void
+AsyncFile::buildIndxReq(Request* request)
+{
+  mt_BuildIndxReq req;
+  memcpy(&req, &request->par.build.m_req, sizeof(req));
+  req.mem_buffer = m_page_ptr.p;
+  req.buffer_size = m_page_cnt * sizeof(GlobalPage);
+  request->error = (* req.func_ptr)(&req);
 }
 
 void AsyncFile::endReq()

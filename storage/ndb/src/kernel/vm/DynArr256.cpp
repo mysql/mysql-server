@@ -85,9 +85,16 @@ DynArr256Pool::DynArr256Pool()
 void
 DynArr256Pool::init(Uint32 type_id, const Pool_context & pc)
 {
+  init(0, type_id, pc);
+}
+
+void
+DynArr256Pool::init(NdbMutex* m, Uint32 type_id, const Pool_context & pc)
+{
   m_ctx = pc;
   m_type_id = type_id;
   m_memroot = (DA256Page*)m_ctx.get_memroot();
+  m_mutex = m;
 }
 
 static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, ~0 };
@@ -561,11 +568,12 @@ releasenode(DA256Page* page, Uint32 idx, Uint32 type_id)
 Uint32
 DynArr256Pool::seize()
 {
-  Uint32 ff = m_first_free;
   Uint32 type_id = m_type_id;
-
   DA256Page* page;
   DA256Page * memroot = m_memroot;
+
+  Guard2 g(m_mutex);
+  Uint32 ff = m_first_free;
   if (ff == RNIL)
   { 
     Uint32 page_no;
@@ -607,7 +615,6 @@ DynArr256Pool::seize()
 void
 DynArr256Pool::release(Uint32 ptrI)
 {
-  Uint32 ff = m_first_free;
   Uint32 type_id = m_type_id;
 
   Uint32 page_no = ptrI >> DA256_BITS;
@@ -618,8 +625,10 @@ DynArr256Pool::release(Uint32 ptrI)
   DA256Free * ptr = (DA256Free*)(page->m_nodes + page_idx);
   if (likely(releasenode(page, page_idx, type_id)))
   {
-    ptr->m_next_free = ff;
     ptr->m_magic = type_id;
+    Guard2 g(m_mutex);
+    Uint32 ff = m_first_free;
+    ptr->m_next_free = ff;
     m_first_free = ptrI;
     return;
   }

@@ -96,6 +96,9 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
 
   // Ordered index related
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
+  addRecSignal(GSN_BUILDINDXREF, &Dbtup::execBUILDINDXREF);
+  addRecSignal(GSN_BUILDINDXCONF, &Dbtup::execBUILDINDXCONF);
+  m_max_parallel_index_build = 0;
 
   // Tup scan
   addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);
@@ -352,7 +355,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
-  c_page_map_pool.init(RT_DBTUP_PAGE_MAP, pc);
+  c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
   
   Uint32 nScanOp;       // use TUX config for now
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
@@ -386,6 +389,9 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   c_memusage_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
 			    &c_memusage_report_frequency);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
+                            &m_max_parallel_index_build);
   
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()

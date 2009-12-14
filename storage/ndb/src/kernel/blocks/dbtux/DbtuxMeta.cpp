@@ -340,12 +340,38 @@ Dbtux::execALTER_INDX_REQ(Signal* signal)
   // set index online after build
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->getIndexId());
-  indexPtr.p->m_state = Index::Online;
+
+  Uint32 save = indexPtr.p->m_state;
+  if (refToBlock(req->getUserRef()) != DBDICT)
+  {
+    /**
+     * DICT has a really distorted view of the world...
+     *   ignore it :(
+     */
+    jam();
+    switch(req->getOnline()){
+    case 0:
+      jam();
+      indexPtr.p->m_state = Index::Dropping;
+      break;
+    case 2:
+      jam();
+      indexPtr.p->m_state = Index::Building;
+      break;
+    default:
+      jam(); // fall-through
+    case 1:
+      jam();
+      indexPtr.p->m_state = Index::Online;
+      break;
+    }
 #ifdef VM_TRACE
-  if (debugFlags & DebugMeta) {
-    debugOut << "Online index " << indexPtr.i << " " << *indexPtr.p << endl;
-  }
+    if (debugFlags & DebugMeta) {
+      debugOut << "Online index " << indexPtr.i << " " << *indexPtr.p << endl;
+    }
 #endif
+  }
+
   // success
   AlterIndxConf* const conf = (AlterIndxConf*)signal->getDataPtrSend();
   conf->setUserRef(reference());
@@ -354,8 +380,16 @@ Dbtux::execALTER_INDX_REQ(Signal* signal)
   conf->setTableId(req->getTableId());
   conf->setIndexId(req->getIndexId());
   conf->setIndexVersion(req->getIndexVersion());
-  sendSignal(req->getUserRef(), GSN_ALTER_INDX_CONF,
-      signal, AlterIndxConf::SignalLength, JBB);
+  if (req->getUserRef() != 0)
+  {
+    /**
+     * TUP cheats and does execute direct
+     *   setting UserRef to 0
+     */
+    jam();
+    sendSignal(req->getUserRef(), GSN_ALTER_INDX_CONF,
+               signal, AlterIndxConf::SignalLength, JBB);
+  }
 }
 
 /*

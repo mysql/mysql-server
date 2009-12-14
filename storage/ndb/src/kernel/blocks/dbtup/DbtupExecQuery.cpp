@@ -437,6 +437,10 @@ Dbtup::load_diskpage(Signal* signal,
 		     Uint32 opRec, Uint32 fragPtrI, 
 		     Uint32 local_key, Uint32 flags)
 {
+  Ptr<Tablerec> tabptr;
+  Ptr<Fragrecord> fragptr;
+  Ptr<Operationrec> operPtr;
+
   c_operation_pool.getPtr(operPtr, opRec);
   fragptr.i= fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
@@ -518,6 +522,7 @@ Dbtup::load_diskpage(Signal* signal,
 void
 Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 {
+  Ptr<Operationrec> operPtr;
   c_operation_pool.getPtr(operPtr, opRec);
   c_lqh->acckeyconf_load_diskpage_callback(signal, 
 					   operPtr.p->userpointer, page_id);
@@ -528,6 +533,10 @@ Dbtup::load_diskpage_scan(Signal* signal,
 			  Uint32 opRec, Uint32 fragPtrI, 
 			  Uint32 local_key, Uint32 flags)
 {
+  Ptr<Tablerec> tabptr;
+  Ptr<Fragrecord> fragptr;
+  Ptr<Operationrec> operPtr;
+
   c_operation_pool.getPtr(operPtr, opRec);
   fragptr.i= fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
@@ -582,6 +591,7 @@ void
 Dbtup::disk_page_load_scan_callback(Signal* signal, 
 				    Uint32 opRec, Uint32 page_id)
 {
+  Ptr<Operationrec> operPtr;
   c_operation_pool.getPtr(operPtr, opRec);
   c_lqh->next_scanconf_load_diskpage_callback(signal, 
 					      operPtr.p->userpointer, page_id);
@@ -590,6 +600,9 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
 void Dbtup::execTUPKEYREQ(Signal* signal) 
 {
    TupKeyReq * tupKeyReq= (TupKeyReq *)signal->getDataPtr();
+   Ptr<Tablerec> tabptr;
+   Ptr<Fragrecord> fragptr;
+   Ptr<Operationrec> operPtr;
    KeyReqStruct req_struct;
    Uint32 sig1, sig2, sig3, sig4;
 
@@ -616,6 +629,9 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    ptrCheckGuard(tabptr, RnoOfTablerec, tablerec);
    Tablerec* regTabPtr = tabptr.p;
 
+   req_struct.tablePtrP = tabptr.p;
+   req_struct.fragPtrP = fragptr.p;
+   req_struct.operPtrP = operPtr.p;
    req_struct.signal= signal;
    req_struct.dirty_op= TrequestInfo & 1;
    req_struct.interpreted_exec= (TrequestInfo >> 10) & 1;
@@ -627,7 +643,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
    if (unlikely(get_trans_state(regOperPtr) != TRANS_IDLE))
    {
-     TUPKEY_abort(signal, 39);
+     TUPKEY_abort(&req_struct, 39);
      return;
    }
 
@@ -737,7 +753,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        return;
      }
-     tupkeyErrorLab(signal);
+     tupkeyErrorLab(&req_struct);
      return;
    }
    
@@ -764,7 +780,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
        if (unlikely(terrorCode != 0))
        {
-         tupkeyErrorLab(signal);
+         tupkeyErrorLab(&req_struct);
          return;
        }
 
@@ -791,7 +807,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             */
            signal->theData[0] = operPtr.i;
            do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
-           tupkeyErrorLab(signal);
+           tupkeyErrorLab(&req_struct);
            return;
          }
        }
@@ -827,7 +843,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
        if (unlikely(terrorCode != 0))
        {
-         tupkeyErrorLab(signal);
+         tupkeyErrorLab(&req_struct);
          return;
        }
 
@@ -845,7 +861,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
             */
            signal->theData[0] = operPtr.i;
            do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
-           tupkeyErrorLab(signal);
+           tupkeyErrorLab(&req_struct);
            return;
          }
        }
@@ -873,7 +889,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
        if (unlikely(terrorCode != 0))
        {
-         tupkeyErrorLab(signal);
+         tupkeyErrorLab(&req_struct);
          return;
        }
 
@@ -891,7 +907,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
      }
    }
 
-   tupkeyErrorLab(signal);
+   tupkeyErrorLab(&req_struct);
 }
 
 void
@@ -965,7 +981,7 @@ int Dbtup::handleReadReq(Signal* signal,
     jam();
     ndbout_c("here2");
     terrorCode= ZTUPLE_CORRUPTED_ERROR;
-    tupkeyErrorLab(signal);
+    tupkeyErrorLab(req_struct);
     return -1;
   }
 
@@ -989,7 +1005,7 @@ int Dbtup::handleReadReq(Signal* signal,
 			     dst,
 			     dstLen,
 			     false);
-    if (likely(ret != -1)) {
+    if (likely(ret >= 0)) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
@@ -998,6 +1014,10 @@ int Dbtup::handleReadReq(Signal* signal,
       req_struct->read_length= TnoOfDataRead;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead, regOperPtr);
       return 0;
+    }
+    else
+    {
+      terrorCode = Uint32(-ret);
     }
   } else {
     jam();
@@ -1008,7 +1028,7 @@ int Dbtup::handleReadReq(Signal* signal,
   }
 
   jam();
-  tupkeyErrorLab(signal);
+  tupkeyErrorLab(req_struct);
   return -1;
 }
 
@@ -1103,8 +1123,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
     int retValue = updateAttributes(req_struct,
 				    &cinBuffer[0],
 				    req_struct->attrinfo_len);
-    if (unlikely(retValue == -1))
+    if (unlikely(retValue < 0))
+    {
+      terrorCode = Uint32(-retValue);
       goto error;
+    }
   } else {
     jam();
     if (unlikely(interpreterStartLab(signal, req_struct) == -1))
@@ -1156,7 +1179,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   return 0;
   
 error:
-  tupkeyErrorLab(signal);  
+  tupkeyErrorLab(req_struct);
   return -1;
 }
 
@@ -1469,10 +1492,9 @@ int Dbtup::handleInsertReq(Signal* signal,
            4*regTabPtr->m_offsets[MM].m_null_words);
   }
   
+  int res;
   if (disk_insert)
   {
-    int res;
-    
     if (ERROR_INSERTED(4015))
     {
       terrorCode = 1501;
@@ -1497,9 +1519,10 @@ int Dbtup::handleInsertReq(Signal* signal,
     goto update_error;
   }
 
-  if(unlikely(updateAttributes(req_struct, &cinBuffer[0], 
-			       req_struct->attrinfo_len) == -1))
+  if(unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
+                                      req_struct->attrinfo_len)) < 0))
   {
+    terrorCode = Uint32(-res);
     goto update_error;
   }
 
@@ -1559,7 +1582,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (!varalloc)
       {
 	jam();
-	ptr= alloc_fix_rec(regFragPtr,
+	ptr= alloc_fix_rec(&terrorCode,
+                           regFragPtr,
 			   regTabPtr,
 			   &regOperPtr.p->m_tuple_location,
 			   &frag_page_id);
@@ -1568,7 +1592,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       {
 	jam();
 	regOperPtr.p->m_tuple_location.m_file_no= sizes[2+MM];
-	ptr= alloc_var_rec(regFragPtr, regTabPtr,
+	ptr= alloc_var_rec(&terrorCode,
+                           regFragPtr, regTabPtr,
 			   sizes[2+MM],
 			   &regOperPtr.p->m_tuple_location,
 			   &frag_page_id);
@@ -1591,7 +1616,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (!varalloc)
       {
 	jam();
-	ptr= alloc_fix_rowid(regFragPtr,
+	ptr= alloc_fix_rowid(&terrorCode,
+                             regFragPtr,
 			     regTabPtr,
 			     &regOperPtr.p->m_tuple_location,
 			     &frag_page_id);
@@ -1600,7 +1626,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       {
 	jam();
 	regOperPtr.p->m_tuple_location.m_file_no= sizes[2+MM];
-	ptr= alloc_var_rowid(regFragPtr, regTabPtr,
+	ptr= alloc_var_rowid(&terrorCode,
+                             regFragPtr, regTabPtr,
 			     sizes[2+MM],
 			     &regOperPtr.p->m_tuple_location,
 			     &frag_page_id);
@@ -1717,7 +1744,7 @@ undo_buffer_error:
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
   regOperPtr.p->m_copy_tuple_location.setNull();
-  tupkeyErrorLab(signal);  
+  tupkeyErrorLab(req_struct);
   return -1;
   
 null_check_error:
@@ -1743,7 +1770,7 @@ update_error:
     regOperPtr.p->m_tuple_location.setNull();
   }
 exit_error:
-  tupkeyErrorLab(signal);
+  tupkeyErrorLab(req_struct);
   return -1;
 
 disk_prealloc_error:
@@ -1825,7 +1852,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   }
 
 error:
-  tupkeyErrorLab(signal);
+  tupkeyErrorLab(req_struct);
   return -1;
 }
 
@@ -1903,7 +1930,7 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 int Dbtup::interpreterStartLab(Signal* signal,
                                KeyReqStruct *req_struct)
 {
-  Operationrec *  const regOperPtr= operPtr.p;
+  Operationrec * const regOperPtr = req_struct->operPtrP;
   int TnoDataRW;
   Uint32 RtotalLen, start_index, dstLen;
   Uint32 *dst;
@@ -1965,12 +1992,13 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &dst[0],
 				 dstLen,
                                  false);
-      if (TnoDataRW != -1) {
+      if (TnoDataRW >= 0) {
 	RattroutCounter= TnoDataRW;
 	RinstructionCounter += RinitReadLen;
       } else {
 	jam();
-	tupkeyErrorLab(signal);
+        terrorCode = Uint32(-TnoDataRW);
+	tupkeyErrorLab(req_struct);
 	return -1;
       }
     }
@@ -2013,7 +2041,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	TnoDataRW= updateAttributes(req_struct,
 				     &cinBuffer[RinstructionCounter],
 				     RfinalUpdateLen);
-	if (TnoDataRW != -1) {
+	if (TnoDataRW >= 0) {
 	  MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
 			   &cinBuffer[RinstructionCounter],
 			   RfinalUpdateLen);
@@ -2021,11 +2049,12 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	  RlogSize += RfinalUpdateLen;
 	} else {
 	  jam();
-	  tupkeyErrorLab(signal);
+          terrorCode = Uint32(-TnoDataRW);
+	  tupkeyErrorLab(req_struct);
 	  return -1;
 	}
       } else {
-	return TUPKEY_abort(signal, 19);
+	return TUPKEY_abort(req_struct, 19);
       }
     }
     if (RfinalRLen > 0) {
@@ -2040,11 +2069,12 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &dst[RattroutCounter],
 				 (dstLen - RattroutCounter),
                                  false);
-      if (TnoDataRW != -1) {
+      if (TnoDataRW >= 0) {
 	RattroutCounter += TnoDataRW;
       } else {
 	jam();
-	tupkeyErrorLab(signal);
+        terrorCode = Uint32(-TnoDataRW);
+	tupkeyErrorLab(req_struct);
 	return -1;
       }
     }
@@ -2061,7 +2091,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     }
     return 0;
   } else {
-    return TUPKEY_abort(signal, 22);
+    return TUPKEY_abort(req_struct, 22);
   }
 }
 
@@ -2209,9 +2239,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0;
 	    TregMemBuffer[theRegister + 2]= 0;
 	    TregMemBuffer[theRegister + 3]= 0;
-	  } else if (TnoDataRW == -1) {
+	  } else if (TnoDataRW < 0) {
 	    jam();
-	    tupkeyErrorLab(signal);
+            terrorCode = Uint32(-TnoDataRW);
+	    tupkeyErrorLab(req_struct);
 	    return -1;
 	  } else {
 	    /* ------------------------------------------------------------- */
@@ -2227,7 +2258,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	jam();
 	{
 	  Uint32 TattrId= theInstruction >> 16;
-	  Uint32 TattrDescrIndex= tabptr.p->tabDescriptor +
+	  Uint32 TattrDescrIndex= req_struct->tablePtrP->tabDescriptor +
 	    (TattrId << ZAD_LOG_SIZE);
 	  Uint32 TattrDesc1= tableDescriptor[TattrDescrIndex].tabDescr;
 	  Uint32 TregType= TregMemBuffer[theRegister];
@@ -2238,7 +2269,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  // register size.
 	  /* --------------------------------------------------------------- */
           Uint32 TattrNoOfWords = AttributeDescriptor::getSizeInWords(TattrDesc1);
-	  Uint32 Toptype = operPtr.p->op_struct.op_type;
+	  Uint32 Toptype = req_struct->operPtrP->op_struct.op_type;
 	  Uint32 TdataForUpdate[3];
 	  Uint32 Tlen;
 
@@ -2265,7 +2296,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      int TnoDataRW= updateAttributes(req_struct,
 					   &TdataForUpdate[0],
 					   Tlen);
-	      if (TnoDataRW != -1) {
+	      if (TnoDataRW >= 0) {
 		/* --------------------------------------------------------- */
 		// Write the written data also into the log buffer so that it 
 		// will be logged.
@@ -2275,14 +2306,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		logMemory[TdataWritten + 2]= TdataForUpdate[2];
 		TdataWritten += Tlen;
 	      } else {
-		tupkeyErrorLab(signal);
+                terrorCode = Uint32(-TnoDataRW);
+		tupkeyErrorLab(req_struct);
 		return -1;
 	      }
 	    } else {
-	      return TUPKEY_abort(signal, 15);
+	      return TUPKEY_abort(req_struct, 15);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 16);
+	    return TUPKEY_abort(req_struct, 16);
 	  }
 	  break;
 	}
@@ -2333,7 +2365,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
 	  } else {
-	    return TUPKEY_abort(signal, 20);
+	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
 	}
@@ -2355,7 +2387,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
 	  } else {
-	    return TUPKEY_abort(signal, 20);
+	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
 	}
@@ -2402,7 +2434,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 23);
+	    return TUPKEY_abort(req_struct, 23);
 	  }
 	  break;
 	}
@@ -2424,7 +2456,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 24);
+	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
 	}
@@ -2446,7 +2478,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 24);
+	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
 	}
@@ -2468,7 +2500,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 26);
+	    return TUPKEY_abort(req_struct, 26);
 	  }
 	  break;
 	}
@@ -2490,7 +2522,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 27);
+	    return TUPKEY_abort(req_struct, 27);
 	  }
 	  break;
 	}
@@ -2512,7 +2544,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
 	  } else {
-	    return TUPKEY_abort(signal, 28);
+	    return TUPKEY_abort(req_struct, 28);
 	  }
 	  break;
 	}
@@ -2530,9 +2562,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR == -1) {
+	  if (TnoDataR < 0) {
 	    jam();
-	    tupkeyErrorLab(signal);
+            terrorCode = Uint32(-TnoDataR);
+	    tupkeyErrorLab(req_struct);
 	    return -1;
 	  }
 	  tmpHabitant= attrId;
@@ -2540,7 +2573,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
         // get type
 	attrId >>= 16;
-	Uint32 TattrDescrIndex = tabptr.p->tabDescriptor +
+	Uint32 TattrDescrIndex = req_struct->tablePtrP->tabDescriptor +
 	  (attrId << ZAD_LOG_SIZE);
 	Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
 	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
@@ -2549,7 +2582,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	if(AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
 	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
-	  cs = tabptr.p->charsetArray[pos];
+	  cs = req_struct->tablePtrP->charsetArray[pos];
 	}
 	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
 
@@ -2583,7 +2616,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    jam();
 	    if (unlikely(sqlType.m_cmp == 0))
 	    {
-	      return TUPKEY_abort(signal, 40);
+	      return TUPKEY_abort(req_struct, 40);
 	    }
             res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
           }
@@ -2598,7 +2631,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
               jam();
               if (unlikely(sqlType.m_like == 0))
               {
-                return TUPKEY_abort(signal, 40);
+                return TUPKEY_abort(req_struct, 40);
               }
               res1 = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
             }
@@ -2609,7 +2642,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
             ndbassert(cond <= Interpreter::AND_NE_ZERO);
             if (unlikely(sqlType.m_mask == 0))
             {
-              return TUPKEY_abort(signal,40);
+              return TUPKEY_abort(req_struct,40);
             }
             /* If either arg is NULL, we say COL AND MASK
              * NE_ZERO and NE_MASK.
@@ -2694,9 +2727,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR == -1) {
+	  if (TnoDataR < 0) {
 	    jam();
-	    tupkeyErrorLab(signal);
+            terrorCode = Uint32(-TnoDataR);
+	    tupkeyErrorLab(req_struct);
 	    return -1;
 	  }
 	  tmpHabitant= attrId;
@@ -2722,9 +2756,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR == -1) {
+	  if (TnoDataR < 0) {
 	    jam();
-	    tupkeyErrorLab(signal);
+            terrorCode = Uint32(-TnoDataR);
+	    tupkeyErrorLab(req_struct);
 	    return -1;
 	  }
 	  tmpHabitant= attrId;
@@ -2760,7 +2795,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	ndbout_c(" - exit_nok");
 #endif
 	terrorCode= theInstruction >> 16;
-	return TUPKEY_abort(signal, 29);
+	return TUPKEY_abort(req_struct, 29);
 
       case Interpreter::CALL:
 	jam();
@@ -2776,10 +2811,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TcurrentProgram= subroutineProg;
 	    TcurrentSize= TsubroutineLen;
 	  } else {
-	    return TUPKEY_abort(signal, 30);
+	    return TUPKEY_abort(req_struct, 30);
 	  }
 	} else {
-	  return TUPKEY_abort(signal, 31);
+	  return TUPKEY_abort(req_struct, 31);
 	}
 	break;
 
@@ -2802,18 +2837,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TcurrentSize= TmainProgLen;
 	  }
 	} else {
-	  return TUPKEY_abort(signal, 32);
+	  return TUPKEY_abort(req_struct, 32);
 	}
 	break;
 
       default:
-	return TUPKEY_abort(signal, 33);
+	return TUPKEY_abort(req_struct, 33);
       }
     } else {
-      return TUPKEY_abort(signal, 34);
+      return TUPKEY_abort(req_struct, 34);
     }
   }
-  return TUPKEY_abort(signal, 35);
+  return TUPKEY_abort(req_struct, 35);
 }
 
 /**
@@ -3588,7 +3623,8 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       if (0) ndbout_c(" no grow");
       return 0;
     }
-    Uint32 *new_var_part=realloc_var_part(regFragPtr, regTabPtr, pagePtr, 
+    Uint32 *new_var_part=realloc_var_part(&terrorCode,
+                                          regFragPtr, regTabPtr, pagePtr,
                                           refptr, alloc, needed);
     if (unlikely(new_var_part==NULL))
       return -1;
@@ -3664,10 +3700,11 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     Local_key tmp = *key;
     PagePtr pagePtr;
 
-    pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+    Uint32 err;
+    pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
     if (unlikely(pagePtr.i == RNIL))
     {
-      return -1;
+      return -err;
     }
     c_page_pool.getPtr(pagePtr);
     
@@ -3694,11 +3731,11 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 
   Local_key tmp = *key;
   
-  
+  Uint32 err;
   PagePtr pagePtr;
-  pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+  pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
   if (unlikely(pagePtr.i == RNIL))
-    return -1;
+    return -err;
   
   c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct;
@@ -3737,11 +3774,8 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
     const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
     // read pk attributes from original tuple
     
-    // new globals
-    tabptr= tablePtr;
-    fragptr= fragPtr;
-    operPtr.i= RNIL;
-    operPtr.p= NULL;
+    req_struct.tablePtrP = tablePtr.p;
+    req_struct.fragPtrP = fragPtr.p;
     
     // do it
     ret = readAttributes(&req_struct,
@@ -3751,7 +3785,7 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 			 ZNIL, false);
     
     // done
-    if (likely(ret != -1)) {
+    if (likely(ret >= 0)) {
       // remove headers
       Uint32 n= 0;
       Uint32 i= 0;
@@ -3768,7 +3802,7 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
       ndbrequire((int)i == ret);
       ret -= numAttrs;
     } else {
-      return terrorCode ? (-(int)terrorCode) : -1;
+      return ret;
     }
   }
     
