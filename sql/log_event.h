@@ -3603,13 +3603,14 @@ protected:
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
+                         MY_BITMAP const *cols,
                          const bool abort_on_warning= TRUE)
   { 
     DBUG_ASSERT(m_table);
 
     bool first_row= (m_curr_row == m_rows_buf);
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
-    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
                                    &m_curr_row_end, &m_master_reclength,
                                    abort_on_warning, first_row);
     if (m_curr_row_end > m_rows_end)
@@ -3701,7 +3702,7 @@ public:
 
 #if !defined(MYSQL_CLIENT)
   Write_rows_log_event(THD*, TABLE*, ulong table_id, 
-		       MY_BITMAP const *cols, bool is_transactional);
+		       bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
@@ -3710,14 +3711,12 @@ public:
 #if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record
                                           __attribute__((unused)),
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 cols, fields, after_record);
+                                 after_record);
   }
 #endif
 
@@ -3764,7 +3763,6 @@ public:
                         bool is_transactional);
 
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
-			MY_BITMAP const *cols,
                         bool is_transactional);
 
   void init(MY_BITMAP const *cols);
@@ -3780,13 +3778,11 @@ public:
 #if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record,
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  cols, fields, before_record, after_record);
+                                  before_record, after_record);
   }
 #endif
 
@@ -3840,7 +3836,7 @@ public:
 
 #ifndef MYSQL_CLIENT
   Delete_rows_log_event(THD*, TABLE*, ulong, 
-			MY_BITMAP const *cols, bool is_transactional);
+			bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
@@ -3849,14 +3845,12 @@ public:
 #if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
-                                          MY_BITMAP *cols,
-                                          uint fields,
                                           const uchar *before_record,
                                           const uchar *after_record
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  cols, fields, before_record);
+                                  before_record);
   }
 #endif
   

@@ -75,15 +75,20 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   unsigned int null_bits= (1U << 8) - 1;
   // Mask to mask out the correct but among the null bits
   unsigned int null_mask= 1U;
+  DBUG_PRINT("debug", ("null ptr: 0x%lx; row start: %p; null bytes: %d",
+                       (ulong) null_ptr, row_data, null_byte_count));
+  DBUG_DUMP("cols", (uchar*) cols->bitmap, cols->last_word_ptr - cols->bitmap + 1);
   for ( ; (field= *p_field) ; p_field++)
   {
-    DBUG_PRINT("debug", ("null_mask=%d; null_ptr=%p; row_data=%p; null_byte_count=%d",
-                         null_mask, null_ptr, row_data, null_byte_count));
+    DBUG_PRINT("debug", ("field: %s; null mask: 0x%x",
+                         field->field_name, null_mask));
     if (bitmap_is_set(cols, p_field - table->field))
     {
       my_ptrdiff_t offset;
       if (field->is_null(rec_offset))
       {
+        DBUG_PRINT("debug", ("Is NULL; null_mask: 0x%x; null_bits: 0x%x",
+                             null_mask, null_bits));
         offset= def_offset;
         null_bits |= null_mask;
       }
@@ -104,9 +109,9 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
                               field->max_data_length(), TRUE);
-        DBUG_PRINT("debug", ("field: %s; pack_ptr: 0x%lx;"
+        DBUG_PRINT("debug", ("Packed into row; pack_ptr: 0x%lx;"
                              " pack_ptr':0x%lx; bytes: %d",
-                             field->field_name, (ulong) old_pack_ptr,
+                             (ulong) old_pack_ptr,
                              (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
       }
@@ -120,6 +125,12 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         null_bits= (1U << 8) - 1;
       }
     }
+#ifndef DBUG_OFF
+    else
+    {
+      DBUG_PRINT("debug", ("Skipped"));
+    }
+#endif
   }
 
   /*
@@ -207,6 +218,11 @@ unpack_row(Relay_log_info const *rli,
   {
     Field *const f= *field_ptr;
 
+    DBUG_PRINT("debug", ("field: %s; null mask: 0x%x; null bits: 0x%lx;"
+                         " row start: %p; null bytes: %ld",
+                         f->field_name, null_mask, (ulong) null_bits,
+                         pack_ptr, (ulong) master_null_byte_count));
+
     /*
       No need to bother about columns that does not exist: they have
       gotten default values when being emptied above.
@@ -268,15 +284,20 @@ unpack_row(Relay_log_info const *rli,
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
         pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
-	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
+	DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
-                             f->field_name, metadata,
-                             (ulong) old_pack_ptr, (ulong) pack_ptr,
+                             metadata, (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
       }
 
       null_mask <<= 1;
     }
+#ifndef DBUG_OFF
+    else
+    {
+      DBUG_PRINT("debug", ("Non-existent: skipped"));
+    }
+#endif
     i++;
   }
 
@@ -331,8 +352,6 @@ unpack_row(Relay_log_info const *rli,
   be NULL. Otherwise error is reported.
  
   @param table  Table whose record[0] buffer is prepared. 
-  @param skip   Number of columns for which default/nullable check 
-                should be skipped.
   @param check  Specifies if lack of default error needs checking.
   @param abort_on_warning
                 Controls how to react on lack of a field's default.
@@ -341,8 +360,7 @@ unpack_row(Relay_log_info const *rli,
                 
   @returns 0 on success or a handler level error code
  */ 
-int prepare_record(TABLE *const table, 
-                   const uint skip, const bool check,
+int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check,
                    const bool abort_on_warning, const bool first_row)
 {
   DBUG_ENTER("prepare_record");
@@ -350,12 +368,7 @@ int prepare_record(TABLE *const table,
   int error= 0;
   restore_record(table, s->default_values);
 
-  /*
-     This skip should be revisited in 6.0, because in 6.0 RBR one 
-     can have holes in the row (as the grain of the writeset is 
-     the column and not the entire row).
-   */
-  if (skip >= table->s->fields || !check)
+  if (!check)
     DBUG_RETURN(0);
 
   /*
@@ -364,34 +377,38 @@ int prepare_record(TABLE *const table,
     explicit value for a field not having the explicit default 
     (@c check_that_all_fields_are_given_values()).
   */
-  for (Field **field_ptr= table->field+skip; *field_ptr; ++field_ptr)
+  
+  DBUG_PRINT_BITSET("debug", "cols: %s", cols);
+  for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
   {
-    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
-    Field *const f= *field_ptr;
-    if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
-        (f->real_type() != MYSQL_TYPE_ENUM))
-    {
-
-      MYSQL_ERROR::enum_warning_level error_type=
-        MYSQL_ERROR::WARN_LEVEL_NOTE;
-      if (abort_on_warning && (table->file->has_transactions() ||
-                               first_row))
+    if ((uint) (field_ptr - table->field) >= cols->n_bits ||
+        !bitmap_is_set(cols, field_ptr - table->field))
+    {   
+      Field *const f= *field_ptr;
+      if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
+          (f->real_type() != MYSQL_TYPE_ENUM))
       {
-        error= HA_ERR_ROWS_EVENT_APPLY;
-        error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
+        MYSQL_ERROR::enum_warning_level error_type=
+          MYSQL_ERROR::WARN_LEVEL_NOTE;
+        if (abort_on_warning && (table->file->has_transactions() ||
+                                 first_row))
+        {
+          error= HA_ERR_ROWS_EVENT_APPLY;
+          error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
+        }
+        else
+        {
+          DBUG_PRINT("debug", ("Set default; field: %s", f->field_name));
+          f->set_default();
+          error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
+        }
+        push_warning_printf(current_thd, error_type,
+                            ER_NO_DEFAULT_FOR_FIELD,
+                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            f->field_name);
       }
-      else
-      {
-        f->set_default();
-        error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
-      }
-      push_warning_printf(current_thd, error_type,
-                          ER_NO_DEFAULT_FOR_FIELD,
-                          ER(ER_NO_DEFAULT_FOR_FIELD),
-                          f->field_name);
     }
   }
-
   DBUG_RETURN(error);
 }
 

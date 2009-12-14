@@ -1272,6 +1272,19 @@ public:
   bool is_readonly() const;
 };
 
+class sys_var_thd_binlog_row_image :public sys_var_thd_enum
+{
+public:
+  sys_var_thd_binlog_row_image(sys_var_chain *chain, const char *name_arg, 
+                            ulong SV::*offset_arg)
+    :sys_var_thd_enum(chain, name_arg, offset_arg,
+                      &binlog_row_image_typelib,
+                      NULL)
+  {};
+  bool check(THD *thd, set_var *var);
+};
+
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/

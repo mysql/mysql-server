@@ -1,0 +1,288 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 ( i1 int, c1 char(1), key ( i1 ));
+INSERT IGNORE INTO t1 VALUES (1, 'a');
+UPDATE t1 SET c1 = 'b' WHERE i1 = 1;
+DROP TABLE t1;
+CREATE TABLE table1_myisam ( `bit_key` bit, `int_key` int, key (`bit_key` ), key (`int_key` ));
+INSERT IGNORE INTO table1_myisam VALUES ('1', '-2146992385');
+UPDATE `table1_myisam` SET `bit_key` = 0 WHERE `bit_key` = 1;
+DROP TABLE table1_myisam;
+#################################################################
+# CASE 1: MyISAM - master, MyISAM - slave
+#################################################################
+DROP TABLE IF EXISTS t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key with holes (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key with holes (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key with holes (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Primary Key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Primary key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite Unique key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Unique key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+****** TEST: One Composite key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+******* TEST: One key (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
+SET SQL_LOG_BIN=0;
+******* TEST: No keys (MyISAM -> MyISAM)
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= MyISAM;;
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1, '1', '1', '1' );
+INSERT INTO t VALUES (4, '4', '4', '4' );
+INSERT INTO t VALUES (7, '7', '7', '7' );
+INSERT INTO t VALUES (9, '9', '9', NULL );
+INSERT INTO t VALUES (2, '1', '2', '2' );
+INSERT INTO t VALUES (3, '1', '3', '2' );
+UPDATE t SET c4 = '7';
+UPDATE t SET c4 = '5' WHERE c1 = 1;
+UPDATE t SET c2 = '5' WHERE c1 = 1;
+UPDATE t SET c1 = '5' WHERE c1 = 1;
+UPDATE t SET c4 = '8' WHERE c2 = '4';
+UPDATE t SET c1 = '8' WHERE c2 = '4';
+UPDATE t SET c2 = '8' WHERE c2 = '4';
+UPDATE t SET c3 = '0' WHERE c4 = NULL;
+UPDATE t SET c2 = '0' WHERE c4 = '0';
+UPDATE t SET c2 = '2' WHERE c4 = '2';
+Comparing tables master:test.t and slave:test.t
+DELETE FROM t WHERE c1 = 7;
+DELETE FROM t WHERE c1 = 8;
+DELETE FROM t;
+Comparing tables master:test.t and slave:test.t
+DROP TABLE t;
