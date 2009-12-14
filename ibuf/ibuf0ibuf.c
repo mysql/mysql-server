@@ -3467,7 +3467,7 @@ bitmap_fail:
 		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
 						ibuf_entry, &ins_rec,
 						&dummy_big_rec, 0, thr, &mtr);
-		if (err == DB_SUCCESS) {
+		if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
 					       thr_get_trx(thr)->id, &mtr);
@@ -3487,7 +3487,7 @@ bitmap_fail:
 						 cursor,
 						 ibuf_entry, &ins_rec,
 						 &dummy_big_rec, 0, thr, &mtr);
-		if (err == DB_SUCCESS) {
+		if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
 					       thr_get_trx(thr)->id, &mtr);
