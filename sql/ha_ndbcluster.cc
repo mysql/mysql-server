@@ -758,8 +758,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       else if (item->const_item())
       {
         const uchar* const_key = join_tab.ref.key_buff;
-        const NdbRecord::Attr* key_column= &key_record->columns[keyPartNo];
-        linkedKey[keyPartNo]= builder.constValue(const_key+key_column->offset, key_column);
+        const NdbRecord::Attr* key_attr = &key_record->columns[keyPartNo];
+        linkedKey[keyPartNo]= builder.constValue(const_key+key_attr->offset, key_record, keyPartNo);
       }
       if (unlikely(!linkedKey[keyPartNo]))
         DBUG_RETURN(0);
