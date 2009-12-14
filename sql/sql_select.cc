@@ -6476,7 +6476,8 @@ make_pushed_join(JOIN *join)
     {
       // Replace 'read_key' access with it linked counterpart 
       // ... Which is effectively a NOOP as the row is read as part of the linked operation
-      DBUG_ASSERT(tab->read_first_record == join_read_key);
+      DBUG_ASSERT(tab->read_first_record==join_read_key ||
+                  tab->read_first_record==join_read_const);
       DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
       tab->read_first_record= join_read_linked_key;
     }
