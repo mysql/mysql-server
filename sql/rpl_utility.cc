@@ -116,17 +116,11 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
     return 8;
 
   case MYSQL_TYPE_BIT:
-  {
     /*
       Decode the size of the bit field from the master.
-        from_len is the length in bytes from the master
-        from_bit_len is the number of extra bits stored in the master record
     */
-    uint from_len= (metadata >> 8U) & 0x00ff;
-    uint from_bit_len= metadata & 0x00ff;
-    DBUG_ASSERT(from_bit_len <= 7);
-    return 8 * from_len + from_bit_len;
-  }
+    DBUG_ASSERT((metadata & 0xff) <= 7);
+    return 8 * (metadata >> 8U) + (metadata & 0x00ff);
 
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
@@ -422,7 +416,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str)
   case MYSQL_TYPE_BIT:
     {
       CHARSET_INFO *cs= str->charset();
-      int bit_length= (metadata >> 8) + (metadata & 0xFF);
+      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "bit(%d)", bit_length);
