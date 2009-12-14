@@ -1,10 +1,20 @@
 <charsets>
 
   <charset name="utf8">
+    <collation name="utf8_phone_ci" id="352">
+      <rules>
+        <reset>\u0000</reset>
+          <i>\u0020</i> <!-- space -->
+          <i>\u0028</i> <!-- left parenthesis -->
+          <i>\u0029</i> <!-- right parenthesis -->
+          <i>\u002B</i> <!-- plus -->
+          <i>\u002D</i> <!-- hyphen -->
+      </rules>
+    </collation>
     <collation name="utf8_test_ci" id="353">
       <rules>
         <reset>a</reset>
-        <s>b</s>
+        <i>b</i>
       </rules>
     </collation>
 

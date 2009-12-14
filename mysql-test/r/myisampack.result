@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS t1,t2,t3;
 CREATE TABLE t1(c1 DOUBLE, c2 DOUBLE, c3 DOUBLE, c4 DOUBLE, c5 DOUBLE,
 c6 DOUBLE, c7 DOUBLE, c8 DOUBLE, c9 DOUBLE, a INT PRIMARY KEY);
 INSERT INTO t1 VALUES
@@ -85,5 +86,37 @@ FLUSH TABLE mysql_db1.t1;
 SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
 COUNT(*)
 128
+# ===== myisampack.1 =====
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(20);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(40);
+FLUSH TABLE t1,t2;
+#If the myisampack --join operation is successful, we have table t3(.frm)
+#so we should be able to query about the table from server.
+SELECT COUNT(a) FROM t3;
+COUNT(a)
+1024
+# ===== myisampack.2 =====
+FLUSH TABLE t3;
+#Tests the myisampack join operation with an existing destination .frm file, 
+#the command should return correct exit status(0) and
+#we should be able to query the table.
+SELECT COUNT(a) FROM t3;
+COUNT(a)
+1024
+# ===== myisampack.3 =====
+DROP TABLE t3;
+#Tests the myisampack join operation without frm file for the first and second table
+#No frm file is generated in this and we shouldn't  be able to access the newly 
+#created table
+SELECT COUNT(a) FROM t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+# ===== myisampack.4 =====
+#Tests the myisampack join operation with an existing destination .frm,.MYI,.MDI 
+#the command should fail with exit status 2
+myisampack: Can't create/write to file (Errcode: 17)
+Aborted: file is not compressed
+DROP TABLE t1,t2,t3;
 DROP TABLE mysql_db1.t1;
 DROP DATABASE mysql_db1;

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,10 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 #include <my_atomic.h>
+#include <mysql/psi/mysql_file.h>
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 class Parser_state;
 
@@ -171,16 +175,35 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-#define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
-  do {                                                                               \
-    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
-      push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
-    else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+/*
+  Generates a warning that a feature is deprecated. After a specified
+  version asserts that the feature is removed.
+
+  Using it as
+
+  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+
+  Will result in a warning
+ 
+  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
+   use 'GOOD' instead"
+
+   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
+   Note that the version is TWO numbers, separated with a comma
+   (two macro arguments, that is)
+*/
+#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+  do {                                                                      \
+    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
+    if (((THD *) Thd) != NULL)                                              \
+      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+                        ER_WARN_DEPRECATED_SYNTAX,                          \
+                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
+                        (Old), #VerHi "." #VerLo, (New));                   \
+    else                                                                    \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
+                        "in MySQL %s. Please use %s instead.",              \
+                        (Old), #VerHi "." #VerLo, (New));                   \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -907,6 +930,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               bool no_error);
 bool check_host_name(LEX_STRING *str);
 
+CHARSET_INFO *merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
@@ -1015,8 +1040,8 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -2285,10 +2310,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
@@ -2498,6 +2524,17 @@ inline void kill_delayed_threads(void) {}
 #define IS_FILES_CHECKSUM            35
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
+
+#define IS_TABLESPACES_TABLESPACE_NAME    0
+#define IS_TABLESPACES_ENGINE             1
+#define IS_TABLESPACES_TABLESPACE_TYPE    2
+#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
+#define IS_TABLESPACES_EXTENT_SIZE        4
+#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
+#define IS_TABLESPACES_MAXIMUM_SIZE       6
+#define IS_TABLESPACES_NODEGROUP_ID       7
+#define IS_TABLESPACES_TABLESPACE_COMMENT 8
+
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 

@@ -1344,7 +1344,7 @@ void close_thread_tables(THD *thd)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
+    (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1558,7 +1558,11 @@ void close_temporary_tables(THD *thd)
       qinfo.db= db.ptr();
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
+                     "Failed to write the DROP statement for temporary tables to binary log");
+      }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
@@ -2554,9 +2558,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   my_hash_value_type hash_value;
   HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
-
-  /* Parsing of partitioning information from .frm needs thd->lex set up. */
-  DBUG_ASSERT(thd->lex->is_lex_started);
 
   /* find a unused table in the open table cache */
   if (refresh)
@@ -4061,9 +4062,13 @@ retry:
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         int errcode= query_error_code(thd, TRUE);
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query, (ulong)(end-query),
+                              FALSE, FALSE, errcode))
+        {
+          my_free(query, MYF(0));
+          goto err;
+        }
         my_free(query, MYF(0));
       }
       else
@@ -5331,9 +5336,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         We can solve these problems in mixed mode by switching to binlogging 
         if at least one updated table is used by sub-statement
       */
-      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing 
-         warnings, but it will be removed by fixing bug#45827 */
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables && 
+      if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
       {
         thd->lex->set_stmt_unsafe();
@@ -8008,7 +8011,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                 COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Query_arena *arena= thd->stmt_arena, backup;
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8023,10 +8025,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
   select_lex->is_item_list_lookup= 0;
   DBUG_ENTER("setup_conds");
-
-  if (select_lex->conds_processed_with_permanent_arena ||
-      arena->is_conventional())
-    arena= 0;                                   // For easier test
 
   thd->mark_used_columns= MARK_COLUMNS_READ;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -8096,7 +8094,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       We do this ON -> WHERE transformation only once per PS/SP statement.
     */
     select_lex->where= *conds;
-    select_lex->conds_processed_with_permanent_arena= 1;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));

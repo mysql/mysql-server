@@ -276,7 +276,6 @@ my_bool acl_init(bool dont_read_acl_tables)
     DBUG_RETURN(1); /* purecov: inspected */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
@@ -1655,8 +1654,8 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
-                      FALSE, FALSE, 0);
+    result= thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length,
+                              FALSE, FALSE, 0);
   }
 end:
   close_thread_tables(thd);
@@ -1785,24 +1784,83 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 	  (ip && !wild_compare(ip, host->hostname, 0)));
 }
 
+/**
+  Check if the given host name needs to be resolved or not.
+  Host name has to be resolved if it actually contains *name*.
+
+  For example:
+    192.168.1.1               --> FALSE
+    192.168.1.0/255.255.255.0 --> FALSE
+    %                         --> FALSE
+    192.168.1.%               --> FALSE
+    AB%                       --> FALSE
+
+    AAAAFFFF                  --> TRUE (Hostname)
+    AAAA:FFFF:1234:5678       --> FALSE
+    ::1                       --> FALSE
+
+  This function does not check if the given string is a valid host name or
+  not. It assumes that the argument is a valid host name.
+
+  @param hostname   the string to check.
+
+  @return a flag telling if the argument needs to be resolved or not.
+  @retval TRUE the argument is a host name and needs to be resolved.
+  @retval FALSE the argument is either an IP address, or a patter and
+          should not be resolved.
+*/
+
 bool hostname_requires_resolving(const char *hostname)
 {
-  char cur;
   if (!hostname)
     return FALSE;
-  size_t namelen= strlen(hostname);
-  size_t lhlen= strlen(my_localhost);
-  if ((namelen == lhlen) &&
-      !my_strnncoll(system_charset_info, (const uchar *)hostname,  namelen,
-		    (const uchar *)my_localhost, strlen(my_localhost)))
-    return FALSE;
-  for (; (cur=*hostname); hostname++)
+
+  /* Check if hostname is the localhost. */
+
+  size_t hostname_len= strlen(hostname);
+  size_t localhost_len= strlen(my_localhost);
+
+  if (hostname == my_localhost ||
+      (hostname_len == localhost_len &&
+       !my_strnncoll(system_charset_info,
+                     (const uchar *) hostname,  hostname_len,
+                     (const uchar *) my_localhost, strlen(my_localhost))))
   {
-    if ((cur != '%') && (cur != '_') && (cur != '.') && (cur != '/') &&
-	((cur < '0') || (cur > '9')))
-      return TRUE;
+    return FALSE;
   }
-  return FALSE;
+
+  /*
+    If the string contains any of {':', '%', '_', '/'}, it is definitely
+    not a host name:
+      - ':' means that the string is an IPv6 address;
+      - '%' or '_' means that the string is a pattern;
+      - '/' means that the string is an IPv4 network address;
+  */
+
+  for (const char *p= hostname; *p; ++p)
+  {
+    switch (*p) {
+      case ':':
+      case '%':
+      case '_':
+      case '/':
+        return FALSE;
+    }
+  }
+
+  /*
+    Now we have to tell a host name (ab.cd, 12.ab) from an IPv4 address
+    (12.34.56.78). The assumption is that if the string contains only
+    digits and dots, it is an IPv4 address. Otherwise -- a host name.
+  */
+
+  for (const char *p= hostname; *p; ++p)
+  {
+    if (*p != '.' && !my_isdigit(&my_charset_latin1, *p))
+      return TRUE; /* a "letter" has been found. */
+  }
+
+  return FALSE; /* all characters are either dots or digits. */
 }
 
 
@@ -3203,7 +3261,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3368,7 +3426,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+      result= TRUE;
   }
 
   rw_unlock(&LOCK_grant);
@@ -3480,7 +3539,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3525,7 +3584,6 @@ my_bool grant_init()
     DBUG_RETURN(1);				/* purecov: deadcode */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
   return_val=  grant_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
@@ -3748,11 +3806,11 @@ static my_bool grant_reload_procs_priv(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
+  rw_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
 
-  rw_wrlock(&LOCK_grant);
   if ((return_val= grant_load_procs_priv(table.table)))
   {
     /* Error; Reverting to old hash */
@@ -5804,7 +5862,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
 
   if (some_users_created)
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5877,7 +5935,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5962,7 +6020,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
   if (some_users_renamed && mysql_bin_log.is_open())
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -6144,15 +6202,17 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   pthread_mutex_unlock(&acl_cache->lock);
 
-  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  int binlog_error=
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  if (result)
+  /* error for writing binary log has already been reported */
+  if (result && !binlog_error)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(result || binlog_error);
 }
 
 

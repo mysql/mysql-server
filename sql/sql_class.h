@@ -1238,7 +1238,6 @@ public:
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
-  struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
@@ -1885,6 +1884,12 @@ public:
     proc_info = msg;
     return old_msg;
   }
+  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                                const char *msg)
+  {
+    /* TO BE REMOVED: temporary helper, to help with merges */
+    return enter_cond(&cond->m_cond, &mutex->m_mutex, msg);
+  }
   inline void exit_cond(const char* old_msg)
   {
     /*
@@ -2403,7 +2408,6 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2440,12 +2444,6 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
-  /**
-     The nest level, if supported. 
-     @return
-     -1 if nest level is undefined, otherwise a positive integer.
-   */
-  int get_nest_level() { return nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -2540,14 +2538,6 @@ class select_export :public select_to_file {
   CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO OUTFILE <filename> with a
-     defined level of subquery nesting.
-   */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2557,15 +2547,6 @@ public:
 class select_dump :public select_to_file {
 public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO DUMPFILE <filename> with a
-     defined level of subquery nesting.
-   */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
-    select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -2623,7 +2604,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -3036,16 +3017,6 @@ class select_dumpvar :public select_result_interceptor {
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
-  /**
-     Creates a select_dumpvar to represent INTO <variable> with a defined 
-     level of subquery nesting.
-   */
-  select_dumpvar(uint nest_level_arg)
-  {
-    var_list.empty();
-    row_count= 0;
-    nest_level= nest_level_arg;
-  }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

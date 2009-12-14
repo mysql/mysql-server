@@ -125,6 +125,29 @@
 */
 #define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+/*
+    When a multiple key conflict happens in a REPLACE command mysql
+    expects the conflicts to be reported in the ascending order of
+    key names.
+
+    For e.g.
+
+    CREATE TABLE t1 (a INT, UNIQUE (a), b INT NOT NULL, UNIQUE (b), c INT NOT
+                     NULL, INDEX(c));
+
+    REPLACE INTO t1 VALUES (1,1,1),(2,2,2),(2,1,3);
+
+    MySQL expects the conflict with 'a' to be reported before the conflict with
+    'b'.
+
+    If the underlying storage engine does not report the conflicting keys in
+    ascending order, it causes unexpected errors when the REPLACE command is
+    executed.
+
+    This flag helps the underlying SE to inform the server that the keys are not
+    ordered.
+*/
+#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -513,6 +536,47 @@ class st_alter_tablespace : public Sql_alloc
 /* The handler for a table type.  Will be included in the TABLE structure */
 
 struct TABLE;
+
+/*
+  Make sure that the order of schema_tables and enum_schema_tables are the same.
+*/
+enum enum_schema_tables
+{
+  SCH_CHARSETS= 0,
+  SCH_COLLATIONS,
+  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
+  SCH_COLUMNS,
+  SCH_COLUMN_PRIVILEGES,
+  SCH_ENGINES,
+  SCH_EVENTS,
+  SCH_FILES,
+  SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_VARIABLES,
+  SCH_KEY_COLUMN_USAGE,
+  SCH_OPEN_TABLES,
+  SCH_PARTITIONS,
+  SCH_PLUGINS,
+  SCH_PROCESSLIST,
+  SCH_PROFILES,
+  SCH_REFERENTIAL_CONSTRAINTS,
+  SCH_PROCEDURES,
+  SCH_SCHEMATA,
+  SCH_SCHEMA_PRIVILEGES,
+  SCH_SESSION_STATUS,
+  SCH_SESSION_VARIABLES,
+  SCH_STATISTICS,
+  SCH_STATUS,
+  SCH_TABLES,
+  SCH_TABLESPACES,
+  SCH_TABLE_CONSTRAINTS,
+  SCH_TABLE_NAMES,
+  SCH_TABLE_PRIVILEGES,
+  SCH_TRIGGERS,
+  SCH_USER_PRIVILEGES,
+  SCH_VARIABLES,
+  SCH_VIEWS
+};
+
 struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
@@ -677,9 +741,9 @@ struct handlerton
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
-   int (*fill_files_table)(handlerton *hton, THD *thd,
-                           TABLE_LIST *tables,
-                           class Item *cond);
+   int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
+                        class Item *cond, 
+                        enum enum_schema_tables);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -1252,8 +1316,6 @@ public:
                          uint *dup_key_found);
   int ha_delete_all_rows();
   int ha_reset_auto_increment(ulonglong value);
-  int ha_backup(THD* thd, HA_CHECK_OPT* check_opt);
-  int ha_restore(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
   bool ha_check_and_repair(THD *thd);
@@ -1539,9 +1601,7 @@ public:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
 
-  virtual int dump(THD* thd, int fd = -1) { return HA_ERR_WRONG_COMMAND; }
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual int net_read_dump(NET* net) { return HA_ERR_WRONG_COMMAND; }
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
@@ -1909,14 +1969,6 @@ private:
   */
   virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }
-  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
-  /**
-    Restore assumes .frm file must exist, and that generate_table() has been
-    called; It will just copy the data file and run repair.
-  */
-  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
