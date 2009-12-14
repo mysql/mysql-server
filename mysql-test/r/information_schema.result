@@ -65,6 +65,7 @@ SESSION_STATUS
 SESSION_VARIABLES
 STATISTICS
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -103,6 +104,7 @@ inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -122,6 +124,7 @@ left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -141,6 +144,7 @@ right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -628,6 +632,7 @@ COLLATIONS	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -637,6 +642,7 @@ use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
 TABLES	SYSTEM VIEW
+TABLESPACES	SYSTEM VIEW
 TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
@@ -649,6 +655,7 @@ use information_schema;
 show tables like "T%";
 Tables_in_information_schema (T%)
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -855,7 +862,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	28
+information_schema	29
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1317,6 +1324,7 @@ SESSION_STATUS	information_schema.SESSION_STATUS	1
 SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
 STATISTICS	information_schema.STATISTICS	1
 TABLES	information_schema.TABLES	1
+TABLESPACES	information_schema.TABLESPACES	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1

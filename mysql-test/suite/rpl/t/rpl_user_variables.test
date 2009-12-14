@@ -20,9 +20,7 @@
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 reset master;
 connection master;
 

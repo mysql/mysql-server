@@ -98,6 +98,29 @@ SELECT * FROM t1 WHERE pk < 0 ORDER BY pk;
 DROP TABLE t1;
 
 #
+# Bug#35765: ALTER TABLE produces wrong error when non-existent storage engine
+# used
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine
+PARTITION BY HASH (a);
+DROP TABLE t1;
+CREATE TABLE t1 (a INT)
+ENGINE=Memory;
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+# OK to only specify one partitions engine, since it is already assigned at
+# table level (after create, it is specified on all levels and all parts).
+ALTER TABLE t1
+PARTITION BY HASH (a)
+(PARTITION p0 ENGINE=Memory,
+ PARTITION p1 ENGINE=NonExistentEngine);
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
 # Bug#40494: Crash MYSQL server crashes on range access with partitioning
 #            and order by
 #
@@ -2039,23 +2062,24 @@ CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 
-
---echo #
---echo # BUG#45816 - assertion failure with index containing double 
---echo #             column on partitioned table
---echo #
-
-CREATE TABLE t1 (
-  a INT DEFAULT NULL,
-  b DOUBLE DEFAULT NULL,
-  c INT DEFAULT NULL,
-  KEY idx2(b,a)
-) PARTITION BY HASH(c) PARTITIONS 3;
-
-INSERT INTO t1 VALUES (6,8,9);
-INSERT INTO t1 VALUES (6,8,10);
-
-SELECT  1 FROM t1 JOIN t1 AS t2 USING (a) FOR UPDATE;
-
-DROP TABLE t1;
+# This testcase is commented due to the Bug #46853
+# Should be uncommented after fixing Bug #46853
+#--echo #
+#--echo # BUG#45816 - assertion failure with index containing double 
+#--echo #             column on partitioned table
+#--echo #
+#
+#CREATE TABLE t1 (
+#  a INT DEFAULT NULL,
+#  b DOUBLE DEFAULT NULL,
+#  c INT DEFAULT NULL,
+#  KEY idx2(b,a)
+#) PARTITION BY HASH(c) PARTITIONS 3;
+#
+#INSERT INTO t1 VALUES (6,8,9);
+#INSERT INTO t1 VALUES (6,8,10);
+#
+#SELECT  1 FROM t1 JOIN t1 AS t2 USING (a) FOR UPDATE;
+#
+#DROP TABLE t1;
 --echo End of 5.1 tests

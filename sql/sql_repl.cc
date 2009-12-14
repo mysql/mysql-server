@@ -259,24 +259,11 @@ bool log_in_use(const char* log_name)
 
 bool purge_error_message(THD* thd, int res)
 {
-  uint errmsg= 0;
+  uint errcode;
 
-  switch (res)  {
-  case 0: break;
-  case LOG_INFO_EOF:	errmsg= ER_UNKNOWN_TARGET_BINLOG; break;
-  case LOG_INFO_IO:	errmsg= ER_IO_ERR_LOG_INDEX_READ; break;
-  case LOG_INFO_INVALID:errmsg= ER_BINLOG_PURGE_PROHIBITED; break;
-  case LOG_INFO_SEEK:	errmsg= ER_FSEEK_FAIL; break;
-  case LOG_INFO_MEM:	errmsg= ER_OUT_OF_RESOURCES; break;
-  case LOG_INFO_FATAL:	errmsg= ER_BINLOG_PURGE_FATAL_ERR; break;
-  case LOG_INFO_IN_USE: errmsg= ER_LOG_IN_USE; break;
-  case LOG_INFO_EMFILE: errmsg= ER_BINLOG_PURGE_EMFILE; break;
-  default:		errmsg= ER_LOG_PURGE_UNKNOWN_ERR; break;
-  }
-
-  if (errmsg)
+  if ((errcode= purge_log_get_error_code(res)) != 0)
   {
-    my_message(errmsg, ER(errmsg), MYF(0));
+    my_message(errcode, ER(errcode), MYF(0));
     return TRUE;
   }
   my_ok(thd);
@@ -861,9 +848,7 @@ impossible position";
             }
             else
             {
-              DBUG_ASSERT(ret == 0 && signal_cnt != mysql_bin_log.signal_cnt ||
-                          thd->killed);
-              DBUG_PRINT("wait",("binary log received update"));
+              DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
           } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
           pthread_mutex_unlock(log_lock);
@@ -1219,8 +1204,8 @@ int reset_slave(THD *thd, Master_info* mi)
   MY_STAT stat_area;
   char fname[FN_REFLEN];
   int thread_mask= 0, error= 0;
-  uint sql_errno=0;
-  const char* errmsg=0;
+  uint sql_errno=ER_UNKNOWN_ERROR;
+  const char* errmsg= "Unknown error occured while reseting slave";
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
@@ -1243,14 +1228,8 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /*
-    Clear master's log coordinates and reset host/user/etc to the values
-    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
-    next init_master_info() (in start_slave() for example) would have set them
-    the same way; but here this is for the case where the user does SHOW SLAVE
-    STATUS; before doing START SLAVE;
-  */
-  init_master_info_with_options(mi);
+  /* Clear master's log coordinates */
+  init_master_log_pos(mi);
   /*
      Reset errors (the idea is that we forget about the
      old master).
@@ -1960,7 +1939,8 @@ err:
    replication events along LOAD DATA processing.
    
    @param file  pointer to io-cache
-   @return 0
+   @retval 0 success
+   @retval 1 failure
 */
 int log_loaded_block(IO_CACHE* file)
 {
@@ -1987,7 +1967,8 @@ int log_loaded_block(IO_CACHE* file)
       Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
                                min(block_len, max_event_size),
                                lf_info->log_delayed);
-      mysql_bin_log.write(&a);
+      if (mysql_bin_log.write(&a))
+        DBUG_RETURN(1);
     }
     else
     {
@@ -1995,7 +1976,8 @@ int log_loaded_block(IO_CACHE* file)
                                    buffer,
                                    min(block_len, max_event_size),
                                    lf_info->log_delayed);
-      mysql_bin_log.write(&b);
+      if (mysql_bin_log.write(&b))
+        DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
       DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }

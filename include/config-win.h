@@ -20,6 +20,13 @@
 
 #define BIG_TABLES
 
+/*
+  Minimal version of Windows we should be able to run on.
+  Currently Windows XP.
+*/
+#define _WIN32_WINNT     0x0501
+
+
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -27,6 +34,7 @@
 
 #include <sys/locking.h>
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
@@ -87,6 +95,12 @@
 #define W_OK		2
 
 #define S_IROTH		S_IREAD		/* for my_lib */
+
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
 
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */

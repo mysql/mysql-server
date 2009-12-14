@@ -2806,7 +2806,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE with()
 SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE write()
 SELECT * from t1 where f2=f1;
@@ -5660,7 +5660,7 @@ CREATE PROCEDURE sp1()
 with:BEGIN
 SELECT @x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with:BEGIN
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
@@ -9220,7 +9220,7 @@ CREATE PROCEDURE sp1()
 BEGIN
 declare with char;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with char;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'char;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -11576,8 +11576,9 @@ BEGIN
 declare with condition for sqlstate '02000';
 declare exit handler for with set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with condition for sqlstate '02000';
-declare exit handler for with set @var2 = 1' at line 3
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'condition for sqlstate '02000';
+declare exit handler for with set @var2 = 1;
+END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
 Note	1305	PROCEDURE sp1 does not exist
@@ -13681,7 +13682,7 @@ CREATE PROCEDURE sp1( )
 BEGIN
 declare with handler for sqlstate '02000' set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'with handler for sqlstate '02000' set @var2 = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'handler for sqlstate '02000' set @var2 = 1;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:

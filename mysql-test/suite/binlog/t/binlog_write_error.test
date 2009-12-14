@@ -1,0 +1,101 @@
+#
+# === Name ===
+#
+# binlog_write_error.test
+#
+# === Description ===
+#
+# This test case check if the error of writing binlog file is properly
+# reported and handled when executing statements.
+#
+# === Related Bugs ===
+#
+# BUG#37148
+#
+
+source include/have_log_bin.inc;
+source include/have_debug.inc;
+
+--echo #
+--echo # Initialization
+--echo #
+
+disable_warnings;
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TRIGGER IF EXISTS tr1;
+DROP TRIGGER IF EXISTS tr2;
+DROP VIEW IF EXISTS v1, v2;
+enable_warnings;
+
+--echo #
+--echo # Test injecting binlog write error when executing queries
+--echo #
+
+let $query= CREATE TABLE t1 (a INT);
+source include/binlog_inject_error.inc;
+
+INSERT INTO t1 VALUES (1),(2),(3);
+
+let $query= INSERT INTO t1 VALUES (4),(5),(6);
+source include/binlog_inject_error.inc;
+
+let $query= UPDATE t1 set a=a+1;
+source include/binlog_inject_error.inc;
+
+let $query= DELETE FROM t1;
+source include/binlog_inject_error.inc;
+
+let $query= CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
+source include/binlog_inject_error.inc;
+
+let $query= DROP TRIGGER tr1;
+source include/binlog_inject_error.inc;
+
+let $query= ALTER TABLE t1 ADD (b INT);
+source include/binlog_inject_error.inc;
+
+let $query= CREATE VIEW v1 AS SELECT a FROM t1;
+source include/binlog_inject_error.inc;
+
+let $query= DROP VIEW v1;
+source include/binlog_inject_error.inc;
+
+let $query= CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
+source include/binlog_inject_error.inc;
+
+let $query= DROP PROCEDURE p1;
+source include/binlog_inject_error.inc;
+
+let $query= DROP TABLE t1;
+source include/binlog_inject_error.inc;
+
+let $query= CREATE FUNCTION f1() RETURNS INT return 1;
+source include/binlog_inject_error.inc;
+
+let $query= DROP FUNCTION f1;
+source include/binlog_inject_error.inc;
+
+let $query= CREATE USER user1;
+source include/binlog_inject_error.inc;
+
+let $query= REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
+source include/binlog_inject_error.inc;
+
+let $query= DROP USER user1;
+source include/binlog_inject_error.inc;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+disable_warnings;
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+DROP PROCEDURE IF EXISTS p1;
+DROP TRIGGER IF EXISTS tr1;
+DROP VIEW IF EXISTS v1, v2;
+enable_warnings;
