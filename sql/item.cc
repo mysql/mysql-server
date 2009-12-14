@@ -7275,16 +7275,17 @@ longlong Item_cache_int::val_int()
   return value;
 }
 
-void  Item_cache_datetime::cache_value_int()
+bool  Item_cache_datetime::cache_value_int()
 {
   if (!example)
-    return;
+    return FALSE;
 
   value_cached= TRUE;
   /* Assume here that the underlying item will do correct conversion.*/
   int_value= example->val_int_result();
   null_value= example->null_value;
   unsigned_flag= example->unsigned_flag;
+  return TRUE;
 }
 
 
@@ -7316,8 +7317,8 @@ void Item_cache_datetime::store(Item *item, longlong val_arg)
 String *Item_cache_datetime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!str_value_cached)
-    cache_value();
+  if (!str_value_cached && !cache_value())
+    return NULL;
   return &str_value;
 }
 
@@ -7325,8 +7326,8 @@ String *Item_cache_datetime::val_str(String *str)
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached)
-    cache_value_int();
+  if (!value_cached && !cache_value_int())
+    return NULL;
   int2my_decimal(E_DEC_FATAL_ERROR, int_value, unsigned_flag, decimal_val);
   return decimal_val;
 }
@@ -7334,16 +7335,16 @@ my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 double Item_cache_datetime::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached)
-    cache_value_int();
+  if (!value_cached && !cache_value_int())
+    return 0.0;
   return (double) int_value;
 }
 
 longlong Item_cache_datetime::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached)
-    cache_value_int();
+  if (!value_cached && !cache_value_int())
+    return 0;
   return int_value;
 }
 

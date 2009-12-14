@@ -1207,7 +1207,8 @@ void Item_sum_hybrid::setup(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  value->store(value_arg);
+  if (value_arg)
+    value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
