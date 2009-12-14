@@ -35,6 +35,9 @@ void check_thread_lib(void);
 #define HAVE_STACKTRACE
 extern void set_exception_pointers(EXCEPTION_POINTERS *ep);
 #define init_stacktrace() {}
+#elif defined(__sun)
+#define HAVE_STACKTRACE
+#define init_stacktrace() {}
 #endif
 
 #ifdef HAVE_STACKTRACE
