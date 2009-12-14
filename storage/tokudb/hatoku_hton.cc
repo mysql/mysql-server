@@ -680,7 +680,7 @@ cleanup:
     }
     if (tmp_table_cursor) {
         int r = tmp_table_cursor->c_close(tmp_table_cursor);
-        assert(error==0);
+        assert(r==0);
     }
     if (txn) {
         commit_txn(txn, 0);
