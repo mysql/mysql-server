@@ -513,11 +513,8 @@ void Dblqh::execCONTINUEB(Signal* signal)
       jam();
       cstartRecReq = SRR_REDO_COMPLETE;
       ndbrequire(c_lcp_complete_fragments.isEmpty());
-      StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-      conf->startingNodeId = getOwnNodeId();
-      conf->senderData = cstartRecReqData;
-      sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-		 StartRecConf::SignalLength, JBB);
+
+      rebuildOrderedIndexes(signal, 0);
       return;
     }
   }
@@ -538,9 +535,13 @@ void Dblqh::execCONTINUEB(Signal* signal)
     return;
   }
   case ZWAIT_REORG_SUMA_FILTER_ENABLED:
-  {
     jam();
     wait_reorg_suma_filter_enabled(signal);
+    return;
+  case ZREBUILD_ORDERED_INDEXES:
+  {
+    Uint32 tableId = signal->theData[1];
+    rebuildOrderedIndexes(signal, tableId);
     return;
   }
   default:
@@ -15881,11 +15882,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     jam();
     cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
 
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    conf->senderData = cstartRecReqData;
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
+    rebuildOrderedIndexes(signal, 0);
     return;
   }
 
@@ -15900,6 +15897,73 @@ void Dblqh::execSTART_RECREF(Signal* signal)
   jamEntry();
   ndbrequire(false);
 }//Dblqh::execSTART_RECREF()
+
+void
+Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
+{
+  jamEntry();
+
+  if (tableId == 0)
+  {
+    jam();
+    infoEvent("LQH: Starting to rebuild ordered indexes");
+  }
+
+  if (tableId >= ctabrecFileSize)
+  {
+    jam();
+    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
+    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal,
+               StartRecConf::SignalLength, JBB);
+
+    infoEvent("LQH: Rebuild ordered indexes complete");
+    return;
+  }
+
+  tabptr.i = tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  if (!DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    signal->theData[0] = ZREBUILD_ORDERED_INDEXES;
+    signal->theData[1] = tableId + 1;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+
+  BuildIndxImplReq* const req = (BuildIndxImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = tableId;
+  req->requestType = 0; // unused
+  req->buildId = 0;     // not yet..
+  req->buildKey = 0;    // ..in use
+  req->transId = 0;
+  req->indexType = tabptr.p->tableType;
+  req->indexId = tableId;
+  req->tableId = tabptr.p->primaryTableId;
+  req->parallelism = 0;
+  sendSignal(calcInstanceBlockRef(DBTUP), GSN_BUILD_INDX_IMPL_REQ, signal,
+             BuildIndxImplReq::SignalLength, JBB);
+}
+
+void
+Dblqh::execBUILD_INDX_IMPL_REF(Signal * signal)
+{
+  jamEntry();
+  ndbrequire(false); // TODO error message
+}
+
+void
+Dblqh::execBUILD_INDX_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  BuildIndxImplConf * conf = (BuildIndxImplConf*)signal->getDataPtr();
+  Uint32 tableId = conf->senderData;
+  rebuildOrderedIndexes(signal, tableId + 1);
+  infoEvent("LQH: index %u rebuild done", tableId);
+}
 
 /* ***************>> */
 /*  START_EXEC_SR  > */
@@ -17843,12 +17907,11 @@ void Dblqh::srFourthComp(Signal* signal)
 	return;
       }
     }
+
     cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    conf->senderData = cstartRecReqData;
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-		 StartRecConf::SignalLength, JBB);
+
+    rebuildOrderedIndexes(signal, 0);
+    return;
   } else {
     ndbrequire(false);
   }//if

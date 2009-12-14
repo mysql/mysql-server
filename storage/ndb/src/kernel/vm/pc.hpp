@@ -36,36 +36,50 @@
 #define jamEntryBlockLine(block, line)
 #define jamNoBlock()
 #define jamNoBlockLine(line)
+#define thrjamEntry(buf)
+#define thrjamEntryLine(buf, line)
+#define thrjam(buf)
+#define thrjamLine(buf, line)
 
 #else
 
-#define _jamBlockLine(block, line, jam_buf_getter) \
+#define thrjamEntryBlockLine(jamBufferArg, blockNo, line) \
   do { \
-    EmulatedJamBuffer *jamBuffer = jam_buf_getter; \
-    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
-    jamBuffer->theEmulatedJam[jamIndex++] = (line); \
-    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
-  } while(0)
-#define jamBlockLine(block, line) \
-   _jamBlockLine(block, (line), (block)->jamBuffer())
-#define jamBlock(block) jamBlockLine(block, __LINE__)
-#define jamLine(line) jamBlockLine(this, (line))
-#define jam() jamLine(__LINE__)
-#define jamBlockEntryLine(block, line) \
-  do { \
-    EmulatedJamBuffer *jamBuffer = (block)->jamBuffer(); \
-    Uint32 blockNumber= (block)->number(); \
+    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
+    Uint32 blockNumber = blockNo; \
     Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
     jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | (line); \
     jamBuffer->theEmulatedJamBlockNumber = blockNumber; \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+  } while (0)
+
+#define thrjamLine(jamBufferArg, line) \
+  do { \
+    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
+    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (line); \
+    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
   } while(0)
+
+#define jamBlockLine(block, line) thrjamLine(block->jamBuffer(), line)
+#define jamBlock(block) jamBlockLine((block), __LINE__)
+#define jamLine(line) jamBlockLine(this, (line))
+#define jam() jamLine(__LINE__)
+#define jamBlockEntryLine(block, line) \
+  thrjamEntryBlockLine(block->jamBuffer(), block->number(), line)
 #define jamEntryBlock(block) jamEntryBlockLine(block, __LINE__)
 #define jamEntryLine(line) jamBlockEntryLine(this, (line))
 #define jamEntry() jamEntryLine(__LINE__)
-#define jamNoBlockLine(line) _jamBlockLine \
-    (block, (line), (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM))
+
+#define jamNoBlockLine(line) \
+    thrjamLine((EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM), \
+               (line))
 #define jamNoBlock() jamNoBlockLine(__LINE__)
+
+#define thrjamEntryLine(buf, line) thrjamEntryBlockLine(buf, number(), line)
+
+#define thrjam(buf) thrjamLine(buf, __LINE__)
+#define thrjamEntry(buf) thrjamEntryLine(buf, __LINE__)
 
 #endif
 
