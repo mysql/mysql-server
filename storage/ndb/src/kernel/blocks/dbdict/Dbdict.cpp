@@ -2821,12 +2821,6 @@ void Dbdict::execNDB_STTOR(Signal* signal)
     sendNDB_STTORRY(signal);
     break;
   case 7:
-    // uses c_restartType
-    if(restartType == NodeState::ST_SYSTEM_RESTART &&
-       c_masterNodeId == getOwnNodeId()){
-      rebuildIndexes(signal, 0);
-      return;
-    }
     sendNDB_STTORRY(signal);
     break;
   default:

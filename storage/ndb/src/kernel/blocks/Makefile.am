@@ -56,7 +56,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtux/DbtuxGen.cpp dbtux/DbtuxMeta.cpp dbtux/DbtuxMaint.cpp \
   dbtux/DbtuxNode.cpp dbtux/DbtuxTree.cpp dbtux/DbtuxScan.cpp \
   dbtux/DbtuxSearch.cpp dbtux/DbtuxCmp.cpp dbtux/DbtuxStat.cpp \
-  dbtux/DbtuxDebug.cpp \
+  dbtux/DbtuxDebug.cpp dbtux/DbtuxBuild.cpp \
   LocalProxy.cpp \
   dblqh/DblqhProxy.cpp \
   dbacc/DbaccProxy.cpp \

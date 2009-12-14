@@ -107,6 +107,9 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
 
   // Ordered index related
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Dbtup::execBUILD_INDX_IMPL_REQ);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dbtup::execBUILD_INDX_IMPL_REF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dbtup::execBUILD_INDX_IMPL_CONF);
+  m_max_parallel_index_build = 0;
 
   // Tup scan
   addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);
@@ -439,7 +442,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
-  c_page_map_pool.init(RT_DBTUP_PAGE_MAP, pc);
+  c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
   
   Uint32 nScanOp;       // use TUX config for now
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
@@ -472,6 +475,9 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   clastBitMask = 1;
   clastBitMask = clastBitMask << 31;
 
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
+                            &m_max_parallel_index_build);
+  
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
 

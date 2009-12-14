@@ -22,7 +22,8 @@ struct AlterIndxImplReq {
   enum RequestType {
     AlterIndexOnline = 1,
     AlterIndexOffline = 2,
-    AlterIndexAddPartition = 3
+    AlterIndexAddPartition = 3,
+    AlterIndexBuilding = 4
   };
 
   STATIC_CONST( SignalLength = 8 );

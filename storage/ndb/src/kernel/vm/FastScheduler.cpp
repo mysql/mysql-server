@@ -570,13 +570,16 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 
-/* Dummy functions for single-threaded ndbd. */
+static NdbMutex g_mm_mutex;
+
 void
 mt_mem_manager_lock()
 {
+  NdbMutex_Lock(&g_mm_mutex);
 }
 
 void
 mt_mem_manager_unlock()
 {
+  NdbMutex_Unlock(&g_mm_mutex);
 }

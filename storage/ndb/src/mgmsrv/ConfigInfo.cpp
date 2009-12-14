@@ -1761,6 +1761,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
 // 7.0 NodeGroup -> initial, system
 
+  {
+    CFG_DB_MT_BUILD_INDEX,
+    "BuildIndexThreads",
+    DB_TOKEN,
+    "No of threads to use for building ordered indexes during system/node restart",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "128" },
+
   /***************************************************************************
    * API
    ***************************************************************************/

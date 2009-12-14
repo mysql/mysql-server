@@ -208,7 +208,7 @@ void Dbtup::check_page_map(Fragrecord*) {}
 #endif
 
 Uint32 
-Dbtup::allocFragPage(Fragrecord* regFragPtr) 
+Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
 {
   PagePtr pagePtr;
   Uint32 noOfPagesAllocated = 0;
@@ -220,6 +220,7 @@ Dbtup::allocFragPage(Fragrecord* regFragPtr)
   if (noOfPagesAllocated == 0) 
   {
     jam();
+    * err = ZMEM_NOMEM_ERROR;
     return RNIL;
   }//if
   
@@ -234,6 +235,7 @@ Dbtup::allocFragPage(Fragrecord* regFragPtr)
     {
       jam();
       returnCommonArea(pagePtr.i, noOfPagesAllocated);
+      * err = ZMEM_NOMEM_ERROR;
       return RNIL;
     }
     ndbrequire(* ptr == RNIL);
@@ -274,7 +276,8 @@ Dbtup::allocFragPage(Fragrecord* regFragPtr)
 }//Dbtup::allocFragPage()
 
 Uint32
-Dbtup::allocFragPage(Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
+Dbtup::allocFragPage(Uint32 * err,
+                     Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
 {
   PagePtr pagePtr;
   DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
@@ -282,7 +285,7 @@ Dbtup::allocFragPage(Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
   if (unlikely(ptr == 0))
   {
     jam();
-    terrorCode = ZMEM_NOMEM_ERROR;
+    * err = ZMEM_NOMEM_ERROR;
     return RNIL;
   }
   const Uint32 * prevPtr = map.set(2 * page_no + 1);
@@ -305,7 +308,7 @@ Dbtup::allocFragPage(Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
   if (unlikely(noOfPagesAllocated == 0))
   {
     jam();
-    terrorCode = ZMEM_NOMEM_ERROR;
+    * err = ZMEM_NOMEM_ERROR;
     return RNIL;
   }
 
