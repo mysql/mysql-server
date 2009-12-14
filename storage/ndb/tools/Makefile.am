@@ -14,14 +14,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-EXTRA_DIST = CMakeLists.txt
+EXTRA_DIST = CMakeLists.txt ndbinfo.sql
 
 BUILT_SOURCES = ndbinfo.sql
 
 noinst_PROGRAMS = 	ndbinfo_sql
-
 dist_bin_SCRIPTS =	ndb_size.pl ndb_error_reporter
-dist_pkgdata_DATA =	ndbinfo.sql
+dist_pkgdata_DATA = ndbinfo.sql
 
 ndbtools_PROGRAMS = \
   ndb_test_platform \
@@ -78,8 +77,10 @@ ndbinfo_sql_SOURCES = ndbinfo_sql.cpp \
 ndbinfo_sql_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
 # Build ndbinfo.sql by executing ndbinfo_sql
-ndbinfo.sql: ndbinfo_sql
-	$(top_builddir)/storage/ndb/tools/ndbinfo_sql$(EXEEXT) > $@
+ndbinfo.sql: $(ndbinfo_sql_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) ndbinfo_sql$(EXEEXT)
+	./ndbinfo_sql$(EXEEXT) > $@-t
+	$(MV) $@-t $@
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
