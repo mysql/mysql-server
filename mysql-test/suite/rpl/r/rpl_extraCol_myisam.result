@@ -9,6 +9,8 @@ call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
 *** On Slave ***
 STOP SLAVE;
 RESET SLAVE;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00', 
 e CHAR(4) DEFAULT 'TEST') 
@@ -32,6 +34,7 @@ a	b	c	d	e
 1	2	TEXAS	2	TEST
 2	1	AUSTIN	2	TEST
 3	4	QA	2	TEST
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 *** Drop t1  ***
 DROP TABLE t1;
 *** Create t2 on slave  ***
@@ -73,8 +76,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
+Last_Errno	1641
+Last_Error	Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -91,8 +94,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)'
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -140,8 +143,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
+Last_Errno	1641
+Last_Error	Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -158,8 +161,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t3  ***
@@ -202,8 +205,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
+Last_Errno	1641
+Last_Error	Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -220,8 +223,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t4  ***
@@ -264,8 +267,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
+Last_Errno	1641
+Last_Error	Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -282,8 +285,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t5  ***
@@ -325,8 +328,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
+Last_Errno	1641
+Last_Error	Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -343,8 +346,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
 DROP TABLE t6;
@@ -493,8 +496,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
+Last_Errno	1641
+Last_Error	Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -511,8 +514,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t10  ***
@@ -520,7 +523,7 @@ DROP TABLE t10;
 *** Create t11 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
-CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+CREATE TABLE t11 (a INT KEY, b BLOB, f INT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
 *** Create t11 on Master ***
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
@@ -554,8 +557,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
+Last_Errno	1641
+Last_Error	Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -572,8 +575,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t11  ***
@@ -944,8 +947,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
+Last_Errno	1641
+Last_Error	Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -962,8 +965,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
+Last_SQL_Errno	1641
+Last_SQL_Error	Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 ** DROP table t17 ***
