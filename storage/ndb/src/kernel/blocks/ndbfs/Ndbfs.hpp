@@ -57,6 +57,7 @@ protected:
   void execCONTINUEB(Signal* signal);
   void execALLOC_MEM_REQ(Signal* signal);
   void execSEND_PACKED(Signal*);
+  void execBUILDINDXREQ(Signal* signal);
 
   Uint16 newId();
 

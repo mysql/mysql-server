@@ -59,6 +59,7 @@
 #include <kernel_types.h>
 #include "MemoryChannel.hpp"
 #include "Filename.hpp"
+#include <signaldata/BuildIndx.hpp>
 
 // Use this define if you want printouts from AsyncFile class
 //#define DEBUG_ASYNCFILE
@@ -106,7 +107,8 @@ public:
     append_synch,
     rmrf,
     readPartial,
-    allocmem
+    allocmem,
+    buildindx
   };
   Action action;
   union {
@@ -136,6 +138,9 @@ public:
       Block_context* ctx;
       Uint32 requestInfo;
     } alloc;
+    struct {
+      struct mt_BuildIndxReq m_req;
+    } build;
   } par;
   int error;
   
@@ -243,6 +248,11 @@ protected:
    * Allocate memory (in separate thread)
    */
   virtual void allocMemReq(Request*);
+
+  /**
+   * Build ordered index in multi-threaded fashion
+   */
+  void buildIndxReq(Request*);
 
   /**
    * endReq()

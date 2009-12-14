@@ -84,7 +84,7 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
   strcpy(par.m_path, ".");
   par.m_side = 2;
   par.m_parent = NullTupLoc;
-  printNode(frag, out, tree.m_root, par);
+  printNode(c_ctx, frag, out, tree.m_root, par);
   out.m_out->flush();
   if (! par.m_ok) {
     if (debugFile == 0) {
@@ -100,7 +100,8 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 }
 
 void
-Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
+Dbtux::printNode(TuxCtx & ctx,
+                 Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
 {
   if (loc == NullTupLoc) {
     par.m_depth = 0;
@@ -118,7 +119,7 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
-    printNode(frag, out, node.getLink(i), cpar[i]);
+    printNode(ctx, frag, out, node.getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
     }
@@ -181,8 +182,8 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
     memset(data2, DataFillByte, MaxPrefSize << 2);
-    readKeyAttrs(frag, node.getMinMax(0), 0, c_searchKey);
-    copyAttrs(frag, c_searchKey, data2, tree.m_prefSize);
+    readKeyAttrs(ctx, frag, node.getMinMax(0), 0, ctx.c_searchKey);
+    copyAttrs(ctx, frag, ctx.c_searchKey, data2, tree.m_prefSize);
     for (unsigned n = 0; n < tree.m_prefSize; n++) {
       if (data1[n] != data2[n]) {
         par.m_ok = false;
@@ -199,9 +200,9 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     const TreeEnt ent1 = node.getEnt(j - 1);
     const TreeEnt ent2 = node.getEnt(j);
     unsigned start = 0;
-    readKeyAttrs(frag, ent1, start, c_searchKey);
-    readKeyAttrs(frag, ent2, start, c_entryKey);
-    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
+    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (ret != -1) {
@@ -217,9 +218,9 @@ Dbtux::printNode(Frag& frag, NdbOut& out, TupLoc loc, PrintPar& par)
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
     const TreeEnt ent2 = node.getMinMax(i);
     unsigned start = 0;
-    readKeyAttrs(frag, ent1, start, c_searchKey);
-    readKeyAttrs(frag, ent2, start, c_entryKey);
-    int ret = cmpSearchKey(frag, start, c_searchKey, c_entryKey);
+    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
+    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (ret != (i == 0 ? -1 : +1)) {

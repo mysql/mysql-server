@@ -55,7 +55,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtux/DbtuxGen.cpp dbtux/DbtuxMeta.cpp dbtux/DbtuxMaint.cpp \
   dbtux/DbtuxNode.cpp dbtux/DbtuxTree.cpp dbtux/DbtuxScan.cpp \
   dbtux/DbtuxSearch.cpp dbtux/DbtuxCmp.cpp dbtux/DbtuxStat.cpp \
-  dbtux/DbtuxDebug.cpp
+  dbtux/DbtuxDebug.cpp dbtux/DbtuxBuild.cpp
 
 EXTRA_PROGRAMS = ndb_print_file
 ndb_print_file_SOURCES = print_file.cpp diskpage.cpp dbtup/tuppage.cpp

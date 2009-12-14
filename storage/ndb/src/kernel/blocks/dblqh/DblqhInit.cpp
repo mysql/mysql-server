@@ -233,6 +233,9 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_DROP_TRIG_CONF, &Dblqh::execDROP_TRIG_CONF);
   addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
 
+  addRecSignal(GSN_BUILDINDXREF, &Dblqh::execBUILDINDXREF);
+  addRecSignal(GSN_BUILDINDXCONF, &Dblqh::execBUILDINDXCONF);
+
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);

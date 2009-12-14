@@ -376,21 +376,10 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
 {
   // ugly
   Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP);
-  const Dbtup::Tablerec& tab = *tup->tabptr.p;
   unsigned i = 0;
   out << "[Th " << hex << &th;
   out << " [op " << hex << th.data[i++] << "]";
   out << " [version " << hex << (Uint16)th.data[i++] << "]";
-  if (tab.m_bits & Dbtup::Tablerec::TR_Checksum)
-    out << " [checksum " << hex << th.data[i++] << "]";
-  out << " [nullbits";
-  for (unsigned j = 0; j < tab.m_offsets[Dbtup::MM].m_null_words; j++)
-    out << " " << hex << th.data[i++];
-  out << "]";
-  out << " [data";
-  while (i < tab.m_offsets[Dbtup::MM].m_fix_header_size)
-    out << " " << hex << th.data[i++];
-  out << "]";
   out << "]";
   return out;
 }

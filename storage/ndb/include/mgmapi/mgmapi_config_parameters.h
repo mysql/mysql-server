@@ -154,6 +154,7 @@
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
 #define CFG_DB_LCP_TRY_LOCK_TIMEOUT   605
+#define CFG_DB_MT_BUILD_INDEX         606
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

@@ -53,7 +53,7 @@ private:
   Uint32 m_tableId;
   Uint32 m_indexId;             // only set by DICT
   Uint32 m_indexVersion;
-  Uint32 m_online;              // new state 0-offline 1-online
+  Uint32 m_online;              // new state 0-offline 1-online 2-building
   // extra
   Uint32 m_opKey;
 

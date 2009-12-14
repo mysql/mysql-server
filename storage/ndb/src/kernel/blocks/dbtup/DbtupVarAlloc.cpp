@@ -62,7 +62,8 @@ void Dbtup::init_list_sizes(void)
     page_ptr         The i and p value of the page where the record was
                      allocated
 */
-Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
+Uint32* Dbtup::alloc_var_rec(Uint32 * err,
+                             Fragrecord* fragPtr,
 			     Tablerec* tabPtr,
 			     Uint32 alloc_size,
 			     Local_key* key,
@@ -71,7 +72,7 @@ Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
   /**
    * TODO alloc fix+var part
    */
-  Uint32 *ptr = alloc_fix_rec(fragPtr, tabPtr, key, out_frag_page_id);
+  Uint32 *ptr = alloc_fix_rec(err, fragPtr, tabPtr, key, out_frag_page_id);
   if (unlikely(ptr == 0))
   {
     return 0;
@@ -82,7 +83,7 @@ Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
   Var_part_ref* dst = tuple->get_var_part_ref_ptr(tabPtr);
   if (alloc_size)
   {
-    if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))
+    if (likely(alloc_var_part(err, fragPtr, tabPtr, alloc_size, &varref) != 0))
     {
       dst->assign(&varref);
       return ptr;
@@ -102,7 +103,8 @@ Uint32* Dbtup::alloc_var_rec(Fragrecord* fragPtr,
 }
 
 Uint32*
-Dbtup::alloc_var_part(Fragrecord* fragPtr,
+Dbtup::alloc_var_part(Uint32 * err,
+                      Fragrecord* fragPtr,
 		      Tablerec* tabPtr,
 		      Uint32 alloc_size,
 		      Local_key* key)
@@ -113,6 +115,7 @@ Dbtup::alloc_var_part(Fragrecord* fragPtr,
     jam();
     if ((pagePtr.i= get_empty_var_page(fragPtr)) == RNIL) {
       jam();
+      * err = ZMEM_NOMEM_ERROR;
       return 0;
     }
     c_page_pool.getPtr(pagePtr);
@@ -200,7 +203,8 @@ Dbtup::free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx)
 }
 
 Uint32 *
-Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
+Dbtup::realloc_var_part(Uint32 * err,
+                        Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
 			Var_part_ref* refptr, Uint32 oldsz, Uint32 newsz)
 {
   Uint32 add = newsz - oldsz;
@@ -244,7 +248,7 @@ Dbtup::realloc_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   {
     jam();
     Local_key newref;
-    new_var_ptr = alloc_var_part(fragPtr, tabPtr, newsz, &newref);
+    new_var_ptr = alloc_var_part(err, fragPtr, tabPtr, newsz, &newref);
     if (unlikely(new_var_ptr == 0))
       return NULL;
 
@@ -471,13 +475,14 @@ Uint32 Dbtup::calculate_free_list_impl(Uint32 free_space_size) const
 }
 
 Uint32* 
-Dbtup::alloc_var_rowid(Fragrecord* fragPtr,
+Dbtup::alloc_var_rowid(Uint32 * err,
+                       Fragrecord* fragPtr,
 		       Tablerec* tabPtr,
 		       Uint32 alloc_size,
 		       Local_key* key,
 		       Uint32 * out_frag_page_id)
 {
-  Uint32 *ptr = alloc_fix_rowid(fragPtr, tabPtr, key, out_frag_page_id);
+  Uint32 *ptr = alloc_fix_rowid(err, fragPtr, tabPtr, key, out_frag_page_id);
   if (unlikely(ptr == 0))
   {
     return 0;
@@ -489,7 +494,7 @@ Dbtup::alloc_var_rowid(Fragrecord* fragPtr,
 
   if (alloc_size)
   {
-    if (likely(alloc_var_part(fragPtr, tabPtr, alloc_size, &varref) != 0))
+    if (likely(alloc_var_part(err, fragPtr, tabPtr, alloc_size, &varref) != 0))
     {
       dst->assign(&varref);
       return ptr;

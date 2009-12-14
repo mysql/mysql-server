@@ -77,6 +77,7 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   addRecSignal(GSN_FSREMOVEREQ, &Ndbfs::execFSREMOVEREQ);
   addRecSignal(GSN_ALLOC_MEM_REQ, &Ndbfs::execALLOC_MEM_REQ);
   addRecSignal(GSN_SEND_PACKED, &Ndbfs::execSEND_PACKED, true);
+  addRecSignal(GSN_BUILDINDXREQ, &Ndbfs::execBUILDINDXREQ);
    // Set send signals
 
   theRequestPool = new Pool<Request>;
@@ -798,6 +799,45 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
   ndbrequire(forward(file, request));
 }
 
+#include <signaldata/BuildIndx.hpp>
+
+void
+Ndbfs::execBUILDINDXREQ(Signal* signal)
+{
+  jamEntry();
+  mt_BuildIndxReq * req = (mt_BuildIndxReq*)signal->getDataPtr();
+
+  AsyncFile* file = getIdleFile();
+  ndbrequire(file != NULL);
+  file->reportTo(&theFromThreads);
+
+  Request *request = theRequestPool->get();
+  request->error = 0;
+  request->set(req->senderRef, req->senderData, 0);
+  request->file = file;
+  request->theTrace = signal->getTrace();
+
+  Uint32 cnt = (req->buffer_size + 32768 - 1) / 32768;
+  Ptr<GlobalPage> page_ptr;
+  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, cnt);
+  if(cnt == 0)
+  {
+    file->m_page_ptr.setNull();
+    file->m_page_cnt = 0;
+
+    ndbrequire(false); // TODO
+    return;
+  }
+
+  m_shared_page_pool.getPtr(page_ptr);
+  file->m_page_ptr = page_ptr;
+  file->m_page_cnt = cnt;
+
+  memcpy(&request->par.build.m_req, req, sizeof(* req));
+  request->action = Request::buildindx;
+  ndbrequire(forward(file, request));
+}
+
 Uint16
 Ndbfs::newId()
 {
@@ -958,6 +998,17 @@ Ndbfs::report(Request * request, Signal* signal)
       theIdleFiles.push_back(request->file);
       break;
     }
+    case Request::buildindx: {
+      jam();
+      BuildIndxRef* rep = (BuildIndxRef*)signal->getDataPtrSend();
+      rep->setUserRef(reference());
+      rep->setConnectionPtr(request->theUserPointer);
+      rep->setErrorCode((BuildIndxRef::ErrorCode)request->error);
+      sendSignal(ref, GSN_BUILDINDXREF, signal,
+                 BuildIndxRef::SignalLength, JBB);
+      theIdleFiles.push_back(request->file);
+      break;
+    }
     }//switch
   } else {
     jam();
@@ -1037,6 +1088,16 @@ Ndbfs::report(Request * request, Signal* signal)
       conf->senderData = request->theUserPointer;
       sendSignal(ref, GSN_ALLOC_MEM_CONF, signal,
                  AllocMemConf::SignalLength, JBB);
+      theIdleFiles.push_back(request->file);
+      break;
+    }
+    case Request::buildindx: {
+      jam();
+      BuildIndxConf* rep = (BuildIndxConf*)signal->getDataPtrSend();
+      rep->setUserRef(reference());
+      rep->setConnectionPtr(request->theUserPointer);
+      sendSignal(ref, GSN_BUILDINDXCONF, signal,
+                 BuildIndxConf::SignalLength, JBB);
       theIdleFiles.push_back(request->file);
       break;
     }

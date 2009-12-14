@@ -42,6 +42,7 @@ extern class SignalLoggerManager globalSignalLoggers;
 #ifndef NO_EMULATED_JAM
   #define EMULATED_JAM_SIZE 1024
   #define JAM_MASK ((EMULATED_JAM_SIZE * 4) - 1)
+  #define JAM_MASK32 (EMULATED_JAM_SIZE - 1)
 
   extern Uint8 theEmulatedJam[];
   extern Uint32 theEmulatedJamIndex;

@@ -308,4 +308,26 @@ public:
   }
 };
 
+struct mt_BuildIndxReq
+{
+  Uint32 senderRef;
+  Uint32 senderData;
+
+  Uint32 indexId;
+  Uint32 tableId;
+  Uint32 fragId;
+
+  NdbMutex* m_alloc_mutex; // mutex for allocation
+  void * tux_ptr;              // ptr to Dbtux
+  void * tup_ptr;
+  Uint32 (* func_ptr)(void *); // c-function
+
+  void * mem_buffer;  // allocated by FS
+  Uint32 buffer_size; //
+
+  Uint32 pad[3];
+
+  STATIC_CONST( SignalLength = (6 + 3 + 5 * (sizeof(void*) / 4)));
+};
+
 #endif
