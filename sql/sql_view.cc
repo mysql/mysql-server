@@ -662,8 +662,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     int errcode= query_error_code(thd, TRUE);
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
+    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          buff.ptr(), buff.length(), FALSE, FALSE, errcode))
+      res= TRUE;
   }
 
   pthread_mutex_unlock(&LOCK_open);
@@ -818,7 +819,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
     thd->variables.sql_mode|= sql_mode;
   }
-  DBUG_PRINT("info", ("View: %s", view_query.ptr()));
+  DBUG_PRINT("info",
+             ("View: %*.s", (int) view_query.length(), view_query.ptr()));
 
   /* fill structure */
   view->source= thd->lex->create_view_select;
@@ -1653,7 +1655,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    write_bin_log(thd, !something_wrong, thd->query(), thd->query_length());
+    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+      something_wrong= 1;
   }
 
   pthread_mutex_unlock(&LOCK_open);

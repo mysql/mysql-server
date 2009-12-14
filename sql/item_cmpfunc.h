@@ -97,6 +97,8 @@ public:
                                                       ulonglong *const_val_arg);
 
   void set_datetime_cmp_func(Item **a1, Item **b1);
+  Item** cache_converted_constant(THD *thd, Item **value, Item **cache,
+                                  Item_result type);
   static arg_cmp_func comparator_matrix [5][2];
 
   friend class Item_func;
@@ -1727,5 +1729,4 @@ Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
-
 #endif /* ITEM_CMPFUNC_INCLUDED */

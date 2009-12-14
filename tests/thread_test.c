@@ -176,9 +176,8 @@ static void get_options(int argc, char **argv)
 {
   int ho_error;
 
-  load_defaults("my",load_default_groups,&argc,&argv);
-
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error= load_defaults("my",load_default_groups,&argc,&argv)) ||
+      (ho_error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   free_defaults(argv);

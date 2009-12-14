@@ -276,8 +276,8 @@ t1	int(1)	NULL	NO		0		#
 t2	varchar(1)	latin1_swedish_ci	NO				#	
 t3	varchar(256)	latin1_swedish_ci	NO				#	
 t4	varbinary(256)	NULL	NO				#	
-t5	longtext	latin1_swedish_ci	NO		NULL		#	
-t6	longblob	NULL	NO		NULL		#	
+t5	text	latin1_swedish_ci	NO		NULL		#	
+t6	blob	NULL	NO		NULL		#	
 t7	char(0)	latin1_swedish_ci	NO				#	
 t8	binary(0)	NULL	NO				#	
 select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;

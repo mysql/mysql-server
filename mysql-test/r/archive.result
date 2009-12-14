@@ -12717,3 +12717,13 @@ COUNT(t1.a)
 729
 DROP TABLE t1;
 SET @@join_buffer_size= @save_join_buffer_size;
+End of 5.1 tests
+CREATE TABLE t1(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(128) NOT NULL, PRIMARY KEY(id)) ENGINE=archive;
+INSERT INTO t1 VALUES(NULL,'a'),(NULL,'a');
+CREATE TABLE t2(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(128) NOT NULL, PRIMARY KEY(id)) ENGINE=archive;
+INSERT INTO t2 VALUES(NULL,'b'),(NULL,'b');
+SELECT t1.id, t2.id, t1.name, t2.name FROM t1,t2 WHERE t1.id = t2.id;
+id	id	name	name
+1	1	a	b
+2	2	a	b
+DROP TABLE t1,t2;

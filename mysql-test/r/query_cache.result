@@ -342,19 +342,18 @@ create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i)
 insert into mysqltest.t1 (a) values (1);
 select * from mysqltest.t1 where i is null;
 i	a
-1	1
 create table t1(a int);
 select * from t1;
 a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	2
 select * from mysqltest.t1;
 i	a
 1	1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	3
 drop database mysqltest;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value

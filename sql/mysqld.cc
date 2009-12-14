@@ -106,7 +106,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#include <netdb.h>
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
@@ -176,7 +175,7 @@ static void registerwithneb();
 static void getvolumename();
 static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
-  
+
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -390,7 +389,6 @@ static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
 static ulong max_used_connections;
-static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
@@ -458,7 +456,6 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-bool slave_warning_issued = false; 
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -685,15 +682,11 @@ int mysqld_server_started= 0;
 File_parser_dummy_hook file_parser_dummy_hook;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
 ulong master_retry_count=0;
-char *master_user, *master_password, *master_host, *master_info_file;
+char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
-my_bool master_ssl;
-char *master_ssl_key, *master_ssl_cert;
-char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 char *opt_logname, *opt_slow_logname;
 
 /* Static variables */
@@ -1640,17 +1633,18 @@ static void set_root(const char *path)
 #endif
 }
 
+
 static void network_init(void)
 {
-  struct sockaddr_in	IPaddr;
 #ifdef HAVE_SYS_UN_H
   struct sockaddr_un	UNIXaddr;
 #endif
-  int	arg=1;
+  int	arg;
   int   ret;
   uint  waited;
   uint  this_wait;
   uint  retry;
+  char port_buf[NI_MAXSERV];
   DBUG_ENTER("network_init");
   LINT_INIT(ret);
 
@@ -1661,26 +1655,65 @@ static void network_init(void)
 
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
+    struct addrinfo *ai, *a;
+    struct addrinfo hints;
+    int error;
     DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
-    ip_sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    bzero(&hints, sizeof (hints));
+    hints.ai_flags= AI_PASSIVE;
+    hints.ai_socktype= SOCK_STREAM;
+    hints.ai_family= AF_UNSPEC;
+
+    my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
+    error= getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai);
+    if (error != 0)
+    {
+      DBUG_PRINT("error",("Got error: %d from getaddrinfo()", error));
+      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+      unireg_abort(1);				/* purecov: tested */
+    }
+
+    for (a= ai; a != NULL; a= a->ai_next)
+    {
+      ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+      if (ip_sock != INVALID_SOCKET)
+        break;
+    }
+
     if (ip_sock == INVALID_SOCKET)
     {
       DBUG_PRINT("error",("Got error: %d from socket()",socket_errno));
-      sql_perror(ER(ER_IPSOCK_ERROR));		/* purecov: tested */
+      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
       unireg_abort(1);				/* purecov: tested */
     }
-    bzero((char*) &IPaddr, sizeof(IPaddr));
-    IPaddr.sin_family = AF_INET;
-    IPaddr.sin_addr.s_addr = my_bind_addr;
-    IPaddr.sin_port = (unsigned short) htons((unsigned short) mysqld_port);
 
 #ifndef __WIN__
     /*
       We should not use SO_REUSEADDR on windows as this would enable a
       user to open two mysqld servers with the same TCP/IP port.
     */
+    arg= 1;
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
 #endif /* __WIN__ */
+
+#ifdef IPV6_V6ONLY
+     /*
+       For interoperability with older clients, IPv6 socket should
+       listen on both IPv6 and IPv4 wildcard addresses.
+       Turn off IPV6_V6ONLY option.
+
+       NOTE: this will work starting from Windows Vista only.
+       On Windows XP dual stack is not available, so it will not
+       listen on the corresponding IPv4-address.
+     */
+    if (a->ai_family == AF_INET6)
+    {
+      arg= 0;
+      (void) setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
+                sizeof(arg));
+    }
+#endif
     /*
       Sometimes the port is not released fast enough when stopping and
       restarting the server. This happens quite often with the test suite
@@ -1691,8 +1724,7 @@ static void network_init(void)
     */
     for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
     {
-      if (((ret= bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
-                      sizeof(IPaddr))) >= 0) ||
+      if (((ret= bind(ip_sock, a->ai_addr, a->ai_addrlen)) >= 0 ) ||
           (socket_errno != SOCKET_EADDRINUSE) ||
           (waited >= mysqld_port_timeout))
         break;
@@ -1700,6 +1732,7 @@ static void network_init(void)
       this_wait= retry * retry / 3 + 1;
       sleep(this_wait);
     }
+    freeaddrinfo(ai);
     if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
@@ -1721,7 +1754,6 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
     bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
@@ -1787,6 +1819,7 @@ static void network_init(void)
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);
+    arg= 1;
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
@@ -3000,7 +3033,6 @@ SHOW_VAR com_status_vars[]= {
   {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
   {"alter_tablespace",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]), SHOW_LONG_STATUS},
   {"analyze",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]), SHOW_LONG_STATUS},
-  {"backup_table",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BACKUP_TABLE]), SHOW_LONG_STATUS},
   {"begin",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BEGIN]), SHOW_LONG_STATUS},
   {"binlog",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]), SHOW_LONG_STATUS},
   {"call_procedure",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CALL]), SHOW_LONG_STATUS},
@@ -3047,8 +3079,6 @@ SHOW_VAR com_status_vars[]= {
   {"install_plugin",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_INSTALL_PLUGIN]), SHOW_LONG_STATUS},
   {"kill",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_KILL]), SHOW_LONG_STATUS},
   {"load",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD]), SHOW_LONG_STATUS},
-  {"load_master_data",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD_MASTER_DATA]), SHOW_LONG_STATUS},
-  {"load_master_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD_MASTER_TABLE]), SHOW_LONG_STATUS},
   {"lock_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES]), SHOW_LONG_STATUS},
   {"optimize",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_OPTIMIZE]), SHOW_LONG_STATUS},
   {"preload_keys",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PRELOAD_KEYS]), SHOW_LONG_STATUS},
@@ -3063,7 +3093,6 @@ SHOW_VAR com_status_vars[]= {
   {"replace_select",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REPLACE_SELECT]), SHOW_LONG_STATUS},
   {"reset",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESET]), SHOW_LONG_STATUS},
   {"resignal",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESIGNAL]), SHOW_LONG_STATUS},
-  {"restore_table",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_RESTORE_TABLE]), SHOW_LONG_STATUS},
   {"revoke",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE]), SHOW_LONG_STATUS},
   {"revoke_all",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_REVOKE_ALL]), SHOW_LONG_STATUS},
   {"rollback",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ROLLBACK]), SHOW_LONG_STATUS},
@@ -3240,7 +3269,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   orig_argc=argc;
   orig_argv=argv;
-  load_defaults(conf_file_name, groups, &argc, &argv);
+  if (load_defaults(conf_file_name, groups, &argc, &argv))
+    return 1;
   defaults_argv=argv;
   defaults_argc=argc;
   if (get_options(&defaults_argc, defaults_argv))
@@ -4406,21 +4436,12 @@ int main(int argc, char **argv)
 
   if (opt_bin_log && !server_id)
   {
-    server_id= !master_host ? 1 : 2;
+    server_id= 1;
 #ifdef EXTRA_DEBUG
-    switch (server_id) {
-    case 1:
-      sql_print_warning("\
-You have enabled the binary log, but you haven't set server-id to \
-a non-zero value: we force server id to 1; updates will be logged to the \
-binary log, but connections from slaves will not be accepted.");
-      break;
-    case 2:
-      sql_print_warning("\
-You should set server-id to a non-0 value if master_host is set; \
-we force server id to 2, but this MySQL server will not act as a slave.");
-      break;
-    }
+    sql_print_warning("You have enabled the binary log, but you haven't set "
+                      "server-id to a non-zero value: we force server id to 1; "
+                      "updates will be logged to the binary log, but "
+                      "connections from slaves will not be accepted.");
 #endif
   }
 
@@ -4855,7 +4876,7 @@ static bool read_init_file(char *file_name)
 
      When we enter this function, LOCK_thread_count is hold!
 */
-   
+
 void handle_connection_in_main_thread(THD *thd)
 {
   safe_mutex_assert_owner(&LOCK_thread_count);
@@ -4938,7 +4959,6 @@ void create_thread_to_handle_connection(THD *thd)
 
 static void create_new_thread(THD *thd)
 {
-  NET *net=&thd->net;
   DBUG_ENTER("create_new_thread");
 
   /*
@@ -5008,6 +5028,7 @@ inline void kill_broken_server()
 	/* Handle new connections and spawn new process to handle them */
 
 #ifndef EMBEDDED_LIBRARY
+
 void handle_connections_sockets()
 {
   my_socket sock,new_sock;
@@ -5015,7 +5036,7 @@ void handle_connections_sockets()
   uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
   fd_set readFDs,clientFDs;
   THD *thd;
-  struct sockaddr_in cAddr;
+  struct sockaddr_storage cAddr;
   int ip_flags=0,socket_flags=0,flags;
   st_vio *vio_tmp;
   DBUG_ENTER("handle_connections_sockets");
@@ -5089,9 +5110,9 @@ void handle_connections_sockets()
 #endif /* NO_FCNTL_NONBLOCK */
     for (uint retry=0; retry < MAX_ACCEPT_RETRY; retry++)
     {
-      size_socket length=sizeof(struct sockaddr_in);
-      new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
-			&length);
+      size_socket length= sizeof(struct sockaddr_storage);
+      new_sock= accept(sock, (struct sockaddr *)(&cAddr),
+                       &length);
 #ifdef __NETWARE__ 
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
@@ -5162,9 +5183,10 @@ void handle_connections_sockets()
 
     {
       size_socket dummyLen;
-      struct sockaddr dummy;
-      dummyLen = sizeof(struct sockaddr);
-      if (getsockname(new_sock,&dummy, &dummyLen) < 0)
+      struct sockaddr_storage dummy;
+      dummyLen = sizeof(dummy);
+      if (  getsockname(new_sock,(struct sockaddr *)&dummy, 
+                  (SOCKET_SIZE_TYPE *)&dummyLen) < 0  )
       {
 	sql_perror("Error on new connection socket");
 	(void) shutdown(new_sock, SHUT_RDWR);
@@ -5510,7 +5532,7 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) 
+    if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
       UnmapViewOfFile(handle_client_map);
@@ -5574,13 +5596,8 @@ enum options_mysqld
   OPT_STORAGE_ENGINE,          OPT_INIT_FILE,
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
-  OPT_MASTER_HOST,             OPT_MASTER_USER,
-  OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
-  OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
+  OPT_MASTER_INFO_FILE,
   OPT_MASTER_RETRY_COUNT,      OPT_LOG_TC, OPT_LOG_TC_SIZE,
-  OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
-  OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
-  OPT_MASTER_SSL_CIPHER,       OPT_MASTER_SSL_CA,
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -6088,60 +6105,15 @@ log and this option justs turns on --log-bin instead.",
    (uchar**) &global_system_variables.low_priority_updates,
    (uchar**) &max_system_variables.low_priority_updates,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-connect-retry", OPT_MASTER_CONNECT_RETRY,
-   "The number of seconds the slave thread will sleep before retrying to connect to the master in case the master goes down or the connection is lost.",
-   (uchar**) &master_connect_retry, (uchar**) &master_connect_retry, 0, GET_UINT,
-   REQUIRED_ARG, 60, 0, 0, 0, 0, 0},
-  {"master-host", OPT_MASTER_HOST,
-   "Master hostname or IP address for replication. If not set, the slave thread will not be started. Note that the setting of master-host will be ignored if there exists a valid master.info file.",
-   (uchar**) &master_host, (uchar**) &master_host, 0, GET_STR, REQUIRED_ARG, 0, 0,
-   0, 0, 0, 0},
   {"master-info-file", OPT_MASTER_INFO_FILE,
    "The location and name of the file that remembers the master and where the I/O replication \
 thread is in the master's binlogs.",
    (uchar**) &master_info_file, (uchar**) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-password", OPT_MASTER_PASSWORD,
-   "The password the slave thread will authenticate with when connecting to the master. If not set, an empty password is assumed.The value in master.info will take precedence if it can be read.",
-   (uchar**)&master_password, (uchar**)&master_password, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-port", OPT_MASTER_PORT,
-   "The port the master is listening on. If not set, the compiled setting of MYSQL_PORT is assumed. If you have not tinkered with configure options, this should be 3306. The value in master.info will take precedence if it can be read.",
-   (uchar**) &master_port, (uchar**) &master_port, 0, GET_UINT, REQUIRED_ARG,
-   MYSQL_PORT, 0, 0, 0, 0, 0},
   {"master-retry-count", OPT_MASTER_RETRY_COUNT,
    "The number of tries the slave will make to connect to the master before giving up.",
    (uchar**) &master_retry_count, (uchar**) &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
-  {"master-ssl", OPT_MASTER_SSL,
-   "Enable the slave to connect to the master using SSL.",
-   (uchar**) &master_ssl, (uchar**) &master_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-   0, 0},
-  {"master-ssl-ca", OPT_MASTER_SSL_CA,
-   "Master SSL CA file. Only applies if you have enabled master-ssl.",
-   (uchar**) &master_ssl_ca, (uchar**) &master_ssl_ca, 0, GET_STR, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
-   "Master SSL CA path. Only applies if you have enabled master-ssl.",
-   (uchar**) &master_ssl_capath, (uchar**) &master_ssl_capath, 0, GET_STR, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"master-ssl-cert", OPT_MASTER_SSL_CERT,
-   "Master SSL certificate file name. Only applies if you have enabled \
-master-ssl",
-   (uchar**) &master_ssl_cert, (uchar**) &master_ssl_cert, 0, GET_STR, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
-   "Master SSL cipher. Only applies if you have enabled master-ssl.",
-   (uchar**) &master_ssl_cipher, (uchar**) &master_ssl_capath, 0, GET_STR, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"master-ssl-key", OPT_MASTER_SSL_KEY,
-   "Master SSL keyfile name. Only applies if you have enabled master-ssl.",
-   (uchar**) &master_ssl_key, (uchar**) &master_ssl_key, 0, GET_STR, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"master-user", OPT_MASTER_USER,
-   "The username the slave thread will use for authentication when connecting to the master. The user must have FILE privilege. If the master user is not set, user test is assumed. The value in master.info will take precedence if it can be read.",
-   (uchar**) &master_user, (uchar**) &master_user, 0, GET_STR, REQUIRED_ARG, 0, 0,
-   0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"max-binlog-dump-events", OPT_MAX_BINLOG_DUMP_EVENTS,
    "Option used by mysql-test for debugging and testing of replication.",
@@ -7782,7 +7754,7 @@ static int mysql_init_variables(void)
   log_error_file_ptr= log_error_file;
   lc_messages_dir_ptr= lc_messages_dir;
   mysql_data_home= mysql_real_data_home;
-  thd_startup_options= (OPTION_AUTO_IS_NULL | OPTION_BIN_LOG |
+  thd_startup_options= (OPTION_BIN_LOG |
                         OPTION_QUOTE_SHOW_CREATE | OPTION_SQL_NOTES);
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
@@ -7793,7 +7765,6 @@ static int mysql_init_variables(void)
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
   myisam_stats_method_str= "nulls_unequal";
-  my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
@@ -7814,12 +7785,8 @@ static int mysql_init_variables(void)
   mysql_data_home_len= 2;
 
   /* Replication parameters */
-  master_user= (char*) "test";
-  master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca=
-    master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
 
@@ -7973,7 +7940,7 @@ mysqld_get_one_option(int optid,
       default_collation_name= 0;
     break;
   case 'l':
-    WARN_DEPRECATED(NULL, "7.0", "--log", "'--general-log'/'--general-log-file'");
+    WARN_DEPRECATED(NULL, 7, 0, "--log", "'--general-log'/'--general-log-file'");
     opt_log=1;
     break;
   case 'h':
@@ -8147,8 +8114,7 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, "7.0", "--log-slow-queries",
-                    "'--slow-query-log'/'--slow-query-log-file'");
+    WARN_DEPRECATED(NULL, 7, 0, "--log-slow-queries", "'--slow-query-log'/'--slow-query-log-file'");
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
@@ -8233,27 +8199,25 @@ mysqld_get_one_option(int optid,
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if ((my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
-      struct hostent *ent;
-      if (argument[0])
-	ent=gethostbyname(argument);
-      else
+      struct addrinfo *res_lst, hints;    
+
+      bzero(&hints, sizeof(struct addrinfo));
+      hints.ai_socktype= SOCK_STREAM;
+      hints.ai_protocol= IPPROTO_TCP;
+
+      if (getaddrinfo(argument, NULL, &hints, &res_lst) != 0) 
       {
-	char myhostname[255];
-	if (gethostname(myhostname,sizeof(myhostname)) < 0)
-	{
-	  sql_perror("Can't start server: cannot get my own hostname!");
-          return 1;
-	}
-	ent=gethostbyname(myhostname);
-      }
-      if (!ent)
-      {
-	sql_perror("Can't start server: cannot resolve hostname!");
+        sql_print_error("Can't start server: cannot resolve hostname!");
         return 1;
       }
-      my_bind_addr = (ulong) ((in_addr*)ent->h_addr_list[0])->s_addr;
+
+      if (res_lst->ai_next)
+      {
+        sql_print_error("Can't start server: bind-address refers to multiple interfaces!");
+        return 1;
+      }
+      freeaddrinfo(res_lst);
     }
     break;
   case (int) OPT_PID_FILE:
@@ -8263,29 +8227,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
 #endif
-  /*
-    The following change issues a deprecation warning if the slave
-    configuration is specified either in the my.cnf file or on
-    the command-line. See BUG#21490.
-  */
-  case OPT_MASTER_HOST:
-  case OPT_MASTER_USER:
-  case OPT_MASTER_PASSWORD:
-  case OPT_MASTER_PORT:
-  case OPT_MASTER_CONNECT_RETRY:
-  case OPT_MASTER_SSL:          
-  case OPT_MASTER_SSL_KEY:
-  case OPT_MASTER_SSL_CERT:       
-  case OPT_MASTER_SSL_CAPATH:
-  case OPT_MASTER_SSL_CIPHER:
-  case OPT_MASTER_SSL_CA:
-    if (!slave_warning_issued)                 //only show the warning once
-    {
-      slave_warning_issued = true;   
-      WARN_DEPRECATED(NULL, "6.0", "for replication startup options", 
-        "'CHANGE MASTER'");
-    }
-    break;
   case OPT_CONSOLE:
     if (opt_console)
       opt_error_log= 0;			// Force logs to stdout

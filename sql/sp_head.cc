@@ -166,7 +166,6 @@ sp_get_flags_for_command(LEX *lex)
     }
     /* fallthrough */
   case SQLCOM_ANALYZE:
-  case SQLCOM_BACKUP_TABLE:
   case SQLCOM_OPTIMIZE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
@@ -213,7 +212,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
   case SQLCOM_REPAIR:
-  case SQLCOM_RESTORE_TABLE:
     flags= sp_head::MULTI_RESULTS;
     break;
   /*
@@ -268,7 +266,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_COMMIT:
   case SQLCOM_ROLLBACK:
   case SQLCOM_LOAD:
-  case SQLCOM_LOAD_MASTER_DATA:
   case SQLCOM_LOCK_TABLES:
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
@@ -1806,6 +1803,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
+        err_status= TRUE;
       }
       reset_dynamic(&thd->user_var_events);
       /* Forget those values, in case more function calls are binlogged: */
@@ -4002,7 +4000,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
 
 
 /**
-  Simple function for adding an explicetly named (systems) table to
+  Simple function for adding an explicitly named (systems) table to
   the global table list, e.g. "mysql", "proc".
 */
 
