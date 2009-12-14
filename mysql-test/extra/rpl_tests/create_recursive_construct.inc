@@ -296,10 +296,10 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
   if (`SELECT '$n_warnings' != '$CRC_ARG_expected_number_of_warnings'`) {
-    --echo Failure! Expected $CRC_ARG_expected_number_of_warnings warnings, got $n_warnings warnings.
+    --echo ******** Failure! Expected $CRC_ARG_expected_number_of_warnings warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
-    --exit
+    --die Wrong number of warnings.
   }
 
   # These queries are run without query log, to make result file more
@@ -313,17 +313,17 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
   if (`SELECT '$n_warnings' != '0'`) {
-    --echo Failure! Expected 0 warnings, got $n_warnings warnings.
+    --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
-    --exit
+    --die Wrong number of warnings.
   }
   --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
   if (`SELECT '$binlog_event' != 'No such row'`) {
     --enable_query_log
-    --echo Failure! Something was written to the binlog despite SQL_LOG_BIN=0:
+    --echo ******** Failure! Something was written to the binlog despite SQL_LOG_BIN=0 ********
     SHOW BINLOG EVENTS;
-    --exit
+    --die Binlog not empty
   }
   SET SQL_LOG_BIN = 1;
 
@@ -333,17 +333,17 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
   if (`SELECT '$n_warnings' != '0'`) {
-    --echo Failure! Expected 0 warnings, got $n_warnings warnings.
+    --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
-    --exit
+    --die Warnings printed
   }
   # The first event is format_description, the second is
   # Query_event('BEGIN'), and the third should be our Table_map.
   --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
   if (`SELECT '$event_type' != 'Table_map'`) {
     --enable_query_log
-    --echo Failure! Event number 3 was a '$event_type', not a 'Table_map'.
+    --echo ******** Failure! Event number 3 was a '$event_type', not a 'Table_map'. ********
 
     # Currently, there is a bug causing some statements to be logged
     # partially in statement format. Hence, we don't fail here, we
@@ -352,7 +352,7 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
     # we should instead execute:
     #--enable_query_log
     #SHOW BINLOG EVENTS;
-    #--exit
+    #--die Wrong events in binlog.
 
     # Here, we should really source
     # include/show_binlog_events.inc. But due to BUG#41913, that
@@ -386,7 +386,7 @@ if (`SELECT '$CRC_RET_sel_retval' != ''`) {
   #  --echo Failure! Expected 0 warnings, got $n_warnings warnings.
   #  SHOW WARNINGS;
   #  SHOW BINLOG EVENTS;
-  #  --exit
+  #  --die Wrong number of warnings.
   #}
 }
 
