@@ -256,7 +256,7 @@ Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1641
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(8)' to type 'bit(5)'
+Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -274,7 +274,7 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1641
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(8)' to type 'bit(5)'
+Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -310,7 +310,7 @@ Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1641
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(5)' to type 'bit(11)'
+Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -328,7 +328,7 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1641
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(5)' to type 'bit(11)'
+Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
