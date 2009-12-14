@@ -1133,7 +1133,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
       len = m_attr.maxSize;
     }
 
-    if (unlikely(m_attr.maxSize != m_column->getSizeInBytes())) {
+    if (unlikely(m_attr.maxSize != (size_t)m_column->getSizeInBytes())) {
       return QRY_OPERAND_HAS_WRONG_TYPE;
     }
 
