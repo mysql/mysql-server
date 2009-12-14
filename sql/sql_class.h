@@ -44,6 +44,8 @@ extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern const char **errmesg;
 
+extern bool volatile shutdown_in_progress;
+
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
@@ -757,6 +759,8 @@ public:
   { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { return (int)state <= (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
@@ -1801,7 +1805,11 @@ public:
   {
     int err= killed_errno();
     if (err)
+    {
+      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
+    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()

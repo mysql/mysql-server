@@ -166,9 +166,15 @@ test-bt:
 	      @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
 	fi
 
+test-bt-fast:
+	-cd mysql-test ; MTR_BUILD_THREAD=auto \
+	    @PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol --report-features
+
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --force --comment=debug --report-features
+
+test-bt-debug-fast:
 
 # Keep these for a while
 test-pl:	test

@@ -86,7 +86,7 @@ NULL	mysql	procs_priv	Db	2		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI	
 NULL	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references	
 NULL	mysql	procs_priv	Host	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references	
-NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
+NULL	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references	
 NULL	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp			select,insert,update,references	
 NULL	mysql	procs_priv	User	3		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
@@ -295,7 +295,7 @@ NULL	mysql	proc	modified	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	procs_priv	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	procs_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	procs_priv	User	char	16	48	utf8	utf8_bin	char(16)
-3.0000	mysql	procs_priv	Routine_name	char	64	192	utf8	utf8_bin	char(64)
+3.0000	mysql	procs_priv	Routine_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	procs_priv	Routine_type	enum	9	27	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')
 3.0000	mysql	procs_priv	Grantor	char	77	231	utf8	utf8_bin	char(77)
 3.0000	mysql	procs_priv	Proc_priv	set	27	81	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')

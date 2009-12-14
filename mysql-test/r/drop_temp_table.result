@@ -8,6 +8,7 @@ create temporary table shortn2 (a int);
 select get_lock("a",10);
 get_lock("a",10)
 1
+USE test;
 select get_lock("a",10);
 get_lock("a",10)
 1

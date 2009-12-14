@@ -859,4 +859,58 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	5
 drop table t1, t2, t3;
+#
+# Bug #42116: Mysql crash on specific query
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, INDEX (a));
+CREATE TABLE t4 (a INT);
+CREATE TABLE t5 (a INT);
+CREATE TABLE t6 (a INT);
+INSERT INTO t1 VALUES (1), (1), (1);
+INSERT INTO t2 VALUES
+(2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES
+(3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
+EXPLAIN
+SELECT * 
+FROM 
+t1 JOIN t2 ON t1.a = t2.a 
+LEFT JOIN 
+(
+(
+t3 LEFT JOIN t4 ON t3.a = t4.a
+) 
+LEFT JOIN 
+(
+t5 LEFT JOIN t6 ON t5.a = t6.a
+) 
+ON t4.a = t5.a
+) 
+ON t1.a = t3.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using index
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+SELECT * 
+FROM 
+t1 JOIN t2 ON t1.a = t2.a 
+LEFT JOIN 
+(
+(
+t3 LEFT JOIN t4 ON t3.a = t4.a
+) 
+LEFT JOIN 
+(
+t5 LEFT JOIN t6 ON t5.a = t6.a
+) 
+ON t4.a = t5.a
+) 
+ON t1.a = t3.a;
+a	a	a	a	a	a
+DROP TABLE t1,t2,t3,t4,t5,t6;
 End of 5.0 tests.

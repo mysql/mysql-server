@@ -5275,7 +5275,8 @@ Disable with --skip-large-pages.",
 #endif
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed by a slave server \
+each time the SQL thread starts.",
    (gptr*) &opt_init_slave, (gptr*) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
