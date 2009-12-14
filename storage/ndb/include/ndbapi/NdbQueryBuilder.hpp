@@ -23,6 +23,7 @@
 
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
+#include "NdbRecord.hpp"
 
 class Ndb;
 
@@ -279,10 +280,14 @@ public:
   NdbConstOperand* constValue(Uint32 value); 
   NdbConstOperand* constValue(Int64  value); 
   NdbConstOperand* constValue(Uint64 value); 
-  NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar
+  NdbConstOperand* constValue(double value); 
+  NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar C-type string
 
-  // Raw data with specified length - no typesafety is provieded at all 
-  NdbConstOperand* constValue(const void* value, size_t length); 
+  // Raw data with specified length, with src type as specified by 'attr'.
+  // Provide very basic type check to match destination column it is
+  // used against.
+  NdbConstOperand* constValue(const void* value,
+                              const NdbRecord::Attr* attr);
 
   // ::paramValue()
   NdbParamOperand* paramValue(const char* name = 0);  // Parameterized

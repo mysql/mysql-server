@@ -731,5 +731,262 @@ where t1.a = t2.b
 
 drop table t1, t2;
 
+## Test usage of a constValue() as part of the EQ_REF key relating a child operation
+## with its previous parents.
+## All datatypes are tested in the section below
+##
+  drop table if exists T3;
+  create table T3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 smallint, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 mediumint, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 int, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 bigint, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 boolean, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0, 1, 0x1f);
+  insert into T3 values (0x2f, 1, 2, 0x2f);
+  insert into T3 values (0x3f, 0, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 float, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 2.71, 1, 0x1f);
+  insert into T3 values (0x2f, 3.00, 2, 0x2f);
+  insert into T3 values (0x3f, 0.50, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 2.71, 1, 0x1f);
+  insert into T3 values (0x2f, 3.00, 2, 0x2f);
+  insert into T3 values (0x3f, 0.50, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 double, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 2.71, 1, 0x1f);
+  insert into T3 values (0x2f, 3.14, 2, 0x2f);
+  insert into T3 values (0x3f, 0.50, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 2.71, 1, 0x1f);
+  insert into T3 values (0x2f, 3.14, 2, 0x2f);
+  insert into T3 values (0x3f, 0.50, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 0x2f, 1, 0x1f);
+  insert into T3 values (0x2f, 0x3f, 2, 0x2f);
+  insert into T3 values (0x3f, 0x1f, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 decimal(12,4), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 2.71, 1, 0x1f);
+  insert into T3 values (0x2f, 3.14, 2, 0x2f);
+  insert into T3 values (0x3f, 0.50, 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 date, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, '1905-05-17', 1, 0x1f);
+  insert into T3 values (0x2f, '2000-02-28', 2, 0x2f);
+  insert into T3 values (0x3f, '2000-02-29', 3, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 datetime, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, '1905-05-17 12:30:00', 1, 0x1f);
+  insert into T3 values (0x2f, '2000-02-28 23:59:00', 2, 0x2f);
+  insert into T3 values (0x3f, '2000-02-29 12:59:59', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 time, c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, '12:30:00', 1, 0x1f);
+  insert into T3 values (0x2f, '23:59:00', 2, 0x2f);
+  insert into T3 values (0x3f, '12:59:59', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 char(16), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 'Ole', 1, 0x1f);
+  insert into T3 values (0x2f, 'Dole', 2, 0x2f);
+  insert into T3 values (0x3f, 'Doffen', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 'Ole', 1, 0x1f);
+  insert into T3 values (0x2f, 'Dole', 2, 0x2f);
+  insert into T3 values (0x3f, 'Doffen', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 varchar(512), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 'Ole', 1, 0x1f);
+  insert into T3 values (0x2f, 'Dole', 2, 0x2f);
+  insert into T3 values (0x3f, 'Doffen', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 'Ole', 1, 0x1f);
+  insert into T3 values (0x2f, 'Dole', 2, 0x2f);
+  insert into T3 values (0x3f, 'Doffen', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+  drop table if exists T3;
+  create table T3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
+    primary key(a3,b3)) engine = ndb;
+  insert into T3 values (0x1f, 'Ole', 1, 0x1f);
+  insert into T3 values (0x2f, 'Dole', 2, 0x2f);
+  insert into T3 values (0x3f, 'Doffen', 2, 0x3f);
+  explain
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+  select * from T3 x, T3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+  drop table if exists T3;
+
+
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 

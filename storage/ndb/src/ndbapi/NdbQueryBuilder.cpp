@@ -86,50 +86,40 @@ setErrorCode(NdbQueryBuilder* qb, int aErrorCode)
 
 //////////////////////////////////////////////////
 // Implements different const datatypes by further
-// subclassing of the baseclass NdbConstOperand.
+// subclassing of the baseclass NdbConstOperandImpl.
 //////////////////////////////////////////////////
-class NdbInt32ConstOperandImpl : public NdbConstOperandImpl
-{
-public:
-  explicit NdbInt32ConstOperandImpl (Int32 value) : 
-    NdbConstOperandImpl(), 
-    m_value(value) {}
-  int convertInt32();
-private:
-  const Int32 m_value;
-};
-
-class NdbUint32ConstOperandImpl : public NdbConstOperandImpl
-{
-public:
-  explicit NdbUint32ConstOperandImpl (Uint32 value) : 
-    NdbConstOperandImpl(), 
-    m_value(value) {}
-  int convertUint32();
-private:
-  const Uint32 m_value;
-};
-
 class NdbInt64ConstOperandImpl : public NdbConstOperandImpl
 {
 public:
   explicit NdbInt64ConstOperandImpl (Int64 value) : 
     NdbConstOperandImpl(), 
     m_value(value) {}
+
+  int convertInt8();
+  int convertUint8();
+  int convertInt16();
+  int convertUint16();
+  int convertInt24();
+  int convertUint24();
+  int convertInt32();
+  int convertUint32();
   int convertInt64();
+  int convertUint64();
 private:
   const Int64 m_value;
 };
 
-class NdbUint64ConstOperandImpl : public NdbConstOperandImpl
+class NdbDoubleConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  explicit NdbUint64ConstOperandImpl (Uint64 value) : 
+  explicit NdbDoubleConstOperandImpl (double value) : 
     NdbConstOperandImpl(), 
     m_value(value) {}
-  int convertUint64();
+
+  int convertDouble();
+  int convertFloat();
 private:
-  const Uint64 m_value;
+  const double m_value;
 };
 
 class NdbCharConstOperandImpl : public NdbConstOperandImpl
@@ -148,15 +138,18 @@ private:
 class NdbGenericConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  explicit NdbGenericConstOperandImpl (const void* value, size_t length)
-  : NdbConstOperandImpl(), m_value(value), m_length(length)
+  explicit NdbGenericConstOperandImpl (const void* value,
+                                       const NdbRecord::Attr& attr)
+  : NdbConstOperandImpl(),
+    m_value(value),
+    m_attr(attr)
   {}
 
   int convert2ColumnType();
 
 private:
   const void* const m_value;
-  const size_t m_length;
+  const NdbRecord::Attr& m_attr;
 };
 
 ////////////////////////////////////////////////
@@ -527,10 +520,11 @@ NdbQueryBuilder::constValue(const char* value)
   return &constOp->m_interface;
 }
 NdbConstOperand* 
-NdbQueryBuilder::constValue(const void* value, size_t length)
+NdbQueryBuilder::constValue(const void* value,
+                            const NdbRecord::Attr* attr)
 {
-  returnErrIf(value==0 && length>0,QRY_REQ_ARG_IS_NULL);
-  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,length);
+  returnErrIf(attr==0,QRY_REQ_ARG_IS_NULL);
+  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,*attr);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
@@ -539,7 +533,7 @@ NdbQueryBuilder::constValue(const void* value, size_t length)
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Int32 value)
 {
-  NdbConstOperandImpl* constOp = new NdbInt32ConstOperandImpl(value);
+  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
@@ -548,7 +542,7 @@ NdbQueryBuilder::constValue(Int32 value)
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint32 value)
 {
-  NdbConstOperandImpl* constOp = new NdbUint32ConstOperandImpl(value);
+  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
@@ -566,13 +560,21 @@ NdbQueryBuilder::constValue(Int64 value)
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint64 value)
 {
-  NdbConstOperandImpl* constOp = new NdbUint64ConstOperandImpl(value);
+  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
+NdbConstOperand* 
+NdbQueryBuilder::constValue(double value)
+{
+  NdbConstOperandImpl* constOp = new NdbDoubleConstOperandImpl(value);
+  returnErrIf(constOp==0,Err_MemoryAlloc);
 
+  m_pimpl->m_operands.push_back(constOp);
+  return &constOp->m_interface;
+}
 NdbParamOperand* 
 NdbQueryBuilder::paramValue(const char* name)
 {
@@ -953,15 +955,67 @@ NdbQueryDefImpl::getQueryOperation(const char* ident) const
 ////////////////////////////////////////////////////////////////
 
 /* Implicit typeconversion between related datatypes: */
-int NdbUint32ConstOperandImpl::convertUint32()
+int NdbInt64ConstOperandImpl::convertUint8()
 {
-  m_converted.val.uint32 = m_value;
+  if (unlikely(m_value < 0 || m_value > 0xFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.uint8 = (Uint8)m_value;
+  m_converted.len = sizeof(m_converted.val.uint8);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertInt8()
+{
+  if (unlikely(m_value < -0x80L || m_value > 0x7F))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.int8 = (Int8)m_value;
+  m_converted.len = sizeof(m_converted.val.int8);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertUint16()
+{
+  if (unlikely(m_value < 0 || m_value > 0xFFFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.uint16 = (Uint16)m_value;
+  m_converted.len = sizeof(m_converted.val.uint16);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertInt16()
+{
+  if (unlikely(m_value < -0x8000L || m_value > 0x7FFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.int16 = (Int16)m_value;
+  m_converted.len = sizeof(m_converted.val.int16);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertUint24()
+{
+  if (unlikely(m_value < 0 || m_value > 0xFFFFFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.uint32 = (Uint32)m_value;
   m_converted.len = sizeof(m_converted.val.uint32);
   return 0;
 }
-int NdbInt32ConstOperandImpl::convertInt32()
+int NdbInt64ConstOperandImpl::convertInt24()
 {
-  m_converted.val.int32 = m_value;
+  if (unlikely(m_value < -0x800000L || m_value > 0x7FFFFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.int32 = (Int32)m_value;
+  m_converted.len = sizeof(m_converted.val.int32);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertUint32()
+{
+  if (unlikely(m_value < 0 || m_value > 0xFFFFFFFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.uint32 = (Uint32)m_value;
+  m_converted.len = sizeof(m_converted.val.uint32);
+  return 0;
+}
+int NdbInt64ConstOperandImpl::convertInt32()
+{
+  if (unlikely(m_value < -0x80000000L || m_value > 0x7FFFFFFF))
+    return QRY_NUM_OPERAND_RANGE;
+  m_converted.val.int32 = (Int32)m_value;
   m_converted.len = sizeof(m_converted.val.int32);
   return 0;
 }
@@ -971,10 +1025,23 @@ int NdbInt64ConstOperandImpl::convertInt64()
   m_converted.len = sizeof(m_converted.val.int64);
   return 0;
 }
-int NdbUint64ConstOperandImpl::convertUint64()
+int NdbInt64ConstOperandImpl::convertUint64()
 {
-  m_converted.val.uint64 = m_value;
+  m_converted.val.uint64 = (Uint64)m_value;
   m_converted.len = sizeof(m_converted.val.uint64);
+  return 0;
+}
+
+int NdbDoubleConstOperandImpl::convertFloat()
+{
+  m_converted.val.flt = (float)m_value;
+  m_converted.len = sizeof(m_converted.val.flt);
+  return 0;
+}
+int NdbDoubleConstOperandImpl::convertDouble()
+{
+  m_converted.val.dbl = m_value;
+  m_converted.len = sizeof(m_converted.val.dbl);
   return 0;
 }
 
@@ -988,21 +1055,17 @@ int NdbCharConstOperandImpl::convertChar()
     srclen = len;
   }
 
-  char* dst = m_converted.val.shortChar;
-  if (unlikely(len > sizeof(m_converted.val.shortChar))) {
-    dst = new char[len];
-    if (unlikely(dst==NULL))
-      return Err_MemoryAlloc;
-    m_converted.buffer = dst;
-  }
+  char* dst = m_converted.getCharBuffer(len);
+  if (unlikely(dst==NULL))
+    return Err_MemoryAlloc;
 
   memcpy (dst, m_value, srclen);
   if (unlikely(srclen < len)) {
     memset (dst+srclen, ' ', len-srclen);
   }
-  m_converted.len = len;
   return 0;
 } //NdbCharConstOperandImpl::convertChar
+
 
 int NdbCharConstOperandImpl::convertVChar()
 {
@@ -1014,18 +1077,14 @@ int NdbCharConstOperandImpl::convertVChar()
     len = maxlen;
   }
 
-  char* dst = m_converted.val.shortChar;
-  if (unlikely(len > sizeof(m_converted.val.shortChar))) {
-    dst = new char[len];
-    if (unlikely(dst==NULL))
-      return Err_MemoryAlloc;
-    m_converted.buffer = dst;
-  }
+  char* dst = m_converted.getCharBuffer(len);
+  if (unlikely(dst==NULL))
+    return Err_MemoryAlloc;
 
   memcpy (dst, m_value, len);
-  m_converted.len = len;
   return 0;
 } //NdbCharConstOperandImpl::convertVChar
+
 
 /**
  * GenericConst is 'raw data' with minimal type checking and conversion capability.
@@ -1033,23 +1092,60 @@ int NdbCharConstOperandImpl::convertVChar()
 int
 NdbGenericConstOperandImpl::convert2ColumnType()
 {
-  size_t len = m_column->getSizeInBytes();
-  if (unlikely(len != m_length)) {
-    return QRY_OPERAND_HAS_WRONG_TYPE;
-  }
+  size_t len;
+  const unsigned char* const src= (unsigned char*)m_value;
 
-  void* dst = &m_converted.val;
-  if (unlikely(len > sizeof(m_converted.val))) {
-    dst = new char[len];
+  if (m_attr.flags & NdbRecord::IsMysqldShrinkVarchar)
+  {
+    assert (m_attr.flags & NdbRecord::IsVar1ByteLen);
+    assert (m_attr.maxSize-1 <= 0xFF); // maxSize incl length in first byte
+    len = uint2korr(src);
+
+    if (unlikely(len > m_attr.maxSize-1))
+      return QRY_CHAR_OPERAND_TRUNCATED;
+
+    char* dst = m_converted.getCharBuffer(len+1);
     if (unlikely(dst==NULL))
       return Err_MemoryAlloc;
-    m_converted.buffer = dst;
+
+    memcpy (dst+1, src+2, len);
+    *(uchar*)dst = len;
+  }
+  else
+  {
+    if (m_attr.flags & NdbRecord::IsVar1ByteLen)
+    {
+      len = 1 + *src;
+      if (unlikely(len > m_attr.maxSize-1)) {
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      }
+    }
+    else if (m_attr.flags & NdbRecord::IsVar2ByteLen)
+    {
+      len = 2 + uint2korr(src);
+      if (unlikely(len > m_attr.maxSize-2)) {
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      }
+    }
+    else
+    {
+      len = m_attr.maxSize;
+    }
+
+    if (unlikely(m_attr.maxSize != m_column->getSizeInBytes())) {
+      return QRY_OPERAND_HAS_WRONG_TYPE;
+    }
+
+    void* dst = m_converted.getCharBuffer(len);
+    if (unlikely(dst==NULL))
+      return Err_MemoryAlloc;
+
+    memcpy (dst, m_value, len);
   }
 
-  memcpy (dst, m_value, len);
-  m_converted.len = len;
   return 0;
-}
+}  //NdbGenericConstOperandImpl::convert2ColumnType
+
 
 int
 NdbConstOperandImpl::convert2ColumnType()

@@ -600,7 +600,7 @@ public:
     m_column = &column;
     return 0;
   }
-  
+
   Kind getKind() const
   { return m_kind; }
 
@@ -617,6 +617,7 @@ protected:
 
 protected:
   const NdbColumnImpl* m_column;       // Initial NULL, assigned w/ bindOperand()
+
   /** This is used to tell the type of an NdbQueryOperand. This allow safe
    * downcasting to a subclass.
    */
@@ -753,9 +754,7 @@ protected:
   virtual int convertYear()   UNDEFINED_CONVERSION;
   virtual int convertTimestamp() UNDEFINED_CONVERSION;
 
-
   virtual int convert2ColumnType();
-
 
   STATIC_CONST(maxShortChar = 32);
 
@@ -769,12 +768,29 @@ protected:
       if (buffer) delete[] ((char*)buffer);
     };
 
+    char* getCharBuffer(size_t size) {
+      char* dst = val.shortChar;
+      if (unlikely(size > sizeof(val.shortChar))) {
+        dst = new char[size];
+        buffer = dst;
+      }
+      len = size;
+      return dst;
+    }
+
     union
     {
+      Uint8     uint8;
+      Int8      int8;
+      Uint16    uint16;
+      Int16     int16;
       Uint32    uint32;
       Int32     int32;
       Uint64    uint64;
       Int64     int64;
+
+      double    dbl;
+      float     flt;
 
       char      shortChar[maxShortChar];
     } val;
