@@ -876,12 +876,7 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
       value= value*LL(10) + (longlong) (*str - '0');
-    if (transform_msec && i == count - 1) // microseconds always last
-    {
-      int msec_length= 6 - (str - start);
-      if (msec_length > 0)
-        value*= (long)log_10_int[msec_length];
-    }
+    msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
       str++;

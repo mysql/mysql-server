@@ -3177,7 +3177,7 @@ public:
     completely relies on the ability of the underlying item to do the
     correct conversion.
   */
-  void cache_value_int();
+  bool cache_value_int();
   bool cache_value();
 };
 
