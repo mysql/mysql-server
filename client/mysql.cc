@@ -1219,18 +1219,34 @@ sig_handler mysql_sigint(int sig)
   MYSQL *kill_mysql= NULL;
 
   /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || interrupted_query++)
+  if (!executing_query || (interrupted_query == 2))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
     goto err;
+  }
 
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
+  }
+
+  interrupted_query++;
+
+  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
+  if ((interrupted_query == 1) && (mysql_get_server_version(&mysql) < 50000))
+    interrupted_query= 2;
+
   /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
+  sprintf(kill_buffer, "KILL %s%lu",
+          (interrupted_query == 1) ? "QUERY " : "",
+          mysql_thread_id(&mysql));
+  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
+  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
 
   return;
 
@@ -3371,9 +3387,12 @@ print_table_data_html(MYSQL_RES *result)
   {
     while((field = mysql_fetch_field(result)))
     {
-      tee_fprintf(PAGER, "<TH>%s</TH>", (field->name ? 
-					 (field->name[0] ? field->name : 
-					  " &nbsp; ") : "NULL"));
+      tee_fputs("<TH>", PAGER);
+      if (field->name && field->name[0])
+        xmlencode_print(field->name, field->name_length);
+      else
+        tee_fputs(field->name ? " &nbsp; " : "NULL", PAGER);
+      tee_fputs("</TH>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
   }
@@ -3384,7 +3403,7 @@ print_table_data_html(MYSQL_RES *result)
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       (void) tee_fputs("<TD>", PAGER);
-      safe_put_field(cur[i],lengths[i]);
+      xmlencode_print(cur[i], lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);

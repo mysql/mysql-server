@@ -323,6 +323,10 @@ ALTER TABLE procs_priv
   MODIFY Proc_priv set('Execute','Alter Routine','Grant')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
+ALTER IGNORE TABLE procs_priv
+  MODIFY Routine_name char(64)
+    COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+
 ALTER TABLE procs_priv
   ADD Routine_type enum('FUNCTION','PROCEDURE')
     COLLATE utf8_general_ci NOT NULL AFTER Routine_name;

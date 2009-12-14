@@ -199,4 +199,5 @@ COUNT (*)
 COUNT (*)
 1
 ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>
 End of 5.0 tests

@@ -144,55 +144,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 }
 
 
-static int
-vio_verify_callback(int ok, X509_STORE_CTX *ctx)
-{
-  char buf[256];
-  X509 *err_cert;
-
-  DBUG_ENTER("vio_verify_callback");
-  DBUG_PRINT("enter", ("ok: %d  ctx: 0x%lx", ok, (long) ctx));
-
-  err_cert= X509_STORE_CTX_get_current_cert(ctx);
-  X509_NAME_oneline(X509_get_subject_name(err_cert), buf, sizeof(buf));
-  DBUG_PRINT("info", ("cert: %s", buf));
-  if (!ok)
-  {
-    int err, depth;
-    err= X509_STORE_CTX_get_error(ctx);
-    depth= X509_STORE_CTX_get_error_depth(ctx);
-
-    DBUG_PRINT("error",("verify error: %d  '%s'",err,
-			X509_verify_cert_error_string(err)));
-    /*
-      Approve cert if depth is greater then "verify_depth", currently
-      verify_depth is always 0 and there is no way to increase it.
-     */
-    if (verify_depth >= depth)
-      ok= 1;
-  }
-  switch (ctx->error)
-  {
-  case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
-    X509_NAME_oneline(X509_get_issuer_name(ctx->current_cert), buf, 256);
-    DBUG_PRINT("info",("issuer= %s\n", buf));
-    break;
-  case X509_V_ERR_CERT_NOT_YET_VALID:
-  case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-    DBUG_PRINT("error", ("notBefore"));
-    /*ASN1_TIME_print_fp(stderr,X509_get_notBefore(ctx->current_cert));*/
-    break;
-  case X509_V_ERR_CERT_HAS_EXPIRED:
-  case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
-    DBUG_PRINT("error", ("notAfter error"));
-    /*ASN1_TIME_print_fp(stderr,X509_get_notAfter(ctx->current_cert));*/
-    break;
-  }
-  DBUG_PRINT("exit", ("%d", ok));
-  DBUG_RETURN(ok);
-}
-
-
 #ifdef __NETWARE__
 
 /* NetWare SSL cleanup */
@@ -346,11 +297,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 
   /* Init the VioSSLFd as a "connector" ie. the client side */
 
-  /*
-    The verify_callback function is used to control the behaviour
-    when the SSL_VERIFY_PEER flag is set.
-  */
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, vio_verify_callback);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
 
   return ssl_fd;
 }
@@ -374,11 +321,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
   /* Set max number of cached sessions, returns the previous size */
   SSL_CTX_sess_set_cache_size(ssl_fd->ssl_context, 128);
 
-  /*
-    The verify_callback function is used to control the behaviour
-    when the SSL_VERIFY_PEER flag is set.
-  */
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, vio_verify_callback);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
 
   /*
     Set session_id - an identifier for this server session

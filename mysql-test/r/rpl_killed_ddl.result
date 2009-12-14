@@ -53,7 +53,7 @@ source include/diff_master_slave.inc;
 DROP DATABASE d1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
-DROP DATABASE d2;
+DROP DATABASE IF EXISTS d2;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
 CREATE FUNCTION f2 () RETURNS INT DETERMINISTIC
@@ -63,10 +63,7 @@ source include/diff_master_slave.inc;
 ALTER FUNCTION f1 SQL SECURITY INVOKER;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
-DROP FUNCTION IF EXISTS f1;
-source include/kill_query.inc;
-source include/diff_master_slave.inc;
-DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION f1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
 CREATE PROCEDURE p2 (OUT rows INT)
@@ -79,10 +76,7 @@ source include/diff_master_slave.inc;
 ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
-DROP PROCEDURE IF EXISTS p1;
-source include/kill_query.inc;
-source include/diff_master_slave.inc;
-DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE p1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
 CREATE TABLE t2 (b int);
@@ -100,6 +94,7 @@ source include/diff_master_slave.inc;
 DROP INDEX i1 on t1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
+CREATE TABLE IF NOT EXISTS t4 (a int);
 CREATE TRIGGER tr2 BEFORE INSERT ON t4
 FOR EACH ROW BEGIN
 DELETE FROM t1 WHERE a=NEW.a;
