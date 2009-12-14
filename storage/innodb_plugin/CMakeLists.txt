@@ -81,4 +81,4 @@ SET(INNODB_PLUGIN_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
 ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
-MYSQL_STORAGE_ENGINE(INNOBASE)
+MYSQL_STORAGE_ENGINE(INNODB_PLUGIN)
