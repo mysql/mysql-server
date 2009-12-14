@@ -104,10 +104,10 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
                               field->max_data_length(), TRUE);
-        DBUG_PRINT("debug", ("field: %s; pack_ptr: 0x%lx;"
+        DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: 0x%lx;"
                              " pack_ptr':0x%lx; bytes: %d",
-                             field->field_name, (ulong) old_pack_ptr,
-                             (ulong) pack_ptr,
+                             field->field_name, field->real_type(),
+                             (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
       }
 
@@ -201,10 +201,30 @@ unpack_row(Relay_log_info const *rli,
   // The "current" null bits
   unsigned int null_bits= *null_ptr++;
   uint i= 0;
-  table_def *tabledef= ((Relay_log_info*)rli)->get_tabledef(table);
+  table_def *tabledef;
+  TABLE *conv_table;
+  bool table_found= rli->get_table_data(table, &tabledef, &conv_table);
+  DBUG_PRINT("debug", ("Table data: table_found: %d, tabldef: %p, conv_table: %p",
+                       table_found, tabledef, conv_table));
+  DBUG_ASSERT(table_found);
+  if (!table_found)
+    return HA_ERR_GENERIC;
+
   for (field_ptr= begin_ptr ; field_ptr < end_ptr && *field_ptr ; ++field_ptr)
   {
-    Field *const f= *field_ptr;
+    /*
+      If there is a conversion table, we pick up the field pointer to
+      the conversion table.  If the conversion table or the field
+      pointer is NULL, no conversions are necessary.
+     */
+    Field *conv_field=
+      conv_table ? conv_table->field[field_ptr - begin_ptr] : NULL;
+    Field *const f=
+      conv_field ? conv_field : *field_ptr;
+    DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%d)",
+                         conv_field ? "" : "not ",
+                         (*field_ptr)->field_name, field_ptr - begin_ptr));
+    DBUG_ASSERT(f != NULL);
 
     /*
       No need to bother about columns that does not exist: they have
@@ -245,6 +265,39 @@ unpack_row(Relay_log_info const *rli,
                              f->field_name, metadata,
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+      }
+
+      /*
+        If conv_field is set, then we are doing a conversion. In this
+        case, we have unpacked the master data to the conversion
+        table, so we need to copy the value stored in the conversion
+        table into the final table and do the conversion at the same time.
+      */
+      if (conv_field)
+      {
+        Copy_field copy;
+#ifndef DBUG_OFF
+        char source_buf[MAX_FIELD_WIDTH];
+        char value_buf[MAX_FIELD_WIDTH];
+        String source_type(source_buf, sizeof(source_buf), system_charset_info);
+        String value_string(value_buf, sizeof(value_buf), system_charset_info);
+        conv_field->sql_type(source_type);
+        conv_field->val_str(&value_string);
+        DBUG_PRINT("debug", ("Copying field '%s' of type '%s' with value '%s'",
+                             (*field_ptr)->field_name,
+                             source_type.c_ptr(), value_string.c_ptr()));
+#endif
+        copy.set(*field_ptr, f, TRUE);
+        (*copy.do_copy)(&copy);
+#ifndef DBUG_OFF
+        char target_buf[MAX_FIELD_WIDTH];
+        String target_type(target_buf, sizeof(target_buf), system_charset_info);
+        (*field_ptr)->sql_type(target_type);
+        (*field_ptr)->val_str(&value_string);
+        DBUG_PRINT("debug", ("Value of field '%s' of type '%s' is now '%s'",
+                             (*field_ptr)->field_name,
+                             target_type.c_ptr(), value_string.c_ptr()));
+#endif
       }
 
       null_mask <<= 1;
