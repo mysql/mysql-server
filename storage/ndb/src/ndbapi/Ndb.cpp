@@ -2019,6 +2019,8 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
       Uint32 indexObjectId = (Uint32) (uip - (UintPtr(0)));
       Uint32 primTableObjectId = ~ (Uint32) 0;
       BaseString indexName;
+      char splitChars[2] = {table_name_separator, 0};
+      BaseString splitString(&splitChars[0]);
       
       {
         DBUG_PRINT("info", ("Index object id is %u", indexObjectId));
@@ -2046,7 +2048,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             BaseString idxName(allIndices.elements[i].name);
             
             Uint32 components = idxName.split(idxNameComponents,
-                                              &table_name_separator);
+                                              splitString);
             
             assert(components == 4);
             
@@ -2088,7 +2090,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             BaseString tabName(allTables.elements[t].name);
             
             Uint32 components = tabName.split(tabNameComponents,
-                                              &table_name_separator);
+                                              splitString);
             assert (components == 3);
             
             /* Now we generate a string of the format
