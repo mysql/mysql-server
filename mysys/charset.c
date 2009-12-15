@@ -220,7 +220,8 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
-                   (cs->number=get_collation_number_internal(cs->name))))
+                   (cs->number=get_collation_number_internal(cs->name))) &&
+      cs->number < array_elements(all_charsets))
   {
     if (!all_charsets[cs->number])
     {
