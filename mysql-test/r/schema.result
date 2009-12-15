@@ -11,3 +11,20 @@ mtr
 mysql
 test
 drop schema foo;
+#
+# Bug #48940 MDL deadlocks against mysql_rm_db
+#
+DROP SCHEMA IF EXISTS schema1;
+# Connection default
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT);
+SET autocommit= FALSE;
+INSERT INTO schema1.t1 VALUES (1);
+# Connection 2
+DROP SCHEMA schema1;
+# Connection default
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
+ERROR HY000: Can't create/write to file './schema1/db.opt' (Errcode: 2)
+SET autocommit= TRUE;
+# Connection 2
+# Connection default
