@@ -288,8 +288,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
                    fragOperPtr.p->charsetIndex, attrDes2);
   setTabDescrWord(firstTabDesIndex + 1, attrDes2);
 
-  if (ERROR_INSERTED(4009) && attrId == 0 ||
-      ERROR_INSERTED(4010) && lastAttr)
+  if ((ERROR_INSERTED(4009) && attrId == 0) ||
+      (ERROR_INSERTED(4010) && lastAttr))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
