@@ -2099,5 +2099,35 @@ select * from t1 where b in ('0', '1', '2','3','4','5','6','7','8','9',
 
 show warnings;
 
+# bug#49459 Incorrect handling of too long string in condition pushdown
+create table t (pk int primary key, x varchar(1)) engine = ndb;
+insert into t values (0,"a");
+set engine_condition_pushdown = off;
+select * from t where x <> "aa";
+select * from t where "aa" <> x;
+select * from t where x between "" and "bb";
+select * from t where x not between "" and "bb";
+select * from t where x in ("","aa","b");
+select * from t where x not in ("","aa","b");
+select * from t where x like "aa?";
+set engine_condition_pushdown = on;
+explain select * from t where x <> "aa";
+select * from t where x <> "aa";
+explain select * from t where "aa" <> x;
+select * from t where "aa" <> x;
+explain select * from t where x between "" and "bb";
+select * from t where x between "" and "bb";
+explain select * from t where x not between "" and "bb";
+select * from t where x not between "" and "bb";
+explain select * from t where x in ("","aa","b");
+select * from t where x in ("","aa","b");
+explain select * from t where x not in ("","aa","b");
+select * from t where x not in ("","aa","b");
+explain select * from t where x like "aa?";
+select * from t where x like "aa?";
+explain select * from t where x not like "aa?";
+select * from t where x not like "aa?";
+drop table t;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
