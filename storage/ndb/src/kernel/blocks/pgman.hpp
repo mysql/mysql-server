@@ -54,7 +54,7 @@
  * Updating a resident cache page makes it "dirty".  A background
  * clean-up process makes dirty pages "clean" via "pageout" to disk.
  * Write ahead logging (WAL) of the page is done first i.e. UNDO log is
- * flushed up to the page log sequence number (LSN) by calling a TSMAN
+ * flushed up to the page log sequence number (LSN) by calling a LGMAN
  * method.  The reason for this is obvious but not relevant to PGMAN.
  *
  * A local check point (LCP) periodically performs a complete pageout of
@@ -376,9 +376,15 @@ private:
   bool m_stats_loop_on;
   bool m_busy_loop_on;
   bool m_cleanup_loop_on;
-  bool m_lcp_loop_on;
 
   // LCP variables
+  enum LCP_STATE
+  {
+    LS_LCP_OFF = 0
+    ,LS_LCP_ON = 1
+    ,LS_LCP_MAX_LCP_OUTSTANDING = 2
+    ,LS_LCP_LOCKED = 3
+  } m_lcp_state;
   Uint32 m_last_lcp;
   Uint32 m_last_lcp_complete;
   Uint32 m_lcp_curr_bucket;
@@ -418,9 +424,10 @@ private:
   struct Stats {
     Stats();
     Uint32 m_num_pages;         // current number of cache pages
-    Uint32 m_page_hits;
-    Uint32 m_page_faults;
+    Uint32 m_num_hot_pages;
     Uint32 m_current_io_waits;
+    Uint64 m_page_hits;
+    Uint64 m_page_faults;
   } m_stats;
 
 protected:
@@ -458,7 +465,7 @@ private:
   void do_stats_loop(Signal*);
   void do_busy_loop(Signal*, bool direct = false);
   void do_cleanup_loop(Signal*);
-  void do_lcp_loop(Signal*, bool direct = false);
+  void do_lcp_loop(Signal*);
 
   bool process_bind(Signal*);
   bool process_bind(Signal*, Ptr<Page_entry> ptr);
@@ -470,7 +477,7 @@ private:
   bool process_cleanup(Signal*);
   void move_cleanup_ptr(Ptr<Page_entry> ptr);
 
-  bool process_lcp(Signal*);
+  LCP_STATE process_lcp(Signal*);
   void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
   void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
@@ -482,6 +489,7 @@ private:
   void fswritereq(Signal*, Ptr<Page_entry>);
   void fswriteconf(Signal*, Ptr<Page_entry>);
 
+  int get_page_no_lirs(Signal*, Ptr<Page_entry>, Page_request page_req);
   int get_page(Signal*, Ptr<Page_entry>, Page_request page_req);
   void update_lsn(Ptr<Page_entry>, Uint32 block, Uint64 lsn);
   Uint32 create_data_file();
@@ -493,6 +501,7 @@ private:
 #ifdef VM_TRACE
   NdbOut debugOut;
   bool debugFlag;
+  bool debugSummaryFlag; // loop summary to signal log even if ! debugFlag
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();

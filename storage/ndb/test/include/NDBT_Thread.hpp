@@ -25,7 +25,7 @@
 
 // NDBT_Thread ctor -> NDBT_Thread_run -> thr.run()
 extern "C" {
-static void* NDBT_Thread_run(void* arg);
+void* NDBT_Thread_run(void* arg);
 }
 
 // Function to run in a thread.
@@ -108,10 +108,12 @@ public:
   template <class T> inline void set_output() {
     set_output(new T);
   }
+#if 0
   inline void delete_output() {
     delete m_output;
     m_output = 0;
   }
+#endif
 
   // thread-specific Ndb object
   inline class Ndb* get_ndb() const {

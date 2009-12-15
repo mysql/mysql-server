@@ -23,6 +23,7 @@
 #include <NdbRestarter.hpp>
 #include <AtrtClient.hpp>
 #include <Bitmask.hpp>
+#include <NdbBackup.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -32,6 +33,127 @@ struct NodeInfo
   int processId;
   int nodeGroup;
 };
+
+static
+int
+createEvent(Ndb *pNdb,
+            const NdbDictionary::Table &tab,
+            bool merge_events = true,
+            bool report = true)
+{
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+  
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+
+  if (!myDict) {
+    g_err << "Dictionary not found " 
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  
+  myDict->dropEvent(eventName);
+  
+  NdbDictionary::Event myEvent(eventName);
+  myEvent.setTable(tab.getName());
+  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL); 
+  for(int a = 0; a < tab.getNoOfColumns(); a++){
+    myEvent.addEventColumn(a);
+  }
+  myEvent.mergeEvents(merge_events);
+
+  if (report)
+    myEvent.setReport(NdbDictionary::Event::ER_SUBSCRIBE);
+
+  int res = myDict->createEvent(myEvent); // Add event to database
+  
+  if (res == 0)
+    myEvent.print();
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists) 
+  {
+    g_info << "Event creation failed event exists\n";
+    res = myDict->dropEvent(eventName);
+    if (res) {
+      g_err << "Failed to drop event: " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+    // try again
+    res = myDict->createEvent(myEvent); // Add event to database
+    if (res) {
+      g_err << "Failed to create event (1): " 
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else 
+  {
+    g_err << "Failed to create event (2): " 
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+static
+int
+dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
+{
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+  if (!myDict) {
+    g_err << "Dictionary not found " 
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  if (myDict->dropEvent(eventName)) {
+    g_err << "Failed to drop event: " 
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
+static
+int
+createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+
+  for (unsigned i = 0; i<table_list.size(); i++)
+  {
+    int res = NDBT_OK;
+    const NdbDictionary::Table* tab = myDict->getTable(table_list[i].c_str());
+    if (tab == 0)
+    {
+      continue;
+    }
+    if ((res = createEvent(pNdb, *tab) != NDBT_OK))
+    {
+      return res;
+    }
+
+    
+
+    if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
+    {
+      return res;
+    }
+  }
+
+  return NDBT_OK;
+}
 
 /**
   Test that one node at a time can be upgraded
@@ -103,11 +225,22 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
       if (restarter.waitNodesStarted(&nodeId, 1))
         return NDBT_FAILED;
 
+      if (createDropEvent(ctx, step))
+        return NDBT_FAILED;
     }
   }
 
   ctx->stopTest();
   return NDBT_OK;
+}
+
+static
+int
+runBug48416(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  return NDBT_Tables::createTable(pNdb, "I1");
 }
 
 static
@@ -119,6 +252,7 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
   AtrtClient atrt;
 
   const bool waitNode = ctx->getProperty("WaitNode", Uint32(0)) != 0;
+  const bool event = ctx->getProperty("CreateDropEvent", Uint32(0)) != 0;
   const char * args = "";
   if (ctx->getProperty("KeepFS", Uint32(0)) != 0)
   {
@@ -221,6 +355,11 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
 
+    if (event && createDropEvent(ctx, step))
+    {
+      return NDBT_FAILED;
+    }
+
     // Restart the remaining nodes
     cnt= 0;
     for (Uint32 i = 0; i<nodes.size(); i++)
@@ -256,6 +395,11 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
+
+    if (event && createDropEvent(ctx, step))
+    {
+      return NDBT_FAILED;
+    }
   }
 
   return NDBT_OK;
@@ -273,6 +417,7 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step)
   // Assuming 2 replicas
 
   ctx->setProperty("WaitNode", 1);
+  ctx->setProperty("CreateDropEvent", 1);
   int res = runUpgrade_Half(ctx, step);
   ctx->stopTest();
   return res;
@@ -287,6 +432,7 @@ int runUpgrade_NR2(NDBT_Context* ctx, NDBT_Step* step)
 int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
   // Assuming 2 replicas
 
+  ctx->setProperty("CreateDropEvent", 1);
   int res = runUpgrade_Half(ctx, step);
   ctx->stopTest();
   return res;
@@ -384,7 +530,7 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
     {
       const NdbDictionary::Table* tab = pDict->getTable(table_list[i].c_str());
       HugoTransactions trans(* tab);
-      switch(l % 3){
+      switch(l % 4){
       case 0:
         trans.loadTable(pNdb, records);
         trans.scanUpdateRecords(pNdb, records);
@@ -403,6 +549,12 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         trans.clearTable(pNdb, records/2);
         trans.loadTable(pNdb, records/2);
         trans.clearTable(pNdb, records/2);
+        break;
+      case 3:
+        if (createDropEvent(ctx, step))
+        {
+          return NDBT_FAILED;
+        }
         break;
       }
     }
@@ -496,6 +648,64 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   automatically by NDBT...
    *   so when we enter here, this is already tested
    */
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+
+  ndbout << "Starting backup..." << flush;
+  if (backup.start() != 0)
+  {
+    ndbout << "Failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "done" << endl;
+
+
+  /**
+   * Bug48227
+   *   
+   */
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+  }
+
+  pDict->dropTable("I3");
+  if (NDBT_Tables::createTable(pNdb, "I3"))
+  {
+    ndbout_c("Failed to create table!");
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  {
+    NdbDictionary::Dictionary::List l;
+    pDict->listObjects(l);
+    for (Uint32 i = 0; i<l.count; i++)
+      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+  }
+
+  NdbRestarter res;
+  if (res.restartAll() != 0)
+  {
+    ndbout_c("restartAll() failed");
+    return NDBT_FAILED;
+  }
+
+  if (res.waitClusterStarted() != 0)
+  {
+    ndbout_c("waitClusterStarted() failed");
+    return NDBT_FAILED;
+  }
+
+  if (pDict->getTable("I3") == 0)
+  {
+    ndbout_c("Table disappered");
+    return NDBT_FAILED;
+  }
+
   return NDBT_OK;
 }
 
@@ -503,6 +713,7 @@ NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
 }

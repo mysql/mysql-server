@@ -129,10 +129,21 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_docs="$withval"],
               [ndb_docs=no])
   AC_ARG_WITH([ndb-port],
-              [AC_HELP_STRING([--with-ndb-port],
-                              [Port for NDB Cluster management server])],
-              [ndb_port="$withval"],
-              [ndb_port="default"])
+              [AC_HELP_STRING([--with-ndb-port=port-number],
+              [Default port used by NDB Cluster management server])],
+              [ndb_port="$withval"],[ndb_port="no"])
+  case "$ndb_port" in
+    "yes" )
+      AC_MSG_ERROR([--with-ndb-port=<port-number> needs an argument])
+      ;;
+    "no" )
+      ;;
+    * )
+      AC_DEFINE_UNQUOTED([NDB_PORT], [$ndb_port],
+                         [Default port used by NDB Cluster management server])
+      ;;
+  esac
+
   AC_ARG_WITH([ndb-port-base],
               [AC_HELP_STRING([--with-ndb-port-base],
                               [Base port for NDB Cluster transporters])],
@@ -314,11 +325,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     fi
   fi
 
-  if test X"$ndb_port" = Xdefault
-  then
-    ndb_port="1186"
-  fi
-  
   have_ndb_binlog="no"
   if test X"$ndb_binlog" = Xdefault ||
      test X"$ndb_binlog" = Xyes
@@ -426,7 +432,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_SCI_LIBS)
 
   AC_SUBST(ndb_transporter_opt_objs)
-  AC_SUBST(ndb_port)
   AC_SUBST(ndb_bin_am_ldflags)
   AC_SUBST(ndb_opt_subdirs)
 

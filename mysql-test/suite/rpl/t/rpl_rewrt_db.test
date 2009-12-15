@@ -76,9 +76,164 @@ connection slave;
 # The empty line last comes from the end line field in the file
 select * from rewrite.t1;
 
+set sql_log_bin= 0;
 drop database rewrite;
+set sql_log_bin= 1;
 
 connection master;
+set sql_log_bin= 0;
 drop table t1;
+set sql_log_bin= 1;
 
 # End of 4.1 tests
+
+--echo
+--echo ****
+--echo **** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
+--echo ****
+--echo
+
+--echo ****
+--echo **** Preparing the environment
+--echo ****
+connection master;
+
+connect (con_temp_03,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con_temp_02,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con_temp_01,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+connection master;
+SET sql_log_bin= 0;
+CREATE DATABASE database_master_temp_01;
+CREATE DATABASE database_master_temp_02;
+CREATE DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+
+connection slave;
+SET sql_log_bin= 0;
+CREATE DATABASE database_slave_temp_01;
+CREATE DATABASE database_slave_temp_02;
+CREATE DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
+
+--echo
+--echo ****
+--echo **** Creating temporary tables on different databases with different connections
+--echo ****
+--echo **** con_temp_01 --> creates 
+--echo ****                  t_01_01_temp on database_master_temp_01
+--echo ****
+--echo **** con_temp_02 --> creates 
+--echo ****                  t_01_01_temp on database_master_temp_01
+--echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+--echo ****
+--echo **** con_temp_02 --> creates 
+--echo ****                  t_01_01_temp on database_master_temp_01
+--echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+--echo ****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
+--echo ****
+
+--echo
+--echo con_temp_01
+--echo
+connection con_temp_01;
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+
+--echo
+--echo con_temp_02
+--echo
+connection con_temp_02;
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+
+--echo
+--echo con_temp_03
+--echo
+connection con_temp_03;
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+USE database_master_temp_03;
+CREATE TEMPORARY TABLE t_03_01_temp(a int);
+INSERT INTO t_03_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_02_temp(a int);
+INSERT INTO t_03_02_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_03_temp(a int);
+INSERT INTO t_03_03_temp VALUES(1);
+
+--echo
+--echo **** Dropping the connections
+--echo **** We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
+--echo **** guarantee that logging of the terminated con1 has been done yet.a  To be 
+--echo **** sure that logging has been done, we use a user lock.
+--echo
+connection master;
+sync_slave_with_master;
+connection slave;
+show status like 'Slave_open_temp_tables';
+
+connection master;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+connection con_temp_01;
+select get_lock("con_01",10);
+connection master;
+disconnect con_temp_01;
+select get_lock("con_01",10);
+
+connection con_temp_02;
+select get_lock("con_02",10);
+connection master;
+disconnect con_temp_02;
+select get_lock("con_02",10);
+
+connection con_temp_03;
+select get_lock("con_03",10);
+connection master;
+disconnect con_temp_03;
+select get_lock("con_03",10);
+
+--echo
+--echo **** Checking the binary log and temporary tables
+--echo
+connection master;
+sync_slave_with_master;
+connection slave;
+show status like 'Slave_open_temp_tables';
+
+connection master;
+--source include/show_binlog_events.inc
+
+--echo ****
+--echo **** Cleaning up the test case
+--echo ****
+connection master;
+SET sql_log_bin= 0;
+DROP DATABASE database_master_temp_01;
+DROP DATABASE database_master_temp_02;
+DROP DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+
+connection slave;
+SET sql_log_bin= 0;
+DROP DATABASE database_slave_temp_01;
+DROP DATABASE database_slave_temp_02;
+DROP DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
+
+connection master;
+sync_slave_with_master;
+
+# end of 5.0 tests

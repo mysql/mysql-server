@@ -238,6 +238,7 @@ class Dbtup;
 #define ZPREP_DROP_TABLE 20
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
+#define ZREBUILD_ORDERED_INDEXES 23
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -581,6 +582,7 @@ public:
     Uint8 lcpScan;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
+    Uint8 m_reserved;
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -1340,17 +1342,17 @@ public:
      *       invalidated.
      */
     Uint16 savePageIndex;
-    Uint8 logTailMbyte;
+    Uint16 logTailMbyte;
     /**
      *       The mbyte within the starting log file where to start 
      *       executing the log.                
      */
-    Uint8 startMbyte;
+    Uint16 startMbyte;
     /**
      *       The last mbyte in which to execute the log during system
      *       restart.
      */
-    Uint8 stopMbyte;
+    Uint16 stopMbyte;
    /**
      *       This variable refers to the file where invalidation is
      *       occuring during system/node restart.
@@ -1425,6 +1427,10 @@ public:
       CLOSE_SR_READ_INVALIDATE_PAGES = 22,
       OPEN_SR_WRITE_INVALIDATE_PAGES = 23,
       CLOSE_SR_WRITE_INVALIDATE_PAGES = 24
+#ifndef NO_REDO_OPEN_FILE_CACHE
+      ,OPEN_EXEC_LOG_CACHED = 25
+      ,CLOSING_EXEC_LOG_CACHED = 26
+#endif
     };
     
     /**
@@ -1553,6 +1559,11 @@ public:
      *       LOG_PAGE_BUFFER.
      */
     Uint16 noLogpagesInBuffer;
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+    Uint32 nextList;
+    Uint32 prevList;
+#endif
   }; // Size 288 bytes
   typedef Ptr<LogFileRecord> LogFileRecordPtr;
   
@@ -2153,6 +2164,7 @@ private:
   void execTRANSID_AI(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
 
+  void force_lcp(Signal* signal);
   void execLCP_FRAG_ORD(Signal* signal);
   void execEMPTY_LCP_REQ(Signal* signal);
   
@@ -2194,6 +2206,9 @@ private:
   void execTUXFRAGREF(Signal* signal);
   void execTUX_ADD_ATTRCONF(Signal* signal);
   void execTUX_ADD_ATTRREF(Signal* signal);
+
+  void execBUILDINDXREF(Signal* signal);
+  void execBUILDINDXCONF(Signal* signal);
 
   // Statement blocks
 
@@ -2260,7 +2275,7 @@ private:
   void initLfo(Signal* signal);
   void initLogfile(Signal* signal, Uint32 fileNo);
   void initLogpage(Signal* signal);
-  void openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr);
+  void openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr, bool writeBuffer = true);
   void openLogfileInit(Signal* signal);
   void openNextLogfile(Signal* signal);
   void releaseLfo(Signal* signal);
@@ -2391,6 +2406,8 @@ private:
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
   Uint32 handleLongTupKey(Signal* signal, Uint32* dataPtr, Uint32 len);
 
+  void rebuildOrderedIndexes(Signal* signal, Uint32 tableId);
+
   // Generated statement blocks
   void systemErrorLab(Signal* signal, int line);
   void initFourth(Signal* signal);
@@ -2503,6 +2520,7 @@ private:
   void closingSrLab(Signal* signal);
   void closeExecSrLab(Signal* signal);
   void execLogComp(Signal* signal);
+  void execLogComp_extra_files_closed(Signal* signal);
   void closeWriteLogLab(Signal* signal);
   void closeExecLogLab(Signal* signal);
   void writePageZeroLab(Signal* signal);
@@ -2714,8 +2732,8 @@ private:
 // Configurable
   ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
-  UintR cscanNoFreeRec;
   Uint32 cscanrecFileSize;
+  DLList<ScanRecord> m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;
@@ -2743,6 +2761,9 @@ private:
 // ------------------------------------------------------------------------
   Uint32 c_lcpId;
   Uint32 cnoOfFragsCheckpointed;
+  Uint32 c_last_force_lcp_time;
+  Uint32 c_free_mb_force_lcp_limit; // Force lcp when less than this free mb
+  Uint32 c_free_mb_tail_problem_limit; // Set TAIL_PROBLEM when less than this..
 
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
@@ -2920,7 +2941,95 @@ private:
   Uint32 c_o_direct;
   Uint32 m_use_om_init;
   Uint32 c_error_insert_table_id;
-  
+
+#ifndef NO_REDO_PAGE_CACHE
+  /***********************************************************
+   * MODULE: Redo Page Cache
+   *
+   *   When running redo, current codes scan log until finding a commit
+   *     record (for an operation). The commit record contains a back-pointer
+   *     to a prepare-record.
+   *
+   *   If the prepare record is inside the 512k window that is being read
+   *     from redo-log, the access is quick.
+   *
+   *   But it's not, then the following sequence is performed
+   *     [file-open]?[page-read][execute-log-record][file-close]?[release-page]
+   *
+   *   For big (or long running) transactions this becomes very inefficient
+   *
+   *   The RedoPageCache changes this so that the pages that are not released
+   *     in sequence above, but rather put into a LRU (using RedoBuffer)
+   */
+
+  /**
+   * This is a "dummy" struct that is used when
+   *  putting LogPageRecord-entries into lists/hashes
+   */
+  struct RedoCacheLogPageRecord
+  {
+    /**
+     * NOTE: These numbers must match page-header definition
+     */
+    Uint32 header0[15];
+    Uint32 m_page_no;
+    Uint32 m_file_no;
+    Uint32 header1[5];
+    Uint32 m_part_no;
+    Uint32 nextList;
+    Uint32 nextHash;
+    Uint32 prevList;
+    Uint32 prevHash;
+    Uint32 rest[8192-27];
+
+    inline bool equal(const RedoCacheLogPageRecord & p) const {
+      return
+        (p.m_part_no == m_part_no) &&
+        (p.m_page_no == m_page_no) &&
+        (p.m_file_no == m_file_no);
+    }
+
+    inline Uint32 hashValue() const {
+      return (m_part_no << 24) + (m_file_no << 16) + m_page_no;
+    }
+  };
+  struct RedoPageCache
+  {
+    RedoPageCache() : m_hash(m_pool), m_lru(m_pool),
+                      m_hits(0),m_multi_page(0), m_multi_miss(0) {}
+    DLHashTable<RedoCacheLogPageRecord> m_hash;
+    DLCFifoList<RedoCacheLogPageRecord> m_lru;
+    ArrayPool<RedoCacheLogPageRecord> m_pool;
+    Uint32 m_hits;
+    Uint32 m_multi_page;
+    Uint32 m_multi_miss;
+  } m_redo_page_cache;
+
+  void evict(RedoPageCache&, Uint32 cnt);
+  void do_evict(RedoPageCache&, Ptr<RedoCacheLogPageRecord>);
+  void addCachePages(RedoPageCache&,
+                     Uint32 partNo,
+                     Uint32 startPageNo,
+                     LogFileOperationRecord*);
+  void release(RedoPageCache&);
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  struct RedoOpenFileCache
+  {
+    RedoOpenFileCache() : m_lru(m_pool), m_hits(0), m_close_cnt(0) {}
+
+    DLCFifoList<LogFileRecord> m_lru;
+    ArrayPool<LogFileRecord> m_pool;
+    Uint32 m_hits;
+    Uint32 m_close_cnt;
+  } m_redo_open_file_cache;
+
+  void openFileRw_cache(Signal* signal, LogFileRecordPtr olfLogFilePtr);
+  void closeFile_cache(Signal* signal, LogFileRecordPtr logFilePtr, Uint32);
+  void release(Signal*, RedoOpenFileCache&);
+#endif
+
 public:
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
   void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo);

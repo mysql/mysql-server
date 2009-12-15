@@ -759,6 +759,14 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     executeDirect= false; // remove warning
   }//switch
 
+
+  if (ERROR_INSERTED(4030))
+  {
+    terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
+    // XXX should return status and abort the rest
+    return;
+  }
+
   req_struct->no_fired_triggers++;
 
   trigAttrInfo->setAttrInfoType(TrigAttrInfo::PRIMARY_KEY);
@@ -835,6 +843,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //---------------------------------------------------------------------------
 // Set-up variables needed by readAttributes operPtr.p, tabptr.p
 //---------------------------------------------------------------------------
+  Ptr<Tablerec> tabptr;
+  Ptr<Operationrec> operPtr;
   operPtr.p = regOperPtr;
   tabptr.i = regFragPtr->fragTableId;
   ptrCheckGuard(tabptr, cnoOfTablerec, tablerec);
@@ -844,6 +854,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   Uint32 descr_start= regTabPtr->tabDescriptor;
   ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
 
+  req_struct->tablePtrP = regTabPtr;
+  req_struct->operPtrP = regOperPtr;
   req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
   req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
   req_struct->attr_descr= &tableDescriptor[descr_start];
@@ -870,7 +882,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			   keyBuffer,
 			   ZATTR_BUFFER_SIZE,
 			   false);
-  ndbrequire(ret != -1);
+  ndbrequire(ret >= 0);
   noPrimKey= ret;
   
   req_struct->m_tuple_ptr = save0;
@@ -925,7 +937,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			     afterBuffer,
 			     ZATTR_BUFFER_SIZE,
 			     false);
-    ndbrequire(ret != -1);
+    ndbrequire(ret >= 0);
     noAfterWords= ret;
   } else {
     jam();
@@ -966,7 +978,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			     ZATTR_BUFFER_SIZE,
 			     false);
     req_struct->m_tuple_ptr= save;
-    ndbrequire(ret != -1);
+    ndbrequire(ret >= 0);
     noBeforeWords = ret;
     if (trigPtr->m_receiverBlock != SUMA &&
         (noAfterWords == noBeforeWords) &&

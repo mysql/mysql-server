@@ -2468,7 +2468,7 @@ runBug32922(NDBT_Context* ctx, NDBT_Step* step)
     int master = res.getMasterNodeId();    
 
     int victim = 32768;
-    for (Uint32 i = 0; i<res.getNumDbNodes(); i++)
+    for (Uint32 i = 0; i<(Uint32)res.getNumDbNodes(); i++)
     {
       int node = res.getDbNodeId(i);
       if (node != master && node < victim)
@@ -3762,6 +3762,127 @@ runBug44952(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static BaseString tab_48474;
+
+int
+initBug48474(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = * ctx->getTab();
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+
+  const NdbDictionary::Table * pTab = pDict->getTable(tab.getName());
+  if (pTab == 0)
+    return NDBT_FAILED;
+
+  /**
+   * Create a table with tableid > ctx->getTab()
+   */
+  Uint32 cnt = 0;
+  Vector<BaseString> tables;
+  do
+  {
+    BaseString tmp;
+    tmp.assfmt("%s_%u", tab.getName(), cnt);
+    tab.setName(tmp.c_str());
+
+    pDict->dropTable(tab.getName());
+    if (pDict->createTable(tab) != 0)
+      return NDBT_FAILED;
+
+    const NdbDictionary::Table * pTab2 = pDict->getTable(tab.getName());
+    if (pTab2->getObjectId() < pTab->getObjectId())
+    {
+      tables.push_back(tmp);
+    }
+    else
+    {
+      tab_48474 = tmp;
+      HugoTransactions hugoTrans(* pTab2);
+      if (hugoTrans.loadTable(GETNDB(step), 1000) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      break;
+    }
+    cnt++;
+  } while(true);
+
+  // Now delete the extra one...
+  for (Uint32 i = 0; i<tables.size(); i++)
+  {
+    pDict->dropTable(tables[i].c_str());
+  }
+
+  tables.clear();
+
+  return NDBT_OK;
+}
+
+int
+runBug48474(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  const NdbDictionary::Table * pTab = pDict->getTable(tab_48474.c_str());
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(* pTab);
+
+  int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+  ndbout_c("restarting %d", nodeId);
+  res.restartOneDbNode(nodeId, false, true, true);
+  res.waitNodesNoStart(&nodeId, 1);
+
+  int minlcp[] = { 7017, 1 };
+  res.dumpStateAllNodes(minlcp, 1); // Set min time between LCP
+
+  ndbout_c("starting %d", nodeId);
+  res.startNodes(&nodeId, 1);
+
+  Uint32 minutes = 5;
+  ndbout_c("starting uncommitted transaction %u minutes", minutes);
+  for (Uint32 m = 0; m < minutes; m++)
+  {
+    if (hugoOps.startTransaction(pNdb) != 0)
+      return NDBT_FAILED;
+
+    if (hugoOps.pkUpdateRecord(pNdb, 0, 50, rand()) != 0)
+      return NDBT_FAILED;
+
+    if (hugoOps.execute_NoCommit(pNdb) != 0)
+      return NDBT_FAILED;
+
+
+    ndbout_c("sleeping 60s");
+    for (Uint32 i = 0; i<600 && !ctx->isTestStopped(); i++)
+    {
+      hugoOps.getTransaction()->refresh();
+      NdbSleep_MilliSleep(100);
+    }
+
+    if (hugoOps.execute_Commit(pNdb) != 0)
+      return NDBT_FAILED;
+
+    hugoOps.closeTransaction(pNdb);
+
+    if (ctx->isTestStopped())
+      break;
+  }
+
+
+  res.dumpStateAllNodes(minlcp, 2); // reset min time between LCP
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+cleanupBug48474(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  pDict->dropTable(tab_48474.c_str());
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -3876,7 +3997,6 @@ TESTCASE("FullDb",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runFillTable);
   STEP(runRestarter);
-  FINALIZER(runClearTable);
 }
 TESTCASE("RestartRandomNode", 
 	 "Test that we can execute the restart RestartRandomNode loop\n"\
@@ -4258,6 +4378,14 @@ TESTCASE("Bug44952",
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug48474", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initBug48474);
+  STEP(runBug48474);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(cleanupBug48474);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

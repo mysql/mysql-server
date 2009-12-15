@@ -183,6 +183,9 @@ inline
 DLListImpl<P,T,U>::DLListImpl(P & _pool)
   : thePool(_pool)
 {
+  // Require user defined constructor on T since we fiddle
+  // with T's members
+  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
 }
 
 template <typename P, typename T, typename U>

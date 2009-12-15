@@ -84,6 +84,7 @@ int NdbMutex_Trylock(NdbMutex* p_mutex);
 #ifdef __cplusplus
 class NdbLockable {
   friend class Guard;
+  friend class Guard2;
 public:
   NdbLockable() { m_mutex = NdbMutex_Create(); }
   ~NdbLockable() { NdbMutex_Destroy(m_mutex); }
@@ -103,6 +104,16 @@ public:
   Guard(NdbMutex *mtx) : m_mtx(mtx) { NdbMutex_Lock(m_mtx); };
   Guard(NdbLockable & l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }; 
   ~Guard() { NdbMutex_Unlock(m_mtx); };
+private:
+  NdbMutex *m_mtx;
+};
+
+class Guard2
+{
+public:
+  Guard2(NdbMutex *mtx) : m_mtx(mtx) { if (m_mtx) NdbMutex_Lock(m_mtx);};
+  Guard2(NdbLockable & l) : m_mtx(l.m_mutex) { if(m_mtx)NdbMutex_Lock(m_mtx);};
+  ~Guard2() { if (m_mtx) NdbMutex_Unlock(m_mtx); };
 private:
   NdbMutex *m_mtx;
 };

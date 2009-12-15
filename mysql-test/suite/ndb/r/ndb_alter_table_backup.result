@@ -17,7 +17,7 @@ t1	CREATE TABLE `t1` (
   `f` datetime DEFAULT NULL,
   `g` binary(4) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=31 DEFAULT CHARSET=latin1
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 a	b	c	d	e	f	g
 1	5	3.40282e+38	1.2686868689898e+308	666.66	2007-10-23 23:23:23	1111
@@ -42,7 +42,7 @@ t1	CREATE TABLE `t1` (
   `f` datetime DEFAULT NULL,
   `g` binary(4) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=31 DEFAULT CHARSET=latin1
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 a	b	c	d	e	f	g
 1	5	3.40282e+38	1.2686868689898e+308	666.66	2007-10-23 23:23:23	1111

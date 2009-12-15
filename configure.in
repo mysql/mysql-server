@@ -10,12 +10,12 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.37-ndb-6.3.27)
+AM_INIT_AUTOMAKE(mysql, 5.1.39-ndb-6.3.31)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
 NDB_VERSION_MINOR=3
-NDB_VERSION_BUILD=27
+NDB_VERSION_BUILD=31
 NDB_VERSION_STATUS="-GA"
 
 PROTOCOL_VERSION=10
@@ -846,7 +846,6 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
-AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_SEARCH_LIBS(setsockopt, socket)
 # This may get things to compile even if bind-8 is installed

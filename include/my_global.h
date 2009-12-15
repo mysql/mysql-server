@@ -567,6 +567,25 @@ int	__void__;
 #define PURIFY_OR_LINT_INIT(var)
 #endif
 
+/* 
+   Suppress uninitialized variable warning without generating code.
+
+   The _cplusplus is a temporary workaround for C++ code pending a fix
+   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772). 
+*/
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(__cplusplus) || \
+  !defined(__GNUC__)
+#define UNINIT_VAR(x) x= 0
+#else
+#define UNINIT_VAR(x) x= x
+#endif
+
+/* Define some useful general macros */
+#if !defined(max)
+#define max(a, b)	((a) > (b) ? (a) : (b))
+#define min(a, b)	((a) < (b) ? (a) : (b))
+#endif
+
 #if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
@@ -1575,5 +1594,18 @@ static inline double rint(double x)
   return i;
 }
 #endif /* HAVE_RINT */
+
+/* 
+  MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
+  (i.e variables) for usage in storage engine loadable plugins.
+  Outside of Windows, it is dummy.
+*/
+#ifndef MYSQL_PLUGIN_IMPORT
+#if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
+#define MYSQL_PLUGIN_IMPORT __declspec(dllimport)
+#else
+#define MYSQL_PLUGIN_IMPORT
+#endif
+#endif
 
 #endif /* my_global_h */

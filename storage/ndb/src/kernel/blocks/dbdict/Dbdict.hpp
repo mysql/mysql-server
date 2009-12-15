@@ -74,7 +74,7 @@
 /*--------------------------------------------------------------*/
 #define ZPACK_TABLE_INTO_PAGES 0
 #define ZSEND_GET_TAB_RESPONSE 3
-
+#define ZDROP_TAB_WAIT_GCI     4
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -2048,6 +2048,12 @@ private:
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
 
+  void handleNdbdFailureCallback(Signal* signal, 
+                                 Uint32 failedNodeId,
+                                 Uint32 ignoredRc);
+  void handleApiFailureCallback(Signal* signal,
+                                Uint32 failedNodeId,
+                                Uint32 ignoredRc);
   // Statement blocks
 
   /* ------------------------------------------------------------ */
@@ -2344,6 +2350,7 @@ private:
 			  LinearSectionPtr dataPtr);
 
   void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
+  bool upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const;
 
   // create trigger
   void createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,
@@ -2414,6 +2421,8 @@ private:
 
   void dropTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
   void dropTableRef(Signal * signal, DropTableReq *, DropTableRef::ErrorCode);
+  void dropTableWaitGci(Signal*);
+
   void printTables(); // For debugging only
   int handleAlterTab(AlterTabReq * req,
 		     CreateTableRecord * regAlterTabPtr,
@@ -2486,6 +2495,7 @@ private:
   void restartDropObj_commit_start_done(Signal*, Uint32, Uint32);
   void restartDropObj_commit_complete_done(Signal*, Uint32, Uint32);
   void restartDropObj_updateSchemaFile(Signal*, DropObjRecordPtr);
+  void restartDropObj_fail(DropObjRecordPtr);
 
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
   void restart_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
@@ -2539,6 +2549,7 @@ private:
   void restartCreateObj_prepare_complete_done(Signal*, Uint32, Uint32);
   void restartCreateObj_commit_start_done(Signal*, Uint32, Uint32);
   void restartCreateObj_commit_complete_done(Signal*, Uint32, Uint32);
+  void restartCreateObj_fail(CreateObjRecordPtr);
 
   void execDICT_COMMIT_REQ(Signal*);
   void execDICT_COMMIT_REF(Signal*);

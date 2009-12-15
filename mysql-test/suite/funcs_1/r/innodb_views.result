@@ -7707,11 +7707,29 @@ Testcase 3.3.1.45
 --------------------------------------------------------------------------------
 Drop view if exists test.v1 ;
 CREATE VIEW test.v1 AS SELECT * FROM test.tb2 where f59 = 04;
+SELECT count(*) FROM test.v1;
+count(*)
+2
+SELECT count(*) FROM test.v1 where f59 = 30;
+count(*)
+0
 UPDATE test.v1 SET f59 = 30 where F59 = 04 ;
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
+SELECT count(*) FROM test.v1;
+count(*)
+0
+SELECT count(*) FROM test.v1 where f59 = 30;
+count(*)
+0
 SELECT * FROM test.v1   where f59 = 30 order by f59;
 f59	f60	f61	f62	f63	f64	f65	f66	f67	f68	f69	f70	f71	f72	f73	f74	f75	f76	f77	f78	f79	f80	f81	f82	f83	f84	f85	f86	f87	f88	f89	f90	f91	f92	f93	f94	f95	f96	f97	f98	f99	f100	f101	f102	f103	f104	f105	f106	f107	f108	f109
+SELECT count(*) FROM test.v1;
+count(*)
+0
+SELECT count(*) FROM test.v1 where f59 = 30;
+count(*)
+0
 SELECT * FROM test.tb2        where f59 = 30 ;
 f59	30
 f60	4

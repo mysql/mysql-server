@@ -208,6 +208,7 @@ struct NdbError {
    */
   const char * message;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * The detailed description.  This is extra information regarding the 
    * error which is not included in the error message.
@@ -215,6 +216,7 @@ struct NdbError {
    * @note Is NULL when no details specified
    */
   char * details;
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbError(){

@@ -137,7 +137,8 @@ UNDO_LIST *
 _rl_copy_undo_list (head)
      UNDO_LIST *head;
 {
-  UNDO_LIST *list, *new, *roving, *c;
+  UNDO_LIST *list, *new, *c;
+  UNDO_LIST *roving= NULL;
 
   list = head;
   new = 0;

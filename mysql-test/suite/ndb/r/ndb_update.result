@@ -27,6 +27,12 @@ pk1	b	c
 0	0	0
 2	2	2
 4	1	1
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+affected rows: 0
+info: Rows matched: 1  Changed: 0  Warnings: 0
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+ERROR 23000: Duplicate entry '1' for key 'c'
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 ERROR 23000: Duplicate entry '2' for key 'c'
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;

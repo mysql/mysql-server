@@ -24,7 +24,8 @@
 
 /**
  * This signals is sent by Qmgr to NdbCntr
- *   and then from NdbCntr sent to: dih, dict, lqh, tc & API
+ *   and then from NdbCntr sent to: dih, dict, lqh, tc, API
+ *   and others
  */
 struct NodeFailRep {
   STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );

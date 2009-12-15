@@ -57,12 +57,13 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     // flags
     Uint32 bits = 0;
     
-
     if (AccScanReq::getLcpScanFlag(req->requestInfo))
     {
       jam();
       bits |= ScanOp::SCAN_LCP;
       c_scanOpPool.getPtr(scanPtr, c_lcp_scan_op);
+      ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
+      ndbrequire(scanPtr.p->m_state == ScanOp::First);
     }
     else
     {
@@ -72,6 +73,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 	jam();
 	break;
       }
+      new (scanPtr.p) ScanOp;
     }
 
     if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
@@ -124,7 +126,6 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     }
     
     // set up scan op
-    new (scanPtr.p) ScanOp();
     ScanOp& scan = *scanPtr.p;
     scan.m_state = ScanOp::First;
     scan.m_bits = bits;
@@ -581,12 +582,23 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
-  // in the future should not pre-allocate pages
-  if (frag.noOfPages == 0 && ((bits & ScanOp::SCAN_NR) == 0)) {
+
+  if (bits & ScanOp::SCAN_NR)
+  { 
+    if (scan.m_endPage == 0 && frag.m_max_page_no == 0)
+    {
+      jam();
+      scan.m_state = ScanOp::Last;
+      return;
+    }
+  }
+  else if (frag.noOfPages == 0)
+  {
     jam();
     scan.m_state = ScanOp::Last;
     return;
   }
+
   if (! (bits & ScanOp::SCAN_DD)) {
     key.m_file_no = ZNIL;
     key.m_page_no = 0;
@@ -1238,8 +1250,7 @@ Dbtup::execLCP_FRAG_ORD(Signal* signal)
   ScanOpPtr scanPtr;
   c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
   ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
+  new (scanPtr.p) ScanOp;
   scanPtr.p->m_fragPtrI = fragPtr.i;
-  
-  scanFirst(signal, scanPtr);
   scanPtr.p->m_state = ScanOp::First;
 }

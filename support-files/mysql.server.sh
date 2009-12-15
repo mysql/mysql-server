@@ -358,11 +358,18 @@ case "$mode" in
     if test -s "$pid_file"
     then
       mysqlmanager_pid=`cat $pid_file`
-      echo $echo_n "Shutting down MySQL"
-      kill $mysqlmanager_pid
-      # mysqlmanager should remove the pid_file when it exits, so wait for it.
-      wait_for_pid removed "$mysqlmanager_pid"; return_value=$?
-
+      
+      if (kill -0 $mysqlmanager_pid 2>/dev/null)
+      then
+        echo $echo_n "Shutting down MySQL"
+        kill $mysqlmanager_pid
+        # mysqlmanager should remove the pid_file when it exits, so wait for it.
+        wait_for_pid removed "$mysqlmanager_pid"; return_value=$?
+      else
+        log_failure_msg "MySQL manager or server process #$mysqlmanager_pid is not running!"
+        rm $pid_file
+      fi
+      
       # delete lock for RedHat / SuSE
       if test -f $lock_dir
       then

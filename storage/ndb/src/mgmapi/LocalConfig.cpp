@@ -22,6 +22,9 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbMem.h>
 
+#define _STR_VALUE(x) #x
+#define STR_VALUE(x) _STR_VALUE(x)
+
 LocalConfig::LocalConfig(){
   error_line = 0; error_msg[0] = 0;
   _ownNodeId= 0;
@@ -96,11 +99,10 @@ LocalConfig::init(const char *connectString,
       DBUG_RETURN(false);
   }
 
-  //7. Check
+  //7. Use default connect string
   {
-    char buf2[256];
-    BaseString::snprintf(buf2, sizeof(buf2), "host=localhost:%s", NDB_PORT);
-    if(readConnectString(buf2, "default connect string"))
+    if(readConnectString("host=localhost:" STR_VALUE(NDB_PORT),
+                         "default connect string"))
       DBUG_RETURN(true);
   }
 
@@ -199,7 +201,7 @@ LocalConfig::parseHostName(const char * buf){
     if (buf == tempString2)
       break;
     // try to add default port to see if it works
-    snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
+    snprintf(tempString2, sizeof(tempString2),"%s:%d", buf, NDB_PORT);
     buf= tempString2;
   } while(1);
   return false;

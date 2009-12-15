@@ -359,6 +359,10 @@ void Dbdict::execCONTINUEB(Signal* signal)
     sendGetTabResponse(signal);
     break;
 
+  case ZDROP_TAB_WAIT_GCI:
+    jam();
+    dropTableWaitGci(signal);
+    break;
   default :
     ndbrequire(false);
     break;
@@ -834,8 +838,10 @@ void Dbdict::execFSREADCONF(Signal* signal)
     readSchemaConf(signal ,fsPtr);
     break;
   case FsConnectRecord::READ_TAB_FILE1:
-    if(ERROR_INSERTED(6007)){
+    if(ERROR_INSERTED(6024))
+    {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       FsRef * const fsRef = (FsRef *)&signal->theData[0];
       fsRef->userPointer = fsConf->userPointer;
       fsRef->setErrorCode(fsRef->errorCode, NDBD_EXIT_AFS_UNKNOWN);
@@ -2292,12 +2298,6 @@ void Dbdict::execNDB_STTOR(Signal* signal)
     sendNDB_STTORRY(signal);
     break;
   case 7:
-    // uses c_restartType
-    if(restartType == NodeState::ST_SYSTEM_RESTART &&
-       c_masterNodeId == getOwnNodeId()){
-      rebuildIndexes(signal, 0);
-      return;
-    }
     sendNDB_STTORRY(signal);
     break;
   default:
@@ -3437,6 +3437,21 @@ Dbdict::restartCreateObj_getTabInfoConf(Signal* signal)
 }
 
 void
+Dbdict::restartCreateObj_fail(CreateObjRecordPtr createObjPtr)
+{
+  jam();
+  char msg[128];
+  BaseString::snprintf(msg, sizeof(msg),
+                       "Failure to recreate object %u during restart, error %u."
+                       " Check configuration changes and instructions from"
+                       " \'perror --ndb %u\'"
+                       ,c_restartRecord.activeTable
+                       ,createObjPtr.p->m_errorCode
+                       ,createObjPtr.p->m_errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+}
+
+void
 Dbdict::restartCreateObj_readConf(Signal* signal,
 				  Uint32 callbackData, 
 				  Uint32 returnCode)
@@ -3445,6 +3460,8 @@ Dbdict::restartCreateObj_readConf(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   PageRecordPtr pageRecPtr;
@@ -3472,6 +3489,8 @@ Dbdict::restartCreateObj_prepare_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   Callback callback;
@@ -3493,6 +3512,8 @@ Dbdict::restartCreateObj_write_complete(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
   
   SectionHandle handle(this, createObjPtr.p->m_obj_info_ptr_i);
@@ -3518,6 +3539,8 @@ Dbdict::restartCreateObj_prepare_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   createObjPtr.p->m_callback.m_callbackFunction = 
@@ -3539,6 +3562,8 @@ Dbdict::restartCreateObj_commit_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   createObjPtr.p->m_callback.m_callbackFunction = 
@@ -3561,6 +3586,8 @@ Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   CreateObjRecordPtr createObjPtr;  
   ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
+  if (! (createObjPtr.p->m_errorCode == 0))
+    restartCreateObj_fail(createObjPtr);
   ndbrequire(createObjPtr.p->m_errorCode == 0);
   
   c_opCreateObj.release(createObjPtr);
@@ -3572,6 +3599,22 @@ Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
 /**
  * Drop object during NR/SR
  */
+
+void
+Dbdict::restartDropObj_fail(DropObjRecordPtr dropObjPtr)
+{
+  jam();
+  char msg[128];
+  BaseString::snprintf(msg, sizeof(msg),
+                       "Failure to drop object %u during restart, error %u."
+                       " Check configuration changes and instructions from"
+                       " \'perror --ndb %u\'"
+                       ,c_restartRecord.activeTable
+                       ,dropObjPtr.p->m_errorCode
+                       ,dropObjPtr.p->m_errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+}
+
 void
 Dbdict::restartDropObj(Signal* signal, 
                        Uint32 tableId, 
@@ -3784,6 +3827,8 @@ Dbdict::restartDropObj_prepare_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3805,6 +3850,8 @@ Dbdict::restartDropObj_prepare_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3826,6 +3873,8 @@ Dbdict::restartDropObj_commit_start_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   dropObjPtr.p->m_callback.m_callbackFunction = 
@@ -3866,6 +3915,8 @@ Dbdict::restartDropObj_commit_complete_done(Signal* signal,
   ndbrequire(returnCode == 0);
   DropObjRecordPtr dropObjPtr;  
   ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
+  if (! (dropObjPtr.p->m_errorCode == 0))
+    restartDropObj_fail(dropObjPtr);
   ndbrequire(dropObjPtr.p->m_errorCode == 0);
   
   c_opDropObj.release(dropObjPtr);
@@ -3884,6 +3935,17 @@ Dbdict::restartDropObj_commit_complete_done(Signal* signal,
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
+void Dbdict::handleApiFailureCallback(Signal* signal, 
+                                      Uint32 failedNodeId,
+                                      Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = reference();
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+}
+
 /* ---------------------------------------------------------------- */
 // We receive a report of an API that failed.
 /* ---------------------------------------------------------------- */
@@ -3901,10 +3963,26 @@ void Dbdict::execAPI_FAILREQ(Signal* signal)
   }//if
 #endif
 
-  signal->theData[0] = failedApiNode;
-  signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+  ndbrequire(retRef == QMGR_REF); // As callback hard-codes QMGR_REF
+  Callback cb = { safe_cast(&Dbdict::handleApiFailureCallback),
+                  failedApiNode };
+  simBlockNodeFailure(signal, failedApiNode, cb);
 }//execAPI_FAILREQ()
+
+void Dbdict::handleNdbdFailureCallback(Signal* signal, 
+                                       Uint32 failedNodeId, 
+                                       Uint32 ignoredRc)
+{
+  jamEntry();
+
+  /* Node failure handling is complete */
+  NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
+  nfCompRep->blockNo      = DBDICT;
+  nfCompRep->nodeId       = getOwnNodeId();
+  nfCompRep->failedNodeId = failedNodeId;
+  sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
+             NFCompleteRep::SignalLength, JBB);
+}
 
 /* ---------------------------------------------------------------- */
 // We receive a report of one or more node failures of kernel nodes.
@@ -3955,14 +4033,12 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       c_nodes.getPtr(nodePtr, i);
 
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
-      NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
-      nfCompRep->blockNo      = DBDICT;
-      nfCompRep->nodeId       = getOwnNodeId();
-      nfCompRep->failedNodeId = nodePtr.i;
-      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
-		 NFCompleteRep::SignalLength, JBB);
-      
       c_aliveNodes.clear(i);
+
+      Callback cb = {safe_cast(&Dbdict::handleNdbdFailureCallback),
+                     i};
+
+      simBlockNodeFailure(signal, nodePtr.i, cb);
     }//if
   }//for
 
@@ -7367,7 +7443,54 @@ Dbdict::prepDropTab_complete(Signal* signal, DropTableRecordPtr dropTabPtr){
 
   dropTabPtr.p->m_coordinatorData.m_gsn = GSN_DROP_TAB_REQ;
   dropTabPtr.p->m_coordinatorData.m_block = DBDICT;
-  
+
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
+
+  signal->theData[0] = ZDROP_TAB_WAIT_GCI;
+  signal->theData[1] = dropTabPtr.i;
+  signal->theData[2] = gci_hi;
+  signal->theData[3] = gci_lo;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+}
+
+void
+Dbdict::dropTableWaitGci(Signal* signal)
+{
+  jam();
+
+  DropTableRecordPtr dropTabPtr;
+  c_opDropTable.getPtr(dropTabPtr, signal->theData[1]);
+  Uint32 gci_hi = signal->theData[2];
+  Uint32 gci_lo = signal->theData[3];
+
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 curr_gci_hi = signal->theData[1];
+  Uint32 curr_gci_lo = signal->theData[2];
+
+  if (curr_gci_hi == gci_hi &&
+      curr_gci_lo == gci_lo)
+  {
+    jam();
+    signal->theData[0] = ZDROP_TAB_WAIT_GCI;
+    signal->theData[1] = dropTabPtr.i;
+    signal->theData[2] = gci_hi;
+    signal->theData[3] = gci_lo;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+    return;
+  }
+
   DropTabReq * req = (DropTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = dropTabPtr.p->key;
@@ -10863,17 +10986,27 @@ void Dbdict::execSUB_CREATE_REF(Signal* signal)
   evntRecPtr.i = ref->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-  if (ref->errorCode)
+  if (ref->errorCode == SubCreateRef::NotStarted)
   {
+    jam();
+    // ignore (was previously NF_FakeErrorREF)
+    // NOTE: different handling then rest of execSUB_XXX_REF
+    // note to mess with GSN_CREATE_EVNT
+  }
+  else if (ref->errorCode)
+  {
+    jam();
     evntRecPtr.p->m_errorCode = ref->errorCode;
     evntRecPtr.p->m_errorLine = __LINE__;
+    evntRecPtr.p->m_errorNode = reference();
   }
   else
   {
+    jam();
     evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
+    evntRecPtr.p->m_errorNode = reference();
   }
-  evntRecPtr.p->m_errorNode = reference();
 
   createEvent_sendReply(signal, evntRecPtr);
   DBUG_VOID_RETURN;
@@ -11141,6 +11274,22 @@ busy:
   }
 }
 
+bool
+Dbdict::upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const
+{
+  /**
+   * Check that receiver can handle 1428,
+   *   else return true if error code should be replaced by NF_FakeErrorREF
+   */
+  if (err == 1428)
+  {
+    jam();
+    if (!ndb_suma_not_started_ref(getNodeInfo(refToNode(ref)).m_version))
+      return true;
+  }
+  return false;
+}
+
 void Dbdict::execSUB_START_REF(Signal* signal)
 {
   jamEntry();
@@ -11152,7 +11301,8 @@ void Dbdict::execSUB_START_REF(Signal* signal)
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
@@ -11162,7 +11312,12 @@ void Dbdict::execSUB_START_REF(Signal* signal)
     ndbout_c("DBDICT(Participant) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
 
-    jam();
+    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+    {
+      jam();
+      err = SubStartRef::NF_FakeErrorREF;
+    }
+
     SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
@@ -11179,10 +11334,13 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
-  if (err == SubStartRef::NF_FakeErrorREF){
+  if (err == SubStartRef::NF_FakeErrorREF || err == SubStartRef::NotStarted)
+  {
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (subbPtr.p->m_errorCode == 0)
     {
@@ -11412,11 +11570,19 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
     jam();
+
+    if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+    {
+      jam();
+      err = SubStopRef::NF_FakeErrorREF;
+    }
+
     SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = subbPtr.p->m_senderData;
@@ -11430,10 +11596,13 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
-  if (err == SubStopRef::NF_FakeErrorREF){
+  if (err == SubStopRef::NF_FakeErrorREF || err == SubStopRef::NotStarted)
+  {
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (subbPtr.p->m_errorCode == 0)
     {
@@ -11785,14 +11954,17 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
   Uint32 senderRef = ref->senderRef;
   Uint32 err= ref->errorCode;
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA)
+  {
     /*
      * Participant
      */
     jam();
     OpSubEventPtr subbPtr;
     c_opSubEvent.getPtr(subbPtr, ref->senderData);
-    if (err == 1407) {
+    if (err == SubRemoveRef::NoSuchSubscription)
+    {
+      jam();
       // conf this since this may occur if a nodefailure has occured
       // earlier so that the systable was not cleared
       SubRemoveConf* conf = (SubRemoveConf*) signal->getDataPtrSend();
@@ -11800,7 +11972,17 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
       conf->senderData = subbPtr.p->m_senderData;
       sendSignal(subbPtr.p->m_senderRef, GSN_SUB_REMOVE_CONF,
 		 signal, SubRemoveConf::SignalLength, JBB);
-    } else {
+    }
+    else
+    {
+      jam();
+
+      if (upgrade_suma_NotStarted(err, subbPtr.p->m_senderRef))
+      {
+        jam();
+        err = SubRemoveRef::NF_FakeErrorREF;
+      }
+
       SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->senderData = subbPtr.p->m_senderData;
@@ -11817,10 +11999,13 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
   ndbrequire(refToBlock(senderRef) == DBDICT);
   OpDropEventPtr eventRecPtr;
   c_opDropEvent.getPtr(eventRecPtr, ref->senderData);
-  if (err == SubRemoveRef::NF_FakeErrorREF){
+  if (err == SubRemoveRef::NF_FakeErrorREF || err == SubRemoveRef::NotStarted)
+  {
     jam();
     eventRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
+  }
+  else
+  {
     jam();
     if (eventRecPtr.p->m_errorCode == 0)
     {

@@ -76,7 +76,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 EXTRA_DIST =		CMakeLists.txt
 
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
-			-DDATADIR="\"$(MYSQLDATAdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \

@@ -35,4 +35,11 @@ CREATE DATABASE IF NOT EXISTS init_file;
 CREATE TABLE IF NOT EXISTS init_file.startup ( startdate DATETIME );
 INSERT INTO init_file.startup VALUES ( NOW() );
 
+#
+# Bug#43587 "Putting event_scheduler=1 in init SQL file crashes mysqld"
+#
 
+SET GLOBAL event_scheduler = 'ON';
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DISABLE DO SELECT 1;
+DROP EVENT ev1;
+SET GLOBAL event_scheduler = 'OFF';

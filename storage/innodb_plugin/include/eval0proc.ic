@@ -1,0 +1,88 @@
+/*****************************************************************************
+
+Copyright (c) 1998, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/eval0proc.ic
+Executes SQL stored procedures and their control structures
+
+Created 1/20/1998 Heikki Tuuri
+*******************************************************/
+
+#include "pars0pars.h"
+#include "que0que.h"
+#include "eval0eval.h"
+
+/**********************************************************************//**
+Performs an execution step of a procedure node.
+@return	query thread to run next or NULL */
+UNIV_INLINE
+que_thr_t*
+proc_step(
+/*======*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	proc_node_t*	node;
+
+	ut_ad(thr);
+
+	node = thr->run_node;
+	ut_ad(que_node_get_type(node) == QUE_NODE_PROC);
+
+	if (thr->prev_node == que_node_get_parent(node)) {
+		/* Start execution from the first statement in the statement
+		list */
+
+		thr->run_node = node->stat_list;
+	} else {
+		/* Move to the next statement */
+		ut_ad(que_node_get_next(thr->prev_node) == NULL);
+
+		thr->run_node = NULL;
+	}
+
+	if (thr->run_node == NULL) {
+		thr->run_node = que_node_get_parent(node);
+	}
+
+	return(thr);
+}
+
+/**********************************************************************//**
+Performs an execution step of a procedure call node.
+@return	query thread to run next or NULL */
+UNIV_INLINE
+que_thr_t*
+proc_eval_step(
+/*===========*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	func_node_t*	node;
+
+	ut_ad(thr);
+
+	node = thr->run_node;
+	ut_ad(que_node_get_type(node) == QUE_NODE_FUNC);
+
+	/* Evaluate the procedure */
+
+	eval_exp(node);
+
+	thr->run_node = que_node_get_parent(node);
+
+	return(thr);
+}

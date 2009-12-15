@@ -29,6 +29,7 @@
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/NodeFailRep.hpp>
 
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/UtilPrepare.hpp>
@@ -66,6 +67,7 @@ DbUtil::DbUtil(Block_context& ctx) :
   addRecSignal(GSN_NDB_STTOR, &DbUtil::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &DbUtil::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &DbUtil::execCONTINUEB);
+  addRecSignal(GSN_NODE_FAILREP, &DbUtil::execNODE_FAILREP);
   
   //addRecSignal(GSN_TCSEIZEREF, &DbUtil::execTCSEIZEREF);
   addRecSignal(GSN_TCSEIZECONF, &DbUtil::execTCSEIZECONF);
@@ -301,6 +303,25 @@ DbUtil::execCONTINUEB(Signal* signal){
   default:
     ndbrequire(0);
   }
+}
+
+void
+DbUtil::execNODE_FAILREP(Signal* signal){
+  jamEntry();
+  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NdbNodeBitmask failed; 
+  failed.assign(NdbNodeBitmask::Size, rep->theNodes);
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // No distributed fragmented signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
 }
 
 void

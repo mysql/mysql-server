@@ -2758,10 +2758,10 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Outer Iter : " << outerIter 
            << " " << offset << "-" << (offset + numRecords - 1) << endl;
 
-    CHECK(hugoOps.startTransaction(pNdb) == 0);
-    CHECK(hugoOps.pkInsertRecord(pNdb, offset, numRecords) == 0);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);
-    CHECK(hugoOps.closeTransaction(pNdb) == 0);
+    {
+      HugoTransactions trans(*pTab);
+      CHECK(trans.loadTableStartFrom(pNdb, offset, numRecords) == 0);
+    }
 
     for (int iter=0; iter < numInnerIterations; iter++)
     {
@@ -2784,10 +2784,12 @@ runBug44065_org(NDBT_Context* ctx, NDBT_Step* step)
       if ((trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError) != 0))
       {
+        NdbError err = trans->getNdbError();
         ndbout << "Execute failed, error is " 
-               << trans->getNdbError().code << " "
-               << trans->getNdbError().message << endl;
-        CHECK(0);
+               << err.code << " " << endl;
+        CHECK((err.classification == NdbError::TemporaryResourceError ||
+               err.classification == NdbError::OverloadError));
+        NdbSleep_MilliSleep(50);
       }
       
       /* Now abort the transaction by closing it without committing */
@@ -3121,6 +3123,157 @@ int runBulkPkReads(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
   
+int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  HugoCalculator hc(*pTab);
+  Uint32 numRecords = ctx->getNumRecords();
+
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+  if (pNdb == NULL){
+    ndbout << "pNdb == NULL" << endl;      
+    return NDBT_FAILED;  
+  }
+  if (pNdb->init()){
+    ERR(pNdb->getNdbError());
+    delete pNdb;
+    return NDBT_FAILED;
+  }
+
+  HugoOperations hugoOps(*pTab);
+  
+  for (int m = 1; m < 100; m++){
+    Uint32 record = (100 - m) % numRecords;
+    NdbConnection* pCon = pNdb->startTransaction();
+    if (pCon == NULL){
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+      
+    NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
+    if (pOp == NULL){
+      pNdb->closeTransaction(pCon);
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+      
+    if (pOp->readTuple() != 0){
+      pNdb->closeTransaction(pCon);
+      delete pNdb;
+      return NDBT_FAILED;
+    }
+    
+    int numCols= pTab->getNoOfColumns();
+
+    for(int a = 0; a < numCols; a++){
+      if (pTab->getColumn(a)->getPrimaryKey() == true){
+	if(hugoOps.equalForAttr(pOp, a, record) != 0){
+	  ERR(pCon->getNdbError());
+	  pNdb->closeTransaction(pCon);
+	  delete pNdb;
+	  return NDBT_FAILED;
+	}
+      }
+    }
+      
+    int dupColNum = m % numCols;
+    int numReads = m + 1;
+    
+    NdbRecAttr* first = NULL;
+    ndbout << "Reading record " 
+           << record << " Column "
+           << dupColNum << " " << numReads
+           << " times" << endl;
+    while (numReads--)
+    {
+      NdbRecAttr* recAttr = pOp->getValue(dupColNum);
+      if (recAttr == NULL) {
+	const NdbError err = pCon->getNdbError();
+	ERR(err);
+        result = NDBT_FAILED;
+        pNdb->closeTransaction(pCon);	
+	break;
+      }
+      first = (first == NULL) ? recAttr : first;
+    };
+    
+    if (result == NDBT_FAILED)
+      break;
+
+    if (pCon->execute(Commit) != 0){
+      const NdbError err = pCon->getNdbError();
+      ERR(err);
+      result = NDBT_FAILED;
+      pNdb->closeTransaction(pCon);
+      break;
+    }
+
+    if (pCon->getNdbError().code != 0)
+    {
+      NdbError err = pCon->getNdbError();
+      if (err.code == 880)
+      {
+        /* Tried to read too much error - this column
+         * is probably too large.
+         * Skip to next iteration
+         */
+        ndbout << "Reading too much in one op, skipping..." << endl;
+        pNdb->closeTransaction(pCon);
+        continue;
+      }
+      ndbout << "Error at execute time : " << err.code
+             << ":" << err.message << endl;
+      pNdb->closeTransaction(pCon);
+      result = NDBT_FAILED;
+      break;
+    }
+
+    /* Let's check the results */
+
+    
+    const NdbRecAttr* curr = first;
+
+    for (int c= 0; c < (m+1); c++)
+    {
+      if (hc.verifyRecAttr(record,
+                           0,
+                           curr))
+      {
+        ndbout << "Mismatch on record "
+                 << record << " column "
+                 << dupColNum << " read number "
+                 << c+1 << endl;
+        result =  NDBT_FAILED;
+        break;
+      }
+
+      ndbout << "/";
+      
+      curr = curr->next();
+    }
+
+    ndbout << endl;
+
+    pNdb->closeTransaction(pCon);
+
+    if (result == NDBT_FAILED)
+      break;
+
+    if (curr != NULL)
+    {
+      ndbout << "Error - extra RecAttr(s) found" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+  }// m
+
+  delete pNdb;
+
+  return result;
+}
+
   
 
 NDBT_TESTSUITE(testNdbApi);
@@ -3288,6 +3441,12 @@ TESTCASE("ApiFailReqBehaviour",
   STEP(runBulkPkReads);
   STEP(runBulkPkReads);
   STEP(testApiFailReq);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ReadColumnDuplicates",
+         "Check NdbApi behaves ok when reading same column multiple times") {
+  INITIALIZER(runLoadTable);
+  STEP(runReadColumnDuplicates);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);

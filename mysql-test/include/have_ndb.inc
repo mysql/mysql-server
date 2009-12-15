@@ -22,11 +22,6 @@ if (!`select @have_ndb`){
 }
 
 #
-# Wait until mysqld has connected properly to cluster
-#
-source include/ndb_not_readonly.inc;
-
-#
 # cleanup
 #
 

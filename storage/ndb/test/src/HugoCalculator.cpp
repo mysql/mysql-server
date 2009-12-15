@@ -96,7 +96,7 @@ static
 Uint32
 calc_len(Uint32 rvalue, int maxlen)
 {
-  Uint32 minlen = 25;
+  int minlen = 25;
   
   if ((rvalue >> 16) < 4096)
     minlen = 15;
@@ -238,6 +238,8 @@ write_char:
   case NdbDictionary::Column::Blob:
   case NdbDictionary::Column::Undefined:
   case NdbDictionary::Column::Text:
+  case NdbDictionary::Column::Year:
+  case NdbDictionary::Column::Timestamp:
     abort();
     break;
   }
@@ -301,6 +303,105 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
       }
     }
   }
+  return result;
+}
+
+
+int
+HugoCalculator::verifyRecAttr(int record,
+                              int updates,
+                              const NdbRecAttr* recAttr)
+{
+  const char* valPtr = NULL;
+  int attrib = recAttr->getColumn()->getAttrId();
+  Uint32 valLen = recAttr->get_size_in_bytes();
+  if (!recAttr->isNULL())
+    valPtr= (const char*) recAttr->aRef();
+  
+  return verifyColValue(record,
+                        attrib,
+                        updates,
+                        valPtr,
+                        valLen);
+}
+
+int
+HugoCalculator::verifyColValue(int record, 
+                               int attrib,
+                               int updates,
+                               const char* valPtr,
+                               Uint32 valLen)
+{
+  int result = 0;	  
+  
+  if (attrib == m_updatesCol)
+  {
+    int val= *((const int*) valPtr);
+    if (val != updates)
+    {
+      g_err << "|- Updates column (" << attrib << ")" << endl;
+      g_err << "|- Expected " << updates << " but found " << val << endl;
+      result = -1;
+    }
+  }
+  else if (attrib == m_idCol)
+  {
+    int val= *((const int*) valPtr);
+    if (val != record)
+    {
+      g_err << "|- Identity column (" << attrib << ")" << endl;
+      g_err << "|- Expected " << record << " but found " << val << endl;
+      result = -1;
+    }
+  }
+  else
+  {
+    /* 'Normal' data column */
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrib);      
+    Uint32 len = attr->getSizeInBytes(), real_len;
+    char buf[NDB_MAX_TUPLE_SIZE];
+    const char* res = calcValue(record, attrib, updates, buf, len, &real_len);
+    if (res == NULL){
+      if (valPtr != NULL){
+        g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
+        g_err << "|- Column length is " << valLen << " bytes" << endl;
+        g_err << "|- Column data follows :" << endl;
+        for (Uint32 j = 0; j < valLen; j ++)
+        {
+          g_err << j << ":" << hex << (Uint32)(Uint8)valPtr[j] << endl;
+        }
+        result = -1;
+      }
+    } else{
+      if (real_len != valLen)
+      {
+        g_err << "|- Invalid data found in attribute " << attrib << ": \""
+              << "Length of expected=" << real_len << endl
+              << "Length of passed=" 
+              << valLen << endl;
+        result= -1;
+      }
+      else if (memcmp(res, valPtr, real_len) != 0)
+      {
+        g_err << "|- Expected data mismatch on column "
+              << attr->getName() << " length " << real_len 
+              << " bytes " << endl;
+        g_err << "|- Bytewise comparison follows :" << endl;
+        for (Uint32 j = 0; j < real_len; j++)
+        {
+          g_err << j << ":" << hex << (Uint32)(Uint8)buf[j] << "[" << hex << (Uint32)(Uint8)valPtr[j] << "]";
+          if (buf[j] != valPtr[j])
+          {
+            g_err << "==>Match failed!";
+          }
+          g_err << endl;
+        }
+        g_err << endl;
+        result = -1;
+      }
+    }    
+  }
+
   return result;
 }
 

@@ -145,8 +145,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ACC_OVER_REC                81
 
 /* 83 unused */
-#define GSN_ACC_SCAN_INFO               84
-#define GSN_ACC_SCAN_INFO24             85
+#define GSN_ACC_SCAN_INFO               84 /* local */
+#define GSN_ALLOC_MEM_REQ               85 /* local */
 #define GSN_ACC_SCANCONF                86
 #define GSN_ACC_SCANREF                 87
 #define GSN_ACC_SCANREQ                 88
@@ -407,7 +407,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_GET_SCHEMA_INFOREQ          302
 /* 303 not unused */
 /* 304 not unused */
-#define GSN_LQH_RESTART_OP              305
+#define GSN_ALLOC_MEM_REF               305 /* local */
 #define GSN_LQH_TRANSCONF               306
 #define GSN_LQH_TRANSREQ                307
 #define GSN_LQHADDATTCONF               308
@@ -436,7 +436,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_NEXT_SCANCONF               330
 #define GSN_NEXT_SCANREF                331
 #define GSN_NEXT_SCANREQ                332
-#define GSN_NEXTOPERATION               333
+#define GSN_ALLOC_MEM_CONF              333 /* local */
 
 #define GSN_READ_CONFIG_REQ             334 /* new name for sizealt, local */
 #define GSN_READ_CONFIG_CONF            335 /* new name for sizealt, local */

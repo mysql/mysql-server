@@ -471,17 +471,13 @@ int
 UtilTransactions::selectCount(Ndb* pNdb, 
 			      int parallelism,
 			      int* count_rows,
-			      NdbOperation::LockMode lm,
-			      NdbConnection* pTrans){
+			      NdbOperation::LockMode lm)
+{
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
-  NdbScanOperation     *pOp;
 
-  if(!pTrans)
-    pTrans = pNdb->startTransaction();
-    
   while (true){
 
     if (retryAttempt >= retryMax){
@@ -489,14 +485,38 @@ UtilTransactions::selectCount(Ndb* pNdb,
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
     }
-    pOp = getScanOperation(pTrans);
-    if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      if (pNdb->getNdbError().status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(pNdb->getNdbError());
       return NDBT_FAILED;
     }
 
-    if( pOp->readTuples(lm) ) {
+
+    NdbScanOperation *pOp = getScanOperation(pTrans);
+    if (pOp == NULL)
+    {
+      NdbError err = pTrans->getNdbError();
+      closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      return NDBT_FAILED;
+    }
+
+    if( pOp->readTuples(lm) )
+    {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;
@@ -509,11 +529,18 @@ UtilTransactions::selectCount(Ndb* pNdb,
       sf.end();
     }
     
-    
     check = pTrans->execute(NoCommit, AbortOnError);
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+    if( check == -1 )
+    {
+      NdbError err = pTrans->getNdbError();
       closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
+      }
+      ERR(err);
       return NDBT_FAILED;
     }
 
@@ -524,11 +551,14 @@ UtilTransactions::selectCount(Ndb* pNdb,
     while((eof = pOp->nextResult()) == 0){
       rows++;
     }
-    if (eof == -1) {
+
+    if (eof == -1) 
+    {
       const NdbError err = pTrans->getNdbError();
+      closeTransaction(pNdb);
       
-      if (err.status == NdbError::TemporaryError){
-	closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError)
+      {
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
@@ -903,7 +933,6 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
       for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
 	const NdbDictionary::Column *  col = pIndex->getColumn(a);
 	
-	int r;
 	if ( !row.attributeStore(col->getName())->isNULL() ) {
 	  if(pIOp->equal(col->getName(), 
 			 row.attributeStore(col->getName())->aRef()) != 0){
@@ -1097,8 +1126,8 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 
       if(!null_found)
       {
-	if(iop= pTrans->getNdbIndexScanOperation(indexName, 
-                                                 tab.getName()))
+	if((iop= pTrans->getNdbIndexScanOperation(indexName, 
+                                                  tab.getName())) != 0)
 	{
 	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
 			     parallelism))
@@ -1209,7 +1238,7 @@ int
 UtilTransactions::equal(const NdbDictionary::Table* pTable, 
 			NdbOperation* op, const NDBT_ResultRow& src)
 {
-  for(Uint32 a = 0; a<tab.getNoOfColumns(); a++){
+  for(Uint32 a = 0; (int)a<tab.getNoOfColumns(); a++){
     const NdbDictionary::Column* attr = tab.getColumn(a);
     if (attr->getPrimaryKey() == true){
       if (op->equal(attr->getName(), src.attributeStore(a)->aRef()) != 0){
@@ -1241,6 +1270,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
 	return pTrans->getNdbIndexOperation(idx->getName(), tab.getName());
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        abort();
       }
     }
   case NdbOperation::InsertRequest:
@@ -1253,6 +1284,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::UniqueHashIndex:
 	return pTrans->getNdbIndexOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return pTrans->getNdbOperation(tab.getName());
@@ -1262,6 +1295,8 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return pTrans->getNdbScanOperation(tab.getName());
@@ -1271,10 +1306,15 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
       switch(idx->getType()){
       case NdbDictionary::Index::OrderedIndex:
 	return pTrans->getNdbIndexScanOperation(idx->getName(), tab.getName());
+      default:
+        break;
       }
     }
     return 0;
+  default:
+    abort();
   }
+  return 0;
 }
 
 #include <HugoOperations.hpp>
@@ -1427,7 +1467,6 @@ error:
     break;
   }
 
-close:
   closeTransaction(pNdb);
   
   return return_code;

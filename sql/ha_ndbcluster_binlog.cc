@@ -258,8 +258,7 @@ static void run_query(THD *thd, char *buf, char *end,
   const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
-  thd->query_length= end - buf;
-  thd->query= buf;
+  thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
@@ -305,8 +304,7 @@ static void run_query(THD *thd, char *buf, char *end,
   }
 
   thd->options= save_thd_options;
-  thd->query_length= save_thd_query_length;
-  thd->query= save_thd_query;
+  thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
   thd->transaction.all= save_thd_transaction_all;
@@ -489,7 +487,7 @@ static void ndbcluster_binlog_wait(THD *thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
     pthread_mutex_lock(&injector_mutex);
-    while (!thd->killed && count && ndb_binlog_running &&
+    while (!(thd && thd->killed) && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < wait_epoch))
     {
@@ -1199,6 +1197,23 @@ private:
   uint32 m_save_val;
 };
 
+extern int ndb_setup_complete;
+extern pthread_cond_t COND_ndb_setup_complete;
+
+/*
+   ndb_notify_tables_writable
+   
+   Called to notify any waiting threads that Ndb tables are
+   now writable
+*/ 
+static void ndb_notify_tables_writable()
+{
+  pthread_mutex_lock(&ndbcluster_mutex);
+  ndb_setup_complete= 1;
+  pthread_cond_broadcast(&COND_ndb_setup_complete);
+  pthread_mutex_unlock(&ndbcluster_mutex);
+}
+
 /*
   Ndb has no representation of the database schema objects.
   The mysql.ndb_schema table contains the latest schema operations
@@ -1407,6 +1422,12 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: ndb tables writable");
       close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+      
+      /* 
+         Signal any waiting thread that ndb table setup is
+         now complete
+      */
+      ndb_notify_tables_writable();
     }
     pthread_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
@@ -3811,7 +3832,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       ndb->closeTransaction(trans);
       break;
     }
-    ndb->closeTransaction(trans);
     for (i= 0; i < 2; i++)
     {
       if (op[i]->getNdbError().code)
@@ -3860,9 +3880,11 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       {
         error_str= tmp_buf;
         error= 1;
+        ndb->closeTransaction(trans);
         goto err;
       }
     }
+    ndb->closeTransaction(trans);
 
     DBUG_RETURN(0);
   }
@@ -5737,6 +5759,12 @@ restart_cluster_failure:
   if (ndb_extra_logging)
     sql_print_information("NDB Binlog: ndb tables writable");
   close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+
+  /* 
+     Signal any waiting thread that ndb table setup is
+     now complete
+  */
+  ndb_notify_tables_writable();
 
   {
     static char db[]= "";

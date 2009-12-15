@@ -174,14 +174,8 @@ public:
   Uint32 m_fileNo;
 };
 
-class FileDescriptorRecord {
-public:
-  Uint32 m_maxGciCompleted[16];
-  Uint32 m_maxGciStarted[16];
-  Uint32 m_lastPreparedReference[16];
-};
-
-class FileDescriptor {
+class FileDescriptor 
+{
   friend NdbOut& operator<<(NdbOut&, const FileDescriptor&);
 public:
   bool check();
@@ -189,7 +183,7 @@ public:
 protected:
   void printARecord( Uint32 ) const;
   FileDescriptorHeader m_fdHeader;
-  FileDescriptorRecord m_fdRecord[1];
+  Uint32 m_fdRecord[1];
 };
 
 

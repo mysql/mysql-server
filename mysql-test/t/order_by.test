@@ -1361,3 +1361,44 @@ DROP TABLE t1;
 
 
 
+#
+# Bug#46454: MySQL wrong index optimisation leads to incorrect result & crashes 
+#
+CREATE TABLE t1 (
+  a INT,
+  b INT NOT NULL,
+  c char(100),
+  KEY (b, c),
+  KEY (b, a, c)
+)
+DEFAULT CHARSET = utf8;
+
+INSERT INTO t1 VALUES 
+(1,  1, 1),
+(2,  2, 2),
+(3,  3, 3),
+(4,  4, 4),
+(5,  5, 5),
+(6,  6, 6),
+(7,  7, 7),
+(8,  8, 8),
+(9,  9, 9);
+
+INSERT INTO t1 SELECT a + 10,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 20,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 40,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 80,  b, c FROM t1;
+INSERT INTO t1 SELECT a + 160, b, c FROM t1;
+INSERT INTO t1 SELECT a + 320, b, c FROM t1;
+INSERT INTO t1 SELECT a + 640, b, c FROM t1;
+INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
+
+EXPLAIN
+SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
+SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
+
+EXPLAIN
+SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
+SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
+
+DROP TABLE t1;

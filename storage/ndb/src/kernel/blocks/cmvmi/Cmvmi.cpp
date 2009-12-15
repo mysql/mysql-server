@@ -38,6 +38,7 @@
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/DisconnectRep.hpp>
+#include <signaldata/AllocMem.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -91,7 +92,10 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
-  
+
+  addRecSignal(GSN_ALLOC_MEM_REF, &Cmvmi::execALLOC_MEM_REF);
+  addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
+
   subscriberPool.setSize(5);
   
   const ndb_mgm_configuration_iterator * db = m_ctx.m_config.getOwnConfigIterator();
@@ -385,40 +389,76 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     rl.m_resource_id = 0;
     m_ctx.m_mm.set_resource_limit(rl);
   }
-  
-  if (!m_ctx.m_mm.init())
+
+  // sloppy
+  ndbrequire(refToMain(ref) == NDBCNTR &&
+             (refToNode(ref) == getOwnNodeId() || refToNode(ref) == 0));
   {
-    char buf[255];
-
-    struct ndb_mgm_param_info dm;
-    struct ndb_mgm_param_info sga;
-    size_t size = sizeof(ndb_mgm_param_info);
-    
-    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
-    size = sizeof(ndb_mgm_param_info);
-    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
-
-    BaseString::snprintf(buf, sizeof(buf), 
-			 "Malloc (%lld bytes) for %s and %s failed", 
-			 Uint64(shared_mem + tupmem) * 32768,
-			 dm.m_name, sga.m_name);
-    
-    ErrorReporter::handleAssert(buf,
-				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
-    
-    ndbrequire(false);
+    AllocMemReq* req = (AllocMemReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = senderData;
+    req->requestInfo = AllocMemReq::RT_INIT;
+    sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
+               AllocMemReq::SignalLength, JBB);
   }
+}
+
+void
+Cmvmi::execALLOC_MEM_CONF(Signal* signal)
+{
+  jamEntry();
+  AllocMemConf * conf = (AllocMemConf*)signal->getDataPtr();
+  Uint32 ref = NDBCNTR_REF; // sloppy
+  Uint32 senderData = conf->senderData;
 
   {
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
+
+  {
+    ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    sendSignal(ref, GSN_READ_CONFIG_CONF, signal,
+               ReadConfigConf::SignalLength, JBB);
+  }
+}
+
+void
+Cmvmi::execALLOC_MEM_REF(Signal* signal)
+{
+  jamEntry();
+  char buf[255];
+
+  const ndb_mgm_configuration_iterator * p =
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+
+  Uint32 tupmem = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
+
+  struct ndb_mgm_param_info dm;
+  struct ndb_mgm_param_info sga;
+  size_t size = sizeof(ndb_mgm_param_info);
+
+  ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+  size = sizeof(ndb_mgm_param_info);
+  ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+  BaseString::snprintf(buf, sizeof(buf),
+                       "Malloc (%lld bytes) for %s and %s failed",
+                       Uint64(shared_mem + tupmem) * 32768,
+                       dm.m_name, sga.m_name);
+
+  ErrorReporter::handleAssert(buf,
+                              __FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
   
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
-	     ReadConfigConf::SignalLength, JBB);
+  ndbrequire(false);
 }
 
 void Cmvmi::execSTTOR(Signal* signal)
@@ -1178,6 +1218,16 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(reference(), GSN_TESTSIG, signal, 8, JBB, ptr, 2);
   }
 
+  if (arg == DumpStateOrd::CmvmiTestLongSig)
+  {
+    /* Forward as GSN_TESTSIG to self */
+    Uint32 numArgs= signal->length() - 1;
+    memmove(signal->getDataPtrSend(), 
+            signal->getDataPtrSend() + 1, 
+            numArgs << 2);
+    sendSignal(reference(), GSN_TESTSIG, signal, numArgs, JBB);
+  }
+
 #ifdef ERROR_INSERT
   if (arg == 9000 || arg == 9002)
   {
@@ -1291,6 +1341,376 @@ Cmvmi::execNODE_START_REP(Signal* signal)
 
 BLOCK_FUNCTIONS(Cmvmi)
 
+void
+Cmvmi::startFragmentedSend(Signal* signal,
+                           Uint32 variant,
+                           Uint32 numSigs,
+                           NodeReceiverGroup rg)
+{
+  Uint32* sigData = signal->getDataPtrSend();
+  const Uint32 sigLength = 6;
+  const Uint32 sectionWords = 240;
+  Uint32 sectionData[ sectionWords ];
+  
+  for (Uint32 i = 0; i < sectionWords; i++)
+    sectionData[ i ] = i;
+  
+  const Uint32 secCount = 1; 
+  LinearSectionPtr ptr[3];
+  ptr[0].sz = sectionWords;
+  ptr[0].p = &sectionData[0];
+
+  for (Uint32 i = 0; i < numSigs; i++)
+  {
+    sigData[0] = variant;
+    sigData[1] = 31;
+    sigData[2] = 0;
+    sigData[3] = 1; // print
+    sigData[4] = 0;
+    sigData[5] = sectionWords;
+    
+    if ((i & 1) == 0)
+    {
+      DEBUG("Starting linear fragmented send (" << i + 1
+            << "/" << numSigs << ")");
+
+      /* Linear send */
+      /* Todo : Avoid reading from invalid stackptr in CONTINUEB */
+      sendFragmentedSignal(rg,
+                           GSN_TESTSIG,
+                           signal,
+                           sigLength,
+                           JBB,
+                           ptr,
+                           secCount,
+                           TheEmptyCallback,
+                           90); // messageSize
+    }
+    else
+    {
+      /* Segmented send */
+      DEBUG("Starting segmented fragmented send (" << i + 1
+            << "/" << numSigs << ")");
+      Ptr<SectionSegment> segPtr;
+      ndbrequire(import(segPtr, sectionData, sectionWords));
+      SectionHandle handle(this, segPtr.i);
+      
+      sendFragmentedSignal(rg,
+                           GSN_TESTSIG,
+                           signal,
+                           sigLength,
+                           JBB,
+                           &handle,
+                           TheEmptyCallback,
+                           90); // messageSize
+    }
+  }
+}
+
+void
+Cmvmi::testNodeFailureCleanupCallback(Signal* signal, Uint32 data, Uint32 elementsCleaned)
+{
+  DEBUG("testNodeFailureCleanupCallback");
+  DEBUG("Data : " << data 
+        << " elementsCleaned : " << elementsCleaned);
+
+  debugPrintFragmentCounts();
+
+  Uint32 variant = data & 0xffff;
+  Uint32 testType = (data >> 16) & 0xffff;
+
+  DEBUG("Sending trigger(" << testType 
+        << ") variant " << variant 
+        << " to self to cleanup any fragments that arrived "
+        << "before send was cancelled");
+
+  Uint32* sigData = signal->getDataPtrSend();
+  sigData[0] = variant;
+  sigData[1] = testType;
+  sendSignal(reference(), GSN_TESTSIG, signal, 2, JBB);
+  
+  return; 
+}
+
+void 
+Cmvmi::testFragmentedCleanup(Signal* signal, SectionHandle* handle, Uint32 testType, Uint32 variant)
+{
+  DEBUG("TestType " << testType << " variant " << variant);
+  debugPrintFragmentCounts();
+
+  /* Variants : 
+   *     Local fragmented send   Multicast fragmented send
+   * 0 : Immediate cleanup       Immediate cleanup
+   * 1 : Continued cleanup       Immediate cleanup
+   * 2 : Immediate cleanup       Continued cleanup
+   * 3 : Continued cleanup       Continued cleanup
+   */
+  const Uint32 NUM_VARIANTS = 4;
+  if (variant >= NUM_VARIANTS)
+  {
+    DEBUG("Unsupported variant");
+    releaseSections(*handle);
+    return;
+  }
+
+  /* Test from ndb_mgm with
+   * <node(s)> DUMP 2605 0 30 
+   * 
+   * Use
+   * <node(s)> DUMP 2605 0 39 to get fragment resource usage counts
+   * Use
+   * <node(s)> DUMP 2601 to get segment usage counts in clusterlog
+   */
+  if (testType == 30)
+  {
+    /* Send the first fragment of a fragmented signal to self
+     * Receiver will allocate assembly hash entries
+     * which must be freed when node failure cleanup
+     * executes later
+     */
+    const Uint32 sectionWords = 240;
+    Uint32 sectionData[ sectionWords ];
+
+    for (Uint32 i = 0; i < sectionWords; i++)
+      sectionData[ i ] = i;
+
+    const Uint32 secCount = 1; 
+    LinearSectionPtr ptr[3];
+    ptr[0].sz = sectionWords;
+    ptr[0].p = &sectionData[0];
+
+    /* Send signal with testType == 31 */
+    NodeReceiverGroup me(reference());
+    Uint32* sigData = signal->getDataPtrSend();
+    const Uint32 sigLength = 6;
+    const Uint32 numPartialSigs = 4; 
+    /* Not too many as CMVMI's fragInfo hash is limited size */
+    // TODO : Consider making it debug-larger to get 
+    // more coverage on CONTINUEB path
+
+    for (Uint32 i = 0; i < numPartialSigs; i++)
+    {
+      /* Fill in messy TESTSIG format */
+      sigData[0] = variant;
+      sigData[1] = 31;
+      sigData[2] = 0;
+      sigData[3] = 0; // print
+      sigData[4] = 0;
+      sigData[5] = sectionWords;
+      
+      FragmentSendInfo fsi;
+      
+      DEBUG("Sending first fragment to self");
+      sendFirstFragment(fsi,
+                        me,
+                        GSN_TESTSIG,
+                        signal,
+                        sigLength,
+                        JBB,
+                        ptr,
+                        secCount,
+                        90); // FragmentLength
+
+      DEBUG("Cancelling remainder to free internal section");
+      fsi.m_status = FragmentSendInfo::SendCancelled;
+      sendNextLinearFragment(signal, fsi);
+    };
+
+    /* Ok, now send short signal with testType == 32
+     * to trigger 'remote-side' actions in middle of
+     * multiple fragment assembly
+     */
+    sigData[0] = variant;
+    sigData[1] = 32;
+
+    DEBUG("Sending node fail trigger to self");
+    sendSignal(me, GSN_TESTSIG, signal, 2, JBB);
+    return;
+  }
+
+  if (testType == 31)
+  {
+    /* Just release sections - execTESTSIG() has shown sections received */
+    releaseSections(*handle);
+    return;
+  }
+
+  if (testType == 32)
+  {
+    /* 'Remote side' trigger to clean up fragmented signal resources */
+    BlockReference senderRef = signal->getSendersBlockRef();
+    Uint32 sendingNode = refToNode(senderRef);
+    
+    /* Start sending some linear and fragmented responses to the
+     * sender, to exercise frag-send cleanup code when we execute
+     * node-failure later
+     */
+    DEBUG("Starting fragmented send using continueB back to self");
+
+    NodeReceiverGroup sender(senderRef);
+    startFragmentedSend(signal, variant, 6, sender);
+
+    debugPrintFragmentCounts();
+
+    Uint32 cbData= (((Uint32) 33) << 16) | variant;
+    Callback cb = { safe_cast(&Cmvmi::testNodeFailureCleanupCallback),
+                    cbData };
+
+    Callback* cbPtr = NULL;
+
+    bool passCallback = variant & 1;
+
+    if (passCallback)
+    {
+      DEBUG("Running simBlock failure code WITH CALLBACK for node " 
+            << sendingNode);
+      cbPtr = &cb;
+    }
+    else
+    {
+      DEBUG("Running simBlock failure code IMMEDIATELY (no callback) for node "
+            << sendingNode);
+      cbPtr = &TheEmptyCallback;
+    }
+
+    Uint32 elementsCleaned = simBlockNodeFailure(signal, sendingNode, *cbPtr);
+    
+    DEBUG("Elements cleaned by call : " << elementsCleaned);
+
+    debugPrintFragmentCounts();
+
+    if (! passCallback)
+    {
+      DEBUG("Variant " << variant << " manually executing callback");
+      /* We call the callback inline here to continue processing */
+      testNodeFailureCleanupCallback(signal, 
+                                     cbData,
+                                     elementsCleaned);
+    }
+
+    return;
+  }
+
+  if (testType == 33)
+  {
+    /* Original side - receive cleanup trigger from 'remote' side
+     * after node failure cleanup performed there.  We may have
+     * fragments it managed to send before the cleanup completed
+     * so we'll get rid of them.
+     * This would not be necessary in reality as this node would
+     * be failed
+     */
+    Uint32 sendingNode = refToNode(signal->getSendersBlockRef());
+    DEBUG("Running simBlock failure code for node " << sendingNode);
+
+    Uint32 elementsCleaned = simBlockNodeFailure(signal, sendingNode);
+
+    DEBUG("Elements cleaned : " << elementsCleaned);
+
+    /* Should have no fragment resources in use now */
+    ndbrequire(debugPrintFragmentCounts() == 0);
+
+    /* Now use ReceiverGroup to multicast a fragmented signal to
+     * all database nodes
+     */
+    DEBUG("Starting to send fragmented continueB to all nodes inc. self : ");
+    NodeReceiverGroup allNodes(CMVMI, c_dbNodes);
+    
+    unsigned nodeId = 0;
+    while((nodeId = c_dbNodes.find(nodeId+1)) != BitmaskImpl::NotFound)
+    {
+      DEBUG("Node " << nodeId);
+    }
+
+    startFragmentedSend(signal, variant, 8, allNodes);
+
+    debugPrintFragmentCounts();
+
+    Uint32 cbData= (((Uint32) 34) << 16) | variant;
+    Callback cb = { safe_cast(&Cmvmi::testNodeFailureCleanupCallback),
+                    cbData };
+    
+    Callback* cbPtr = NULL;
+    
+    bool passCallback = variant & 2;
+
+    if (passCallback)
+    {
+      DEBUG("Running simBlock failure code for self WITH CALLBACK (" 
+            << getOwnNodeId() << ")");
+      cbPtr= &cb;
+    }
+    else
+    {
+      DEBUG("Running simBlock failure code for self IMMEDIATELY (no callback) ("
+            << getOwnNodeId() << ")");
+      cbPtr= &TheEmptyCallback;
+    }
+    
+
+    /* Fragmented signals being sent will have this node removed
+     * from their receiver group, but will keep sending to the 
+     * other node(s).
+     * Other node(s) should therefore receive the complete signals.
+     * We will then receive only the first fragment of each of 
+     * the signals which must be removed later.
+     */
+    elementsCleaned = simBlockNodeFailure(signal, getOwnNodeId(), *cbPtr);
+
+    DEBUG("Elements cleaned : " << elementsCleaned);
+    
+    debugPrintFragmentCounts();
+
+    /* Callback will send a signal to self to clean up fragments that 
+     * were sent to self before the send was cancelled.  
+     * (Again, unnecessary in a 'real' situation
+     */
+    if (!passCallback)
+    {
+      DEBUG("Variant " << variant << " manually executing callback");
+
+      testNodeFailureCleanupCallback(signal,
+                                     cbData,
+                                     elementsCleaned);
+    }
+
+    return;
+  }
+  
+  if (testType == 34)
+  {
+    /* Cleanup fragments which were sent before send was cancelled. */
+    Uint32 elementsCleaned = simBlockNodeFailure(signal, getOwnNodeId());
+    
+    DEBUG("Elements cleaned " << elementsCleaned);
+    
+    /* All FragInfo should be clear, may still be sending some
+     * to other node(s)
+     */
+    debugPrintFragmentCounts();
+
+    DEBUG("Variant " << variant << " completed.");
+    
+    if (++variant < NUM_VARIANTS)
+    {
+      DEBUG("Re-executing with variant " << variant);
+      Uint32* sigData = signal->getDataPtrSend();
+      sigData[0] = variant;
+      sigData[1] = 30;
+      sendSignal(reference(), GSN_TESTSIG, signal, 2, JBB);
+    }
+//    else
+//    {
+//      // Infinite loop to test for leaks
+//       DEBUG("Back to zero");
+//       Uint32* sigData = signal->getDataPtrSend();
+//       sigData[0] = 0;
+//       sigData[1] = 30;
+//       sendSignal(reference(), GSN_TESTSIG, signal, 2, JBB);
+//    }
+  }
+}
+
 static Uint32 g_print;
 static LinearSectionPtr g_test[3];
 
@@ -1364,6 +1784,16 @@ Cmvmi::execTESTSIG(Signal* signal){
   }
   
   NodeReceiverGroup rg(CMVMI, c_dbNodes);
+
+  /**
+   * Testing SimulatedBlock fragment assembly cleanup
+   */
+  if ((testType >= 30) &&
+      (testType < 40))
+  {
+    testFragmentedCleanup(signal, &handle, testType, ref);
+    return;
+  }
 
   if(signal->getSendersBlockRef() == ref){
     /**

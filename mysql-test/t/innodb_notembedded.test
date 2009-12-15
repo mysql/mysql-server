@@ -36,9 +36,15 @@ rollback;
 connection b;
 reap;
 rollback;
+
+# Cleanup
+connection a;
+disconnect a;
+--source include/wait_until_disconnected.inc
+connection b;
+disconnect b;
+--source include/wait_until_disconnected.inc
 connection default;
 drop table t1;
 drop function f1;
-disconnect a;
-disconnect b;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

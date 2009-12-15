@@ -71,6 +71,10 @@ void Dblqh::initData()
   for (Uint32 i = 0; i < 1024; i++) {
     ctransidHash[i] = RNIL;
   }//for
+
+  c_last_force_lcp_time = 0;
+  c_free_mb_force_lcp_limit = 16;
+  c_free_mb_tail_problem_limit = 4;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -124,11 +128,25 @@ void Dblqh::initRecords()
                                        NDB_O_DIRECT_WRITE_ALIGNMENT,
                                        false);
 
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.set((RedoCacheLogPageRecord*)logPageRecord,
+                               clogPageFileSize);
+  m_redo_page_cache.m_hash.setSize(63);
+
+  const Uint32 * base = (Uint32*)logPageRecord;
+  const RedoCacheLogPageRecord* tmp1 = (RedoCacheLogPageRecord*)logPageRecord;
+  ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
+  ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
+#endif
+
   pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  cscanNoFreeRec = cscanrecFileSize;
   c_scanRecordPool.setSize(cscanrecFileSize);
   c_scanTakeOverHash.setSize(64);
 
@@ -173,6 +191,7 @@ void Dblqh::initRecords()
 
 Dblqh::Dblqh(Block_context& ctx):
   SimulatedBlock(DBLQH, ctx),
+  m_reserved_scans(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
@@ -213,6 +232,9 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_DROP_TRIG_REQ, &Dblqh::execDROP_TRIG_REQ);
   addRecSignal(GSN_DROP_TRIG_CONF, &Dblqh::execDROP_TRIG_CONF);
   addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
+
+  addRecSignal(GSN_BUILDINDXREF, &Dblqh::execBUILDINDXREF);
+  addRecSignal(GSN_BUILDINDXCONF, &Dblqh::execBUILDINDXCONF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
@@ -349,6 +371,14 @@ Dblqh::Dblqh(Block_context& ctx):
 
 Dblqh::~Dblqh() 
 {
+#ifndef NO_REDO_PAGE_CACHE
+  m_redo_page_cache.m_pool.clear();
+#endif
+
+#ifndef NO_REDO_OPEN_FILE_CACHE
+  m_redo_open_file_cache.m_pool.clear();
+#endif
+
   // Records with dynamic sizes
   deallocRecord((void **)&addFragRecord, "AddFragRecord",
 		sizeof(AddFragRecord), 

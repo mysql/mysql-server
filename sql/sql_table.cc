@@ -75,7 +75,7 @@ static void wait_for_kill_signal(THD *thd)
   @brief Helper function for explain_filename
 */
 static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, int errcode)
+                           const char* name, uint name_len, bool add_quotes)
 {
   uint res;
   uint errors;
@@ -95,18 +95,44 @@ static char* add_identifier(char *to_p, const char * end_p,
   res= strconvert(&my_charset_filename, conv_name, system_charset_info,
                   conv_string, FN_REFLEN, &errors);
   if (!res || errors)
+  {
+    DBUG_PRINT("error", ("strconvert of '%s' failed with %u (errors: %u)", conv_name, res, errors));
     conv_name= name;
+  }
   else
   {
     DBUG_PRINT("info", ("conv '%s' -> '%s'", conv_name, conv_string));
     conv_name= conv_string;
   }
 
-  if (errcode)
-    to_p+= my_snprintf(to_p, end_p - to_p, ER(errcode), conv_name);
+  if (add_quotes && (end_p - to_p > 2))
+  {
+    *(to_p++)= '`';
+    while (*conv_name && (end_p - to_p - 1) > 0)
+    {
+      uint length= my_mbcharlen(system_charset_info, *conv_name);
+      if (!length)
+        length= 1;
+      if (length == 1 && *conv_name == '`')
+      { 
+        if ((end_p - to_p) < 3)
+          break;
+        *(to_p++)= '`';
+        *(to_p++)= *(conv_name++);
+      }
+      else if (((long) length) < (end_p - to_p))
+      {
+        to_p= strnmov(to_p, conv_name, length);
+        conv_name+= length;
+      }
+      else
+        break;                               /* string already filled */
+    }
+    to_p= strnmov(to_p, "`", end_p - to_p);
+  }
   else
-    to_p+= my_snprintf(to_p, end_p - to_p, "`%s`", conv_name);
-  return to_p;
+    to_p= strnmov(to_p, conv_name, end_p - to_p);
+  DBUG_RETURN(to_p);
 }
 
 
@@ -138,6 +164,8 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
+                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
@@ -248,28 +276,39 @@ uint explain_filename(const char *from,
         part_name_len-= 5;
     }
   }
+  else
+    table_name_len= strlen(table_name);
   if (db_name)
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           ER_DATABASE_NAME);
+      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      *(to_p++)= ' ';
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 0);
+      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         ER_TABLE_NAME);
+  {
+    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    *(to_p++)= ' ';
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+  }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 0);
+    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -283,15 +322,22 @@ uint explain_filename(const char *from,
         to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
+    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    *(to_p++)= ' ';
     to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         ER_PARTITION_NAME);
+                         (explain_mode !=
+                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
+      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      *(to_p++)= ' ';
       to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           ER_SUBPARTITION_NAME);
+                           (explain_mode !=
+                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
+        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
@@ -1802,6 +1848,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   int non_temp_tables_count= 0;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   String built_query;
+  String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
 
   LINT_INIT(alias);
@@ -1878,6 +1925,25 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     case  0:
       // removed temporary table
       tmp_table_deleted= 1;
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          thd->current_stmt_binlog_row_based)
+      {
+        if (built_tmp_query.is_empty()) 
+        {
+          built_tmp_query.set_charset(system_charset_info);
+          built_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
+        }
+
+        built_tmp_query.append("`");
+        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        {
+          built_tmp_query.append(db);
+          built_tmp_query.append("`.`");
+        }
+        built_tmp_query.append(table->table_name);
+        built_tmp_query.append("`,");
+      }
+
       continue;
     case -1:
       DBUG_ASSERT(thd->in_sub_stmt);
@@ -2035,29 +2101,52 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         write_bin_log(thd, !error, thd->query, thd->query_length);
       }
       else if (thd->current_stmt_binlog_row_based &&
-               non_temp_tables_count > 0 &&
                tmp_table_deleted)
       {
-        /*
-          In this case we have deleted both temporary and
-          non-temporary tables, so:
-          - since we have deleted a non-temporary table we have to
-            binlog the statement, but
-          - since we have deleted a temporary table we cannot binlog
-            the statement (since the table has not been created on the
-            slave, this might cause the slave to stop).
+        if (non_temp_tables_count > 0)
+        {
+          /*
+            In this case we have deleted both temporary and
+            non-temporary tables, so:
+            - since we have deleted a non-temporary table we have to
+              binlog the statement, but
+            - since we have deleted a temporary table we cannot binlog
+              the statement (since the table may have not been created on the
+              slave - check "if" branch below, this might cause the slave to 
+              stop).
 
-          Instead, we write a built statement, only containing the
-          non-temporary tables, to the binary log
+            Instead, we write a built statement, only containing the
+            non-temporary tables, to the binary log
+          */
+          built_query.chop();                  // Chop of the last comma
+          built_query.append(" /* generated by server */");
+          write_bin_log(thd, !error, built_query.ptr(), built_query.length());
+        }
+
+        /*
+          One needs to always log any temporary table drop, if:
+            1. thread logging format is mixed mode; AND
+            2. current statement logging format is set to row.
         */
-        built_query.chop();                  // Chop of the last comma
-        built_query.append(" /* generated by server */");
-        write_bin_log(thd, !error, built_query.ptr(), built_query.length());
+        if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED)
+        {
+          /*
+            In this case we have deleted some temporary tables but we are using
+            row based logging for the statement. However, thread uses mixed mode
+            format, thence we need to log the dropping as we cannot tell for
+            sure whether the create was logged as statement previously or not, ie,
+            before switching to row mode.
+          */
+          built_tmp_query.chop();                  // Chop of the last comma
+          built_tmp_query.append(" /* generated by server */");
+          write_bin_log(thd, !error, built_tmp_query.ptr(), built_tmp_query.length());
+        }
       }
+
       /*
         The remaining cases are:
-        - no tables where deleted and
-        - only temporary tables where deleted and row-based
+        - no tables were deleted and
+        - only temporary tables were deleted and row-based
           replication is used.
         In both these cases, nothing should be written to the binary
         log.
@@ -3444,6 +3533,41 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 
 
 /*
+  Write CREATE TABLE binlog
+
+  SYNOPSIS
+    write_create_table_bin_log()
+    thd               Thread object
+    create_info       Create information
+    internal_tmp_table  Set to 1 if this is an internal temporary table
+
+  DESCRIPTION
+    This function only is called in mysql_create_table_no_lock and
+    mysql_create_table
+
+  RETURN VALUES
+    NONE
+ */
+static inline void write_create_table_bin_log(THD *thd,
+                                              const HA_CREATE_INFO *create_info,
+                                              bool internal_tmp_table)
+{
+  /*
+    Don't write statement if:
+    - It is an internal temporary table,
+    - Row-based logging is used and it we are creating a temporary table, or
+    - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
+   */
+  if (!internal_tmp_table &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
+    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3706,6 +3830,7 @@ bool mysql_create_table_no_lock(THD *thd,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
+      write_create_table_bin_log(thd, create_info, internal_tmp_table);
       goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -3826,18 +3951,7 @@ bool mysql_create_table_no_lock(THD *thd,
     thd->thread_specific_used= TRUE;
   }
 
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -3853,6 +3967,7 @@ warn:
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
+  write_create_table_bin_log(thd, create_info, internal_tmp_table);
   goto unlock_and_end;
 }
 
@@ -3910,6 +4025,7 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                             table_name);
         create_info->table_existed= 1;
         result= FALSE;
+        write_create_table_bin_log(thd, create_info, internal_tmp_table);
       }
       else
       {
@@ -5240,6 +5356,24 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     goto err;	    /* purecov: inspected */
   }
 
+goto binlog;
+
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    my_snprintf(warn_buff, sizeof(warn_buff),
+		ER(ER_TABLE_EXISTS_ERROR), table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_TABLE_EXISTS_ERROR,warn_buff);
+  }
+  else
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+    goto err;
+  }
+
+binlog:
   DBUG_EXECUTE_IF("sleep_create_like_before_binlogging", my_sleep(6000000););
 
   /*
@@ -5304,20 +5438,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
-  goto err;
-
-table_exists:
-  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-  {
-    char warn_buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(warn_buff, sizeof(warn_buff),
-		ER(ER_TABLE_EXISTS_ERROR), table_name);
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		 ER_TABLE_EXISTS_ERROR,warn_buff);
-    res= FALSE;
-  }
-  else
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
   if (name_lock)
@@ -6358,8 +6478,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
-  if (!(used_fields & HA_CREATE_USED_TRANSACTIONAL))
-    create_info->transactional= table->s->transactional;
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;

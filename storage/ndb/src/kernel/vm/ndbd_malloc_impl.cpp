@@ -683,6 +683,7 @@ Ndbd_mem_manager::dump() const
 void*
 Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 {
+  Guard g(&m_mutex);
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
   Resource_limit tot = m_resource_limit[0];
@@ -715,6 +716,7 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 void
 Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
 {
+  Guard g(&m_mutex);
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
   Resource_limit tot = m_resource_limit[0];
@@ -732,6 +734,8 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
 void
 Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
 {
+  Guard g(&m_mutex);
+
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
   Resource_limit tot = m_resource_limit[0];
@@ -788,12 +792,15 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
     return ;
   }
   * cnt = req;
+
   return;
 }
 
 void
 Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
 {
+  Guard g(&m_mutex);
+
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
   Resource_limit tot = m_resource_limit[0];

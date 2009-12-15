@@ -19,3 +19,22 @@ let $other_engine_type= MEMORY;
 let $other_handler_engine_type= MyISAM;
 
 --source include/handler.inc
+
+--echo #
+--echo # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
+--echo #
+CREATE TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+--echo End of 5.1 tests

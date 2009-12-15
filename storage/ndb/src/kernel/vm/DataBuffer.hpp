@@ -410,21 +410,89 @@ template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::first(DataBufferIterator & it){
-  return first((ConstDataBufferIterator&)it);
+  it.curr.i = head.firstItem;
+  if(it.curr.i == RNIL){
+    it.setNull();
+    return false;
+  }
+  thePool.getPtr(it.curr);
+  it.data = &it.curr.p->data[0];
+  it.ind = 0;
+  it.pos = 0;
+  return true;
 }
 
 template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::next(DataBufferIterator & it){
-  return next((ConstDataBufferIterator&)it);
+  it.ind ++;
+  it.data ++;
+  it.pos ++;
+  if(it.ind < sz && it.pos < head.used){
+    return true;
+  }
+
+  if(it.pos < head.used){
+    it.curr.i = it.curr.p->nextPool;
+#ifdef ARRAY_GUARD
+    if(it.curr.i == RNIL){
+      /**
+       * This is actually "internal error"
+       * pos can't be less than head.used and at the same time we can't
+       * find next segment
+       *
+       * Note this must not "really" be checked since thePool.getPtr will
+       *  abort when trying to get RNIL. That's why the check is within
+       *  ARRAY_GUARD
+       */
+      ErrorReporter::handleAssert("DataBuffer<sz>::next", __FILE__, __LINE__);
+    }
+#endif
+    thePool.getPtr(it.curr);
+    it.data = &it.curr.p->data[0];
+    it.ind = 0;
+    return true;
+  }
+  it.setNull();
+  return false;
 }
 
 template<Uint32 sz>
 inline
 bool
 DataBuffer<sz>::next(DataBufferIterator & it, Uint32 hops){
-  return next((ConstDataBufferIterator&)it, hops);
+#if 0
+  for (Uint32 i=0; i<hops; i++) {
+    if (!this->next(it))
+      return false;
+  }
+  return true;
+#else
+  if(it.pos + hops < head.used){
+    while(hops >= sz){
+      it.curr.i = it.curr.p->nextPool;
+      thePool.getPtr(it.curr);
+      hops -= sz;
+      it.pos += sz;
+    }
+
+    it.ind += hops;
+    it.pos += hops;
+    if(it.ind < sz){
+      it.data = &it.curr.p->data[it.ind];
+      return true;
+    }
+
+    it.curr.i = it.curr.p->nextPool;
+    thePool.getPtr(it.curr);
+    it.ind -= sz;
+    it.data = &it.curr.p->data[it.ind];
+    return true;
+  }
+  it.setNull();
+  return false;
+#endif
 }
 
 template<Uint32 sz>

@@ -173,16 +173,26 @@ FastScheduler::doJob()
 
 }//FastScheduler::doJob()
 
+void
+FastScheduler::postPoll()
+{
+  Signal * signal = getVMSignals();
+  SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
+  b_fs->executeFunction(GSN_SEND_PACKED, signal);
+}
+
 void FastScheduler::sendPacked()
 {
   if (globalData.sendPackedActivated == 1) {
     SimulatedBlock* b_lqh = globalData.getBlock(DBLQH);
     SimulatedBlock* b_tc = globalData.getBlock(DBTC);
     SimulatedBlock* b_tup = globalData.getBlock(DBTUP);
-    Signal* signal = getVMSignals();
+    SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
+    Signal * signal = getVMSignals();
     b_lqh->executeFunction(GSN_SEND_PACKED, signal);
     b_tc->executeFunction(GSN_SEND_PACKED, signal);
     b_tup->executeFunction(GSN_SEND_PACKED, signal);
+    b_fs->executeFunction(GSN_SEND_PACKED, signal);
     return;
   } else if (globalData.activateSendPacked == 0) {
     return;

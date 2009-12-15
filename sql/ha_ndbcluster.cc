@@ -154,6 +154,14 @@ static void set_ndb_err(THD *thd, const NdbError &err);
 static int ndbcluster_inited= 0;
 int ndbcluster_terminating= 0;
 
+/* 
+   Indicator and CONDVAR used to delay client and slave
+   connections until Ndb has Binlog setup
+   (bug#46955)
+*/
+int ndb_setup_complete= 0;
+pthread_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
+
 extern Ndb* g_ndb;
 
 uchar g_node_id_map[max_ndb_nodes];
@@ -287,18 +295,25 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
   }
 
   /*
-    Push the NDB error message as warning
-    - Used to be able to use SHOW WARNINGS toget more info on what the error is
-    - Used by replication to see if the error was temporary
-  */
-  if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
-  else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			ndberr->code, ndberr->message, "NDB");
+    If we don't abort directly on warnings push a warning
+    with the internal error information
+   */
+  if (!current_thd->abort_on_warning)
+  {
+    /*
+      Push the NDB error message as warning
+      - Used to be able to use SHOW WARNINGS toget more info on what the error is
+      - Used by replication to see if the error was temporary
+    */
+    if (ndberr->status == NdbError::TemporaryError)
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+    else
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ndberr->code, ndberr->message, "NDB");
+  }
   return error;
 }
 
@@ -987,6 +1002,9 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   DBUG_ENTER("g_get_ndb_blobs_value");
   DBUG_PRINT("info", ("destination row: %p", ha->m_blob_destination_record));
 
+  if (ha->m_blob_counter == 0)   /* Reset total size at start of row */
+    ha->m_blobs_row_total_size= 0;
+
   /* Count the total length needed for blob data. */
   int isNull;
   if (ndb_blob->getNull(isNull) != 0)
@@ -996,37 +1014,43 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     if (ndb_blob->getLength(len64) != 0)
       ERR_RETURN(ndb_blob->getNdbError());
     /* Align to Uint64. */
-    ha->m_blob_total_size+= (len64 + 7) & ~((Uint64)7);
-    if (ha->m_blob_total_size > 0xffffffff)
+    ha->m_blobs_row_total_size+= (len64 + 7) & ~((Uint64)7);
+    if (ha->m_blobs_row_total_size > 0xffffffff)
     {
       DBUG_ASSERT(FALSE);
       DBUG_RETURN(-1);
     }
+    DBUG_PRINT("info", ("Blob number %d needs size %llu, total buffer reqt. now %llu",
+                        ha->m_blob_counter,
+                        len64,
+                        ha->m_blobs_row_total_size));
   }
   ha->m_blob_counter++;
 
   /*
-    Wait until all blobs are active with reading, so we can allocate
+    Wait until all blobs in this row are active, so we can allocate
     and use a common buffer containing all.
   */
-  if (ha->m_blob_counter < ha->m_blob_expected_count)
+  if (ha->m_blob_counter < ha->m_blob_expected_count_per_row)
     DBUG_RETURN(0);
+
+  /* Reset blob counter for next row (scan scenario) */
   ha->m_blob_counter= 0;
 
-  /* Re-allocate bigger blob buffer if necessary. */
-  if (ha->m_blob_total_size > ha->m_blobs_buffer_size)
+  /* Re-allocate bigger blob buffer for this row if necessary. */
+  if (ha->m_blobs_row_total_size > ha->m_blobs_buffer_size)
   {
     my_free(ha->m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_PRINT("info", ("allocate blobs buffer size %u",
-                        (uint32)(ha->m_blob_total_size)));
+                        (uint32)(ha->m_blobs_row_total_size)));
     ha->m_blobs_buffer=
-      (uchar*) my_malloc(ha->m_blob_total_size, MYF(MY_WME));
+      (uchar*) my_malloc(ha->m_blobs_row_total_size, MYF(MY_WME));
     if (ha->m_blobs_buffer == NULL)
     {
       ha->m_blobs_buffer_size= 0;
       DBUG_RETURN(-1);
     }
-    ha->m_blobs_buffer_size= ha->m_blob_total_size;
+    ha->m_blobs_buffer_size= ha->m_blobs_row_total_size;
   }
 
   /*
@@ -1118,9 +1142,9 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
   DBUG_ENTER("ha_ndbcluster::get_blob_values");
 
   m_blob_counter= 0;
-  m_blob_expected_count= 0;
+  m_blob_expected_count_per_row= 0;
   m_blob_destination_record= dst_record;
-  m_blob_total_size= 0;
+  m_blobs_row_total_size= 0;
 
   for (i= 0; i < table_share->fields; i++) 
   {
@@ -1135,7 +1159,7 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
       if ((ndb_blob= ndb_op->getBlobHandle(i)) == NULL ||
           ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
         DBUG_RETURN(1);
-      m_blob_expected_count++;
+      m_blob_expected_count_per_row++;
     }
     else
       ndb_blob= NULL;
@@ -1327,12 +1351,12 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap)
 void ha_ndbcluster::release_blobs_buffer()
 {
   DBUG_ENTER("releaseBlobsBuffer");
-  if (m_blob_total_size > 0)
+  if (m_blobs_buffer_size > 0)
   {
-    DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blob_total_size));
+    DBUG_PRINT("info", ("Deleting blobs buffer, size %u", m_blobs_buffer_size));
     my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     m_blobs_buffer= 0;
-    m_blob_total_size= 0;
+    m_blobs_row_total_size= 0;
     m_blobs_buffer_size= 0;
   }
   DBUG_VOID_RETURN;
@@ -3209,6 +3233,27 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
   }
 }
 
+bool ha_ndbcluster::isManualBinlogExec(THD *thd)
+{
+  /* Are we executing handler methods as part of 
+   * a mysql client BINLOG statement?
+   */
+#ifndef EMBEDDED_LIBRARY
+  return thd ? 
+    ( thd->rli_fake? 
+      thd->rli_fake->get_flag(Relay_log_info::IN_STMT) : false)
+    : false;
+#else
+  /* For Embedded library, we can't determine if we're
+   * executing Binlog manually
+   * TODO : Find better way to determine whether to use
+   *        SQL REPLACE or Write_row semantics
+   */
+  return false;
+#endif
+
+}
+
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
@@ -3400,23 +3445,37 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       )
   {
     uchar *mask;
+    
+    /* Should we use the supplied table writeset or not?
+     * For a REPLACE command, we should ignore it, and write
+     * all columns to get correct REPLACE behaviour.
+     * For applying Binlog events, we need to use the writeset
+     * to avoid trampling unchanged columns when an update is
+     * logged as a WRITE
+     */
+    bool useWriteSet= isManualBinlogExec(thd);
 
 #ifdef HAVE_NDB_BINLOG
-    /*
-      The use of table->write_set is tricky here. This is done as a temporary
-      workaround for BUG#22045.
+    /* Slave always uses writeset
+     * TODO : What about SBR replicating a
+     * REPLACE command?
+     */
+    useWriteSet |= thd->slave_thread;
+#endif
 
-      There is some confusion on the precise meaning of write_set in write_row,
-      with REPLACE INTO and replication SQL thread having different opinions.
-      There is work on the way to sort that out, but until then we need to
-      implement different semantics depending on whether we are in the slave
-      SQL thread or not.
-
-        SQL thread -> use the write_set for writeTuple().
-        otherwise (REPLACE INTO) -> do not use write_set.
-    */
+    if (useWriteSet)
+    {
+      user_cols_written_bitmap= table->write_set;
+      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+    }
+    else
+    {
+      user_cols_written_bitmap= NULL;
+      mask= NULL;
+    }
 
 #if 0 /* NOT YET, interpeted function not supported for write */
+#ifdef HAVE_NDB_BINLOG
     /*
       Room for 10 instruction words, two labels (@ 2words/label)
       + 2 extra words for the case of resolve_size == 8
@@ -3424,12 +3483,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     Uint32 buffer[16];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
-#endif
-    if (thd->slave_thread)
+    if (useWriteSet)
     {
-      user_cols_written_bitmap= table->write_set;
-      mask= (uchar *)(user_cols_written_bitmap->bitmap);
-#if 0 /* NOT YET, interpeted function not supported for write */
       /* Conflict resolution in slave thread. */
       enum_conflict_fn_type cft= m_share->m_cfn_share ? m_share->m_cfn_share->m_resolve_cft : CFT_NDB_UNDEF;
       if (cft != CFT_NDB_UNDEF)
@@ -3440,7 +3495,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
           options.interpretedCode= &code;
           thd_ndb->m_conflict_fn_usage_count++;
         }
-
+        
         Ndb_exceptions_data ex_data;
         ex_data.share= m_share;
         /*
@@ -3460,14 +3515,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
         if (options.optionsPresent != 0)
           poptions=&options;
       }
-#endif
     }
-    else
-#endif
-    {
-      user_cols_written_bitmap= NULL;
-      mask= NULL;
-    }
+#endif  /* HAVE_NDB_BINLOG */
+#endif  /* NOT YET */
+
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                           (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
@@ -3831,6 +3882,12 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
 bool ha_ndbcluster::start_bulk_update()
 {
   DBUG_ENTER("ha_ndbcluster::start_bulk_update");
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -4461,7 +4518,13 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
       {
         Field_blob *field_blob= (Field_blob *)field;
         NdbBlob *ndb_blob= m_value[i].blob;
+        /* unpack_record *only* called for scan result processing
+         * *while* the scan is open and the Blob is active.
+         * Verify Blob state to be certain.
+         * Accessing PK/UK op Blobs after execute() is unsafe
+         */
         DBUG_ASSERT(ndb_blob != 0);
+        DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
         int isNull;
         res= ndb_blob->getNull(isNull);
         DBUG_ASSERT(res == 0);                  // Already succeeded once
@@ -4559,6 +4622,7 @@ void ha_ndbcluster::print_results()
     {
       NdbBlob *ndb_blob= value.blob;
       bool isNull= TRUE;
+      assert(ndb_blob->getState() == NdbBlob::Active);
       ndb_blob->getNull(isNull);
       if (isNull)
         strmov(buf, "NULL");
@@ -5141,7 +5205,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   case HA_EXTRA_WRITE_CAN_REPLACE:
     DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
     if (!m_has_unique_index ||
-        current_thd->slave_thread) /* always set if slave, quick fix for bug 27378 */
+        current_thd->slave_thread || /* always set if slave, quick fix for bug 27378 */
+        isManualBinlogExec(current_thd)) /* or if manual binlog application, for bug 46662 */
     {
       DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
       m_use_write= TRUE;
@@ -6556,7 +6621,48 @@ static int create_ndb_column(THD *thd,
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("update_create_info");
+  THD *thd= current_thd;
   TABLE_SHARE *share= table->s;
+  const NDBTAB *ndbtab= m_table;
+  Ndb *ndb= check_ndb_in_thd(thd);
+
+  /*
+    Find any initial auto_increment value
+   */
+  for (uint i= 0; i < table->s->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if (field->flags & AUTO_INCREMENT_FLAG)
+    {
+      ulonglong auto_value;
+      uint retries= NDB_AUTO_INCREMENT_RETRIES;
+      int retry_sleep= 30; /* 30 milliseconds, transaction */
+      for (;;)
+      {
+        Ndb_tuple_id_range_guard g(m_share);
+        if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
+        {
+          if (--retries && !thd->killed &&
+              ndb->getNdbError().status == NdbError::TemporaryError)
+          {
+            do_retry_sleep(retry_sleep);
+            continue;
+          }
+          const NdbError err= ndb->getNdbError();
+          sql_print_error("Error %lu in ::update_create_info(): %s",
+                          (ulong) err.code, err.message);
+          DBUG_VOID_RETURN;
+        }
+        break;
+      }
+      if (auto_value > 1)
+      {
+        create_info->auto_increment_value= auto_value;
+      }
+      break;
+    }
+  }
+
   if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
   {
      DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
@@ -6564,13 +6670,10 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
      if (!create_info->tablespace && !share->tablespace)
      {
        DBUG_PRINT("info", ("Checking for tablespace in ndb"));
-       THD *thd= current_thd;
-       Ndb *ndb= check_ndb_in_thd(thd);
        NDBDICT *ndbdict= ndb->getDictionary();
        NdbError ndberr;
        Uint32 id;
        ndb->setDatabaseName(m_dbname);
-       const NDBTAB *ndbtab= m_table;
        DBUG_ASSERT(ndbtab != NULL);
        if (!ndbtab->getTablespace(&id))
        {
@@ -7827,7 +7930,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_update_cannot_batch(FALSE),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
-  m_blob_total_size(0),
+  m_blobs_row_total_size(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
@@ -9091,6 +9194,45 @@ static int connect_callback()
   return 0;
 }
 
+static int ndb_wait_setup_func_impl(ulong max_wait)
+{
+  DBUG_ENTER("ndb_wait_setup_func_impl");
+
+  pthread_mutex_lock(&ndbcluster_mutex);
+
+  struct timespec abstime;
+  set_timespec(abstime, 1);
+  
+  while (!ndb_setup_complete && max_wait)
+  {
+    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete, 
+                                   &ndbcluster_mutex,
+                                   &abstime);
+    if (rc)
+    {
+      if (rc == ETIMEDOUT)
+      {
+        DBUG_PRINT("info", ("1s elapsed waiting"));
+        max_wait--;
+        set_timespec(abstime, 1); /* 1 second from now*/
+      }
+      else
+      {
+        DBUG_PRINT("info", ("Bad pthread_cond_timedwait rc : %u",
+                            rc));
+        assert(false);
+        break;
+      }
+    }
+  }
+
+  pthread_mutex_unlock(&ndbcluster_mutex);
+
+  DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
+}
+
+extern wait_cond_timed_func ndb_wait_setup_func;
+
 extern int ndb_dictionary_is_mysqld;
 extern pthread_mutex_t LOCK_plugin;
 
@@ -9112,9 +9254,11 @@ static int ndbcluster_init(void *p)
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
   pthread_cond_init(&COND_ndb_util_ready, NULL);
+  pthread_cond_init(&COND_ndb_setup_complete, NULL);
   ndb_util_thread_running= -1;
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
+  ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
   ndbcluster_global_schema_lock_init();
 
@@ -9171,6 +9315,7 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    pthread_cond_destroy(&COND_ndb_setup_complete);
     ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
@@ -9189,9 +9334,12 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
+    pthread_cond_destroy(&COND_ndb_setup_complete);
     ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
+
+  ndb_wait_setup_func= ndb_wait_setup_func_impl;
 
   pthread_mutex_lock(&LOCK_plugin);
 
@@ -9246,6 +9394,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_ready);
+  pthread_cond_destroy(&COND_ndb_setup_complete);
   ndbcluster_global_schema_lock_deinit();
   DBUG_RETURN(0);
 }
@@ -10089,10 +10238,22 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     event_data= (Ndb_event_data *) share->op->getCustomData();
   if (event_data && event_data->table)
   {
-    event_data->table->s->db.str= share->db;
-    event_data->table->s->db.length= strlen(share->db);
-    event_data->table->s->table_name.str= share->table_name;
-    event_data->table->s->table_name.length= strlen(share->table_name);
+    if (!IS_TMP_PREFIX(share->table_name))
+    {
+      event_data->table->s->db.str= share->db;
+      event_data->table->s->db.length= strlen(share->db);
+      event_data->table->s->table_name.str= share->table_name;
+      event_data->table->s->table_name.length= strlen(share->table_name);
+    }
+    else
+    {
+      /**
+       * we don't rename the table->s here 
+       *   that is used by injector
+       *   as we don't know if all events has been processed
+       * This will be dropped anyway
+       */
+    }
   }
   /* else rename will be handled when the ALTER event comes */
   share->old_names= old_key;

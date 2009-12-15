@@ -186,7 +186,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
-#define check_sections(signal, cnt) if (unlikely(cnt)) handle_invalid_sections_in_send_signal(signal)
+#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && (signal->header.m_fragmentInfo != 0 && signal->header.m_fragmentInfo != 3))) { handle_invalid_fragmentInfo(signal); } } while(0)
 
 void
 SimulatedBlock::handle_invalid_sections_in_send_signal(Signal* signal) const
@@ -227,6 +227,50 @@ SimulatedBlock::handle_lingering_sections_after_execute(SectionHandle* handle) c
 #endif
 }
 
+void
+SimulatedBlock::handle_invalid_fragmentInfo(Signal* signal) const
+{
+#if defined VM_TRACE || defined ERROR_INSERT
+  ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+			     "Incorrect header->m_fragmentInfo in sendSignal()",
+			     "");
+#else
+  signal->header.m_fragmentInfo = 0;
+  infoEvent("Incorrect header->m_fragmentInfo in sendSignal");
+#endif
+}
+
+void
+SimulatedBlock::handle_out_of_longsignal_memory(Signal * signal) const
+{
+  ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+			     "Out of LongMessageBuffer in sendSignal",
+			     "");
+}
+
+void
+SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
+{
+  switch(ss){
+  case SEND_BUFFER_FULL:
+    ErrorReporter::handleError(NDBD_EXIT_GENERIC,
+                               "Out of SendBufferMemory in sendSignal", "");
+    break;
+  case SEND_MESSAGE_TOO_BIG:
+    ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
+                               "Message to big in sendSignal", "");
+    break;
+  case SEND_UNKNOWN_NODE:
+    ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
+                               "Unknown node in sendSignal", "");
+    break;
+  case SEND_OK:
+  case SEND_BLOCKED:
+  case SEND_DISCONNECTED:
+    break;
+  }
+  ndbrequire(false);
+}
 
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
@@ -248,7 +292,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   signal->header.theReceiversBlockNumber = recBlock;
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
   
   Uint32 tSignalId = signal->header.theSignalId;
   
@@ -299,7 +343,12 @@ SimulatedBlock::sendSignal(BlockReference ref,
 							  recNode, 
 							  (LinearSectionPtr*)0);
     
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
   return;
 }
@@ -325,7 +374,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   signal->header.theSendersBlockRef = reference();
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections);
+  check_sections(signal, noOfSections, 0);
 
   if ((length == 0) || (length > 25) || (recBlock == 0)) {
     signal_error(gsn, length, recBlock, __FILE__, __LINE__);
@@ -387,7 +436,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 							  &signal->theData[0],
 							  recNode,
 							  (LinearSectionPtr*)0);
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   return;
@@ -411,7 +465,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -445,10 +499,15 @@ SimulatedBlock::sendSignal(BlockReference ref,
     /**
      * We have to copy the data
      */
+    bool ok = true;
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(import(segptr[i], ptr[i].p, ptr[i].sz));
+      ok &= import(segptr[i], ptr[i].p, ptr[i].sz);
       signal->theData[length+i] = segptr[i].i;
+    }
+    if (unlikely(! ok))
+    {
+      handle_out_of_longsignal_memory(signal);
     }
     
     globalScheduler.execute(signal, jobBuffer, recBlock,
@@ -481,7 +540,12 @@ SimulatedBlock::sendSignal(BlockReference ref,
 							  &signal->theData[0],
 							  recNode, 
 							  ptr);
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   signal->header.m_noOfSections = 0;
@@ -505,7 +569,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -545,10 +609,15 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     /**
      * We have to copy the data
      */
+    bool ok = true;
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(import(segptr[i], ptr[i].p, ptr[i].sz));
+      ok &= import(segptr[i], ptr[i].p, ptr[i].sz);
       signal->theData[length+i] = segptr[i].i;
+    }
+    if (unlikely(! ok))
+    {
+      handle_out_of_longsignal_memory(signal);
     }
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
     
@@ -584,7 +653,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 							  &signal->theData[0],
 							  recNode,
 							  ptr);
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
   
   signal->header.m_noOfSections = 0;
@@ -609,7 +683,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -675,7 +749,13 @@ SimulatedBlock::sendSignal(BlockReference ref,
 							  recNode,
 							  g_sectionSegmentPool,
 							  sections->m_ptr);
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
+
     ::releaseSections(noOfSections, sections->m_ptr);
   }
 
@@ -701,7 +781,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   Uint32 ourProcessor = globalData.ownId;
   Uint32 recBlock = rg.m_block;
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
@@ -783,7 +863,12 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 							  recNode,
 							  g_sectionSegmentPool,
 							  sections->m_ptr);
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   if (release)
@@ -807,7 +892,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   
   BlockNumber bnr = refToBlock(ref);
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, 0);
   
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -850,7 +935,7 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     bnr_error();
   }//if
 
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
 
   signal->header.theLength = length;
   signal->header.theSendersSignalId = signal->header.theSignalId;
@@ -1178,53 +1263,87 @@ SimulatedBlock::execSIGNAL_DROPPED_REP(Signal * signal){
 void
 SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
   ljamEntry();
-  
-  Ptr<FragmentSendInfo> fragPtr;
-  
-  c_segmentedFragmentSendList.first(fragPtr);  
-  for(; !fragPtr.isNull();){
-    ljam();
-    Ptr<FragmentSendInfo> copyPtr = fragPtr;
-    c_segmentedFragmentSendList.next(fragPtr);
-    
-    sendNextSegmentedFragment(signal, * copyPtr.p);
-    if(copyPtr.p->m_status == FragmentSendInfo::SendComplete){
-      ljam();
-      if(copyPtr.p->m_callback.m_callbackFunction != 0) {
-        ljam();
-	execute(signal, copyPtr.p->m_callback, 0);
-      }//if
-      c_segmentedFragmentSendList.release(copyPtr);
-    }
-  }
-  
-  c_linearFragmentSendList.first(fragPtr);  
-  for(; !fragPtr.isNull();){
-    ljam(); 
-    Ptr<FragmentSendInfo> copyPtr = fragPtr;
-    c_linearFragmentSendList.next(fragPtr);
-    
-    sendNextLinearFragment(signal, * copyPtr.p);
-    if(copyPtr.p->m_status == FragmentSendInfo::SendComplete){
-      ljam();
-      if(copyPtr.p->m_callback.m_callbackFunction != 0) {
-        ljam();
-	execute(signal, copyPtr.p->m_callback, 0);
-      }//if
-      c_linearFragmentSendList.release(copyPtr);
-    }
-  }
-  
-  if(c_segmentedFragmentSendList.isEmpty() && 
-     c_linearFragmentSendList.isEmpty()){
-    ljam();
-    c_fragSenderRunning = false;
-    return;
-  }
-  
+
   ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
-  sig->line = __LINE__;
-  sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+  ndbrequire(signal->getSendersBlockRef() == reference()); /* Paranoia */
+
+  switch (sig->type)
+  {
+  case ContinueFragmented::CONTINUE_SENDING :
+  {
+    ljam();
+    Ptr<FragmentSendInfo> fragPtr;
+    
+    c_segmentedFragmentSendList.first(fragPtr);  
+    for(; !fragPtr.isNull();){
+      ljam();
+      Ptr<FragmentSendInfo> copyPtr = fragPtr;
+      c_segmentedFragmentSendList.next(fragPtr);
+      
+      sendNextSegmentedFragment(signal, * copyPtr.p);
+      if(copyPtr.p->m_status == FragmentSendInfo::SendComplete){
+        ljam();
+        if(copyPtr.p->m_callback.m_callbackFunction != 0) {
+          ljam();
+          execute(signal, copyPtr.p->m_callback, 0);
+        }//if
+        c_segmentedFragmentSendList.release(copyPtr);
+      }
+    }
+    
+    c_linearFragmentSendList.first(fragPtr);  
+    for(; !fragPtr.isNull();){
+      ljam(); 
+      Ptr<FragmentSendInfo> copyPtr = fragPtr;
+      c_linearFragmentSendList.next(fragPtr);
+      
+      sendNextLinearFragment(signal, * copyPtr.p);
+      if(copyPtr.p->m_status == FragmentSendInfo::SendComplete){
+        ljam();
+        if(copyPtr.p->m_callback.m_callbackFunction != 0) {
+          ljam();
+          execute(signal, copyPtr.p->m_callback, 0);
+        }//if
+        c_linearFragmentSendList.release(copyPtr);
+      }
+    }
+    
+    if(c_segmentedFragmentSendList.isEmpty() && 
+       c_linearFragmentSendList.isEmpty()){
+      ljam();
+      c_fragSenderRunning = false;
+      return;
+    }
+    
+    sig->type = ContinueFragmented::CONTINUE_SENDING;
+    sig->line = __LINE__;
+    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 2, JBB);
+    break;
+  }
+  case ContinueFragmented::CONTINUE_CLEANUP:
+  {
+    ljam();
+    
+    const Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
+    /* Check length of signal */
+    ndbassert(signal->getLength() ==
+              ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
+              callbackWords);
+    
+    Callback cb;
+    memcpy(&cb, &sig->cleanup.callbackStart, callbackWords << 2);
+
+    doNodeFailureCleanup(signal,
+                         sig->cleanup.failedNodeId,
+                         sig->cleanup.resource,
+                         sig->cleanup.cursor,
+                         sig->cleanup.elementsCleaned,
+                         cb);
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
 }
 
 void
@@ -1391,6 +1510,287 @@ SimulatedBlock::assembleFragments(Signal * signal){
   return false;
 }
 
+/**
+ * doCleanupFragInfo
+ * Iterate over block's Fragment assembly hash, looking
+ * for in-assembly fragments from the failed node
+ * Release these
+ * Returns after each scanned bucket to avoid consuming
+ * too much time.
+ *
+ * Parameters
+ *   failedNodeId    : Node id of failed node
+ *   cursor          : Hash bucket to start iteration from
+ *   rtUnitsUsed     : Total rt units used
+ *   elementsCleaned : Number of elements cleaned
+ *
+ * Updates
+ *   cursor          : Hash bucket to continue iteration from
+ *   rtUnitsUsed     : += units used
+ *   elementsCleaned : += elements cleaned
+ * 
+ * Returns
+ *   true  if all FragInfo structs cleaned up
+ *   false if more to do 
+ */
+bool
+SimulatedBlock::doCleanupFragInfo(Uint32 failedNodeId,
+                                  Uint32& cursor,
+                                  Uint32& rtUnitsUsed,
+                                  Uint32& elementsCleaned)
+{
+  ljam();
+  DLHashTable<FragmentInfo>::Iterator iter;
+  
+  c_fragmentInfoHash.next(cursor, iter);
+
+  const Uint32 startBucket = iter.bucket;
+
+  while (!iter.isNull() &&
+         (iter.bucket == startBucket))
+  {
+    ljam();
+
+    Ptr<FragmentInfo> curr = iter.curr;
+    c_fragmentInfoHash.next(iter);
+
+    FragmentInfo* fragInfo = curr.p;
+    
+    if (refToNode(fragInfo->m_senderRef) == failedNodeId)
+    {
+      ljam();
+      /* We were assembling a fragmented signal from the
+       * failed node, discard the partially assembled
+       * sections and free the FragmentInfo hash entry
+       */
+      for(Uint32 s = 0; s<3; s++)
+      {
+        if (fragInfo->m_sectionPtrI[s] != RNIL)
+        {
+          ljam();
+          SegmentedSectionPtr ssptr;
+          getSection(ssptr, fragInfo->m_sectionPtrI[s]);
+          release(ssptr);
+        }
+      }
+      
+      /* Release FragmentInfo hash element */
+      c_fragmentInfoHash.release(curr);
+
+      elementsCleaned++;
+      rtUnitsUsed+=3;
+    }
+      
+    rtUnitsUsed++;
+  } // while
+   
+  cursor = iter.bucket;
+  return iter.isNull();
+}
+
+bool
+SimulatedBlock::doCleanupFragSend(Uint32 failedNodeId,
+                                  Uint32& cursor,
+                                  Uint32& rtUnitsUsed,
+                                  Uint32& elementsCleaned)
+{
+  ljam();
+  
+  Ptr<FragmentSendInfo> fragPtr;
+  const Uint32 NumSendLists = 2;
+  ndbrequire(cursor < NumSendLists);
+
+  DLList<FragmentSendInfo>* fragSendLists[ NumSendLists ] =
+    { &c_segmentedFragmentSendList,
+      &c_linearFragmentSendList };
+  
+  DLList<FragmentSendInfo>* list = fragSendLists[ cursor ];
+  
+  list->first(fragPtr);  
+  for(; !fragPtr.isNull();){
+    ljam();
+    Ptr<FragmentSendInfo> copyPtr = fragPtr;
+    list->next(fragPtr);
+    rtUnitsUsed++;
+
+    NodeReceiverGroup& rg = copyPtr.p->m_nodeReceiverGroup;
+    
+    if (rg.m_nodes.get(failedNodeId))
+    {
+      ljam();
+      /* Fragmented signal is being sent to node */
+      rg.m_nodes.clear(failedNodeId);
+      
+      if (rg.m_nodes.isclear())
+      {
+        ljam();
+        /* No other nodes in receiver group - send
+         * is cancelled
+         * Will be cleaned up in the usual CONTINUE_FRAGMENTED
+         * handling code.
+         */
+        copyPtr.p->m_status = FragmentSendInfo::SendCancelled;
+      }
+      elementsCleaned++;
+    }
+  }
+
+  /* Next time we'll do the next list */
+  cursor++;
+  
+  return (cursor == NumSendLists);
+}
+
+
+Uint32
+SimulatedBlock::doNodeFailureCleanup(Signal* signal,
+                                     Uint32 failedNodeId,
+                                     Uint32 resource,
+                                     Uint32 cursor,
+                                     Uint32 elementsCleaned,
+                                     Callback& cb)
+{
+  ljam();
+  const bool userCallback = (cb.m_callbackFunction != 0);
+  const Uint32 maxRtUnits = userCallback ?
+#ifdef VM_TRACE
+    2 :
+#else
+    16 :
+#endif 
+    ~0; /* Must complete all processing in this call */
+  
+  Uint32 rtUnitsUsed = 0;
+
+  /* Loop over resources, cleaning them up */
+  do
+  {
+    bool resourceDone= false;
+    switch(resource) {
+    case ContinueFragmented::RES_FRAGSEND:
+    {
+      ljam();
+      resourceDone = doCleanupFragSend(failedNodeId, cursor,
+                                       rtUnitsUsed, elementsCleaned);
+      break;
+    }
+    case ContinueFragmented::RES_FRAGINFO:
+    {
+      ljam();
+      resourceDone = doCleanupFragInfo(failedNodeId, cursor, 
+                                       rtUnitsUsed, elementsCleaned);
+      break;
+    }
+    case ContinueFragmented::RES_LAST:
+    {
+      ljam();
+      /* Node failure processing complete, execute user callback if provided */
+      if (userCallback)
+        execute(signal, cb, elementsCleaned);
+      
+      return elementsCleaned;
+    }
+    default:
+      ndbrequire(false);
+    }
+
+    /* Did we complete cleaning up this resource? */
+    if (resourceDone)
+    {
+      resource++;
+      cursor= 0;
+    }
+
+  } while (rtUnitsUsed <= maxRtUnits);
+  
+  ljam();
+
+  /* Not yet completed failure handling.
+   * Must have exhausted RT units.  
+   * Update cursor and re-invoke
+   */
+  ndbassert(userCallback);
+  
+  /* Send signal to continue processing */
+  
+  ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
+  sig->type = ContinueFragmented::CONTINUE_CLEANUP;
+  sig->cleanup.failedNodeId = failedNodeId;
+  sig->cleanup.resource = resource;
+  sig->cleanup.cursor = cursor;
+  sig->cleanup.elementsCleaned= elementsCleaned;
+  Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
+  Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
+    callbackWords;
+  ndbassert(sigLen <= 25); // Should be STATIC_ASSERT
+  memcpy(&sig->cleanup.callbackStart, &cb, callbackWords << 2);
+  
+  sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, sigLen, JBB);
+
+  return elementsCleaned;
+}
+  
+Uint32
+SimulatedBlock::simBlockNodeFailure(Signal* signal,
+                                    Uint32 failedNodeId, 
+                                    Callback& cb)
+{
+  ljam();
+  return doNodeFailureCleanup(signal, failedNodeId, 0, 0, 0, cb);
+}
+
+Uint32
+SimulatedBlock::debugPrintFragmentCounts()
+{
+  const char* blockName = getBlockName(theNumber);
+  DLHashTable<FragmentInfo>::Iterator iter;
+  Uint32 fragmentInfoCount = 0;
+  c_fragmentInfoHash.first(iter);
+  
+  while(!iter.isNull())
+  {
+    fragmentInfoCount++;
+    c_fragmentInfoHash.next(iter);
+  }
+  
+  Ptr<FragmentSendInfo> ptr;
+  Uint32 linSendInfoCount = 0;
+
+  c_linearFragmentSendList.first(ptr);
+  
+  while (!ptr.isNull())
+  {
+    linSendInfoCount++;
+    c_linearFragmentSendList.next(ptr);
+  }
+  
+  Uint32 segSendInfoCount = 0;
+  c_segmentedFragmentSendList.first(ptr);
+  
+  while (!ptr.isNull())
+  {
+    segSendInfoCount++;
+    c_segmentedFragmentSendList.next(ptr);
+  }
+
+  ndbout_c("%s : Fragment assembly hash entry count : %d", 
+           blockName,
+           fragmentInfoCount);
+
+  ndbout_c("%s : Linear fragment send list size : %d", 
+           blockName,
+           linSendInfoCount);
+
+  ndbout_c("%s : Segmented fragment send list size : %d", 
+           blockName,
+           segSendInfoCount);
+
+  return fragmentInfoCount + 
+    linSendInfoCount +
+    segSendInfoCount;
+}
+
+
 bool
 SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  NodeReceiverGroup rg, 
@@ -1451,8 +1851,9 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   info.m_callback.m_callbackFunction = 0;
   
   Ptr<SectionSegment> tmp;
-  if(!import(tmp, &signal->theData[0], length)){
-    ndbrequire(false);
+  if(!import(tmp, &signal->theData[0], length))
+  {
+    handle_out_of_longsignal_memory(0);
     return false;
   }
   info.m_theDataSection.p = &tmp.p->theData[0];
@@ -1481,6 +1882,37 @@ void
 SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
 					  FragmentSendInfo & info){
   
+  if (unlikely(info.m_status == FragmentSendInfo::SendCancelled))
+  {
+    /* Send was cancelled - all dest. nodes have failed
+     * since send was started
+     *
+     * Free any sections still to be sent
+     */
+    Uint32 secCount = 0;
+    SegmentedSectionPtr ssptr[3];
+    for (Uint32 s = 0; s < 3; s++)
+    {
+      Uint32 sectionI = info.m_sectionPtr[s].m_segmented.i;
+      if (sectionI != RNIL)
+      {
+        getSection(ssptr[secCount], sectionI);
+        info.m_sectionPtr[s].m_segmented.i = RNIL;
+        info.m_sectionPtr[s].m_segmented.p = NULL;
+        secCount++;
+      }
+    }
+    
+    ::releaseSections(secCount, ssptr);
+    
+    /* Free inline signal data storage section */
+    Uint32 inlineDataI = info.m_theDataSection.p[info.m_theDataSection.sz];
+    g_sectionSegmentPool.release(inlineDataI);
+    
+    info.m_status = FragmentSendInfo::SendComplete;
+    return;
+  }
+
   /**
    * Store "theData"
    */
@@ -1653,7 +2085,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 noOfSections,
 				  Uint32 messageSize){
   
-  check_sections(signal, signal->header.m_noOfSections);
+  check_sections(signal, signal->header.m_noOfSections, noOfSections);
   
   info.m_sectionPtr[0].m_linear.p = NULL;
   info.m_sectionPtr[1].m_linear.p = NULL;
@@ -1699,8 +2131,9 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   info.m_callback.m_callbackFunction = 0;
 
   Ptr<SectionSegment> tmp;
-  if(!import(tmp, &signal->theData[0], length)){
-    ndbrequire(false);
+  if(unlikely(!import(tmp, &signal->theData[0], length)))
+  {
+    handle_out_of_longsignal_memory(0);
     return false;
   }
 
@@ -1724,6 +2157,19 @@ void
 SimulatedBlock::sendNextLinearFragment(Signal* signal,
 				       FragmentSendInfo & info){
   
+  if (unlikely(info.m_status == FragmentSendInfo::SendCancelled))
+  {
+    /* Send was cancelled - all dest. nodes have failed
+     * since send was started
+     */
+    /* Free inline signal data storage section */
+    Uint32 inlineDataI = info.m_theDataSection.p[info.m_theDataSection.sz];
+    g_sectionSegmentPool.release(inlineDataI);
+    
+    info.m_status = FragmentSendInfo::SendComplete;
+    return;
+  }
+
   /**
    * Store "theData"
    */
@@ -1897,8 +2343,9 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
   if(!c_fragSenderRunning){
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
+    sig->type = ContinueFragmented::CONTINUE_SENDING;
     sig->line = __LINE__;
-    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 2, JBB);
   }
 }
 
@@ -1937,8 +2384,9 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   if(!c_fragSenderRunning){
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
+    sig->type = ContinueFragmented::CONTINUE_SENDING;
     sig->line = __LINE__;
-    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 2, JBB);
   }
 }
 
@@ -1986,8 +2434,9 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
   if(!c_fragSenderRunning){
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
+    sig->type = ContinueFragmented::CONTINUE_SENDING;
     sig->line = __LINE__;
-    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 2, JBB);
   }
 }
 
@@ -2028,8 +2477,9 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   if(!c_fragSenderRunning){
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
+    sig->type = ContinueFragmented::CONTINUE_SENDING;
     sig->line = __LINE__;
-    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+    sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 2, JBB);
   }
 }
 
@@ -2418,7 +2868,10 @@ SimulatedBlock::sendRoutedSignal(RoutePath path[], Uint32 pathcnt,
     handle.m_ptr[2] = handle.m_ptr[1];
     handle.m_ptr[1] = handle.m_ptr[0];
     Ptr<SectionSegment> tmp;
-    ndbrequire(import(tmp, signal->theData, sigLen));
+    if (unlikely(! import(tmp, signal->theData, sigLen)))
+    {
+      handle_out_of_longsignal_memory(0);
+    }
     handle.m_ptr[0].p = tmp.p;
     handle.m_ptr[0].i = tmp.i;
     handle.m_ptr[0].sz = sigLen;
@@ -2625,4 +3078,23 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
 
   sendRoutedSignal(path, 2, dst, 1, gsn, signal, len, JBB, &handle);
   return false;
+}
+
+void
+SimulatedBlock::setup_wakeup()
+{
+#ifdef NDBD_MULTITHREADED
+#else
+  globalTransporterRegistry.setup_wakeup_socket();
+#endif
+}
+
+void
+SimulatedBlock::wakeup()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_wakeup(this);
+#else
+  globalTransporterRegistry.wakeup();
+#endif
 }

@@ -1810,7 +1810,8 @@ JOIN::exec()
       curr_join->having= curr_join->tmp_having= 0; // Allready done
     
     /* Change sum_fields reference to calculated fields in tmp_table */
-    curr_join->all_fields= *curr_all_fields;
+    if (curr_join != this)
+      curr_join->all_fields= *curr_all_fields;
     if (!items1)
     {
       items1= items0 + all_fields.elements;
@@ -1829,8 +1830,11 @@ JOIN::exec()
 				      fields_list.elements, all_fields))
 	  DBUG_VOID_RETURN;
       }
-      curr_join->tmp_all_fields1= tmp_all_fields1;
-      curr_join->tmp_fields_list1= tmp_fields_list1;
+      if (curr_join != this)
+      {
+        curr_join->tmp_all_fields1= tmp_all_fields1;
+        curr_join->tmp_fields_list1= tmp_fields_list1;
+      }
       curr_join->items1= items1;
     }
     curr_all_fields= &tmp_all_fields1;
@@ -1978,8 +1982,11 @@ JOIN::exec()
 				     tmp_fields_list2, tmp_all_fields2, 
 				     fields_list.elements, tmp_all_fields1))
 	  DBUG_VOID_RETURN;
-	curr_join->tmp_fields_list2= tmp_fields_list2;
-	curr_join->tmp_all_fields2= tmp_all_fields2;
+        if (curr_join != this)
+        {
+          curr_join->tmp_fields_list2= tmp_fields_list2;
+          curr_join->tmp_all_fields2= tmp_all_fields2;
+        }
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
@@ -2034,8 +2041,11 @@ JOIN::exec()
       tmp_table_param.save_copy_field= curr_join->tmp_table_param.copy_field;
       tmp_table_param.save_copy_field_end=
 	curr_join->tmp_table_param.copy_field_end;
-      curr_join->tmp_all_fields3= tmp_all_fields3;
-      curr_join->tmp_fields_list3= tmp_fields_list3;
+      if (curr_join != this)
+      {
+        curr_join->tmp_all_fields3= tmp_all_fields3;
+        curr_join->tmp_fields_list3= tmp_fields_list3;
+      }
     }
     else
     {
@@ -3292,6 +3302,28 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
   }
 }
 
+
+/**
+  Check if an expression is a non-outer field.
+
+  Checks if an expression is a field and belongs to the current select.
+
+  @param   field  Item expression to check
+
+  @return boolean
+     @retval TRUE   the expression is a local field
+     @retval FALSE  it's something else
+*/
+
+inline static bool
+is_local_field (Item *field)
+{
+  field= field->real_item();
+  return field->type() == Item::FIELD_ITEM && 
+    !((Item_field *)field)->depended_from;
+}
+
+
 static void
 add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                COND *cond, table_map usable_tables,
@@ -3367,13 +3399,12 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   {
     Item **values;
     // BETWEEN, IN, NE
-    if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
+    if (is_local_field (cond_func->key_item()) &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
-        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+        is_local_field (cond_func->arguments()[1]))
         values--;
       DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
                   cond_func->argument_count() != 2);
@@ -3389,9 +3420,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       for (uint i= 1 ; i < cond_func->argument_count() ; i++)
       {
         Item_field *field_item;
-        if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM
-            &&
-            !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
+        if (is_local_field (cond_func->arguments()[i]))
         {
           field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
           add_key_equal_fields(key_fields, *and_level, cond_func,
@@ -3407,8 +3436,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
 		     cond_func->functype() == Item_func::EQUAL_FUNC);
 
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
-	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+    if (is_local_field (cond_func->arguments()[0]))
     {
       add_key_equal_fields(key_fields, *and_level, cond_func,
 	                (Item_field*) (cond_func->arguments()[0])->real_item(),
@@ -3416,9 +3444,8 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            cond_func->arguments()+1, 1, usable_tables,
                            sargables);
     }
-    if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
-	cond_func->functype() != Item_func::LIKE_FUNC &&
-	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
+    if (is_local_field (cond_func->arguments()[1]) &&
+	cond_func->functype() != Item_func::LIKE_FUNC)
     {
       add_key_equal_fields(key_fields, *and_level, cond_func, 
                        (Item_field*) (cond_func->arguments()[1])->real_item(),
@@ -3430,7 +3457,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   }
   case Item_func::OPTIMIZE_NULL:
     /* column_name IS [NOT] NULL */
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
+    if (is_local_field (cond_func->arguments()[0]) &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       Item *tmp=new Item_null;
@@ -6144,7 +6171,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond)
+      if (tmp || !cond || tab->type == JT_REF)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -6158,7 +6185,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           The guard will turn the predicate on only after
           the first match for outer tables is encountered.
 	*/        
-        if (cond)
+        if (cond && tmp)
         {
           /*
             Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
@@ -9370,47 +9397,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-  {
-    uint8 dec= item->decimals;
-    uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
-    uint32 len= item->max_length;
-
-    /*
-      Trying to put too many digits overall in a DECIMAL(prec,dec)
-      will always throw a warning. We must limit dec to
-      DECIMAL_MAX_SCALE however to prevent an assert() later.
-    */
-
-    if (dec > 0)
-    {
-      signed int overflow;
-
-      dec= min(dec, DECIMAL_MAX_SCALE);
-
-      /*
-        If the value still overflows the field with the corrected dec,
-        we'll throw out decimals rather than integers. This is still
-        bad and of course throws a truncation warning.
-        +1: for decimal point
-      */
-
-      const int required_length=
-        my_decimal_precision_to_length(intg + dec, dec,
-                                                     item->unsigned_flag);
-
-      overflow= required_length - len;
-
-      if (overflow > 0)
-        dec= max(0, dec - overflow);            // too long, discard fract
-      else
-        /* Corrected value fits. */
-        len= required_length;
-    }
-
-    new_field= new Field_new_decimal(len, maybe_null, item->name,
-                                     dec, item->unsigned_flag);
+    new_field= Field_new_decimal::new_decimal_field(item);
     break;
-  }
   case ROW_RESULT:
   default:
     // This case should never be choosen
@@ -10655,6 +10643,11 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
   {
+    /*
+      We don't want this error to be converted to a warning, e.g. in case of
+      INSERT IGNORE ... SELECT.
+    */
+    thd->fatal_error();
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
   }
@@ -12934,6 +12927,8 @@ find_field_in_item_list (Field *field, void *data)
 
   The index must cover all fields in <order>, or it will not be considered.
 
+  @param no_changes No changes will be made to the query plan.
+
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
     by clustered PK values.
@@ -13268,6 +13263,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       }
       if (!no_changes)
       {
+        /* 
+           If ref_key used index tree reading only ('Using index' in EXPLAIN),
+           and best_key doesn't, then revert the decision.
+        */
+        if (!table->covering_keys.is_set(best_key) && table->key_read)
+        {
+          table->key_read= 0;
+          table->file->extra(HA_EXTRA_NO_KEYREAD);          
+        }        
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13284,16 +13288,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
-          else if (table->key_read)
-          {
-            /*
-              Clear the covering key read flags that might have been
-              previously set for some key other than the current best_key.
-            */
-            table->key_read= 0;
-            table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
-
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
