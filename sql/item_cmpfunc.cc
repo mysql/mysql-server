@@ -1031,7 +1031,7 @@ Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
-    cache->store(*value);
+    cache->setup(*value);
     *cache_item= cache;
     return cache_item;
   }
