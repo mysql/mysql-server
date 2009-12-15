@@ -1539,7 +1539,7 @@ insertPk(int style, int api)
         CHK(presetBH1(k) == 0);
         CHK(g_con->execute(NoCommit) == 0);
         if (writeBlobData(tup) == -1)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
 
       if (!timeout &&
@@ -1552,7 +1552,7 @@ insertPk(int style, int api)
         }
         else
         {
-          CHK(timeout = conHasTimeoutError());
+          CHK((timeout = conHasTimeoutError()) == true);
           n-= 1;
         }
       }
@@ -1656,13 +1656,13 @@ readPk(int style, int api)
       } else {
         CHK(g_con->execute(NoCommit) == 0);
         if (readBlobData(tup) == -1)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout)
       {
         if (g_con->execute(Commit) != 0)
         {
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
         }
       }
       if (timeout)
@@ -1770,13 +1770,13 @@ updatePk(int style, int api)
       } else {
         CHK(g_con->execute(NoCommit) == 0);
         if (writeBlobData(tup, error_code) != 0)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout &&
           (error_code == 0)) {
         /* Normal success case, try execute commit */
         if (g_con->execute(Commit) != 0)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
         else
         {
           g_ndb->closeTransaction(g_con);
@@ -1862,13 +1862,13 @@ writePk(int style, int api)
         CHK(presetBH1(k) == 0);
         CHK(g_con->execute(NoCommit) == 0);
         if (writeBlobData(tup) != 0)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
 
       if (!timeout)
       {
         if (g_con->execute(Commit) != 0)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (timeout)
       {
@@ -2082,13 +2082,13 @@ readIdx(int style, int api)
       } else {
         if(g_con->execute(NoCommit) ||
            readBlobData(tup))
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout)
       {
         if (g_con->execute(Commit) != 0)
         {
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
         }
       }
       if (!timeout)
@@ -2159,12 +2159,12 @@ updateIdx(int style, int api)
       } else {
         if (g_con->execute(NoCommit) ||
             writeBlobData(tup))
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout)
       {
         if (g_con->execute(Commit) != 0)
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (timeout)
       {
@@ -2232,12 +2232,12 @@ writeIdx(int style, int api)
         CHK(g_bh1->setValue("", 0) == 0);
         if (g_con->execute(NoCommit) ||
             writeBlobData(tup))
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout)
       {
         if (g_con->execute(Commit))
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (timeout)
       {
@@ -2622,11 +2622,11 @@ updateScan(int style, int api, bool idx)
       } else {
         CHK(g_con->execute(NoCommit) == 0);
         if (writeBlobData(tup))
-          CHK(timeout= conHasTimeoutError());
+          CHK((timeout= conHasTimeoutError()) == true);
       }
       if (!timeout &&
           (g_con->execute(NoCommit)))
-        CHK(timeout= conHasTimeoutError());
+        CHK((timeout= conHasTimeoutError()) == true);
 
       if (timeout)
       {
@@ -4463,7 +4463,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
         ndbout << "unknown charset " << c.m_cs << endl;
         goto wrongargs;
       }
-      c.m_mblen = c.m_csinfo->mbmaxlen;;
+      c.m_mblen = c.m_csinfo->mbmaxlen;
       if (c.m_mblen == 0)
         c.m_mblen = 1;
     }

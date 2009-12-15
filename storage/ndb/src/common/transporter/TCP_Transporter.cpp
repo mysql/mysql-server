@@ -337,7 +337,7 @@ TCP_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
 }
 
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-               (!((sz == -1) && (e == EAGAIN) || (e == EWOULDBLOCK) || (e == EINTR))))
+                                 (!((sz == -1) && ((e == EAGAIN) || (e == EWOULDBLOCK) || (e == EINTR)))))
 
 
 bool
