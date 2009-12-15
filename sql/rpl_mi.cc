@@ -37,7 +37,7 @@ Master_info::Master_info()
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0),
    heartbeat_period(0), received_heartbeats(0),
    inited(0), abort_slave(0), slave_running(0), slave_run_id(0),
-   master_id(0)
+   master_id(-1)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
