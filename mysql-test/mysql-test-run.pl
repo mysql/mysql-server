@@ -3500,7 +3500,7 @@ sub run_testcase ($) {
       {
 	# mysqltest failed, probably crashed
 	$tinfo->{comment}=
-	  "mysqltest failed with unexpected return code $res";
+	  "mysqltest failed with unexpected return code $res\n";
 	report_failure_and_restart($tinfo);
       }
 
@@ -4091,6 +4091,19 @@ sub report_failure_and_restart ($) {
 	# about what failed has been saved to file. Save the report
 	# in tinfo
 	$tinfo->{logfile}= mtr_fromfile($logfile);
+	# If no newlines in the test log:
+	if ($tinfo->{logfile} !~ /\n/)
+	{
+	  # Show how far it got before suddenly failing
+	  $tinfo->{comment}.= "mysqltest failed but provided no output\n";
+	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	  if (-e $log_file_name) {
+	    $tinfo->{comment}.=
+	      "The result from queries just before the failure was:".
+	      "\n< snip >\n".
+	      mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	  }
+	}
       }
       else
       {
