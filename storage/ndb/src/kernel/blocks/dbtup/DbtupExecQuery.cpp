@@ -3672,7 +3672,7 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
     if (unlikely(pagePtr.i == RNIL))
     {
-      return -err;
+      return -(int)err;
     }
     c_page_pool.getPtr(pagePtr);
     
@@ -3703,7 +3703,7 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   PagePtr pagePtr;
   pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
   if (unlikely(pagePtr.i == RNIL))
-    return -err;
+    return -(int)err;
   
   c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct(this);
