@@ -15,12 +15,12 @@ done
 #
 # clean tables...not to make results too large
 #
-lst=$(find . -name '*.frm')
+lst=`find . -name '*.frm'`
 if [ "$lst" ]
 then
     for i in $lst
     do
-	basename=$(echo $i | sed 's!\.frm!!')
+	basename=`echo $i | sed 's!\.frm!!'`
 	if [ "$basename" ]
 	then
 	    rm -f $basename.*
