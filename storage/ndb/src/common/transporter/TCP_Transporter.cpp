@@ -271,7 +271,7 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
 }
 
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-               (!((sz == -1) && (e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR))))
+                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
 
 int

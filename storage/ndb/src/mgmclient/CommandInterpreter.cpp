@@ -2420,7 +2420,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   ndbout << "Sending dump signal with data:" << endl;
   for (Uint32 i=0; i<no; i++) {
     ndbout.setHexFormat(1) << pars[i] << " ";
-    if (!(i+1 & 0x3)) ndbout << endl;
+    if (!((i+1) & 0x3)) ndbout << endl;
   }
   
   struct ndb_mgm_reply reply;
