@@ -23,6 +23,7 @@
 */
 #undef MY_ATOMIC_HAS_8_16
 
+#include <windows.h>
 /*
   x86 compilers (both VS2003 or VS2005) never use instrinsics, but generate 
   function calls to kernel32 instead, even in the optimized build. 
