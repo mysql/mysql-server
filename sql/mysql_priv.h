@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include <mysql/psi/mysql_file.h>
 #ifndef __WIN__
 #include <netdb.h>
 #endif

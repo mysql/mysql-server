@@ -2098,6 +2098,12 @@ public:
     proc_info = msg;
     return old_msg;
   }
+  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                                const char *msg)
+  {
+    /* TO BE REMOVED: temporary helper, to help with merges */
+    return enter_cond(&cond->m_cond, &mutex->m_mutex, msg);
+  }
   inline void exit_cond(const char* old_msg)
   {
     /*
