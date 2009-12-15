@@ -1,6 +1,7 @@
 -- source include/have_log_bin.inc
 
 # Bug#16456 RBR: rpl_sp.test expects query to fail, but passes in RBR
+# BUG#41166 stored function requires "deterministic" if binlog_format is "statement"
 
 # save status
 
@@ -55,14 +56,130 @@ select fn16456();
 
 set binlog_format=STATEMENT;
 
---error ER_BINLOG_ROW_RBR_TO_SBR
+--error ER_BINLOG_UNSAFE_ROUTINE
 select fn16456();
 
 
 
-# restore status
+# clean
 
 drop function fn16456;
+
+
+
+# success in definition with deterministic
+
+set global log_bin_trust_function_creators=0;
+
+delimiter |;
+create function fn16456()
+       returns int deterministic
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+
+
+# allow funcall in RBR
+
+set binlog_format=ROW;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# allow funcall in SBR
+
+set binlog_format=STATEMENT;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# clean
+
+drop function fn16456;
+
+
+# success in definition with NO SQL
+
+set global log_bin_trust_function_creators=0;
+
+delimiter |;
+create function fn16456()
+       returns int no sql
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+
+
+# allow funcall in RBR
+
+set binlog_format=ROW;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# allow funcall in SBR
+
+set binlog_format=STATEMENT;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+# clean
+
+drop function fn16456;
+
+
+
+# success in definition with reads sql data
+
+set global log_bin_trust_function_creators=0;
+
+delimiter |;
+create function fn16456()
+       returns int reads sql data
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+
+
+# allow funcall in RBR
+
+set binlog_format=ROW;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# allow funcall in SBR
+
+set binlog_format=STATEMENT;
+
+--replace_column 1 timestamp
+select fn16456();
+
+
+
+# clean
+
+drop function fn16456;
+
+
+
+# restore status
 
 --disable_query_log
 eval set binlog_format=$oblf;

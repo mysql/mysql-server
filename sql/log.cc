@@ -1267,6 +1267,25 @@ int LOGGER::set_handlers(uint error_log_printer,
   return 0;
 }
 
+/** 
+    This function checks if a transactional talbe was updated by the
+    current statement.
+
+    @param thd The client thread that executed the current statement.
+    @return
+      @c true if a transactional table was updated, @false otherwise.
+*/
+static bool stmt_has_updated_trans_table(THD *thd)
+{
+  Ha_trx_info *ha_info;
+
+  for (ha_info= thd->transaction.stmt.ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
+      return (TRUE);
+  }
+  return (FALSE);
+}
 
  /*
   Save position of binary log transaction cache.
@@ -1567,25 +1586,15 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
                        YESNO(all),
                        YESNO(thd->transaction.all.modified_non_trans_table),
                        YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if ((all && thd->transaction.all.modified_non_trans_table) ||
-      (!all && thd->transaction.stmt.modified_non_trans_table &&
-       !mysql_bin_log.check_write_error(thd)) ||
-      ((thd->options & OPTION_KEEP_LOG) &&
-        !mysql_bin_log.check_write_error(thd)))
+  if (mysql_bin_log.check_write_error(thd))
   {
     /*
-      We write the transaction cache with a rollback last if we have
-      modified any non-transactional table. We do this even if we are
-      committing a single statement that has modified a
-      non-transactional table since it can have modified a
-      transactional table in that statement as well, which needs to be
-      rolled back on the slave.
+      "all == true" means that a "rollback statement" triggered the error and
+      this function was called. However, this must not happen as a rollback
+      is written directly to the binary log. And in auto-commit mode, a single
+      statement that is rolled back has the flag all == false.
     */
-    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
-    error= binlog_end_trans(thd, trx_data, &qev, all);
-  }
-  else
-  {
+    DBUG_ASSERT(!all);
     /*
       We reach this point if either only transactional tables were modified or
       the effect of a statement that did not get into the binlog needs to be
@@ -1595,12 +1604,38 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       on the master did not get into the binlog and slaves will be inconsistent.
       On the other hand, if a statement is transactional, we just safely roll it
       back.
-     */
+    */
     if ((thd->transaction.stmt.modified_non_trans_table ||
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
     error= binlog_end_trans(thd, trx_data, 0, all);
+  }
+  else
+  {
+   /*
+      We flush the cache with a rollback, wrapped in a beging/rollback if:
+        . aborting a transcation that modified a non-transactional table or;
+        . aborting a statement that modified both transactional and
+          non-transctional tables but which is not in the boundaries of any
+          transaction;
+        . the OPTION_KEEP_LOG is activate.
+    */
+    if ((all && thd->transaction.all.modified_non_trans_table) ||
+        (!all && thd->transaction.stmt.modified_non_trans_table &&
+         !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
+        ((thd->options & OPTION_KEEP_LOG)))
+    {
+      Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
+      error= binlog_end_trans(thd, trx_data, &qev, all);
+    }
+    /*
+      Otherwise, we simply truncate the cache as there is no change on
+      non-transactional tables as follows.
+    */
+    else if ((all && !thd->transaction.all.modified_non_trans_table) ||
+          (!all && !thd->transaction.stmt.modified_non_trans_table))
+      error= binlog_end_trans(thd, trx_data, 0, all);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
@@ -4051,7 +4086,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
-      if (event_info->get_cache_stmt() || trans_log_pos != 0)
+      if (event_info->get_cache_stmt() || trans_log_pos != 0 ||
+          stmt_has_updated_trans_table(thd))
       {
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
@@ -4231,6 +4267,9 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 
 void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 {
+#ifdef HAVE_REPLICATION
+  bool check_purge= false;
+#endif
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_lock(&LOCK_log);
   if ((flags & RP_FORCE_ROTATE) ||
@@ -4238,16 +4277,24 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   {
     new_file_without_locking();
 #ifdef HAVE_REPLICATION
-    if (expire_logs_days)
-    {
-      time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-        purge_logs_before_date(purge_time);
-    }
+    check_purge= true;
 #endif
   }
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_unlock(&LOCK_log);
+
+#ifdef HAVE_REPLICATION
+  /*
+    NOTE: Run purge_logs wo/ holding LOCK_log
+          as it otherwise will deadlock in ndbcluster_binlog_index_purge_file
+  */
+  if (check_purge && expire_logs_days)
+  {
+    time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    if (purge_time >= 0)
+      purge_logs_before_date(purge_time);
+  }
+#endif
 }
 
 uint MYSQL_BIN_LOG::next_file_id()
@@ -4833,7 +4880,8 @@ bool flush_error_log()
    my_rename(log_error_file,err_renamed,MYF(0));
    if (freopen(log_error_file,"a+",stdout))
    {
-     freopen(log_error_file,"a+",stderr);
+     FILE *reopen;
+     reopen= freopen(log_error_file,"a+",stderr);
      setbuf(stderr, NULL);
    }
    else

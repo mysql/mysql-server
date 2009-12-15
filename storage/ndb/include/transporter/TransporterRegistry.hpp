@@ -370,6 +370,14 @@ private:
 
   int m_shm_own_pid;
   int m_transp_count;
+
+public:
+  bool setup_wakeup_socket();
+  void wakeup();
+private:
+  bool m_has_extra_wakeup_socket;
+  NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
+  void consume_extra_sockets();
 };
 
 inline void

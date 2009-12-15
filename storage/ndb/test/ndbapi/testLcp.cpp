@@ -87,7 +87,7 @@ main(int argc, char ** argv){
     g_err << "Failed to retreive table: " << g_tablename << endl;
     exit(-1);
   }
-  require(g_hugo_ops = new HugoOperations(* g_table));
+  require((g_hugo_ops = new HugoOperations(* g_table)) != 0);
   require(!g_hugo_ops->startTransaction(g_ndb));
   
   g_ops= new CASE[g_rows];
@@ -99,7 +99,7 @@ main(int argc, char ** argv){
       while(i < OP_COUNT && (use_ops & (1 << i)) == 0) i++;
       if(i == OP_COUNT)
 	break;
-      ndbout_c("-- loop\noperation: %c use_ops: %x", 'a'+i, use_ops);
+      ndbout_c("-- loop\noperation: %c use_ops: %x", int('a'+i), use_ops);
       g_use_ops = (1 << i);
     } else {
       i = OP_COUNT - 1;
@@ -108,7 +108,7 @@ main(int argc, char ** argv){
     size_t test_case = 0;
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(size_t tl = 0; tl<(size_t)g_case_loop; tl++){
 	g_info << "Performing all ops wo/ inteference of LCP" << endl;
 	
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
@@ -116,7 +116,7 @@ main(int argc, char ** argv){
 	  " finished before SAVE_PAGES" << endl;
 	require(!load_table());
 	require(!pause_lcp(5900));
-	for(size_t j = 0; j<g_rows; j++){
+	for(size_t j = 0; j<(size_t)g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5900));
@@ -129,13 +129,13 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(size_t tl = 0; tl<(size_t)g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
 	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished after SAVE_PAGES"
 	       << endl;
 	require(!load_table());
 	require(!pause_lcp(5901));
-	for(size_t j = 0; j<g_rows; j++){
+	for(size_t j = 0; j<(size_t)g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5901));
@@ -148,11 +148,11 @@ main(int argc, char ** argv){
 
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(size_t tl = 0; tl<(size_t)g_case_loop; tl++){
 	g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
 	require(!load_table());
 	require(!pause_lcp(5902));
-	for(size_t j = 0; j<g_rows; j++){
+	for(size_t j = 0; j<(size_t)g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5902));
@@ -166,11 +166,11 @@ main(int argc, char ** argv){
     
     if((1 << test_case++) & g_cases)
     {
-      for(size_t tl = 0; tl<g_case_loop; tl++){
+      for(size_t tl = 0; tl<(size_t)g_case_loop; tl++){
 	g_info << "Testing prepared during LCP and committed after" << endl;
 	require(!load_table());
 	require(!pause_lcp(5904));    // Start LCP, but don't save pages
-	for(size_t j = 0; j<g_rows; j++){
+	for(size_t j = 0; j<(size_t)g_rows; j++){
 	  require(!do_op(j));
 	}
 	require(!continue_lcp(5904)); // Start ACC save pages
@@ -207,10 +207,10 @@ static int parse_args(int argc, char** argv)
   const int num_args = sizeof(args)/sizeof(args[0]);
   if(getarg(args, num_args, argc, (const char**)argv, &optind)) {
     arg_printusage(args, num_args, argv[0], " tabname1\n");
-    ndbout_c("\n -- Operations [a-%c] = ", 'a'+OP_COUNT-1);
+    ndbout_c("\n -- Operations [a-%c] = ", int('a'+OP_COUNT-1));
     for(i = 0; i<OP_COUNT; i++){
       ndbout_c("\t%c = %s %s", 
-	       'a'+i, g_op_types[i].op1,
+	       int('a'+i), g_op_types[i].op1,
 	       g_op_types[i].op2 ? g_op_types[i].op2 : "");
     }
     return -1;
@@ -234,13 +234,13 @@ static int parse_args(int argc, char** argv)
   printf("operations: ");
   for(i = 0; i<OP_COUNT; i++)
     if(g_use_ops & (1 << i))
-      printf("%c", 'a'+i);
+      printf("%c", int('a'+i));
   printf("\n");
   
   printf("test cases: ");
   for(i = 0; i<3; i++)
     if(g_cases & (1 << i))
-      printf("%c", '1'+i);
+      printf("%c", int('1'+i));
   printf("\n");
   printf("-------------\n");  
   return 0;
@@ -330,7 +330,7 @@ static int load_table()
   size_t rows = 0;
   size_t uncommitted = 0;
   bool prepared = false;
-  for(size_t i = 0; i<g_rows; i++){
+  for(size_t i = 0; i<(size_t)g_rows; i++){
     for(op %= OP_COUNT; !((1 << op) & g_use_ops); op = (op + 1) % OP_COUNT);
     g_ops[i] = g_op_types[op++];
     if(g_ops[i].start_row){
@@ -510,7 +510,7 @@ static int restart()
   
   g_table = g_ndb->getDictionary()->getTable(g_tablename);
   require(g_table);
-  require(g_hugo_ops = new HugoOperations(* g_table));
+  require((g_hugo_ops = new HugoOperations(* g_table)) != 0);
   require(!g_hugo_ops->startTransaction(g_ndb));
   return 0;
 }
@@ -518,7 +518,7 @@ static int restart()
 static int validate()
 {
   HugoOperations ops(* g_table);
-  for(size_t i = 0; i<g_rows; i++){
+  for(size_t i = 0; i<(size_t)g_rows; i++){
     require(g_ops[i].curr_row == g_ops[i].end_row);
     require(!ops.startTransaction(g_ndb));
     ops.pkReadRecord(g_ndb, i, 1);

@@ -64,28 +64,28 @@ drop table t1;
 +----------------------+------------+--------+
 | concat('>',col1,'<') | col2       | col3   |
 +----------------------+------------+--------+
-| >a   <               | b          | 123421 | 
-| >a   <               | 0123456789 |      4 | 
-| >abcd<               |            |      4 | 
+| >a   <               | b          | 123421 |
+| >a   <               | 0123456789 |      4 |
+| >abcd<               |            |      4 |
 +----------------------+------------+--------+
 +-------------------+
 | __tañgè Ñãmé      |
 +-------------------+
-| John Doe          | 
+| John Doe          |
 +-------------------+
 +-------------------+
 | John Doe          |
 +-------------------+
-| __tañgè Ñãmé      | 
+| __tañgè Ñãmé      |
 +-------------------+
 +------+------+---------------------------+
 | i    | j    | k                         |
 +------+------+---------------------------+
-|    1 | NULL | NULL                      | 
-| NULL | NULL | <-----------------------> | 
-| NULL | NULL | <-----                    | 
-| NULL | NULL | Τη γλώσσα                 | 
-| NULL | NULL | ᛖᚴ ᚷᛖᛏ                    | 
+|    1 | NULL | NULL                      |
+| NULL | NULL | <-----------------------> |
+| NULL | NULL | <-----                    |
+| NULL | NULL | Τη γλώσσα                 |
+| NULL | NULL | ᛖᚴ ᚷᛖᛏ                    |
 +------+------+---------------------------+
 i	j	k
 NULL	1	NULL
@@ -96,14 +96,14 @@ k	int(11)	YES		NULL
 +------+---+------+
 | i    | j | k    |
 +------+---+------+
-| NULL | 1 | NULL | 
+| NULL | 1 | NULL |
 +------+---+------+
 +-------+---------+------+-----+---------+-------+
 | Field | Type    | Null | Key | Default | Extra |
 +-------+---------+------+-----+---------+-------+
-| i     | int(11) | YES  |     | NULL    |       | 
-| j     | int(11) | NO   |     | NULL    |       | 
-| k     | int(11) | YES  |     | NULL    |       | 
+| i     | int(11) | YES  |     | NULL    |       |
+| j     | int(11) | NO   |     | NULL    |       |
+| k     | int(11) | YES  |     | NULL    |       |
 +-------+---------+------+-----+---------+-------+
 i	s1
 1	x
@@ -112,16 +112,16 @@ i	s1
 +------+------+
 | i    | s1   |
 +------+------+
-|    1 | x    | 
-|    2 | NULL | 
-|    3 |      | 
+|    1 | x    |
+|    2 | NULL |
+|    3 |      |
 +------+------+
 unhex('zz')
 NULL
 +-------------+
 | unhex('zz') |
 +-------------+
-| NULL        | 
+| NULL        |
 +-------------+
 create table t1(a int, b varchar(255), c int);
 Field	Type	Null	Key	Default	Extra
@@ -207,5 +207,27 @@ Warning (Code 1286): Unknown table engine 'nonexistent2'
 Warning (Code 1266): Using storage engine MyISAM for table 't2'
 Error (Code 1050): Table 't2' already exists
 drop tables t1, t2;
-<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>
+<TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>create table t1 (a char(5));
+insert into t1 values ('\0b\0');
+a
+\0b\0
+a
+\0b\0
++------+
+| a    |
++------+
+|  b   |
++------+
+*************************** 1. row ***************************
+a:  b 
+<TABLE BORDER=1><TR><TH>a</TH></TR><TR><TD> b </TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select a from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="a"> b </field>
+  </row>
+</resultset>
+drop table t1;
+
 End of tests

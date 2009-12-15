@@ -39,7 +39,7 @@ NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   records = 1;
   loops = 1;
   stopped = false;
-  remote_mgm ="";
+  remote_mgm = 0;
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
 }
@@ -177,7 +177,7 @@ NDBT_Context::incProperty(const char * name){
 
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
-  const bool b = props.put(_name, _val);
+  const bool b = props.put(_name, _val, true);
   assert(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);

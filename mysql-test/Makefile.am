@@ -18,7 +18,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-testdir =	$(prefix)/mysql-test
+testroot =	$(prefix)
+testdir =	$(testroot)/mysql-test
 
 test_SCRIPTS =	mtr \
 		mysql-test-run \
@@ -97,11 +98,12 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/rpl suite/rpl/include suite/rpl/r \
 	suite/rpl/t \
 	suite/stress/include suite/stress/t suite/stress/r \
-	suite/ndb suite/ndb/t suite/ndb/r \
+	suite/ndb suite/ndb/t suite/ndb/r suite/ndb_big \
 	suite/ndb_binlog suite/ndb_binlog/t suite/ndb_binlog/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
-	suite/parts suite/parts/t suite/parts/r suite/parts/inc
+	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
+	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory

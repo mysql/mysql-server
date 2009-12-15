@@ -32,6 +32,7 @@
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/TupCommit.hpp>
 #include <signaldata/TupKey.hpp>
+#include <signaldata/NodeFailRep.hpp>
 
 #include <signaldata/DropTab.hpp>
 #include <SLList.hpp>
@@ -65,6 +66,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dbtup::execLCP_FRAG_ORD);
+  addRecSignal(GSN_NODE_FAILREP, &Dbtup::execNODE_FAILREP);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
   addRecSignal(GSN_SEND_PACKED, &Dbtup::execSEND_PACKED);
@@ -94,6 +96,9 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
 
   // Ordered index related
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
+  addRecSignal(GSN_BUILDINDXREF, &Dbtup::execBUILDINDXREF);
+  addRecSignal(GSN_BUILDINDXCONF, &Dbtup::execBUILDINDXCONF);
+  m_max_parallel_index_build = 0;
 
   // Tup scan
   addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);
@@ -350,7 +355,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
-  c_page_map_pool.init(RT_DBTUP_PAGE_MAP, pc);
+  c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
   
   Uint32 nScanOp;       // use TUX config for now
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
@@ -384,6 +389,9 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   c_memusage_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
 			    &c_memusage_report_frequency);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
+                            &m_max_parallel_index_build);
   
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
@@ -781,4 +789,22 @@ void Dbtup::releaseFragrec(FragrecordPtr regFragPtr)
 }//Dbtup::releaseFragrec()
 
 
+void Dbtup::execNODE_FAILREP(Signal* signal)
+{
+  jamEntry();
+  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NdbNodeBitmask failed; 
+  failed.assign(NdbNodeBitmask::Size, rep->theNodes);
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // No distributed fragmented signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
+}
 

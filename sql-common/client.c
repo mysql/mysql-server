@@ -485,6 +485,15 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   int i;
 
   /*
+    If this is NULL, somebody freed the MYSQL* options.  mysql_close()
+    is a good candidate.  We don't just silently (re)set it to
+    def_shared_memory_base_name as that would create really confusing/buggy
+    behavior if the user passed in a different name on the command-line or
+    in a my.cnf.
+  */
+  DBUG_ASSERT(shared_memory_base_name != NULL);
+
+  /*
      get enough space base-name + '_' + longest suffix we might ever send
    */
   if (!(tmp= (char *)my_malloc(strlen(shared_memory_base_name) + 32L, MYF(MY_FAE))))
@@ -936,6 +945,9 @@ void end_server(MYSQL *mysql)
   {
     init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
+#ifdef MYSQL_SERVER
+    slave_io_thread_detach_vio();
+#endif
     set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
     reset_sigpipe(mysql);
@@ -1849,7 +1861,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  char		*end,*host_info;
+  char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1867,7 +1879,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
-  LINT_INIT(host_info);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -2030,6 +2041,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
+    int status= -1;
     unix_socket=0;				/* This is not used */
     if (!port)
       port=mysql_port;
@@ -2099,6 +2111,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
     bzero((char*) &sock_addr,sizeof(sock_addr));
     sock_addr.sin_family = AF_INET;
+    sock_addr.sin_port = (ushort) htons((ushort) port);
 
     /*
       The server name may be a host name or IP address
@@ -2107,28 +2120,46 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
     {
       memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
+      status= my_connect(sock, (struct sockaddr *) &sock_addr,
+                         sizeof(sock_addr), mysql->options.connect_timeout);
     }
     else
     {
-      int tmp_errno;
+      int i, tmp_errno;
       struct hostent tmp_hostent,*hp;
       char buff2[GETHOSTBYNAME_BUFF_SIZE];
       hp = my_gethostbyname_r(host,&tmp_hostent,buff2,sizeof(buff2),
 			      &tmp_errno);
-      if (!hp)
+
+      /*
+        Don't attempt to connect to non IPv4 addresses as the client could
+        end up sending information to a unknown server. For example, a IPv6
+        address might be returned from gethostbyname depending on options
+        set via the RES_OPTIONS environment variable.
+      */
+      if (!hp || (hp->h_addrtype != AF_INET))
       {
 	my_gethostbyname_r_free();
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER(CR_UNKNOWN_HOST), host, tmp_errno);
 	goto error;
       }
-      memcpy(&sock_addr.sin_addr, hp->h_addr,
-             min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
+
+      for (i= 0; status && hp->h_addr_list[i]; i++)
+      {
+        IF_DBUG(char ipaddr[18];)
+        memcpy(&sock_addr.sin_addr, hp->h_addr_list[i],
+               min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
+        DBUG_PRINT("info",("Trying %s...",
+                          (my_inet_ntoa(sock_addr.sin_addr, ipaddr), ipaddr)));
+        status= my_connect(sock, (struct sockaddr *) &sock_addr,
+                           sizeof(sock_addr), mysql->options.connect_timeout);
+      }
+
       my_gethostbyname_r_free();
     }
-    sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		   mysql->options.connect_timeout))
+
+    if (status)
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
 			  host));

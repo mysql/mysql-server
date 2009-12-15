@@ -1,0 +1,29 @@
+#
+# Bug #40113: Embedded SELECT inside UPDATE or DELETE can timeout 
+#  without error
+#
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a,b)) ENGINE=InnoDB;
+INSERT INTO t1 (a,b) VALUES (1070109,99);
+CREATE TABLE t2 (b int, a int, PRIMARY KEY (b)) ENGINE=InnoDB;
+INSERT INTO t2 (b,a) VALUES (7,1070109);
+SELECT * FROM t1;
+a	b
+1070109	99
+BEGIN;
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+b
+7
+BEGIN;
+SELECT b FROM t2 WHERE b=7 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 (a) VALUES ((SELECT a FROM t2 WHERE b=7));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET a='7000000' WHERE a=(SELECT a FROM t2 WHERE b=7);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE a=(SELECT a FROM t2 WHERE b=7);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+a	b
+1070109	99
+DROP TABLE t2, t1;
+End of 5.0 tests

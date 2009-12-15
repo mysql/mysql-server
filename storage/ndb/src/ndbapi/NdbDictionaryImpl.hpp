@@ -211,6 +211,7 @@ public:
     if iterating over columns.
   */
   Vector<NdbColumnImpl *> m_columns;
+  Uint32 m_noOfAutoIncColumns;
   void computeAggregates();
   int buildColumnHash(); 
 
@@ -744,7 +745,8 @@ public:
 
   int forceGCPWait();
 
-  int listObjects(List& list, NdbDictionary::Object::Type type);
+  int listObjects(List& list, NdbDictionary::Object::Type type, 
+                  bool fullyQualified);
   int listIndexes(List& list, Uint32 indexId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);

@@ -62,6 +62,7 @@ static const char *handler_error_messages[]=
   "The event could not be processed no other hanlder error happened",
   "Got a fatal error during initialzaction of handler",
   "File to short; Expected more data in file",
-  "Read page with wrong checksum"
+  "Read page with wrong checksum",
+  "Too many active concurrent transactions"
 };
 

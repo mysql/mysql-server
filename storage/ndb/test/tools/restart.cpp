@@ -38,8 +38,8 @@ int main(int argc, const char** argv){
 
 
   struct getargs args[] = {
-    { "initial", 'i', arg_flag, &_initial, "Do initial restart"},
-    { "wait", '\0', arg_negative_flag, &_wait, "Wait until restarted(default=true)"},
+    { "initial", 'i', arg_flag, &_initial, "Do initial restart", ""},
+    { "wait", '\0', arg_negative_flag, &_wait, "Wait until restarted(default=true)", ""},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
     
   };

@@ -50,7 +50,7 @@ NDBT_Thread::create(NDBT_ThreadSet* thread_set, int thread_no)
   assert(m_cond != 0);
 
   char buf[20];
-  sprintf(buf, "NDBT_%04u");
+  sprintf(buf, "NDBT_%04u", (unsigned)thread_no);
   const char* name = strdup(buf);
   assert(name != 0);
 
@@ -77,7 +77,7 @@ NDBT_Thread::~NDBT_Thread()
   }
 }
 
-static void*
+void*
 NDBT_Thread_run(void* arg)
 {
   assert(arg != 0);
@@ -175,7 +175,6 @@ NDBT_ThreadSet::NDBT_ThreadSet(int count)
 
 NDBT_ThreadSet::~NDBT_ThreadSet()
 {
-  delete_output();
   for (int n = 0; n < m_count; n++) {
     delete m_thread[n];
     m_thread[n] = 0;
@@ -242,8 +241,8 @@ NDBT_ThreadSet::delete_output()
 {
   for (int n = 0; n < m_count; n++) {
     if (m_thread[n] != 0) {
-      NDBT_Thread& thr = *m_thread[n];
-      thr.delete_output();
+      //NDBT_Thread& thr = *m_thread[n];
+      //thr.delete_output();
     }
   }
 }

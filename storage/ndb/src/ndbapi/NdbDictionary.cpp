@@ -581,6 +581,11 @@ NdbDictionary::Table::getNoOfColumns() const {
 }
 
 int
+NdbDictionary::Table::getNoOfAutoIncrementColumns() const {
+  return m_impl.m_noOfAutoIncColumns;
+}
+
+int
 NdbDictionary::Table::getNoOfPrimaryKeys() const {
   return m_impl.m_noOfKeys;
 }
@@ -2145,7 +2150,9 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
 int
 NdbDictionary::Dictionary::listEvents(List& list)
 {
-  return m_impl.listEvents(list);
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listEvents(list);
 }
 
 int
@@ -2157,24 +2164,33 @@ NdbDictionary::Dictionary::listEvents(List& list) const
 int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 {
-  return m_impl.listObjects(list, type);
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listObjects(list, type);
 }
 
 int
 NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
-  return m_impl.listObjects(list, type);
+  // delegate to variant with FQ names param
+  return listObjects(list, type, 
+                     m_impl.m_ndb.usingFullyQualifiedNames());
+}
+
+int
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type,
+                                       bool fullyQualified) const
+{
+  return m_impl.listObjects(list, type, 
+                            fullyQualified);
 }
 
 int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 {
-  const NdbDictionary::Table* tab= getTable(tableName);
-  if(tab == 0)
-  {
-    return -1;
-  }
-  return m_impl.listIndexes(list, tab->getTableId());
+  // delegate to overloaded const function for same semantics
+  const NdbDictionary::Dictionary * const cthis = this;
+  return cthis->NdbDictionary::Dictionary::listIndexes(list, tableName);
 }
 
 int

@@ -40,7 +40,7 @@ enum ErrorCodes
 
 struct atrt_host 
 {
-  size_t m_index;
+  unsigned m_index;
   BaseString m_user;
   BaseString m_basedir;
   BaseString m_hostname;
@@ -62,7 +62,7 @@ struct atrt_options
 
 struct atrt_process 
 {
-  size_t m_index;
+  unsigned m_index;
   struct atrt_host * m_host;
   struct atrt_cluster * m_cluster;
 

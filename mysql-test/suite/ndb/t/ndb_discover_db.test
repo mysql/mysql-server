@@ -58,9 +58,6 @@ EOF
 # Turn off reconnect again.
 --disable_reconnect
 #
---disable_query_log
---source include/ndb_not_readonly.inc
---enable_query_log
 
 #
 # Now check that databases have been discovered

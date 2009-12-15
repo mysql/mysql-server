@@ -213,11 +213,11 @@ register struct parse *p;
 int stop;			/* character this ERE should end at */
 {
 	register char c;
-	register sopno prevback;
-	register sopno prevfwd;
+	register sopno UNINIT_VAR(prevback);
+	register sopno UNINIT_VAR(prevfwd);
 	register sopno conc;
 	register int first = 1;		/* is this the first alternative? */
-	LINT_INIT(prevback); LINT_INIT(prevfwd);
+
 	for (;;) {
 		/* do a bunch of concatenated expressions */
 		conc = HERE();

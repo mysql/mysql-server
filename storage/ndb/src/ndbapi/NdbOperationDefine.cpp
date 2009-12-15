@@ -703,6 +703,26 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     return NULL;
   }
 
+  /* Check key fully defined for key operations */
+  switch (theStatus)
+  {
+  case TupleKeyDefined:
+  case GetValue:
+  case SetValue:
+  case FinalGetValue:
+  case ExecInterpretedValue:
+  case SetValueInterpreted:
+    /* All ok states to create a Blob Handle in */
+    break;
+  default:
+  {
+    /* Unexpected state to be obtaining Blob handle */
+    /* Invalid usage of blob attribute */
+    setErrorCodeAbort(4264);
+    return NULL;
+  }
+  }
+
   tBlob = theNdb->getNdbBlob();
   if (tBlob == NULL)
     return NULL;

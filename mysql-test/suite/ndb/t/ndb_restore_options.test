@@ -90,7 +90,7 @@ drop table db2.tab1, db2.tab2;
 --echo ****************
 --echo Exclude only db2
 --echo ****************
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2>> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
 
 
@@ -163,8 +163,8 @@ drop table db1.tab2, db2.tab1;
 --echo *********************************
 
 --echo Should result in only db1.tab1 being restored
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --exclude-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-databases db1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -181,8 +181,8 @@ drop table db1.tab1;
 --echo Exclude db1.tab1, but include db1
 --echo *********************************
 --echo Should result in only db1.tab2 being restored
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --include-databases db1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id  --include-databases db1 --exclude-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id  --include-databases db1 --exclude-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
@@ -234,19 +234,20 @@ drop table db2.tab1, db2.tab2;
 --echo *********************************
 --echo Include db1, and include db2.tab1
 --echo *********************************
---echo Should result in db2.tab1 only restored.
+--echo Should result in all tables in db1 and db2.tab1 being restored.
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
 
 
 use db1;
+--sorted_result
 show tables;
 use db2;
 show tables;
 # checksum table tab1;
 select * from tab1 order by a;
 
-drop table db2.tab1;
+drop table db1.tab1,db1.tab2,db2.tab1;
 
 
 --echo ************************
@@ -285,14 +286,15 @@ select * from tab2 order by a;
 drop table db1.tab1, db1.tab2;
 drop table db2.tab1, db2.tab2;
 
---echo *********************************************
---echo Check that last argument of each type is used
---echo *********************************************
---echo Should result in just db1.tab2 restored.
+--echo ************************************
+--echo Check accumulative include arguments
+--echo ************************************
+--echo Should result in both db1.tab1 and db1.tab2 restored.
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 
 use db1;
+--sorted_result
 show tables;
 # checksum table tab2;
 select * from tab2 order by a;
@@ -300,8 +302,22 @@ select * from tab2 order by a;
 use db2;
 show tables;
 
-drop table db1.tab2;
+drop table db1.tab1, db1.tab2;
 
+--echo ************************************
+--echo Check accumulative exclude arguments
+--echo ************************************
+--echo Should result in both db2.tab1 and db2.tab2 restored.
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+
+use db1;
+show tables;
+use db2;
+--sorted_result
+show tables;
+
+drop table db2.tab1, db2.tab2;
 
 drop database db1;
 drop database db2;

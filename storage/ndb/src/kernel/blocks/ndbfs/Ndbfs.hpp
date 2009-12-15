@@ -55,8 +55,10 @@ protected:
   void execFSREMOVEREQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCONTINUEB(Signal* signal);
+  void execALLOC_MEM_REQ(Signal* signal);
+  void execSEND_PACKED(Signal*);
+  void execBUILDINDXREQ(Signal* signal);
 
-  bool scanningInProgress;
   Uint16 newId();
 
 private:
@@ -70,13 +72,13 @@ private:
   
   // Used for uniqe number generation
   Uint16 theLastId;
-  BlockReference cownref;
 
   // Communication from files 
   MemoryChannel<Request> theFromThreads;
-
+  bool scanningInProgress;
   Pool<Request>* theRequestPool;
 
+private:
   AsyncFile* createAsyncFile();
   AsyncFile* getIdleFile();
 
@@ -99,7 +101,7 @@ public:
   const BaseString& get_base_path(Uint32 no) const;
 };
 
-class VoidFs : public SimulatedBlock
+class VoidFs : public Ndbfs
 {
 public:
   VoidFs(Block_context&);
@@ -119,6 +121,8 @@ protected:
   void execFSAPPENDREQ(Signal* signal);
   void execFSREMOVEREQ(Signal* signal);
   void execSTTOR(Signal* signal);
+  void execALLOC_MEM_REQ(Signal*);
+  void execSEND_PACKED(Signal*);
 
 private:
   // Declared but not defined

@@ -40,6 +40,7 @@ public:
 	     int val);
 #endif
   ScanFilter(int records = 1000){};
+  virtual ~ScanFilter() {}
   virtual int filterOp(NdbOperation*) = 0;
   virtual int verifyRecord(NDBT_ResultRow&) = 0;
 private:
@@ -50,6 +51,7 @@ private:
 class LessThanFilter : public ScanFilter {
 public:
   LessThanFilter(int records){ compare_value = records / 100; };
+  virtual ~LessThanFilter(){}
 private:
   Uint32 compare_value;
   int filterOp(NdbOperation* pOp);
@@ -57,12 +59,17 @@ private:
 };
 
 class EqualFilter : public ScanFilter {
+public:
+  virtual ~EqualFilter(){}
+
   static const Uint32 compare_value = 100;
   int filterOp(NdbOperation* pOp);
   int verifyRecord(NDBT_ResultRow&);
 };
 
 class NoFilter : public ScanFilter {
+public:
+  virtual ~NoFilter(){}
   int filterOp(NdbOperation* pOp);
   int verifyRecord(NDBT_ResultRow&);
 };

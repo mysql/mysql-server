@@ -1722,12 +1722,21 @@ let $message= Testcase 3.3.1.45 ;
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
+# Create view on top of tb2
 CREATE VIEW test.v1 AS SELECT * FROM test.tb2 where f59 = 04;
+SELECT count(*) FROM test.v1;
+SELECT count(*) FROM test.v1 where f59 = 30;
 
 --enable_info
+# Update through the view all the rows it has
 UPDATE test.v1 SET f59 = 30 where F59 = 04 ;
 --disable_info
+SELECT count(*) FROM test.v1;
+SELECT count(*) FROM test.v1 where f59 = 30;
+
 SELECT * FROM test.v1   where f59 = 30 order by f59;
+SELECT count(*) FROM test.v1;
+SELECT count(*) FROM test.v1 where f59 = 30;
 if ($have_bug_32285)
 {
 --disable_ps_protocol

@@ -43,7 +43,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS db_bug_13684.t
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS db_bug_13684
 master-bin.000001	#	Query	#	#	CREATE DATABASE db_bug_13684
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE db_bug_13684.t (a int)
-master-bin.000001	#	Query	#	#	use `test`; CREATE EVENT db_bug_13684.e
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT db_bug_13684.e
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO
 UPDATE db_bug_13684.t SET a = a + 1
@@ -75,7 +75,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS db_bug_13684.t
 master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS db_bug_13684
 master-bin.000001	#	Query	#	#	CREATE DATABASE db_bug_13684
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE db_bug_13684.t (a int)
-master-bin.000001	#	Query	#	#	use `test`; CREATE EVENT db_bug_13684.e
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT db_bug_13684.e
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
 DO
 UPDATE db_bug_13684.t SET a = a + 1

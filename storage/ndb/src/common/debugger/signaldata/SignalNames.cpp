@@ -67,7 +67,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_ACC_COMMITREQ,          "ACC_COMMITREQ" }
   ,{ GSN_ACC_OVER_REC,           "ACC_OVER_REC" }
   ,{ GSN_ACC_SCAN_INFO,          "ACC_SCAN_INFO" }
-  ,{ GSN_ACC_SCAN_INFO24,        "ACC_SCAN_INFO24" }
   ,{ GSN_ACC_SCANCONF,           "ACC_SCANCONF" }
   ,{ GSN_ACC_SCANREF,            "ACC_SCANREF" }
   ,{ GSN_ACC_SCANREQ,            "ACC_SCANREQ" }
@@ -259,7 +258,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_NEXT_SCANCONF,          "NEXT_SCANCONF" }
   ,{ GSN_NEXT_SCANREF,           "NEXT_SCANREF" }
   ,{ GSN_NEXT_SCANREQ,           "NEXT_SCANREQ" }
-  ,{ GSN_NEXTOPERATION,          "NEXTOPERATION" }
   ,{ GSN_NF_COMPLETEREP,         "NF_COMPLETEREP" }
   ,{ GSN_OPEN_COMCONF,           "OPEN_COMCONF" }
   ,{ GSN_OPEN_COMREF,            "OPEN_COMREF" }
@@ -657,5 +655,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_START_PERMREP, "START_PERMREP" }
 
   ,{ GSN_LOCAL_ROUTE_ORD, "LOCAL_ROUTE_ORD" }
+
+  ,{ GSN_ALLOC_MEM_REQ, "ALLOC_MEM_REQ" }
+  ,{ GSN_ALLOC_MEM_REF, "ALLOC_MEM_REF" }
+  ,{ GSN_ALLOC_MEM_CONF, "ALLOC_MEM_CONF" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

@@ -50,6 +50,12 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
+/* this is to get the bison compilation windows warnings out */
+#ifdef _MSC_VER
+/* warning C4065: switch statement contains 'default' but no 'case' labels */
+#pragma warning (disable : 4065)
+#endif
+
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str= {0,0};
@@ -492,7 +498,6 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
-  enum ha_choice choice;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
@@ -894,7 +899,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OWNER_SYM
 %token  PACK_KEYS_SYM
 %token  PAGE_SYM
-%token  PAGE_CHECKSUM_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
@@ -1053,7 +1057,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TO_SYM                        /* SQL-2003-R */
 %token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
-%token  TRANSACTIONAL_SYM
 %token  TRIGGERS_SYM
 %token  TRIGGER_SYM                   /* SQL-2003-R */
 %token  TRIM                          /* SQL-2003-N */
@@ -1170,8 +1173,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
-
-%type <choice> choice
 
 %type <p_elem_value>
         part_bit_expr
@@ -1890,15 +1891,16 @@ server_option:
         ;
 
 event_tail:
-          EVENT_SYM opt_if_not_exists sp_name
+          remember_name EVENT_SYM opt_if_not_exists sp_name
           {
             THD *thd= YYTHD;
             LEX *lex=Lex;
 
-            lex->create_info.options= $2;
+            lex->stmt_definition_begin= $1;
+            lex->create_info.options= $3;
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
-            lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->identifier= $4;
             lex->event_parse_data->on_completion=
                                   Event_parse_data::ON_COMPLETION_DROP;
 
@@ -3835,8 +3837,8 @@ partitioning:
             LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
             if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
-              my_error(ER_FEATURE_DISABLED, MYF(0),
-                      "partitioning", "--with-partition");
+              my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+                       "--skip-partition");
               MYSQL_YYABORT;
             }
             lex->part_info= new partition_info();
@@ -4284,6 +4286,10 @@ opt_sub_partition:
             if (Lex->part_info->no_subparts != 0 &&
                 !Lex->part_info->use_default_subpartitions)
             {
+              /*
+                We come here when we have defined subpartitions on the first
+                partition but not on all the subsequent partitions. 
+              */
               my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
               MYSQL_YYABORT;
             }
@@ -4326,6 +4332,23 @@ sub_part_definition:
             partition_info *part_info= lex->part_info;
             partition_element *curr_part= part_info->current_partition;
             partition_element *sub_p_elem= new partition_element(curr_part);
+            if (part_info->use_default_subpartitions &&
+                part_info->partitions.elements >= 2)
+            {
+              /*
+                create table t1 (a int)
+                partition by list (a) subpartition by hash (a)
+                (partition p0 values in (1),
+                 partition p1 values in (2) subpartition sp11);
+                causes use to arrive since we are on the second
+                partition, but still use_default_subpartitions
+                is set. When we come here we're processing at least
+                the second partition (the current partition processed
+                have already been put into the partitions list.
+              */
+              my_parse_error(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              MYSQL_YYABORT;
+            }
             if (!sub_p_elem ||
              curr_part->subpartitions.push_back(sub_p_elem))
             {
@@ -4542,11 +4565,6 @@ create_table_option:
              Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
              Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
-        | PAGE_CHECKSUM_SYM opt_equal choice
-          {
-            Lex->create_info.used_fields|= HA_CREATE_USED_PAGE_CHECKSUM;
-            Lex->create_info.page_checksum= $3;
-          }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
             Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;
@@ -4617,11 +4635,6 @@ create_table_option:
           {
             Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
             Lex->create_info.key_block_size= $3;
-          }
-        | TRANSACTIONAL_SYM opt_equal choice
-          {
-	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
-            Lex->create_info.transactional= $3;
           }
         ;
 
@@ -4709,7 +4722,6 @@ row_types:
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
         | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
-        | PAGE_SYM       { $$= ROW_TYPE_PAGE; }
         ;
 
 merge_insert_types:
@@ -9205,11 +9217,6 @@ dec_num:
         | FLOAT_NUM
         ;
 
-choice:
-	ulong_num { $$= $1 != 0 ? HA_CHOICE_YES : HA_CHOICE_NO; }
-	| DEFAULT { $$= HA_CHOICE_UNDEF; }
-	;
-
 procedure_clause:
           /* empty */
         | PROCEDURE ident /* Procedure name */
@@ -9222,7 +9229,8 @@ procedure_clause:
               MYSQL_YYABORT;
             }
 
-            if (&lex->select_lex != lex->current_select)
+            if (&lex->select_lex != lex->current_select ||
+                lex->select_lex.get_table_list()->derived)
             {
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
@@ -9352,6 +9360,8 @@ into_destination:
                 !(lex->result= new select_export(lex->exchange, lex->nest_level)))
               MYSQL_YYABORT;
           }
+          opt_load_data_charset
+          { Lex->exchange->cs= $4; }
           opt_field_term opt_line_term
         | DUMPFILE TEXT_STRING_filesystem
           {
@@ -11710,7 +11720,6 @@ keyword_sp:
         | ONLINE_SYM               {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
-        | PAGE_CHECKSUM_SYM	   {}
         | PARTIAL                  {}
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
@@ -11787,7 +11796,6 @@ keyword_sp:
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
         | TRANSACTION_SYM          {}
-        | TRANSACTIONAL_SYM        {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}
         | TIMESTAMP_ADD            {}

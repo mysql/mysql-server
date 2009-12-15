@@ -32,7 +32,7 @@
 int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
-  char * _database="BANK";
+  const char * _database="BANK";
   
   struct getargs args[] = {
     { "usage", '?', arg_flag, &_help, "Print help", "" },

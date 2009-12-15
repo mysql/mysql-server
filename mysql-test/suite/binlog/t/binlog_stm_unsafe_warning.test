@@ -56,6 +56,8 @@ SET SQL_LOG_BIN= 1;
 
 -- echo ### FILTERED database => assertion: warnings ARE NOT shown
 
+let $old_db= `SELECT DATABASE()`;
+
 CREATE DATABASE b42851;
 USE b42851;
 
@@ -71,3 +73,36 @@ DROP TABLE t1;
 
 # clean up
 DROP DATABASE b42851;
+
+eval USE $old_db;
+
+--echo #
+--echo # Bug#46265: Can not disable warning about unsafe statements for binary logging
+--echo #
+
+SET @old_log_warnings = @@log_warnings;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(10));
+SET GLOBAL LOG_WARNINGS = 0;
+INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+SET GLOBAL LOG_WARNINGS = 1;
+INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+DROP TABLE t1;
+
+SET GLOBAL log_warnings = @old_log_warnings;
+
+let LOG_ERROR= `SELECT @@GLOBAL.log_error`;
+
+--echo # Count the number of times the "Unsafe" message was printed
+--echo # to the error log.
+
+perl;
+  $log_error= $ENV{'LOG_ERROR'};
+  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  $count = () = grep(/Bug#46265/g,<FILE>);
+  print "Occurrences: $count\n";
+  close(FILE);
+EOF

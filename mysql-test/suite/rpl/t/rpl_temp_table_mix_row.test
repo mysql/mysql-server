@@ -51,3 +51,98 @@ DROP TABLE t1;
 
 --echo [on slave]
 sync_slave_with_master;
+
+#
+# BUG#43046: mixed mode switch to row format with temp table lead to wrong
+# result
+#
+# NOTES
+# =====
+#  
+#  1. Temporary tables cannot be logged using the row-based
+#     format. Thus, once row-based logging is used, all subsequent
+#     statements using that table are unsafe, and we approximate this
+#     condition by treating all statements made by that client as
+#     unsafe until the client no longer holds any temporary tables.
+#
+#  2. Two different connections can use the same temporary table
+#     name without conflicting with each other or with an
+#     existing non-TEMPORARY table of the same name.
+#
+# DESCRIPTION
+# ===========
+#  
+#   The test is implemented as follows:
+#     1. create regular tables 
+#     2. create a temporary table t1_tmp: should be logged as statement
+#     3. issue an alter table: should be logged as statement
+#     4. issue statement that forces switch to RBR
+#     5. create another temporary table t2_tmp: should not be logged
+#     6. issue alter table on t1_tmp: should not be logged
+#     7. drop t1_tmp and regular table on same statement: should log both in
+#        statement format (but different statements)
+#     8. issue deterministic insert: logged as row (because t2_tmp still
+#        exists).
+#     9. drop t2_tmp and issue deterministic statement: should log drop and
+#        query in statement format (show switch back to STATEMENT format)
+#    10. in the end the slave should not have open temp tables.
+#  
+
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+-- source include/master-slave-reset.inc
+-- connection master
+
+# action: setup environment
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
+CREATE TABLE t3 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
+CREATE TRIGGER tr1 AFTER DELETE ON t2 FOR EACH ROW INSERT INTO t3 () VALUES ();
+
+# assertion: assert that CREATE is logged as STATEMENT
+CREATE TEMPORARY TABLE t1_tmp (i1 int);
+
+# assertion: assert that ALTER TABLE is logged as STATEMENT
+ALTER TABLE t1_tmp ADD COLUMN b INT;
+
+# action: force switch to RBR
+DELETE FROM t2;
+
+# assertion: assert that t2_tmp will not make into the binlog (RBR logging atm)
+CREATE TEMPORARY TABLE t2_tmp (a int);
+
+# assertion: assert that ALTER TABLE on t1_tmp will not make into the binlog
+ALTER TABLE t1_tmp ADD COLUMN c INT;
+
+-- echo ### assertion: assert that there is one open temp table on slave
+-- sync_slave_with_master
+SHOW STATUS LIKE 'Slave_open_temp_tables';
+
+-- connection master
+
+# assertion: assert that both drops are logged
+DROP TABLE t1_tmp, t2;
+
+# assertion: assert that statement is logged as row (master still has one
+#            opened temporary table - t2_tmp.
+INSERT INTO t1 VALUES (1);
+
+# assertion: assert that DROP TABLE *is* logged despite CREATE is not.
+DROP TEMPORARY TABLE t2_tmp;
+
+# assertion: assert that statement is now logged as STMT (mixed mode switches
+#            back to STATEMENT).
+INSERT INTO t1 VALUES (2);
+
+-- sync_slave_with_master
+
+-- echo ### assertion: assert that slave has no temporary tables opened
+SHOW STATUS LIKE 'Slave_open_temp_tables';
+
+-- connection master
+
+# action: drop remaining tables
+DROP TABLE t3, t1;
+
+-- sync_slave_with_master
+
+-- source include/show_binlog_events.inc

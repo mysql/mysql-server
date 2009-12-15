@@ -288,8 +288,28 @@ void Dbtc::execCONTINUEB(Signal* signal)
     ApiConnectRecordPtr transPtr;
     transPtr.i = Tdata0;
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
-    transPtr.p->triggerPending = false;
-    executeTriggers(signal, &transPtr);
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(8082))
+    {
+      /* Max of 100000 TRIGGER_PENDING TcContinueBs to 
+       * single ApiConnectRecord
+       * See testBlobs -bug 45768
+       */
+      if (++transPtr.p->continueBCount > 100000)
+      {
+        ndbrequire(false);
+      }
+    }
+#endif
+    /* Check that ConnectRecord is for the same Trans Id */
+    if (likely((transPtr.p->transid[0] == Tdata1) &&
+               (transPtr.p->transid[1] == Tdata2)))
+    {
+      ndbrequire(transPtr.p->triggerPending);
+      transPtr.p->triggerPending = false;
+      /* Try executing triggers now */
+      executeTriggers(signal, &transPtr);
+    }
     return;
   case TcContinueB::DelayTCKEYCONF:
     jam();
@@ -1158,13 +1178,15 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       capiConnectClosing[nodeId]--;
       if (capiConnectClosing[nodeId] == 0) {
         jam();
+
         /********************************************************************/
         // No outstanding ABORT or COMMIT's of this failed API node. 
-        // We can respond with API_FAILCONF
+        // Perform SimulatedBlock level cleanup before sending
+        // API_FAILCONF
         /********************************************************************/
-        signal->theData[0] = nodeId;
-        signal->theData[1] = cownref;
-        sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+        Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                       nodeId};
+        simBlockNodeFailure(signal, nodeId, cb);
       }
       return;
     }
@@ -2460,6 +2482,10 @@ void Dbtc::initApiConnectRec(Signal* signal,
     releaseAllSeizedIndexOperations(regApiPtr);
 
   c_counters.ctransCount = TtransCount + 1;
+
+#ifdef ERROR_INSERT
+  regApiPtr->continueBCount = 0;
+#endif
 }//Dbtc::initApiConnectRec()
 
 int
@@ -4624,7 +4650,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tdata5 == 0 || getNodeInfo(Thostptr.i).m_connected == false);
+    ndbassert(Tdata5 == 0 || getNodeInfo(Thostptr.i).m_version == 0);
     Thostptr.p->noOfPackedWordsLqh = Tindex + 4; // no gci_lo
   }
 }//Dbtc::sendCommitLqh()
@@ -7097,10 +7123,11 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
        * The node has died
        */
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(ptr);
       ptr.p->stopFragTimer();
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(ptr);
+      }
     }
     
     scanError(signal, scanptr, ZSCAN_FRAG_LQH_ERROR);
@@ -7337,22 +7364,24 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 
   cmasterNodeId = tnewMasterId;
   
+  HostRecordPtr myHostPtr;
+
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   for (i = 0; i < tnoOfNodes; i++) 
   {
     jam();
-    hostptr.i = cdata[i];
-    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+    myHostPtr.i = cdata[i];
+    ptrCheckGuard(myHostPtr, chostFilesize, hostRecord);
     
     /*------------------------------------------------------------*/
     /*       SET STATUS OF THE FAILED NODE TO DEAD SINCE IT HAS   */
     /*       FAILED.                                              */
     /*------------------------------------------------------------*/
-    hostptr.p->hostStatus = HS_DEAD;
-    hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
+    myHostPtr.p->hostStatus = HS_DEAD;
+    myHostPtr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
     c_ongoing_take_over_cnt++;
-    c_alive_nodes.clear(hostptr.i);
+    c_alive_nodes.clear(myHostPtr.i);
 
     if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
     {
@@ -7361,7 +7390,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       /*       THE CURRENT TAKE OVER CAN BE AFFECTED BY THIS NODE   */
       /*       FAILURE.                                             */
       /*------------------------------------------------------------*/
-      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) 
+      if (myHostPtr.p->lqhTransStatus == LTS_ACTIVE) 
       {
 	jam();
 	/*------------------------------------------------------------*/
@@ -7369,18 +7398,21 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 	/*       PROTOCOL FOR TC.                                     */
 	/*------------------------------------------------------------*/
 	signal->theData[0] = TcContinueB::ZNODE_TAKE_OVER_COMPLETED;
-	signal->theData[1] = hostptr.i;
+	signal->theData[1] = myHostPtr.i;
 	sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
       }//if
     }//if
     
     jam();
-    signal->theData[0] = hostptr.i;
+    signal->theData[0] = myHostPtr.i;
     sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
     
-    checkScanActiveInFailedLqh(signal, 0, hostptr.i);
-    checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
-    nodeFailCheckTransactions(signal, 0, hostptr.i);
+    checkScanActiveInFailedLqh(signal, 0, myHostPtr.i);
+    checkWaitDropTabFailedLqh(signal, myHostPtr.i, 0); // nodeid, tableid
+    nodeFailCheckTransactions(signal, 0, myHostPtr.i);
+    Callback cb = {safe_cast(&Dbtc::ndbdFailBlockCleanupCallback), 
+                  myHostPtr.i};
+    simBlockNodeFailure(signal, myHostPtr.i, cb);
   }
 }//Dbtc::execNODE_FAILREP()
 
@@ -7520,6 +7552,28 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   }
 }
 
+void
+Dbtc::ndbdFailBlockCleanupCallback(Signal* signal,
+                                   Uint32 failedNodeId,
+                                   Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  checkNodeFailComplete(signal, failedNodeId,
+                        HostRecord::NF_BLOCK_HANDLE);
+}
+
+void
+Dbtc::apiFailBlockCleanupCallback(Signal* signal,
+                                  Uint32 failedNodeId,
+                                  Uint32 ignoredRc)
+{
+  jamEntry();
+  
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = cownref;
+  sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+}
 
 void
 Dbtc::checkScanFragList(Signal* signal,
@@ -9803,12 +9857,24 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     tabPtr.i = scanptr.p->scanTableref;
     ptrAss(tabPtr, tableRecord);
     Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
-    if(tabPtr.p->checkTable(schemaVersion) == false){
+    if (ERROR_INSERTED(8081) || tabPtr.p->checkTable(schemaVersion) == false)
+    {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
-      scanError(signal, scanptr, tabPtr.p->getErrorCode(schemaVersion));
+      Uint32 err;
+      if (ERROR_INSERTED(8081))
+      {
+        err = ZTIME_OUT_ERROR;
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      else
+      {
+        err = tabPtr.p->getErrorCode(schemaVersion);
+      }
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
+      scanError(signal, scanptr, err);
       return;
     }
   }
@@ -9825,7 +9891,6 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     updateBuddyTimer(apiConnectptr);
     {
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
       run.release(scanFragptr);
     }
     close_scan_req_send_conf(signal, scanptr);
@@ -9882,9 +9947,10 @@ void Dbtc::execDIGETPRIMREF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
-  ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-  
-  run.release(scanFragptr);
+  {
+    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    run.release(scanFragptr);
+  }
 
   scanError(signal, scanptr, errCode);
 }//Dbtc::execDIGETPRIMREF()
@@ -9926,12 +9992,11 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
    * close of the other fragment scans
    */
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
+  scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+  scanFragptr.p->stopFragTimer();
   {
-    scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    
     run.release(scanFragptr);
-    scanFragptr.p->stopFragTimer();
   }    
   scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
@@ -10027,11 +10092,12 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
       return;
     } else {
       jam();
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      run.release(scanFragptr);
       scanFragptr.p->stopFragTimer();
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+      {
+        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        run.release(scanFragptr);
+      }
     }
     close_scan_req_send_conf(signal, scanptr);
     return;
@@ -12481,7 +12547,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_version == 0);
   }
 }//Dbtc::sendTcIndxConf()
 
@@ -13513,17 +13579,36 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
     // No more triggers, continue transaction after last executed trigger has
     // reurned (in execLQHKEYCONF or execLQHKEYREF)
     } else {
-      // Wait until transaction is ready to execute a trigger
+
       jam();
-      if (!regApiPtr->triggerPending) {
+      /* Not in correct state to fire triggers yet, need to wait
+       * (or keep waiting)
+       */
+
+      if ((regApiPtr->apiConnectstate == CS_RECEIVING) ||
+          (regApiPtr->apiConnectstate == CS_REC_COMMITTING))
+      {
+        // Wait until transaction is ready to execute a trigger
         jam();
-        regApiPtr->triggerPending = true;
-        signal->theData[0] = TcContinueB::TRIGGER_PENDING;
-        signal->theData[1] = transPtr->i;
-        sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+        if (!regApiPtr->triggerPending) {
+          jam();
+          regApiPtr->triggerPending = true;
+          signal->theData[0] = TcContinueB::TRIGGER_PENDING;
+          signal->theData[1] = transPtr->i;
+          signal->theData[2] = regApiPtr->transid[0];
+          signal->theData[3] = regApiPtr->transid[1];
+          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+        }
+        // else  
+        // We are already waiting for a pending trigger (CONTINUEB)
       }
-      // else  
-      // We are already waiting for a pending trigger (CONTINUEB)
+      else
+      {
+        /* Transaction has started aborting.  
+         * Forget about unprocessed triggers
+         */
+        ndbrequire(regApiPtr->apiConnectstate == CS_ABORTING);
+      }
     }
   }
 }

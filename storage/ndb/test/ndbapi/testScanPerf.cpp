@@ -24,7 +24,7 @@
 #include <getarg.h>
 
 struct Parameter {
-  char * name;
+  const char * name;
   unsigned value;
   unsigned min;
   unsigned max; 

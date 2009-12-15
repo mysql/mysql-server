@@ -37,7 +37,7 @@ static Uint32 g_tableCompabilityMask = 0;
 static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
-static bool ga_dont_ignore_systab_0 = false;
+bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
 static bool ga_promote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
@@ -63,6 +63,17 @@ Vector<BaseString> g_include_tables, g_exclude_tables;
 Vector<BaseString> g_include_databases, g_exclude_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
+
+class RestoreOption
+{
+public:
+  virtual ~RestoreOption() { }
+  int optid;
+  BaseString argument;
+};
+
+Vector<class RestoreOption *> g_include_exclude;
+static void save_include_exclude(int optid, char * argument);
 
 NDB_STD_OPTS_VARS;
 
@@ -185,7 +196,7 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_backupPath, (uchar**) &ga_backupPath, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "dont_ignore_systab_0", 'f',
-    "Experimental. Do not ignore system table during restore.", 
+    "Do not ignore system table during --print-data.", 
     (uchar**) &ga_dont_ignore_systab_0, (uchar**) &ga_dont_ignore_systab_0, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "ndb-nodegroup-map", OPT_NDB_NODEGROUP_MAP,
@@ -424,6 +435,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
+    break;
+  case OPT_INCLUDE_DATABASES:
+  case OPT_EXCLUDE_DATABASES:
+  case OPT_INCLUDE_TABLES:
+  case OPT_EXCLUDE_TABLES:
+    save_include_exclude(optid, argument);
     break;
   }
   return 0;
@@ -736,7 +753,7 @@ clearConsumers()
 static inline bool
 checkSysTable(const TableS* table)
 {
-  return ga_dont_ignore_systab_0 || ! table->getSysTable();
+  return ! table->getSysTable();
 }
 
 static inline bool
@@ -760,8 +777,13 @@ isIndex(const TableS* table)
 }
 
 static inline bool
-isInList(BaseString &needle, Vector<BaseString> &lst)
+isSYSTAB_0(const TableS* table)
 {
+  return table->isSYSTAB_0();
+}
+
+static inline bool
+isInList(BaseString &needle, Vector<BaseString> &lst){
   unsigned int i= 0;
   for (i= 0; i < lst.size(); i++)
   {
@@ -786,6 +808,100 @@ getTableName(const TableS* table)
   return table_name;
 }
 
+static void save_include_exclude(int optid, char * argument)
+{
+  BaseString arg = argument;
+  Vector<BaseString> args;
+  arg.split(args, ",");
+  for (uint i = 0; i < args.size(); i++)
+  {
+    RestoreOption * option = new RestoreOption();
+    BaseString arg;
+    
+    option->optid = optid;
+    switch (optid) {
+    case OPT_INCLUDE_TABLES:
+    case OPT_EXCLUDE_TABLES:
+      if (makeInternalTableName(args[i], arg))
+      {
+        info << "`" << args[i] << "` is not a valid tablename!" << endl;
+        exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      }
+      break;
+    default:
+      arg = args[i];
+      break;
+    }
+    option->argument = arg;
+    g_include_exclude.push_back(option);
+  }
+}
+static bool check_include_exclude(BaseString database, BaseString table)
+{
+  const char * db = database.c_str();
+  const char * tbl = table.c_str();
+  bool do_include = true;
+
+  if (g_include_databases.size() != 0 ||
+      g_include_tables.size() != 0)
+  {
+    /*
+      User has explicitly specified what databases
+      and/or tables should be restored. If no match is
+      found then DON'T restore table.
+     */
+    do_include = false;
+  }
+  if (do_include &&
+      (g_exclude_databases.size() != 0 ||
+       g_exclude_tables.size() != 0))
+  {
+    /*
+      User has not explicitly specified what databases
+      and/or tables should be restored.
+      User has explicitly specified what databases
+      and/or tables should NOT be restored. If no match is
+      found then DO restore table.
+     */
+    do_include = true;
+  }
+
+  if (g_include_exclude.size() != 0)
+  {
+    /*
+      Scan include exclude arguments in reverse.
+      First matching include causes table to be restored.
+      first matching exclude causes table NOT to be restored.      
+     */
+    for(uint i = g_include_exclude.size(); i > 0; i--)
+    {
+      RestoreOption *option = g_include_exclude[i-1];
+      switch (option->optid) {
+      case OPT_INCLUDE_TABLES:
+        if (strcmp(tbl, option->argument.c_str()) == 0)
+          return true; // do include
+        break;
+      case OPT_EXCLUDE_TABLES:
+        if (strcmp(tbl, option->argument.c_str()) == 0)
+          return false; // don't include
+        break;
+      case OPT_INCLUDE_DATABASES:
+        if (strcmp(db, option->argument.c_str()) == 0)
+          return true; // do include
+        break;
+      case OPT_EXCLUDE_DATABASES:
+        if (strcmp(db, option->argument.c_str()) == 0)
+          return false; // don't include
+        break;
+      default:
+        continue;
+      }
+    }
+  }
+  
+  return do_include;
+}
+
 static inline bool
 checkDoRestore(const TableS* table)
 {
@@ -797,32 +913,16 @@ checkDoRestore(const TableS* table)
   idx = tbl.indexOf('/');
   db = tbl.substr(0, idx);
   
-  /* Included tables overrides
-   * Excluded tables which overrides
-   * Included databases which overrides
-   * Excluded databases.
-   * If any databases are included, then only
-   * included databases are restored.
-   * If any tables are included, then only
-   * included tables are restored.
+  /*
+    Include/exclude flags are evaluated right
+    to left, and first match overrides any other
+    matches. Non-overlapping arguments are accumulative.
+    If no include flags are specified this means all databases/tables
+    except any excluded are restored.
+    If include flags are specified than only those databases
+    or tables specified are restored.
    */
-
-  if (g_exclude_databases.size() != 0) {
-    if (isInList(db, g_exclude_databases))
-      ret = false;
-  }
-  if (g_include_databases.size() != 0) {
-    ret= isInList(db, g_include_databases);
-  }
-  
-  if (g_exclude_tables.size() != 0) {
-    if (isInList(tbl, g_exclude_tables))
-      ret = false;
-  }
-  if (g_include_tables.size() != 0) {
-    ret= isInList(tbl, g_include_tables);
-  }
-  
+  ret = check_include_exclude(db, tbl);
   return ret;
 }
 
@@ -1076,6 +1176,10 @@ main(int argc, char** argv)
     table_output.push_back(NULL);
     if (!checkDbAndTableName(table))
       continue;
+    if (isSYSTAB_0(table))
+    {
+      table_output[i]= ndbout.m_out;
+    }
     if (checkSysTable(table))
     {
       if (!tab_path || isBlobTable(table) || isIndex(table))
@@ -1346,3 +1450,4 @@ main(int argc, char** argv)
 
 template class Vector<BackupConsumer*>;
 template class Vector<OutputStream*>;
+template class Vector<RestoreOption *>;

@@ -224,6 +224,7 @@ inline
 int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
+#ifndef HAVE_purify
   if (m_free_list == 0)
   {
     m_free_cnt++;
@@ -251,6 +252,9 @@ Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
     m_free_list = obj;
   }
   return 0;
+#else
+  return 0;
+#endif
 }
 
 template<class T>
@@ -258,6 +262,7 @@ inline
 T*
 Ndb_free_list_t<T>::seize(Ndb* ndb)
 {
+#ifndef HAVE_purify
   T* tmp = m_free_list;
   if (tmp)
   {
@@ -277,6 +282,9 @@ Ndb_free_list_t<T>::seize(Ndb* ndb)
     assert(false);
   }
   return tmp;
+#else
+  return new T(ndb);
+#endif
 }
 
 template<class T>
@@ -284,9 +292,13 @@ inline
 void
 Ndb_free_list_t<T>::release(T* obj)
 {
+#ifndef HAVE_purify
   obj->next(m_free_list);
   m_free_list = obj;
   m_free_cnt++;
+#else
+  delete obj;
+#endif
 }
 
 
@@ -310,6 +322,7 @@ inline
 void
 Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
 {
+#ifndef HAVE_purify
   if (cnt)
   {
 #ifdef VM_TRACE
@@ -323,6 +336,19 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
     m_free_list = head;
     m_free_cnt += cnt;
   }
+#else
+  if (cnt)
+  {
+    T* tmp = head;
+    while (tmp != 0 && tmp != tail)
+    {
+      T * next = (T*)tmp->next();
+      delete tmp;
+      tmp = next;
+    }
+    delete tail;
+  }
+#endif
 }
 
 #endif

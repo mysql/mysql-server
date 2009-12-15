@@ -129,6 +129,7 @@ public:
                                       to be able to debug if events
                                       for some reason does not end up
                                       in clusterlog */
+    CmvmiTestLongSig = 2605,  /* Long signal testing trigger */
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH

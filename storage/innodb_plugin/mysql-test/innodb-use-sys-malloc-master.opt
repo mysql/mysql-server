@@ -1,0 +1,2 @@
+--innodb-use-sys-malloc=true
+--innodb-use-sys-malloc=true

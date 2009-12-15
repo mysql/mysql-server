@@ -192,6 +192,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     delete select;
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
+    /* 
+      Error was already created by quick select evaluation (check_quick()).
+      TODO: Add error code output parameter to Item::val_xxx() methods.
+      Currently they rely on the user checking DA for
+      errors when unwinding the stack after calling Item::val_xxx().
+    */
+    if (thd->is_error())
+      DBUG_RETURN(TRUE);
     my_ok(thd, (ha_rows) thd->row_count_func);
     /*
       We don't need to call reset_auto_increment in this case, because
@@ -517,7 +525,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
@@ -1086,6 +1094,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
+
+  /* Remove tables from the HANDLER's hash. */
+  mysql_ha_rm_tables(thd, table_list, FALSE);
+
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {

@@ -135,6 +135,7 @@ public:
   };
 
   struct Subscriber {
+    Subscriber() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 nextList;
@@ -197,6 +198,8 @@ public:
 
   struct SubOpRecord
   {
+    SubOpRecord() {}
+
     enum OpType
     {
       R_SUB_START_REQ,
@@ -434,6 +437,10 @@ public:
   void api_fail_gci_list(Signal*, Uint32 node);
   void api_fail_subscriber_list(Signal*, Uint32 node);
   void api_fail_subscription(Signal*);
+  void api_fail_block_cleanup(Signal* signal, Uint32 failedNode);
+  void api_fail_block_cleanup_callback(Signal* signal,
+                                       Uint32 failedNodeId,
+                                       Uint32 elementsCleaned);
 
   void execSUB_GCP_COMPLETE_ACK(Signal* signal);
 

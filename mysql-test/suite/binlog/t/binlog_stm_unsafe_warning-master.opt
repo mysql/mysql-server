@@ -1,1 +1,1 @@
---binlog-ignore-db=b42851
+--binlog-ignore-db=b42851 --log-error

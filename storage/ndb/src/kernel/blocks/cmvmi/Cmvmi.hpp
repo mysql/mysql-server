@@ -69,6 +69,9 @@ private:
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+
+  void execALLOC_MEM_REF(Signal* signal);
+  void execALLOC_MEM_CONF(Signal* signal);
   
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
@@ -114,6 +117,9 @@ private:
   Cmvmi(const Cmvmi &obj);
   void operator = (const Cmvmi &);
 
+  void startFragmentedSend(Signal* signal, Uint32 variant, Uint32 numSigs, NodeReceiverGroup rg);
+  void testNodeFailureCleanupCallback(Signal* signal, Uint32 variant, Uint32 elementsCleaned);
+  void testFragmentedCleanup(Signal* signal, SectionHandle* handle, Uint32 testType, Uint32 variant);
   void sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode);
 };
 

@@ -1,0 +1,13 @@
+# Bug44032 no update-in-place of UTF-8 columns in ROW_FORMAT=REDUNDANT
+# (btr_cur_update_in_place not invoked when updating from/to NULL;
+# the update is performed by delete and insert instead)
+
+-- source include/have_innodb.inc
+
+CREATE TABLE bug44032(c CHAR(3) CHARACTER SET UTF8) ROW_FORMAT=REDUNDANT
+ENGINE=InnoDB;
+INSERT INTO bug44032 VALUES('abc'),(0xEFBCA4EFBCA4EFBCA4);
+UPDATE bug44032 SET c='DDD' WHERE c=0xEFBCA4EFBCA4EFBCA4;
+UPDATE bug44032 SET c=NULL WHERE c='DDD';
+UPDATE bug44032 SET c='DDD' WHERE c IS NULL;
+DROP TABLE bug44032;

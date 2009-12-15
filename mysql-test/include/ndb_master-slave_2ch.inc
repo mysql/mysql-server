@@ -26,28 +26,24 @@ connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
 --disable_query_log
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 --enable_query_log
 
 --connection master1
 --disable_query_log
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 --enable_query_log
 
 --connection slave
 --disable_query_log
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 --enable_query_log
 
 --connection slave1
 --disable_query_log
 --require r/true.require
 SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
 --enable_query_log
 
 # Stop slaves

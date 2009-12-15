@@ -253,11 +253,11 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
     {
       char errmsg[255] = "ArrayPool<T>::setSize malloc failed";
       struct ndb_mgm_param_info param_info;
-      size_t size = sizeof(ndb_mgm_param_info);
+      size_t tsize = sizeof(ndb_mgm_param_info);
       if (!exit_on_error)
 	return false;
 
-      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &size)) {
+      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &tsize)) {
         BaseString::snprintf(errmsg, sizeof(errmsg), 
                 "Malloc memory for %s failed", param_info.m_name);
       }

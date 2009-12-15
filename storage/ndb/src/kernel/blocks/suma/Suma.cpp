@@ -717,20 +717,24 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   jamEntry();
   DBUG_ENTER("Suma::execAPI_FAILREQ");
   Uint32 failedApiNode = signal->theData[0];
-  BlockReference retRef = signal->theData[1];
+  ndbrequire(signal->theData[1] == QMGR_REF); // As callback hard-codes QMGR
 
   c_connected_nodes.clear(failedApiNode);
 
   if (c_failedApiNodes.get(failedApiNode))
   {
     jam();
+    /* Being handled already, just conf */
     goto CONF;
   }
 
   if (!c_subscriber_nodes.get(failedApiNode))
   {
     jam();
-    goto CONF;
+    /* No Subscribers on that node, no SUMA 
+     * specific work to do
+     */
+    goto BLOCK_CLEANUP;
   }
 
   c_failedApiNodes.set(failedApiNode);
@@ -744,13 +748,50 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 2, JBB);
   return;
 
+BLOCK_CLEANUP:
+  jam();
+  api_fail_block_cleanup(signal, failedApiNode);
+  DBUG_VOID_RETURN;
+
 CONF:
+  jam();
   signal->theData[0] = failedApiNode;
   signal->theData[1] = reference();
-  sendSignal(retRef, GSN_API_FAILCONF, signal, 2, JBB);
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
 
   DBUG_VOID_RETURN;
 }//execAPI_FAILREQ()
+
+void
+Suma::api_fail_block_cleanup_callback(Signal* signal,
+                                      Uint32 failedNodeId,
+                                      Uint32 elementsCleaned)
+{
+  jamEntry();
+
+  /* Suma should not have any block level elements
+   * to be cleaned (Fragmented send/receive structures etc.)
+   * As it only uses Fragmented send/receive locally
+   */
+  ndbassert(elementsCleaned == 0);
+
+  /* Node failure handling is complete */
+  signal->theData[0] = failedNodeId;
+  signal->theData[1] = reference();
+  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+  c_failedApiNodes.clear(failedNodeId);
+}
+
+void
+Suma::api_fail_block_cleanup(Signal* signal, Uint32 failedNode)
+{
+  jam();
+
+  Callback cb = {safe_cast(&Suma::api_fail_block_cleanup_callback),
+                 failedNode};
+  
+  simBlockNodeFailure(signal, failedNode, cb);
+}
 
 void
 Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
@@ -869,10 +910,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   if (iter.curr.isNull())
   {
     jam();
-    signal->theData[0] = nodeId;
-    signal->theData[1] = reference();
-    sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
-    c_failedApiNodes.clear(nodeId);
+    api_fail_block_cleanup(signal, nodeId);
     return;
   }
 
@@ -981,10 +1019,9 @@ Suma::api_fail_subscription(Signal* signal)
   }
 
   c_subOpPool.release(subOpPtr);
-  signal->theData[0] = nodeId;
-  signal->theData[1] = reference();
-  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
-  c_failedApiNodes.clear(nodeId);
+
+  /* Now do block level cleanup */
+  api_fail_block_cleanup(signal, nodeId);
 }
 
 void
@@ -1059,6 +1096,17 @@ Suma::execNODE_FAILREP(Signal* signal){
       }
     }
   }
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // As Suma has no remote fragmented signals
+      (void) elementsCleaned; // Avoid compiler error
+    }//if
+  }//for
   
   c_alive_nodes.assign(tmp);
   
@@ -1501,7 +1549,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
      * We havent started syncing yet
      */
     sendSubCreateRef(signal, senderRef, senderData,
-                     SubCreateRef::NF_FakeErrorREF);
+                     SubCreateRef::NotStarted);
     return;
   }
 
@@ -2358,7 +2406,7 @@ Suma::execSUB_START_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStartRef(signal,
-                    senderRef, senderData, SubStartRef::NF_FakeErrorREF);
+                    senderRef, senderData, SubStartRef::NotStarted);
     return;
   }
 
@@ -2936,7 +2984,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStopRef(signal,
-                   senderRef, senderData, SubStopRef::NF_FakeErrorREF);
+                   senderRef, senderData, SubStopRef::NotStarted);
     return;
   }
 
@@ -4161,7 +4209,7 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
     /**
      * We havent started syncing yet
      */
-    sendSubRemoveRef(signal,  req, SubRemoveRef::NF_FakeErrorREF);
+    sendSubRemoveRef(signal,  req, SubRemoveRef::NotStarted);
     return;
   }
 

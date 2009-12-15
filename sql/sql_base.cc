@@ -1518,21 +1518,23 @@ void close_temporary_tables(THD *thd)
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
-      /*
-        Loop forward through all tables within the sublist of
-        common pseudo_thread_id to create single DROP query.
+      String db;
+      db.append(table->s->db.str);
+      /* Loop forward through all tables that belong to a common database
+         within the sublist of common pseudo_thread_id to create single
+         DROP query 
       */
       for (s_query.length(stub_len);
            table && is_user_table(table) &&
-             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
+             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
+             table->s->db.length == db.length() &&
+             strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
         /*
-          We are going to add 4 ` around the db/table names and possible more
-          due to special characters in the names
+          We are going to add ` around the table names and possible more
+          due to special characters
         */
-        append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
-        s_query.append('.');
         append_identifier(thd, &s_query, table->s->table_name.str,
                           strlen(table->s->table_name.str));
         s_query.append(',');
@@ -1545,6 +1547,7 @@ void close_temporary_tables(THD *thd)
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
+      qinfo.db= db.ptr();
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
@@ -7397,7 +7400,13 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
-    select_lex->item_list= fields;
+    /*   
+      The assignment below is translated to memcpy() call (at least on some
+      platforms). memcpy() expects that source and destination areas do not
+      overlap. That problem was detected by valgrind. 
+    */
+    if (&select_lex->item_list != &fields)
+      select_lex->item_list= fields;
 
     thd->restore_active_arena(arena, &backup);
   }

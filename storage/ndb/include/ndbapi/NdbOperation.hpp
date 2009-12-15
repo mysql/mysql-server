@@ -878,7 +878,9 @@ public:
    * 
    * @return method number where the error occured.
    */
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   int getNdbErrorLine();
+#endif
   int getNdbErrorLine() const;
 
   /**
@@ -1528,7 +1530,9 @@ inline
 int
 NdbOperation::getNdbErrorLine()
 {
-  return theErrorLine;
+  // delegate to overloaded const function for same semantics
+  const NdbOperation * const cthis = this;
+  return cthis->NdbOperation::getNdbErrorLine();
 }
 
 inline

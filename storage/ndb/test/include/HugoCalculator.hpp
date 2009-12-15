@@ -37,6 +37,9 @@ public:
 			int len, Uint32* real_len) const;
 
   int verifyRowValues(NDBT_ResultRow* const  pRow) const;
+  int verifyRecAttr(int record, int updates, const NdbRecAttr* recAttr);
+  int verifyColValue(int record, int attrib, int updates, 
+                     const char* valPtr, Uint32 valLen);
   int getIdValue(NDBT_ResultRow* const pRow) const;
   int getUpdatesValue(NDBT_ResultRow* const pRow) const;
   int isIdCol(int colId) { return m_idCol == colId; };
