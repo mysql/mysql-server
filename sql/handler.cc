@@ -4161,6 +4161,41 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
 }
 #endif
 
+
+/**
+  Calculate cost of 'index only' scan for given index and number of records
+
+  @param keynr    Index number
+  @param records  Estimated number of records to be retrieved
+
+  @note
+    It is assumed that we will read trough the whole key range and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read.
+
+  @todo
+    Consider joining this function and handler::read_time() into one
+    handler::read_time(keynr, records, ranges, bool index_only) function.
+
+  @return
+    Estimated cost of 'index only' scan
+*/
+
+double handler::index_only_read_time(uint keynr, double records)
+{
+  double read_time;
+  uint keys_per_block= (stats.block_size/2/
+			(table->key_info[keynr].key_length + ref_length) + 1);
+  read_time=((double) (records + keys_per_block-1) /
+             (double) keys_per_block);
+  return read_time;
+}
+
+#if 0 
+// psergey-mrr
+
 /**
   Read the first row of a multi-range set.
 
@@ -4287,7 +4322,7 @@ scan_it_again:
   DBUG_PRINT("exit",("handler::read_multi_range_next: result %d", result));
   DBUG_RETURN(result);
 }
-
+#endif
 
 /**
   Read first row between two ranges.
@@ -4391,8 +4426,25 @@ int handler::read_range_next()
 int handler::compare_key(key_range *range)
 {
   int cmp;
-  if (!range)
+  if (!range || in_range_check_pushed_down)
     return 0;					// No max range
+  cmp= key_cmp(range_key_part, range->key, range->length);
+  if (!cmp)
+    cmp= key_compare_result_on_equal;
+  return cmp;
+}
+
+
+/*
+  Same as compare_key() but doesn't check have in_range_check_pushed_down.
+  This is used by index condition pushdown implementation.
+*/
+
+int handler::compare_key2(key_range *range)
+{
+  int cmp;
+  if (!range)
+    return 0;					// no max range
   cmp= key_cmp(range_key_part, range->key, range->length);
   if (!cmp)
     cmp= key_compare_result_on_equal;

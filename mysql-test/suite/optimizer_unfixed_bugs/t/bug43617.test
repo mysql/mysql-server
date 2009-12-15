@@ -1,0 +1,83 @@
+# test for BUG#43617 "Innodb returns wrong results with timestamp's
+# range value in IN clause"
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+set storage_engine=innodb;
+
+set session debug="+d,optimizer_innodb_icp";
+
+######## Running INSERT tests for TIMESTAMP ########
+
+# Create tables
+CREATE TABLE t1(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
+
+# Insert some rows with targeted values
+
+# As a string in either 'YYYY-MM-DD HH:MM:SS', 'YY-MM-DD HH:MM:SS', 'YYYY-MM-DD' or 'YY-MM-DD' format
+INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
+
+# As a string with no delimiters in either 'YYYYMMDDHHMMSS', 'YYMMDDHHMMSS', 'YYYYMMDD' or 'YYMMDD'  format
+INSERT INTO t1 VALUES('20070523091528','070523091528','20070524091528','070524091528'),('20070525','070525','20070526','070526');
+
+# As a number in either YYYYMMDDHHMMSS, YYMMDDHHMMSS, YYYYMMDD or YYMMDD format
+INSERT INTO t1 VALUES(19830905132800,830905132800,19830906132800,830906132800),(19830907,830907,19830908,830908);
+
+# As the result of a function
+SET TIMESTAMP=1233216687; # 2009-01-29 13:41:27 
+INSERT INTO t1 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
+
+# Insert permissible NULLs 
+INSERT INTO t1 VALUES('2008-01-01',NULL,'08-01-02','08/01/03'); 
+
+# Insert duplicate NULLs to unique column
+INSERT INTO t1(c1,c2) VALUES('08/01/17',NULL);
+DELETE FROM t1 WHERE c1='08/01/17' AND c2 IS NULL;
+ 
+# Insert empty string '', would be converted to zero value of the appropriate type 
+INSERT INTO t1 VALUES('','','08-01-04','08/01/05') /* Inserts zero dates for '' strings */;
+
+--sorted_result
+SELECT * FROM t1;
+
+# Test 'INSERT IGNORE' with the same rows that reported constraint violation above 
+# Ignore pk constraint
+INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+
+# Ignore unique constraint
+INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+
+# Test 'INSERT ON DUPLICATE KEY UPDATE' with single column PK
+SELECT * FROM t1 WHERE c1='20070527' /* Returns no rows */;
+INSERT INTO t1(c1) VALUES('20070525') ON DUPLICATE KEY UPDATE c1='20070527';
+SELECT * FROM t1 WHERE c1='20070527' /* Returns 1 row with c1=2007-05-27 */;
+
+# Test 'INSERT ON DUPLICATE KEY UPDATE' with single column unique
+SELECT * FROM t1 WHERE c1=19830909 AND c2=830910 /* Returns no rows */;
+INSERT INTO t1(c1,c2) VALUES(19840905,830907) ON DUPLICATE KEY UPDATE c1=19830909,c2=830910;
+SELECT * FROM t1 WHERE c1=19830909 AND c2=830910 /* Returns 1 row */;
+
+# Test 'INSERT SET'
+INSERT INTO t1 SET c1='1999-01-01',c2='1999-01-01';
+SELECT * FROM t1 WHERE c1='1999-01-01' AND c2='1999-01-01' /* Returns 1 row with values for other column as NULL */;
+
+# Test insert range values to 'TIMESTAMP' columns
+INSERT INTO t1 VALUES('1971-01-01 00:00:01','1980-01-01 00:00:01','2009-01-01','2009-01-02'),('1990-01-01 00:00:01','2000-01-01 00:00:01','2009-01-03','2009-01-04'),('2038-01-09 03:14:07','2038-01-09 03:14:07','2009-01-05','2009-01-06');
+
+# Test insert NULL to non-null column
+# Inserting NULL to TIMESTAMP NOT NULL field doesn't throw error, but records the current/set timestamp
+
+DELETE FROM t1 WHERE c1=NOW() /* because the row with current timestamp exists */;
+INSERT INTO t1 VALUES(NULL,NOW(),NOW(),NOW());
+SELECT * FROM t1 WHERE c1 IS NULL /* returns no rows */;
+SELECT * FROM t1 WHERE c1=NOW() /* returns 1 row */;
+
+--sorted_result
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') ORDER BY c2;
+SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') ORDER BY c2 DESC;
+SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') ORDER BY c2 DESC LIMIT 2;
+DROP TABLE t1;
+

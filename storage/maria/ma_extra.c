@@ -474,6 +474,14 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 } /* maria_extra */
 
 
+void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
+                            void *func_arg)
+{
+  info->index_cond_func= func;
+  info->index_cond_func_arg= func_arg;
+}
+
+
 /*
   Start/Stop Inserting Duplicates Into a Table, WL#1648.
 */
@@ -620,3 +628,4 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   maria_mark_crashed(info);
   return 1;
 }
+

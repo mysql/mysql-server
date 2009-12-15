@@ -34,6 +34,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
   HA_KEYSEG *last_used_keyseg;
   uint32 nextflag;
   MARIA_KEY key;
+  int icp_res= 1;
   DBUG_ENTER("maria_rkey");
   DBUG_PRINT("enter", ("base: 0x%lx  buf: 0x%lx  inx: %d  search_flag: %d",
                        (long) info, (long) buf, inx, search_flag));
@@ -106,9 +107,13 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         are inserted by other threads after we got our table lock
         ("concurrent inserts"). The record may not even be present yet.
         Keys are inserted into the index(es) before the record is
-        inserted into the data file. 
+        inserted into the data file.
+
+        If index condition is present, it must be either satisfied or 
+        not satisfied with an out-of-range condition.
       */
-      if ((*share->row_is_visible)(info))
+      if ((*share->row_is_visible)(info) && 
+          ((icp_res= ma_check_index_cond(info, inx, buf)) != 0))
         break;
 
       /* The key references a concurrently inserted record. */
@@ -120,7 +125,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         info->cur_row.lastpos= HA_OFFSET_ERROR;
         break;
       }
-
+      
       do
       {
         uint not_used[2];
@@ -151,18 +156,25 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
           break;
           /* purecov: end */
         }
-      } while (!(*share->row_is_visible)(info));
+
+      } while (!(*share->row_is_visible)(info) || 
+               ((icp_res= ma_check_index_cond(info, inx, buf)) == 0));
     }
   }
   if (share->lock_key_trees)
     rw_unlock(&keyinfo->root_lock);
 
-  if (info->cur_row.lastpos == HA_OFFSET_ERROR)
+  if (info->cur_row.lastpos == HA_OFFSET_ERROR || (icp_res != 1))
   {
+    if (icp_res == 2)
+    {
+      info->cur_row.lastpos= HA_OFFSET_ERROR;
+      my_errno= HA_ERR_KEY_NOT_FOUND;
+    }
     fast_ma_writeinfo(info);
     goto err;
   }
-
+  
   /* Calculate length of the found key;  Used by maria_rnext_same */
   if ((keyinfo->flag & HA_VAR_LENGTH_KEY))
     info->last_rkey_length= _ma_keylength_part(keyinfo, info->lastkey_buff,

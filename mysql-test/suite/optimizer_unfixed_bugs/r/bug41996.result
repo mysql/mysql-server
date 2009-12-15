@@ -1,0 +1,8 @@
+set session debug="+d,optimizer_innodb_icp";
+drop table if exists `t1`;
+Warnings:
+Note	1051	Unknown table 't1'
+create table `t1` (`c` bigint, key(`c`),`a` int)engine=innodb;
+insert into `t1` values(2,2);
+delete `t1` from `t1` `a`, `t1` where `a`.`a`=`t1`.`c` ;
+drop table `t1`;

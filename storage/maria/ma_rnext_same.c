@@ -30,6 +30,7 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   int error;
   uint inx,not_used[2];
   MARIA_KEYDEF *keyinfo;
+  int icp_res= 1;
   DBUG_ENTER("maria_rnext_same");
 
   if ((int) (inx= info->lastinx) < 0 ||
@@ -80,7 +81,8 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if ((info->s->row_is_visible)(info))
+        if ((info->s->row_is_visible)(info) ||
+            ((icp_res= ma_check_index_cond(info, inx, buf)) != 0))
           break;
       }
   }
@@ -90,7 +92,10 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;
 
-  if (error)
+  if (icp_res == 2)
+    my_errno=HA_ERR_END_OF_FILE; /* got beyond the end of scanned range */
+
+  if (error || icp_res != 1)
   {
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;

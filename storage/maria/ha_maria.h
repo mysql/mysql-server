@@ -28,6 +28,10 @@
 #define HA_RECOVER_FORCE        4       /* Recover even if we loose rows */
 #define HA_RECOVER_QUICK        8       /* Don't check rows in data file */
 
+C_MODE_START
+my_bool index_cond_func_maria(void *arg);
+C_MODE_END
+
 extern ulong maria_sort_buffer_size;
 extern TYPELIB maria_recover_typelib;
 extern ulong maria_recover_options;
@@ -62,7 +66,7 @@ public:
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY);
+            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
   }
   uint max_supported_keys() const
   { return MARIA_MAX_KEY; }
@@ -104,6 +108,8 @@ public:
                                 key->charset(), table->record[0]);
   }
   int ft_read(uchar * buf);
+  int index_init(uint idx, bool sorted);
+  int index_end();
   int rnd_init(bool scan);
   int rnd_end(void);
   int rnd_next(uchar * buf);
@@ -164,4 +170,22 @@ public:
     return file;
   }
   static int implicit_commit(THD *thd, bool new_trn);
+  /**
+   * Multi Range Read interface
+   */
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
+  
+  /* Index condition pushdown implementation */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+private:
+  DsMrr_impl ds_mrr;
+  friend my_bool index_cond_func_maria(void *arg);
 };

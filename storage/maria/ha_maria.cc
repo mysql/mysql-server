@@ -2020,6 +2020,21 @@ int ha_maria::delete_row(const uchar * buf)
   return maria_delete(file, buf);
 }
 
+C_MODE_START
+
+my_bool index_cond_func_maria(void *arg)
+{
+  ha_maria *h= (ha_maria*)arg;
+  /*if (h->in_range_read)*/
+  if (h->end_range)
+  {
+    if (h->compare_key2(h->end_range) > 0)
+      return 2; /* caller should return HA_ERR_END_OF_FILE already */
+  }
+  return (my_bool)h->pushed_idx_cond->val_int();
+}
+
+C_MODE_END
 
 int ha_maria::index_read_map(uchar * buf, const uchar * key,
 			     key_part_map keypart_map,
@@ -2117,6 +2132,25 @@ int ha_maria::index_next_same(uchar * buf,
 }
 
 
+int ha_maria::index_init(uint idx, bool sorted)
+{ 
+  active_index=idx;
+  if (pushed_idx_cond_keyno == idx)
+    ma_set_index_cond_func(file, index_cond_func_maria, this);
+  return 0; 
+}
+
+
+int ha_maria::index_end()
+{
+  active_index=MAX_KEY;
+  ma_set_index_cond_func(file, NULL, 0);
+  in_range_check_pushed_down= FALSE;
+  ds_mrr.dsmrr_close();
+  return 0; 
+}
+
+
 int ha_maria::rnd_init(bool scan)
 {
   if (scan)
@@ -2201,6 +2235,7 @@ int ha_maria::info(uint flag, my_bool lock_table_share)
     ref_length= maria_info.reflength;
     share->db_options_in_use= maria_info.options;
     stats.block_size= maria_block_size;
+    stats.mrr_length_per_rec= maria_info.reflength + 8; // 8 = max(sizeof(void *))
 
     /* Update share */
     if (lock_table_share)
@@ -2275,6 +2310,10 @@ int ha_maria::extra(enum ha_extra_function operation)
 
 int ha_maria::reset(void)
 {
+  pushed_idx_cond= NULL;
+  pushed_idx_cond_keyno= MAX_KEY;
+  ma_set_index_cond_func(file, NULL, 0);
+  ds_mrr.dsmrr_close();
   return maria_reset(file);
 }
 
@@ -3332,6 +3371,64 @@ static SHOW_VAR status_variables[]= {
   {"Maria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+/****************************************************************************
+ * Maria MRR implementation: use DS-MRR
+ ***************************************************************************/
+
+int ha_maria::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                                     uint n_ranges, uint mode, 
+                                     HANDLER_BUFFER *buf)
+{
+  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
+}
+
+int ha_maria::multi_range_read_next(char **range_info)
+{
+  return ds_mrr.dsmrr_next(range_info);
+}
+
+ha_rows ha_maria::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                               void *seq_init_param, 
+                                               uint n_ranges, uint *bufsz,
+                                               uint *flags, COST_VECT *cost)
+{
+  /*
+    This call is here because there is no location where this->table would
+    already be known.
+    TODO: consider moving it into some per-query initialization call.
+  */
+  ds_mrr.init(this, table);
+  return ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param, n_ranges, bufsz,
+                                 flags, cost);
+}
+
+ha_rows ha_maria::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                        uint *bufsz, uint *flags, 
+                                        COST_VECT *cost)
+{
+  ds_mrr.init(this, table);
+  return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
+}
+
+/* MyISAM MRR implementation ends */
+
+
+/* Index condition pushdown implementation*/
+
+
+Item *ha_maria::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
+{
+  pushed_idx_cond_keyno= keyno_arg;
+  pushed_idx_cond= idx_cond_arg;
+  in_range_check_pushed_down= TRUE;
+  if (active_index == pushed_idx_cond_keyno)
+    ma_set_index_cond_func(file, index_cond_func_maria, this);
+  return NULL;
+}
+
+
+
 
 struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

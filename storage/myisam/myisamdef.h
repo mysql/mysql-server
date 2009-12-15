@@ -232,6 +232,7 @@ typedef struct st_mi_isam_share
   rw_lock_t mmap_lock;
 } MYISAM_SHARE;
 
+typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_myisam_info
 {
@@ -300,6 +301,8 @@ struct st_myisam_info
   /* If info->buff has to be reread for rnext */
   my_bool buff_used;
   my_bool once_flags;                   /* For MYISAMMRG */
+  index_cond_func_t index_cond_func;   /* Index condition function */
+  void *index_cond_func_arg;           /* parameter for the func */
 #ifdef __WIN__
   my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
 #endif
@@ -724,6 +727,7 @@ void mi_setup_functions(register MYISAM_SHARE *share);
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
+int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
     /* Functions needed by mi_check */
 volatile int *killed_ptr(HA_CHECK *param);
 void mi_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));
@@ -732,6 +736,8 @@ void mi_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
 #ifdef THREAD
 pthread_handler_t thr_find_all_keys(void *arg);
 #endif
+extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
+                                   void *func_arg);
 int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file);
 #ifdef __cplusplus
 }

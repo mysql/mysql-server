@@ -65,8 +65,8 @@ insert into t1 (a) values ('air'),
 ('tn_fakira'),('vw_silvia'),('vw_starshi'),('vw_geo'),('vw_b0x1');
 select * from t1 where a like 'we_%';
 a	b
-we_iliyan	NULL
-we_ivo	NULL
-we_martin	NULL
 we_toshko	NULL
+we_ivo	NULL
+we_iliyan	NULL
+we_martin	NULL
 drop table t1;

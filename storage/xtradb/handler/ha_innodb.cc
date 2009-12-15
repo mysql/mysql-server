@@ -113,6 +113,12 @@ static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
+C_MODE_START
+static uint index_cond_func_innodb(void *arg);
+C_MODE_END
+
+
+
 #define INSIDE_HA_INNOBASE_CC
 
 /* In the Windows plugin, the return value of current_thd is
@@ -3031,7 +3037,7 @@ ulong
 ha_innobase::index_flags(uint, uint, bool) const
 {
 	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-	       | HA_READ_RANGE | HA_KEYREAD_ONLY);
+	       | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
 }
 
 UNIV_INTERN
@@ -3989,6 +3995,7 @@ build_template(
 					only if templ_type is
 					ROW_MYSQL_REC_FIELDS */
 	TABLE*		table,		/* in: MySQL table */
+        ha_innobase*    file,           /* in: ha_innobase handler */
 	uint		templ_type)	/* in: ROW_MYSQL_WHOLE_ROW or
 					ROW_MYSQL_REC_FIELDS */
 {
@@ -4000,10 +4007,12 @@ build_template(
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
-	ulint		i, sql_idx, innodb_idx=0;
+	ulint		sql_idx, innodb_idx=0;
 	/* byte offset of the end of last requested column */
 	ulint		mysql_prefix_len	= 0;
-
+        ibool           do_idx_cond_push= FALSE;
+	ibool           need_second_pass= FALSE;
+        
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
 		use exclusive row level locks, for example, if the read is
@@ -4073,6 +4082,16 @@ build_template(
 
 	prebuilt->templ_contains_blob = FALSE;
 
+        
+        /*
+          Setup index condition pushdown (note: we don't need to check if
+          this is a scan on primary key as that is checked in idx_cond_push)
+        */
+        if (file->active_index == file->pushed_idx_cond_keyno && 
+            file->active_index != MAX_KEY && 
+            templ_type == ROW_MYSQL_REC_FIELDS)
+          do_idx_cond_push= need_second_pass= TRUE;
+
 	/* Note that in InnoDB, i is the column number. MySQL calls columns
 	'fields'. */
 	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
@@ -4086,6 +4105,8 @@ build_template(
 			and which we can skip. */
 			register const ibool	index_contains_field =
 				dict_index_contains_col_or_prefix(index, innodb_idx);
+                        register const ibool    index_covers_field = 
+                                field->part_of_key.is_set(file->active_index);
 
 			if (!index_contains_field && prebuilt->read_just_key) {
 				/* If this is a 'key read', we do not need
@@ -4118,8 +4139,12 @@ build_template(
 			/* This field is not needed in the query, skip it */
 
 			goto skip_field;
-		}
 include_field:
+			if (do_idx_cond_push && 
+                            ((need_second_pass && !index_covers_field) || 
+                             (!need_second_pass && index_covers_field)))
+			  goto skip_field;
+		}
 		n_requested_fields++;
 
 		templ->col_no = innodb_idx;
@@ -4173,6 +4198,13 @@ include_field:
 			prebuilt->templ_contains_blob = TRUE;
 		}
 skip_field:
+		if (need_second_pass && (sql_idx+1 == n_fields))
+		{
+                  prebuilt->n_index_fields= n_requested_fields;
+		  need_second_pass= FALSE;
+		  sql_idx= (~(ulint)0); /* to start from 0 */
+		  innodb_idx= (~(ulint)0); /* to start from 0 */ ///psergey-merge-merge-last-change
+		}
                 if (field->stored_in_db) {
                     innodb_idx++;
                 }
@@ -4181,12 +4213,23 @@ skip_field:
 	prebuilt->n_template = n_requested_fields;
 	prebuilt->mysql_prefix_len = mysql_prefix_len;
 
+        if (do_idx_cond_push)
+        {
+          prebuilt->idx_cond_func= index_cond_func_innodb;
+          prebuilt->idx_cond_func_arg= file;
+        }
+        else
+        {
+          prebuilt->idx_cond_func= NULL;
+          prebuilt->n_index_fields= n_requested_fields;
+        }
+
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 		/* Change rec_field_no's to correspond to the clustered index
 		record */
-		for (i = 0; i < n_requested_fields; i++) {
+		for (ulint i = do_idx_cond_push? prebuilt->n_index_fields : 0; 
+                     i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
-
 			templ->rec_field_no = dict_col_get_clust_pos(
 				&index->table->cols[templ->col_no],
 				clust_index);
@@ -4505,7 +4548,7 @@ no_commit:
 		/* Build the template used in converting quickly between
 		the two database formats */
 
-		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
+		build_template(prebuilt, NULL, table, this, ROW_MYSQL_WHOLE_ROW);
 	}
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -5038,6 +5081,8 @@ ha_innobase::index_end(void)
 	int	error	= 0;
 	DBUG_ENTER("index_end");
 	active_index=MAX_KEY;
+	in_range_check_pushed_down= FALSE;
+	ds_mrr.dsmrr_close();
 	DBUG_RETURN(error);
 }
 
@@ -5187,7 +5232,8 @@ ha_innobase::index_read(
 	necessarily prebuilt->index, but can also be the clustered index */
 
 	if (prebuilt->sql_stat_start) {
-		build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
+		build_template(prebuilt, user_thd, table, this,
+                               ROW_MYSQL_REC_FIELDS);
 	}
 
 	if (key_ptr) {
@@ -5359,7 +5405,7 @@ ha_innobase::change_active_index(
 	the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
 	copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
-	build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
+	build_template(prebuilt, user_thd, table, this, ROW_MYSQL_REC_FIELDS);
 
 	DBUG_RETURN(0);
 }
@@ -7422,7 +7468,7 @@ ha_innobase::check(
 		/* Build the template; we will use a dummy template
 		in index scans done in checking */
 
-		build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
+		build_template(prebuilt, NULL, table, this, ROW_MYSQL_WHOLE_ROW);
 	}
 
 	ret = row_check_table_for_mysql(prebuilt);
@@ -7786,6 +7832,10 @@ ha_innobase::extra(
 			break;
 		case HA_EXTRA_RESET_STATE:
 			reset_template(prebuilt);
+                        /* Reset index condition pushdown state */
+                        pushed_idx_cond= FALSE;
+                        pushed_idx_cond_keyno= MAX_KEY;
+                        prebuilt->idx_cond_func= NULL;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -7832,6 +7882,12 @@ ha_innobase::reset()
 	}
 
 	reset_template(prebuilt);
+
+	/* Reset index condition pushdown state */
+	pushed_idx_cond_keyno= MAX_KEY;
+	pushed_idx_cond= NULL;
+	ds_mrr.dsmrr_close();
+	prebuilt->idx_cond_func= NULL;
 
 	/* TODO: This should really be reset in reset_template() but for now
 	it's safer to do it explicitly here. */
@@ -10680,3 +10736,112 @@ test_innobase_convert_name()
 }
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+
+
+/****************************************************************************
+ * DS-MRR implementation 
+ ***************************************************************************/
+
+/**
+ * Multi Range Read interface, DS-MRR calls
+ */
+
+int ha_innobase::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                          uint n_ranges, uint mode, HANDLER_BUFFER *buf)
+{
+  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
+}
+
+int ha_innobase::multi_range_read_next(char **range_info)
+{
+  return ds_mrr.dsmrr_next(range_info);
+}
+
+ha_rows ha_innobase::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                                 void *seq_init_param,  
+                                                 uint n_ranges, uint *bufsz,
+                                                 uint *flags, 
+                                                 COST_VECT *cost)
+{
+  /* See comments in ha_myisam::multi_range_read_info_const */
+  ds_mrr.init(this, table);
+  //psergey-mrr-fix:
+  if (prebuilt->select_lock_type != LOCK_NONE)
+    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+
+  uint orig_flags= *flags;
+
+  ha_rows res= ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param, n_ranges,
+                                       bufsz, flags, cost);
+
+  bool disable_ds_mrr= true;
+  disable_ds_mrr= false;
+//  DBUG_EXECUTE_IF("optimizer_innodb_ds_mrr", disable_ds_mrr= false;);
+  if (!disable_ds_mrr)
+    return res;
+
+  /* Disable DS-MRR: enable MS-MRR only after critical bugs are fixed */
+  *bufsz= 0;
+  *flags = orig_flags | HA_MRR_USE_DEFAULT_IMPL;
+  return res;
+}
+
+ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, 
+                                           uint keys, uint *bufsz, 
+                                           uint *flags, COST_VECT *cost)
+{
+  ds_mrr.init(this, table);
+  uint orig_flags= *flags;
+
+  ha_rows res= ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
+  bool disable_ds_mrr= false;
+ // DBUG_EXECUTE_IF("optimizer_innodb_ds_mrr", disable_ds_mrr= false;);
+  if (!disable_ds_mrr)
+    return res;
+
+  /* Disable DS-MRR: enable MS-MRR only after critical bugs are fixed */
+  *bufsz= 0;
+  *flags = orig_flags | HA_MRR_USE_DEFAULT_IMPL;
+  return res;
+}
+
+
+
+/**
+ * Index Condition Pushdown interface implementation
+ */
+
+C_MODE_START
+
+/*
+  Index condition check function to be called from within Innobase.
+  See note on ICP_RESULT for return values description.
+*/
+
+static uint index_cond_func_innodb(void *arg)
+{
+  ha_innobase *h= (ha_innobase*)arg;
+  if (h->end_range)
+  {
+    if (h->compare_key2(h->end_range) > 0)
+      return 2; /* caller should return HA_ERR_END_OF_FILE already */
+  }
+  return test(h->pushed_idx_cond->val_int());
+}
+
+C_MODE_END
+
+
+Item *ha_innobase::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
+{
+  //                              V :psergey-mrrr-merge: V
+  if (keyno_arg != primary_key && (prebuilt->select_lock_type == LOCK_NONE))
+  {
+    pushed_idx_cond_keyno= keyno_arg;
+    pushed_idx_cond= idx_cond_arg;
+    in_range_check_pushed_down= TRUE;
+    return NULL; /* Table handler will check the entire condition */
+  }
+  return idx_cond_arg; /* Table handler will not make any checks */
+}
+

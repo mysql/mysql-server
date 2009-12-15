@@ -477,6 +477,8 @@ typedef struct st_maria_block_scan
   MARIA_RECORD_POS row_base_page;
 } MARIA_BLOCK_SCAN;
 
+/*psergey-todo: do really need to have copies of this all over the place?*/
+typedef my_bool (*index_cond_func_t)(void *param);
 
 struct st_maria_handler
 {
@@ -577,6 +579,9 @@ struct st_maria_handler
   uchar *maria_rtree_recursion_state;	/* For RTREE */
   uchar length_buff[5];			/* temp buff to store blob lengths */
   int maria_rtree_recursion_depth;
+
+  index_cond_func_t index_cond_func;   /* Index condition function */
+  void *index_cond_func_arg;           /* parameter for the func */
 };
 
 /* Some defines used by maria-functions */
@@ -1236,3 +1241,6 @@ extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              uchar *data_ptr);
 void maria_concurrent_inserts(MARIA_HA *info, my_bool concurrent_insert);
 extern PAGECACHE *maria_log_pagecache;
+extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
+                                   void *func_arg);
+int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);

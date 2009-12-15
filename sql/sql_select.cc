@@ -178,11 +178,14 @@ int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
+static COND *make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+                                           table_map tables,
+                                           table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes,
-                                    key_map *map);
+                                    const key_map *map);
 static bool list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
@@ -237,8 +240,8 @@ static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
-static bool test_if_ref(Item_field *left_item,Item *right_item);
-
+static bool test_if_ref(COND *root_cond, 
+                        Item_field *left_item,Item *right_item);
 
 /**
   This handles SELECT with and without UNION.
@@ -711,7 +714,8 @@ void JOIN::remove_subq_pushed_predicates(Item **where)
       ((Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
       ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
       ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM &&
-      test_if_ref ((Item_field *)((Item_func *)conds)->arguments()[1],
+      test_if_ref (this->conds,
+                   (Item_field *)((Item_func *)conds)->arguments()[1],
                    ((Item_func *)conds)->arguments()[0]))
   {
     *where= 0;
@@ -2119,7 +2123,7 @@ JOIN::exec()
 	  */
 	  curr_table->select->cond->quick_fix_field();
 	}
-	curr_table->select_cond= curr_table->select->cond;
+        curr_table->set_select_cond(curr_table->select->cond, __LINE__);
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
@@ -2471,7 +2475,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
     select->head=table;
     table->reginfo.impossible_range=0;
     if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
-                                          limit, 0)) == 1)
+                                          limit, 0, FALSE)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -5678,6 +5682,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   j->ref.key_buff2=j->ref.key_buff+ALIGN_SIZE(length);
   j->ref.key_err=1;
   j->ref.null_rejecting= 0;
+  j->ref.disable_cache= FALSE;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
@@ -5871,6 +5876,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->cache.buff=0;			/* No caching */
   join_tab->table=tmp_table;
   join_tab->select=0;
+  join_tab->set_select_cond(NULL, __LINE__);
   join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
@@ -5901,6 +5907,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     {
       *e1= res;
       res->quick_fix_field();
+      res->update_used_tables();
     }
   }
   else
@@ -5998,7 +6005,9 @@ static void add_not_null_conds(JOIN *join)
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias,
                                            QT_ORDINARY););
-          add_cond_and_fix(&referred_tab->select_cond, notnull);
+          COND *new_cond= referred_tab->select_cond;
+          add_cond_and_fix(&new_cond, notnull);
+          referred_tab->set_select_cond(new_cond, __LINE__);
         }
       }
     }
@@ -6171,9 +6180,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             if (!tmp)
               DBUG_RETURN(1);
             tmp->quick_fix_field();
-            cond_tab->select_cond= !cond_tab->select_cond ? tmp :
-	                            new Item_cond_and(cond_tab->select_cond,
-                                                      tmp);
+            COND *new_cond= !cond_tab->select_cond ? tmp :
+              new Item_cond_and(cond_tab->select_cond, tmp);
+            cond_tab->set_select_cond(new_cond, __LINE__);
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->quick_fix_field();
@@ -6254,7 +6263,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond || tab->type == JT_REF)
+      if (tmp || !cond || tab->type == JT_REF || tab->type == JT_REF_OR_NULL ||
+          tab->type == JT_EQ_REF || first_inner_tab)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -6276,11 +6286,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           */
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
-          tab->select_cond=sel->cond=tmp;
+          sel->cond=tmp;
+          tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown)
+	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map);
@@ -6293,7 +6304,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           }
         }
         else
-          tab->select_cond= sel->cond= NULL;
+        {
+          sel->cond= NULL;
+          tab->set_select_cond(NULL, __LINE__);
+        }
+
 
 	sel->head=tab->table;
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
@@ -6360,7 +6375,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
-					join->unit->select_limit_cnt), 0) < 0)
+					join->unit->select_limit_cnt), 0,
+                                        FALSE) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -6373,7 +6389,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->unit->select_limit_cnt),0) < 0)
+                                          join->unit->select_limit_cnt),0,
+                                          FALSE) < 0)
 		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
@@ -6502,6 +6519,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->quick_fix_field();
+            if (cond_tab->select)
+              cond_tab->select->cond= cond_tab->select_cond;
           }              
         }
         first_inner_tab= first_inner_tab->first_upper;       
@@ -6560,6 +6579,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
         table->key_read=1;
         table->file->extra(HA_EXTRA_KEYREAD);
       }
+      else
+        push_index_cond(tab, tab->ref.key, TRUE);
       break;
     case JT_EQ_REF:
       table->status=STATUS_NO_RECORD;
@@ -6578,6 +6599,8 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
+      else
+        push_index_cond(tab, tab->ref.key, TRUE);
       break;
     case JT_REF_OR_NULL:
     case JT_REF:
@@ -6589,12 +6612,6 @@ make_join_readinfo(JOIN *join, ulonglong options)
       }
       delete tab->quick;
       tab->quick=0;
-      if (table->covering_keys.is_set(tab->ref.key) &&
-	  !table->no_keyread)
-      {
-	table->key_read=1;
-	table->file->extra(HA_EXTRA_KEYREAD);
-      }
       if (tab->type == JT_REF)
       {
 	tab->read_first_record= join_read_always_key;
@@ -6605,6 +6622,14 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	tab->read_first_record= join_read_always_key_or_null;
 	tab->read_record.read_record= join_read_next_same_or_null;
       }
+      if (table->covering_keys.is_set(tab->ref.key) &&
+	  !table->no_keyread)
+      {
+	table->key_read=1;
+	table->file->extra(HA_EXTRA_KEYREAD);
+      }
+      else
+        push_index_cond(tab, tab->ref.key, TRUE);
       break;
     case JT_FT:
       table->status=STATUS_NO_RECORD;
@@ -6700,6 +6725,9 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
 	}
+        if (tab->select && tab->select->quick &&
+            tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
+          push_index_cond(tab, tab->select->quick->index, FALSE);
       }
       break;
     default:
@@ -12098,7 +12126,8 @@ test_if_quick_select(JOIN_TAB *tab)
   delete tab->select->quick;
   tab->select->quick=0;
   return tab->select->test_quick_select(tab->join->thd, tab->keys,
-					(table_map) 0, HA_POS_ERROR, 0);
+					(table_map) 0, HA_POS_ERROR, 0,
+                                        FALSE);
 }
 
 
@@ -12754,12 +12783,24 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     1 if right_item is used removable reference key on left_item
 */
 
-static bool test_if_ref(Item_field *left_item,Item *right_item)
+static bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 {
   Field *field=left_item->field;
-  // No need to change const test. We also have to keep tests on LEFT JOIN
-  if (!field->table->const_table && !field->table->maybe_null)
+  JOIN_TAB *join_tab= field->table->reginfo.join_tab;
+  // No need to change const test
+  if (!field->table->const_table && join_tab &&
+      (!join_tab->first_inner ||
+       *join_tab->first_inner->on_expr_ref == root_cond))
   {
+    // Cond guards
+    for (uint i = 0; i < join_tab->ref.key_parts; i++)
+    {
+      if (join_tab->ref.cond_guards[i])
+      {
+        return FALSE;
+      }
+    }
+    //
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item,1))
     {
@@ -12790,8 +12831,48 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 }
 
 
+/*
+  Extract a condition that can be checked after reading given table
+  
+  SYNOPSIS
+    make_cond_for_table()
+      cond         Condition to analyze
+      tables       Tables for which "current field values" are available
+      used_table   Table that we're extracting the condition for (may 
+                   also include PSEUDO_TABLE_BITS
+      exclude_expensive_cond  Do not push expensive conditions
+
+  DESCRIPTION
+    Extract the condition that can be checked after reading the table
+    specified in 'used_table', given that current-field values for tables
+    specified in 'tables' bitmap are available.
+
+    The function assumes that
+      - Constant parts of the condition has already been checked.
+      - Condition that could be checked for tables in 'tables' has already 
+        been checked.
+        
+    The function takes into account that some parts of the condition are
+    guaranteed to be true by employed 'ref' access methods (the code that
+    does this is located at the end, search down for "EQ_FUNC").
+
+
+  SEE ALSO 
+    make_cond_for_info_schema uses similar algorithm
+
+  RETURN
+    Extracted condition
+*/
+
 static COND *
 make_cond_for_table(COND *cond, table_map tables, table_map used_table)
+{
+  return make_cond_for_table_from_pred(cond, cond, tables, used_table);
+}
+               
+static COND *
+make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+                              table_map tables, table_map used_table)
 {
   if (used_table && !(cond->used_tables() & used_table))
     return (COND*) 0;				// Already checked
@@ -12807,7 +12888,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,used_table);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item, tables, used_table);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -12837,7 +12918,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,0L);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item, tables, 0L);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -12864,18 +12945,19 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
-  if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
+  if (cond->type() == Item::FUNC_ITEM && 
+      ((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
+    Item *left_item=	((Item_func*) cond)->arguments()[0]->real_item();
+    Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
     if (left_item->type() == Item::FIELD_ITEM &&
-	test_if_ref((Item_field*) left_item,right_item))
+	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
       cond->marker=3;			// Checked when read
       return (COND*) 0;
     }
     if (right_item->type() == Item::FIELD_ITEM &&
-	test_if_ref((Item_field*) right_item,left_item))
+	test_if_ref(root_cond, (Item_field*) right_item,left_item))
     {
       cond->marker=3;			// Checked when read
       return (COND*) 0;
@@ -13259,7 +13341,7 @@ find_field_in_item_list (Field *field, void *data)
 
 static bool
 test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
-			bool no_changes, key_map *map)
+			bool no_changes, const key_map *map)
 {
   int ref_key;
   uint ref_key_parts;
@@ -13269,6 +13351,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
   QUICK_SELECT_I *save_quick= 0;
+  COND *orig_select_cond= 0;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -13288,7 +13371,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     }
     usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
     if (usable_keys.is_clear_all())
-      DBUG_RETURN(0);					// No usable keys
+      goto use_filesort;					// No usable keys
   }
 
   ref_key= -1;
@@ -13298,7 +13381,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     ref_key=	   tab->ref.key;
     ref_key_parts= tab->ref.key_parts;
     if (tab->type == JT_REF_OR_NULL || tab->type == JT_FT)
-      DBUG_RETURN(0);
+      goto use_filesort;
   }
   else if (select && select->quick)		// Range found by opt_range
   {
@@ -13313,7 +13396,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
-      DBUG_RETURN(0);
+      goto use_filesort;
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
   }
@@ -13335,10 +13418,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
+      if (tab->pre_idx_push_select_cond)
+        orig_select_cond= tab->set_cond(tab->pre_idx_push_select_cond);
+
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
+        //psergey-mrr:if (tab->pre_idx_push_select_cond)
+        //  tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
 	if (tab->ref.key >= 0)
 	{
           /*
@@ -13352,9 +13440,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           KEYUSE *keyuse= tab->keyuse;
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
+
           if (create_ref_for_key(tab->join, tab, keyuse, 
                                  tab->join->const_table_map))
-            DBUG_RETURN(0);
+            goto use_filesort;
 	}
 	else
 	{
@@ -13374,9 +13463,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         (tab->join->select_options &
                                          OPTION_FOUND_ROWS) ?
                                         HA_POS_ERROR :
-                                        tab->join->unit->select_limit_cnt,0) <=
+                                        tab->join->unit->select_limit_cnt,0,
+                                        TRUE) <=
               0)
-            DBUG_RETURN(0);
+            goto use_filesort;
 	}
         ref_key= new_ref_key;
       }
@@ -13424,7 +13514,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         index order and not using join cache
         */
       if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
-        DBUG_RETURN(0);
+        goto use_filesort;
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
 
@@ -13580,7 +13670,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                     join->select_options & OPTION_FOUND_ROWS ?
                                     HA_POS_ERROR :
                                     join->unit->select_limit_cnt,
-                                    0) > 0;
+                                    TRUE, FALSE) > 0;
       }
       if (!no_changes)
       {
@@ -13608,6 +13698,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           {
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
+          }
+          if (tab->pre_idx_push_select_cond)
+          {
+            COND *tmp_cond= tab->pre_idx_push_select_cond;
+            if (orig_select_cond)
+            {
+              tmp_cond= and_conds(tmp_cond, orig_select_cond);
+              tmp_cond->quick_fix_field();
+            }
+            tab->set_cond(tmp_cond);
+            /* orig_select_cond was merged, no need to restore original one. */
+            orig_select_cond= 0;
           }
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
@@ -13642,7 +13744,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       order_direction= best_key_direction;
     }
     else
-      DBUG_RETURN(0); 
+      goto use_filesort; 
   } 
 
 check_reverse_order:                  
@@ -13657,6 +13759,7 @@ check_reverse_order:
       if (!select->quick->reverse_sorted())
       {
         QUICK_SELECT_DESC *tmp;
+        bool error= FALSE;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -13665,18 +13768,18 @@ check_reverse_order:
         {
           tab->limit= 0;
           select->quick= save_quick;
-          DBUG_RETURN(0);                   // Use filesort
+          goto use_filesort;                   // Use filesort
         }
             
         /* ORDER BY range_key DESC */
 	tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
-                                    used_key_parts);
-	if (!tmp || tmp->error)
+                                    used_key_parts, &error);
+	if (!tmp || error)
 	{
 	  delete tmp;
           select->quick= save_quick;
           tab->limit= 0;
-	  DBUG_RETURN(0);		// Reverse sort not supported
+	  goto use_filesort;		// Reverse sort not supported
 	}
 	select->quick=tmp;
       }
@@ -13695,8 +13798,14 @@ check_reverse_order:
     }
   }
   else if (select && select->quick)
-    select->quick->sorted= 1;
+    select->quick->need_sorted_output();
+  if (orig_select_cond)
+    tab->set_cond(orig_select_cond);
   DBUG_RETURN(1);
+use_filesort:
+  if (orig_select_cond)
+    tab->set_cond(orig_select_cond);
+  DBUG_RETURN(0);
 }
 
 
@@ -13797,7 +13906,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	field, quick will contain an empty record set.
       */
       if (!(select->quick= (tab->type == JT_FT ?
-			    new FT_SELECT(thd, table, tab->ref.key) :
+			    get_ft_select(thd, table, tab->ref.key) :
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
@@ -13836,7 +13945,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
     table->sort.io_cache= tablesort_result_cache;
   }
-  tab->select_cond=0;
+  tab->set_select_cond(NULL, __LINE__);
   tab->last_inner= 0;
   tab->first_unmatched= 0;
   tab->type=JT_ALL;				// Read with normal read_record
@@ -13877,7 +13986,7 @@ static bool fix_having(JOIN *join, Item **having)
 						   sort_table_cond)) ||
 	  table->select->cond->fix_fields(join->thd, &table->select->cond))
 	return 1;
-    table->select_cond=table->select->cond;
+    table->set_select_cond(table->select->cond, __LINE__);
     table->select_cond->top_level_item();
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having",
@@ -14468,19 +14577,50 @@ read_cached_record(JOIN_TAB *tab)
 }
 
 
+/*
+  eq_ref: Create the lookup key and check if it is the same as saved key
+
+  SYNOPSIS
+    cmp_buffer_with_ref()
+      tab      Join tab of the accessed table
+      table    The table to read.  This is usually tab->table, except for 
+               semi-join when we might need to make a lookup in a temptable
+               instead.
+      tab_ref  The structure with methods to collect index lookup tuple. 
+               This is usually table->ref, except for the case of when we're 
+               doing lookup into semi-join materialization table.
+
+  DESCRIPTION 
+    Used by eq_ref access method: create the index lookup key and check if 
+    we've used this key at previous lookup (If yes, we don't need to repeat
+    the lookup - the record has been already fetched)
+
+  RETURN 
+    TRUE   No cached record for the key, or failed to create the key (due to
+           out-of-domain error)
+    FALSE  The created key is the same as the previous one (and the record 
+           is already in table->record)
+*/
+
 static bool
 cmp_buffer_with_ref(JOIN_TAB *tab)
 {
-  bool diff;
-  if (!(diff=tab->ref.key_err))
+  TABLE_REF *tab_ref= &tab->ref;
+  bool no_prev_key;
+  if (!tab_ref->disable_cache)
   {
-    memcpy(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length);
+    if (!(no_prev_key= tab_ref->key_err))
+    {
+      /* Previous access found a row. Copy its key */
+      memcpy(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length);
+    }
   }
-  if ((tab->ref.key_err= cp_buffer_from_ref(tab->join->thd, tab->table,
-                                            &tab->ref)) ||
-      diff)
+  else 
+    no_prev_key= TRUE;
+  if ((tab_ref->key_err= cp_buffer_from_ref(tab->join->thd, tab->table, tab_ref)) ||
+      no_prev_key)
     return 1;
-  return memcmp(tab->ref.key_buff2, tab->ref.key_buff, tab->ref.key_length)
+  return memcmp(tab_ref->key_buff2, tab_ref->key_buff, tab_ref->key_length)
     != 0;
 }
 
@@ -15764,11 +15904,12 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);
-    join_tab->select_cond=join_tab->select->cond=cond;
+    join_tab->select->cond= cond;
+    join_tab->set_select_cond(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
                                           &error)))
-    join_tab->select_cond=cond;
+    join_tab->set_select_cond(cond, __LINE__);
 
   DBUG_RETURN(error ? TRUE : FALSE);
 }
@@ -16584,6 +16725,20 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
+        uint keyno= MAX_KEY;
+        if (tab->ref.key_parts)
+          keyno= tab->ref.key;
+        else if (tab->select && tab->select->quick)
+          keyno = tab->select->quick->index;
+
+        if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
+            table->file->pushed_idx_cond)
+          extra.append(STRING_WITH_LEN("; Using index condition"));
+        /**
+        psergey-mrr:
+        else if (tab->cache_idx_cond)
+          extra.append(STRING_WITH_LEN("; Using index condition(BKA)"));
+        **/
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
@@ -16647,6 +16802,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
 	if (table->reginfo.not_exists_optimize)
 	  extra.append(STRING_WITH_LEN("; Not exists"));
+
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
+            !(((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags &
+             HA_MRR_USE_DEFAULT_IMPL))
+        {
+	  extra.append(STRING_WITH_LEN("; Using MRR"));
+        }
+
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;

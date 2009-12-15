@@ -241,7 +241,7 @@ insert into t2 select C.a*2+1, 'yes' from t1 C;
 explain 
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	12	Using where
+1	SIMPLE	t2	range	a	a	5	NULL	12	Using index condition; Using MRR
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
 a	filler
 1	yes
@@ -256,10 +256,10 @@ a	filler
 19	yes
 explain select * from t2 force index(a) where a NOT IN (2,2,2,2,2,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	912	Using where
+1	SIMPLE	t2	range	a	a	5	NULL	912	Using index condition; Using MRR
 explain select * from t2 force index(a) where a <> 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	912	Using where
+1	SIMPLE	t2	range	a	a	5	NULL	912	Using index condition; Using MRR
 drop table t2;
 create table t2 (a datetime, filler char(200), key(a));
 insert into t2 select '2006-04-25 10:00:00' + interval C.a minute,
@@ -271,7 +271,7 @@ select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	9	NULL	18	Using where
+1	SIMPLE	t2	range	a	a	9	NULL	18	Using index condition; Using MRR
 select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
@@ -295,7 +295,7 @@ insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'),
 ('barbas','1'), ('bazbazbay', '1'),('zz','1');
 explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	13	NULL	7	Using where
+1	SIMPLE	t2	range	a	a	13	NULL	7	Using index condition; Using MRR
 drop table t2;
 create table t2 (a decimal(10,5), filler char(200), key(a));
 insert into t2 select 345.67890, 'no' from t1 A, t1 B;
@@ -306,7 +306,7 @@ insert into t2 values (0, '1'), (22334.123,'1'), (33333,'1'),
 explain
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	7	NULL	7	Using where
+1	SIMPLE	t2	range	a	a	7	NULL	7	Using index condition; Using MRR
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
 a	filler
 0.00000	1

@@ -1,0 +1,11 @@
+set session debug="+d,optimizer_innodb_icp";
+CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY
+KEY(c1), UNIQUE INDEX(c2)) engine=innodb;
+INSERT INTO t1 VALUES('8:29:45',NULL,'2009-02-01');
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+c1	c2	c3
+08:29:45	NULL	2009-02-01
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+c1	c2	c3
+08:29:45	NULL	2009-02-01
+drop table `t1`;

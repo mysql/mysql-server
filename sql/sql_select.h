@@ -85,6 +85,12 @@ typedef struct st_table_ref
   table_map	depend_map;		  ///< Table depends on these tables.
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
   uchar          *null_ref_key;
+
+  /*
+    TRUE <=> disable the "cache" as doing lookup with the same key value may
+    produce different results (because of Index Condition Pushdown)
+  */
+  bool          disable_cache;
 } TABLE_REF;
 
 
@@ -145,6 +151,14 @@ typedef struct st_join_table {
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
+  /* 
+    The value of select_cond before we've attempted to do Index Condition
+    Pushdown. We may need to restore everything back if we first choose one
+    index but then reconsider (see test_if_skip_sort_order() for such
+    scenarios).
+    NULL means no index condition pushdown was performed.
+  */
+  Item          *pre_idx_push_select_cond;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
   st_join_table *first_inner;   /**< first inner table for including outerjoin */
@@ -217,6 +231,20 @@ typedef struct st_join_table {
     return (select && select->quick &&
             (select->quick->get_type() ==
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+  }
+  void set_select_cond(COND *to, uint line)
+  {
+    DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
+                        select_cond, to, line, this));
+    select_cond= to;
+  }
+  COND *set_cond(COND *new_cond)
+  {
+    COND *tmp_select_cond= select_cond;
+    set_select_cond(new_cond, __LINE__);
+    if (select)
+      select->cond= new_cond;
+    return tmp_select_cond;
   }
 } JOIN_TAB;
 
@@ -751,4 +779,8 @@ inline bool optimizer_flag(THD *thd, uint flag)
 }
 
 void eliminate_tables(JOIN *join);
+
+/// psergey-mrr:
+void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
+
 

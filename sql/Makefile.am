@@ -47,7 +47,7 @@ mysqld_LDADD =		libndb.la \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
 
-noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
+noinst_HEADERS =	ds_mrr.h item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h \
 			item_create.h item_subselect.h item_row.h \
@@ -79,7 +79,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_partition.h partition_info.h partition_element.h \
 			contributors.h sql_servers.h
 
-mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
+mysqld_SOURCES =	ds_mrr.cc sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \

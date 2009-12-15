@@ -30,6 +30,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
   uint flag;
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
+  int icp_res= 1;
   DBUG_ENTER("maria_rnext");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -90,7 +91,8 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 
   if (!error)
   {
-    while (!(*share->row_is_visible)(info))
+    while (!(*share->row_is_visible)(info) ||
+           ((icp_res= ma_check_index_cond(info, inx, buf)) == 0))
     {
       /* Skip rows inserted by other threads since we got a lock */
       if  ((error= _ma_search_next(info, &info->last_key,
@@ -105,8 +107,11 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND;
+  
+  if (icp_res == 2)
+    my_errno=HA_ERR_END_OF_FILE; /* got beyond the end of scanned range */
 
-  if (error)
+  if (error || icp_res != 1)
   {
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
