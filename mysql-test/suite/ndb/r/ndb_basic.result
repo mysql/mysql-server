@@ -958,4 +958,40 @@ explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1, t2;
+#
+# Bug #47054 Cluster only deletes first matched row in delete with left join
+#
+CREATE TABLE child
+( id INT AUTO_INCREMENT PRIMARY KEY
+, parent_id INT
+) ENGINE=ndb;
+CREATE TABLE parent 
+( id INT AUTO_INCREMENT PRIMARY KEY
+) ENGINE=ndb;
+INSERT INTO parent VALUES (NULL),(NULL),(NULL);
+INSERT INTO child VALUES (NULL, 1),(NULL,2),(NULL,3),(NULL,4),(NULL,5);
+SELECT * FROM child ORDER BY id;
+id	parent_id
+1	1
+2	2
+3	3
+4	4
+5	5
+SELECT * 
+FROM child AS c 
+LEFT JOIN parent AS p ON c.parent_id = p.id 
+WHERE p.id IS NULL AND c.id < 100  ORDER BY c.id;
+id	parent_id	id
+4	4	NULL
+5	5	NULL
+DELETE c.* 
+FROM child AS c 
+LEFT JOIN parent AS p ON c.parent_id = p.id 
+WHERE p.id IS NULL AND c.id < 100;
+SELECT * FROM child ORDER BY id;
+id	parent_id
+1	1
+2	2
+3	3
+DROP TABLE child, parent;
 End of 5.1 tests

@@ -1962,5 +1962,73 @@ a	b
 2	Aberdeen
 show warnings;
 Level	Code	Message
+create table t (pk int primary key, x varchar(1)) engine = ndb;
+insert into t values (0,"a");
+set engine_condition_pushdown = off;
+select * from t where x <> "aa";
+pk	x
+0	a
+select * from t where "aa" <> x;
+pk	x
+0	a
+select * from t where x between "" and "bb";
+pk	x
+0	a
+select * from t where x not between "" and "bb";
+pk	x
+select * from t where x in ("","aa","b");
+pk	x
+select * from t where x not in ("","aa","b");
+pk	x
+0	a
+select * from t where x like "aa?";
+pk	x
+set engine_condition_pushdown = on;
+explain select * from t where x <> "aa";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where x <> "aa";
+pk	x
+0	a
+explain select * from t where "aa" <> x;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where "aa" <> x;
+pk	x
+0	a
+explain select * from t where x between "" and "bb";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where x between "" and "bb";
+pk	x
+0	a
+explain select * from t where x not between "" and "bb";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where x not between "" and "bb";
+pk	x
+explain select * from t where x in ("","aa","b");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where x in ("","aa","b");
+pk	x
+explain select * from t where x not in ("","aa","b");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+select * from t where x not in ("","aa","b");
+pk	x
+0	a
+explain select * from t where x like "aa?";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where with pushed condition
+select * from t where x like "aa?";
+pk	x
+explain select * from t where x not like "aa?";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where with pushed condition
+select * from t where x not like "aa?";
+pk	x
+0	a
+drop table t;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

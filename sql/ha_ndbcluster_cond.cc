@@ -246,6 +246,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
       {
         // End marker for condition group
         DBUG_PRINT("info", ("End of condition group"));
+        context->expect_no_length();
         curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
       }
       else
@@ -268,13 +269,15 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
+            DBUG_PRINT("info", ("column length %u", field->field_length));
             DBUG_PRINT("info", ("type %d", field->type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
-            
+
             // Check that we are expecting a field and with the correct
-            // result type
+            // result type and of length that can store the item value
             if (context->expecting(Item::FIELD_ITEM) &&
                 context->expecting_field_type(field->type()) &&
+                context->expecting_max_length(field->field_length) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
@@ -315,6 +318,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                     context->expect_only(Item::STRING_ITEM);
                     context->expect(Item::VARBIN_ITEM);
                     context->expect_collation(field_item->collation.collation);
+                    context->expect_max_length(field->field_length);
                     break;
                   case REAL_RESULT:
                     context->expect_only(Item::REAL_ITEM);
@@ -384,7 +388,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
             break;
           }
-          
+          context->expect_no_length();
           switch (func_item->functype()) {
           case Item_func::EQ_FUNC:
           {
@@ -728,7 +732,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
         }
         case Item::STRING_ITEM:
           DBUG_PRINT("info", ("STRING_ITEM")); 
-          if (context->expecting(Item::STRING_ITEM)) 
+          // Check that we do support pushing the item value length
+          if (context->expecting(Item::STRING_ITEM) &&
+              context->expecting_length(item->max_length)) 
           {
 #ifndef DBUG_OFF
             char buff[256];
@@ -747,12 +753,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
               context->expect_only(Item::FIELD_ITEM);
               context->expect_only_field_result(STRING_RESULT);
               context->expect_collation(item->collation.collation);
+              context->expect_length(item->max_length);
             }
             else 
             {
               // Expect another logical expression
               context->expect_only(Item::FUNC_ITEM);
               context->expect(Item::COND_ITEM);
+              context->expect_no_length();
               // Check that we are comparing with a field with same collation
               if (!context->expecting_collation(item->collation.collation))
               {
@@ -916,6 +924,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           curr_cond= context->cond_ptr= new Ndb_cond();
           curr_cond->prev= prev_cond;
           prev_cond->next= curr_cond;
+          context->expect_no_length();
           curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
           // Pop rewrite stack
           context->rewrite_stack=  rewrite_context->next;
