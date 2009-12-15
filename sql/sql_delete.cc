@@ -1183,11 +1183,9 @@ end:
     {
       /* In RBR, the statement is not binlogged if the table is temporary. */
       if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
-      {
         error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-        if (!error)
-          my_ok(thd);		// This should return record count
-      }
+      if (!error)
+        my_ok(thd);		// This should return record count
     }
     pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
