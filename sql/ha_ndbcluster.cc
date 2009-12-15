@@ -94,6 +94,11 @@ static bool ndbcluster_show_status(handlerton *hton, THD*,
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
                                        st_alter_tablespace *info);
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                    THD *thd, 
+                                    TABLE_LIST *tables, 
+                                    COND *cond,
+                                    enum enum_schema_tables);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -7419,7 +7424,7 @@ static int ndbcluster_init(void *p)
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
-    h->fill_files_table= ndbcluster_fill_files_table;
+    h->fill_is_table=    ndbcluster_fill_is_table;
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
 #endif
@@ -7554,6 +7559,34 @@ ndbcluster_init_error:
 
   DBUG_RETURN(TRUE);
 }
+
+/**
+   Used to fill in INFORMATION_SCHEMA* tables.
+   
+   @param hton handle to the handlerton structure
+   @param thd the thread/connection descriptor
+   @param[in,out] tables the information schema table that is filled up
+   @param cond used for conditional pushdown to storage engine
+   @param schema_table_idx the table id that distinguishes the type of table
+   
+   @return Operation status
+ */
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                      THD *thd,
+                                      TABLE_LIST *tables,
+                                      COND *cond,
+                                      enum enum_schema_tables schema_table_idx)
+{
+  int ret= 0;
+  
+  if (schema_table_idx == SCH_FILES)
+  {
+    ret= ndbcluster_fill_files_table(hton, thd, tables, cond);
+  }
+  
+  return ret;
+}
+
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
