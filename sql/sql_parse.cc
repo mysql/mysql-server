@@ -193,6 +193,8 @@ void init_update_queries(void)
                                             CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
@@ -203,7 +205,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
@@ -283,7 +284,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_ALTER_DB]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
@@ -3430,7 +3430,7 @@ end_with_restore_list:
     if (check_access(thd,DROP_ACL,lex->name.str,0,1,0,
                      is_schema_db(lex->name.str)))
       break;
-    if (thd->locked_tables_mode || thd->active_transaction())
+    if (thd->locked_tables_mode)
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3464,7 +3464,7 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    if (thd->locked_tables_mode || thd->active_transaction())
+    if (thd->locked_tables_mode)
     {
       res= 1;
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
@@ -3504,7 +3504,7 @@ end_with_restore_list:
 #endif
     if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
       break;
-    if (thd->locked_tables_mode || thd->active_transaction())
+    if (thd->locked_tables_mode)
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
