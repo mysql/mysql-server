@@ -173,13 +173,14 @@ void md5_hash(Uint32 result[4], const Uint64* keybuf, Uint32 no_of_32_words)
    */
   Uint32 i;
   Uint32 buf[4];
-  Uint64 transform64_buf[8];
-  Uint32* transform32_buf;
+  union {
+    Uint64 transform64_buf[8];
+    Uint32 transform32_buf[16];
+  };
   Uint32 len = no_of_32_words << 2;
   const Uint64* key64buf = (const Uint64*)keybuf;
   const Uint32* key32buf = (const Uint32*)keybuf;
 
-  transform32_buf = (Uint32*)&transform64_buf[0];
   buf[0] = 0x67452301;
   buf[1] = 0xefcdab89;
   buf[2] = 0x98badcfe;
