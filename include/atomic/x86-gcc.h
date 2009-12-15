@@ -22,6 +22,12 @@
   architectures support double-word (128-bit) cas.
 */
 
+/*
+  No special support of 8 and 16 bit operations are implemented here
+  currently.
+*/
+#undef MY_ATOMIC_HAS_8_AND_16
+
 #ifdef __x86_64__
 #  ifdef MY_ATOMIC_NO_XADD
 #    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix "-no-xadd"
