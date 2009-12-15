@@ -895,9 +895,9 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
   owner= owner_arg;
+  set_null= set_null && owner_arg;
   a= a1;
   b= a2;
-  owner= owner_arg;
   thd= current_thd;
 
   if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
