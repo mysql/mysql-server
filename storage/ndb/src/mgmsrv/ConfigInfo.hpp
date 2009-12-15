@@ -131,7 +131,7 @@ public:
   };
 
   /**
-   * typelib ptr is stored in _default
+   * section type is stored in _default
    */
   static const Uint32 getSectionType(const ParamInfo& p) {
     assert(p._type == CI_SECTION);
