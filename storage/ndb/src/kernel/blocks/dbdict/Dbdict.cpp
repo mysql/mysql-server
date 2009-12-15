@@ -13674,14 +13674,14 @@ Dbdict::createTrigger_slavePrepare(Signal* signal, OpCreateTriggerPtr opPtr)
   jam();
   const CreateTrigReq* const req = &opPtr.p->m_request;
   // check trigger type
-  if (req->getRequestType() == CreateTrigReq::RT_USER &&
-      req->getTriggerType() == TriggerType::SUBSCRIPTION ||
-      req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
-      req->getTriggerType() == TriggerType::SECONDARY_INDEX ||
-      req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
-      req->getTriggerType() == TriggerType::ORDERED_INDEX ||
-      req->getRequestType() == CreateTrigReq::RT_BUILD_INDEX &&
-      req->getTriggerType() == TriggerType::READ_ONLY_CONSTRAINT) {
+  if ((req->getRequestType() == CreateTrigReq::RT_USER &&
+       req->getTriggerType() == TriggerType::SUBSCRIPTION) ||
+      (req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
+       req->getTriggerType() == TriggerType::SECONDARY_INDEX) ||
+      (req->getRequestType() == CreateTrigReq::RT_ALTER_INDEX &&
+       req->getTriggerType() == TriggerType::ORDERED_INDEX) ||
+      (req->getRequestType() == CreateTrigReq::RT_BUILD_INDEX &&
+       req->getTriggerType() == TriggerType::READ_ONLY_CONSTRAINT)) {
     ;
   } else {
     jam();

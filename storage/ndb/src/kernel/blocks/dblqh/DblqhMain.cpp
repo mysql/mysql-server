@@ -3571,8 +3571,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely(!all.isclear()) &&
-        checkTransporterOverloaded(signal, all, lqhKeyReq) ||
+    if (unlikely(!all.isclear() &&
+                 checkTransporterOverloaded(signal, all, lqhKeyReq)) ||
         ERROR_INSERTED_CLEAR(5047)) {
       jam();
       noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
@@ -20598,7 +20598,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	jam();
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
+        {
           ndbrequire(false);
+        }
       }
 
       return;
@@ -20641,7 +20643,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	jam();
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
+        {
           ndbrequire(false);
+        }
       }
       
       return;
