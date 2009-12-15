@@ -165,7 +165,7 @@ public:
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
   virtual bool compatible_field_size(uint metadata, Relay_log_info *rli,
-                                     int *order);
+                                     uint16 mflags, int *order);
   virtual uint pack_length_from_metadata(uint field_metadata)
   {
     DBUG_ENTER("Field::pack_length_from_metadata");
@@ -805,7 +805,7 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() { return pack_length(); }
   bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
-                             int *order_var);
+                             uint16 mflags, int *order_var);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -1500,7 +1500,7 @@ public:
     return (((field_metadata >> 4) & 0x300) ^ 0x300) + (field_metadata & 0x00ff);
   }
   bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
-                             int *order_var);
+                             uint16 mflags, int *order_var);
   uint row_pack_length() { return field_length; }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
@@ -1964,7 +1964,7 @@ public:
   uint row_pack_length()
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
   bool compatible_field_size(uint metadata, Relay_log_info *rli,
-                             int *order_var);
+                             uint16 mflags, int *order_var);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
