@@ -355,6 +355,7 @@ master-bin.000001	13657	Write_rows	1	13695	table_id: 48
 master-bin.000001	13695	Write_rows	1	13729	table_id: 47 flags: STMT_END_F
 master-bin.000001	13729	Query	1	13798	COMMIT
 DROP TABLE t1,t2,t3;
+SET SESSION binlog_format = STATEMENT;
 CREATE TABLE t1 (a VARCHAR(1000));
 INSERT INTO t1 VALUES (CURRENT_USER());
 Warnings:
