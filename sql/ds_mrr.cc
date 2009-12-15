@@ -950,8 +950,15 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
     ((tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN) &&
      tab->join->thd->variables.engine_condition_pushdown);
-  // psergey:
-  //
+
+  /*
+    Do not try index condition pushdown on indexes which have partially-covered
+    columns. Unpacking from a column prefix into index tuple is not a supported 
+    operation in some engines, see e.g. MySQL BUG#42991.
+    TODO: a better solution would be not to consider partially-covered columns
+    as parts of the index and still produce/check index condition for
+    fully-covered index columns.
+  */
   KEY *key_info= tab->table->key_info + keyno;
   for (uint kp= 0; kp < key_info->key_parts; kp++)
   {
@@ -961,7 +968,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       break;
     }
   }
-  // :psergey
+
   /*
     When WL#5116 is done this DBUG statement must be removed. It's just a
     temporary hack to allow us to discriminate whether a test failure relates
@@ -984,7 +991,8 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       Item *idx_remainder_cond= 0;
       tab->pre_idx_push_select_cond= tab->select_cond;
 #if 0
-      // The following is only needed for BKA:
+      /* 
+        psergey: enable the below when we backport BKA: */
       /*
         For BKA cache we store condition to special BKA cache field
         because evaluation of the condition requires additional operations

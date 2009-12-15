@@ -1,4 +1,8 @@
-
+/*
+  This file contains declarations for 
+   - Disk-Sweep MultiRangeRead (DS-MRR) implementation
+   - Index Condition Pushdown helper functions
+*/
 
 /**
   A Disk-Sweep MRR interface implementation
@@ -65,4 +69,5 @@ private:
                                uint *buffer_size, COST_VECT *cost);
 };
 
+void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
 

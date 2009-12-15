@@ -3,9 +3,6 @@ set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=79;
 Warnings:
 Warning	1292	Truncated incorrect read_rnd_buffer_size value: '79'
-select @@read_rnd_buffer_size;
-@@read_rnd_buffer_size
-8228
 create table t1(a int);
 show create table t1;
 Table	Create Table

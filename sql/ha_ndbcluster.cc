@@ -8702,6 +8702,8 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   DBUG_RETURN(FALSE);
 }
 
+#if 0 
+/* MRR/NDB is disabled, for details see method declarations in ha_ndbcluster.h */
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -9074,6 +9076,7 @@ found_next:
   m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
 }
+#endif 
 
 int
 ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)

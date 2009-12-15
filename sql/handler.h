@@ -1290,15 +1290,6 @@ public:
 
   ha_statistics stats;
 
-  /** The following are for read_multi_range */
-//////psergey: was: 
-#if 0
-  bool multi_range_sorted;
-  KEY_MULTI_RANGE *multi_range_curr;
-  KEY_MULTI_RANGE *multi_range_end;
-  HANDLER_BUFFER *multi_range_buffer;
-#endif
-//////psergey
   /** MultiRangeRead-related members: */
   range_seq_t mrr_iter;    /* Interator to traverse the range sequence */
   RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
@@ -1311,7 +1302,6 @@ public:
   bool mrr_have_range;
   /** Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
-//////psergey
 
   /** The following are for read_range() */
   key_range save_end_range, *end_range;
@@ -1744,13 +1734,6 @@ public:
       update_index_statistics();
     return error;
   }
-#if 0
-  virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                                     KEY_MULTI_RANGE *ranges, uint range_count,
-                                     bool sorted, HANDLER_BUFFER *buffer);
-  virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
-#endif 
-  //psergey-mrr: 
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
@@ -1761,7 +1744,6 @@ public:
                                     uint n_ranges, uint mode,
                                     HANDLER_BUFFER *buf);
   virtual int multi_range_read_next(char **range_info);
-  //psergey-mrr: ends
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);

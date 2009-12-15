@@ -16734,11 +16734,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
             table->file->pushed_idx_cond)
           extra.append(STRING_WITH_LEN("; Using index condition"));
-        /**
-        psergey-mrr:
+        /*
+        psergey: enable the below when we backport BKA:
+
         else if (tab->cache_idx_cond)
           extra.append(STRING_WITH_LEN("; Using index condition(BKA)"));
-        **/
+        */
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
