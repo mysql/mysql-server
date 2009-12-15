@@ -780,4 +780,5 @@ inline bool optimizer_flag(THD *thd, uint flag)
 
 void eliminate_tables(JOIN *join);
 
+void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
 
