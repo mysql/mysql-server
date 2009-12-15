@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1512,6 +1512,10 @@ static int myisammrg_init(void *p)
   handlerton *myisammrg_hton;
 
   myisammrg_hton= (handlerton *)p;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_myisammrg_psi_keys();
+#endif
 
   myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
   myisammrg_hton->create= myisammrg_create_handler;
