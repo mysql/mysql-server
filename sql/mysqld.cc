@@ -26,6 +26,7 @@
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
+#include "sql_audit.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"
 
@@ -834,6 +835,7 @@ static void close_server_sock();
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
+static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void end_ssl();
 #endif
 
@@ -1243,6 +1245,7 @@ void unireg_end(void)
 #endif
 }
 
+
 extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
@@ -1253,14 +1256,19 @@ extern "C" void unireg_abort(int exit_code)
     sql_print_error("Aborting\n");
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
+  mysqld_exit(exit_code);
+}
+
+static void mysqld_exit(int exit_code)
+{
   wait_for_signal_thread_to_end();
+  mysql_audit_finalize();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
 
-#endif /*EMBEDDED_LIBRARY*/
-
+#endif /* !EMBEDDED_LIBRARY */
 
 void clean_up(bool print_message)
 {
@@ -2917,6 +2925,13 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
 
   if (thd)
   {
+    mysql_audit_general(thd,MYSQL_AUDIT_GENERAL_ERROR,error,my_time(0),
+                        0,0,str,str ? strlen(str) : 0,
+                        thd->query(), thd->query_length(),
+                        thd->variables.character_set_client,
+                        thd->warning_info->current_row_for_warning());
+
+
     if (MyFlags & ME_FATALERROR)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
@@ -4323,6 +4338,9 @@ int main(int argc, char **argv)
   thr_kill_signal= SIGINT;
 #endif
 
+  /* Initialize audit interface globals. Audit plugins are inited later. */
+  mysql_audit_initialize();
+
   /*
     Perform basic logger initialization logger. Should be called after
     MY_INIT, as it initializes mutexes. Log tables are inited later.
@@ -4589,15 +4607,10 @@ int main(int argc, char **argv)
   }
 #endif
   clean_up(1);
-  wait_for_signal_thread_to_end();
-  clean_up_mutexes();
-  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-
-  exit(0);
-  return(0);					/* purecov: deadcode */
+  mysqld_exit(0);
 }
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* !EMBEDDED_LIBRARY */
 
 
 /****************************************************************************

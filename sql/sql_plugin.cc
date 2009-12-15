@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include <my_pthread.h>
 #include <my_getopt.h>
+#include <mysql/plugin_audit.h>
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -47,11 +48,15 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
+
+extern int initialize_audit_plugin(st_plugin_int *plugin);
+extern int finalize_audit_plugin(st_plugin_int *plugin);
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -60,12 +65,14 @@ extern int finalize_schema_table(st_plugin_int *plugin);
 */
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0,0,initialize_schema_table
+  0,ha_initialize_handlerton,0,0,initialize_schema_table,
+  initialize_audit_plugin
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0,0,finalize_schema_table
+  0,ha_finalize_handlerton,0,0,finalize_schema_table,
+  finalize_audit_plugin
 };
 
 #ifdef HAVE_DLOPEN
@@ -87,6 +94,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
@@ -96,6 +104,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 
@@ -1341,26 +1350,22 @@ end:
 */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 {
+  THD thd;
   TABLE_LIST tables;
   TABLE *table;
   READ_RECORD read_record_info;
   int error;
-  THD *new_thd;
+  THD *new_thd= &thd;
 #ifdef EMBEDDED_LIBRARY
   bool table_exists;
 #endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
-  if (!(new_thd= new THD))
-  {
-    sql_print_error("Can't allocate memory for plugin structures");
-    delete new_thd;
-    DBUG_VOID_RETURN;
-  }
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
+  bzero((char*) &thd.net, sizeof(thd.net));
   bzero((uchar*)&tables, sizeof(tables));
   tables.alias= tables.table_name= (char*)"plugin";
   tables.lock_type= TL_READ;
@@ -1418,7 +1423,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   new_thd->version--; // Force close to free memory
 end:
   close_thread_tables(new_thd);
-  delete new_thd;
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD, 0);
   DBUG_VOID_RETURN;
