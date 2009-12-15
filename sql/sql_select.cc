@@ -10543,6 +10543,18 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit= 1;
         }
       }
+      if (cur_field->type() == MYSQL_TYPE_BIT &&
+          cur_field->key_type() == HA_KEYTYPE_BIT)
+      {
+        /* This is a Field_bit since key_type is HA_KEYTYPE_BIT */
+        static_cast<Field_bit*>(cur_field)->set_bit_ptr(null_pos, null_bit);
+        null_bit+= cur_field->field_length & 7;
+        if (null_bit > 7)
+        {
+          null_pos++;
+          null_bit-= 8;
+        }
+      }
       cur_field->reset();
 
       field_pos+= cur_field->pack_length();
