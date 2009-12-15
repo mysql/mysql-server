@@ -1740,6 +1740,8 @@ fil_op_write_log(
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
 	ulint		space_id,	/* in: space id */
+	ulint		log_flags,	/* in: redo log flags (stored
+					in the page number field) */
 	const char*	name,		/* in: table name in the familiar
 					'databasename/tablename' format, or
 					the file path in the case of
@@ -1760,8 +1762,8 @@ fil_op_write_log(
 		return;
 	}
 
-	log_ptr = mlog_write_initial_log_record_for_file_op(type, space_id, 0,
-							    log_ptr, mtr);
+	log_ptr = mlog_write_initial_log_record_for_file_op(
+		type, space_id, log_flags, log_ptr, mtr);
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
@@ -1810,11 +1812,11 @@ fil_op_log_parse_or_replay(
 				not fir completely between ptr and end_ptr */
 	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
-	ibool	do_replay,	/* in: TRUE if we want to replay the
-				operation, and not just parse the log record */
-	ulint	space_id)	/* in: if do_replay is TRUE, the space id of
-				the tablespace in question; otherwise
-				ignored */
+	ulint	space_id,	/* in: the space id of the tablespace in
+				question, or 0 if the log record should
+				only be parsed but not replayed */
+	ulint	log_flags)	/* in: redo log flags
+				(stored in the page number parameter) */
 {
 	ulint		name_len;
 	ulint		new_name_len;
@@ -1868,7 +1870,7 @@ fil_op_log_parse_or_replay(
 	printf("new name %s\n", new_name);
 	}
 	*/
-	if (do_replay == FALSE) {
+	if (!space_id) {
 
 		return(ptr);
 	}
@@ -1917,6 +1919,8 @@ fil_op_log_parse_or_replay(
 		} else if (fil_get_space_id_for_table(name)
 			   != ULINT_UNDEFINED) {
 			/* Do nothing */
+		} else if (log_flags & MLOG_FILE_FLAG_TEMP) {
+			/* Temporary table, do nothing */
 		} else {
 			/* Create the database directory for name, if it does
 			not exist yet */
@@ -2078,7 +2082,7 @@ try_again:
 		to write any log record */
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_DELETE, id, path, NULL, &mtr);
+		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
 #endif
 		mem_free(path);
@@ -2349,7 +2353,7 @@ retry:
 
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_RENAME, id, old_name, new_name,
+		fil_op_write_log(MLOG_FILE_RENAME, id, 0, old_name, new_name,
 				 &mtr);
 		mtr_commit(&mtr);
 	}
@@ -2525,8 +2529,9 @@ error_exit2:
 
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_CREATE, *space_id, tablename,
-				 NULL, &mtr);
+		fil_op_write_log(MLOG_FILE_CREATE, *space_id,
+				 is_temp ? MLOG_FILE_FLAG_TEMP : 0,
+				 tablename, NULL, &mtr);
 
 		mtr_commit(&mtr);
 	}
