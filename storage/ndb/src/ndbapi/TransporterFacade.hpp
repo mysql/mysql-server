@@ -377,8 +377,8 @@ bool
 TransporterFacade::get_node_stopping(NodeId n) const {
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   return (!node.m_state.getSingleUserMode() &&
-          (node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
-          (node.m_state.startLevel == NodeState::SL_STOPPING_2));
+          ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
+           (node.m_state.startLevel == NodeState::SL_STOPPING_2)));
 }
 
 inline

@@ -144,8 +144,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
-  if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
-      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
+  if ((ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId) ||
+      (ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId)) {
     jam();
     terrorCode = 1;
     fragrefuse4Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
@@ -322,10 +322,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   fragOperPtr.p->attributeCount--;
   const bool lastAttr = (fragOperPtr.p->attributeCount == 0);
 
-  if (ERROR_INSERTED(4009) && regTabPtr.p->fragid[0] == fragId && attrId == 0||
-      ERROR_INSERTED(4010) && regTabPtr.p->fragid[0] == fragId && lastAttr ||
-      ERROR_INSERTED(4011) && regTabPtr.p->fragid[1] == fragId && attrId == 0||
-      ERROR_INSERTED(4012) && regTabPtr.p->fragid[1] == fragId && lastAttr) {
+  if ((ERROR_INSERTED(4009) && regTabPtr.p->fragid[0] == fragId &&attrId == 0)||
+      (ERROR_INSERTED(4010) && regTabPtr.p->fragid[0] == fragId && lastAttr) ||
+      (ERROR_INSERTED(4011) && regTabPtr.p->fragid[1] == fragId && attrId ==0)||
+      (ERROR_INSERTED(4012) && regTabPtr.p->fragid[1] == fragId && lastAttr)) {
     jam();
     terrorCode = 1;
     addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
