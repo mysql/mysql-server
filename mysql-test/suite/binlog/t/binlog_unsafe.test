@@ -434,6 +434,7 @@ SET SESSION binlog_format = STATEMENT;
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE t3 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
+
 # The purpose of this function is to insert into t1 so that the second
 # column is auto_increment'ed.
 delimiter |;
@@ -463,6 +464,7 @@ DROP TABLE t1,t2,t3;
 # generate a warning.  Each INSERT statement below should generate a
 # warning.
 #
+SET SESSION binlog_format = STATEMENT;
 
 CREATE TABLE t1 (a VARCHAR(1000));
 INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
