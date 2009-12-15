@@ -13,9 +13,12 @@ do
 done
 
 # Cygwin doesn't like the rest of this program
-if [ `uname -o` = Cygwin ]
+if uname -o > /dev/null 2>&1
 then
+  if [ `uname -o` = "Cygwin" ]
+  then
     exit 0
+  fi
 fi
 
 #
