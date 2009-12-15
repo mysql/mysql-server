@@ -179,6 +179,8 @@ Last_IO_Errno	<Last_IO_Errno>
 Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	<Last_SQL_Errno>
 Last_SQL_Error	<Last_SQL_Error>
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;
