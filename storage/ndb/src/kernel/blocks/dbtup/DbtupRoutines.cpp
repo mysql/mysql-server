@@ -397,7 +397,7 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
                      attributeOffset)) {
         continue;
       } else {
-        return -req_struct->errorCode;
+        return -(int)req_struct->errorCode;
       }
     } 
     else if(attributeId & AttributeHeader::PSEUDO) 
@@ -1618,7 +1618,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
         continue;
       } else {
         jam();
-        return -req_struct->errorCode;
+        return -(int)req_struct->errorCode;
       }
     } 
     else if(attributeId == AttributeHeader::READ_LCP)
@@ -1671,7 +1671,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
     else
     {
       jam();
-      return -req_struct->errorCode;
+      return -(int)req_struct->errorCode;
     }
   }
   return 0;

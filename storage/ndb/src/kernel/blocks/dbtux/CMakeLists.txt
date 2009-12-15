@@ -29,5 +29,6 @@ ADD_LIBRARY(ndbdbtux STATIC
             DbtuxDebug.cpp
             DbtuxStat.cpp
 	    DbtuxProxy.cpp
+            DbtuxBuild.cpp
 )
 
