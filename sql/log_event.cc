@@ -4006,6 +4006,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     5 + db_len + 3 +                        // "use DB; "
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
     13 + table_name_len*2 +                 // "INTO TABLE `table`"
@@ -4032,6 +4033,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
   }
 
   pos= strmov(pos, "LOAD DATA ");
+
+  if (thd->lex->lock_option == TL_WRITE_CONCURRENT_INSERT)
+    pos= strmov(pos, "CONCURRENT ");
 
   if (fn_start)
     *fn_start= pos;
