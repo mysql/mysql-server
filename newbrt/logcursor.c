@@ -13,6 +13,8 @@ struct toku_logcursor {
     int n_logfiles;
     int cur_logfiles_index;
     FILE *cur_fp;
+    size_t buffer_size;
+    void *buffer;
     BOOL is_open;
     struct log_entry entry;
     BOOL entry_valid;
@@ -53,6 +55,9 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     lc->cur_fp = fopen(lc->logfiles[index], "rb");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;
+    // debug printf("%s:%d %s %p %u\n", __FUNCTION__, __LINE__, lc->logfiles[index], lc->buffer, (unsigned) lc->buffer_size);
+    r = setvbuf(lc->cur_fp, lc->buffer, _IOFBF, lc->buffer_size);
+    assert(r == 0);
     // position fp past header
     unsigned int version=0;
     r = toku_read_logmagic(lc->cur_fp, &version);
@@ -98,6 +103,8 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->is_open = FALSE;
     cursor->cur_logfiles_index = 0;
     cursor->entry_valid = FALSE;
+    cursor->buffer_size = 1<<20;                       // use a 1MB stream buffer (setvbuf)
+    cursor->buffer = toku_malloc(cursor->buffer_size); // it does not matter if it failes
     // cursor->logdir must be an absolute path
     if (toku_os_is_absolute_name(log_dir)) {
         cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
@@ -125,6 +132,7 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->n_logfiles = 0;
     cursor->cur_lsn.lsn=0;
     cursor->last_direction=LC_FIRST;
+    
     *lc = cursor;
     return r;
 
@@ -194,6 +202,8 @@ int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
     }
     toku_free((*lc)->logfiles);
     toku_free((*lc)->logdir);
+    if ((*lc)->buffer) 
+        toku_free((*lc)->buffer);
     toku_free(*lc);
     *lc = NULL;
     return r;
