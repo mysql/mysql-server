@@ -59,3 +59,5 @@ Last_IO_Errno	#
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	2
