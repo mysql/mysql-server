@@ -56,11 +56,10 @@
 
 #define intptr         void *
 /**
-  On most platforms we implement 8-bit, 16-bit, 32-bit and "pointer"
-  operations. Thus the symbol below is defined by default; platforms
-  where we leave out 8-bit or 16-bit operations should undefine it.
+  Currently we don't support 8-bit and 16-bit operations.
+  It can be added later if needed.
 */
-#define MY_ATOMIC_HAS_8_16 1
+#undef MY_ATOMIC_HAS_8_16
 
 #ifndef MY_ATOMIC_MODE_RWLOCKS
 /*
