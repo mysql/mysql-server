@@ -1407,6 +1407,7 @@ bool Field::send_binary(Protocol *protocol)
    type, 0 is returned in <code>*order_var</code>.
 
    @param   field_metadata   Encoded size in field metadata
+   @param   mflags           Flags from the table map event for the table.
    @param   order_var        Pointer to variable where the order
                              between the source field and this field
                              will be returned.
@@ -1416,6 +1417,7 @@ bool Field::send_binary(Protocol *protocol)
 */
 bool Field::compatible_field_size(uint field_metadata,
                                   Relay_log_info *rli_arg __attribute__((unused)),
+                                  uint16 mflags __attribute__((unused)),
                                   int *order_var)
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
@@ -2950,6 +2952,7 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
 
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
                                               Relay_log_info * __attribute__((unused)),
+                                              uint16 mflags __attribute__((unused)),
                                               int *order_var)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -6733,6 +6736,7 @@ check_field_for_37426(const void *param_arg)
 bool
 Field_string::compatible_field_size(uint field_metadata,
                                     Relay_log_info *rli_arg,
+                                    uint16 mflags __attribute__((unused)),
                                     int *order_var)
 {
 #ifdef HAVE_REPLICATION
@@ -6741,7 +6745,7 @@ Field_string::compatible_field_size(uint field_metadata,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
 #endif
-  return Field::compatible_field_size(field_metadata, rli_arg, order_var);
+  return Field::compatible_field_size(field_metadata, rli_arg, mflags, order_var);
 }
 
 
@@ -9305,8 +9309,13 @@ int Field_bit::do_save_field_metadata(uchar *metadata_ptr)
   DBUG_ENTER("Field_bit::do_save_field_metadata");
   DBUG_PRINT("debug", ("bit_len: %d, bytes_in_rec: %d",
                        bit_len, bytes_in_rec));
-  *metadata_ptr= bit_len;
-  *(metadata_ptr + 1)= bytes_in_rec;
+  /*
+    Since this class and Field_bit_as_char have different ideas of
+    what should be stored here, we compute the values of the metadata
+    explicitly using the field_length.
+   */
+  metadata_ptr[0]= field_length % 8;
+  metadata_ptr[1]= field_length / 8;
   DBUG_RETURN(2);
 }
 
@@ -9335,15 +9344,29 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
 bool
 Field_bit::compatible_field_size(uint field_metadata,
                                  Relay_log_info * __attribute__((unused)),
+                                 uint16 mflags,
                                  int *order_var)
 {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
-  uint const from_bit_len=
+  uint from_bit_len=
     8 * (field_metadata >> 8) + (field_metadata & 0xff);
-  uint const to_bit_len= max_display_length();
+  uint to_bit_len= max_display_length();
   DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
                        from_bit_len, to_bit_len));
+  /*
+    If the bit length exact flag is clear, we are dealing with an old
+    master, so we allow some less strict behaviour if replicating by
+    moving both bit lengths to an even multiple of 8.
+
+    We do this by computing the number of bytes to store the field
+    instead, and then compare the result.
+   */
+  if (!(mflags & Table_map_log_event::TM_BIT_LEN_EXACT_F)) {
+    from_bit_len= (from_bit_len + 7) / 8;
+    to_bit_len= (to_bit_len + 7) / 8;
+  }
+
   *order_var= compare(from_bit_len, to_bit_len);
   DBUG_RETURN(TRUE);
 }

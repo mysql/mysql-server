@@ -510,6 +510,9 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str)
 /**
    Check the order variable and print errors if the order is not
    acceptable according to the current settings.
+
+   @param order  The computed order of the conversion needed.
+   @param rli    The relay log info data structure: for error reporting.
  */
 bool is_conversion_ok(int order, Relay_log_info *rli)
 {
@@ -562,6 +565,7 @@ bool is_conversion_ok(int order, Relay_log_info *rli)
    @param[in] type     Source field type
    @param[in] metadata Source field metadata
    @param[in] rli      Relay log info (for error reporting)
+   @param[in] mflags   Flags from the table map event
    @param[out] order   Order between source field and target field
 
    @return @c true if conversion is possible according to the current
@@ -571,7 +575,8 @@ bool is_conversion_ok(int order, Relay_log_info *rli)
 static bool
 can_convert_field_to(Field *field,
                      enum_field_types source_type, uint16 metadata,
-                     Relay_log_info *rli, int *order_var)
+                     Relay_log_info *rli, uint16 mflags,
+                     int *order_var)
 {
   DBUG_ENTER("can_convert_field_to");
 #ifndef DBUG_OFF
@@ -588,7 +593,7 @@ can_convert_field_to(Field *field,
   if (field->real_type() == source_type)
   {
     DBUG_PRINT("debug", ("Base types are identical, doing field size comparison"));
-    if (field->compatible_field_size(metadata, rli, order_var))
+    if (field->compatible_field_size(metadata, rli, mflags, order_var))
       DBUG_RETURN(is_conversion_ok(*order_var, rli));
     else
       DBUG_RETURN(false);
@@ -765,7 +770,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   {
     Field *const field= table->field[col];
     int order;
-    if (can_convert_field_to(field, type(col), field_metadata(col), rli, &order))
+    if (can_convert_field_to(field, type(col), field_metadata(col), rli, m_flags, &order))
     {
       DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can be converted - order: %d",
@@ -937,9 +942,10 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,
-                     uchar *null_bitmap)
+                     uchar *null_bitmap, uint16 flags)
   : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
-    m_field_metadata(0), m_null_bits(0), m_memory(NULL)
+    m_field_metadata(0), m_null_bits(0), m_flags(flags),
+    m_memory(NULL)
 {
   m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                      &m_type, size,
