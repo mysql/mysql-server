@@ -37,18 +37,29 @@
 C_MODE_START
 /*Visual Studio 2003 and earlier do not have prototypes for atomic intrinsics*/
 LONG _InterlockedExchange (LONG volatile *Target,LONG Value);
-LONG _InterlockedCompareExchange (LONG volatile *Target, LONG Value, LONG Comp);
+LONGLONG _InterlockedExchange64 (LONGLONG volatile *Target,LONGLONG Value);
+LONG _InterlockedCompareExchange (LONG volatile *Target,
+                                  LONG Value, LONG Comp);
+LONGLONG _InterlockedCompareExchange64 (LONGLONG volatile *Target,
+                                        LONGLONG Value, LONGLONG Comp);
 LONG _InterlockedExchangeAdd (LONG volatile *Addend, LONG Value);
+LONGLONG _InterlockedExchangeAdd64 (LONGLONG volatile *Addend, LONGLONG Value);
 C_MODE_END
 
 #pragma intrinsic(_InterlockedExchangeAdd)
 #pragma intrinsic(_InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchange)
+#pragma intrinsic(_InterlockedExchangeAdd64)
+#pragma intrinsic(_InterlockedCompareExchange64)
+#pragma intrinsic(_InterlockedExchange64)
 #endif
 
 #define InterlockedExchange        _InterlockedExchange
 #define InterlockedExchangeAdd     _InterlockedExchangeAdd
 #define InterlockedCompareExchange _InterlockedCompareExchange
+#define InterlockedExchange64      _InterlockedExchange64
+#define InterlockedExchangeAdd64   _InterlockedExchangeAdd64
+#define InterlockedCompareExchange64 _InterlockedCompareExchange64
 /*
  No need to do something special for InterlockedCompareExchangePointer
  as it is a #define to InterlockedCompareExchange. The same applies to
@@ -57,10 +68,20 @@ C_MODE_END
 #endif /*_M_IX86*/
 
 #define MY_ATOMIC_MODE "msvc-intrinsics"
-#define IL_EXCHG_ADD32(X,Y)     InterlockedExchangeAdd((volatile LONG *)(X),(Y))
-#define IL_COMP_EXCHG32(X,Y,Z)  InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
+#define IL_EXCHG_ADD32(X,Y)     \
+  InterlockedExchangeAdd((volatile LONG *)(X),(Y))
+#define IL_EXCHG_ADD64(X,Y)     \
+  InterlockedExchangeAdd64((volatile LONGLONG *)(X),(LONGLONG)(Y))
+#define IL_COMP_EXCHG32(X,Y,Z)  \
+  InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
+#define IL_COMP_EXCHG64(X,Y,Z)  \
+  InterlockedCompareExchange64((volatile LONGLONG *)(X), \
+                               (LONGLONG)(Y),(LONGLONG)(Z))
 #define IL_COMP_EXCHGptr        InterlockedCompareExchangePointer
-#define IL_EXCHG32(X,Y)         InterlockedExchange((volatile LONG *)(X),(Y))
+#define IL_EXCHG32(X,Y)         \
+  InterlockedExchange((volatile LONG *)(X),(Y))
+#define IL_EXCHG64(X,Y)         \
+  InterlockedExchange64((volatile LONGLONG *)(X),(LONGLONG)(Y))
 #define IL_EXCHGptr             InterlockedExchangePointer
 #define make_atomic_add_body(S) \
   v= IL_EXCHG_ADD ## S (a, v)
@@ -108,9 +129,12 @@ static __inline int my_yield_processor()
 #else /* cleanup */
 
 #undef IL_EXCHG_ADD32
+#undef IL_EXCHG_ADD64
 #undef IL_COMP_EXCHG32
+#undef IL_COMP_EXCHG64
 #undef IL_COMP_EXCHGptr
 #undef IL_EXCHG32
+#undef IL_EXCHG64
 #undef IL_EXCHGptr
 
 #endif
