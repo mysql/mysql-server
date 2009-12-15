@@ -356,7 +356,7 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   void push(Ndb_expect_stack* expect_next)
   {
     next= expect_next;
-  };
+  }
   void pop()
   {
     if (next)
@@ -372,25 +372,25 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
       next= next->next;
       delete expect_next;
     }
-  };
+  }
   void expect(Item::Type type)
   {
     bitmap_set_bit(&expect_mask, (uint) type);
     if (type == Item::FIELD_ITEM)
       expect_all_field_types();
-  };
+  }
   void dont_expect(Item::Type type)
   {
     bitmap_clear_bit(&expect_mask, (uint) type);
-  };
+  }
   bool expecting(Item::Type type)
   {
     return bitmap_is_set(&expect_mask, (uint) type);
-  };
+  }
   void expect_nothing()
   {
     bitmap_clear_all(&expect_mask);
-  };
+  }
   bool expecting_nothing()
   {
     return bitmap_is_clear_all(&expect_mask);
@@ -399,24 +399,24 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   {
     expect_nothing();
     expect(type);
-  };
+  }
 
   void expect_field_type(enum_field_types type)
   {
     bitmap_set_bit(&expect_field_type_mask, (uint) type);
-  };
+  }
   void expect_all_field_types()
   {
     bitmap_set_all(&expect_field_type_mask);
-  };
+  }
   bool expecting_field_type(enum_field_types type)
   {
     return bitmap_is_set(&expect_field_type_mask, (uint) type);
-  };
+  }
   void expect_no_field_type()
   {
     bitmap_clear_all(&expect_field_type_mask);
-  };
+  }
   bool expecting_no_field_type()
   {
     return bitmap_is_clear_all(&expect_field_type_mask);
@@ -425,21 +425,21 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   {
     expect_no_field_type();
     expect_field_type(result);
-  };
+  }
 
   void expect_field_result(Item_result result)
   {
     bitmap_set_bit(&expect_field_result_mask, (uint) result);
-  };
+  }
   bool expecting_field_result(Item_result result)
   {
     return bitmap_is_set(&expect_field_result_mask,
                          (uint) result);
-  };
+  }
   void expect_no_field_result()
   {
     bitmap_clear_all(&expect_field_result_mask);
-  };
+  }
   bool expecting_no_field_result()
   {
     return bitmap_is_clear_all(&expect_field_result_mask);
@@ -448,11 +448,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   {
     expect_no_field_result();
     expect_field_result(result);
-  };
+  }
   void expect_collation(CHARSET_INFO* col)
   {
     collation= col;
-  };
+  }
   bool expecting_collation(CHARSET_INFO* col)
   {
     bool matching= (!collation)
@@ -461,27 +461,27 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
     collation= NULL;
 
     return matching;
-  };
+  }
   void expect_length(Uint32 len)
   {
     length= len;
-  };
+  }
   void expect_max_length(Uint32 max)
   {
     max_length= max;
-  };
+  }
   bool expecting_length(Uint32 len)
   {
     return max_length == 0 || len <= max_length;
-  };
+  }
   bool expecting_max_length(Uint32 max)
   {
     return max >= length;
-  };
+  }
   void expect_no_length()
   {
     length= max_length= 0;
-  };
+  }
 
 private:
   MY_BITMAP expect_mask;
@@ -526,7 +526,7 @@ class Ndb_cond_traverse_context : public Sql_alloc
   { 
    if (stack)
       cond_ptr= stack->ndb_cond;
-  };
+  }
   ~Ndb_cond_traverse_context()
   {
     if (rewrite_stack) delete rewrite_stack;
