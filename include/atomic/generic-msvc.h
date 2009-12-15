@@ -37,29 +37,18 @@
 C_MODE_START
 /*Visual Studio 2003 and earlier do not have prototypes for atomic intrinsics*/
 LONG _InterlockedExchange (LONG volatile *Target,LONG Value);
-LONGLONG _InterlockedExchange64 (LONGLONG volatile *Target,LONGLONG Value);
-LONG _InterlockedCompareExchange (LONG volatile *Target,
-                                  LONG Value, LONG Comp);
-LONGLONG _InterlockedCompareExchange64 (LONGLONG volatile *Target,
-                                        LONGLONG Value, LONGLONG Comp);
+LONG _InterlockedCompareExchange (LONG volatile *Target, LONG Value, LONG Comp);
 LONG _InterlockedExchangeAdd (LONG volatile *Addend, LONG Value);
-LONGLONG _InterlockedExchangeAdd64 (LONGLONG volatile *Addend, LONGLONG Value);
 C_MODE_END
 
 #pragma intrinsic(_InterlockedExchangeAdd)
 #pragma intrinsic(_InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchange)
-#pragma intrinsic(_InterlockedExchangeAdd64)
-#pragma intrinsic(_InterlockedCompareExchange64)
-#pragma intrinsic(_InterlockedExchange64)
 #endif
 
 #define InterlockedExchange        _InterlockedExchange
 #define InterlockedExchangeAdd     _InterlockedExchangeAdd
 #define InterlockedCompareExchange _InterlockedCompareExchange
-#define InterlockedExchange64      _InterlockedExchange64
-#define InterlockedExchangeAdd64   _InterlockedExchangeAdd64
-#define InterlockedCompareExchange64 _InterlockedCompareExchange64
 /*
  No need to do something special for InterlockedCompareExchangePointer
  as it is a #define to InterlockedCompareExchange. The same applies to
