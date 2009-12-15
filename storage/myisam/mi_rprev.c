@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2004 MySQL AB
+/* Copyright (C) 2000-2001, 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     DBUG_RETURN(my_errno);
   changed=_mi_test_if_changed(info);
   if (share->concurrent_insert)
-    rw_rdlock(&share->key_root_lock[inx]);
+    mysql_rwlock_rdlock(&share->key_root_lock[inx]);
   if (!flag)
     error=_mi_search_last(info, share->keyinfo+inx,
 			  share->state.key_root[inx]);
@@ -65,7 +65,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
 	  break;
       }
     }
-    rw_unlock(&share->key_root_lock[inx]);
+    mysql_rwlock_unlock(&share->key_root_lock[inx]);
   }
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;

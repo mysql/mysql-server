@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -433,7 +433,7 @@ typedef struct st_mi_check_param
   const char *op_name;
   enum_mi_stats_method stats_method;
 #ifdef THREAD
-  pthread_mutex_t print_msg_mutex;
+  mysql_mutex_t print_msg_mutex;
   my_bool need_print_msg_lock;
 #endif
 } MI_CHECK;
@@ -460,8 +460,8 @@ typedef struct st_sort_info
   /* sync things */
   uint got_error, threads_running;
 #ifdef THREAD
-  pthread_mutex_t mutex;
-  pthread_cond_t  cond;
+  mysql_mutex_t mutex;
+  mysql_cond_t  cond;
 #endif
 } SORT_INFO;
 
