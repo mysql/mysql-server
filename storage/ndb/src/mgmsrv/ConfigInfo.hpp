@@ -125,17 +125,26 @@ public:
      * For section entries, instead the _default member gives the internal id
      * of that kind of section (CONNECTION_TYPE_TCP, NODE_TYPE_MGM, etc.)
      */
-    union {
-      const char*  _default;
-      UintPtr      _section_type; // if _type = CI_SECTION
-      /** NOTE must be UintPtr to be of same size as _default */
-    };
-    union {
-      const char* _min;
-      const Typelib* _typelib; // If _type == CI_ENUM
-    };
+    const char*  _default;
+    const char* _min;
     const char* _max;
   };
+
+  /**
+   * section type is stored in _default
+   */
+  static const Uint32 getSectionType(const ParamInfo& p) {
+    assert(p._type == CI_SECTION);
+    return Uint32(reinterpret_cast<UintPtr>(p._default));
+  }
+
+  /**
+   * typelib ptr is stored in _min
+   */
+  static const Typelib* getTypelibPtr(const ParamInfo& p) {
+    assert(p._type == CI_ENUM);
+    return reinterpret_cast<const Typelib*>(p._min);
+  }
 
   class ParamInfoIter {
     const ConfigInfo& m_info;

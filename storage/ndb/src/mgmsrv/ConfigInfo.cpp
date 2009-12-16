@@ -2913,7 +2913,7 @@ ConfigInfo::ConfigInfo()
       {
         Properties values(true); // case insensitive
         // Put the list of allowed enum values in pinfo
-        for (const Typelib* entry = param._typelib;
+        for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
              entry->name != 0; entry++)
           values.put(entry->name, entry->value);
         require(pinfo.put("values", &values));
@@ -5042,7 +5042,7 @@ ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
     if (param._type == ConfigInfo::CI_SECTION &&
         param._paramId == section &&
         (section_type == ~(Uint32)0 || 
-         Uint32(param._section_type) == section_type))
+         ConfigInfo::getSectionType(param) == section_type))
     {
       m_section_name= param._section;
       return;
