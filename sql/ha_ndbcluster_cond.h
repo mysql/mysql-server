@@ -213,16 +213,24 @@ public:
 
   void save_in_field(Ndb_item *field_item)
   {
+    DBUG_ENTER("save_in_field");
     Field *field = field_item->value.field_value->field;
     const Item *item= value.item;
-
     if (item && field)
     {
+      DBUG_PRINT("info", ("item length %u, field length %u",
+                          item->max_length, field->field_length));
+      if (item->max_length > field->field_length)
+      {
+        DBUG_PRINT("info", ("Comparing field with longer value"));
+        DBUG_PRINT("info", ("Field can store %u", field->field_length));
+      }
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
       ((Item *)item)->save_in_field(field, FALSE);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
     }
+    DBUG_VOID_RETURN;
   };
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
@@ -326,7 +334,7 @@ class Ndb_cond_stack : public Sql_alloc
 class Ndb_expect_stack : public Sql_alloc
 {
  public:
-  Ndb_expect_stack(): collation(NULL), next(NULL) 
+Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL) 
   {
     // Allocate type checking bitmaps   
     bitmap_init(&expect_mask,
@@ -348,7 +356,7 @@ class Ndb_expect_stack : public Sql_alloc
   void push(Ndb_expect_stack* expect_next)
   {
     next= expect_next;
-  };
+  }
   void pop()
   {
     if (next)
@@ -364,25 +372,25 @@ class Ndb_expect_stack : public Sql_alloc
       next= next->next;
       delete expect_next;
     }
-  };
+  }
   void expect(Item::Type type)
   {
     bitmap_set_bit(&expect_mask, (uint) type);
     if (type == Item::FIELD_ITEM)
       expect_all_field_types();
-  };
+  }
   void dont_expect(Item::Type type)
   {
     bitmap_clear_bit(&expect_mask, (uint) type);
-  };
+  }
   bool expecting(Item::Type type)
   {
     return bitmap_is_set(&expect_mask, (uint) type);
-  };
+  }
   void expect_nothing()
   {
     bitmap_clear_all(&expect_mask);
-  };
+  }
   bool expecting_nothing()
   {
     return bitmap_is_clear_all(&expect_mask);
@@ -391,24 +399,24 @@ class Ndb_expect_stack : public Sql_alloc
   {
     expect_nothing();
     expect(type);
-  };
+  }
 
   void expect_field_type(enum_field_types type)
   {
     bitmap_set_bit(&expect_field_type_mask, (uint) type);
-  };
+  }
   void expect_all_field_types()
   {
     bitmap_set_all(&expect_field_type_mask);
-  };
+  }
   bool expecting_field_type(enum_field_types type)
   {
     return bitmap_is_set(&expect_field_type_mask, (uint) type);
-  };
+  }
   void expect_no_field_type()
   {
     bitmap_clear_all(&expect_field_type_mask);
-  };
+  }
   bool expecting_no_field_type()
   {
     return bitmap_is_clear_all(&expect_field_type_mask);
@@ -417,21 +425,21 @@ class Ndb_expect_stack : public Sql_alloc
   {
     expect_no_field_type();
     expect_field_type(result);
-  };
+  }
 
   void expect_field_result(Item_result result)
   {
     bitmap_set_bit(&expect_field_result_mask, (uint) result);
-  };
+  }
   bool expecting_field_result(Item_result result)
   {
     return bitmap_is_set(&expect_field_result_mask,
                          (uint) result);
-  };
+  }
   void expect_no_field_result()
   {
     bitmap_clear_all(&expect_field_result_mask);
-  };
+  }
   bool expecting_no_field_result()
   {
     return bitmap_is_clear_all(&expect_field_result_mask);
@@ -440,11 +448,11 @@ class Ndb_expect_stack : public Sql_alloc
   {
     expect_no_field_result();
     expect_field_result(result);
-  };
+  }
   void expect_collation(CHARSET_INFO* col)
   {
     collation= col;
-  };
+  }
   bool expecting_collation(CHARSET_INFO* col)
   {
     bool matching= (!collation)
@@ -453,13 +461,35 @@ class Ndb_expect_stack : public Sql_alloc
     collation= NULL;
 
     return matching;
-  };
+  }
+  void expect_length(Uint32 len)
+  {
+    length= len;
+  }
+  void expect_max_length(Uint32 max)
+  {
+    max_length= max;
+  }
+  bool expecting_length(Uint32 len)
+  {
+    return max_length == 0 || len <= max_length;
+  }
+  bool expecting_max_length(Uint32 max)
+  {
+    return max >= length;
+  }
+  void expect_no_length()
+  {
+    length= max_length= 0;
+  }
 
 private:
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;
   CHARSET_INFO* collation;
+  Uint32 length;
+  Uint32 max_length;
   Ndb_expect_stack* next;
 };
 
@@ -496,7 +526,7 @@ class Ndb_cond_traverse_context : public Sql_alloc
   { 
    if (stack)
       cond_ptr= stack->ndb_cond;
-  };
+  }
   ~Ndb_cond_traverse_context()
   {
     if (rewrite_stack) delete rewrite_stack;
@@ -504,19 +534,19 @@ class Ndb_cond_traverse_context : public Sql_alloc
   inline void expect(Item::Type type)
   {
     expect_stack.expect(type);
-  };
+  }
   inline void dont_expect(Item::Type type)
   {
     expect_stack.dont_expect(type);
-  };
+  }
   inline bool expecting(Item::Type type)
   {
     return expect_stack.expecting(type);
-  };
+  }
   inline void expect_nothing()
   {
     expect_stack.expect_nothing();
-  };
+  }
   inline bool expecting_nothing()
   {
     return expect_stack.expecting_nothing();
@@ -524,61 +554,82 @@ class Ndb_cond_traverse_context : public Sql_alloc
   inline void expect_only(Item::Type type)
   {
     expect_stack.expect_only(type);
-  };
+  }
 
   inline void expect_field_type(enum_field_types type)
   {
     expect_stack.expect_field_type(type);
-  };
+  }
   inline void expect_all_field_types()
   {
     expect_stack.expect_all_field_types();
-  };
+  }
   inline bool expecting_field_type(enum_field_types type)
   {
     return expect_stack.expecting_field_type(type);
-  };
+  }
   inline void expect_no_field_type()
   {
     expect_stack.expect_no_field_type();
-  };
+  }
   inline bool expecting_no_field_type()
   {
     return expect_stack.expecting_no_field_type();
-  };
+  }
   inline void expect_only_field_type(enum_field_types result)
   {
     expect_stack.expect_only_field_type(result);
-  };
+  }
 
   inline void expect_field_result(Item_result result)
   {
     expect_stack.expect_field_result(result);
-  };
+  }
   inline bool expecting_field_result(Item_result result)
   {
     return expect_stack.expecting_field_result(result);
-  };
+  }
   inline void expect_no_field_result()
   {
     expect_stack.expect_no_field_result();
-  };
+  }
   inline bool expecting_no_field_result()
   {
     return expect_stack.expecting_no_field_result();
-  };
+  }
   inline void expect_only_field_result(Item_result result)
   {
     expect_stack.expect_only_field_result(result);
-  };
+  }
   inline void expect_collation(CHARSET_INFO* col)
   {
     expect_stack.expect_collation(col);
-  };
+  }
   inline bool expecting_collation(CHARSET_INFO* col)
   {
     return expect_stack.expecting_collation(col);
-  };
+  }
+  inline void expect_length(Uint32 length)
+  {
+    expect_stack.expect_length(length);
+  }
+  inline void expect_max_length(Uint32 max)
+  {
+    expect_stack.expect_max_length(max);
+  }
+  inline bool expecting_length(Uint32 length)
+  {
+    return expect_stack.expecting_length(length);
+  }
+  inline bool expecting_max_length(Uint32 max)
+  {
+    return expect_stack.expecting_max_length(max);
+  }
+  inline void expect_no_length()
+  {
+    expect_stack.expect_no_length();
+  }
+  
 
   TABLE* table;
   const NdbDictionary::Table *ndb_table;
