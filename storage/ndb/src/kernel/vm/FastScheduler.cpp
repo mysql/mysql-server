@@ -573,6 +573,12 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
 static NdbMutex g_mm_mutex;
 
 void
+mt_mem_manager_init()
+{
+  NdbMutex_Init(&g_mm_mutex);
+}
+
+void
 mt_mem_manager_lock()
 {
   NdbMutex_Lock(&g_mm_mutex);

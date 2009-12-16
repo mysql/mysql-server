@@ -46,6 +46,7 @@ static const char * f_method = "MSms";
  * For single-threaded ndbd, they are no-ops (but still called, to avoid
  * having to compile this file twice).
  */
+extern void mt_mem_manager_init();
 extern void mt_mem_manager_lock();
 extern void mt_mem_manager_unlock();
 
@@ -196,6 +197,7 @@ Ndbd_mem_manager::Ndbd_mem_manager()
     g_eventLogger->error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
     abort();
   }
+  mt_mem_manager_init();
 }
 
 /**

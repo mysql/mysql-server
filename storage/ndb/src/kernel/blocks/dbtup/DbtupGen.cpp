@@ -442,6 +442,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   pc.m_block = this;
   c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   c_extent_pool.init(RT_DBTUP_EXTENT_INFO, pc);
+  NdbMutex_Init(&c_page_map_pool_mutex);
   c_page_map_pool.init(&c_page_map_pool_mutex, RT_DBTUP_PAGE_MAP, pc);
   
   Uint32 nScanOp;       // use TUX config for now
