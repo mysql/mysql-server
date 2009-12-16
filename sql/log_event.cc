@@ -1570,37 +1570,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
         /* a long CHAR() field: see #37426 */
         length= byte1 | (((byte0 & 0x30) ^ 0x30) << 4);
         type= byte0 | 0x30;
-        goto beg;
       }
-
-      switch (byte0)
-      {
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_STRING:
-          type= byte0;
-          length= byte1;
-          break;
-
-        default:
-
-        {
-          char tmp[5];
-          my_snprintf(tmp, sizeof(tmp), "%04X", meta);
-          my_b_printf(file,
-                      "!! Don't know how to handle column type=%d meta=%d (%s)",
-                      type, meta, tmp);
-          return 0;
-        }
-      }
+      else
+        length = meta & 0xFF;
     }
     else
       length= meta;
   }
 
-
-beg:
-  
   switch (type) {
   case MYSQL_TYPE_LONG:
     {
@@ -1737,6 +1714,33 @@ beg:
       return 3;
     }
     
+  case MYSQL_TYPE_NEWDATE:
+    {
+      uint32 tmp= uint3korr(ptr);
+      int part;
+      char buf[10];
+      char *pos= &buf[10];
+
+      /* Copied from field.cc */
+      *pos--=0;					// End NULL
+      part=(int) (tmp & 31);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 5 & 15);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 9);
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos=   (char) ('0'+part);
+      my_b_printf(file , "'%s'", buf);
+      my_snprintf(typestr, typestr_length, "DATE");
+      return 3;
+    }
+    
   case MYSQL_TYPE_DATE:
     {
       uint i32= uint3korr(ptr);
@@ -1755,7 +1759,7 @@ beg:
     }
   
   case MYSQL_TYPE_ENUM:
-    switch (length) { 
+    switch (meta & 0xFF) {
     case 1:
       my_b_printf(file, "%d", (int) *ptr);
       my_snprintf(typestr, typestr_length, "ENUM(1 byte)");
@@ -1768,15 +1772,15 @@ beg:
         return 2;
       }
     default:
-      my_b_printf(file, "!! Unknown ENUM packlen=%d", length); 
+      my_b_printf(file, "!! Unknown ENUM packlen=%d", meta & 0xFF); 
       return 0;
     }
     break;
     
   case MYSQL_TYPE_SET:
-    my_b_write_bit(file, ptr , length * 8);
-    my_snprintf(typestr, typestr_length, "SET(%d bytes)", length);
-    return length;
+    my_b_write_bit(file, ptr , (meta & 0xFF) * 8);
+    my_snprintf(typestr, typestr_length, "SET(%d bytes)", meta & 0xFF);
+    return meta & 0xFF;
   
   case MYSQL_TYPE_BLOB:
     switch (meta) {
