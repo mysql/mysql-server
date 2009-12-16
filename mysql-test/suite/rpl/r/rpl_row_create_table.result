@@ -476,4 +476,30 @@ master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.with_select)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mysqltest1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TEMPORARY TABLE t7(c1 INT);
+CREATE TABLE t5(c1 INT);
+CREATE TABLE t4(c1 INT);
+CREATE VIEW bug48506_t1 AS SELECT 1;
+CREATE VIEW bug48506_t2 AS SELECT * FROM t4;
+CREATE VIEW bug48506_t3 AS SELECT t5.c1 AS A, t4.c1 AS B FROM t5, t4;
+CREATE TABLE bug48506_t4(c1 INT);
+DROP VIEW bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TABLE bug48506_t4;
+CREATE TABLE IF NOT EXISTS bug48506_t1 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t2 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t3 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t4 LIKE t7;
+SHOW TABLES LIKE 'bug48506%';
+Tables_in_test (bug48506%)
+bug48506_t4
+DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TEMPORARY TABLES t7;
+DROP TABLES t4, t5;
+DROP TABLES IF EXISTS bug48506_t4;
 end of the tests
