@@ -93,6 +93,11 @@ struct DABits
     PI_ATTR_LIST   = 0x1, // "user" projection list
     PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
     PI_KEY_PARAMS  = 0x4, // key-info parameters  (NI_KEY_PARAMS)
+    /** 
+     * The parameter object contains a program that will be interpreted 
+     * before reading the attributes (i.e. a scan filter).
+     */
+    PI_ATTR_INTERPRET = 0x8,
     PI_END = 0
   };
 };

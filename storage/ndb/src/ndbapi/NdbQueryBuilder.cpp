@@ -2143,6 +2143,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
 
   // Optional part1: Make list of parent nodes.
   if (getNoOfParentOperations()>0) {
+    assert(false); // Scan with parent not yet implemented.
     requestInfo |= DABits::NI_HAS_PARENT;
     appendParentList (serializedDef);
   }

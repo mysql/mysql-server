@@ -537,6 +537,7 @@ public:
 private:
   friend class NdbOperation;
   friend class NdbScanOperation;
+  friend class NdbQueryOperationImpl;
 
   static const Uint32 MaxReg= 8;
   static const Uint32 MaxLabels= 65535;
