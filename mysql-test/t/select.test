@@ -3777,6 +3777,19 @@ ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1));
 
 DROP TABLE t1;
  
+--echo #
+--echo # Bug #48458: simple query tries to allocate enormous amount of
+--echo #   memory
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2(c INT);
+--echo # Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+  WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+DROP TABLE t1,t2;
+
 
 --echo End of 5.0 tests
 
@@ -3956,5 +3969,37 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = f1();
 DROP TABLE t1, t2;
 DROP FUNCTION f1;
 --echo # End of bug#33546
+
+--echo # 
+--echo # BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+--echo # 
+
+# Needed in 6.0 codebase
+#--echo # Disable Index condition pushdown
+#--replace_column 1 #
+#SELECT @old_icp:=@@engine_condition_pushdown;
+#SET SESSION engine_condition_pushdown = 'OFF';
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  i int(11) DEFAULT NULL,
+  v varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+
+# Needed in 6.0 codebase
+#--echo # Restore old value for Index condition pushdown
+#SET SESSION engine_condition_pushdown=@old_icp;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests
