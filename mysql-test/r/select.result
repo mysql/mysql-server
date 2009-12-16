@@ -4432,6 +4432,20 @@ ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1));
 1
 1
 DROP TABLE t1;
+#
+# Bug #48458: simple query tries to allocate enormous amount of
+#   memory
+#
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+CREATE TABLE t2(c INT);
+# Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+1
+DROP TABLE t1,t2;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -4648,4 +4662,22 @@ Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` 
 DROP TABLE t1, t2;
 DROP FUNCTION f1;
 # End of bug#33546
+# 
+# BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+# 
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+v
+DROP TABLE t1;
 End of 5.1 tests
