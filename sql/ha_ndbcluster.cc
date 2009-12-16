@@ -11258,6 +11258,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
           *multi_range_found_p= m_multi_ranges + current_range_no;
           /* Copy out data from the new row. */
           unpack_record(table->record[0], m_next_row);
+          table->status= 0;
           /*
             Mark that we have used this row, so we need to fetch a new
             one on the next call.

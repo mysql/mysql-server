@@ -177,10 +177,16 @@ WatchDog::run()
         so only warn if we pass the watchdog interval
       */
       if (oldIPValue == 9)
+      {
         if (elapsed < theIntervalCheck)
+        {
           warn = 0;
+        }
         else
+        {
           theIntervalCheck += theInterval;
+        }
+      }
 
       if (warn)
       {
