@@ -1644,6 +1644,11 @@ JOIN::reinit()
   if (join_tab_save)
     memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
 
+  /* need to reset ref access state (see join_read_key) */
+  if (join_tab)
+    for (uint i= 0; i < tables; i++)
+      join_tab[i].ref.key_err= TRUE;
+
   if (tmp_join)
     restore_tmp();
 
@@ -5971,6 +5976,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     {
       *e1= res;
       res->quick_fix_field();
+      res->update_used_tables();
     }
   }
   else
@@ -7637,7 +7643,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item);
+        item_equal->add(const_item, field_item);
       }
       else
       {
@@ -13655,7 +13661,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->type != JT_NEXT && 
+    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
              tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
