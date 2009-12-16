@@ -1,3 +1,6 @@
+#ifndef SHA1_INCLUDED
+#define SHA1_INCLUDED
+
 /* Copyright (C) 2002, 2006 MySQL AB
 
  This program is free software; you can redistribute it and/or modify
@@ -64,3 +67,5 @@ int mysql_sha1_input(SHA1_CONTEXT*, const uint8 *, unsigned int);
 int mysql_sha1_result(SHA1_CONTEXT* , uint8 Message_Digest[SHA1_HASH_SIZE]);
 
 C_MODE_END
+
+#endif /* SHA__INCLUDED */

@@ -7661,6 +7661,13 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
       goto ex;
     }
     
+    if (beg[0] == '=')
+    {
+      beg++;
+      rc= MY_COLL_LEXEM_DIFF;
+      goto ex;
+    }
+    
     if (beg[0] == '<')
     {
       for (beg++, lexem->diff= 1;
@@ -7821,6 +7828,10 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
           item.diff[1]= 0;
           item.diff[2]= 0;
         }
+        else if (lexem.diff == 0)
+        {
+          item.diff[0]= item.diff[1]= item.diff[2]= 0;
+        }
         if (nitems >= mitems)
         {
           my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Too many rules");
@@ -7885,6 +7896,9 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     */
     return 1;
   }
+  
+  if (!cs->caseinfo)
+    cs->caseinfo= my_unicase_default;
   
   if (!(newweights= (uint16**) (*alloc)(256*sizeof(uint16*))))
     return 1;

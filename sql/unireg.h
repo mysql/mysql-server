@@ -1,3 +1,6 @@
+#ifndef UNIREG_INCLUDED
+#define UNIREG_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -15,8 +18,6 @@
 
 
 /*  Extra functions used by unireg library */
-
-#ifndef _unireg_h
 
 #ifndef NO_ALARM_LOOP
 #define NO_ALARM_LOOP		/* lib5 and popen can't use alarm */
@@ -125,7 +126,7 @@
 #define SPECIAL_SAME_DB_NAME   16		/* form name = file name */
 #define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
-#define SPECIAL_NO_PRIOR	128		/* Don't prioritize threads */
+#define SPECIAL_NO_PRIOR	128		/* Obsolete */
 #define SPECIAL_BIG_SELECTS	256		/* Don't use heap tables */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024

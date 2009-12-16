@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
+#define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -683,6 +683,8 @@ extern void my_error _VARARGS((int nr,myf MyFlags, ...));
 extern void my_printf_error _VARARGS((uint my_err, const char *format,
                                      myf MyFlags, ...))
                                      ATTRIBUTE_FORMAT(printf, 2, 4);
+extern void my_printv_error(uint error, const char *format, myf MyFlags,
+                            va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
                              int first, int last);
 extern const char **my_error_unregister(int first, int last);
@@ -877,6 +879,7 @@ extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
+extern const char *args_separator;
 extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
@@ -1014,6 +1017,16 @@ char* my_cgets(char *string, size_t clen, size_t* plen);
 void netware_reg_user(const char *ip, const char *user,
 		      const char *application);
 #endif
+
+#include <mysql/psi/psi.h>
+
+#ifdef HAVE_PSI_INTERFACE
+extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;
+void my_init_mysys_psi_keys(void);
+#endif
+
+struct st_mysql_file;
+extern struct st_mysql_file *mysql_stdin;
 
 C_MODE_END
 #endif /* _my_sys_h */

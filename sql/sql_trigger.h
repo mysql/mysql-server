@@ -1,3 +1,6 @@
+#ifndef SQL_TRIGGER_INCLUDED
+#define SQL_TRIGGER_INCLUDED
+
 /* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -174,3 +177,4 @@ bool load_table_name_for_trigger(THD *thd,
                                  const LEX_STRING *trn_path,
                                  LEX_STRING *tbl_name);
 
+#endif /* SQL_TRIGGER_INCLUDED */

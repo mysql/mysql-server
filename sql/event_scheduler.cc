@@ -128,7 +128,6 @@ post_init_event_thread(THD *thd)
     thd->cleanup();
     return TRUE;
   }
-  lex_start(thd);
 
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -607,7 +606,12 @@ Event_scheduler::stop()
   LOCK_DATA();
   DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state].str));
   if (state != RUNNING)
+  {
+    /* Synchronously wait until the scheduler stops. */
+    while (state != INITIALIZED)
+      COND_STATE_WAIT(thd, NULL, "Waiting for the scheduler to stop");
     goto end;
+  }
 
   /* Guarantee we don't catch spurious signals */
   do {

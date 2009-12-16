@@ -1,3 +1,6 @@
+#ifndef CONFIG_WIN_INCLUDED
+#define CONFIG_WIN_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -17,6 +20,13 @@
 
 #define BIG_TABLES
 
+/*
+  Minimal version of Windows we should be able to run on.
+  Currently Windows XP.
+*/
+#define _WIN32_WINNT     0x0501
+
+
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -24,6 +34,7 @@
 
 #include <sys/locking.h>
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
@@ -85,6 +96,12 @@
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
 #define O_TEMPORARY	0
@@ -142,10 +159,21 @@ typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
 #else
-#ifndef HAVE_SIZE_T
-typedef unsigned int size_t;
-#endif
 typedef uint rf_SetTimer;
+#endif
+
+#ifndef HAVE_SIZE_T
+#ifndef _SIZE_T_DEFINED
+typedef SIZE_T size_t;
+#define _SIZE_T_DEFINED
+#endif
+#endif
+
+#ifndef HAVE_SSIZE_T
+#ifndef _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;
+#define _SSIZE_T_DEFINED
+#endif
 #endif
 
 #define Socket_defined
@@ -353,7 +381,6 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_OPENSSL 1
 #define HAVE_YASSL 1
 
-#define COMMUNITY_SERVER 1
 #define ENABLED_PROFILING 1
 
 /*
@@ -407,3 +434,5 @@ inline ulonglong double2ulonglong(double d)
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+
+#endif /* CONFIG_WIN_INCLUDED */

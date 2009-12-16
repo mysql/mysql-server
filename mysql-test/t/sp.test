@@ -2882,7 +2882,6 @@ create procedure bug4902()
 begin
   show charset like 'foo';
   show collation like 'foo';
-  show column types;
   show create table t1;
   show create database test;
   show databases like 'foo';
@@ -4062,34 +4061,41 @@ drop procedure bug11529|
 # BUG#6063: Stored procedure labels are subject to restrictions (partial)
 # BUG#7088: Stored procedures: labels won't work if character set is utf8
 #
+
+set character set utf8|
+
 --disable_warnings
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
---disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
-  lâbel: begin end|
-call bug6063()|
-# QQ Known bug: this will not show the label correctly.
-show create procedure bug6063|
+begin
+  lâbel: begin end;
+  label: begin end;
+  label1: begin end;
+end|
 
-set character set utf8|
 create procedure bug7088_1()
   label1: begin end label1|
+
 create procedure bug7088_2()
   läbel1: begin end|
+
+call bug6063()|
 call bug7088_1()|
 call bug7088_2()|
+
 set character set default|
+
+show create procedure bug6063|
 show create procedure bug7088_1|
 show create procedure bug7088_2|
 
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
---enable_parsing
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
@@ -5208,20 +5214,15 @@ drop procedure bug5967|
 
 --disable_warnings
 drop procedure if exists bug13012|
+--enable_warnings
 # Disable warnings also for BACKUP/RESTORE: they are deprecated.
---replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval create procedure bug13012()
     BEGIN
        REPAIR TABLE t1;
-       BACKUP TABLE t1 to '$backupdir';
-       DROP TABLE t1;
-       RESTORE TABLE t1 FROM '$backupdir';
     END|
 call bug13012()|
 
 --enable_warnings
---remove_file $backupdir/t1.frm
---remove_file $backupdir/t1.MYD
 
 drop procedure bug13012|
 
@@ -8263,7 +8264,237 @@ CALL p1;
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#47627: SET @@{global.session}.local_variable in stored routine causes crash
+--echo # Bug#48626: Crash or lost connection using SET for declared variables with @@
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+--enable_warnings
+
+delimiter //;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  SET @@SESSION.v= 10;
+END//
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  SET v= 10;
+END//
+call p2()//
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p3()
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  SELECT @@SESSION.v;
+END//
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p4()
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  SET @@GLOBAL.v= 10;
+END//
+
+CREATE PROCEDURE p5()
+BEGIN
+  DECLARE init_connect INT DEFAULT 0;
+  SET init_connect= 10;
+  SET @@GLOBAL.init_connect= 'SELECT 1';
+  SET @@SESSION.IDENTITY= 1;
+  SELECT @@SESSION.IDENTITY;
+  SELECT @@GLOBAL.init_connect;
+  SELECT init_connect;
+END//
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p6()
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  SET @@v= 0;
+END//
+
+delimiter ;//
+
+SET @old_init_connect= @@GLOBAL.init_connect;
+CALL p5();
+SET @@GLOBAL.init_connect= @old_init_connect;
+
+DROP PROCEDURE p2;
+DROP PROCEDURE p5;
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+#
+# Bug#39255: Stored procedures: crash if function references nonexistent table
+#
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t_non_existing;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+   DECLARE v INT;
+   SELECT a INTO v FROM t_non_existing;
+   RETURN 1;
+END|
+delimiter ;|
+
+CREATE TABLE t1 (a INT) ENGINE = myisam;
+INSERT INTO t1 VALUES (1);
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1 WHERE a = f1();
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+#
+# Bug#36649: Condition area is not properly cleaned up after stored routine invocation
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a INT, b CHAR)
+BEGIN
+  IF a > 0 THEN
+    CALL p1(a-1, 'ab');
+  ELSE
+    SELECT 1;
+  END IF;
+END|
+delimiter ;|
+
+SET @save_max_sp_recursion= @@max_sp_recursion_depth;
+SET @@max_sp_recursion_depth= 5;
+CALL p1(4, 'a');
+SET @@max_sp_recursion_depth= @save_max_sp_recursion;
+
+DROP PROCEDURE p1;
+
+#
+# Ensure that rules for message list clean up are being respected.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a CHAR)
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 1;
+END|
+delimiter ;|
+
+CALL p1('data truncated parameter');
+
+DROP PROCEDURE p1;
+
+#
+# Cascading stored procedure/function calls.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+  CALL p2()|
+CREATE PROCEDURE p2()
+  CALL p3()|
+CREATE PROCEDURE p3()
+  CALL p4()|
+CREATE PROCEDURE p4()
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 2;
+END|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a CHAR(2));
+
+INSERT INTO t1 VALUES ('aa');
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS CHAR
+  RETURN (SELECT f2())|
+CREATE FUNCTION f2() RETURNS CHAR
+  RETURN (SELECT f3())|
+CREATE FUNCTION f3() RETURNS CHAR
+  RETURN (SELECT f4())|
+CREATE FUNCTION f4() RETURNS CHAR
+BEGIN
+  RETURN (SELECT a FROM t1);
+END|
+delimiter ;|
+
+SELECT f1();
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
+--echo #            strict SQL mode
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE PROCEDURE p1 ()
+COMMENT
+'12345678901234567890123456789012345678901234567890123456789012345678901234567890'
+BEGIN
+END;
+
+SELECT comment FROM mysql.proc WHERE name = "p1";
+
+SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
+
+DROP PROCEDURE p1;
+

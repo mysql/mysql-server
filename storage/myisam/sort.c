@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -466,18 +466,22 @@ ok:
       Detach from the share if the writer is involved. Avoid others to
       be blocked. This includes a flush of the write buffer. This will
       also indicate EOF to the readers.
+      That means that a writer always gets here first and readers -
+      only when they see EOF. But if a reader finishes prematurely
+      because of an error it may reach this earlier - don't allow it
+      to detach the writer thread.
     */
-    if (sort_param->sort_info->info->rec_cache.share)
+    if (sort_param->master && sort_param->sort_info->info->rec_cache.share)
       remove_io_thread(&sort_param->sort_info->info->rec_cache);
 
     /* Readers detach from the share if any. Avoid others to be blocked. */
     if (sort_param->read_cache.share)
       remove_io_thread(&sort_param->read_cache);
 
-    pthread_mutex_lock(&sort_param->sort_info->mutex);
+    mysql_mutex_lock(&sort_param->sort_info->mutex);
     if (!--sort_param->sort_info->threads_running)
-      pthread_cond_signal(&sort_param->sort_info->cond);
-    pthread_mutex_unlock(&sort_param->sort_info->mutex);
+      mysql_cond_signal(&sort_param->sort_info->cond);
+    mysql_mutex_unlock(&sort_param->sort_info->mutex);
     DBUG_PRINT("exit", ("======== ending thread ========"));
   }
   my_thread_end();
@@ -789,6 +793,7 @@ cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
   {
+    DBUG_ASSERT(t_file2.type == WRITE_CACHE);
     *t_file=t_file2;                            /* Copy result file */
     t_file->current_pos= &t_file->write_pos;
     t_file->current_end= &t_file->write_end;
@@ -819,8 +824,9 @@ static uint NEAR_F read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
   {
-    if (my_pread(fromfile->file,(uchar*) buffpek->base,
-                 (length= sort_length*count),buffpek->file_pos,MYF_RW))
+    if (mysql_file_pread(fromfile->file, (uchar*) buffpek->base,
+                         (length= sort_length*count),
+                         buffpek->file_pos, MYF_RW))
       return((uint) -1);                        /* purecov: inspected */
     buffpek->key=buffpek->base;
     buffpek->file_pos+= length;                 /* New filepos */
@@ -844,12 +850,12 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
     for (idx=1;idx<=count;idx++)
     {
-      if (my_pread(fromfile->file,(uchar*)&length_of_key,sizeof(length_of_key),
-                   buffpek->file_pos,MYF_RW))
+      if (mysql_file_pread(fromfile->file, (uchar*)&length_of_key,
+                           sizeof(length_of_key), buffpek->file_pos, MYF_RW))
         return((uint) -1);
       buffpek->file_pos+=sizeof(length_of_key);
-      if (my_pread(fromfile->file,(uchar*) buffp,length_of_key,
-                   buffpek->file_pos,MYF_RW))
+      if (mysql_file_pread(fromfile->file, (uchar*) buffp,
+                           length_of_key, buffpek->file_pos, MYF_RW))
         return((uint) -1);
       buffpek->file_pos+=length_of_key;
       buffp = buffp + sort_length;
@@ -965,7 +971,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
           uchar *base=buffpek->base;
           uint max_keys=buffpek->max_keys;
 
-          VOID(queue_remove(&queue,0));
+          (void) queue_remove(&queue,0);
 
           /* Put room used by buffer to use in other buffer */
           for (refpek= (BUFFPEK**) &queue_top(&queue);

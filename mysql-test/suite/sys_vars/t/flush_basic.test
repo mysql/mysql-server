@@ -120,7 +120,7 @@ SELECT @@session.flush;
 # Check if the value in GLOBAL Tables matches values in variable   #
 ####################################################################
 
-SELECT @@global.flush = VARIABLE_VALUE 
+SELECT IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='flush';
 

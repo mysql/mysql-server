@@ -1,3 +1,6 @@
+#ifndef PROCEDURE_INCLUDED
+#define PROCEDURE_INCLUDED
+
 /* Copyright (C) 2000-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -23,7 +26,7 @@
 #define PROC_NO_SORT 1				/**< Bits in flags */
 #define PROC_GROUP   2				/**< proc must have group */
 
-/* Procedure items used by procedures to store values for send_fields */
+/* Procedure items used by procedures to store values for send_result_set_metadata */
 
 class Item_proc :public Item
 {
@@ -149,3 +152,5 @@ public:
 
 Procedure *setup_procedure(THD *thd,ORDER *proc_param,select_result *result,
 			   List<Item> &field_list,int *error);
+
+#endif /* PROCEDURE_INCLUDED */

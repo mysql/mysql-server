@@ -155,7 +155,8 @@ reset master;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
-show master status /* there must no UPDATE in binlog */;
+--echo there must no UPDATE in binlog
+source include/show_master_status.inc;
 
 # B. testing multi_update::send_error() execution branch
 delete from t1;
@@ -165,7 +166,8 @@ insert into t2 values (1,2),(3,4),(4,4);
 reset master;
 --error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-show master status /* there must be no UPDATE query event */;
+--echo there must no UPDATE in binlog
+source include/show_master_status.inc;
 
 # cleanup bug#27716
 drop table t1, t2;

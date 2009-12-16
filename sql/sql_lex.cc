@@ -24,6 +24,8 @@
 #include "sp.h"
 #include "sp_head.h"
 
+static int lex_one_token(void *arg, void *yythd);
+
 /*
   We are using pointer to this variable for distinguishing between assignment
   to NEW row field (when parsing trigger definition) and structured variable.
@@ -31,7 +33,14 @@
 
 sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
+/**
+  LEX_STRING constant for null-string to be used in parser and other places.
+*/
+const LEX_STRING null_lex_str= {NULL, 0};
+const LEX_STRING empty_lex_str= { (char*) "", 0 };
+
 /* Longest standard keyword name */
+
 #define TOCK_NAME_LENGTH 24
 
 /*
@@ -117,6 +126,8 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   yylineno(1),
   yytoklen(0),
   yylval(NULL),
+  lookahead_token(-1),
+  lookahead_yylval(NULL),
   m_ptr(buffer),
   m_tok_start(NULL),
   m_tok_end(NULL),
@@ -134,6 +145,7 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   found_semicolon(NULL),
   ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
   stmt_prepare_mode(FALSE),
+  multi_statements(TRUE),
   in_comment(NO_COMMENT),
   m_underscore_cs(NULL)
 {
@@ -779,6 +791,60 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 */
 
 int MYSQLlex(void *arg, void *yythd)
+{
+  THD *thd= (THD *)yythd;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
+  YYSTYPE *yylval=(YYSTYPE*) arg;
+  int token;
+
+  if (lip->lookahead_token >= 0)
+  {
+    /*
+      The next token was already parsed in advance,
+      return it.
+    */
+    token= lip->lookahead_token;
+    lip->lookahead_token= -1;
+    *yylval= *(lip->lookahead_yylval);
+    lip->lookahead_yylval= NULL;
+    return token;
+  }
+
+  token= lex_one_token(arg, yythd);
+
+  switch(token) {
+  case WITH:
+    /*
+      Parsing 'WITH' 'ROLLUP' or 'WITH' 'CUBE' requires 2 look ups,
+      which makes the grammar LALR(2).
+      Replace by a single 'WITH_ROLLUP' or 'WITH_CUBE' token,
+      to transform the grammar into a LALR(1) grammar,
+      which sql_yacc.yy can process.
+    */
+    token= lex_one_token(arg, yythd);
+    switch(token) {
+    case CUBE_SYM:
+      return WITH_CUBE_SYM;
+    case ROLLUP_SYM:
+      return WITH_ROLLUP_SYM;
+    default:
+      /*
+        Save the token following 'WITH'
+      */
+      lip->lookahead_yylval= lip->yylval;
+      lip->yylval= NULL;
+      lip->lookahead_token= token;
+      return WITH;
+    }
+    break;
+  default:
+    break;
+  }
+
+  return token;
+}
+
+int lex_one_token(void *arg, void *yythd)
 {
   reg1	uchar c= 0;
   bool comment_closed;
@@ -1497,7 +1563,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   keys_onoff(rhs.keys_onoff),
   tablespace_op(rhs.tablespace_op),
   partition_names(rhs.partition_names, mem_root),
-  no_parts(rhs.no_parts),
+  num_parts(rhs.num_parts),
   change_level(rhs.change_level),
   datetime_field(rhs.datetime_field),
   error_if_not_empty(rhs.error_if_not_empty)
@@ -1606,7 +1672,6 @@ void st_select_lex::init_query()
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
   max_equal_elems= 0;
-  conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_where_fields= 0;
   select_n_having_items= 0;
@@ -2091,7 +2156,7 @@ void st_select_lex::print_limit(THD *thd,
   to implement the clean up.
 */
 
-void st_lex::cleanup_lex_after_parse_error(THD *thd)
+void LEX::cleanup_lex_after_parse_error(THD *thd)
 {
   /*
     Delete sphead for the side effect of restoring of the original
@@ -2150,7 +2215,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
       We delay real initialization of hash (and therefore related
       memory allocation) until first insertion into this hash.
     */
-    hash_clear(&sroutines);
+    my_hash_clear(&sroutines);
   }
   else if (sroutines.records)
   {
@@ -2173,7 +2238,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
 
 void Query_tables_list::destroy_query_tables_list()
 {
-  hash_free(&sroutines);
+  my_hash_free(&sroutines);
 }
 
 
@@ -2181,7 +2246,7 @@ void Query_tables_list::destroy_query_tables_list()
   Initialize LEX object.
 
   SYNOPSIS
-    st_lex::st_lex()
+    LEX::LEX()
 
   NOTE
     LEX object initialized with this constructor can be used as part of
@@ -2191,7 +2256,7 @@ void Query_tables_list::destroy_query_tables_list()
     for this.
 */
 
-st_lex::st_lex()
+LEX::LEX()
   :result(0),
    sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
 {
@@ -2208,7 +2273,7 @@ st_lex::st_lex()
   Check whether the merging algorithm can be used on this VIEW
 
   SYNOPSIS
-    st_lex::can_be_merged()
+    LEX::can_be_merged()
 
   DESCRIPTION
     We can apply merge algorithm if it is single SELECT view  with
@@ -2222,7 +2287,7 @@ st_lex::st_lex()
     TRUE  - merge algorithm can be used
 */
 
-bool st_lex::can_be_merged()
+bool LEX::can_be_merged()
 {
   // TODO: do not forget implement case when select_lex.table_list.elements==0
 
@@ -2259,19 +2324,19 @@ bool st_lex::can_be_merged()
   check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
   SYNOPSIS
-    st_lex::can_use_merged()
+    LEX::can_use_merged()
 
   DESCRIPTION
     Only listed here commands can use merge algorithm in top level
     SELECT_LEX (for subqueries will be used merge algorithm if
-    st_lex::can_not_use_merged() is not TRUE).
+    LEX::can_not_use_merged() is not TRUE).
 
   RETURN
     FALSE - command can't use merged VIEWs
     TRUE  - VIEWs with MERGE algorithms can be used
 */
 
-bool st_lex::can_use_merged()
+bool LEX::can_use_merged()
 {
   switch (sql_command)
   {
@@ -2296,18 +2361,18 @@ bool st_lex::can_use_merged()
   Check if command can't use merged views in any part of command
 
   SYNOPSIS
-    st_lex::can_not_use_merged()
+    LEX::can_not_use_merged()
 
   DESCRIPTION
     Temporary table algorithm will be used on all SELECT levels for queries
-    listed here (see also st_lex::can_use_merged()).
+    listed here (see also LEX::can_use_merged()).
 
   RETURN
     FALSE - command can't use merged VIEWs
     TRUE  - VIEWs with MERGE algorithms can be used
 */
 
-bool st_lex::can_not_use_merged()
+bool LEX::can_not_use_merged()
 {
   switch (sql_command)
   {
@@ -2336,7 +2401,7 @@ bool st_lex::can_not_use_merged()
     FALSE no, we need data
 */
 
-bool st_lex::only_view_structure()
+bool LEX::only_view_structure()
 {
   switch (sql_command) {
   case SQLCOM_SHOW_CREATE:
@@ -2365,7 +2430,7 @@ bool st_lex::only_view_structure()
 */
 
 
-bool st_lex::need_correct_ident()
+bool LEX::need_correct_ident()
 {
   switch(sql_command)
   {
@@ -2395,7 +2460,7 @@ bool st_lex::need_correct_ident()
     VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
 */
 
-uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
+uint8 LEX::get_effective_with_check(TABLE_LIST *view)
 {
   if (view->select_lex->master_unit() == &unit &&
       which_check_option_applicable())
@@ -2424,7 +2489,7 @@ uint8 st_lex::get_effective_with_check(TABLE_LIST *view)
 */
 
 bool
-st_lex::copy_db_to(char **p_db, size_t *p_db_length) const
+LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 {
   if (sphead)
   {
@@ -2501,7 +2566,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   clause.
 */
 
-void st_lex::set_trg_event_type_for_tables()
+void LEX::set_trg_event_type_for_tables()
 {
   uint8 new_trg_event_map= 0;
 
@@ -2644,7 +2709,7 @@ void st_lex::set_trg_event_type_for_tables()
       In this case link_to_local is set.
 
 */
-TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
+TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
 {
   TABLE_LIST *first;
   if ((first= query_tables))
@@ -2684,7 +2749,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
   table list
 
   SYNOPSYS
-     st_lex::first_lists_tables_same()
+     LEX::first_lists_tables_same()
 
   NOTES
     In many cases (for example, usual INSERT/DELETE/...) the first table of
@@ -2695,7 +2760,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     the global list first.
 */
 
-void st_lex::first_lists_tables_same()
+void LEX::first_lists_tables_same()
 {
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
@@ -2731,7 +2796,7 @@ void st_lex::first_lists_tables_same()
     global list
 */
 
-void st_lex::link_first_table_back(TABLE_LIST *first,
+void LEX::link_first_table_back(TABLE_LIST *first,
 				   bool link_to_local)
 {
   if (first)
@@ -2758,7 +2823,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
   cleanup lex for case when we open table by table for processing
 
   SYNOPSIS
-    st_lex::cleanup_after_one_table_open()
+    LEX::cleanup_after_one_table_open()
 
   NOTE
     This method is mostly responsible for cleaning up of selects lists and
@@ -2766,7 +2831,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     to call Query_tables_list::reset_query_tables_list(FALSE).
 */
 
-void st_lex::cleanup_after_one_table_open()
+void LEX::cleanup_after_one_table_open()
 {
   /*
     thd->lex->derived_tables & additional units may be set if we open
@@ -2801,7 +2866,7 @@ void st_lex::cleanup_after_one_table_open()
       backup  Pointer to Query_tables_list instance to be used for backup
 */
 
-void st_lex::reset_n_backup_query_tables_list(Query_tables_list *backup)
+void LEX::reset_n_backup_query_tables_list(Query_tables_list *backup)
 {
   backup->set_query_tables_list(this);
   /*
@@ -2820,7 +2885,7 @@ void st_lex::reset_n_backup_query_tables_list(Query_tables_list *backup)
       backup  Pointer to Query_tables_list instance used for backup
 */
 
-void st_lex::restore_backup_query_tables_list(Query_tables_list *backup)
+void LEX::restore_backup_query_tables_list(Query_tables_list *backup)
 {
   this->destroy_query_tables_list();
   this->set_query_tables_list(backup);
@@ -2831,14 +2896,14 @@ void st_lex::restore_backup_query_tables_list(Query_tables_list *backup)
   Checks for usage of routines and/or tables in a parsed statement
 
   SYNOPSIS
-    st_lex:table_or_sp_used()
+    LEX:table_or_sp_used()
 
   RETURN
     FALSE  No routines and tables used
     TRUE   Either or both routines and tables are used.
 */
 
-bool st_lex::table_or_sp_used()
+bool LEX::table_or_sp_used()
 {
   DBUG_ENTER("table_or_sp_used");
 
@@ -2999,7 +3064,7 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   @retval  FALSE          No, not a management partition command
 */
 
-bool st_lex::is_partition_management() const
+bool LEX::is_partition_management() const
 {
   return (sql_command == SQLCOM_ALTER_TABLE &&
           (alter_info.flags == ALTER_ADD_PARTITION ||

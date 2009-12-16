@@ -71,10 +71,10 @@ WHERE VARIABLE_NAME='sql_big_tables';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_154_07------------------------#'
-SELECT @@session.sql_big_tables = VARIABLE_VALUE 
+SELECT IF(@@session.sql_big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_big_tables';
-@@session.sql_big_tables = VARIABLE_VALUE
+IF(@@session.sql_big_tables, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables

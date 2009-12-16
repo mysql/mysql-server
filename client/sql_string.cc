@@ -23,6 +23,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
+#include <mysql_com.h>
 #ifdef HAVE_FCONVERT
 #include <floatingpoint.h>
 #endif
@@ -129,7 +130,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   int decpt,sign;
   char *pos,*to;
 
-  VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
+  (void) fconvert(num,(int) decimals,&decpt,&sign,buff+1);
   if (!my_isdigit(&my_charset_latin1, buff[1]))
   {						// Nan or Inf
     pos=buff+1;

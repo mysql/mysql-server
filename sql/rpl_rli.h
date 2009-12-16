@@ -96,6 +96,19 @@ public:
   LOG_INFO linfo;
   IO_CACHE cache_buf,*cur_log;
 
+  /*
+    Keeps track of the number of transactions that commits
+    before fsyncing. The option --sync-relay-log-info determines 
+    how many transactions should commit before fsyncing.
+  */ 
+  uint sync_counter;
+
+  /*
+    Identifies when the recovery process is going on.
+    See sql/slave.cc:init_recovery for further details.
+  */ 
+  bool is_relay_log_recovery;
+
   /* The following variables are safe to read any time */
 
   /* IO_CACHE of the info file - set only during init or end */
@@ -208,8 +221,14 @@ public:
   int events_till_abort;
 #endif  
 
-  /* if not set, the value of other members of the structure are undefined */
-  bool inited;
+  /*
+    inited changes its value within LOCK_active_mi-guarded critical
+    sections  at times of start_slave_threads() (0->1) and end_slave() (1->0).
+    Readers may not acquire the mutex while they realize potential concurrency
+    issue.
+    If not set, the value of other members of the structure are undefined.
+  */
+  volatile bool inited;
   volatile bool abort_slave;
   volatile uint slave_running;
 
@@ -267,7 +286,7 @@ public:
   char slave_patternload_file[FN_REFLEN]; 
   size_t slave_patternload_file_size;  
 
-  Relay_log_info();
+  Relay_log_info(bool is_slave_recovery);
   ~Relay_log_info();
 
   /*
@@ -336,12 +355,10 @@ public:
   void clear_tables_to_lock();
 
   /*
-    Used by row-based replication to detect that it should not stop at
-    this event, but give it a chance to send more events. The time
-    where the last event inside a group started is stored here. If the
-    variable is zero, we are not in a group (but may be in a
-    transaction).
-   */
+    Used to defer stopping the SQL thread to give it a chance
+    to finish up the current group of events.
+    The timestamp is set and reset in @c sql_slave_killed().
+  */
   time_t last_event_start_time;
 
   /**

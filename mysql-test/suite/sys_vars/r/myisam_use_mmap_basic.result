@@ -11,10 +11,10 @@ COUNT(@@GLOBAL.myisam_use_mmap)
 1
 1 Expected
 '#---------------------BS_STVARS_042_03----------------------#'
-SELECT @@GLOBAL.myisam_use_mmap = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.myisam_use_mmap, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='myisam_use_mmap';
-@@GLOBAL.myisam_use_mmap = VARIABLE_VALUE
+IF(@@GLOBAL.myisam_use_mmap, "ON", "OFF") = VARIABLE_VALUE
 1
 1 Expected
 SELECT COUNT(@@GLOBAL.myisam_use_mmap);

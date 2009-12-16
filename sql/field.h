@@ -1,4 +1,7 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+#ifndef FIELD_INCLUDED
+#define FIELD_INCLUDED
+
+/* Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +25,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define NOT_FIXED_DEC			31
 #define DATETIME_DEC                     6
 const uint32 max_field_size= (uint32) 4294967295U;
 
@@ -60,8 +62,8 @@ public:
     Note that you can use table->in_use as replacement for current_thd member 
     only inside of val_*() and store() members (e.g. you can't use it in cons)
   */
-  struct st_table *table;		// Pointer for table
-  struct st_table *orig_table;		// Pointer to original table
+  TABLE *table;                                 // Pointer for table
+  TABLE *orig_table;                            // Pointer to original table
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
@@ -301,12 +303,12 @@ public:
   */
   virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
-  virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table,
+  virtual Field *new_field(MEM_ROOT *root, TABLE *new_table,
                            bool keep_type);
-  virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+  virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                                uchar *new_ptr, uchar *new_null_ptr,
                                uint new_null_bit);
-  Field *clone(MEM_ROOT *mem_root, struct st_table *new_table);
+  Field *clone(MEM_ROOT *mem_root, TABLE *new_table);
   inline void move_field(uchar *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
@@ -407,32 +409,11 @@ public:
     DBUG_RETURN(result);
   }
 
-  virtual uchar *pack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-					uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual const uchar *unpack_key(uchar* to, const uchar *from,
-                                  uint max_length, bool low_byte_first)
-  {
-    return unpack(to, from, max_length, low_byte_first);
-  }
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
   virtual uint max_packed_col_length(uint max_length)
   { return max_length;}
 
-  virtual int pack_cmp(const uchar *a,const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(a,b); }
-  virtual int pack_cmp(const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(ptr,b); }
   uint offset(uchar *record)
   {
     return (uint) (ptr - record);
@@ -610,15 +591,17 @@ protected:
     handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
     return from + sizeof(int64);
   }
+
+  bool field_flags_are_binary()
+  {
+    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
+  }
+
 };
 
 
 class Field_num :public Field {
 public:
-  /**
-     The scale of the Field's value, i.e. the number of digits to the right
-     of the decimal point.
-  */
   const uint8 dec;
   bool zerofill,unsigned_flag;	// Purify cannot handle bit fields
   Field_num(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
@@ -669,7 +652,6 @@ public:
   friend class Create_field;
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
-  bool compare_str_field_flags(Create_field *new_field, uint32 flags);
   uint is_equal(Create_field *new_field);
 };
 
@@ -777,11 +759,6 @@ public:
   Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                     const char *field_name_arg, uint8 dec_arg,
                     bool unsigned_arg);
-  /*
-    Create a field to hold a decimal value from an item.
-    Truncates the precision and/or scale if necessary.
-  */
-  static Field_new_decimal *new_decimal_field(const Item *item);
   enum_field_types type() const { return MYSQL_TYPE_NEWDECIMAL;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   Item_result result_type () const { return DECIMAL_RESULT; }
@@ -811,6 +788,7 @@ public:
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
+  static Field *create_from_item (Item *);
 };
 
 
@@ -1284,12 +1262,12 @@ public:
   Field_date(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     CHARSET_INFO *cs)
-    :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
+    :Field_str(ptr_arg, MAX_DATE_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
   Field_date(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
-    :Field_str((uchar*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
+    :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
@@ -1399,12 +1377,12 @@ public:
   Field_datetime(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		 enum utype unireg_check_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
-    :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
+    :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
-    :Field_str((uchar*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
+    :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) {}
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
@@ -1504,16 +1482,13 @@ public:
   int compatible_field_size(uint field_metadata,
                             const Relay_log_info *rli);
   uint row_pack_length() { return (field_length + 1); }
-  int pack_cmp(const uchar *a,const uchar *b,uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
+  Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
   virtual uint get_key_image(uchar *buff,uint length, imagetype type);
 private:
   int do_save_field_metadata(uchar *first_byte);
@@ -1580,16 +1555,8 @@ public:
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from, uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
@@ -1600,8 +1567,8 @@ public:
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
-  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+  Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
+  Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                        uchar *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
   uint is_equal(Create_field *new_field);
@@ -1765,17 +1732,8 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from,
-                  uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
@@ -1840,7 +1798,7 @@ public:
   {
       flags|=ENUM_FLAG;
   }
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
+  Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
   enum_field_types type() const { return MYSQL_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
@@ -1977,7 +1935,7 @@ public:
                               uint param_data, bool low_byte_first);
   virtual void set_default();
 
-  Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
+  Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                        uchar *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
   void set_bit_ptr(uchar *bit_ptr_arg, uchar bit_ofs_arg)
@@ -2079,6 +2037,11 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
             uint uint_geom_type);
+
+  bool field_flags_are_binary()
+  {
+    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
+  }
 };
 
 
@@ -2086,7 +2049,7 @@ public:
   A class for sending info to the client
 */
 
-class Send_field {
+class Send_field :public Sql_alloc {
  public:
   const char *db_name;
   const char *table_name,*org_table_name;
@@ -2189,3 +2152,5 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
 #define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
 #define f_is_hex_escape(x)      ((x) & FIELDFLAG_HEX_ESCAPE)
+
+#endif /* FIELD_INCLUDED */

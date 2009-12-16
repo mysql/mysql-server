@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+#include "sql_prepare.h"
 #include "probes_mysql.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -165,7 +166,6 @@ sp_get_flags_for_command(LEX *lex)
     }
     /* fallthrough */
   case SQLCOM_ANALYZE:
-  case SQLCOM_BACKUP_TABLE:
   case SQLCOM_OPTIMIZE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
@@ -175,9 +175,9 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_AUTHORS:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_RELAYLOG_EVENTS:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
-  case SQLCOM_SHOW_COLUMN_TYPES:
   case SQLCOM_SHOW_CONTRIBUTORS:
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_CREATE_DB:
@@ -212,7 +212,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
   case SQLCOM_REPAIR:
-  case SQLCOM_RESTORE_TABLE:
     flags= sp_head::MULTI_RESULTS;
     break;
   /*
@@ -267,7 +266,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_COMMIT:
   case SQLCOM_ROLLBACK:
   case SQLCOM_LOAD:
-  case SQLCOM_LOAD_MASTER_DATA:
   case SQLCOM_LOCK_TABLES:
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
@@ -335,16 +333,18 @@ bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
+  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  bool save_abort_on_warning= thd->abort_on_warning;
+  bool save_stmt_modified_non_trans_table= 
+    thd->transaction.stmt.modified_non_trans_table;
 
   DBUG_ENTER("sp_eval_expr");
 
   if (!*expr_item_ptr)
-    DBUG_RETURN(TRUE);
+    goto error;
 
   if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
-    DBUG_RETURN(TRUE);
-
-  bool err_status= FALSE;
+    goto error;
 
   /*
     Set THD flags to emit warnings/errors in case of overflow/type errors
@@ -353,10 +353,6 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
     Save original values and restore them after save.
   */
   
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
@@ -371,13 +367,18 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning= save_abort_on_warning;
   thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
-  if (thd->is_error())
-  {
-    /* Return error status if something went wrong. */
-    err_status= TRUE;
-  }
+  if (!thd->is_error())
+    DBUG_RETURN(FALSE);
 
-  DBUG_RETURN(err_status);
+error:
+  /*
+    In case of error during evaluation, leave the result field set to NULL.
+    Sic: we can't do it in the beginning of the function because the 
+    result field might be needed for its own re-evaluation, e.g. case of 
+    set x = x + 1;
+  */
+  result_field->set_null();
+  DBUG_RETURN (TRUE);
 }
 
 
@@ -531,8 +532,9 @@ sp_head::sp_head()
   m_backpatch.empty();
   m_cont_backpatch.empty();
   m_lex.empty();
-  hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
-  hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
+  my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
+               0, 0);
 
   m_body_utf8.str= NULL;
   m_body_utf8.length= 0;
@@ -781,8 +783,8 @@ sp_head::destroy()
     m_thd->lex= lex;
   }
 
-  hash_free(&m_sptabs);
-  hash_free(&m_sroutines);
+  my_hash_free(&m_sptabs);
+  my_hash_free(&m_sroutines);
   DBUG_VOID_RETURN;
 }
 
@@ -1081,7 +1083,6 @@ sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
-
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
 
@@ -1207,7 +1208,7 @@ sp_head::execute(THD *thd)
   */
   thd->spcont->callers_arena= &backup_arena;
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   /* Discard the initial part of executing routines. */
   thd->profiling.discard_current_query();
 #endif
@@ -1216,7 +1217,7 @@ sp_head::execute(THD *thd)
     sp_instr *i;
     uint hip;			// Handler ip
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
     /* 
      Treat each "instr" of a routine as discrete unit that could be profiled.
      Profiling only records information for segments of code that set the
@@ -1229,7 +1230,7 @@ sp_head::execute(THD *thd)
     i = get_instr(ip);	// Returns NULL when we're done.
     if (i == NULL)
     {
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
       thd->profiling.discard_current_query();
 #endif
       break;
@@ -1312,7 +1313,7 @@ sp_head::execute(THD *thd)
     }
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
   thd->profiling.start_new_query("tail end of routine");
 #endif
@@ -1765,9 +1766,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    VOID(pthread_mutex_lock(&LOCK_thread_count));
+    pthread_mutex_lock(&LOCK_thread_count);
     q= global_query_id;
-    VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    pthread_mutex_unlock(&LOCK_thread_count);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->options;
     thd->options&= ~OPTION_BIN_LOG;
@@ -1802,6 +1803,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
+        err_status= TRUE;
       }
       reset_dynamic(&thd->user_var_events);
       /* Forget those values, in case more function calls are binlogged: */
@@ -1957,15 +1959,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
     }
 
-    /* 
-      Okay, got values for all arguments. Close tables that might be used by 
-      arguments evaluation. If arguments evaluation required prelocking mode, 
+    /*
+      Okay, got values for all arguments. Close tables that might be used by
+      arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
     {
       thd->lex->unit.cleanup();
-      close_thread_tables(thd);            
+
+      thd_proc_info(thd, "closing tables");
+      close_thread_tables(thd);
+      thd_proc_info(thd, 0);
+
       thd->rollback_item_tree_changes();
     }
 
@@ -2038,6 +2044,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         err_status= TRUE;
         break;
       }
+
+      Send_field *out_param_info= new (thd->mem_root) Send_field();
+      nctx->get_item(i)->make_field(out_param_info);
+      out_param_info->db_name= m_db.str;
+      out_param_info->table_name= m_name.str;
+      out_param_info->org_table_name= m_name.str;
+      out_param_info->col_name= spvar->name.str;
+      out_param_info->org_col_name= spvar->name.str;
+
+      srp->set_out_param_info(out_param_info);
     }
   }
 
@@ -2102,8 +2118,18 @@ sp_head::reset_lex(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
-/// Restore lex during parsing, after we have parsed a sub statement.
-void
+
+/**
+  Restore lex during parsing, after we have parsed a sub statement.
+
+  @param thd Thread handle
+
+  @return
+    @retval TRUE failure
+    @retval FALSE success
+*/
+
+bool
 sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
@@ -2114,7 +2140,7 @@ sp_head::restore_lex(THD *thd)
 
   oldlex= (LEX *)m_lex.pop();
   if (! oldlex)
-    return;			// Nothing to restore
+    DBUG_RETURN(FALSE);			// Nothing to restore
 
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
@@ -2130,7 +2156,8 @@ sp_head::restore_lex(THD *thd)
     Add routines which are used by statement to respective set for
     this routine.
   */
-  sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines);
+  if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
+    DBUG_RETURN(TRUE);
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
@@ -2142,7 +2169,7 @@ sp_head::restore_lex(THD *thd)
     delete sublex;
   }
   thd->lex= oldlex;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 /**
@@ -2362,7 +2389,8 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
+  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
+                                     1, TRUE) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,
@@ -2445,7 +2473,7 @@ sp_head::show_create_routine(THD *thd, int type)
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
-  if (protocol->send_fields(&fields,
+  if (protocol->send_result_set_metadata(&fields,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     DBUG_RETURN(TRUE);
@@ -2631,8 +2659,8 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-					     max(buffer.length(), 1024)));
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                             max(buffer.length(), 1024)));
+  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
@@ -2717,9 +2745,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   */
   thd->lex= m_lex;
 
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  pthread_mutex_lock(&LOCK_thread_count);
   thd->query_id= next_query_id();
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  pthread_mutex_unlock(&LOCK_thread_count);
 
   if (thd->prelocked_mode == NON_PRELOCKED)
   {
@@ -2808,7 +2836,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)
+  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
       || open_and_lock_tables(thd, tables))
     result= -1;
   else
@@ -2842,9 +2870,9 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  query= thd->query;
-  query_length= thd->query_length;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  query= thd->query();
+  query_length= thd->query_length();
+#if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
@@ -2856,15 +2884,16 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd,
-					  thd->query, thd->query_length) <= 0)
+          thd->query(), 
+          thd->query_length()) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
-        net_end_statement(thd);
+        thd->protocol->end_statement();
 
       query_cache_end_of_result(thd);
 
@@ -2918,7 +2947,7 @@ sp_instr_stmt::print(String *str)
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(thd->query,
+  MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          thd->security_ctx->priv_user,
@@ -3820,7 +3849,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 
   for (uint i= 0 ; i < m_sptabs.records ; i++)
   {
-    tab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    tab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
     tab->query_lock_count= 0;
   }
 
@@ -3854,8 +3883,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
-          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname,
+      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
+          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname,
                                         tlen - alen - 1)) &&
            tab->temp))
       {
@@ -3887,7 +3916,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
-	my_hash_insert(&m_sptabs, (uchar *)tab);
+	if (my_hash_insert(&m_sptabs, (uchar *)tab))
+          return FALSE;
       }
     }
   return TRUE;
@@ -3940,7 +3970,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   {
     char *tab_buff, *key_buff;
     TABLE_LIST *table;
-    SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    SP_TABLE *stab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
 
@@ -3984,7 +4014,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
 
 
 /**
-  Simple function for adding an explicetly named (systems) table to
+  Simple function for adding an explicitly named (systems) table to
   the global table list, e.g. "mysql", "proc".
 */
 
@@ -3996,10 +4026,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   TABLE_LIST *table;
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
-  {
-    thd->fatal_error();
     return NULL;
-  }
   table->db_length= strlen(db);
   table->db= thd->strmake(db, table->db_length);
   table->table_name_length= strlen(name);

@@ -1158,3 +1158,30 @@ f1()	@b
 0	abc
 drop function f1;
 drop table t1;
+
+---------------------------------------------------------------
+BUG#28299
+---------------------------------------------------------------
+
+CREATE PROCEDURE ctest()
+BEGIN
+DECLARE i CHAR(16);
+DECLARE j INT;
+SET i= 'string';
+SET j= 1 + i;
+END|
+CALL ctest();
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'string          '
+DROP PROCEDURE ctest;
+CREATE PROCEDURE vctest()
+BEGIN
+DECLARE i VARCHAR(16);
+DECLARE j INT;
+SET i= 'string';
+SET j= 1 + i;
+END|
+CALL vctest();
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'string'
+DROP PROCEDURE vctest;

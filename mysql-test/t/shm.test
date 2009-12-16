@@ -7,9 +7,16 @@ let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
 if (`SELECT '$shm' != 'ON'`){
   skip No shm support;
 }
+let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
+
+# Connect using SHM for testing
+connect(shm_con,localhost,root,,,,$shm_name,SHM);
 
 # Source select test case
 -- source include/common-tests.inc
+
+connection default;
+disconnect shm_con;
 
 #
 # Bug #24924: shared-memory-base-name that is too long causes buffer overflow
@@ -20,7 +27,6 @@ if (`SELECT '$shm' != 'ON'`){
 # Bug #33899: Deadlock in mysql_real_query with shared memory connections
 #
 
-let $name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
 let $stmt= `SELECT REPEAT('a', 2048)`;
 
 SET @max_allowed_packet= @@global.max_allowed_packet;
@@ -30,7 +36,7 @@ SET GLOBAL max_allowed_packet= 1024;
 SET GLOBAL net_buffer_length= 1024;
 
 --error 1
---exec echo SELECT '$stmt'| $MYSQL --protocol=memory --shared-memory-base-name=$name 2>&1
+--exec echo SELECT '$stmt'| $MYSQL --protocol=memory --shared-memory-base-name=$shm_name 2>&1
 
 SET GLOBAL max_allowed_packet= @max_allowed_packet;
 SET GLOBAL net_buffer_length= @net_buffer_length;

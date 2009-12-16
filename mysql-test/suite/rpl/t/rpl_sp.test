@@ -3,11 +3,6 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 # Modified by WL#2971.
 
-# Note that in the .opt files we still use the old variable name
-# log-bin-trust-routine-creators so that this test checks that it's
-# still accepted (this test also checks that the new name is
-# accepted). The old name could be removed in 5.1 or 6.0.
-
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
@@ -241,16 +236,11 @@ begin
 end|
 delimiter ;|
 connection master;
-set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
-# test old variable name:
-set global log_bin_trust_routine_creators=1;
-# now use new name:
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 # slave needs it too otherwise will not execute what master allowed:
 connection slave;
-set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 set global log_bin_trust_function_creators=1;
 
@@ -466,9 +456,7 @@ DROP FUNCTION IF EXISTS f1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo
 --echo ---> connection: master
@@ -492,9 +480,7 @@ SHOW CREATE FUNCTION f1;
 --echo
 --echo ---> Synchronizing slave with master...
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 
 --echo ---> connection: master
 
@@ -516,9 +502,7 @@ SHOW CREATE FUNCTION f1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 
---save_master_pos
---connection slave
---sync_with_master
+--sync_slave_with_master
 --connection master
 
 
@@ -568,19 +552,15 @@ connection master;
 
 # Final inspection which verifies how all statements of this test file
 # were written to the binary log.
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 
 # Restore log_bin_trust_function_creators to its original value.
 # This is a cleanup for all parts above where we tested stored
 # functions and triggers.
 connection slave;
-set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 connection master;
-set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 # Clean up

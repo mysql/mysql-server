@@ -1,4 +1,7 @@
-/* Copyright (C) 2000 MySQL AB
+#ifndef MY_NO_PTHREAD_INCLUDED
+#define MY_NO_PTHREAD_INCLUDED
+
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +17,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#if !defined(_my_no_pthread_h) && !defined(THREAD)
-#define _my_no_pthread_h
-
+#ifndef THREAD
 
 /*
   This block is to access some thread-related type definitions
@@ -47,4 +48,16 @@
 #define rw_unlock(A)
 #define rwlock_destroy(A)
 
+#define mysql_mutex_init(A, B, C) do {} while (0)
+#define mysql_mutex_lock(A) do {} while (0)
+#define mysql_mutex_unlock(A) do {} while (0)
+#define mysql_mutex_destroy(A) do {} while (0)
+
+#define mysql_rwlock_init(A, B, C) do {} while (0)
+#define mysql_rwlock_rdlock(A) do {} while (0)
+#define mysql_rwlock_wrlock(A) do {} while (0)
+#define mysql_rwlock_unlock(A) do {} while (0)
+#define mysql_rwlock_destroy(A) do {} while (0)
+
 #endif
+#endif /* MY_NO_PTHREAD_INCLUDED */

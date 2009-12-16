@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
@@ -221,6 +222,8 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     }
     return NULL;
   }
+
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   switch (database_type) {
 #ifndef NO_HASH
@@ -423,7 +426,13 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     reuse an array slot. Otherwise the number of uninstall/install
     cycles would be limited.
   */
-  hton2plugin[hton->slot]= NULL;
+  if (hton->slot != HA_SLOT_UNDEF)
+  {
+    /* Make sure we are not unpluging another plugin */
+    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < MAX_HA);
+    hton2plugin[hton->slot]= NULL;
+  }
 
   my_free((uchar*)hton, MYF(0));
 
@@ -440,6 +449,15 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
   hton= (handlerton *)my_malloc(sizeof(handlerton),
                                 MYF(MY_WME | MY_ZEROFILL));
+
+  if (hton == NULL)
+  {
+    sql_print_error("Unable to allocate memory for plugin '%s' handlerton.",
+                    plugin->name.str);
+    goto err_no_hton_memory;
+  }
+
+  hton->slot= HA_SLOT_UNDEF;
   /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
@@ -550,6 +568,7 @@ err_deinit:
           
 err:
   my_free((uchar*) hton, MYF(0));
+err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
 }
@@ -973,7 +992,7 @@ int ha_prepare(THD *thd)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_prepare");
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info->next())
@@ -999,7 +1018,7 @@ int ha_prepare(THD *thd)
       }
     }
   }
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -1127,7 +1146,7 @@ int ha_commit_trans(THD *thd, bool all)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(2);
   }
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     uint rw_ha_count;
@@ -1200,6 +1219,7 @@ int ha_commit_trans(THD *thd, bool all)
     if (cookie)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
@@ -1207,7 +1227,6 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
 
@@ -1229,7 +1248,7 @@ int ha_commit_one_phase(THD *thd, bool all)
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info_next)
@@ -1259,7 +1278,7 @@ int ha_commit_one_phase(THD *thd, bool all)
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -1299,7 +1318,7 @@ int ha_rollback_trans(THD *thd, bool all)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     /* Close all cursors that can not survive ROLLBACK */
@@ -1321,7 +1340,8 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request)
+    if (is_real_trans && thd->transaction_rollback_request &&
+        thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
@@ -1329,7 +1349,6 @@ int ha_rollback_trans(THD *thd, bool all)
   /* Always cleanup. Even if there nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
   if (all)
     thd->transaction_rollback_request= FALSE;
 
@@ -1347,6 +1366,7 @@ int ha_rollback_trans(THD *thd, bool all)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }
 
@@ -1364,7 +1384,7 @@ int ha_rollback_trans(THD *thd, bool all)
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
-#ifdef USING_TRANSACTIONS
+
   if (thd->transaction.stmt.ha_list)
   {
     if (!error)
@@ -1381,7 +1401,13 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
-#endif
+  else
+  {
+    if (!error)
+      RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    else
+      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  }
   DBUG_RETURN(error);
 }
 
@@ -1542,7 +1568,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
         }
         // recovery mode
         if (info->commit_list ?
-            hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
+            my_hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
         {
 #ifndef DBUG_OFF
@@ -1653,12 +1679,12 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_xid_cache);
-  while ((xs= (XID_STATE*)hash_element(&xid_cache, i++)))
+  while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
     {
@@ -1783,7 +1809,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
                                         &thd->transaction.all);
   Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_savepoint");
-#ifdef USING_TRANSACTIONS
+
   for (; ha_info; ha_info= ha_info->next())
   {
     int err;
@@ -1807,7 +1833,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     engines are prepended to the beginning of the list.
   */
   sv->ha_list= trans->ha_list;
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -2981,14 +3007,14 @@ static bool update_frm_version(TABLE *table)
     if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) hash_first(&open_cache,(uchar*) key,key_length, &state);
+    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
          entry;
-         entry= (TABLE*) hash_next(&open_cache,(uchar*) key,key_length, &state))
+         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
       entry->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
   if (file >= 0)
-    VOID(my_close(file,MYF(MY_WME)));
+    (void) my_close(file,MYF(MY_WME));
   DBUG_RETURN(result);
 }
 
@@ -3217,36 +3243,6 @@ handler::ha_reset_auto_increment(ulonglong value)
   mark_trx_read_write();
 
   return reset_auto_increment(value);
-}
-
-
-/**
-  Backup table: public interface.
-
-  @sa handler::backup()
-*/
-
-int
-handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return backup(thd, check_opt);
-}
-
-
-/**
-  Restore table: public interface.
-
-  @sa handler::restore()
-*/
-
-int
-handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return restore(thd, check_opt);
 }
 
 
@@ -3621,7 +3617,7 @@ int ha_create_table(THD *thd, const char *path,
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
-  VOID(closefrm(&table, 0));
+  (void) closefrm(&table, 0);
   if (error)
   {
     strxmov(name_buff, db, ".", table_name, NullS);
@@ -3692,7 +3688,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
   get_canonical_filename(table.file, path, path);
   error=table.file->ha_create(path, &table, &create_info);
-  VOID(closefrm(&table, 1));
+  (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
 }
@@ -4439,7 +4435,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,
+  if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 

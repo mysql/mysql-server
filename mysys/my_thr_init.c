@@ -284,6 +284,9 @@ my_bool my_thread_init(void)
   pthread_cond_init(&tmp->suspend, NULL);
   tmp->init= 1;
 
+  tmp->stack_ends_here= (char*)&tmp +
+                         STACK_DIRECTION * (long)my_thread_stack_size;
+
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
   ++THR_thread_count;
@@ -386,6 +389,15 @@ const char *my_thread_name(void)
     strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
   }
   return tmp->name;
+}
+
+/* Return pointer to DBUG for holding current state */
+
+extern void **my_thread_var_dbug()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif /* DBUG_OFF */
 

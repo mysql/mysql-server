@@ -23,7 +23,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ \
+			@pstack_dir@ libservices \
 			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
@@ -32,7 +32,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack \
+			pstack libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \
@@ -98,7 +98,8 @@ test-pr:
 
 test-ns:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed ; \
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --suite=funcs_1
 
 test-binlog-statement:
 	cd mysql-test ; \
@@ -205,6 +206,8 @@ test-bt-debug:
 
 test-bt-debug-fast:
 
+test-bt-debug-fast:
+
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
@@ -262,11 +265,12 @@ test-full-qa:
 #
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                           $(top_srcdir)/include/mysql.h
+			$(top_srcdir)/include/mysql.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
 
-TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                            $(top_srcdir)/sql/mysql_priv.h \
-                            $(top_srcdir)/include/mysql.h
+TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
+			$(top_srcdir)/sql/mysql_priv.h
 
 #
 # Rules for checking that the abi/api has not changed.
