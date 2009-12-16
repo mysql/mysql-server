@@ -176,6 +176,7 @@ Ndbd_mem_manager::Ndbd_mem_manager()
     g_eventLogger->error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
     abort();
   }
+  NdbMutex_Init(&m_mutex);
 }
 
 /**
