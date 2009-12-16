@@ -1,3 +1,6 @@
+#ifndef ITEM_SUBSELECT_INCLUDED
+#define ITEM_SUBSELECT_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -132,6 +135,7 @@ public:
     @return the SELECT_LEX structure associated with this Item
   */
   st_select_lex* get_select_lex();
+  const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -579,4 +583,4 @@ inline bool Item_subselect::is_uncacheable() const
   return engine->uncacheable();
 }
 
-
+#endif /* ITEM_SUBSELECT_INCLUDED */

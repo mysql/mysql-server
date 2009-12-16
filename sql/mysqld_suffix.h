@@ -1,3 +1,6 @@
+#ifndef MYSQLD_SUFFIX_INCLUDED
+#define MYSQLD_SUFFIX_INCLUDED
+
 /* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -27,3 +30,4 @@
 #else
 #define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
 #endif
+#endif /* MYSQLD_SUFFIX_INCLUDED */

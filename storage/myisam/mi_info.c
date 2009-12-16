@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2003-2004 MySQL AB
+/* Copyright (C) 2000-2001, 2003-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,10 +42,10 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
     DBUG_RETURN(0);				/* Compatible with ISAM */
   if (!(flag & HA_STATUS_NO_LOCK))
   {
-    pthread_mutex_lock(&share->intern_lock);
-    VOID(_mi_readinfo(info,F_RDLCK,0));
+    mysql_mutex_lock(&share->intern_lock);
+    (void) _mi_readinfo(info,F_RDLCK,0);
     fast_mi_writeinfo(info);
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -85,7 +85,7 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
     x->data_file_name   = share->data_file_name;
     x->index_file_name  = share->index_file_name;
   }
-  if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
+  if ((flag & HA_STATUS_TIME) && !mysql_file_fstat(info->dfile, &state, MYF(0)))
     x->update_time=state.st_mtime;
   else
     x->update_time=0;

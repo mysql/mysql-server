@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,34 @@
 /* get the number of (online) CPUs */
 
 #include "mysys_priv.h"
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 static int ncpus=0;
 
-#ifdef _SC_NPROCESSORS_ONLN
 int my_getncpus()
 {
   if (!ncpus)
+  {
+#ifdef _SC_NPROCESSORS_ONLN
     ncpus= sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__WIN__)
+    SYSTEM_INFO sysinfo;
+
+    /*
+    * We are not calling GetNativeSystemInfo here because (1) we
+    * don't believe that they return different values for number
+    * of processors and (2) if WOW64 limits processors for Win32
+    * then we don't want to try to override that.
+    */
+    GetSystemInfo(&sysinfo);
+
+    ncpus= sysinfo.dwNumberOfProcessors;
+#else
+/* unknown so play safe: assume SMP and forbid uniprocessor build */
+    ncpus= 2;
+#endif
+  }
   return ncpus;
 }
-
-#else
-/* unknown */
-int my_getncpus()
-{
-  return 2;
-}
-
-#endif
-

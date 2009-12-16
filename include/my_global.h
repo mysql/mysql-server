@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,16 @@
 #undef inline				/* fix configure problem */
 #endif
 #endif /* _WIN32... */
+
+#ifdef EMBEDDED_LIBRARY
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#undef WITH_PERFSCHEMA_STORAGE_ENGINE
+#endif
+#endif /* EMBEDDED_LIBRARY */
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#define HAVE_PSI_INTERFACE
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditionl code for windows */
 #ifdef __WIN__
@@ -542,17 +552,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define DONT_REMEMBER_SIGNAL
 #endif
 
-/* Define void to stop lint from generating "null effekt" comments */
-#ifndef DONT_DEFINE_VOID
-#ifdef _lint
-int	__void__;
-#define VOID(X)		(__void__ = (int) (X))
-#else
-#undef VOID
-#define VOID(X)		(X)
-#endif
-#endif /* DONT_DEFINE_VOID */
-
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
 #define LINT_INIT(var)	var=0			/* No uninitialize-warning */
 #else
@@ -648,8 +647,6 @@ C_MODE_END
 #    undef DBUG_ON
 #  endif
 #endif
-
-#include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
@@ -1176,6 +1173,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define reg15 register
 #define reg16 register
 #endif
+
+#include <my_dbug.h>
 
 /*
   Sometimes we want to make sure that the variable is not put into

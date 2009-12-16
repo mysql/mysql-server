@@ -61,7 +61,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
-  if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
+  if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
 					       (uchar*) temp_user, temp_len)))
   {
     /* First connection for user; Create a user connection object */
@@ -151,7 +151,15 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 
 end:
   if (error)
+  {
     uc->connections--; // no need for decrease_user_connections() here
+    /*
+      The thread may returned back to the pool and assigned to a user
+      that doesn't have a limit. Ensure the user is not using resources
+      of someone else.
+    */
+    thd->user_connect= NULL;
+  }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
@@ -183,7 +191,7 @@ void decrease_user_connections(USER_CONN *uc)
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(uchar*) uc);
+    (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
   }
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
@@ -369,7 +377,8 @@ check_user(THD *thd, enum enum_server_command command,
     if (send_old_password_request(thd) ||
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -402,7 +411,7 @@ check_user(THD *thd, enum enum_server_command command,
         pthread_mutex_lock(&LOCK_connection_count);
         bool count_ok= connection_count <= max_connections ||
                        (thd->main_security_ctx.master_access & SUPER_ACL);
-        VOID(pthread_mutex_unlock(&LOCK_connection_count));
+        pthread_mutex_unlock(&LOCK_connection_count);
 
         if (!count_ok)
         {                                         // too many connections
@@ -462,7 +471,10 @@ check_user(THD *thd, enum enum_server_command command,
         {
           /* mysql_change_db() has pushed the error message. */
           if (thd->user_connect)
+          {
             decrease_user_connections(thd->user_connect);
+            thd->user_connect= 0;
+          }
           DBUG_RETURN(1);
         }
       }
@@ -486,6 +498,18 @@ check_user(THD *thd, enum enum_server_command command,
                     thd->main_security_ctx.user,
                     thd->main_security_ctx.host_or_ip,
                     passwd_len ? ER(ER_YES) : ER(ER_NO));
+  /*
+    Log access denied messages to the error log when log-warnings = 2
+    so that the overhead of the general query log is not required to track
+    failed connections.
+  */
+  if (global_system_variables.log_warnings > 1)
+  {
+    sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
+                      thd->main_security_ctx.user,
+                      thd->main_security_ctx.host_or_ip,
+                      passwd_len ? ER(ER_YES) : ER(ER_NO));
+  }
   DBUG_RETURN(1);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
@@ -513,10 +537,10 @@ extern "C" void free_user(struct user_conn *uc)
 void init_max_user_conn(void)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
-		   0,0,
-		   (hash_get_key) get_key_conn, (hash_free_key) free_user,
-		   0);
+  (void)
+    my_hash_init(&hash_user_connections,system_charset_info,max_connections,
+                 0,0, (my_hash_get_key) get_key_conn,
+                 (my_hash_free_key) free_user, 0);
 #endif
 }
 
@@ -524,7 +548,7 @@ void init_max_user_conn(void)
 void free_max_user_conn(void)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  hash_free(&hash_user_connections);
+  my_hash_free(&hash_user_connections);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
@@ -542,8 +566,9 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
-    if ((uc = (struct  user_conn *) hash_search(&hash_user_connections,
-						(uchar*) temp_user, temp_len)))
+    if ((uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
+                                                   (uchar*) temp_user,
+                                                   temp_len)))
     {
       uc->questions=0;
       get_mqh(temp_user,&temp_user[lu->user.length+1],uc);
@@ -556,8 +581,8 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
     /* for FLUSH PRIVILEGES and FLUSH USER_RESOURCES */
     for (uint idx=0;idx < hash_user_connections.records; idx++)
     {
-      USER_CONN *uc=(struct user_conn *) hash_element(&hash_user_connections,
-						      idx);
+      USER_CONN *uc=(struct user_conn *)
+        my_hash_element(&hash_user_connections, idx);
       if (get_them)
 	get_mqh(uc->user,uc->host,uc);
       uc->questions=0;
@@ -642,9 +667,9 @@ static int check_connection(THD *thd)
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
-    char ip[30];
+    char ip[NI_MAXHOST];
 
-    if (vio_peer_addr(net->vio, ip, &thd->peer_port))
+    if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
       my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
@@ -652,12 +677,15 @@ static int check_connection(THD *thd)
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
       return 1; /* The error is set by my_strdup(). */
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
-    vio_in_addr(net->vio,&thd->remote.sin_addr);
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      vio_in_addr(net->vio,&thd->remote.sin_addr);
-      thd->main_security_ctx.host=
-        ip_to_hostname(&thd->remote.sin_addr, &connect_errors);
+      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
+                         &thd->main_security_ctx.host, &connect_errors))
+      {
+        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        return 1;
+      }
+
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.host)
       {
@@ -690,7 +718,7 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
     thd->main_security_ctx.ip= 0;
     /* Reset sin_addr */
-    bzero((char*) &thd->remote, sizeof(thd->remote));
+    bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
   }
   vio_keepalive(net->vio, TRUE);
   
@@ -745,7 +773,8 @@ static int check_connection(THD *thd)
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0),
                thd->main_security_ctx.host_or_ip);
       return 1;
@@ -755,7 +784,7 @@ static int check_connection(THD *thd)
 #include "_cust_sql_parse.h"
 #endif
   if (connect_errors)
-    reset_host_errors(&thd->remote.sin_addr);
+    reset_host_errors(thd->main_security_ctx.ip);
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
@@ -789,7 +818,7 @@ static int check_connection(THD *thd)
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -797,7 +826,8 @@ static int check_connection(THD *thd)
     if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -807,7 +837,8 @@ static int check_connection(THD *thd)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -816,7 +847,8 @@ static int check_connection(THD *thd)
 
   if (end >= (char*) net->read_pos+ pkt_len +2)
   {
-    inc_host_errors(&thd->remote.sin_addr);
+    inc_host_errors(thd->main_security_ctx.ip);
+
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
@@ -854,7 +886,8 @@ static int check_connection(THD *thd)
 
   if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
   {
-    inc_host_errors(&thd->remote.sin_addr);
+    inc_host_errors(thd->main_security_ctx.ip);
+
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
@@ -945,7 +978,7 @@ static bool login_connection(THD *thd)
   my_net_set_write_timeout(net, connect_timeout);
 
   error= check_connection(thd);
-  net_end_statement(thd);
+  thd->protocol->end_statement();
 
   if (error)
   {						// Wrong permissions
@@ -975,7 +1008,15 @@ static void end_connection(THD *thd)
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
   if (thd->user_connect)
+  {
     decrease_user_connections(thd->user_connect);
+    /*
+      The thread may returned back to the pool and assigned to a user
+      that doesn't have a limit. Ensure the user is not using resources
+      of someone else.
+    */
+    thd->user_connect= NULL;
+  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {

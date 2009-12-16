@@ -14,6 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef SQL_CLASS_INCLUDED
+#define SQL_CLASS_INCLUDED
+
 /* Classes in mysql */
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -23,52 +26,8 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
-/**
-  An interface that is used to take an action when
-  the locking module notices that a table version has changed
-  since the last execution. "Table" here may refer to any kind of
-  table -- a base table, a temporary table, a view or an
-  information schema table.
 
-  When we open and lock tables for execution of a prepared
-  statement, we must verify that they did not change
-  since statement prepare. If some table did change, the statement
-  parse tree *may* be no longer valid, e.g. in case it contains
-  optimizations that depend on table metadata.
-
-  This class provides an interface (a method) that is
-  invoked when such a situation takes place.
-  The implementation of the method simply reports an error, but
-  the exact details depend on the nature of the SQL statement.
-
-  At most 1 instance of this class is active at a time, in which
-  case THD::m_reprepare_observer is not NULL.
-
-  @sa check_and_update_table_version() for details of the
-  version tracking algorithm 
-
-  @sa Open_tables_state::m_reprepare_observer for the life cycle
-  of metadata observers.
-*/
-
-class Reprepare_observer
-{
-public:
-  Reprepare_observer() {}
-  /**
-    Check if a change of metadata is OK. In future
-    the signature of this method may be extended to accept the old
-    and the new versions, but since currently the check is very
-    simple, we only need the THD to report an error.
-  */
-  bool report_error(THD *thd);
-  bool is_invalidated() const { return m_invalidated; }
-  void reset_reprepare_observer() { m_invalidated= FALSE; }
-private:
-  bool m_invalidated;
-};
-
-
+class Reprepare_observer;
 class Relay_log_info;
 
 class Query_log_event;
@@ -94,6 +53,8 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
+
+extern bool volatile shutdown_in_progress;
 
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
@@ -146,9 +107,14 @@ typedef struct st_copy_info {
 
 class Key_part_spec :public Sql_alloc {
 public:
-  const char *field_name;
+  LEX_STRING field_name;
   uint length;
-  Key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
+  Key_part_spec(const LEX_STRING &name, uint len)
+    : field_name(name), length(len)
+  {}
+  Key_part_spec(const char *name, const size_t name_len, uint len)
+    : length(len)
+  { field_name.str= (char *)name; field_name.length= name_len; }
   bool operator==(const Key_part_spec& other) const;
   /**
     Construct a copy of this Key_part_spec. field_name is copied
@@ -201,15 +167,24 @@ public:
   enum Keytype type;
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
-  const char *name;
+  LEX_STRING name;
   bool generated;
 
-  Key(enum Keytype type_par, const char *name_arg,
+  Key(enum Keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<Key_part_spec> &cols)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
     name(name_arg), generated(generated_arg)
   {}
+  Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
+      KEY_CREATE_INFO *key_info_arg, bool generated_arg,
+      List<Key_part_spec> &cols)
+    :type(type_par), key_create_info(*key_info_arg), columns(cols),
+    generated(generated_arg)
+  {
+    name.str= (char *)name_arg;
+    name.length= name_len_arg;
+  }
   Key(const Key &rhs, MEM_ROOT *mem_root);
   virtual ~Key() {}
   /* Equality comparison of keys (ignoring name) */
@@ -234,7 +209,7 @@ public:
   Table_ident *ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
-  Foreign_key(const char *name_arg, List<Key_part_spec> &cols,
+  Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
@@ -265,6 +240,27 @@ public:
   String column;
   uint rights;
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
+};
+
+/**
+  Query_cache_tls -- query cache thread local data.
+*/
+
+struct Query_cache_block;
+
+struct Query_cache_tls
+{
+  /*
+    'first_query_block' should be accessed only via query cache
+    functions and methods to maintain proper locking.
+  */
+  Query_cache_block *first_query_block;
+  void set_first_query_block(Query_cache_block *first_query_block_arg)
+  {
+    first_query_block= first_query_block_arg;
+  }
+
+  Query_cache_tls() :first_query_block(NULL) {}
 };
 
 /* SIGNAL / RESIGNAL / GET DIAGNOSTICS */
@@ -681,9 +677,12 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  char *query;
-  uint32 query_length;                          // current query length
+  LEX_STRING query_string;
   Server_side_cursor *cursor;
+
+  inline char *query() { return query_string.str; }
+  inline uint32 query_length() { return query_string.length; }
+  void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
     Name of the current (default) database.
@@ -740,8 +739,8 @@ public:
   Statement *find_by_name(LEX_STRING *name)
   {
     Statement *stmt;
-    stmt= (Statement*)hash_search(&names_hash, (uchar*)name->str,
-                                  name->length);
+    stmt= (Statement*)my_hash_search(&names_hash, (uchar*)name->str,
+                                     name->length);
     return stmt;
   }
 
@@ -750,7 +749,7 @@ public:
     if (last_found_statement == 0 || id != last_found_statement->id)
     {
       Statement *stmt;
-      stmt= (Statement *) hash_search(&st_hash, (uchar *) &id, sizeof(id));
+      stmt= (Statement *) my_hash_search(&st_hash, (uchar *) &id, sizeof(id));
       if (stmt && stmt->name.str)
         return NULL;
       last_found_statement= stmt;
@@ -1229,6 +1228,9 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
+#ifdef HAVE_QUERY_CACHE
+  Query_cache_tls query_cache_tls;
+#endif
   NET	  net;				// client connection descriptor
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
@@ -1236,7 +1238,6 @@ public:
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
-  struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
@@ -1432,19 +1433,13 @@ public:
       */
       if (!xid_state.rm_error)
         xid_state.xid.null();
-#ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
-#endif
     }
     st_transactions()
     {
-#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-#else
-      xid_state.xa_state= XA_NOTR;
-#endif
     }
   } transaction;
   Field      *dup_field;
@@ -1647,7 +1642,7 @@ public:
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
   Diagnostics_area *stmt_da;
-#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+#if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
 
@@ -1662,9 +1657,6 @@ public:
   query_id_t query_id;
   ulong      col_access;
 
-#ifdef ERROR_INJECT_SUPPORT
-  ulong      error_inject_value;
-#endif
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
@@ -1697,7 +1689,7 @@ public:
   bool       slave_thread, one_shot_set;
   /* tells if current statement should binlog row-based(1) or stmt-based(0) */
   bool       current_stmt_binlog_row_based;
-  bool	     locked, some_tables_deleted;
+  bool	     some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
   /**
@@ -1892,10 +1884,16 @@ public:
     proc_info = msg;
     return old_msg;
   }
+  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                                const char *msg)
+  {
+    /* TO BE REMOVED: temporary helper, to help with merges */
+    return enter_cond(&cond->m_cond, &mutex->m_mutex, msg);
+  }
   inline void exit_cond(const char* old_msg)
   {
     /*
-      Putting the mutex unlock in exit_cond() ensures that
+      Putting the mutex unlock in thd->exit_cond() ensures that
       mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
@@ -1906,6 +1904,7 @@ public:
     mysys_var->current_cond = 0;
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
+    return;
   }
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void set_time()
@@ -1932,11 +1931,7 @@ public:
   }
   inline bool active_transaction()
   {
-#ifdef USING_TRANSACTIONS
     return server_status & SERVER_STATUS_IN_TRANS;
-#else
-    return 0;
-#endif
   }
   inline bool fill_derived_tables()
   {
@@ -1982,9 +1977,15 @@ public:
     DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
+  /** Return FALSE if connection to client is broken. */
+  bool is_connected()
+  {
+    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+  }
 #else
   void clear_error();
-  inline bool vio_ok() const { return true; }
+  inline bool vio_ok() const { return TRUE; }
+  inline bool is_connected() { return TRUE; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -1993,6 +1994,7 @@ public:
   */
   inline void fatal_error()
   {
+    DBUG_ASSERT(main_da.is_error());
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2052,7 +2054,11 @@ public:
   {
     int err= killed_errno();
     if (err)
+    {
+      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
+    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
@@ -2154,7 +2160,10 @@ public:
     else
     {
       x_free(db);
-      db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
+      if (new_db)
+        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+      else
+        db= NULL;
     }
     db_length= db ? new_db_len : 0;
     return new_db && !db;
@@ -2396,7 +2405,6 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2413,7 +2421,7 @@ public:
   */
   virtual uint field_count(List<Item> &fields) const
   { return fields.elements; }
-  virtual bool send_fields(List<Item> &list, uint flags)=0;
+  virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
@@ -2433,12 +2441,6 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
-  /**
-     The nest level, if supported. 
-     @return
-     -1 if nest level is undefined, otherwise a positive integer.
-   */
-  int get_nest_level() { return nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -2458,7 +2460,7 @@ class select_result_interceptor: public select_result
 public:
   select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
-  bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
+  bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };
 
 
@@ -2471,7 +2473,7 @@ class select_send :public select_result {
   bool is_result_set_started;
 public:
   select_send() :is_result_set_started(FALSE) {}
-  bool send_fields(List<Item> &list, uint flags);
+  bool send_result_set_metadata(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
@@ -2533,14 +2535,6 @@ class select_export :public select_to_file {
   CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO OUTFILE <filename> with a
-     defined level of subquery nesting.
-   */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2550,15 +2544,6 @@ public:
 class select_dump :public select_to_file {
 public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO DUMPFILE <filename> with a
-     defined level of subquery nesting.
-   */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
-    select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -2616,7 +2601,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -3029,16 +3014,6 @@ class select_dumpvar :public select_result_interceptor {
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
-  /**
-     Creates a select_dumpvar to represent INTO <variable> with a defined 
-     level of subquery nesting.
-   */
-  select_dumpvar(uint nest_level_arg)
-  {
-    var_list.empty();
-    row_count= 0;
-    nest_level= nest_level_arg;
-  }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -3088,3 +3063,4 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 void mark_transaction_to_rollback(THD *thd, bool all);
 
 #endif /* MYSQL_SERVER */
+#endif /* SQL_CLASS_INCLUDED */

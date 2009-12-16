@@ -369,9 +369,6 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 
-UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
-UNIV_INTERN int	srv_query_thread_priority = 0;
-
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
@@ -1006,13 +1003,26 @@ srv_init(void)
 }
 
 /*********************************************************************//**
-Frees the OS fast mutex created in srv_init(). */
+Frees the data structures created in srv_init(). */
 UNIV_INTERN
 void
 srv_free(void)
 /*==========*/
 {
 	os_fast_mutex_free(&srv_conc_mutex);
+	mem_free(srv_conc_slots);
+	srv_conc_slots = NULL;
+
+	mem_free(srv_sys->threads);
+	mem_free(srv_sys);
+	srv_sys = NULL;
+
+	mem_free(kernel_mutex_temp);
+	kernel_mutex_temp = NULL;
+	mem_free(srv_mysql_table);
+	srv_mysql_table = NULL;
+
+	trx_i_s_cache_free(trx_i_s_cache);
 }
 
 /*********************************************************************//**
@@ -1024,6 +1034,8 @@ srv_general_init(void)
 /*==================*/
 {
 	ut_mem_init();
+	/* Reset the system variables in the recovery module. */
+	recv_sys_var_init();
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);

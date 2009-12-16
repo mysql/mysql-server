@@ -503,6 +503,7 @@ insert into t2 values(2,0);
 disconnect root;
 connection default;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
+unlock tables;
 drop table t1,t2;
 #
 # Full key.
@@ -520,6 +521,7 @@ disconnect con1;
 connection default;
 SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
   WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+UNLOCK TABLES;
 DROP TABLE t1,t2;
 
 # End of 4.0 tests
@@ -1539,14 +1541,14 @@ INSERT INTO t1 SELECT a+5120,b FROM t1;
 SET myisam_sort_buffer_size=4;
 REPAIR TABLE t1;
 
-# !!! Disabled until additional fix for BUG#47073 is pushed.
-#SET myisam_repair_threads=2;
+SET myisam_repair_threads=2;
 # May report different values depending on threads activity.
-#--replace_regex /changed from [0-9]+/changed from #/
-#REPAIR TABLE t1;
-#SET myisam_repair_threads=@@global.myisam_repair_threads;
-
+--disable_result_log
+REPAIR TABLE t1;
+--enable_result_log
+SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+CHECK TABLE t1;
 DROP TABLE t1;
 
 --echo End of 5.1 tests

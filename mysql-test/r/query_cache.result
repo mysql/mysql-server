@@ -342,19 +342,18 @@ create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i)
 insert into mysqltest.t1 (a) values (1);
 select * from mysqltest.t1 where i is null;
 i	a
-1	1
 create table t1(a int);
 select * from t1;
 a
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	2
 select * from mysqltest.t1;
 i	a
 1	1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	3
 drop database mysqltest;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -1708,6 +1707,7 @@ Qcache_hits	2
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 End of 5.0 tests
+SET GLOBAL query_cache_size=1024*1024*512;
 CREATE TABLE t1 (a ENUM('rainbow'));
 INSERT INTO t1 VALUES (),(),(),(),();
 SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
@@ -1722,4 +1722,5 @@ SELECT 1 FROM t1 GROUP BY
 1
 1
 DROP TABLE t1;
+SET GLOBAL query_cache_size= default;
 End of 5.1 tests

@@ -15,10 +15,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "my_global.h"
+#include "my_sys.h"
+#include "m_string.h" /* for TRASH */
+
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+void *sql_alloc(size_t);
 
 /* mysql standard class memory allocator */
 
@@ -452,7 +458,7 @@ struct ilink
   struct ilink **prev,*next;
   static void *operator new(size_t size) throw ()
   {
-    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE | ME_FATALERROR));
   }
   static void operator delete(void* ptr_arg, size_t size)
   {

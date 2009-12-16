@@ -1325,11 +1325,6 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; EN
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION bug_13627_f() returns int BEGIN DROP TRIGGER test1; return 1; END |
 
--- error ER_SP_BADSTATEMENT
-CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN load table t1 from master; END |
--- error ER_SP_BADSTATEMENT
-CREATE FUNCTION bug_13627_f() returns int BEGIN load table t1 from master; return 1; END |
-
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create table t2 (a int); END |
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -1578,18 +1573,6 @@ DROP FUNCTION IF EXISTS bug13012|
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
   REPAIR TABLE t1;
-  RETURN 1;
-END|
---error ER_SP_NO_RETSET
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-  BACKUP TABLE t1 TO '/tmp';
-  RETURN 1;
-END|
---error ER_SP_NO_RETSET
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-  RESTORE TABLE t1 FROM '/tmp';
   RETURN 1;
 END|
 create table t1 (a int)|
@@ -2386,7 +2369,7 @@ drop procedure if exists p1;
 delimiter |;
 create procedure p1()
 begin
-  create table t1 (a int) type=MyISAM;
+  create table t1 (a int) engine=MyISAM;
   drop table t1;
 end|
 delimiter ;|
@@ -2419,6 +2402,64 @@ end$$
 
 delimiter ;$$
 
+#
+# Bug#36510 (Stored Procedures: mysql_error_code 0 should be illegal)
+#
+
+--disable_warnings
+drop procedure if exists proc_36510;
+--enable_warnings
+
+delimiter $$;
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_36510()
+begin
+  declare should_be_illegal condition for sqlstate '00123';
+  declare continue handler for should_be_illegal set @x=0;
+end$$
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_36510()
+begin
+  declare continue handler for sqlstate '00123' set @x=0;
+end$$
+
+--error ER_WRONG_VALUE
+create procedure proc_36510()
+begin
+  declare should_be_illegal condition for 0;
+  declare continue handler for should_be_illegal set @x=0;
+end$$
+
+--error ER_WRONG_VALUE
+create procedure proc_36510()
+begin
+  declare continue handler for 0 set @x=0;
+end$$
+delimiter ;$$
+
+#
+# Bug#15192: "fatal errors" are caught by handlers in stored procedures
+#
+
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+set @old_recursion_depth = @@max_sp_recursion_depth;
+set @@max_sp_recursion_depth = 255;
+delimiter |;
+create procedure p1(a int)
+begin
+  declare continue handler for 1436 -- ER_STACK_OVERRUN_NEED_MORE
+    select 'exception';
+  call p1(a+1);
+end|
+delimiter ;|
+--error 0,ER_STACK_OVERRUN_NEED_MORE,ER_SP_RECURSION_LIMIT
+call p1(1);
+set @@max_sp_recursion_depth = @old_recursion_depth;
+drop procedure p1;
 
 #
 # BUG#NNNN: New bug synopsis
@@ -2448,3 +2489,27 @@ SELECT AVG (a) FROM t1 WHERE b = 999999;
 --error ER_SP_DOES_NOT_EXIST
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 
+--echo #   SP + MERGE + ALTER
+--echo #
+
+CREATE TABLE t1 (pk INT, b INT, KEY (b));
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+CREATE PROCEDURE p1 (a int) UPDATE IGNORE v1 SET b = a; 
+
+--error ER_NON_UPDATABLE_TABLE
+CALL p1(5);
+
+ALTER TABLE t1 CHANGE COLUMN b b2 INT;
+
+--error ER_VIEW_INVALID
+CALL p1(7);
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests

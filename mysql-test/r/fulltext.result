@@ -49,7 +49,7 @@ a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH QUERY EXPANSION)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	fulltext	a	a	0		1	Using where
@@ -494,6 +494,14 @@ SELECT a FROM t1 WHERE MATCH a AGAINST ('+city* of*' IN BOOLEAN MODE);
 a
 City Of God
 DROP TABLE t1;
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+1
+1
+drop table t1;
+show warnings;
+Level	Code	Message
 CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b));
 INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
 ('test', 1),('test', 2),('test', 3),('test', 4);
@@ -551,3 +559,42 @@ EXECUTE s;
 MATCH (col) AGAINST('findme')
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+#
+# Bug #47930: MATCH IN BOOLEAN MODE returns too many results 
+#  inside subquery
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+INSERT INTO t2 VALUES (1,'Scargill');
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1), (2,1);
+# t2 should use full text index
+EXPLAIN
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2, t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	fulltext	b2	b2	0		1	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+# should return 0
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2, t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+count(*)
+0
+# should return 0
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2 IGNORE INDEX (b2), t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+count(*)
+0
+DROP TABLE t1,t2,t3;
+End of 5.1 tests

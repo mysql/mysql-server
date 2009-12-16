@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
@@ -224,6 +225,8 @@ create table t0 (n int);
 insert t0 select * from t1;
 set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);
@@ -456,7 +459,11 @@ return n;
 end|
 reset master;
 insert into t2 values (bug27417(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 insert into t2 select bug27417(2);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -473,6 +480,8 @@ select count(*) from t2;
 count(*)
 2
 delete from t2 where a=bug27417(3);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -486,6 +495,8 @@ count(*)
 5
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7
@@ -700,7 +711,11 @@ return n;
 end|
 reset master;
 insert into t2 values (bug27417(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 insert into t2 select bug27417(2);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -716,6 +731,8 @@ select count(*) from t2;
 count(*)
 2
 delete from t2 where a=bug27417(3);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -728,6 +745,8 @@ count(*)
 5
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7

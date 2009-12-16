@@ -18,6 +18,14 @@
 
 class sys_var;
 
+#ifdef DBUG_OFF
+#define plugin_ref_to_int(A) A
+#define plugin_int_to_ref(A) A
+#else
+#define plugin_ref_to_int(A) (A ? A[0] : NULL)
+#define plugin_int_to_ref(A) &(A)
+#endif
+
 /*
   the following flags are valid for plugin_init()
 */
@@ -27,16 +35,6 @@ class sys_var;
 
 #define INITIAL_LEX_PLUGIN_LIST_SIZE    16
 
-/*
-  the following #define adds server-only members to enum_mysql_show_type,
-  that is defined in plugin.h
-*/
-#define SHOW_FUNC    SHOW_FUNC, SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_LONGLONG, \
-                     SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, SHOW_HAVE,   \
-                     SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, SHOW_LONG_NOFLUSH, \
-                     SHOW_LONGLONG_STATUS
-#include <mysql/plugin.h>
-#undef SHOW_FUNC
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef struct st_mysql_show_var SHOW_VAR;
 

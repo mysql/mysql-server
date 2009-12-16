@@ -279,6 +279,9 @@ b	char(10)	YES		NULL
 SET @arg00=1;
 execute stmt4 using @arg00;
 Field	Type	Null	Key	Default	Extra
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
@@ -409,8 +412,6 @@ prepare stmt1 from ' optimize table t1 ' ;
 prepare stmt1 from ' analyze table t1 ' ;
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
-prepare stmt1 from ' restore table t1 from ''<MYSQLTEST_VARDIR>/tmp/data.txt'' ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' handler t1 open ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' commit ' ;

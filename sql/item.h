@@ -1,3 +1,6 @@
+#ifndef ITEM_INCLUDED
+#define ITEM_INCLUDED
+
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -450,6 +453,11 @@ public:
       TRUE if error has occured.
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
+
+  virtual void set_out_param_info(Send_field *info) {}
+
+  virtual const Send_field *get_out_param_info() const
+  { return NULL; }
 };
 
 
@@ -762,10 +770,9 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
-  /** Returns the uncapped decimal precision of this item. */
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
-  { return decimal_precision() - decimals; }
+  { return my_decimal_int_part(decimal_precision(), decimals); }
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -896,6 +903,9 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+
+  virtual bool cache_const_expr_analyzer(uchar **arg);
+  virtual Item* cache_const_expr_transformer(uchar *arg);
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1025,7 +1035,11 @@ class sp_head;
 
 class Item_basic_constant :public Item
 {
+  table_map used_table_map;
 public:
+  Item_basic_constant(): Item(), used_table_map(0) {};
+  void set_used_tables(table_map map) { used_table_map= map; }
+  table_map used_tables() const { return used_table_map; }
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -1560,7 +1574,8 @@ public:
 
 /* Item represents one placeholder ('?') of prepared statement */
 
-class Item_param :public Item
+class Item_param :public Item,
+                  private Settable_routine_parameter
 {
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
@@ -1648,6 +1663,7 @@ public:
   void set_int(longlong i, uint32 max_length_arg);
   void set_double(double i);
   void set_decimal(const char *str, ulong length);
+  void set_decimal(const my_decimal *dv);
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
   void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
@@ -1697,6 +1713,25 @@ public:
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
+
+private:
+  virtual inline Settable_routine_parameter *
+    get_settable_routine_parameter()
+  {
+    return this;
+  }
+
+  virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+
+  virtual void set_out_param_info(Send_field *info);
+
+public:
+  virtual const Send_field *get_out_param_info() const;
+
+  virtual void make_field(Send_field *field);
+
+private:
+  Send_field *m_out_param_info;
 };
 
 
@@ -2054,7 +2089,7 @@ public:
 
 /**
   Item_empty_string -- is a utility class to put an item into List<Item>
-  which is then used in protocol.send_fields() when sending SHOW output to
+  which is then used in protocol.send_result_set_metadata() when sending SHOW output to
   the client.
 */
 
@@ -2135,6 +2170,23 @@ public:
     save_in_field(result_field, no_conversions);
   }
   void cleanup();
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print() and error messages, where it is
+    applicable. To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string. This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+    Added here, to the parent class of both Item_func and Item_sum_func.
+
+    NOTE: for Items inherited from Item_sum, func_name() return part of
+    function name till first argument (including '(') to make difference in
+    names for functions with 'distinct' clause and without 'distinct' and
+    also to make printing of items inherited from Item_sum uniform.
+  */
+  virtual const char *func_name() const= 0;
 };
 
 
@@ -2260,6 +2312,7 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
+  bool basic_const_item() { return (*ref)->basic_const_item(); }
 
 };
 
@@ -2890,15 +2943,25 @@ protected:
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
+  /*
+    TRUE <=> cache holds value of the last stored item (i.e actual value).
+    store() stores item to be cached and sets this flag to FALSE.
+    On the first call of val_xxx function if this flag is set to FALSE the 
+    cache_value() will be called to actually cache value of saved item.
+    cache_value() will set this flag to TRUE.
+  */
+  bool value_cached;
 public:
-  Item_cache(): 
-    example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING) 
+  Item_cache():
+    example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING),
+    value_cached(0)
   {
     fixed= 1; 
     null_value= 1;
   }
   Item_cache(enum_field_types field_type_arg):
-    example(0), used_table_map(0), cached_field(0), cached_field_type(field_type_arg)
+    example(0), used_table_map(0), cached_field(0), cached_field_type(field_type_arg),
+    value_cached(0)
   {
     fixed= 1;
     null_value= 1;
@@ -2918,10 +2981,10 @@ public:
       cached_field= ((Item_field *)item)->field;
     return 0;
   };
-  virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
   enum_field_types field_type() const { return cached_field_type; }
   static Item_cache* get_cache(const Item *item);
+  static Item_cache* get_cache(const Item* item, const Item_result type);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   virtual void print(String *str, enum_query_type query_type);
@@ -2933,6 +2996,10 @@ public:
   {
     return this == item;
   }
+  virtual void store(Item *item);
+  virtual bool cache_value()= 0;
+  bool basic_const_item() const
+  { return test(example && example->basic_const_item());}
 };
 
 
@@ -2941,18 +3008,19 @@ class Item_cache_int: public Item_cache
 protected:
   longlong value;
 public:
-  Item_cache_int(): Item_cache(), value(0) {}
+  Item_cache_int(): Item_cache(),
+    value(0) {}
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  void store(Item *item);
   void store(Item *item, longlong val_arg);
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real();
+  longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool result_as_longlong() { return TRUE; }
+  bool cache_value();
 };
 
 
@@ -2960,14 +3028,15 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache(), value(0) {}
+  Item_cache_real(): Item_cache(),
+    value(0) {}
 
-  void store(Item *item);
-  double val_real() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real();
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return REAL_RESULT; }
+  bool cache_value();
 };
 
 
@@ -2978,12 +3047,12 @@ protected:
 public:
   Item_cache_decimal(): Item_cache() {}
 
-  void store(Item *item);
   double val_real();
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return DECIMAL_RESULT; }
+  bool cache_value();
 };
 
 
@@ -3001,14 +3070,14 @@ public:
                    MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
   {}
-  void store(Item *item);
   double val_real();
   longlong val_int();
-  String* val_str(String *) { DBUG_ASSERT(fixed == 1); return value; }
+  String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
+  bool cache_value();
 };
 
 class Item_cache_row: public Item_cache
@@ -3018,7 +3087,8 @@ class Item_cache_row: public Item_cache
   bool save_array;
 public:
   Item_cache_row()
-    :Item_cache(), values(0), item_count(2), save_array(0) {}
+    :Item_cache(), values(0), item_count(2),
+    save_array(0) {}
   
   /*
     'allocate' used only in row transformer, to preallocate space for row 
@@ -3076,6 +3146,39 @@ public:
       values= 0;
     DBUG_VOID_RETURN;
   }
+  bool cache_value();
+};
+
+
+class Item_cache_datetime: public Item_cache
+{
+protected:
+  String str_value;
+  ulonglong int_value;
+  bool str_value_cached;
+public:
+  Item_cache_datetime(enum_field_types field_type_arg):
+    Item_cache(field_type_arg), int_value(0), str_value_cached(0)
+  {
+    cmp_context= STRING_RESULT;
+  }
+
+  void store(Item *item, longlong val_arg);
+  double val_real();
+  longlong val_int();
+  String* val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
+  enum Item_result result_type() const { return STRING_RESULT; }
+  bool result_as_longlong() { return TRUE; }
+  /*
+    In order to avoid INT <-> STRING conversion of a DATETIME value
+    two cache_value functions are introduced. One (cache_value) caches STRING
+    value, another (cache_value_int) - INT value. Thus this cache item
+    completely relies on the ability of the underlying item to do the
+    correct conversion.
+  */
+  bool cache_value_int();
+  bool cache_value();
 };
 
 
@@ -3125,4 +3228,5 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
-extern int stored_field_cmp_to_item(Field *field, Item *item);
+extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
+#endif /* ITEM_INCLUDED */

@@ -366,7 +366,7 @@ show tables from information_schema like "T%";
 create database information_schema;
 use information_schema;
 show full tables like "T%";
---error ER_UNKNOWN_TABLE
+--error ER_DBACCESS_DENIED_ERROR
 create table t1(a int);
 use test;
 show tables;
@@ -1391,6 +1391,65 @@ SET TIMESTAMP=DEFAULT;
 
 --echo End of 5.1 tests.
 
+#
+# Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
+# 
+--error ER_DBACCESS_DENIED_ERROR
+create table information_schema.t1 (f1 INT);
+--error ER_DBACCESS_DENIED_ERROR
+drop table information_schema.t1;
+--error ER_DBACCESS_DENIED_ERROR
+drop temporary table if exists information_schema.t1;
+--error ER_DBACCESS_DENIED_ERROR
+create temporary table information_schema.t1 (f1 INT);
+--error ER_DBACCESS_DENIED_ERROR
+drop view information_schema.v1;
+--error ER_DBACCESS_DENIED_ERROR
+create view information_schema.v1;
+--error ER_DBACCESS_DENIED_ERROR
+create trigger mysql.trg1 after insert on information_schema.t1 for each row set @a=1;
+--error 1109
+create table t1 select * from information_schema.t1;
+
+CREATE TABLE t1(f1 char(100));
+--error ER_DBACCESS_DENIED_ERROR
+REPAIR TABLE t1, information_schema.tables;
+CHECKSUM TABLE t1, information_schema.tables;
+--error ER_DBACCESS_DENIED_ERROR
+ANALYZE TABLE t1, information_schema.tables;
+CHECK TABLE t1, information_schema.tables;
+--error ER_DBACCESS_DENIED_ERROR
+OPTIMIZE TABLE t1, information_schema.tables;
+--error ER_DBACCESS_DENIED_ERROR
+RENAME TABLE v1 to v2, information_schema.tables to t2;
+--error ER_DBACCESS_DENIED_ERROR
+DROP TABLE t1, information_schema.tables;
+
+--error ER_DBACCESS_DENIED_ERROR
+LOCK TABLES t1 READ, information_schema.tables READ;
+DROP TABLE t1;
+
+#
+# Bug#39270 I_S optimization algorithm does not work properly in some cases
+#
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA='test';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+  WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE EVENT_OBJECT_SCHEMA='test';
+
+#
+# Bug #43834    Assertion in Natural_join_column::db_name() on an I_S query 
+#
+SELECT *
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+LEFT JOIN INFORMATION_SCHEMA.COLUMNS 
+USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME) 
+WHERE COLUMNS.TABLE_SCHEMA = 'test' 
+AND COLUMNS.TABLE_NAME = 't1'; 
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-
