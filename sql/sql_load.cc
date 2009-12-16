@@ -337,8 +337,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
     {
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
-		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
-
+                       MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
+                       MY_RETURN_REAL_PATH);
 #if !defined(__WIN__) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
@@ -381,12 +381,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv &&
-               strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
+      else if (opt_secure_file_priv)
       {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-        DBUG_RETURN(TRUE);
+        char secure_file_real_path[FN_REFLEN];
+        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
+        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
+        {
+          /* Read only allowed from within dir specified by secure_file_priv */
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+          DBUG_RETURN(TRUE);
+        }
       }
 
     }
