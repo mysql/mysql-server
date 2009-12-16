@@ -19,4 +19,5 @@ EXTRA_DIST = \
 	stack_direction.c \
 	do_abi_check.cmake \
 	merge_archives_unix.cmake.in \
-	dtrace_prelink.cmake
+	dtrace_prelink.cmake \
+	versioninfo.rc.in
