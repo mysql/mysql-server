@@ -1327,7 +1327,7 @@ create table t1
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*');
 Warnings:
-Warning	1629	Comment for field 'i' is too long (max = 255)
+Warning	1630	Comment for field 'i' is too long (max = 255)
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
 column_name	column_comment
