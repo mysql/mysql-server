@@ -41,6 +41,14 @@ typedef pthread_mutex_t NdbMutex;
 NdbMutex* NdbMutex_Create(void);
 
 /**
+ * Initialize a mutex created with file-storage or on the stack
+ *
+ * * p_mutex: pointer to the mutex structure
+ * * returnvalue: 0 = succeeded, -1 = failed
+ */
+int NdbMutex_Init(NdbMutex* p_mutex);
+
+/**
  * Destroy a mutex
  *
  * * p_mutex: pointer to the mutex structure

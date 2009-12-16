@@ -41,6 +41,16 @@ NdbMutex* NdbMutex_Create(void)
   DBUG_RETURN(pNdbMutex);		     
 }
 
+int NdbMutex_Init(NdbMutex* pNdbMutex)
+{
+  int result;
+  DBUG_ENTER("NdbMutex_Init");
+  
+  result = pthread_mutex_init(pNdbMutex, NULL);
+  assert(result == 0);
+			     
+  DBUG_RETURN(result);
+}
 
 int NdbMutex_Destroy(NdbMutex* p_mutex)
 {

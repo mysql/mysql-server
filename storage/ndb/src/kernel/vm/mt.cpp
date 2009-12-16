@@ -3950,6 +3950,11 @@ mt_section_unlock()
 }
 
 void
+mt_mem_manager_init()
+{
+}
+
+void
 mt_mem_manager_lock()
 {
   lock(&(g_thr_repository.m_mem_manager_lock));
