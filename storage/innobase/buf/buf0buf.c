@@ -1020,7 +1020,11 @@ buf_pool_free(void)
 		os_mem_free_large(chunk->mem, chunk->mem_size);
 	}
 
-	buf_pool->n_chunks = 0;
+	mem_free(buf_pool->chunks);
+	hash_table_free(buf_pool->page_hash);
+	hash_table_free(buf_pool->zip_hash);
+	mem_free(buf_pool);
+	buf_pool = NULL;
 }
 
 /********************************************************************//**

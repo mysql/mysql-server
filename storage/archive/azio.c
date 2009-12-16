@@ -69,7 +69,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->transparent = 0;
   s->mode = 'r';
   s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
-  s->version = (unsigned char)az_magic[2]; /* minor version */
+  s->minor_version= (unsigned char) az_magic[2]; /* minor version */
+  s->dirty= AZ_STATE_CLEAN;
 
   /*
     We do our own version of append by nature. 
@@ -352,10 +353,19 @@ void read_header(azio_stream *s, unsigned char *buffer)
     s->comment_length= (unsigned int)uint4korr(buffer + AZ_COMMENT_LENGTH_POS);
     s->dirty= (unsigned int)buffer[AZ_DIRTY_POS];
   }
-  else
+  else if (buffer[0] == gz_magic[0]  && buffer[1] == gz_magic[1])
   {
-    DBUG_ASSERT(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
-    return;
+    /*
+      Set version number to previous version (2).
+    */
+    s->version= (unsigned char) 2;
+  } else {
+    /*
+      Unknown version.
+      Most probably due to a corrupt archive.
+    */
+    s->dirty= AZ_STATE_DIRTY;
+    s->z_err= Z_VERSION_ERROR;
   }
 }
 

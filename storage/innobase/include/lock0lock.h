@@ -59,6 +59,12 @@ lock_sys_create(
 /*============*/
 	ulint	n_cells);	/*!< in: number of slots in lock hash table */
 /*********************************************************************//**
+Closes the lock system at database shutdown. */
+UNIV_INTERN
+void
+lock_sys_close(void);
+/*================*/
+/*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index.
 @return	transaction which has the x-lock, or NULL */
