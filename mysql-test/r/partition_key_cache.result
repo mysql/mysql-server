@@ -8,9 +8,6 @@ SELECT @org_key_cache_buffer_size:= @@global.default.key_buffer_size;
 SET @@global.default.key_buffer_size = 1;
 Warnings:
 Warning	1292	Truncated incorrect key_buffer_size value: '1'
-SELECT @@global.default.key_buffer_size;
-@@global.default.key_buffer_size
-36
 CREATE TABLE t1 (
 a INT,
 b INT,
