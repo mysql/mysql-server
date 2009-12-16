@@ -203,6 +203,8 @@ test-bt-debug:
 
 test-bt-debug-fast:
 
+test-bt-debug-fast:
+
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
