@@ -322,15 +322,15 @@ static void scanscan_flatten (void) {
 #endif
 
 static void scanscan_range (void) {
-    int fnull = open("/dev/null", O_WRONLY); assert(fnull >= 0); // use with strace
     int r;
-    double tstart = gettime();
-    DBC *dbc;
-    r = db->cursor(db, tid, &dbc, 0); assert(r==0);
+
+    double texperiments[n_experiments];
 
     int counter;
     for (counter=0; counter<n_experiments; counter++) {
 
+    makekey:
+        ;
         // generate a random key in the key range
         u_int64_t k = (start_range + (random() % (end_range - start_range))) * (1<<6);
         char kv[8];
@@ -340,29 +340,50 @@ static void scanscan_range (void) {
         DBT key; memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
         DBT val; memset(&val, 0, sizeof val);
 
+        double tstart = gettime();
+
+        DBC *dbc;
+        r = db->cursor(db, tid, &dbc, 0); assert(r==0);
+
         // set the cursor to the random key
-        write(fnull, "s", 1);
-        r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag); assert(r==0);
-        write(fnull, "e", 1);
+        r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
+        if (r != 0) {
+            assert(r == DB_NOTFOUND);
+            goto makekey;
+        }
 
 #if 0
+        // do the range scan
+        u_int32_t f_flags = 0;
+        if (prelockflag) {
+            f_flags |= lock_flag;
+        }
 	long rowcounter=0;
+	struct extra_count e = {0,0};
 	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
 	    rowcounter++;
-	    if (limitcount>0 && rowcounter>=limitcount) break;
+	    if (limitcount<=0 || (limitcount>0 && rowcounter>=limitcount)) 
+                break;
 	}
 #endif
-	print_engine_status();
+
+        r = dbc->c_close(dbc);                                      
+        assert(r==0);
+
+        texperiments[counter] = gettime() - tstart;
     }
 
-    r = dbc->c_close(dbc);                                      
-    assert(r==0);	
-
-    double tend = gettime();
-    double tdiff = tend-tstart;
-    printf("Range %d %f\n", n_experiments, tdiff);
-
-    close(fnull);
+    // print the times
+    double tsum = 0.0, tmin = 0.0, tmax = 0.0;
+    for (counter=0; counter<n_experiments; counter++) {
+        if (tmin == 0.0 || texperiments[counter] < tmin)
+            tmin = texperiments[counter];
+        if (tmax == 0.0 || texperiments[counter] > tmax)
+            tmax = texperiments[counter];
+        tsum += texperiments[counter];
+        printf("%f\n", texperiments[counter]);
+    }
+    printf("%f %f %f/%d = %f\n", tmin, tmax, tsum, n_experiments, tsum / n_experiments);
 }
 
 #ifdef TOKUDB
