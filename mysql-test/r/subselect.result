@@ -50,7 +50,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 1 AS `1` from (select 1 AS `a`) `b` having ((select '1' AS `a`) = 1)
+Note	1003	select 1 AS `1` from dual having ((select '1' AS `a`) = 1)
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
@@ -75,7 +75,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
@@ -203,7 +203,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using filesort
 Warnings:
-Note	1003	select (select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,'2' AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
+Note	1003	select (select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,'2' AS `a` from dual
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -314,7 +314,7 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select (select '2' AS `a` from `test`.`t1` where ('2' = `test`.`t2`.`a`) union select `test`.`t5`.`a` AS `a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
+Note	1003	select (select '2' AS `a` from dual where ('2' = `test`.`t2`.`a`) union select `test`.`t5`.`a` AS `a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 ERROR 21000: Subquery returns more than 1 row
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
@@ -1429,7 +1429,7 @@ explain extended (select * from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	(select 'tttt' AS `s1` from `test`.`t1`)
+Note	1003	(select 'tttt' AS `s1` from dual)
 (select * from t1);
 s1
 tttt
@@ -1617,7 +1617,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	UNION	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select 'e' AS `s1` from `test`.`t1` where 1
+Note	1003	select 'e' AS `s1` from dual where 1
 drop table t1;
 CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
@@ -4403,8 +4403,7 @@ FROM t1
 WHERE a = 230;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	st1	index	NULL	a	5	NULL	2	Using index
-2	DEPENDENT SUBQUERY	st2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
@@ -4564,4 +4563,18 @@ id	g	v	s
 51	50	NULL	l
 61	60	NULL	l
 drop table t1, t2;
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY
+(SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+1
+1
+DROP TABLE t1;
 End of 5.1 tests.

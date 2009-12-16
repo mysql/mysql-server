@@ -18,7 +18,7 @@
 #include "mysys_err.h"
 #include <errno.h>
 #include <my_sys.h>
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <share.h>
 #endif
 
@@ -41,16 +41,12 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
 		   FileName, CreateFlags, access_flags, MyFlags));
 
 #if !defined(NO_OPEN_3)
-  fd = open((char *) FileName, access_flags | O_CREAT,
+  fd= open((char *) FileName, access_flags | O_CREAT,
 	    CreateFlags ? CreateFlags : my_umask);
-#elif defined(VMS)
-  fd = open((char *) FileName, access_flags | O_CREAT, 0,
-	    "ctx=stm","ctx=bin");
-#elif defined(__WIN__)
-  fd= my_sopen((char *) FileName, access_flags | O_CREAT | O_BINARY,
-	       SH_DENYNO, MY_S_IREAD | MY_S_IWRITE);
+#elif defined(_WIN32)
+  fd= my_win_open(FileName, access_flags | O_CREAT);
 #else
-  fd = open(FileName, access_flags);
+  fd= open(FileName, access_flags);
 #endif
 
   if ((MyFlags & MY_SYNC_DIR) && (fd >=0) &&
@@ -71,6 +67,7 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   if (unlikely(fd >= 0 && rc < 0))
   {
     int tmp= my_errno;
+    my_close(fd, MyFlags);
     my_delete(FileName, MyFlags);
     my_errno= tmp;
   }

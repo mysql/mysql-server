@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -245,7 +245,7 @@ void ha_partition::init_handler_variables()
   /*
     this allows blackhole to work properly
   */
-  m_no_locks= 0;
+  m_num_locks= 0;
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -580,8 +580,8 @@ int ha_partition::drop_partitions(const char *path)
 {
   List_iterator<partition_element> part_it(m_part_info->partitions);
   char part_name_buff[FN_REFLEN];
-  uint no_parts= m_part_info->partitions.elements;
-  uint no_subparts= m_part_info->no_subparts;
+  uint num_parts= m_part_info->partitions.elements;
+  uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
   uint name_variant;
   int  ret_error;
@@ -611,7 +611,7 @@ int ha_partition::drop_partitions(const char *path)
         do
         {
           partition_element *sub_elem= sub_it++;
-          part= i * no_subparts + j;
+          part= i * num_subparts + j;
           create_subpartition_name(part_name_buff, path,
                                    part_elem->partition_name,
                                    sub_elem->partition_name, name_variant);
@@ -621,7 +621,7 @@ int ha_partition::drop_partitions(const char *path)
             error= ret_error;
           if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
             error= 1;
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
       }
       else
       {
@@ -640,7 +640,7 @@ int ha_partition::drop_partitions(const char *path)
       else
         part_elem->part_state= PART_IS_DROPPED;
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   VOID(sync_ddl_log());
   DBUG_RETURN(error);
 }
@@ -671,9 +671,9 @@ int ha_partition::rename_partitions(const char *path)
   List_iterator<partition_element> temp_it(m_part_info->temp_partitions);
   char part_name_buff[FN_REFLEN];
   char norm_name_buff[FN_REFLEN];
-  uint no_parts= m_part_info->partitions.elements;
+  uint num_parts= m_part_info->partitions.elements;
   uint part_count= 0;
-  uint no_subparts= m_part_info->no_subparts;
+  uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
   uint j= 0;
   int error= 0;
@@ -722,7 +722,7 @@ int ha_partition::rename_partitions(const char *path)
             error= 1;
           else
             sub_elem->log_entry= NULL; /* Indicate success */
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
       }
       else
       {
@@ -778,7 +778,7 @@ int ha_partition::rename_partitions(const char *path)
         do
         {
           sub_elem= sub_it++;
-          part= i * no_subparts + j;
+          part= i * num_subparts + j;
           create_subpartition_name(norm_name_buff, path,
                                    part_elem->partition_name,
                                    sub_elem->partition_name,
@@ -807,7 +807,7 @@ int ha_partition::rename_partitions(const char *path)
             error= 1;
           else
             sub_elem->log_entry= NULL;
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
       }
       else
       {
@@ -839,7 +839,7 @@ int ha_partition::rename_partitions(const char *path)
           part_elem->log_entry= NULL;
       }
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   VOID(sync_ddl_log());
   DBUG_RETURN(error);
 }
@@ -849,9 +849,12 @@ int ha_partition::rename_partitions(const char *path)
 #define ANALYZE_PARTS 2
 #define CHECK_PARTS   3
 #define REPAIR_PARTS 4
+#define ASSIGN_KEYCACHE_PARTS 5
+#define PRELOAD_KEYS_PARTS 6
 
 static const char *opt_op_name[]= {NULL,
-                                   "optimize", "analyze", "check", "repair" };
+                                   "optimize", "analyze", "check", "repair",
+                                   "assign_to_keycache", "preload_keys"};
 
 /*
   Optimize table
@@ -936,7 +939,44 @@ int ha_partition::repair(THD *thd, HA_CHECK_OPT *check_opt)
   DBUG_RETURN(handle_opt_partitions(thd, check_opt, REPAIR_PARTS));
 }
 
+/**
+  Assign to keycache
 
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::assign_to_keycache");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, ASSIGN_KEYCACHE_PARTS));
+}
+
+
+/**
+  Preload to keycache
+
+  @param thd          Thread object
+  @param check_opt    Check/analyze/repair/optimize options
+
+  @return
+    @retval >0        Error
+    @retval 0         Success
+*/
+
+int ha_partition::preload_keys(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_partition::preload_keys");
+
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, PRELOAD_KEYS_PARTS));
+}
+
+ 
 /*
   Handle optimize/analyze/check/repair of one partition
 
@@ -967,6 +1007,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
     error= file->ha_check(thd, check_opt);
   else if (flag == REPAIR_PARTS)
     error= file->ha_repair(thd, check_opt);
+  else if (flag == ASSIGN_KEYCACHE_PARTS)
+    error= file->assign_to_keycache(thd, check_opt);
+  else if (flag == PRELOAD_KEYS_PARTS)
+    error= file->preload_keys(thd, check_opt);
   else
   {
     DBUG_ASSERT(FALSE);
@@ -1049,8 +1093,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                                         uint flag)
 {
   List_iterator<partition_element> part_it(m_part_info->partitions);
-  uint no_parts= m_part_info->no_parts;
-  uint no_subparts= m_part_info->no_subparts;
+  uint num_parts= m_part_info->num_parts;
+  uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
   int error;
   DBUG_ENTER("ha_partition::handle_opt_partitions");
@@ -1064,7 +1108,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       it should only do named partitions, otherwise all partitions
     */
     if (!(thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION) ||
-        part_elem->part_state == PART_CHANGED)
+        part_elem->part_state == PART_ADMIN)
     {
       if (m_is_sub_partitioned)
       {
@@ -1074,7 +1118,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
         do
         {
           sub_elem= subpart_it++;
-          part= i * no_subparts + j;
+          part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
 #ifdef NOT_USED
@@ -1096,9 +1140,15 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
             }
+            /* reset part_state for the remaining partitions */
+            do
+            {
+              if (part_elem->part_state == PART_ADMIN)
+                part_elem->part_state= PART_NORMAL;
+            } while (part_elem= part_it++);
             DBUG_RETURN(error);
           }
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
       }
       else
       {
@@ -1122,11 +1172,18 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
+          /* reset part_state for the remaining partitions */
+          do
+          {
+            if (part_elem->part_state == PART_ADMIN)
+              part_elem->part_state= PART_NORMAL;
+          } while (part_elem= part_it++);
           DBUG_RETURN(error);
         }
       }
+      part_elem->part_state= PART_NORMAL;
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   DBUG_RETURN(FALSE);
 }
 
@@ -1330,10 +1387,10 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   List_iterator<partition_element> part_it(m_part_info->partitions);
   List_iterator <partition_element> t_it(m_part_info->temp_partitions);
   char part_name_buff[FN_REFLEN];
-  uint no_parts= m_part_info->partitions.elements;
-  uint no_subparts= m_part_info->no_subparts;
+  uint num_parts= m_part_info->partitions.elements;
+  uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
-  uint no_remain_partitions, part_count, orig_count;
+  uint num_remain_partitions, part_count, orig_count;
   handler **new_file_array;
   int error= 1;
   bool first;
@@ -1349,7 +1406,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                                    part_name_buff)));
   m_reorged_parts= 0;
   if (!m_part_info->is_sub_partitioned())
-    no_subparts= 1;
+    num_subparts= 1;
 
   /*
     Step 1:
@@ -1358,7 +1415,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   */
   if (temp_partitions)
   {
-    m_reorged_parts= temp_partitions * no_subparts;
+    m_reorged_parts= temp_partitions * num_subparts;
   }
   else
   {
@@ -1368,9 +1425,9 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       if (part_elem->part_state == PART_CHANGED ||
           part_elem->part_state == PART_REORGED_DROPPED)
       {
-        m_reorged_parts+= no_subparts;
+        m_reorged_parts+= num_subparts;
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   if (m_reorged_parts &&
       !(m_reorged_file= (handler**)sql_calloc(sizeof(handler*)*
@@ -1385,10 +1442,10 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       Calculate number of partitions after change and allocate space for
       their handler references.
   */
-  no_remain_partitions= 0;
+  num_remain_partitions= 0;
   if (temp_partitions)
   {
-    no_remain_partitions= no_parts * no_subparts;
+    num_remain_partitions= num_parts * num_subparts;
   }
   else
   {
@@ -1401,17 +1458,17 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           part_elem->part_state == PART_TO_BE_ADDED ||
           part_elem->part_state == PART_CHANGED)
       {
-        no_remain_partitions+= no_subparts;
+        num_remain_partitions+= num_subparts;
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
   if (!(new_file_array= (handler**)sql_calloc(sizeof(handler*)*
-                                              (2*(no_remain_partitions + 1)))))
+                                            (2*(num_remain_partitions + 1)))))
   {
-    mem_alloc_error(sizeof(handler*)*2*(no_remain_partitions+1));
+    mem_alloc_error(sizeof(handler*)*2*(num_remain_partitions+1));
     DBUG_RETURN(ER_OUTOFMEMORY);
   }
-  m_added_file= &new_file_array[no_remain_partitions + 1];
+  m_added_file= &new_file_array[num_remain_partitions + 1];
 
   /*
     Step 3:
@@ -1430,9 +1487,9 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           part_elem->part_state == PART_REORGED_DROPPED)
       {
         memcpy((void*)&m_reorged_file[part_count],
-               (void*)&m_file[i*no_subparts],
-               sizeof(handler*)*no_subparts);
-        part_count+= no_subparts;
+               (void*)&m_file[i*num_subparts],
+               sizeof(handler*)*num_subparts);
+        part_count+= num_subparts;
       }
       else if (first && temp_partitions &&
                part_elem->part_state == PART_TO_BE_ADDED)
@@ -1447,11 +1504,11 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           ones used to be.
         */
         first= FALSE;
-        DBUG_ASSERT(((i*no_subparts) + m_reorged_parts) <= m_file_tot_parts);
-        memcpy((void*)m_reorged_file, &m_file[i*no_subparts],
+        DBUG_ASSERT(((i*num_subparts) + m_reorged_parts) <= m_file_tot_parts);
+        memcpy((void*)m_reorged_file, &m_file[i*num_subparts],
                sizeof(handler*)*m_reorged_parts);
       }
-    } while (++i < no_parts);
+    } while (++i < num_parts);
   }
 
   /*
@@ -1469,11 +1526,11 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
     partition_element *part_elem= part_it++;
     if (part_elem->part_state == PART_NORMAL)
     {
-      DBUG_ASSERT(orig_count + no_subparts <= m_file_tot_parts);
+      DBUG_ASSERT(orig_count + num_subparts <= m_file_tot_parts);
       memcpy((void*)&new_file_array[part_count], (void*)&m_file[orig_count],
-             sizeof(handler*)*no_subparts);
-      part_count+= no_subparts;
-      orig_count+= no_subparts;
+             sizeof(handler*)*num_subparts);
+      part_count+= num_subparts;
+      orig_count+= num_subparts;
     }
     else if (part_elem->part_state == PART_CHANGED ||
              part_elem->part_state == PART_TO_BE_ADDED)
@@ -1489,16 +1546,16 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           mem_alloc_error(sizeof(handler));
           DBUG_RETURN(ER_OUTOFMEMORY);
         }
-      } while (++j < no_subparts);
+      } while (++j < num_subparts);
       if (part_elem->part_state == PART_CHANGED)
-        orig_count+= no_subparts;
+        orig_count+= num_subparts;
       else if (temp_partitions && first)
       {
-        orig_count+= (no_subparts * temp_partitions);
+        orig_count+= (num_subparts * temp_partitions);
         first= FALSE;
       }
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   first= FALSE;
   /*
     Step 5:
@@ -1535,7 +1592,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                    part_elem->partition_name,
                                    sub_elem->partition_name,
                                    name_variant);
-          part= i * no_subparts + j;
+          part= i * num_subparts + j;
           DBUG_PRINT("info", ("Add subpartition %s", part_name_buff));
           if ((error= prepare_new_partition(table, create_info,
                                             new_file_array[part],
@@ -1546,7 +1603,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
             DBUG_RETURN(error);
           }
           m_added_file[part_count++]= new_file_array[part];
-        } while (++j < no_subparts);
+        } while (++j < num_subparts);
       }
       else
       {
@@ -1565,7 +1622,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
         m_added_file[part_count++]= new_file_array[i];
       }
     }
-  } while (++i < no_parts);
+  } while (++i < num_parts);
 
   /*
     Step 6:
@@ -1582,7 +1639,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       part_elem->part_state= PART_IS_CHANGED;
     else if (part_elem->part_state == PART_REORGED_DROPPED)
       part_elem->part_state= PART_TO_BE_DROPPED;
-  } while (++i < no_parts);
+  } while (++i < num_parts);
   for (i= 0; i < temp_partitions; i++)
   {
     partition_element *part_elem= t_it++;
@@ -1623,9 +1680,9 @@ int ha_partition::copy_partitions(ulonglong * const copied,
   if (m_part_info->linear_hash_ind)
   {
     if (m_part_info->part_type == HASH_PARTITION)
-      set_linear_hash_mask(m_part_info, m_part_info->no_parts);
+      set_linear_hash_mask(m_part_info, m_part_info->num_parts);
     else
-      set_linear_hash_mask(m_part_info, m_part_info->no_subparts);
+      set_linear_hash_mask(m_part_info, m_part_info->num_subparts);
   }
 
   while (reorg_part < m_reorged_parts)
@@ -1904,7 +1961,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
   uint curr_part_id= 0;
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
 
-  for (i= 0; i < m_part_info->no_parts; i++)
+  for (i= 0; i < m_part_info->num_parts; i++)
   {
     partition_element *part_elem;
     part_elem= part_it++;
@@ -1912,7 +1969,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
     {
       uint j;
       List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->no_subparts; j++)
+      for (j= 0; j < m_part_info->num_subparts; j++)
       {
 	part_elem= sub_it++;
 	if (part_id == curr_part_id++)
@@ -2033,7 +2090,7 @@ bool ha_partition::create_handler_file(const char *name)
 {
   partition_element *part_elem, *subpart_elem;
   uint i, j, part_name_len, subpart_name_len;
-  uint tot_partition_words, tot_name_len, no_parts;
+  uint tot_partition_words, tot_name_len, num_parts;
   uint tot_parts= 0;
   uint tot_len_words, tot_len_byte, chksum, tot_name_words;
   char *name_buffer_ptr;
@@ -2046,11 +2103,11 @@ bool ha_partition::create_handler_file(const char *name)
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
   DBUG_ENTER("create_handler_file");
 
-  no_parts= m_part_info->partitions.elements;
-  DBUG_PRINT("info", ("table name = %s, no_parts = %u", name,
-                      no_parts));
+  num_parts= m_part_info->partitions.elements;
+  DBUG_PRINT("info", ("table name = %s, num_parts = %u", name,
+                      num_parts));
   tot_name_len= 0;
-  for (i= 0; i < no_parts; i++)
+  for (i= 0; i < num_parts; i++)
   {
     part_elem= part_it++;
     if (part_elem->part_state != PART_NORMAL &&
@@ -2068,7 +2125,7 @@ bool ha_partition::create_handler_file(const char *name)
     else
     {
       List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->no_subparts; j++)
+      for (j= 0; j < m_part_info->num_subparts; j++)
       {
 	subpart_elem= sub_it++;
         tablename_to_filename(subpart_elem->partition_name,
@@ -2102,7 +2159,7 @@ bool ha_partition::create_handler_file(const char *name)
   engine_array= (file_buffer + 12);
   name_buffer_ptr= (char*) (file_buffer + ((4 + tot_partition_words) * 4));
   part_it.rewind();
-  for (i= 0; i < no_parts; i++)
+  for (i= 0; i < num_parts; i++)
   {
     part_elem= part_it++;
     if (part_elem->part_state != PART_NORMAL &&
@@ -2120,7 +2177,7 @@ bool ha_partition::create_handler_file(const char *name)
     else
     {
       List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->no_subparts; j++)
+      for (j= 0; j < m_part_info->num_subparts; j++)
       {
 	subpart_elem= sub_it++;
         tablename_to_filename(part_elem->partition_name, part_name,
@@ -2256,7 +2313,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
   }
   m_file_tot_parts= m_tot_parts;
   bzero((char*) m_file, alloc_len);
-  DBUG_ASSERT(m_part_info->no_parts > 0);
+  DBUG_ASSERT(m_part_info->num_parts > 0);
 
   i= 0;
   part_count= 0;
@@ -2269,7 +2326,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     part_elem= part_it++;
     if (m_is_sub_partitioned)
     {
-      for (j= 0; j < m_part_info->no_subparts; j++)
+      for (j= 0; j < m_part_info->num_subparts; j++)
       {
 	if (!(m_file[part_count++]= get_new_handler(table_share, mem_root,
                                                     part_elem->engine_type)))
@@ -2286,7 +2343,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
       DBUG_PRINT("info", ("engine_type: %u",
                  (uint) ha_legacy_type(part_elem->engine_type)));
     }
-  } while (++i < m_part_info->no_parts);
+  } while (++i < m_part_info->num_parts);
   if (part_elem->engine_type == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
@@ -2395,6 +2452,21 @@ err1:
 /****************************************************************************
                 MODULE open/close object
 ****************************************************************************/
+
+
+/**
+  A destructor for partition-specific TABLE_SHARE data.
+*/
+
+void ha_data_partition_destroy(void *ha_data)
+{
+  if (ha_data)
+  {
+    HA_DATA_PARTITION *ha_data_partition= (HA_DATA_PARTITION*) ha_data;
+    pthread_mutex_destroy(&ha_data_partition->mutex);
+  }
+}
+
 /*
   Open handler object
 
@@ -2489,7 +2561,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
                                  test_if_locked)))
       goto err_handler;
-    m_no_locks+= (*file)->lock_count();
+    m_num_locks+= (*file)->lock_count();
     name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
     set_if_bigger(ref_length, ((*file)->ref_length));
     /*
@@ -2551,6 +2623,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
     bzero(ha_data, sizeof(HA_DATA_PARTITION));
+    table_share->ha_data_destroy= ha_data_partition_destroy;
+    pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
     pthread_mutex_unlock(&table_share->mutex);
@@ -2836,8 +2910,8 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 uint ha_partition::lock_count() const
 {
   DBUG_ENTER("ha_partition::lock_count");
-  DBUG_PRINT("info", ("m_no_locks %d", m_no_locks));
-  DBUG_RETURN(m_no_locks);
+  DBUG_PRINT("info", ("m_num_locks %d", m_num_locks));
+  DBUG_RETURN(m_num_locks);
 }
 
 
@@ -3221,6 +3295,9 @@ int ha_partition::delete_row(const uchar *buf)
     Called from sql_delete.cc by mysql_delete().
     Called from sql_select.cc by JOIN::reinit().
     Called from sql_union.cc by st_select_lex_unit::exec().
+ 
+     Also used for handle ALTER TABLE t TRUNCATE PARTITION ...
+     NOTE: auto increment value will be truncated in that partition as well!
 */
 
 int ha_partition::delete_all_rows()
@@ -3233,11 +3310,84 @@ int ha_partition::delete_all_rows()
 
   if (thd->lex->sql_command == SQLCOM_TRUNCATE)
   {
+    Alter_info *alter_info= &thd->lex->alter_info;
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    /* TRUNCATE also means resetting auto_increment */
     lock_auto_increment();
     ha_data->next_auto_inc_val= 0;
     ha_data->auto_inc_initialized= FALSE;
     unlock_auto_increment();
+    if (alter_info->flags & ALTER_ADMIN_PARTITION)
+    {
+      /* ALTER TABLE t TRUNCATE PARTITION ... */
+      List_iterator<partition_element> part_it(m_part_info->partitions);
+      int saved_error= 0;
+      uint num_parts= m_part_info->num_parts;
+      uint num_subparts= m_part_info->num_subparts;
+      uint i= 0;
+      uint num_parts_set= alter_info->partition_names.elements;
+      uint num_parts_found= set_part_state(alter_info, m_part_info,
+                                           PART_ADMIN);
+      if (num_parts_set != num_parts_found &&
+          (!(alter_info->flags & ALTER_ALL_PARTITION)))
+        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+      /*
+        Cannot return HA_ERR_WRONG_COMMAND here without correct pruning
+        since that whould delete the whole table row by row in sql_delete.cc
+      */
+      bitmap_clear_all(&m_part_info->used_partitions);
+      do
+      {
+        partition_element *part_elem= part_it++;
+        if (part_elem->part_state == PART_ADMIN)
+        {
+          if (m_is_sub_partitioned)
+          {
+            List_iterator<partition_element>
+                                        subpart_it(part_elem->subpartitions);
+            partition_element *sub_elem;
+            uint j= 0, part;
+            do
+            {
+              sub_elem= subpart_it++;
+              part= i * num_subparts + j;
+              bitmap_set_bit(&m_part_info->used_partitions, part);
+              if (!saved_error)
+              {
+                DBUG_PRINT("info", ("truncate subpartition %u (%s)",
+                                    part, sub_elem->partition_name));
+                if ((error= m_file[part]->ha_delete_all_rows()))
+                  saved_error= error;
+                /* If not reset_auto_increment is supported, just accept it */
+                if (!saved_error &&
+                    (error= m_file[part]->ha_reset_auto_increment(0)) &&
+                    error != HA_ERR_WRONG_COMMAND)
+                  saved_error= error;
+              }
+            } while (++j < num_subparts);
+          }
+          else
+          {
+            DBUG_PRINT("info", ("truncate partition %u (%s)", i,
+                                part_elem->partition_name));
+            bitmap_set_bit(&m_part_info->used_partitions, i);
+            if (!saved_error)
+            {
+              if ((error= m_file[i]->ha_delete_all_rows()) && !saved_error)
+                saved_error= error;
+              /* If not reset_auto_increment is supported, just accept it */
+              if (!saved_error &&
+                  (error= m_file[i]->ha_reset_auto_increment(0)) &&
+                  error != HA_ERR_WRONG_COMMAND)
+                saved_error= error;
+            }
+          }
+          part_elem->part_state= PART_NORMAL;
+        }
+      } while (++i < num_parts);
+      DBUG_RETURN(saved_error);
+    }
     truncate= TRUE;
   }
   file= m_file;
@@ -5978,12 +6128,14 @@ enum row_type ha_partition::get_row_type() const
 
 void ha_partition::print_error(int error, myf errflag)
 {
+  THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::print_error");
 
   /* Should probably look for my own errors first */
   DBUG_PRINT("enter", ("error: %d", error));
 
-  if (error == HA_ERR_NO_PARTITION_FOUND)
+  if (error == HA_ERR_NO_PARTITION_FOUND &&
+      thd->lex->sql_command != SQLCOM_TRUNCATE)
     m_part_info->print_no_partition_found(table);
   else
     m_file[m_last_part]->print_error(error, errflag);

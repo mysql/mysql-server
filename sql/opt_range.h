@@ -616,6 +616,7 @@ private:
   uchar *last_prefix;     /* Prefix of the last group for detecting EOF. */
   bool have_min;         /* Specify whether we are computing */
   bool have_max;         /*   a MIN, a MAX, or both.         */
+  bool have_agg_distinct;/*   aggregate_function(DISTINCT ...).  */
   bool seen_first_key;   /* Denotes whether the first key was retrieved.*/
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
@@ -629,6 +630,11 @@ private:
   List<Item_sum> *max_functions;
   List_iterator<Item_sum> *min_functions_it;
   List_iterator<Item_sum> *max_functions_it;
+  /* 
+    Use index scan to get the next different key instead of jumping into it 
+    through index read 
+  */
+  bool is_index_scan; 
 public:
   /*
     The following two members are public to allow easy access from
@@ -646,12 +652,13 @@ private:
   void update_max_result();
 public:
   QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
-                             bool have_max, KEY_PART_INFO *min_max_arg_part,
+                             bool have_max, bool have_agg_distinct,
+                             KEY_PART_INFO *min_max_arg_part,
                              uint group_prefix_len, uint group_key_parts,
                              uint used_key_parts, KEY *index_info, uint
                              use_index, double read_cost, ha_rows records, uint
                              key_infix_len, uchar *key_infix, MEM_ROOT
-                             *parent_alloc);
+                             *parent_alloc, bool is_index_scan);
   ~QUICK_GROUP_MIN_MAX_SELECT();
   bool add_range(SEL_ARG *sel_range);
   void update_key_stat();
@@ -667,6 +674,12 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  bool is_agg_distinct() { return have_agg_distinct; }
+  virtual void append_loose_scan_type(String *str) 
+  {
+    if (is_index_scan)
+      str->append(STRING_WITH_LEN(" (scanning)"));
+  }
 };
 
 

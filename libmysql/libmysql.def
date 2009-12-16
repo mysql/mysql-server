@@ -135,15 +135,6 @@ EXPORTS
 	client_errors
 	mysql_set_local_infile_default
 	mysql_set_local_infile_handler
-	mysql_disable_reads_from_master
-	mysql_disable_rpl_parse
-	mysql_enable_reads_from_master
-	mysql_enable_rpl_parse
-	mysql_master_query
-	mysql_rpl_parse_enabled
-	mysql_rpl_probe
-	mysql_rpl_query_type
-	mysql_slave_query
 	mysql_embedded
 	mysql_server_init
 	mysql_server_end

@@ -1,3 +1,6 @@
+#ifndef MY_BIT_INCLUDED
+#define MY_BIT_INCLUDED
+
 /*
   Some useful bit functions
 */
@@ -107,3 +110,5 @@ extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
 #endif /* HAVE_INLINE */
 C_MODE_END
+
+#endif /* MY_BIT_INCLUDED */

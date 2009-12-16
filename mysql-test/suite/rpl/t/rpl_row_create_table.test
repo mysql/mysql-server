@@ -38,7 +38,7 @@ CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---query_vertical SHOW BINLOG EVENTS FROM 106
+--query_vertical SHOW BINLOG EVENTS FROM 107
 --echo **** On Master ****
 --query_vertical SHOW CREATE TABLE t1
 --query_vertical SHOW CREATE TABLE t2
@@ -76,7 +76,7 @@ CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 
 # Test that INSERT-SELECT works the same way as for SBR.
 CREATE TABLE t7 (a INT, b INT UNIQUE);
@@ -86,7 +86,7 @@ SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
 
@@ -100,7 +100,7 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
@@ -118,7 +118,7 @@ CREATE TEMPORARY TABLE tt7 SELECT 1;
 --query_vertical SHOW CREATE TABLE t9
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 sync_slave_with_master;
 --echo **** On Slave ****
 --query_vertical SHOW CREATE TABLE t8
@@ -170,7 +170,7 @@ SELECT * FROM t3 ORDER BY a;
 SELECT * FROM t4 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 sync_slave_with_master;
 SHOW TABLES;
 SELECT   TABLE_NAME,ENGINE
@@ -216,7 +216,7 @@ COMMIT;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
@@ -239,7 +239,7 @@ ROLLBACK;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
@@ -292,4 +292,40 @@ connection master;
 DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
+#
+# BUG#48506: crash in CREATE TABLE <existing_view> IF NOT EXISTS LIKE
+# <tmp_tbl> with RBL
+#
+
+source include/master-slave-reset.inc;
+
+connection master;
+CREATE TEMPORARY TABLE t7(c1 INT);
+CREATE TABLE t5(c1 INT);
+CREATE TABLE t4(c1 INT);
+CREATE VIEW bug48506_t1 AS SELECT 1;
+CREATE VIEW bug48506_t2 AS SELECT * FROM t4;
+CREATE VIEW bug48506_t3 AS SELECT t5.c1 AS A, t4.c1 AS B FROM t5, t4;
+CREATE TABLE bug48506_t4(c1 INT);
+--disable_warnings
+sync_slave_with_master;
+DROP VIEW bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TABLE bug48506_t4;
+
+connection master;
+CREATE TABLE IF NOT EXISTS bug48506_t1 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t2 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t3 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t4 LIKE t7;
+--enable_warnings
+sync_slave_with_master;
+
+SHOW TABLES LIKE 'bug48506%';
+
+connection master;
+DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TEMPORARY TABLES t7;
+DROP TABLES t4, t5;
+DROP TABLES IF EXISTS bug48506_t4;
+source include/master-slave-end.inc;
 --echo end of the tests

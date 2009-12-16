@@ -219,6 +219,18 @@ TableA	CREATE TABLE `tablea` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 # Cleaning up after KEY PARTITIONING test
 DROP TABLE TableA;
+# Verify that TRUNCATE PARTITION gives error
+CREATE TABLE t1
+(a BIGINT AUTO_INCREMENT PRIMARY KEY,
+b VARCHAR(255))
+ENGINE = 'NDBCluster'
+PARTITION BY KEY (a)
+(PARTITION LT1000,
+PARTITION LT2000,
+PARTITION MAX);
+INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+Got one of the listed errors
 # Cleaning up before exit
 USE test;
 DROP DATABASE MySQL_Test_DB;

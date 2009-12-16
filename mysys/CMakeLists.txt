@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
 # Only the server link with this library, the client libraries and the client
 # executables all link with recompiles of source found in the "mysys" directory.
 # So we only need to create one version of this library, with the "static"
@@ -39,7 +37,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				my_mkdir.c my_mmap.c my_net.c my_once.c my_open.c my_pread.c my_pthread.c 
 				my_quick.c my_read.c my_realloc.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c my_wincond.c
-				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c stacktrace.c
+				my_winerr.c my_winfile.c my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c stacktrace.c
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c)
 

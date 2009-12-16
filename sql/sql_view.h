@@ -1,3 +1,6 @@
+#ifndef SQL_VIEW_INCLUDED
+#define SQL_VIEW_INCLUDED
+
 /* -*- C++ -*- */
 /* Copyright (C) 2004 MySQL AB
 
@@ -42,3 +45,4 @@ bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 
+#endif /* SQL_VIEW_INCLUDED */

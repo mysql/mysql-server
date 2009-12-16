@@ -3,13 +3,13 @@ SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
 datatype_id int(11) DEFAULT '0' NOT NULL,
-minvalue decimal(20,10) DEFAULT '0.0000000000' NOT NULL,
-maxvalue decimal(20,10) DEFAULT '0.0000000000' NOT NULL,
+min_value decimal(20,10) DEFAULT '0.0000000000' NOT NULL,
+max_value decimal(20,10) DEFAULT '0.0000000000' NOT NULL,
 valuename varchar(20),
 forecolor int(11),
 backcolor int(11),
 PRIMARY KEY (id),
-UNIQUE datatype_id (datatype_id, minvalue, maxvalue)
+UNIQUE datatype_id (datatype_id, min_value, max_value)
 );
 INSERT INTO t1 VALUES ( '1', '4', '0.0000000000', '0.0000000000', 'Ei saja', '0', '16776960');
 INSERT INTO t1 VALUES ( '2', '4', '1.0000000000', '1.0000000000', 'Sajab', '16777215', '255');
@@ -143,12 +143,12 @@ INSERT INTO t1 VALUES ( '139', '21', '326.0000000000', '326.0000000000', 'Lumine
 INSERT INTO t1 VALUES ( '143', '16', '-4.9000000000', '-0.1000000000', '', NULL, '15774720');
 INSERT INTO t1 VALUES ( '145', '15', '0.0000000000', '1.9000000000', '', '0', '16769024');
 INSERT INTO t1 VALUES ( '146', '16', '0.0000000000', '1.9000000000', '', '0', '16769024');
-select * from t1 where minvalue<=1 and maxvalue>=-1 and datatype_id=16;
-id	datatype_id	minvalue	maxvalue	valuename	forecolor	backcolor
+select * from t1 where min_value<=1 and max_value>=-1 and datatype_id=16;
+id	datatype_id	min_value	max_value	valuename	forecolor	backcolor
 143	16	-4.9000000000	-0.1000000000		NULL	15774720
 146	16	0.0000000000	1.9000000000		0	16769024
-select * from t1 where minvalue<=-1 and maxvalue>=-1 and datatype_id=16;
-id	datatype_id	minvalue	maxvalue	valuename	forecolor	backcolor
+select * from t1 where min_value<=-1 and max_value>=-1 and datatype_id=16;
+id	datatype_id	min_value	max_value	valuename	forecolor	backcolor
 143	16	-4.9000000000	-0.1000000000		NULL	15774720
 drop table t1;
 create table t1 (a decimal(10,2));

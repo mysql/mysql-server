@@ -158,6 +158,7 @@ log. */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
 #define	OS_FILE_INSUFFICIENT_RESOURCE	78
+#define	OS_FILE_OPERATION_ABORTED	79
 /* @} */
 
 /** Types for aio operations @{ */
@@ -620,6 +621,13 @@ os_aio_init(
 	ulint	n_write_segs,	/*<! in: number of writer threads */
 	ulint	n_slots_sync);	/*<! in: number of slots in the sync aio
 				array */
+/***********************************************************************
+Frees the asynchronous io system. */
+UNIV_INTERN
+void
+os_aio_free(void);
+/*=============*/
+
 /*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */

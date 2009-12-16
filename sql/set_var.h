@@ -1,3 +1,6 @@
+#ifndef SET_VAR_INCLUDED
+#define SET_VAR_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -172,6 +175,27 @@ public:
   { return (uchar*) value; }
 };
 
+/**
+   Unsigned int system variable class
+ */
+class sys_var_uint_ptr :public sys_var
+{
+public:
+  sys_var_uint_ptr(sys_var_chain *chain, const char *name_arg, 
+                  uint *value_ptr_arg,
+                  sys_after_update_func after_update_arg= NULL)
+    :sys_var(name_arg, after_update_arg),
+     value(value_ptr_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE show_type() { return SHOW_INT; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return (uchar*) value; }
+private:
+  uint *value;
+};
 
 /*
   A global ulong variable that is protected by LOCK_global_system_variables
@@ -519,10 +543,16 @@ public:
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
-    int ret= 0;
-    if (check_func)
-      ret= (*check_func)(thd, var);
-    return ret ? ret : check_enum(thd, var, enum_names);
+    /*
+      check_enum fails if the character representation supplied was wrong
+      or that the integer value was wrong or missing.
+    */
+    if (check_enum(thd, var, enum_names))
+      return TRUE;
+    else if ((check_func && (*check_func)(thd, var)))
+      return TRUE;
+    else
+      return FALSE;
   }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
@@ -1216,11 +1246,12 @@ public:
 };
 
 
-class sys_var_thd_lc_time_names :public sys_var_thd
+
+class sys_var_thd_lc: public sys_var_thd
 {
 public:
-  sys_var_thd_lc_time_names(sys_var_chain *chain, const char *name_arg,
-                            Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+  sys_var_thd_lc(sys_var_chain *chain, const char *name_arg,
+                 Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     : sys_var_thd(name_arg, NULL, binlog_status_arg)
   {
 #if MYSQL_VERSION_ID < 50000
@@ -1235,10 +1266,34 @@ public:
     return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
+};
+
+
+class sys_var_thd_lc_time_names :public sys_var_thd_lc
+{
+public:
+  sys_var_thd_lc_time_names(sys_var_chain *chain_arg, const char *name_arg,
+                            Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_thd_lc(chain_arg, name_arg, binlog_status_arg)
+  {}
   bool update(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  virtual void set_default(THD *thd, enum_var_type type);
+  void set_default(THD *thd, enum_var_type type);
 };
+
+
+class sys_var_thd_lc_messages :public sys_var_thd_lc
+{
+public:
+  sys_var_thd_lc_messages(sys_var_chain *chain_arg, const char *name_arg,
+                          Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_thd_lc(chain_arg, name_arg, binlog_status_arg)
+  {}
+  bool update(THD *thd, set_var *var);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  void set_default(THD *thd, enum_var_type type);
+};
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 class sys_var_event_scheduler :public sys_var_long_ptr
@@ -1322,8 +1377,8 @@ public:
     {
       Item_field *item= (Item_field*) value_arg;
       if (!(value=new Item_string(item->field_name, 
-                  (uint) strlen(item->field_name),
-				  item->collation.collation)))
+                                  (uint) strlen(item->field_name),
+				  system_charset_info)))
 	value=value_arg;			/* Give error message later */
     }
     else
@@ -1465,3 +1520,5 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));
+
+#endif /* SET_VAR_INCLUDED */

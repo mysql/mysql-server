@@ -1,16 +1,5 @@
 ### t/log_state.test ###
 #
-# This test suffers from server
-# Bug#38124 "general_log_file" variable silently unset when using expression
-# In short:
-#    SET GLOBAL general_log_file = @<whatever>
-#    SET GLOBAL slow_query_log = @<whatever>
-# cause that the value of these server system variables is set to default
-# instead of the assigned values. There comes no error message or warning.
-# If this bug is fixed please
-# 1. try this test with "let $fixed_bug38124 = 0;"
-# 2. remove all workarounds if 1. was successful.
-let $fixed_bug38124 = 0;
 
 --source include/not_embedded.inc
 --source include/have_csv.inc
@@ -166,16 +155,6 @@ SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
 SET @@global.slow_query_log = @old_slow_query_log;
 SET @@global.slow_query_log_file = @old_slow_query_log_file;
-if(!$fixed_bug38124)
-{
-   --disable_query_log
-   let $my_var = `SELECT @old_general_log_file`;
-   eval SET @@global.general_log_file = '$my_var';
-   let $my_var = `SELECT @old_slow_query_log_file`;
-   eval SET @@global.slow_query_log_file = '$my_var';
-   --enable_query_log
-}
-
 
 ###########################################################################
 
@@ -278,15 +257,6 @@ SET GLOBAL slow_query_log_file= NULL;
 # Reset to initial values in case a setting above was successful.
 SET GLOBAL general_log_file= @old_general_log_file;
 SET GLOBAL slow_query_log_file= @old_slow_query_log_file;
-if(!$fixed_bug38124)
-{
-   --disable_query_log
-   let $my_var = `SELECT @old_general_log_file`;
-   eval SET @@global.general_log_file = '$my_var';
-   let $my_var = `SELECT @old_slow_query_log_file`;
-   eval SET @@global.slow_query_log_file = '$my_var';
-   --enable_query_log
-}
 
 ###########################################################################
 
@@ -307,15 +277,6 @@ SHOW VARIABLES LIKE '%log_file';
 --echo
 SET GLOBAL general_log_file = @old_general_log_file;
 SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
-if(!$fixed_bug38124)
-{
-   --disable_query_log
-   let $my_var = `SELECT @old_general_log_file`;
-   eval SET @@global.general_log_file = '$my_var';
-   let $my_var = `SELECT @old_slow_query_log_file`;
-   eval SET @@global.slow_query_log_file = '$my_var';
-   --enable_query_log
-}
 
 --echo
 --echo # -- End of Bug#32748.
@@ -351,18 +312,42 @@ SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
 SET @@global.slow_query_log = @old_slow_query_log;
 SET @@global.slow_query_log_file = @old_slow_query_log_file;
-if(!$fixed_bug38124)
-{
-   --disable_query_log
-   let $my_var = `SELECT @old_general_log_file`;
-   eval SET @@global.general_log_file = '$my_var';
-   let $my_var = `SELECT @old_slow_query_log_file`;
-   eval SET @@global.slow_query_log_file = '$my_var';
-   --enable_query_log
-}
-
 
 --echo End of 5.1 tests
+
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#38124: "general_log_file" variable silently unset when
+--echo # --             using expression
+--echo # --
+
+# Store away the special DEFAULT value so we
+# can compare it later, then try to set the
+# general_log_file using different functions
+# and expressions.
+
+SET GLOBAL general_log_file = DEFAULT;
+SELECT @@general_log_file INTO @my_glf;
+
+SET GLOBAL general_log_file = 'BUG38124.LOG';
+SELECT @@general_log_file;
+
+SET GLOBAL general_log_file = concat('BUG38124-2.LOG');
+SELECT @@general_log_file;
+
+SET GLOBAL general_log_file = substr('BUG38124-2.LOG',3,6);
+SELECT @@general_log_file;
+
+SET GLOBAL general_log_file = DEFAULT;
+SELECT @@general_log_file = @my_glf;
+
+
+## Reset to initial values
+SET GLOBAL general_log_file = @old_general_log_file;
+
 
 --enable_ps_protocol
 
@@ -380,17 +365,7 @@ SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;
 SET global slow_query_log_file = @old_slow_query_log_file;
-if(!$fixed_bug38124)
-{
-   --disable_query_log
-   let $my_var = `SELECT @old_general_log_file`;
-   eval SET @@global.general_log_file = '$my_var';
-   let $my_var = `SELECT @old_slow_query_log_file`;
-   eval SET @@global.slow_query_log_file = '$my_var';
-   --enable_query_log
-}
 
-# Remove the log files that was created in the "default location"
+# Remove the log file that was created in the "default location"
 # i.e var/run
---remove_file $MYSQLTEST_VARDIR/run/mysqld.log
 --remove_file $MYSQLTEST_VARDIR/tmp/log.master

@@ -15,7 +15,7 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_DIST= errmsg.txt
+EXTRA_DIST= errmsg-utf8.txt
 
 dist-hook:
 	for dir in charsets @AVAILABLE_LANGUAGES@; do \
@@ -31,7 +31,7 @@ all-local:	english/errmsg.sys
 # Use the english errmsg.sys as a flag that all errmsg.sys needs to be
 # created. Normally these are created by extra/Makefile
 
-english/errmsg.sys: errmsg.txt
+english/errmsg.sys: errmsg-utf8.txt
 	rm -f $(top_builddir)/include/mysqld_error.h
 	(cd $(top_builddir)/extra && $(MAKE))
 
@@ -43,8 +43,8 @@ install-data-local:
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
-		$(INSTALL_DATA) $(srcdir)/errmsg.txt \
-	        $(DESTDIR)$(pkgdatadir)/errmsg.txt; \
+		$(INSTALL_DATA) $(srcdir)/errmsg-utf8.txt \
+	        $(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 

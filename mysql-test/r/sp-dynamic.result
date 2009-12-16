@@ -97,8 +97,6 @@ end|
 call p1()|
 a
 1
-Warnings:
-Note	1051	Unknown table 't1'
 call p1()|
 a
 1
@@ -371,9 +369,6 @@ call p1(@a)|
 create table t1 (a int)
 @rsql
 create table t2 (a int)
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
 select @a|
 @a
 0
@@ -382,9 +377,6 @@ call p1(@a)|
 create table t1 (a int)
 @rsql
 create table t2 (a int)
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
 select @a|
 @a
 0

@@ -71,8 +71,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=330 $MYSQLD_DATADIR/master-bin.000002
-
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=331 $MYSQLD_DATADIR/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -108,7 +107,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=330 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=331 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --disable_query_log
@@ -443,3 +442,27 @@ FLUSH LOGS;
 --echo End of 5.0 tests
 
 --echo End of 5.1 tests
+
+#
+# BUG#38468 Memory leak detected when using mysqlbinlog utility;
+#
+disable_query_log;
+RESET MASTER;
+CREATE TABLE t1 SELECT 1;
+FLUSH LOGS;
+DROP TABLE t1;
+enable_query_log;
+
+# Write an empty file for comparison
+write_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+EOF
+
+# Before fix of BUG#38468, this would generate some warnings
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 >/dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+# Make sure the command above does not generate any error or warnings
+diff_files $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+
+# Cleanup for this part of test
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;

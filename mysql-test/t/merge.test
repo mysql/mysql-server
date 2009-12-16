@@ -1634,3 +1634,63 @@ DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # An additional test case for Bug#27430 Crash in subquery code
+--echo # when in PS and table DDL changed after PREPARE
+--echo #
+--echo # Test merge table with too many merge children.
+--echo #
+--disable_warnings
+drop table if exists t_parent;
+--enable_warnings
+set @save_table_definition_cache=@@global.table_definition_cache;
+--echo #
+--echo # Set @@global.table_definition_cache to minimum
+--echo #
+set @@global.table_definition_cache=400;
+set @a=null;
+let $1 = 400;
+--echo #
+--echo # Create 400 merge children
+--echo #
+--disable_query_log
+while ($1)
+{
+--disable_warnings
+  eval drop table if exists t$1;
+--enable_warnings
+  eval create table t$1 (a int) engine=myisam;
+  eval set @a=ifnull(concat(@a, ", ", "t$1"), "t$1");
+  dec $1;
+}
+--enable_query_log
+set @a=concat("create table t_parent (a int) union(", @a,
+              ") insert_method=first engine=mrg_myisam");
+prepare stmt from @a;
+execute stmt;
+prepare stmt from "select * from t_parent";
+--error ER_NEED_REPREPARE
+execute stmt;
+--error ER_NEED_REPREPARE
+execute stmt;
+--error ER_NEED_REPREPARE
+execute stmt;
+deallocate prepare stmt;
+--echo #
+--echo # Create merge parent 
+--echo #
+
+--echo #
+--echo # Cleanup
+--echo #
+let $1 = 400;
+--disable_query_log
+while ($1)
+{
+  eval drop table t$1;
+  dec $1;
+}
+--enable_query_log
+drop table t_parent;
+set @@global.table_definition_cache=@save_table_definition_cache;

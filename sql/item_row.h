@@ -1,3 +1,6 @@
+#ifndef ITEM_ROW_INCLUDED
+#define ITEM_ROW_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -77,3 +80,5 @@ public:
   bool null_inside() { return with_null; };
   void bring_value();
 };
+
+#endif /* ITEM_ROW_INCLUDED */
