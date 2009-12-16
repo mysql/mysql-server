@@ -999,18 +999,19 @@ test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
 
 
 /**
-   Template function to compare two objects.
+   Function to compare two unsigned integers for their relative order.
+   Used below. In an anonymous namespace to not clash with definitions
+   in other files.
  */
 namespace {
-  template <class A_type, class B_type>
-  int compare(A_type a, B_type b)
+  int compare(unsigned int a, unsigned int b)
   {
     if (a < b)
       return -1;
     if (b < a)
       return 1;
     return 0;
-  }
+}
 }
 
 /**
