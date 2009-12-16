@@ -2923,15 +2923,10 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
     error= ER_UNKNOWN_ERROR;
   }
 
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
+
   if (thd)
   {
-    mysql_audit_general(thd,MYSQL_AUDIT_GENERAL_ERROR,error,my_time(0),
-                        0,0,str,str ? strlen(str) : 0,
-                        thd->query(), thd->query_length(),
-                        thd->variables.character_set_client,
-                        thd->warning_info->current_row_for_warning());
-
-
     if (MyFlags & ME_FATALERROR)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,

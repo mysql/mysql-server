@@ -3519,7 +3519,6 @@ void set_var_free()
   @param str	   Name of system variable to find
   @param length    Length of variable.  zero means that we should use strlen()
                    on the variable
-  @param no_error  Refuse to emit an error, even if one occurred.
 
   @retval
     pointer	pointer to variable definitions
@@ -3527,7 +3526,7 @@ void set_var_free()
     0		Unknown variable (error message is given)
 */
 
-sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
+sys_var *intern_find_sys_var(const char *str, uint length)
 {
   sys_var *var;
 
@@ -3537,9 +3536,6 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
   */
   var= (sys_var*) my_hash_search(&system_variable_hash,
 			      (uchar*) str, length ? length : strlen(str));
-  if (!(var || no_error))
-    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
-
   return var;
 }
 
