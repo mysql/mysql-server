@@ -162,7 +162,7 @@ typedef struct st_mi_create_info
   ulonglong data_file_length;
   ulonglong key_file_length;
   uint old_options;
-  uint8 language;
+  uint16 language;
   my_bool with_auto_increment;
 } MI_CREATE_INFO;
 
@@ -410,7 +410,7 @@ typedef struct st_mi_check_param
   uint out_flag,warning_printed,error_printed,verbose;
   uint opt_sort_key,total_files,max_level;
   uint testflag, key_cache_block_size;
-  uint8 language;
+  uint16 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
   my_bool retry_repair, force_sort;
   char temp_filename[FN_REFLEN],*isam_file_name;
@@ -432,6 +432,10 @@ typedef struct st_mi_check_param
   const char *db_name, *table_name;
   const char *op_name;
   enum_mi_stats_method stats_method;
+#ifdef THREAD
+  pthread_mutex_t print_msg_mutex;
+  my_bool need_print_msg_lock;
+#endif
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf

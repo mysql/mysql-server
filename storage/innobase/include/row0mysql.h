@@ -756,8 +756,6 @@ struct row_prebuilt_struct {
 					store it here so that we can return
 					it to MySQL */
 	/*----------------------*/
-	UT_LIST_NODE_T(row_prebuilt_t)	prebuilts;
-					/*!< list node of table->prebuilts */
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 };

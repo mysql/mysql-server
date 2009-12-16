@@ -192,7 +192,8 @@ int main(int argc, char **argv)
   }
 
   for (argument= arguments+1 ; *argument ; argument++)
-    puts(*argument);
+    if (*argument != args_separator)           /* skip arguments separator */
+      puts(*argument);
   my_free((char*) load_default_groups,MYF(0));
   free_defaults(arguments);
 

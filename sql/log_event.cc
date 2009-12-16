@@ -134,7 +134,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
   MYSQL_ERROR *err;
   buff[0]= 0;
 
@@ -142,10 +142,11 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
        slider += len, err= it++)
   {
     len= my_snprintf(slider, buff_end - slider,
-                     " %s, Error_code: %d;", err->msg, err->code);
+                     " %s, Error_code: %d;", err->get_message_text(),
+                     err->get_sql_errno());
   }
   
-  rli->report(level, thd->is_error()? thd->main_da.sql_errno() : 0,
+  rli->report(level, thd->is_error()? thd->stmt_da->sql_errno() : 0,
               "Could not execute %s event on table %s.%s;"
               "%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
@@ -353,13 +354,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->main_da.sql_errno() :
+    actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (global_system_variables.log_warnings)
@@ -1199,14 +1200,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-      IF_DBUG({
-          int new_event_type=
-            description_event->event_type_permutation[event_type];
-          DBUG_PRINT("info",
-                     ("converting event type %d to %d (%s)",
-                      event_type, new_event_type,
-                      get_type_str((Log_event_type)new_event_type)));
-        });
+#ifndef DBUG_OFF
+      int new_event_type=
+        description_event->event_type_permutation[event_type];
+      DBUG_PRINT("info",
+                 ("converting event type %d to %d (%s)",
+                  event_type, new_event_type,
+                  get_type_str((Log_event_type)new_event_type)));
+#endif
       event_type= description_event->event_type_permutation[event_type];
     }
 
@@ -2393,13 +2394,29 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     charset_database_number= thd_arg->variables.collation_database->number;
   
   /*
-    If we don't use flags2 for anything else than options contained in
-    thd_arg->options, it would be more efficient to flags2=thd_arg->options
-    (OPTIONS_WRITTEN_TO_BIN_LOG would be used only at reading time).
-    But it's likely that we don't want to use 32 bits for 3 bits; in the future
-    we will probably want to reclaim the 29 bits. So we need the &.
+    We only replicate over the bits of flags2 that we need: the rest
+    are masked out by "& OPTIONS_WRITTEN_TO_BINLOG".
+
+    We also force AUTOCOMMIT=1.  Rationale (cf. BUG#29288): After
+    fixing BUG#26395, we always write BEGIN and COMMIT around all
+    transactions (even single statements in autocommit mode).  This is
+    so that replication from non-transactional to transactional table
+    and error recovery from XA to non-XA table should work as
+    expected.  The BEGIN/COMMIT are added in log.cc. However, there is
+    one exception: MyISAM bypasses log.cc and writes directly to the
+    binlog.  So if autocommit is off, master has MyISAM, and slave has
+    a transactional engine, then the slave will just see one long
+    never-ending transaction.  The only way to bypass explicit
+    BEGIN/COMMIT in the binlog is by using a non-transactional table.
+    So setting AUTOCOMMIT=1 will make this work as expected.
+
+    Note: explicitly replicate AUTOCOMMIT=1 from master. We do not
+    assume AUTOCOMMIT=1 on slave; the slave still reads the state of
+    the autocommit flag as written by the master to the binlog. This
+    behavior may change after WL#4162 has been implemented.
   */
-  flags2= (uint32) (thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG);
+  flags2= (uint32) (thd_arg->options &
+                    (OPTIONS_WRITTEN_TO_BIN_LOG & ~OPTION_NOT_AUTOCOMMIT));
   DBUG_ASSERT(thd_arg->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_connection->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_server->number < 256*256);
@@ -3043,7 +3060,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
@@ -3137,7 +3154,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
     }
     else
@@ -3149,7 +3166,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query, thd->query_length))
+      if (mysql_test_parse_for_slave(thd, thd->query(), thd->query_length()))
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
@@ -3159,15 +3176,15 @@ Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; . Query: '%s'", expected_error, thd->query);
+START SLAVE; . Query: '%s'", expected_error, thd->query());
         thd->is_slave_error= 1;
       }
       goto end;
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+    if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
 
@@ -3175,7 +3192,7 @@ compare_errors:
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->main_da.sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
  		       expected_error, actual_error));
     if ((expected_error && expected_error != actual_error &&
@@ -3190,7 +3207,7 @@ Error on master: '%s' (%d), Error on slave: '%s' (%d). \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->main_da.message() : "no error",
+                      actual_error ? thd->stmt_da->message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -3231,7 +3248,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->main_da.message() :
+                      (actual_error ? thd->stmt_da->message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -3259,6 +3276,21 @@ Default database: '%s'. Query: '%s'",
       logging "affected" and effectively comparing it.
     */
   } /* End of if (db_ok(... */
+
+  {/**
+      The following failure injecion works in cooperation with tests 
+      setting @@global.debug= 'd,stop_slave_middle_group'.
+      The sql thread receives the killed status and will proceed 
+      to shutdown trying to finish incomplete events group.
+   */
+    DBUG_EXECUTE_IF("stop_slave_middle_group",
+                    if (strcmp("COMMIT", query) != 0 &&
+                        strcmp("BEGIN", query) != 0)
+                    {
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;
+                    };);
+  }
 
 end:
   /*
@@ -3577,10 +3609,12 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     */
     if (post_header_len)
     {
+#ifndef DBUG_OFF      
       // Allows us to sanity-check that all events initialized their
       // events (see the end of this 'if' block).
-      IF_DBUG(memset(post_header_len, 255,
-                     number_of_event_types*sizeof(uint8)););
+      memset(post_header_len, 255,
+                     number_of_event_types*sizeof(uint8));
+#endif
 
       /* Note: all event types must explicitly fill in their lengths here. */
       post_header_len[START_EVENT_V3-1]= START_V3_HEADER_LEN;
@@ -3631,13 +3665,12 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[UPDATE_ROWS_EVENT-1]=
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
+      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
 
       // Sanity-check that all post header lengths are initialized.
-      IF_DBUG({
-          int i;
-          for (i=0; i<number_of_event_types; i++)
-            assert(post_header_len[i] != 255);
-        });
+      int i;
+      for (i=0; i<number_of_event_types; i++)
+        DBUG_ASSERT(post_header_len[i] != 255);
     }
     break;
 
@@ -4498,8 +4531,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
-  DBUG_ASSERT(thd->query == 0);
-  thd->query_length= 0;                         // Should not be needed
+  DBUG_ASSERT(thd->query() == 0);
+  thd->set_query_inner(NULL, 0);               // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -4551,13 +4584,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    /*
-      Initing thd->row_count is not necessary in theory as this variable has no
-      influence in the case of the slave SQL thread (it is used to generate a
-      "data truncated" warning but which is absorbed and never gets to the
-      error log); still we init it to avoid a Valgrind message.
-    */
-    mysql_reset_errors(thd, 0);
+    thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
@@ -4717,8 +4744,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->main_da.message();
-      sql_errno= thd->main_da.sql_errno();
+      err= thd->stmt_da->message();
+      sql_errno= thd->stmt_da->sql_errno();
     }
     else
     {
@@ -7281,7 +7308,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
-      uint actual_error= thd->main_da.sql_errno();
+      uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -7292,7 +7319,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? thd->main_da.message() :
+                    (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -7474,8 +7501,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           thd->transaction.stmt.modified_non_trans_table= TRUE;
     } // row processing loop
 
-    DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
-                    const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    {/**
+         The following failure injecion works in cooperation with tests 
+         setting @@global.debug= 'd,stop_slave_middle_group'.
+         The sql thread receives the killed status and will proceed 
+         to shutdown trying to finish incomplete events group.
+     */
+      DBUG_EXECUTE_IF("stop_slave_middle_group",
+                      if (thd->transaction.all.modified_non_trans_table)
+                        const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
+    }
 
     if ((error= do_after_row_operations(rli, error)) &&
         ignored_error_code(convert_handler_error(error, thd, table)))
@@ -7513,35 +7548,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
-  /*
-    This code would ideally be placed in do_update_pos() instead, but
-    since we have no access to table there, we do the setting of
-    last_event_start_time here instead.
-  */
-  else if (table && (table->s->primary_key == MAX_KEY) &&
-           !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
-  {
-    /*
-      ------------ Temporary fix until WL#2975 is implemented ---------
-
-      This event is not the last one (no STMT_END_F). If we stop now
-      (in case of terminate_slave_thread()), how will we restart? We
-      have to restart from Table_map_log_event, but as this table is
-      not transactional, the rows already inserted will still be
-      present, and idempotency is not guaranteed (no PK) so we risk
-      that repeating leads to double insert. So we desperately try to
-      continue, hope we'll eventually leave this buggy situation (by
-      executing the final Rows_log_event). If we are in a hopeless
-      wait (reached end of last relay log and nothing gets appended
-      there), we timeout after one minute, and notify DBA about the
-      problem.  When WL#2975 is implemented, just remove the member
-      Relay_log_info::last_event_start_time and all its occurrences.
-    */
-    const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
-  }
 
   if (get_flags(STMT_END_F))
-    if (error= rows_event_stmt_cleanup(rli, thd))
+    if ((error= rows_event_stmt_cleanup(rli, thd)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
@@ -8450,13 +8459,17 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
-
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   if ((error= prepare_record(table, m_width,
-                             TRUE /* check if columns have def. values */)))
+                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
+                             abort_on_warnings, m_curr_row == m_rows_buf)))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
-  error= unpack_current_row(rli); // TODO: how to handle errors?
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    DBUG_RETURN(error);
+
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
@@ -9253,8 +9266,12 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
-  error= unpack_current_row(rli); // this also updates m_curr_row_end
+  /* this also updates m_curr_row_end */
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    return error;
 
   /*
     Now we have the right row to update.  The old row (the one we're
@@ -9431,5 +9448,18 @@ st_print_event_info::st_print_event_info()
   myf const flags = MYF(MY_WME | MY_NABP);
   open_cached_file(&head_cache, NULL, NULL, 0, flags);
   open_cached_file(&body_cache, NULL, NULL, 0, flags);
+}
+#endif
+
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
+                    const Format_description_log_event* description_event)
+  :Log_event(buf, description_event)
+{
+  uint8 header_size= description_event->common_header_len;
+  ident_len = event_len - header_size;
+  set_if_smaller(ident_len,FN_REFLEN-1);
+  log_ident= buf + header_size;
 }
 #endif

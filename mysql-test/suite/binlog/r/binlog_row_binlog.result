@@ -26,7 +26,7 @@ create table t1 (n int) engine=innodb;
 begin;
 commit;
 drop table t1;
-show binlog events in 'master-bin.000001' from 106;
+show binlog events in 'master-bin.000001' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
 master-bin.000001	#	Query	1	#	BEGIN
@@ -232,7 +232,7 @@ master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
-show binlog events in 'master-bin.000002' from 106;
+show binlog events in 'master-bin.000002' from 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
 set @ac = @@autocommit;
@@ -247,25 +247,8 @@ commit;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	205	use `test`; create table t1(n int) engine=innodb
-master-bin.000001	205	Query	1	273	BEGIN
-master-bin.000001	273	Table_map	1	314	table_id: # (test.t1)
-master-bin.000001	314	Write_rows	1	348	table_id: # flags: STMT_END_F
-master-bin.000001	348	Table_map	1	389	table_id: # (test.t1)
-master-bin.000001	389	Write_rows	1	423	table_id: # flags: STMT_END_F
-master-bin.000001	423	Table_map	1	464	table_id: # (test.t1)
-master-bin.000001	464	Write_rows	1	498	table_id: # flags: STMT_END_F
-master-bin.000001	498	Xid	1	525	COMMIT /* XID */
-master-bin.000001	525	Query	1	601	use `test`; drop table t1
-set @bcs = @@binlog_cache_size;
-set global binlog_cache_size=4096;
-reset master;
-create table t1 (a int) engine=innodb;
-show binlog events from 0;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	206	use `test`; create table t1 (a int) engine=innodb
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	206	use `test`; create table t1(n int) engine=innodb
 master-bin.000001	206	Query	1	274	BEGIN
 master-bin.000001	274	Table_map	1	315	table_id: # (test.t1)
 master-bin.000001	315	Write_rows	1	349	table_id: # flags: STMT_END_F
@@ -273,802 +256,819 @@ master-bin.000001	349	Table_map	1	390	table_id: # (test.t1)
 master-bin.000001	390	Write_rows	1	424	table_id: # flags: STMT_END_F
 master-bin.000001	424	Table_map	1	465	table_id: # (test.t1)
 master-bin.000001	465	Write_rows	1	499	table_id: # flags: STMT_END_F
-master-bin.000001	499	Table_map	1	540	table_id: # (test.t1)
-master-bin.000001	540	Write_rows	1	574	table_id: # flags: STMT_END_F
-master-bin.000001	574	Table_map	1	615	table_id: # (test.t1)
-master-bin.000001	615	Write_rows	1	649	table_id: # flags: STMT_END_F
-master-bin.000001	649	Table_map	1	690	table_id: # (test.t1)
-master-bin.000001	690	Write_rows	1	724	table_id: # flags: STMT_END_F
-master-bin.000001	724	Table_map	1	765	table_id: # (test.t1)
-master-bin.000001	765	Write_rows	1	799	table_id: # flags: STMT_END_F
-master-bin.000001	799	Table_map	1	840	table_id: # (test.t1)
-master-bin.000001	840	Write_rows	1	874	table_id: # flags: STMT_END_F
-master-bin.000001	874	Table_map	1	915	table_id: # (test.t1)
-master-bin.000001	915	Write_rows	1	949	table_id: # flags: STMT_END_F
-master-bin.000001	949	Table_map	1	990	table_id: # (test.t1)
-master-bin.000001	990	Write_rows	1	1024	table_id: # flags: STMT_END_F
-master-bin.000001	1024	Table_map	1	1065	table_id: # (test.t1)
-master-bin.000001	1065	Write_rows	1	1099	table_id: # flags: STMT_END_F
-master-bin.000001	1099	Table_map	1	1140	table_id: # (test.t1)
-master-bin.000001	1140	Write_rows	1	1174	table_id: # flags: STMT_END_F
-master-bin.000001	1174	Table_map	1	1215	table_id: # (test.t1)
-master-bin.000001	1215	Write_rows	1	1249	table_id: # flags: STMT_END_F
-master-bin.000001	1249	Table_map	1	1290	table_id: # (test.t1)
-master-bin.000001	1290	Write_rows	1	1324	table_id: # flags: STMT_END_F
-master-bin.000001	1324	Table_map	1	1365	table_id: # (test.t1)
-master-bin.000001	1365	Write_rows	1	1399	table_id: # flags: STMT_END_F
-master-bin.000001	1399	Table_map	1	1440	table_id: # (test.t1)
-master-bin.000001	1440	Write_rows	1	1474	table_id: # flags: STMT_END_F
-master-bin.000001	1474	Table_map	1	1515	table_id: # (test.t1)
-master-bin.000001	1515	Write_rows	1	1549	table_id: # flags: STMT_END_F
-master-bin.000001	1549	Table_map	1	1590	table_id: # (test.t1)
-master-bin.000001	1590	Write_rows	1	1624	table_id: # flags: STMT_END_F
-master-bin.000001	1624	Table_map	1	1665	table_id: # (test.t1)
-master-bin.000001	1665	Write_rows	1	1699	table_id: # flags: STMT_END_F
-master-bin.000001	1699	Table_map	1	1740	table_id: # (test.t1)
-master-bin.000001	1740	Write_rows	1	1774	table_id: # flags: STMT_END_F
-master-bin.000001	1774	Table_map	1	1815	table_id: # (test.t1)
-master-bin.000001	1815	Write_rows	1	1849	table_id: # flags: STMT_END_F
-master-bin.000001	1849	Table_map	1	1890	table_id: # (test.t1)
-master-bin.000001	1890	Write_rows	1	1924	table_id: # flags: STMT_END_F
-master-bin.000001	1924	Table_map	1	1965	table_id: # (test.t1)
-master-bin.000001	1965	Write_rows	1	1999	table_id: # flags: STMT_END_F
-master-bin.000001	1999	Table_map	1	2040	table_id: # (test.t1)
-master-bin.000001	2040	Write_rows	1	2074	table_id: # flags: STMT_END_F
-master-bin.000001	2074	Table_map	1	2115	table_id: # (test.t1)
-master-bin.000001	2115	Write_rows	1	2149	table_id: # flags: STMT_END_F
-master-bin.000001	2149	Table_map	1	2190	table_id: # (test.t1)
-master-bin.000001	2190	Write_rows	1	2224	table_id: # flags: STMT_END_F
-master-bin.000001	2224	Table_map	1	2265	table_id: # (test.t1)
-master-bin.000001	2265	Write_rows	1	2299	table_id: # flags: STMT_END_F
-master-bin.000001	2299	Table_map	1	2340	table_id: # (test.t1)
-master-bin.000001	2340	Write_rows	1	2374	table_id: # flags: STMT_END_F
-master-bin.000001	2374	Table_map	1	2415	table_id: # (test.t1)
-master-bin.000001	2415	Write_rows	1	2449	table_id: # flags: STMT_END_F
-master-bin.000001	2449	Table_map	1	2490	table_id: # (test.t1)
-master-bin.000001	2490	Write_rows	1	2524	table_id: # flags: STMT_END_F
-master-bin.000001	2524	Table_map	1	2565	table_id: # (test.t1)
-master-bin.000001	2565	Write_rows	1	2599	table_id: # flags: STMT_END_F
-master-bin.000001	2599	Table_map	1	2640	table_id: # (test.t1)
-master-bin.000001	2640	Write_rows	1	2674	table_id: # flags: STMT_END_F
-master-bin.000001	2674	Table_map	1	2715	table_id: # (test.t1)
-master-bin.000001	2715	Write_rows	1	2749	table_id: # flags: STMT_END_F
-master-bin.000001	2749	Table_map	1	2790	table_id: # (test.t1)
-master-bin.000001	2790	Write_rows	1	2824	table_id: # flags: STMT_END_F
-master-bin.000001	2824	Table_map	1	2865	table_id: # (test.t1)
-master-bin.000001	2865	Write_rows	1	2899	table_id: # flags: STMT_END_F
-master-bin.000001	2899	Table_map	1	2940	table_id: # (test.t1)
-master-bin.000001	2940	Write_rows	1	2974	table_id: # flags: STMT_END_F
-master-bin.000001	2974	Table_map	1	3015	table_id: # (test.t1)
-master-bin.000001	3015	Write_rows	1	3049	table_id: # flags: STMT_END_F
-master-bin.000001	3049	Table_map	1	3090	table_id: # (test.t1)
-master-bin.000001	3090	Write_rows	1	3124	table_id: # flags: STMT_END_F
-master-bin.000001	3124	Table_map	1	3165	table_id: # (test.t1)
-master-bin.000001	3165	Write_rows	1	3199	table_id: # flags: STMT_END_F
-master-bin.000001	3199	Table_map	1	3240	table_id: # (test.t1)
-master-bin.000001	3240	Write_rows	1	3274	table_id: # flags: STMT_END_F
-master-bin.000001	3274	Table_map	1	3315	table_id: # (test.t1)
-master-bin.000001	3315	Write_rows	1	3349	table_id: # flags: STMT_END_F
-master-bin.000001	3349	Table_map	1	3390	table_id: # (test.t1)
-master-bin.000001	3390	Write_rows	1	3424	table_id: # flags: STMT_END_F
-master-bin.000001	3424	Table_map	1	3465	table_id: # (test.t1)
-master-bin.000001	3465	Write_rows	1	3499	table_id: # flags: STMT_END_F
-master-bin.000001	3499	Table_map	1	3540	table_id: # (test.t1)
-master-bin.000001	3540	Write_rows	1	3574	table_id: # flags: STMT_END_F
-master-bin.000001	3574	Table_map	1	3615	table_id: # (test.t1)
-master-bin.000001	3615	Write_rows	1	3649	table_id: # flags: STMT_END_F
-master-bin.000001	3649	Table_map	1	3690	table_id: # (test.t1)
-master-bin.000001	3690	Write_rows	1	3724	table_id: # flags: STMT_END_F
-master-bin.000001	3724	Table_map	1	3765	table_id: # (test.t1)
-master-bin.000001	3765	Write_rows	1	3799	table_id: # flags: STMT_END_F
-master-bin.000001	3799	Table_map	1	3840	table_id: # (test.t1)
-master-bin.000001	3840	Write_rows	1	3874	table_id: # flags: STMT_END_F
-master-bin.000001	3874	Table_map	1	3915	table_id: # (test.t1)
-master-bin.000001	3915	Write_rows	1	3949	table_id: # flags: STMT_END_F
-master-bin.000001	3949	Table_map	1	3990	table_id: # (test.t1)
-master-bin.000001	3990	Write_rows	1	4024	table_id: # flags: STMT_END_F
-master-bin.000001	4024	Table_map	1	4065	table_id: # (test.t1)
-master-bin.000001	4065	Write_rows	1	4099	table_id: # flags: STMT_END_F
-master-bin.000001	4099	Table_map	1	4140	table_id: # (test.t1)
-master-bin.000001	4140	Write_rows	1	4174	table_id: # flags: STMT_END_F
-master-bin.000001	4174	Table_map	1	4215	table_id: # (test.t1)
-master-bin.000001	4215	Write_rows	1	4249	table_id: # flags: STMT_END_F
-master-bin.000001	4249	Table_map	1	4290	table_id: # (test.t1)
-master-bin.000001	4290	Write_rows	1	4324	table_id: # flags: STMT_END_F
-master-bin.000001	4324	Table_map	1	4365	table_id: # (test.t1)
-master-bin.000001	4365	Write_rows	1	4399	table_id: # flags: STMT_END_F
-master-bin.000001	4399	Table_map	1	4440	table_id: # (test.t1)
-master-bin.000001	4440	Write_rows	1	4474	table_id: # flags: STMT_END_F
-master-bin.000001	4474	Table_map	1	4515	table_id: # (test.t1)
-master-bin.000001	4515	Write_rows	1	4549	table_id: # flags: STMT_END_F
-master-bin.000001	4549	Table_map	1	4590	table_id: # (test.t1)
-master-bin.000001	4590	Write_rows	1	4624	table_id: # flags: STMT_END_F
-master-bin.000001	4624	Table_map	1	4665	table_id: # (test.t1)
-master-bin.000001	4665	Write_rows	1	4699	table_id: # flags: STMT_END_F
-master-bin.000001	4699	Table_map	1	4740	table_id: # (test.t1)
-master-bin.000001	4740	Write_rows	1	4774	table_id: # flags: STMT_END_F
-master-bin.000001	4774	Table_map	1	4815	table_id: # (test.t1)
-master-bin.000001	4815	Write_rows	1	4849	table_id: # flags: STMT_END_F
-master-bin.000001	4849	Table_map	1	4890	table_id: # (test.t1)
-master-bin.000001	4890	Write_rows	1	4924	table_id: # flags: STMT_END_F
-master-bin.000001	4924	Table_map	1	4965	table_id: # (test.t1)
-master-bin.000001	4965	Write_rows	1	4999	table_id: # flags: STMT_END_F
-master-bin.000001	4999	Table_map	1	5040	table_id: # (test.t1)
-master-bin.000001	5040	Write_rows	1	5074	table_id: # flags: STMT_END_F
-master-bin.000001	5074	Table_map	1	5115	table_id: # (test.t1)
-master-bin.000001	5115	Write_rows	1	5149	table_id: # flags: STMT_END_F
-master-bin.000001	5149	Table_map	1	5190	table_id: # (test.t1)
-master-bin.000001	5190	Write_rows	1	5224	table_id: # flags: STMT_END_F
-master-bin.000001	5224	Table_map	1	5265	table_id: # (test.t1)
-master-bin.000001	5265	Write_rows	1	5299	table_id: # flags: STMT_END_F
-master-bin.000001	5299	Table_map	1	5340	table_id: # (test.t1)
-master-bin.000001	5340	Write_rows	1	5374	table_id: # flags: STMT_END_F
-master-bin.000001	5374	Table_map	1	5415	table_id: # (test.t1)
-master-bin.000001	5415	Write_rows	1	5449	table_id: # flags: STMT_END_F
-master-bin.000001	5449	Table_map	1	5490	table_id: # (test.t1)
-master-bin.000001	5490	Write_rows	1	5524	table_id: # flags: STMT_END_F
-master-bin.000001	5524	Table_map	1	5565	table_id: # (test.t1)
-master-bin.000001	5565	Write_rows	1	5599	table_id: # flags: STMT_END_F
-master-bin.000001	5599	Table_map	1	5640	table_id: # (test.t1)
-master-bin.000001	5640	Write_rows	1	5674	table_id: # flags: STMT_END_F
-master-bin.000001	5674	Table_map	1	5715	table_id: # (test.t1)
-master-bin.000001	5715	Write_rows	1	5749	table_id: # flags: STMT_END_F
-master-bin.000001	5749	Table_map	1	5790	table_id: # (test.t1)
-master-bin.000001	5790	Write_rows	1	5824	table_id: # flags: STMT_END_F
-master-bin.000001	5824	Table_map	1	5865	table_id: # (test.t1)
-master-bin.000001	5865	Write_rows	1	5899	table_id: # flags: STMT_END_F
-master-bin.000001	5899	Table_map	1	5940	table_id: # (test.t1)
-master-bin.000001	5940	Write_rows	1	5974	table_id: # flags: STMT_END_F
-master-bin.000001	5974	Table_map	1	6015	table_id: # (test.t1)
-master-bin.000001	6015	Write_rows	1	6049	table_id: # flags: STMT_END_F
-master-bin.000001	6049	Table_map	1	6090	table_id: # (test.t1)
-master-bin.000001	6090	Write_rows	1	6124	table_id: # flags: STMT_END_F
-master-bin.000001	6124	Table_map	1	6165	table_id: # (test.t1)
-master-bin.000001	6165	Write_rows	1	6199	table_id: # flags: STMT_END_F
-master-bin.000001	6199	Table_map	1	6240	table_id: # (test.t1)
-master-bin.000001	6240	Write_rows	1	6274	table_id: # flags: STMT_END_F
-master-bin.000001	6274	Table_map	1	6315	table_id: # (test.t1)
-master-bin.000001	6315	Write_rows	1	6349	table_id: # flags: STMT_END_F
-master-bin.000001	6349	Table_map	1	6390	table_id: # (test.t1)
-master-bin.000001	6390	Write_rows	1	6424	table_id: # flags: STMT_END_F
-master-bin.000001	6424	Table_map	1	6465	table_id: # (test.t1)
-master-bin.000001	6465	Write_rows	1	6499	table_id: # flags: STMT_END_F
-master-bin.000001	6499	Table_map	1	6540	table_id: # (test.t1)
-master-bin.000001	6540	Write_rows	1	6574	table_id: # flags: STMT_END_F
-master-bin.000001	6574	Table_map	1	6615	table_id: # (test.t1)
-master-bin.000001	6615	Write_rows	1	6649	table_id: # flags: STMT_END_F
-master-bin.000001	6649	Table_map	1	6690	table_id: # (test.t1)
-master-bin.000001	6690	Write_rows	1	6724	table_id: # flags: STMT_END_F
-master-bin.000001	6724	Table_map	1	6765	table_id: # (test.t1)
-master-bin.000001	6765	Write_rows	1	6799	table_id: # flags: STMT_END_F
-master-bin.000001	6799	Table_map	1	6840	table_id: # (test.t1)
-master-bin.000001	6840	Write_rows	1	6874	table_id: # flags: STMT_END_F
-master-bin.000001	6874	Table_map	1	6915	table_id: # (test.t1)
-master-bin.000001	6915	Write_rows	1	6949	table_id: # flags: STMT_END_F
-master-bin.000001	6949	Table_map	1	6990	table_id: # (test.t1)
-master-bin.000001	6990	Write_rows	1	7024	table_id: # flags: STMT_END_F
-master-bin.000001	7024	Table_map	1	7065	table_id: # (test.t1)
-master-bin.000001	7065	Write_rows	1	7099	table_id: # flags: STMT_END_F
-master-bin.000001	7099	Table_map	1	7140	table_id: # (test.t1)
-master-bin.000001	7140	Write_rows	1	7174	table_id: # flags: STMT_END_F
-master-bin.000001	7174	Table_map	1	7215	table_id: # (test.t1)
-master-bin.000001	7215	Write_rows	1	7249	table_id: # flags: STMT_END_F
-master-bin.000001	7249	Table_map	1	7290	table_id: # (test.t1)
-master-bin.000001	7290	Write_rows	1	7324	table_id: # flags: STMT_END_F
-master-bin.000001	7324	Table_map	1	7365	table_id: # (test.t1)
-master-bin.000001	7365	Write_rows	1	7399	table_id: # flags: STMT_END_F
-master-bin.000001	7399	Table_map	1	7440	table_id: # (test.t1)
-master-bin.000001	7440	Write_rows	1	7474	table_id: # flags: STMT_END_F
-master-bin.000001	7474	Table_map	1	7515	table_id: # (test.t1)
-master-bin.000001	7515	Write_rows	1	7549	table_id: # flags: STMT_END_F
-master-bin.000001	7549	Table_map	1	7590	table_id: # (test.t1)
-master-bin.000001	7590	Write_rows	1	7624	table_id: # flags: STMT_END_F
-master-bin.000001	7624	Table_map	1	7665	table_id: # (test.t1)
-master-bin.000001	7665	Write_rows	1	7699	table_id: # flags: STMT_END_F
-master-bin.000001	7699	Table_map	1	7740	table_id: # (test.t1)
-master-bin.000001	7740	Write_rows	1	7774	table_id: # flags: STMT_END_F
-master-bin.000001	7774	Table_map	1	7815	table_id: # (test.t1)
-master-bin.000001	7815	Write_rows	1	7849	table_id: # flags: STMT_END_F
-master-bin.000001	7849	Table_map	1	7890	table_id: # (test.t1)
-master-bin.000001	7890	Write_rows	1	7924	table_id: # flags: STMT_END_F
-master-bin.000001	7924	Table_map	1	7965	table_id: # (test.t1)
-master-bin.000001	7965	Write_rows	1	7999	table_id: # flags: STMT_END_F
-master-bin.000001	7999	Table_map	1	8040	table_id: # (test.t1)
-master-bin.000001	8040	Write_rows	1	8074	table_id: # flags: STMT_END_F
-master-bin.000001	8074	Table_map	1	8115	table_id: # (test.t1)
-master-bin.000001	8115	Write_rows	1	8149	table_id: # flags: STMT_END_F
-master-bin.000001	8149	Table_map	1	8190	table_id: # (test.t1)
-master-bin.000001	8190	Write_rows	1	8224	table_id: # flags: STMT_END_F
-master-bin.000001	8224	Table_map	1	8265	table_id: # (test.t1)
-master-bin.000001	8265	Write_rows	1	8299	table_id: # flags: STMT_END_F
-master-bin.000001	8299	Table_map	1	8340	table_id: # (test.t1)
-master-bin.000001	8340	Write_rows	1	8374	table_id: # flags: STMT_END_F
-master-bin.000001	8374	Table_map	1	8415	table_id: # (test.t1)
-master-bin.000001	8415	Write_rows	1	8449	table_id: # flags: STMT_END_F
-master-bin.000001	8449	Table_map	1	8490	table_id: # (test.t1)
-master-bin.000001	8490	Write_rows	1	8524	table_id: # flags: STMT_END_F
-master-bin.000001	8524	Table_map	1	8565	table_id: # (test.t1)
-master-bin.000001	8565	Write_rows	1	8599	table_id: # flags: STMT_END_F
-master-bin.000001	8599	Table_map	1	8640	table_id: # (test.t1)
-master-bin.000001	8640	Write_rows	1	8674	table_id: # flags: STMT_END_F
-master-bin.000001	8674	Table_map	1	8715	table_id: # (test.t1)
-master-bin.000001	8715	Write_rows	1	8749	table_id: # flags: STMT_END_F
-master-bin.000001	8749	Table_map	1	8790	table_id: # (test.t1)
-master-bin.000001	8790	Write_rows	1	8824	table_id: # flags: STMT_END_F
-master-bin.000001	8824	Table_map	1	8865	table_id: # (test.t1)
-master-bin.000001	8865	Write_rows	1	8899	table_id: # flags: STMT_END_F
-master-bin.000001	8899	Table_map	1	8940	table_id: # (test.t1)
-master-bin.000001	8940	Write_rows	1	8974	table_id: # flags: STMT_END_F
-master-bin.000001	8974	Table_map	1	9015	table_id: # (test.t1)
-master-bin.000001	9015	Write_rows	1	9049	table_id: # flags: STMT_END_F
-master-bin.000001	9049	Table_map	1	9090	table_id: # (test.t1)
-master-bin.000001	9090	Write_rows	1	9124	table_id: # flags: STMT_END_F
-master-bin.000001	9124	Table_map	1	9165	table_id: # (test.t1)
-master-bin.000001	9165	Write_rows	1	9199	table_id: # flags: STMT_END_F
-master-bin.000001	9199	Table_map	1	9240	table_id: # (test.t1)
-master-bin.000001	9240	Write_rows	1	9274	table_id: # flags: STMT_END_F
-master-bin.000001	9274	Table_map	1	9315	table_id: # (test.t1)
-master-bin.000001	9315	Write_rows	1	9349	table_id: # flags: STMT_END_F
-master-bin.000001	9349	Table_map	1	9390	table_id: # (test.t1)
-master-bin.000001	9390	Write_rows	1	9424	table_id: # flags: STMT_END_F
-master-bin.000001	9424	Table_map	1	9465	table_id: # (test.t1)
-master-bin.000001	9465	Write_rows	1	9499	table_id: # flags: STMT_END_F
-master-bin.000001	9499	Table_map	1	9540	table_id: # (test.t1)
-master-bin.000001	9540	Write_rows	1	9574	table_id: # flags: STMT_END_F
-master-bin.000001	9574	Table_map	1	9615	table_id: # (test.t1)
-master-bin.000001	9615	Write_rows	1	9649	table_id: # flags: STMT_END_F
-master-bin.000001	9649	Table_map	1	9690	table_id: # (test.t1)
-master-bin.000001	9690	Write_rows	1	9724	table_id: # flags: STMT_END_F
-master-bin.000001	9724	Table_map	1	9765	table_id: # (test.t1)
-master-bin.000001	9765	Write_rows	1	9799	table_id: # flags: STMT_END_F
-master-bin.000001	9799	Table_map	1	9840	table_id: # (test.t1)
-master-bin.000001	9840	Write_rows	1	9874	table_id: # flags: STMT_END_F
-master-bin.000001	9874	Table_map	1	9915	table_id: # (test.t1)
-master-bin.000001	9915	Write_rows	1	9949	table_id: # flags: STMT_END_F
-master-bin.000001	9949	Table_map	1	9990	table_id: # (test.t1)
-master-bin.000001	9990	Write_rows	1	10024	table_id: # flags: STMT_END_F
-master-bin.000001	10024	Table_map	1	10065	table_id: # (test.t1)
-master-bin.000001	10065	Write_rows	1	10099	table_id: # flags: STMT_END_F
-master-bin.000001	10099	Table_map	1	10140	table_id: # (test.t1)
-master-bin.000001	10140	Write_rows	1	10174	table_id: # flags: STMT_END_F
-master-bin.000001	10174	Table_map	1	10215	table_id: # (test.t1)
-master-bin.000001	10215	Write_rows	1	10249	table_id: # flags: STMT_END_F
-master-bin.000001	10249	Table_map	1	10290	table_id: # (test.t1)
-master-bin.000001	10290	Write_rows	1	10324	table_id: # flags: STMT_END_F
-master-bin.000001	10324	Table_map	1	10365	table_id: # (test.t1)
-master-bin.000001	10365	Write_rows	1	10399	table_id: # flags: STMT_END_F
-master-bin.000001	10399	Table_map	1	10440	table_id: # (test.t1)
-master-bin.000001	10440	Write_rows	1	10474	table_id: # flags: STMT_END_F
-master-bin.000001	10474	Table_map	1	10515	table_id: # (test.t1)
-master-bin.000001	10515	Write_rows	1	10549	table_id: # flags: STMT_END_F
-master-bin.000001	10549	Table_map	1	10590	table_id: # (test.t1)
-master-bin.000001	10590	Write_rows	1	10624	table_id: # flags: STMT_END_F
-master-bin.000001	10624	Table_map	1	10665	table_id: # (test.t1)
-master-bin.000001	10665	Write_rows	1	10699	table_id: # flags: STMT_END_F
-master-bin.000001	10699	Table_map	1	10740	table_id: # (test.t1)
-master-bin.000001	10740	Write_rows	1	10774	table_id: # flags: STMT_END_F
-master-bin.000001	10774	Table_map	1	10815	table_id: # (test.t1)
-master-bin.000001	10815	Write_rows	1	10849	table_id: # flags: STMT_END_F
-master-bin.000001	10849	Table_map	1	10890	table_id: # (test.t1)
-master-bin.000001	10890	Write_rows	1	10924	table_id: # flags: STMT_END_F
-master-bin.000001	10924	Table_map	1	10965	table_id: # (test.t1)
-master-bin.000001	10965	Write_rows	1	10999	table_id: # flags: STMT_END_F
-master-bin.000001	10999	Table_map	1	11040	table_id: # (test.t1)
-master-bin.000001	11040	Write_rows	1	11074	table_id: # flags: STMT_END_F
-master-bin.000001	11074	Table_map	1	11115	table_id: # (test.t1)
-master-bin.000001	11115	Write_rows	1	11149	table_id: # flags: STMT_END_F
-master-bin.000001	11149	Table_map	1	11190	table_id: # (test.t1)
-master-bin.000001	11190	Write_rows	1	11224	table_id: # flags: STMT_END_F
-master-bin.000001	11224	Table_map	1	11265	table_id: # (test.t1)
-master-bin.000001	11265	Write_rows	1	11299	table_id: # flags: STMT_END_F
-master-bin.000001	11299	Table_map	1	11340	table_id: # (test.t1)
-master-bin.000001	11340	Write_rows	1	11374	table_id: # flags: STMT_END_F
-master-bin.000001	11374	Table_map	1	11415	table_id: # (test.t1)
-master-bin.000001	11415	Write_rows	1	11449	table_id: # flags: STMT_END_F
-master-bin.000001	11449	Table_map	1	11490	table_id: # (test.t1)
-master-bin.000001	11490	Write_rows	1	11524	table_id: # flags: STMT_END_F
-master-bin.000001	11524	Table_map	1	11565	table_id: # (test.t1)
-master-bin.000001	11565	Write_rows	1	11599	table_id: # flags: STMT_END_F
-master-bin.000001	11599	Table_map	1	11640	table_id: # (test.t1)
-master-bin.000001	11640	Write_rows	1	11674	table_id: # flags: STMT_END_F
-master-bin.000001	11674	Table_map	1	11715	table_id: # (test.t1)
-master-bin.000001	11715	Write_rows	1	11749	table_id: # flags: STMT_END_F
-master-bin.000001	11749	Table_map	1	11790	table_id: # (test.t1)
-master-bin.000001	11790	Write_rows	1	11824	table_id: # flags: STMT_END_F
-master-bin.000001	11824	Table_map	1	11865	table_id: # (test.t1)
-master-bin.000001	11865	Write_rows	1	11899	table_id: # flags: STMT_END_F
-master-bin.000001	11899	Table_map	1	11940	table_id: # (test.t1)
-master-bin.000001	11940	Write_rows	1	11974	table_id: # flags: STMT_END_F
-master-bin.000001	11974	Table_map	1	12015	table_id: # (test.t1)
-master-bin.000001	12015	Write_rows	1	12049	table_id: # flags: STMT_END_F
-master-bin.000001	12049	Table_map	1	12090	table_id: # (test.t1)
-master-bin.000001	12090	Write_rows	1	12124	table_id: # flags: STMT_END_F
-master-bin.000001	12124	Table_map	1	12165	table_id: # (test.t1)
-master-bin.000001	12165	Write_rows	1	12199	table_id: # flags: STMT_END_F
-master-bin.000001	12199	Table_map	1	12240	table_id: # (test.t1)
-master-bin.000001	12240	Write_rows	1	12274	table_id: # flags: STMT_END_F
-master-bin.000001	12274	Table_map	1	12315	table_id: # (test.t1)
-master-bin.000001	12315	Write_rows	1	12349	table_id: # flags: STMT_END_F
-master-bin.000001	12349	Table_map	1	12390	table_id: # (test.t1)
-master-bin.000001	12390	Write_rows	1	12424	table_id: # flags: STMT_END_F
-master-bin.000001	12424	Table_map	1	12465	table_id: # (test.t1)
-master-bin.000001	12465	Write_rows	1	12499	table_id: # flags: STMT_END_F
-master-bin.000001	12499	Table_map	1	12540	table_id: # (test.t1)
-master-bin.000001	12540	Write_rows	1	12574	table_id: # flags: STMT_END_F
-master-bin.000001	12574	Table_map	1	12615	table_id: # (test.t1)
-master-bin.000001	12615	Write_rows	1	12649	table_id: # flags: STMT_END_F
-master-bin.000001	12649	Table_map	1	12690	table_id: # (test.t1)
-master-bin.000001	12690	Write_rows	1	12724	table_id: # flags: STMT_END_F
-master-bin.000001	12724	Table_map	1	12765	table_id: # (test.t1)
-master-bin.000001	12765	Write_rows	1	12799	table_id: # flags: STMT_END_F
-master-bin.000001	12799	Table_map	1	12840	table_id: # (test.t1)
-master-bin.000001	12840	Write_rows	1	12874	table_id: # flags: STMT_END_F
-master-bin.000001	12874	Table_map	1	12915	table_id: # (test.t1)
-master-bin.000001	12915	Write_rows	1	12949	table_id: # flags: STMT_END_F
-master-bin.000001	12949	Table_map	1	12990	table_id: # (test.t1)
-master-bin.000001	12990	Write_rows	1	13024	table_id: # flags: STMT_END_F
-master-bin.000001	13024	Table_map	1	13065	table_id: # (test.t1)
-master-bin.000001	13065	Write_rows	1	13099	table_id: # flags: STMT_END_F
-master-bin.000001	13099	Table_map	1	13140	table_id: # (test.t1)
-master-bin.000001	13140	Write_rows	1	13174	table_id: # flags: STMT_END_F
-master-bin.000001	13174	Table_map	1	13215	table_id: # (test.t1)
-master-bin.000001	13215	Write_rows	1	13249	table_id: # flags: STMT_END_F
-master-bin.000001	13249	Table_map	1	13290	table_id: # (test.t1)
-master-bin.000001	13290	Write_rows	1	13324	table_id: # flags: STMT_END_F
-master-bin.000001	13324	Table_map	1	13365	table_id: # (test.t1)
-master-bin.000001	13365	Write_rows	1	13399	table_id: # flags: STMT_END_F
-master-bin.000001	13399	Table_map	1	13440	table_id: # (test.t1)
-master-bin.000001	13440	Write_rows	1	13474	table_id: # flags: STMT_END_F
-master-bin.000001	13474	Table_map	1	13515	table_id: # (test.t1)
-master-bin.000001	13515	Write_rows	1	13549	table_id: # flags: STMT_END_F
-master-bin.000001	13549	Table_map	1	13590	table_id: # (test.t1)
-master-bin.000001	13590	Write_rows	1	13624	table_id: # flags: STMT_END_F
-master-bin.000001	13624	Table_map	1	13665	table_id: # (test.t1)
-master-bin.000001	13665	Write_rows	1	13699	table_id: # flags: STMT_END_F
-master-bin.000001	13699	Table_map	1	13740	table_id: # (test.t1)
-master-bin.000001	13740	Write_rows	1	13774	table_id: # flags: STMT_END_F
-master-bin.000001	13774	Table_map	1	13815	table_id: # (test.t1)
-master-bin.000001	13815	Write_rows	1	13849	table_id: # flags: STMT_END_F
-master-bin.000001	13849	Table_map	1	13890	table_id: # (test.t1)
-master-bin.000001	13890	Write_rows	1	13924	table_id: # flags: STMT_END_F
-master-bin.000001	13924	Table_map	1	13965	table_id: # (test.t1)
-master-bin.000001	13965	Write_rows	1	13999	table_id: # flags: STMT_END_F
-master-bin.000001	13999	Table_map	1	14040	table_id: # (test.t1)
-master-bin.000001	14040	Write_rows	1	14074	table_id: # flags: STMT_END_F
-master-bin.000001	14074	Table_map	1	14115	table_id: # (test.t1)
-master-bin.000001	14115	Write_rows	1	14149	table_id: # flags: STMT_END_F
-master-bin.000001	14149	Table_map	1	14190	table_id: # (test.t1)
-master-bin.000001	14190	Write_rows	1	14224	table_id: # flags: STMT_END_F
-master-bin.000001	14224	Table_map	1	14265	table_id: # (test.t1)
-master-bin.000001	14265	Write_rows	1	14299	table_id: # flags: STMT_END_F
-master-bin.000001	14299	Table_map	1	14340	table_id: # (test.t1)
-master-bin.000001	14340	Write_rows	1	14374	table_id: # flags: STMT_END_F
-master-bin.000001	14374	Table_map	1	14415	table_id: # (test.t1)
-master-bin.000001	14415	Write_rows	1	14449	table_id: # flags: STMT_END_F
-master-bin.000001	14449	Table_map	1	14490	table_id: # (test.t1)
-master-bin.000001	14490	Write_rows	1	14524	table_id: # flags: STMT_END_F
-master-bin.000001	14524	Table_map	1	14565	table_id: # (test.t1)
-master-bin.000001	14565	Write_rows	1	14599	table_id: # flags: STMT_END_F
-master-bin.000001	14599	Table_map	1	14640	table_id: # (test.t1)
-master-bin.000001	14640	Write_rows	1	14674	table_id: # flags: STMT_END_F
-master-bin.000001	14674	Table_map	1	14715	table_id: # (test.t1)
-master-bin.000001	14715	Write_rows	1	14749	table_id: # flags: STMT_END_F
-master-bin.000001	14749	Table_map	1	14790	table_id: # (test.t1)
-master-bin.000001	14790	Write_rows	1	14824	table_id: # flags: STMT_END_F
-master-bin.000001	14824	Table_map	1	14865	table_id: # (test.t1)
-master-bin.000001	14865	Write_rows	1	14899	table_id: # flags: STMT_END_F
-master-bin.000001	14899	Table_map	1	14940	table_id: # (test.t1)
-master-bin.000001	14940	Write_rows	1	14974	table_id: # flags: STMT_END_F
-master-bin.000001	14974	Table_map	1	15015	table_id: # (test.t1)
-master-bin.000001	15015	Write_rows	1	15049	table_id: # flags: STMT_END_F
-master-bin.000001	15049	Table_map	1	15090	table_id: # (test.t1)
-master-bin.000001	15090	Write_rows	1	15124	table_id: # flags: STMT_END_F
-master-bin.000001	15124	Table_map	1	15165	table_id: # (test.t1)
-master-bin.000001	15165	Write_rows	1	15199	table_id: # flags: STMT_END_F
-master-bin.000001	15199	Table_map	1	15240	table_id: # (test.t1)
-master-bin.000001	15240	Write_rows	1	15274	table_id: # flags: STMT_END_F
-master-bin.000001	15274	Table_map	1	15315	table_id: # (test.t1)
-master-bin.000001	15315	Write_rows	1	15349	table_id: # flags: STMT_END_F
-master-bin.000001	15349	Table_map	1	15390	table_id: # (test.t1)
-master-bin.000001	15390	Write_rows	1	15424	table_id: # flags: STMT_END_F
-master-bin.000001	15424	Table_map	1	15465	table_id: # (test.t1)
-master-bin.000001	15465	Write_rows	1	15499	table_id: # flags: STMT_END_F
-master-bin.000001	15499	Table_map	1	15540	table_id: # (test.t1)
-master-bin.000001	15540	Write_rows	1	15574	table_id: # flags: STMT_END_F
-master-bin.000001	15574	Table_map	1	15615	table_id: # (test.t1)
-master-bin.000001	15615	Write_rows	1	15649	table_id: # flags: STMT_END_F
-master-bin.000001	15649	Table_map	1	15690	table_id: # (test.t1)
-master-bin.000001	15690	Write_rows	1	15724	table_id: # flags: STMT_END_F
-master-bin.000001	15724	Table_map	1	15765	table_id: # (test.t1)
-master-bin.000001	15765	Write_rows	1	15799	table_id: # flags: STMT_END_F
-master-bin.000001	15799	Table_map	1	15840	table_id: # (test.t1)
-master-bin.000001	15840	Write_rows	1	15874	table_id: # flags: STMT_END_F
-master-bin.000001	15874	Table_map	1	15915	table_id: # (test.t1)
-master-bin.000001	15915	Write_rows	1	15949	table_id: # flags: STMT_END_F
-master-bin.000001	15949	Table_map	1	15990	table_id: # (test.t1)
-master-bin.000001	15990	Write_rows	1	16024	table_id: # flags: STMT_END_F
-master-bin.000001	16024	Table_map	1	16065	table_id: # (test.t1)
-master-bin.000001	16065	Write_rows	1	16099	table_id: # flags: STMT_END_F
-master-bin.000001	16099	Table_map	1	16140	table_id: # (test.t1)
-master-bin.000001	16140	Write_rows	1	16174	table_id: # flags: STMT_END_F
-master-bin.000001	16174	Table_map	1	16215	table_id: # (test.t1)
-master-bin.000001	16215	Write_rows	1	16249	table_id: # flags: STMT_END_F
-master-bin.000001	16249	Table_map	1	16290	table_id: # (test.t1)
-master-bin.000001	16290	Write_rows	1	16324	table_id: # flags: STMT_END_F
-master-bin.000001	16324	Table_map	1	16365	table_id: # (test.t1)
-master-bin.000001	16365	Write_rows	1	16399	table_id: # flags: STMT_END_F
-master-bin.000001	16399	Table_map	1	16440	table_id: # (test.t1)
-master-bin.000001	16440	Write_rows	1	16474	table_id: # flags: STMT_END_F
-master-bin.000001	16474	Table_map	1	16515	table_id: # (test.t1)
-master-bin.000001	16515	Write_rows	1	16549	table_id: # flags: STMT_END_F
-master-bin.000001	16549	Table_map	1	16590	table_id: # (test.t1)
-master-bin.000001	16590	Write_rows	1	16624	table_id: # flags: STMT_END_F
-master-bin.000001	16624	Table_map	1	16665	table_id: # (test.t1)
-master-bin.000001	16665	Write_rows	1	16699	table_id: # flags: STMT_END_F
-master-bin.000001	16699	Table_map	1	16740	table_id: # (test.t1)
-master-bin.000001	16740	Write_rows	1	16774	table_id: # flags: STMT_END_F
-master-bin.000001	16774	Table_map	1	16815	table_id: # (test.t1)
-master-bin.000001	16815	Write_rows	1	16849	table_id: # flags: STMT_END_F
-master-bin.000001	16849	Table_map	1	16890	table_id: # (test.t1)
-master-bin.000001	16890	Write_rows	1	16924	table_id: # flags: STMT_END_F
-master-bin.000001	16924	Table_map	1	16965	table_id: # (test.t1)
-master-bin.000001	16965	Write_rows	1	16999	table_id: # flags: STMT_END_F
-master-bin.000001	16999	Table_map	1	17040	table_id: # (test.t1)
-master-bin.000001	17040	Write_rows	1	17074	table_id: # flags: STMT_END_F
-master-bin.000001	17074	Table_map	1	17115	table_id: # (test.t1)
-master-bin.000001	17115	Write_rows	1	17149	table_id: # flags: STMT_END_F
-master-bin.000001	17149	Table_map	1	17190	table_id: # (test.t1)
-master-bin.000001	17190	Write_rows	1	17224	table_id: # flags: STMT_END_F
-master-bin.000001	17224	Table_map	1	17265	table_id: # (test.t1)
-master-bin.000001	17265	Write_rows	1	17299	table_id: # flags: STMT_END_F
-master-bin.000001	17299	Table_map	1	17340	table_id: # (test.t1)
-master-bin.000001	17340	Write_rows	1	17374	table_id: # flags: STMT_END_F
-master-bin.000001	17374	Table_map	1	17415	table_id: # (test.t1)
-master-bin.000001	17415	Write_rows	1	17449	table_id: # flags: STMT_END_F
-master-bin.000001	17449	Table_map	1	17490	table_id: # (test.t1)
-master-bin.000001	17490	Write_rows	1	17524	table_id: # flags: STMT_END_F
-master-bin.000001	17524	Table_map	1	17565	table_id: # (test.t1)
-master-bin.000001	17565	Write_rows	1	17599	table_id: # flags: STMT_END_F
-master-bin.000001	17599	Table_map	1	17640	table_id: # (test.t1)
-master-bin.000001	17640	Write_rows	1	17674	table_id: # flags: STMT_END_F
-master-bin.000001	17674	Table_map	1	17715	table_id: # (test.t1)
-master-bin.000001	17715	Write_rows	1	17749	table_id: # flags: STMT_END_F
-master-bin.000001	17749	Table_map	1	17790	table_id: # (test.t1)
-master-bin.000001	17790	Write_rows	1	17824	table_id: # flags: STMT_END_F
-master-bin.000001	17824	Table_map	1	17865	table_id: # (test.t1)
-master-bin.000001	17865	Write_rows	1	17899	table_id: # flags: STMT_END_F
-master-bin.000001	17899	Table_map	1	17940	table_id: # (test.t1)
-master-bin.000001	17940	Write_rows	1	17974	table_id: # flags: STMT_END_F
-master-bin.000001	17974	Table_map	1	18015	table_id: # (test.t1)
-master-bin.000001	18015	Write_rows	1	18049	table_id: # flags: STMT_END_F
-master-bin.000001	18049	Table_map	1	18090	table_id: # (test.t1)
-master-bin.000001	18090	Write_rows	1	18124	table_id: # flags: STMT_END_F
-master-bin.000001	18124	Table_map	1	18165	table_id: # (test.t1)
-master-bin.000001	18165	Write_rows	1	18199	table_id: # flags: STMT_END_F
-master-bin.000001	18199	Table_map	1	18240	table_id: # (test.t1)
-master-bin.000001	18240	Write_rows	1	18274	table_id: # flags: STMT_END_F
-master-bin.000001	18274	Table_map	1	18315	table_id: # (test.t1)
-master-bin.000001	18315	Write_rows	1	18349	table_id: # flags: STMT_END_F
-master-bin.000001	18349	Table_map	1	18390	table_id: # (test.t1)
-master-bin.000001	18390	Write_rows	1	18424	table_id: # flags: STMT_END_F
-master-bin.000001	18424	Table_map	1	18465	table_id: # (test.t1)
-master-bin.000001	18465	Write_rows	1	18499	table_id: # flags: STMT_END_F
-master-bin.000001	18499	Table_map	1	18540	table_id: # (test.t1)
-master-bin.000001	18540	Write_rows	1	18574	table_id: # flags: STMT_END_F
-master-bin.000001	18574	Table_map	1	18615	table_id: # (test.t1)
-master-bin.000001	18615	Write_rows	1	18649	table_id: # flags: STMT_END_F
-master-bin.000001	18649	Table_map	1	18690	table_id: # (test.t1)
-master-bin.000001	18690	Write_rows	1	18724	table_id: # flags: STMT_END_F
-master-bin.000001	18724	Table_map	1	18765	table_id: # (test.t1)
-master-bin.000001	18765	Write_rows	1	18799	table_id: # flags: STMT_END_F
-master-bin.000001	18799	Table_map	1	18840	table_id: # (test.t1)
-master-bin.000001	18840	Write_rows	1	18874	table_id: # flags: STMT_END_F
-master-bin.000001	18874	Table_map	1	18915	table_id: # (test.t1)
-master-bin.000001	18915	Write_rows	1	18949	table_id: # flags: STMT_END_F
-master-bin.000001	18949	Table_map	1	18990	table_id: # (test.t1)
-master-bin.000001	18990	Write_rows	1	19024	table_id: # flags: STMT_END_F
-master-bin.000001	19024	Table_map	1	19065	table_id: # (test.t1)
-master-bin.000001	19065	Write_rows	1	19099	table_id: # flags: STMT_END_F
-master-bin.000001	19099	Table_map	1	19140	table_id: # (test.t1)
-master-bin.000001	19140	Write_rows	1	19174	table_id: # flags: STMT_END_F
-master-bin.000001	19174	Table_map	1	19215	table_id: # (test.t1)
-master-bin.000001	19215	Write_rows	1	19249	table_id: # flags: STMT_END_F
-master-bin.000001	19249	Table_map	1	19290	table_id: # (test.t1)
-master-bin.000001	19290	Write_rows	1	19324	table_id: # flags: STMT_END_F
-master-bin.000001	19324	Table_map	1	19365	table_id: # (test.t1)
-master-bin.000001	19365	Write_rows	1	19399	table_id: # flags: STMT_END_F
-master-bin.000001	19399	Table_map	1	19440	table_id: # (test.t1)
-master-bin.000001	19440	Write_rows	1	19474	table_id: # flags: STMT_END_F
-master-bin.000001	19474	Table_map	1	19515	table_id: # (test.t1)
-master-bin.000001	19515	Write_rows	1	19549	table_id: # flags: STMT_END_F
-master-bin.000001	19549	Table_map	1	19590	table_id: # (test.t1)
-master-bin.000001	19590	Write_rows	1	19624	table_id: # flags: STMT_END_F
-master-bin.000001	19624	Table_map	1	19665	table_id: # (test.t1)
-master-bin.000001	19665	Write_rows	1	19699	table_id: # flags: STMT_END_F
-master-bin.000001	19699	Table_map	1	19740	table_id: # (test.t1)
-master-bin.000001	19740	Write_rows	1	19774	table_id: # flags: STMT_END_F
-master-bin.000001	19774	Table_map	1	19815	table_id: # (test.t1)
-master-bin.000001	19815	Write_rows	1	19849	table_id: # flags: STMT_END_F
-master-bin.000001	19849	Table_map	1	19890	table_id: # (test.t1)
-master-bin.000001	19890	Write_rows	1	19924	table_id: # flags: STMT_END_F
-master-bin.000001	19924	Table_map	1	19965	table_id: # (test.t1)
-master-bin.000001	19965	Write_rows	1	19999	table_id: # flags: STMT_END_F
-master-bin.000001	19999	Table_map	1	20040	table_id: # (test.t1)
-master-bin.000001	20040	Write_rows	1	20074	table_id: # flags: STMT_END_F
-master-bin.000001	20074	Table_map	1	20115	table_id: # (test.t1)
-master-bin.000001	20115	Write_rows	1	20149	table_id: # flags: STMT_END_F
-master-bin.000001	20149	Table_map	1	20190	table_id: # (test.t1)
-master-bin.000001	20190	Write_rows	1	20224	table_id: # flags: STMT_END_F
-master-bin.000001	20224	Table_map	1	20265	table_id: # (test.t1)
-master-bin.000001	20265	Write_rows	1	20299	table_id: # flags: STMT_END_F
-master-bin.000001	20299	Table_map	1	20340	table_id: # (test.t1)
-master-bin.000001	20340	Write_rows	1	20374	table_id: # flags: STMT_END_F
-master-bin.000001	20374	Table_map	1	20415	table_id: # (test.t1)
-master-bin.000001	20415	Write_rows	1	20449	table_id: # flags: STMT_END_F
-master-bin.000001	20449	Table_map	1	20490	table_id: # (test.t1)
-master-bin.000001	20490	Write_rows	1	20524	table_id: # flags: STMT_END_F
-master-bin.000001	20524	Table_map	1	20565	table_id: # (test.t1)
-master-bin.000001	20565	Write_rows	1	20599	table_id: # flags: STMT_END_F
-master-bin.000001	20599	Table_map	1	20640	table_id: # (test.t1)
-master-bin.000001	20640	Write_rows	1	20674	table_id: # flags: STMT_END_F
-master-bin.000001	20674	Table_map	1	20715	table_id: # (test.t1)
-master-bin.000001	20715	Write_rows	1	20749	table_id: # flags: STMT_END_F
-master-bin.000001	20749	Table_map	1	20790	table_id: # (test.t1)
-master-bin.000001	20790	Write_rows	1	20824	table_id: # flags: STMT_END_F
-master-bin.000001	20824	Table_map	1	20865	table_id: # (test.t1)
-master-bin.000001	20865	Write_rows	1	20899	table_id: # flags: STMT_END_F
-master-bin.000001	20899	Table_map	1	20940	table_id: # (test.t1)
-master-bin.000001	20940	Write_rows	1	20974	table_id: # flags: STMT_END_F
-master-bin.000001	20974	Table_map	1	21015	table_id: # (test.t1)
-master-bin.000001	21015	Write_rows	1	21049	table_id: # flags: STMT_END_F
-master-bin.000001	21049	Table_map	1	21090	table_id: # (test.t1)
-master-bin.000001	21090	Write_rows	1	21124	table_id: # flags: STMT_END_F
-master-bin.000001	21124	Table_map	1	21165	table_id: # (test.t1)
-master-bin.000001	21165	Write_rows	1	21199	table_id: # flags: STMT_END_F
-master-bin.000001	21199	Table_map	1	21240	table_id: # (test.t1)
-master-bin.000001	21240	Write_rows	1	21274	table_id: # flags: STMT_END_F
-master-bin.000001	21274	Table_map	1	21315	table_id: # (test.t1)
-master-bin.000001	21315	Write_rows	1	21349	table_id: # flags: STMT_END_F
-master-bin.000001	21349	Table_map	1	21390	table_id: # (test.t1)
-master-bin.000001	21390	Write_rows	1	21424	table_id: # flags: STMT_END_F
-master-bin.000001	21424	Table_map	1	21465	table_id: # (test.t1)
-master-bin.000001	21465	Write_rows	1	21499	table_id: # flags: STMT_END_F
-master-bin.000001	21499	Table_map	1	21540	table_id: # (test.t1)
-master-bin.000001	21540	Write_rows	1	21574	table_id: # flags: STMT_END_F
-master-bin.000001	21574	Table_map	1	21615	table_id: # (test.t1)
-master-bin.000001	21615	Write_rows	1	21649	table_id: # flags: STMT_END_F
-master-bin.000001	21649	Table_map	1	21690	table_id: # (test.t1)
-master-bin.000001	21690	Write_rows	1	21724	table_id: # flags: STMT_END_F
-master-bin.000001	21724	Table_map	1	21765	table_id: # (test.t1)
-master-bin.000001	21765	Write_rows	1	21799	table_id: # flags: STMT_END_F
-master-bin.000001	21799	Table_map	1	21840	table_id: # (test.t1)
-master-bin.000001	21840	Write_rows	1	21874	table_id: # flags: STMT_END_F
-master-bin.000001	21874	Table_map	1	21915	table_id: # (test.t1)
-master-bin.000001	21915	Write_rows	1	21949	table_id: # flags: STMT_END_F
-master-bin.000001	21949	Table_map	1	21990	table_id: # (test.t1)
-master-bin.000001	21990	Write_rows	1	22024	table_id: # flags: STMT_END_F
-master-bin.000001	22024	Table_map	1	22065	table_id: # (test.t1)
-master-bin.000001	22065	Write_rows	1	22099	table_id: # flags: STMT_END_F
-master-bin.000001	22099	Table_map	1	22140	table_id: # (test.t1)
-master-bin.000001	22140	Write_rows	1	22174	table_id: # flags: STMT_END_F
-master-bin.000001	22174	Table_map	1	22215	table_id: # (test.t1)
-master-bin.000001	22215	Write_rows	1	22249	table_id: # flags: STMT_END_F
-master-bin.000001	22249	Table_map	1	22290	table_id: # (test.t1)
-master-bin.000001	22290	Write_rows	1	22324	table_id: # flags: STMT_END_F
-master-bin.000001	22324	Table_map	1	22365	table_id: # (test.t1)
-master-bin.000001	22365	Write_rows	1	22399	table_id: # flags: STMT_END_F
-master-bin.000001	22399	Table_map	1	22440	table_id: # (test.t1)
-master-bin.000001	22440	Write_rows	1	22474	table_id: # flags: STMT_END_F
-master-bin.000001	22474	Table_map	1	22515	table_id: # (test.t1)
-master-bin.000001	22515	Write_rows	1	22549	table_id: # flags: STMT_END_F
-master-bin.000001	22549	Table_map	1	22590	table_id: # (test.t1)
-master-bin.000001	22590	Write_rows	1	22624	table_id: # flags: STMT_END_F
-master-bin.000001	22624	Table_map	1	22665	table_id: # (test.t1)
-master-bin.000001	22665	Write_rows	1	22699	table_id: # flags: STMT_END_F
-master-bin.000001	22699	Table_map	1	22740	table_id: # (test.t1)
-master-bin.000001	22740	Write_rows	1	22774	table_id: # flags: STMT_END_F
-master-bin.000001	22774	Table_map	1	22815	table_id: # (test.t1)
-master-bin.000001	22815	Write_rows	1	22849	table_id: # flags: STMT_END_F
-master-bin.000001	22849	Table_map	1	22890	table_id: # (test.t1)
-master-bin.000001	22890	Write_rows	1	22924	table_id: # flags: STMT_END_F
-master-bin.000001	22924	Table_map	1	22965	table_id: # (test.t1)
-master-bin.000001	22965	Write_rows	1	22999	table_id: # flags: STMT_END_F
-master-bin.000001	22999	Table_map	1	23040	table_id: # (test.t1)
-master-bin.000001	23040	Write_rows	1	23074	table_id: # flags: STMT_END_F
-master-bin.000001	23074	Table_map	1	23115	table_id: # (test.t1)
-master-bin.000001	23115	Write_rows	1	23149	table_id: # flags: STMT_END_F
-master-bin.000001	23149	Table_map	1	23190	table_id: # (test.t1)
-master-bin.000001	23190	Write_rows	1	23224	table_id: # flags: STMT_END_F
-master-bin.000001	23224	Table_map	1	23265	table_id: # (test.t1)
-master-bin.000001	23265	Write_rows	1	23299	table_id: # flags: STMT_END_F
-master-bin.000001	23299	Table_map	1	23340	table_id: # (test.t1)
-master-bin.000001	23340	Write_rows	1	23374	table_id: # flags: STMT_END_F
-master-bin.000001	23374	Table_map	1	23415	table_id: # (test.t1)
-master-bin.000001	23415	Write_rows	1	23449	table_id: # flags: STMT_END_F
-master-bin.000001	23449	Table_map	1	23490	table_id: # (test.t1)
-master-bin.000001	23490	Write_rows	1	23524	table_id: # flags: STMT_END_F
-master-bin.000001	23524	Table_map	1	23565	table_id: # (test.t1)
-master-bin.000001	23565	Write_rows	1	23599	table_id: # flags: STMT_END_F
-master-bin.000001	23599	Table_map	1	23640	table_id: # (test.t1)
-master-bin.000001	23640	Write_rows	1	23674	table_id: # flags: STMT_END_F
-master-bin.000001	23674	Table_map	1	23715	table_id: # (test.t1)
-master-bin.000001	23715	Write_rows	1	23749	table_id: # flags: STMT_END_F
-master-bin.000001	23749	Table_map	1	23790	table_id: # (test.t1)
-master-bin.000001	23790	Write_rows	1	23824	table_id: # flags: STMT_END_F
-master-bin.000001	23824	Table_map	1	23865	table_id: # (test.t1)
-master-bin.000001	23865	Write_rows	1	23899	table_id: # flags: STMT_END_F
-master-bin.000001	23899	Table_map	1	23940	table_id: # (test.t1)
-master-bin.000001	23940	Write_rows	1	23974	table_id: # flags: STMT_END_F
-master-bin.000001	23974	Table_map	1	24015	table_id: # (test.t1)
-master-bin.000001	24015	Write_rows	1	24049	table_id: # flags: STMT_END_F
-master-bin.000001	24049	Table_map	1	24090	table_id: # (test.t1)
-master-bin.000001	24090	Write_rows	1	24124	table_id: # flags: STMT_END_F
-master-bin.000001	24124	Table_map	1	24165	table_id: # (test.t1)
-master-bin.000001	24165	Write_rows	1	24199	table_id: # flags: STMT_END_F
-master-bin.000001	24199	Table_map	1	24240	table_id: # (test.t1)
-master-bin.000001	24240	Write_rows	1	24274	table_id: # flags: STMT_END_F
-master-bin.000001	24274	Table_map	1	24315	table_id: # (test.t1)
-master-bin.000001	24315	Write_rows	1	24349	table_id: # flags: STMT_END_F
-master-bin.000001	24349	Table_map	1	24390	table_id: # (test.t1)
-master-bin.000001	24390	Write_rows	1	24424	table_id: # flags: STMT_END_F
-master-bin.000001	24424	Table_map	1	24465	table_id: # (test.t1)
-master-bin.000001	24465	Write_rows	1	24499	table_id: # flags: STMT_END_F
-master-bin.000001	24499	Table_map	1	24540	table_id: # (test.t1)
-master-bin.000001	24540	Write_rows	1	24574	table_id: # flags: STMT_END_F
-master-bin.000001	24574	Table_map	1	24615	table_id: # (test.t1)
-master-bin.000001	24615	Write_rows	1	24649	table_id: # flags: STMT_END_F
-master-bin.000001	24649	Table_map	1	24690	table_id: # (test.t1)
-master-bin.000001	24690	Write_rows	1	24724	table_id: # flags: STMT_END_F
-master-bin.000001	24724	Table_map	1	24765	table_id: # (test.t1)
-master-bin.000001	24765	Write_rows	1	24799	table_id: # flags: STMT_END_F
-master-bin.000001	24799	Table_map	1	24840	table_id: # (test.t1)
-master-bin.000001	24840	Write_rows	1	24874	table_id: # flags: STMT_END_F
-master-bin.000001	24874	Table_map	1	24915	table_id: # (test.t1)
-master-bin.000001	24915	Write_rows	1	24949	table_id: # flags: STMT_END_F
-master-bin.000001	24949	Table_map	1	24990	table_id: # (test.t1)
-master-bin.000001	24990	Write_rows	1	25024	table_id: # flags: STMT_END_F
-master-bin.000001	25024	Table_map	1	25065	table_id: # (test.t1)
-master-bin.000001	25065	Write_rows	1	25099	table_id: # flags: STMT_END_F
-master-bin.000001	25099	Table_map	1	25140	table_id: # (test.t1)
-master-bin.000001	25140	Write_rows	1	25174	table_id: # flags: STMT_END_F
-master-bin.000001	25174	Table_map	1	25215	table_id: # (test.t1)
-master-bin.000001	25215	Write_rows	1	25249	table_id: # flags: STMT_END_F
-master-bin.000001	25249	Table_map	1	25290	table_id: # (test.t1)
-master-bin.000001	25290	Write_rows	1	25324	table_id: # flags: STMT_END_F
-master-bin.000001	25324	Table_map	1	25365	table_id: # (test.t1)
-master-bin.000001	25365	Write_rows	1	25399	table_id: # flags: STMT_END_F
-master-bin.000001	25399	Table_map	1	25440	table_id: # (test.t1)
-master-bin.000001	25440	Write_rows	1	25474	table_id: # flags: STMT_END_F
-master-bin.000001	25474	Table_map	1	25515	table_id: # (test.t1)
-master-bin.000001	25515	Write_rows	1	25549	table_id: # flags: STMT_END_F
-master-bin.000001	25549	Table_map	1	25590	table_id: # (test.t1)
-master-bin.000001	25590	Write_rows	1	25624	table_id: # flags: STMT_END_F
-master-bin.000001	25624	Table_map	1	25665	table_id: # (test.t1)
-master-bin.000001	25665	Write_rows	1	25699	table_id: # flags: STMT_END_F
-master-bin.000001	25699	Table_map	1	25740	table_id: # (test.t1)
-master-bin.000001	25740	Write_rows	1	25774	table_id: # flags: STMT_END_F
-master-bin.000001	25774	Table_map	1	25815	table_id: # (test.t1)
-master-bin.000001	25815	Write_rows	1	25849	table_id: # flags: STMT_END_F
-master-bin.000001	25849	Table_map	1	25890	table_id: # (test.t1)
-master-bin.000001	25890	Write_rows	1	25924	table_id: # flags: STMT_END_F
-master-bin.000001	25924	Table_map	1	25965	table_id: # (test.t1)
-master-bin.000001	25965	Write_rows	1	25999	table_id: # flags: STMT_END_F
-master-bin.000001	25999	Table_map	1	26040	table_id: # (test.t1)
-master-bin.000001	26040	Write_rows	1	26074	table_id: # flags: STMT_END_F
-master-bin.000001	26074	Table_map	1	26115	table_id: # (test.t1)
-master-bin.000001	26115	Write_rows	1	26149	table_id: # flags: STMT_END_F
-master-bin.000001	26149	Table_map	1	26190	table_id: # (test.t1)
-master-bin.000001	26190	Write_rows	1	26224	table_id: # flags: STMT_END_F
-master-bin.000001	26224	Table_map	1	26265	table_id: # (test.t1)
-master-bin.000001	26265	Write_rows	1	26299	table_id: # flags: STMT_END_F
-master-bin.000001	26299	Table_map	1	26340	table_id: # (test.t1)
-master-bin.000001	26340	Write_rows	1	26374	table_id: # flags: STMT_END_F
-master-bin.000001	26374	Table_map	1	26415	table_id: # (test.t1)
-master-bin.000001	26415	Write_rows	1	26449	table_id: # flags: STMT_END_F
-master-bin.000001	26449	Table_map	1	26490	table_id: # (test.t1)
-master-bin.000001	26490	Write_rows	1	26524	table_id: # flags: STMT_END_F
-master-bin.000001	26524	Table_map	1	26565	table_id: # (test.t1)
-master-bin.000001	26565	Write_rows	1	26599	table_id: # flags: STMT_END_F
-master-bin.000001	26599	Table_map	1	26640	table_id: # (test.t1)
-master-bin.000001	26640	Write_rows	1	26674	table_id: # flags: STMT_END_F
-master-bin.000001	26674	Table_map	1	26715	table_id: # (test.t1)
-master-bin.000001	26715	Write_rows	1	26749	table_id: # flags: STMT_END_F
-master-bin.000001	26749	Table_map	1	26790	table_id: # (test.t1)
-master-bin.000001	26790	Write_rows	1	26824	table_id: # flags: STMT_END_F
-master-bin.000001	26824	Table_map	1	26865	table_id: # (test.t1)
-master-bin.000001	26865	Write_rows	1	26899	table_id: # flags: STMT_END_F
-master-bin.000001	26899	Table_map	1	26940	table_id: # (test.t1)
-master-bin.000001	26940	Write_rows	1	26974	table_id: # flags: STMT_END_F
-master-bin.000001	26974	Table_map	1	27015	table_id: # (test.t1)
-master-bin.000001	27015	Write_rows	1	27049	table_id: # flags: STMT_END_F
-master-bin.000001	27049	Table_map	1	27090	table_id: # (test.t1)
-master-bin.000001	27090	Write_rows	1	27124	table_id: # flags: STMT_END_F
-master-bin.000001	27124	Table_map	1	27165	table_id: # (test.t1)
-master-bin.000001	27165	Write_rows	1	27199	table_id: # flags: STMT_END_F
-master-bin.000001	27199	Table_map	1	27240	table_id: # (test.t1)
-master-bin.000001	27240	Write_rows	1	27274	table_id: # flags: STMT_END_F
-master-bin.000001	27274	Table_map	1	27315	table_id: # (test.t1)
-master-bin.000001	27315	Write_rows	1	27349	table_id: # flags: STMT_END_F
-master-bin.000001	27349	Table_map	1	27390	table_id: # (test.t1)
-master-bin.000001	27390	Write_rows	1	27424	table_id: # flags: STMT_END_F
-master-bin.000001	27424	Table_map	1	27465	table_id: # (test.t1)
-master-bin.000001	27465	Write_rows	1	27499	table_id: # flags: STMT_END_F
-master-bin.000001	27499	Table_map	1	27540	table_id: # (test.t1)
-master-bin.000001	27540	Write_rows	1	27574	table_id: # flags: STMT_END_F
-master-bin.000001	27574	Table_map	1	27615	table_id: # (test.t1)
-master-bin.000001	27615	Write_rows	1	27649	table_id: # flags: STMT_END_F
-master-bin.000001	27649	Table_map	1	27690	table_id: # (test.t1)
-master-bin.000001	27690	Write_rows	1	27724	table_id: # flags: STMT_END_F
-master-bin.000001	27724	Table_map	1	27765	table_id: # (test.t1)
-master-bin.000001	27765	Write_rows	1	27799	table_id: # flags: STMT_END_F
-master-bin.000001	27799	Table_map	1	27840	table_id: # (test.t1)
-master-bin.000001	27840	Write_rows	1	27874	table_id: # flags: STMT_END_F
-master-bin.000001	27874	Table_map	1	27915	table_id: # (test.t1)
-master-bin.000001	27915	Write_rows	1	27949	table_id: # flags: STMT_END_F
-master-bin.000001	27949	Table_map	1	27990	table_id: # (test.t1)
-master-bin.000001	27990	Write_rows	1	28024	table_id: # flags: STMT_END_F
-master-bin.000001	28024	Table_map	1	28065	table_id: # (test.t1)
-master-bin.000001	28065	Write_rows	1	28099	table_id: # flags: STMT_END_F
-master-bin.000001	28099	Table_map	1	28140	table_id: # (test.t1)
-master-bin.000001	28140	Write_rows	1	28174	table_id: # flags: STMT_END_F
-master-bin.000001	28174	Table_map	1	28215	table_id: # (test.t1)
-master-bin.000001	28215	Write_rows	1	28249	table_id: # flags: STMT_END_F
-master-bin.000001	28249	Table_map	1	28290	table_id: # (test.t1)
-master-bin.000001	28290	Write_rows	1	28324	table_id: # flags: STMT_END_F
-master-bin.000001	28324	Table_map	1	28365	table_id: # (test.t1)
-master-bin.000001	28365	Write_rows	1	28399	table_id: # flags: STMT_END_F
-master-bin.000001	28399	Table_map	1	28440	table_id: # (test.t1)
-master-bin.000001	28440	Write_rows	1	28474	table_id: # flags: STMT_END_F
-master-bin.000001	28474	Table_map	1	28515	table_id: # (test.t1)
-master-bin.000001	28515	Write_rows	1	28549	table_id: # flags: STMT_END_F
-master-bin.000001	28549	Table_map	1	28590	table_id: # (test.t1)
-master-bin.000001	28590	Write_rows	1	28624	table_id: # flags: STMT_END_F
-master-bin.000001	28624	Table_map	1	28665	table_id: # (test.t1)
-master-bin.000001	28665	Write_rows	1	28699	table_id: # flags: STMT_END_F
-master-bin.000001	28699	Table_map	1	28740	table_id: # (test.t1)
-master-bin.000001	28740	Write_rows	1	28774	table_id: # flags: STMT_END_F
-master-bin.000001	28774	Table_map	1	28815	table_id: # (test.t1)
-master-bin.000001	28815	Write_rows	1	28849	table_id: # flags: STMT_END_F
-master-bin.000001	28849	Table_map	1	28890	table_id: # (test.t1)
-master-bin.000001	28890	Write_rows	1	28924	table_id: # flags: STMT_END_F
-master-bin.000001	28924	Table_map	1	28965	table_id: # (test.t1)
-master-bin.000001	28965	Write_rows	1	28999	table_id: # flags: STMT_END_F
-master-bin.000001	28999	Table_map	1	29040	table_id: # (test.t1)
-master-bin.000001	29040	Write_rows	1	29074	table_id: # flags: STMT_END_F
-master-bin.000001	29074	Table_map	1	29115	table_id: # (test.t1)
-master-bin.000001	29115	Write_rows	1	29149	table_id: # flags: STMT_END_F
-master-bin.000001	29149	Table_map	1	29190	table_id: # (test.t1)
-master-bin.000001	29190	Write_rows	1	29224	table_id: # flags: STMT_END_F
-master-bin.000001	29224	Table_map	1	29265	table_id: # (test.t1)
-master-bin.000001	29265	Write_rows	1	29299	table_id: # flags: STMT_END_F
-master-bin.000001	29299	Table_map	1	29340	table_id: # (test.t1)
-master-bin.000001	29340	Write_rows	1	29374	table_id: # flags: STMT_END_F
-master-bin.000001	29374	Table_map	1	29415	table_id: # (test.t1)
-master-bin.000001	29415	Write_rows	1	29449	table_id: # flags: STMT_END_F
-master-bin.000001	29449	Table_map	1	29490	table_id: # (test.t1)
-master-bin.000001	29490	Write_rows	1	29524	table_id: # flags: STMT_END_F
-master-bin.000001	29524	Table_map	1	29565	table_id: # (test.t1)
-master-bin.000001	29565	Write_rows	1	29599	table_id: # flags: STMT_END_F
-master-bin.000001	29599	Table_map	1	29640	table_id: # (test.t1)
-master-bin.000001	29640	Write_rows	1	29674	table_id: # flags: STMT_END_F
-master-bin.000001	29674	Table_map	1	29715	table_id: # (test.t1)
-master-bin.000001	29715	Write_rows	1	29749	table_id: # flags: STMT_END_F
-master-bin.000001	29749	Table_map	1	29790	table_id: # (test.t1)
-master-bin.000001	29790	Write_rows	1	29824	table_id: # flags: STMT_END_F
-master-bin.000001	29824	Table_map	1	29865	table_id: # (test.t1)
-master-bin.000001	29865	Write_rows	1	29899	table_id: # flags: STMT_END_F
-master-bin.000001	29899	Table_map	1	29940	table_id: # (test.t1)
-master-bin.000001	29940	Write_rows	1	29974	table_id: # flags: STMT_END_F
-master-bin.000001	29974	Table_map	1	30015	table_id: # (test.t1)
-master-bin.000001	30015	Write_rows	1	30049	table_id: # flags: STMT_END_F
-master-bin.000001	30049	Table_map	1	30090	table_id: # (test.t1)
-master-bin.000001	30090	Write_rows	1	30124	table_id: # flags: STMT_END_F
-master-bin.000001	30124	Table_map	1	30165	table_id: # (test.t1)
-master-bin.000001	30165	Write_rows	1	30199	table_id: # flags: STMT_END_F
-master-bin.000001	30199	Table_map	1	30240	table_id: # (test.t1)
-master-bin.000001	30240	Write_rows	1	30274	table_id: # flags: STMT_END_F
-master-bin.000001	30274	Xid	1	30301	COMMIT /* XID */
-master-bin.000001	30301	Rotate	1	30345	master-bin.000002;pos=4
+master-bin.000001	499	Xid	1	526	COMMIT /* XID */
+master-bin.000001	526	Query	1	602	use `test`; drop table t1
+set @bcs = @@binlog_cache_size;
+set global binlog_cache_size=4096;
+reset master;
+create table t1 (a int) engine=innodb;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	207	use `test`; create table t1 (a int) engine=innodb
+master-bin.000001	207	Query	1	275	BEGIN
+master-bin.000001	275	Table_map	1	316	table_id: # (test.t1)
+master-bin.000001	316	Write_rows	1	350	table_id: # flags: STMT_END_F
+master-bin.000001	350	Table_map	1	391	table_id: # (test.t1)
+master-bin.000001	391	Write_rows	1	425	table_id: # flags: STMT_END_F
+master-bin.000001	425	Table_map	1	466	table_id: # (test.t1)
+master-bin.000001	466	Write_rows	1	500	table_id: # flags: STMT_END_F
+master-bin.000001	500	Table_map	1	541	table_id: # (test.t1)
+master-bin.000001	541	Write_rows	1	575	table_id: # flags: STMT_END_F
+master-bin.000001	575	Table_map	1	616	table_id: # (test.t1)
+master-bin.000001	616	Write_rows	1	650	table_id: # flags: STMT_END_F
+master-bin.000001	650	Table_map	1	691	table_id: # (test.t1)
+master-bin.000001	691	Write_rows	1	725	table_id: # flags: STMT_END_F
+master-bin.000001	725	Table_map	1	766	table_id: # (test.t1)
+master-bin.000001	766	Write_rows	1	800	table_id: # flags: STMT_END_F
+master-bin.000001	800	Table_map	1	841	table_id: # (test.t1)
+master-bin.000001	841	Write_rows	1	875	table_id: # flags: STMT_END_F
+master-bin.000001	875	Table_map	1	916	table_id: # (test.t1)
+master-bin.000001	916	Write_rows	1	950	table_id: # flags: STMT_END_F
+master-bin.000001	950	Table_map	1	991	table_id: # (test.t1)
+master-bin.000001	991	Write_rows	1	1025	table_id: # flags: STMT_END_F
+master-bin.000001	1025	Table_map	1	1066	table_id: # (test.t1)
+master-bin.000001	1066	Write_rows	1	1100	table_id: # flags: STMT_END_F
+master-bin.000001	1100	Table_map	1	1141	table_id: # (test.t1)
+master-bin.000001	1141	Write_rows	1	1175	table_id: # flags: STMT_END_F
+master-bin.000001	1175	Table_map	1	1216	table_id: # (test.t1)
+master-bin.000001	1216	Write_rows	1	1250	table_id: # flags: STMT_END_F
+master-bin.000001	1250	Table_map	1	1291	table_id: # (test.t1)
+master-bin.000001	1291	Write_rows	1	1325	table_id: # flags: STMT_END_F
+master-bin.000001	1325	Table_map	1	1366	table_id: # (test.t1)
+master-bin.000001	1366	Write_rows	1	1400	table_id: # flags: STMT_END_F
+master-bin.000001	1400	Table_map	1	1441	table_id: # (test.t1)
+master-bin.000001	1441	Write_rows	1	1475	table_id: # flags: STMT_END_F
+master-bin.000001	1475	Table_map	1	1516	table_id: # (test.t1)
+master-bin.000001	1516	Write_rows	1	1550	table_id: # flags: STMT_END_F
+master-bin.000001	1550	Table_map	1	1591	table_id: # (test.t1)
+master-bin.000001	1591	Write_rows	1	1625	table_id: # flags: STMT_END_F
+master-bin.000001	1625	Table_map	1	1666	table_id: # (test.t1)
+master-bin.000001	1666	Write_rows	1	1700	table_id: # flags: STMT_END_F
+master-bin.000001	1700	Table_map	1	1741	table_id: # (test.t1)
+master-bin.000001	1741	Write_rows	1	1775	table_id: # flags: STMT_END_F
+master-bin.000001	1775	Table_map	1	1816	table_id: # (test.t1)
+master-bin.000001	1816	Write_rows	1	1850	table_id: # flags: STMT_END_F
+master-bin.000001	1850	Table_map	1	1891	table_id: # (test.t1)
+master-bin.000001	1891	Write_rows	1	1925	table_id: # flags: STMT_END_F
+master-bin.000001	1925	Table_map	1	1966	table_id: # (test.t1)
+master-bin.000001	1966	Write_rows	1	2000	table_id: # flags: STMT_END_F
+master-bin.000001	2000	Table_map	1	2041	table_id: # (test.t1)
+master-bin.000001	2041	Write_rows	1	2075	table_id: # flags: STMT_END_F
+master-bin.000001	2075	Table_map	1	2116	table_id: # (test.t1)
+master-bin.000001	2116	Write_rows	1	2150	table_id: # flags: STMT_END_F
+master-bin.000001	2150	Table_map	1	2191	table_id: # (test.t1)
+master-bin.000001	2191	Write_rows	1	2225	table_id: # flags: STMT_END_F
+master-bin.000001	2225	Table_map	1	2266	table_id: # (test.t1)
+master-bin.000001	2266	Write_rows	1	2300	table_id: # flags: STMT_END_F
+master-bin.000001	2300	Table_map	1	2341	table_id: # (test.t1)
+master-bin.000001	2341	Write_rows	1	2375	table_id: # flags: STMT_END_F
+master-bin.000001	2375	Table_map	1	2416	table_id: # (test.t1)
+master-bin.000001	2416	Write_rows	1	2450	table_id: # flags: STMT_END_F
+master-bin.000001	2450	Table_map	1	2491	table_id: # (test.t1)
+master-bin.000001	2491	Write_rows	1	2525	table_id: # flags: STMT_END_F
+master-bin.000001	2525	Table_map	1	2566	table_id: # (test.t1)
+master-bin.000001	2566	Write_rows	1	2600	table_id: # flags: STMT_END_F
+master-bin.000001	2600	Table_map	1	2641	table_id: # (test.t1)
+master-bin.000001	2641	Write_rows	1	2675	table_id: # flags: STMT_END_F
+master-bin.000001	2675	Table_map	1	2716	table_id: # (test.t1)
+master-bin.000001	2716	Write_rows	1	2750	table_id: # flags: STMT_END_F
+master-bin.000001	2750	Table_map	1	2791	table_id: # (test.t1)
+master-bin.000001	2791	Write_rows	1	2825	table_id: # flags: STMT_END_F
+master-bin.000001	2825	Table_map	1	2866	table_id: # (test.t1)
+master-bin.000001	2866	Write_rows	1	2900	table_id: # flags: STMT_END_F
+master-bin.000001	2900	Table_map	1	2941	table_id: # (test.t1)
+master-bin.000001	2941	Write_rows	1	2975	table_id: # flags: STMT_END_F
+master-bin.000001	2975	Table_map	1	3016	table_id: # (test.t1)
+master-bin.000001	3016	Write_rows	1	3050	table_id: # flags: STMT_END_F
+master-bin.000001	3050	Table_map	1	3091	table_id: # (test.t1)
+master-bin.000001	3091	Write_rows	1	3125	table_id: # flags: STMT_END_F
+master-bin.000001	3125	Table_map	1	3166	table_id: # (test.t1)
+master-bin.000001	3166	Write_rows	1	3200	table_id: # flags: STMT_END_F
+master-bin.000001	3200	Table_map	1	3241	table_id: # (test.t1)
+master-bin.000001	3241	Write_rows	1	3275	table_id: # flags: STMT_END_F
+master-bin.000001	3275	Table_map	1	3316	table_id: # (test.t1)
+master-bin.000001	3316	Write_rows	1	3350	table_id: # flags: STMT_END_F
+master-bin.000001	3350	Table_map	1	3391	table_id: # (test.t1)
+master-bin.000001	3391	Write_rows	1	3425	table_id: # flags: STMT_END_F
+master-bin.000001	3425	Table_map	1	3466	table_id: # (test.t1)
+master-bin.000001	3466	Write_rows	1	3500	table_id: # flags: STMT_END_F
+master-bin.000001	3500	Table_map	1	3541	table_id: # (test.t1)
+master-bin.000001	3541	Write_rows	1	3575	table_id: # flags: STMT_END_F
+master-bin.000001	3575	Table_map	1	3616	table_id: # (test.t1)
+master-bin.000001	3616	Write_rows	1	3650	table_id: # flags: STMT_END_F
+master-bin.000001	3650	Table_map	1	3691	table_id: # (test.t1)
+master-bin.000001	3691	Write_rows	1	3725	table_id: # flags: STMT_END_F
+master-bin.000001	3725	Table_map	1	3766	table_id: # (test.t1)
+master-bin.000001	3766	Write_rows	1	3800	table_id: # flags: STMT_END_F
+master-bin.000001	3800	Table_map	1	3841	table_id: # (test.t1)
+master-bin.000001	3841	Write_rows	1	3875	table_id: # flags: STMT_END_F
+master-bin.000001	3875	Table_map	1	3916	table_id: # (test.t1)
+master-bin.000001	3916	Write_rows	1	3950	table_id: # flags: STMT_END_F
+master-bin.000001	3950	Table_map	1	3991	table_id: # (test.t1)
+master-bin.000001	3991	Write_rows	1	4025	table_id: # flags: STMT_END_F
+master-bin.000001	4025	Table_map	1	4066	table_id: # (test.t1)
+master-bin.000001	4066	Write_rows	1	4100	table_id: # flags: STMT_END_F
+master-bin.000001	4100	Table_map	1	4141	table_id: # (test.t1)
+master-bin.000001	4141	Write_rows	1	4175	table_id: # flags: STMT_END_F
+master-bin.000001	4175	Table_map	1	4216	table_id: # (test.t1)
+master-bin.000001	4216	Write_rows	1	4250	table_id: # flags: STMT_END_F
+master-bin.000001	4250	Table_map	1	4291	table_id: # (test.t1)
+master-bin.000001	4291	Write_rows	1	4325	table_id: # flags: STMT_END_F
+master-bin.000001	4325	Table_map	1	4366	table_id: # (test.t1)
+master-bin.000001	4366	Write_rows	1	4400	table_id: # flags: STMT_END_F
+master-bin.000001	4400	Table_map	1	4441	table_id: # (test.t1)
+master-bin.000001	4441	Write_rows	1	4475	table_id: # flags: STMT_END_F
+master-bin.000001	4475	Table_map	1	4516	table_id: # (test.t1)
+master-bin.000001	4516	Write_rows	1	4550	table_id: # flags: STMT_END_F
+master-bin.000001	4550	Table_map	1	4591	table_id: # (test.t1)
+master-bin.000001	4591	Write_rows	1	4625	table_id: # flags: STMT_END_F
+master-bin.000001	4625	Table_map	1	4666	table_id: # (test.t1)
+master-bin.000001	4666	Write_rows	1	4700	table_id: # flags: STMT_END_F
+master-bin.000001	4700	Table_map	1	4741	table_id: # (test.t1)
+master-bin.000001	4741	Write_rows	1	4775	table_id: # flags: STMT_END_F
+master-bin.000001	4775	Table_map	1	4816	table_id: # (test.t1)
+master-bin.000001	4816	Write_rows	1	4850	table_id: # flags: STMT_END_F
+master-bin.000001	4850	Table_map	1	4891	table_id: # (test.t1)
+master-bin.000001	4891	Write_rows	1	4925	table_id: # flags: STMT_END_F
+master-bin.000001	4925	Table_map	1	4966	table_id: # (test.t1)
+master-bin.000001	4966	Write_rows	1	5000	table_id: # flags: STMT_END_F
+master-bin.000001	5000	Table_map	1	5041	table_id: # (test.t1)
+master-bin.000001	5041	Write_rows	1	5075	table_id: # flags: STMT_END_F
+master-bin.000001	5075	Table_map	1	5116	table_id: # (test.t1)
+master-bin.000001	5116	Write_rows	1	5150	table_id: # flags: STMT_END_F
+master-bin.000001	5150	Table_map	1	5191	table_id: # (test.t1)
+master-bin.000001	5191	Write_rows	1	5225	table_id: # flags: STMT_END_F
+master-bin.000001	5225	Table_map	1	5266	table_id: # (test.t1)
+master-bin.000001	5266	Write_rows	1	5300	table_id: # flags: STMT_END_F
+master-bin.000001	5300	Table_map	1	5341	table_id: # (test.t1)
+master-bin.000001	5341	Write_rows	1	5375	table_id: # flags: STMT_END_F
+master-bin.000001	5375	Table_map	1	5416	table_id: # (test.t1)
+master-bin.000001	5416	Write_rows	1	5450	table_id: # flags: STMT_END_F
+master-bin.000001	5450	Table_map	1	5491	table_id: # (test.t1)
+master-bin.000001	5491	Write_rows	1	5525	table_id: # flags: STMT_END_F
+master-bin.000001	5525	Table_map	1	5566	table_id: # (test.t1)
+master-bin.000001	5566	Write_rows	1	5600	table_id: # flags: STMT_END_F
+master-bin.000001	5600	Table_map	1	5641	table_id: # (test.t1)
+master-bin.000001	5641	Write_rows	1	5675	table_id: # flags: STMT_END_F
+master-bin.000001	5675	Table_map	1	5716	table_id: # (test.t1)
+master-bin.000001	5716	Write_rows	1	5750	table_id: # flags: STMT_END_F
+master-bin.000001	5750	Table_map	1	5791	table_id: # (test.t1)
+master-bin.000001	5791	Write_rows	1	5825	table_id: # flags: STMT_END_F
+master-bin.000001	5825	Table_map	1	5866	table_id: # (test.t1)
+master-bin.000001	5866	Write_rows	1	5900	table_id: # flags: STMT_END_F
+master-bin.000001	5900	Table_map	1	5941	table_id: # (test.t1)
+master-bin.000001	5941	Write_rows	1	5975	table_id: # flags: STMT_END_F
+master-bin.000001	5975	Table_map	1	6016	table_id: # (test.t1)
+master-bin.000001	6016	Write_rows	1	6050	table_id: # flags: STMT_END_F
+master-bin.000001	6050	Table_map	1	6091	table_id: # (test.t1)
+master-bin.000001	6091	Write_rows	1	6125	table_id: # flags: STMT_END_F
+master-bin.000001	6125	Table_map	1	6166	table_id: # (test.t1)
+master-bin.000001	6166	Write_rows	1	6200	table_id: # flags: STMT_END_F
+master-bin.000001	6200	Table_map	1	6241	table_id: # (test.t1)
+master-bin.000001	6241	Write_rows	1	6275	table_id: # flags: STMT_END_F
+master-bin.000001	6275	Table_map	1	6316	table_id: # (test.t1)
+master-bin.000001	6316	Write_rows	1	6350	table_id: # flags: STMT_END_F
+master-bin.000001	6350	Table_map	1	6391	table_id: # (test.t1)
+master-bin.000001	6391	Write_rows	1	6425	table_id: # flags: STMT_END_F
+master-bin.000001	6425	Table_map	1	6466	table_id: # (test.t1)
+master-bin.000001	6466	Write_rows	1	6500	table_id: # flags: STMT_END_F
+master-bin.000001	6500	Table_map	1	6541	table_id: # (test.t1)
+master-bin.000001	6541	Write_rows	1	6575	table_id: # flags: STMT_END_F
+master-bin.000001	6575	Table_map	1	6616	table_id: # (test.t1)
+master-bin.000001	6616	Write_rows	1	6650	table_id: # flags: STMT_END_F
+master-bin.000001	6650	Table_map	1	6691	table_id: # (test.t1)
+master-bin.000001	6691	Write_rows	1	6725	table_id: # flags: STMT_END_F
+master-bin.000001	6725	Table_map	1	6766	table_id: # (test.t1)
+master-bin.000001	6766	Write_rows	1	6800	table_id: # flags: STMT_END_F
+master-bin.000001	6800	Table_map	1	6841	table_id: # (test.t1)
+master-bin.000001	6841	Write_rows	1	6875	table_id: # flags: STMT_END_F
+master-bin.000001	6875	Table_map	1	6916	table_id: # (test.t1)
+master-bin.000001	6916	Write_rows	1	6950	table_id: # flags: STMT_END_F
+master-bin.000001	6950	Table_map	1	6991	table_id: # (test.t1)
+master-bin.000001	6991	Write_rows	1	7025	table_id: # flags: STMT_END_F
+master-bin.000001	7025	Table_map	1	7066	table_id: # (test.t1)
+master-bin.000001	7066	Write_rows	1	7100	table_id: # flags: STMT_END_F
+master-bin.000001	7100	Table_map	1	7141	table_id: # (test.t1)
+master-bin.000001	7141	Write_rows	1	7175	table_id: # flags: STMT_END_F
+master-bin.000001	7175	Table_map	1	7216	table_id: # (test.t1)
+master-bin.000001	7216	Write_rows	1	7250	table_id: # flags: STMT_END_F
+master-bin.000001	7250	Table_map	1	7291	table_id: # (test.t1)
+master-bin.000001	7291	Write_rows	1	7325	table_id: # flags: STMT_END_F
+master-bin.000001	7325	Table_map	1	7366	table_id: # (test.t1)
+master-bin.000001	7366	Write_rows	1	7400	table_id: # flags: STMT_END_F
+master-bin.000001	7400	Table_map	1	7441	table_id: # (test.t1)
+master-bin.000001	7441	Write_rows	1	7475	table_id: # flags: STMT_END_F
+master-bin.000001	7475	Table_map	1	7516	table_id: # (test.t1)
+master-bin.000001	7516	Write_rows	1	7550	table_id: # flags: STMT_END_F
+master-bin.000001	7550	Table_map	1	7591	table_id: # (test.t1)
+master-bin.000001	7591	Write_rows	1	7625	table_id: # flags: STMT_END_F
+master-bin.000001	7625	Table_map	1	7666	table_id: # (test.t1)
+master-bin.000001	7666	Write_rows	1	7700	table_id: # flags: STMT_END_F
+master-bin.000001	7700	Table_map	1	7741	table_id: # (test.t1)
+master-bin.000001	7741	Write_rows	1	7775	table_id: # flags: STMT_END_F
+master-bin.000001	7775	Table_map	1	7816	table_id: # (test.t1)
+master-bin.000001	7816	Write_rows	1	7850	table_id: # flags: STMT_END_F
+master-bin.000001	7850	Table_map	1	7891	table_id: # (test.t1)
+master-bin.000001	7891	Write_rows	1	7925	table_id: # flags: STMT_END_F
+master-bin.000001	7925	Table_map	1	7966	table_id: # (test.t1)
+master-bin.000001	7966	Write_rows	1	8000	table_id: # flags: STMT_END_F
+master-bin.000001	8000	Table_map	1	8041	table_id: # (test.t1)
+master-bin.000001	8041	Write_rows	1	8075	table_id: # flags: STMT_END_F
+master-bin.000001	8075	Table_map	1	8116	table_id: # (test.t1)
+master-bin.000001	8116	Write_rows	1	8150	table_id: # flags: STMT_END_F
+master-bin.000001	8150	Table_map	1	8191	table_id: # (test.t1)
+master-bin.000001	8191	Write_rows	1	8225	table_id: # flags: STMT_END_F
+master-bin.000001	8225	Table_map	1	8266	table_id: # (test.t1)
+master-bin.000001	8266	Write_rows	1	8300	table_id: # flags: STMT_END_F
+master-bin.000001	8300	Table_map	1	8341	table_id: # (test.t1)
+master-bin.000001	8341	Write_rows	1	8375	table_id: # flags: STMT_END_F
+master-bin.000001	8375	Table_map	1	8416	table_id: # (test.t1)
+master-bin.000001	8416	Write_rows	1	8450	table_id: # flags: STMT_END_F
+master-bin.000001	8450	Table_map	1	8491	table_id: # (test.t1)
+master-bin.000001	8491	Write_rows	1	8525	table_id: # flags: STMT_END_F
+master-bin.000001	8525	Table_map	1	8566	table_id: # (test.t1)
+master-bin.000001	8566	Write_rows	1	8600	table_id: # flags: STMT_END_F
+master-bin.000001	8600	Table_map	1	8641	table_id: # (test.t1)
+master-bin.000001	8641	Write_rows	1	8675	table_id: # flags: STMT_END_F
+master-bin.000001	8675	Table_map	1	8716	table_id: # (test.t1)
+master-bin.000001	8716	Write_rows	1	8750	table_id: # flags: STMT_END_F
+master-bin.000001	8750	Table_map	1	8791	table_id: # (test.t1)
+master-bin.000001	8791	Write_rows	1	8825	table_id: # flags: STMT_END_F
+master-bin.000001	8825	Table_map	1	8866	table_id: # (test.t1)
+master-bin.000001	8866	Write_rows	1	8900	table_id: # flags: STMT_END_F
+master-bin.000001	8900	Table_map	1	8941	table_id: # (test.t1)
+master-bin.000001	8941	Write_rows	1	8975	table_id: # flags: STMT_END_F
+master-bin.000001	8975	Table_map	1	9016	table_id: # (test.t1)
+master-bin.000001	9016	Write_rows	1	9050	table_id: # flags: STMT_END_F
+master-bin.000001	9050	Table_map	1	9091	table_id: # (test.t1)
+master-bin.000001	9091	Write_rows	1	9125	table_id: # flags: STMT_END_F
+master-bin.000001	9125	Table_map	1	9166	table_id: # (test.t1)
+master-bin.000001	9166	Write_rows	1	9200	table_id: # flags: STMT_END_F
+master-bin.000001	9200	Table_map	1	9241	table_id: # (test.t1)
+master-bin.000001	9241	Write_rows	1	9275	table_id: # flags: STMT_END_F
+master-bin.000001	9275	Table_map	1	9316	table_id: # (test.t1)
+master-bin.000001	9316	Write_rows	1	9350	table_id: # flags: STMT_END_F
+master-bin.000001	9350	Table_map	1	9391	table_id: # (test.t1)
+master-bin.000001	9391	Write_rows	1	9425	table_id: # flags: STMT_END_F
+master-bin.000001	9425	Table_map	1	9466	table_id: # (test.t1)
+master-bin.000001	9466	Write_rows	1	9500	table_id: # flags: STMT_END_F
+master-bin.000001	9500	Table_map	1	9541	table_id: # (test.t1)
+master-bin.000001	9541	Write_rows	1	9575	table_id: # flags: STMT_END_F
+master-bin.000001	9575	Table_map	1	9616	table_id: # (test.t1)
+master-bin.000001	9616	Write_rows	1	9650	table_id: # flags: STMT_END_F
+master-bin.000001	9650	Table_map	1	9691	table_id: # (test.t1)
+master-bin.000001	9691	Write_rows	1	9725	table_id: # flags: STMT_END_F
+master-bin.000001	9725	Table_map	1	9766	table_id: # (test.t1)
+master-bin.000001	9766	Write_rows	1	9800	table_id: # flags: STMT_END_F
+master-bin.000001	9800	Table_map	1	9841	table_id: # (test.t1)
+master-bin.000001	9841	Write_rows	1	9875	table_id: # flags: STMT_END_F
+master-bin.000001	9875	Table_map	1	9916	table_id: # (test.t1)
+master-bin.000001	9916	Write_rows	1	9950	table_id: # flags: STMT_END_F
+master-bin.000001	9950	Table_map	1	9991	table_id: # (test.t1)
+master-bin.000001	9991	Write_rows	1	10025	table_id: # flags: STMT_END_F
+master-bin.000001	10025	Table_map	1	10066	table_id: # (test.t1)
+master-bin.000001	10066	Write_rows	1	10100	table_id: # flags: STMT_END_F
+master-bin.000001	10100	Table_map	1	10141	table_id: # (test.t1)
+master-bin.000001	10141	Write_rows	1	10175	table_id: # flags: STMT_END_F
+master-bin.000001	10175	Table_map	1	10216	table_id: # (test.t1)
+master-bin.000001	10216	Write_rows	1	10250	table_id: # flags: STMT_END_F
+master-bin.000001	10250	Table_map	1	10291	table_id: # (test.t1)
+master-bin.000001	10291	Write_rows	1	10325	table_id: # flags: STMT_END_F
+master-bin.000001	10325	Table_map	1	10366	table_id: # (test.t1)
+master-bin.000001	10366	Write_rows	1	10400	table_id: # flags: STMT_END_F
+master-bin.000001	10400	Table_map	1	10441	table_id: # (test.t1)
+master-bin.000001	10441	Write_rows	1	10475	table_id: # flags: STMT_END_F
+master-bin.000001	10475	Table_map	1	10516	table_id: # (test.t1)
+master-bin.000001	10516	Write_rows	1	10550	table_id: # flags: STMT_END_F
+master-bin.000001	10550	Table_map	1	10591	table_id: # (test.t1)
+master-bin.000001	10591	Write_rows	1	10625	table_id: # flags: STMT_END_F
+master-bin.000001	10625	Table_map	1	10666	table_id: # (test.t1)
+master-bin.000001	10666	Write_rows	1	10700	table_id: # flags: STMT_END_F
+master-bin.000001	10700	Table_map	1	10741	table_id: # (test.t1)
+master-bin.000001	10741	Write_rows	1	10775	table_id: # flags: STMT_END_F
+master-bin.000001	10775	Table_map	1	10816	table_id: # (test.t1)
+master-bin.000001	10816	Write_rows	1	10850	table_id: # flags: STMT_END_F
+master-bin.000001	10850	Table_map	1	10891	table_id: # (test.t1)
+master-bin.000001	10891	Write_rows	1	10925	table_id: # flags: STMT_END_F
+master-bin.000001	10925	Table_map	1	10966	table_id: # (test.t1)
+master-bin.000001	10966	Write_rows	1	11000	table_id: # flags: STMT_END_F
+master-bin.000001	11000	Table_map	1	11041	table_id: # (test.t1)
+master-bin.000001	11041	Write_rows	1	11075	table_id: # flags: STMT_END_F
+master-bin.000001	11075	Table_map	1	11116	table_id: # (test.t1)
+master-bin.000001	11116	Write_rows	1	11150	table_id: # flags: STMT_END_F
+master-bin.000001	11150	Table_map	1	11191	table_id: # (test.t1)
+master-bin.000001	11191	Write_rows	1	11225	table_id: # flags: STMT_END_F
+master-bin.000001	11225	Table_map	1	11266	table_id: # (test.t1)
+master-bin.000001	11266	Write_rows	1	11300	table_id: # flags: STMT_END_F
+master-bin.000001	11300	Table_map	1	11341	table_id: # (test.t1)
+master-bin.000001	11341	Write_rows	1	11375	table_id: # flags: STMT_END_F
+master-bin.000001	11375	Table_map	1	11416	table_id: # (test.t1)
+master-bin.000001	11416	Write_rows	1	11450	table_id: # flags: STMT_END_F
+master-bin.000001	11450	Table_map	1	11491	table_id: # (test.t1)
+master-bin.000001	11491	Write_rows	1	11525	table_id: # flags: STMT_END_F
+master-bin.000001	11525	Table_map	1	11566	table_id: # (test.t1)
+master-bin.000001	11566	Write_rows	1	11600	table_id: # flags: STMT_END_F
+master-bin.000001	11600	Table_map	1	11641	table_id: # (test.t1)
+master-bin.000001	11641	Write_rows	1	11675	table_id: # flags: STMT_END_F
+master-bin.000001	11675	Table_map	1	11716	table_id: # (test.t1)
+master-bin.000001	11716	Write_rows	1	11750	table_id: # flags: STMT_END_F
+master-bin.000001	11750	Table_map	1	11791	table_id: # (test.t1)
+master-bin.000001	11791	Write_rows	1	11825	table_id: # flags: STMT_END_F
+master-bin.000001	11825	Table_map	1	11866	table_id: # (test.t1)
+master-bin.000001	11866	Write_rows	1	11900	table_id: # flags: STMT_END_F
+master-bin.000001	11900	Table_map	1	11941	table_id: # (test.t1)
+master-bin.000001	11941	Write_rows	1	11975	table_id: # flags: STMT_END_F
+master-bin.000001	11975	Table_map	1	12016	table_id: # (test.t1)
+master-bin.000001	12016	Write_rows	1	12050	table_id: # flags: STMT_END_F
+master-bin.000001	12050	Table_map	1	12091	table_id: # (test.t1)
+master-bin.000001	12091	Write_rows	1	12125	table_id: # flags: STMT_END_F
+master-bin.000001	12125	Table_map	1	12166	table_id: # (test.t1)
+master-bin.000001	12166	Write_rows	1	12200	table_id: # flags: STMT_END_F
+master-bin.000001	12200	Table_map	1	12241	table_id: # (test.t1)
+master-bin.000001	12241	Write_rows	1	12275	table_id: # flags: STMT_END_F
+master-bin.000001	12275	Table_map	1	12316	table_id: # (test.t1)
+master-bin.000001	12316	Write_rows	1	12350	table_id: # flags: STMT_END_F
+master-bin.000001	12350	Table_map	1	12391	table_id: # (test.t1)
+master-bin.000001	12391	Write_rows	1	12425	table_id: # flags: STMT_END_F
+master-bin.000001	12425	Table_map	1	12466	table_id: # (test.t1)
+master-bin.000001	12466	Write_rows	1	12500	table_id: # flags: STMT_END_F
+master-bin.000001	12500	Table_map	1	12541	table_id: # (test.t1)
+master-bin.000001	12541	Write_rows	1	12575	table_id: # flags: STMT_END_F
+master-bin.000001	12575	Table_map	1	12616	table_id: # (test.t1)
+master-bin.000001	12616	Write_rows	1	12650	table_id: # flags: STMT_END_F
+master-bin.000001	12650	Table_map	1	12691	table_id: # (test.t1)
+master-bin.000001	12691	Write_rows	1	12725	table_id: # flags: STMT_END_F
+master-bin.000001	12725	Table_map	1	12766	table_id: # (test.t1)
+master-bin.000001	12766	Write_rows	1	12800	table_id: # flags: STMT_END_F
+master-bin.000001	12800	Table_map	1	12841	table_id: # (test.t1)
+master-bin.000001	12841	Write_rows	1	12875	table_id: # flags: STMT_END_F
+master-bin.000001	12875	Table_map	1	12916	table_id: # (test.t1)
+master-bin.000001	12916	Write_rows	1	12950	table_id: # flags: STMT_END_F
+master-bin.000001	12950	Table_map	1	12991	table_id: # (test.t1)
+master-bin.000001	12991	Write_rows	1	13025	table_id: # flags: STMT_END_F
+master-bin.000001	13025	Table_map	1	13066	table_id: # (test.t1)
+master-bin.000001	13066	Write_rows	1	13100	table_id: # flags: STMT_END_F
+master-bin.000001	13100	Table_map	1	13141	table_id: # (test.t1)
+master-bin.000001	13141	Write_rows	1	13175	table_id: # flags: STMT_END_F
+master-bin.000001	13175	Table_map	1	13216	table_id: # (test.t1)
+master-bin.000001	13216	Write_rows	1	13250	table_id: # flags: STMT_END_F
+master-bin.000001	13250	Table_map	1	13291	table_id: # (test.t1)
+master-bin.000001	13291	Write_rows	1	13325	table_id: # flags: STMT_END_F
+master-bin.000001	13325	Table_map	1	13366	table_id: # (test.t1)
+master-bin.000001	13366	Write_rows	1	13400	table_id: # flags: STMT_END_F
+master-bin.000001	13400	Table_map	1	13441	table_id: # (test.t1)
+master-bin.000001	13441	Write_rows	1	13475	table_id: # flags: STMT_END_F
+master-bin.000001	13475	Table_map	1	13516	table_id: # (test.t1)
+master-bin.000001	13516	Write_rows	1	13550	table_id: # flags: STMT_END_F
+master-bin.000001	13550	Table_map	1	13591	table_id: # (test.t1)
+master-bin.000001	13591	Write_rows	1	13625	table_id: # flags: STMT_END_F
+master-bin.000001	13625	Table_map	1	13666	table_id: # (test.t1)
+master-bin.000001	13666	Write_rows	1	13700	table_id: # flags: STMT_END_F
+master-bin.000001	13700	Table_map	1	13741	table_id: # (test.t1)
+master-bin.000001	13741	Write_rows	1	13775	table_id: # flags: STMT_END_F
+master-bin.000001	13775	Table_map	1	13816	table_id: # (test.t1)
+master-bin.000001	13816	Write_rows	1	13850	table_id: # flags: STMT_END_F
+master-bin.000001	13850	Table_map	1	13891	table_id: # (test.t1)
+master-bin.000001	13891	Write_rows	1	13925	table_id: # flags: STMT_END_F
+master-bin.000001	13925	Table_map	1	13966	table_id: # (test.t1)
+master-bin.000001	13966	Write_rows	1	14000	table_id: # flags: STMT_END_F
+master-bin.000001	14000	Table_map	1	14041	table_id: # (test.t1)
+master-bin.000001	14041	Write_rows	1	14075	table_id: # flags: STMT_END_F
+master-bin.000001	14075	Table_map	1	14116	table_id: # (test.t1)
+master-bin.000001	14116	Write_rows	1	14150	table_id: # flags: STMT_END_F
+master-bin.000001	14150	Table_map	1	14191	table_id: # (test.t1)
+master-bin.000001	14191	Write_rows	1	14225	table_id: # flags: STMT_END_F
+master-bin.000001	14225	Table_map	1	14266	table_id: # (test.t1)
+master-bin.000001	14266	Write_rows	1	14300	table_id: # flags: STMT_END_F
+master-bin.000001	14300	Table_map	1	14341	table_id: # (test.t1)
+master-bin.000001	14341	Write_rows	1	14375	table_id: # flags: STMT_END_F
+master-bin.000001	14375	Table_map	1	14416	table_id: # (test.t1)
+master-bin.000001	14416	Write_rows	1	14450	table_id: # flags: STMT_END_F
+master-bin.000001	14450	Table_map	1	14491	table_id: # (test.t1)
+master-bin.000001	14491	Write_rows	1	14525	table_id: # flags: STMT_END_F
+master-bin.000001	14525	Table_map	1	14566	table_id: # (test.t1)
+master-bin.000001	14566	Write_rows	1	14600	table_id: # flags: STMT_END_F
+master-bin.000001	14600	Table_map	1	14641	table_id: # (test.t1)
+master-bin.000001	14641	Write_rows	1	14675	table_id: # flags: STMT_END_F
+master-bin.000001	14675	Table_map	1	14716	table_id: # (test.t1)
+master-bin.000001	14716	Write_rows	1	14750	table_id: # flags: STMT_END_F
+master-bin.000001	14750	Table_map	1	14791	table_id: # (test.t1)
+master-bin.000001	14791	Write_rows	1	14825	table_id: # flags: STMT_END_F
+master-bin.000001	14825	Table_map	1	14866	table_id: # (test.t1)
+master-bin.000001	14866	Write_rows	1	14900	table_id: # flags: STMT_END_F
+master-bin.000001	14900	Table_map	1	14941	table_id: # (test.t1)
+master-bin.000001	14941	Write_rows	1	14975	table_id: # flags: STMT_END_F
+master-bin.000001	14975	Table_map	1	15016	table_id: # (test.t1)
+master-bin.000001	15016	Write_rows	1	15050	table_id: # flags: STMT_END_F
+master-bin.000001	15050	Table_map	1	15091	table_id: # (test.t1)
+master-bin.000001	15091	Write_rows	1	15125	table_id: # flags: STMT_END_F
+master-bin.000001	15125	Table_map	1	15166	table_id: # (test.t1)
+master-bin.000001	15166	Write_rows	1	15200	table_id: # flags: STMT_END_F
+master-bin.000001	15200	Table_map	1	15241	table_id: # (test.t1)
+master-bin.000001	15241	Write_rows	1	15275	table_id: # flags: STMT_END_F
+master-bin.000001	15275	Table_map	1	15316	table_id: # (test.t1)
+master-bin.000001	15316	Write_rows	1	15350	table_id: # flags: STMT_END_F
+master-bin.000001	15350	Table_map	1	15391	table_id: # (test.t1)
+master-bin.000001	15391	Write_rows	1	15425	table_id: # flags: STMT_END_F
+master-bin.000001	15425	Table_map	1	15466	table_id: # (test.t1)
+master-bin.000001	15466	Write_rows	1	15500	table_id: # flags: STMT_END_F
+master-bin.000001	15500	Table_map	1	15541	table_id: # (test.t1)
+master-bin.000001	15541	Write_rows	1	15575	table_id: # flags: STMT_END_F
+master-bin.000001	15575	Table_map	1	15616	table_id: # (test.t1)
+master-bin.000001	15616	Write_rows	1	15650	table_id: # flags: STMT_END_F
+master-bin.000001	15650	Table_map	1	15691	table_id: # (test.t1)
+master-bin.000001	15691	Write_rows	1	15725	table_id: # flags: STMT_END_F
+master-bin.000001	15725	Table_map	1	15766	table_id: # (test.t1)
+master-bin.000001	15766	Write_rows	1	15800	table_id: # flags: STMT_END_F
+master-bin.000001	15800	Table_map	1	15841	table_id: # (test.t1)
+master-bin.000001	15841	Write_rows	1	15875	table_id: # flags: STMT_END_F
+master-bin.000001	15875	Table_map	1	15916	table_id: # (test.t1)
+master-bin.000001	15916	Write_rows	1	15950	table_id: # flags: STMT_END_F
+master-bin.000001	15950	Table_map	1	15991	table_id: # (test.t1)
+master-bin.000001	15991	Write_rows	1	16025	table_id: # flags: STMT_END_F
+master-bin.000001	16025	Table_map	1	16066	table_id: # (test.t1)
+master-bin.000001	16066	Write_rows	1	16100	table_id: # flags: STMT_END_F
+master-bin.000001	16100	Table_map	1	16141	table_id: # (test.t1)
+master-bin.000001	16141	Write_rows	1	16175	table_id: # flags: STMT_END_F
+master-bin.000001	16175	Table_map	1	16216	table_id: # (test.t1)
+master-bin.000001	16216	Write_rows	1	16250	table_id: # flags: STMT_END_F
+master-bin.000001	16250	Table_map	1	16291	table_id: # (test.t1)
+master-bin.000001	16291	Write_rows	1	16325	table_id: # flags: STMT_END_F
+master-bin.000001	16325	Table_map	1	16366	table_id: # (test.t1)
+master-bin.000001	16366	Write_rows	1	16400	table_id: # flags: STMT_END_F
+master-bin.000001	16400	Table_map	1	16441	table_id: # (test.t1)
+master-bin.000001	16441	Write_rows	1	16475	table_id: # flags: STMT_END_F
+master-bin.000001	16475	Table_map	1	16516	table_id: # (test.t1)
+master-bin.000001	16516	Write_rows	1	16550	table_id: # flags: STMT_END_F
+master-bin.000001	16550	Table_map	1	16591	table_id: # (test.t1)
+master-bin.000001	16591	Write_rows	1	16625	table_id: # flags: STMT_END_F
+master-bin.000001	16625	Table_map	1	16666	table_id: # (test.t1)
+master-bin.000001	16666	Write_rows	1	16700	table_id: # flags: STMT_END_F
+master-bin.000001	16700	Table_map	1	16741	table_id: # (test.t1)
+master-bin.000001	16741	Write_rows	1	16775	table_id: # flags: STMT_END_F
+master-bin.000001	16775	Table_map	1	16816	table_id: # (test.t1)
+master-bin.000001	16816	Write_rows	1	16850	table_id: # flags: STMT_END_F
+master-bin.000001	16850	Table_map	1	16891	table_id: # (test.t1)
+master-bin.000001	16891	Write_rows	1	16925	table_id: # flags: STMT_END_F
+master-bin.000001	16925	Table_map	1	16966	table_id: # (test.t1)
+master-bin.000001	16966	Write_rows	1	17000	table_id: # flags: STMT_END_F
+master-bin.000001	17000	Table_map	1	17041	table_id: # (test.t1)
+master-bin.000001	17041	Write_rows	1	17075	table_id: # flags: STMT_END_F
+master-bin.000001	17075	Table_map	1	17116	table_id: # (test.t1)
+master-bin.000001	17116	Write_rows	1	17150	table_id: # flags: STMT_END_F
+master-bin.000001	17150	Table_map	1	17191	table_id: # (test.t1)
+master-bin.000001	17191	Write_rows	1	17225	table_id: # flags: STMT_END_F
+master-bin.000001	17225	Table_map	1	17266	table_id: # (test.t1)
+master-bin.000001	17266	Write_rows	1	17300	table_id: # flags: STMT_END_F
+master-bin.000001	17300	Table_map	1	17341	table_id: # (test.t1)
+master-bin.000001	17341	Write_rows	1	17375	table_id: # flags: STMT_END_F
+master-bin.000001	17375	Table_map	1	17416	table_id: # (test.t1)
+master-bin.000001	17416	Write_rows	1	17450	table_id: # flags: STMT_END_F
+master-bin.000001	17450	Table_map	1	17491	table_id: # (test.t1)
+master-bin.000001	17491	Write_rows	1	17525	table_id: # flags: STMT_END_F
+master-bin.000001	17525	Table_map	1	17566	table_id: # (test.t1)
+master-bin.000001	17566	Write_rows	1	17600	table_id: # flags: STMT_END_F
+master-bin.000001	17600	Table_map	1	17641	table_id: # (test.t1)
+master-bin.000001	17641	Write_rows	1	17675	table_id: # flags: STMT_END_F
+master-bin.000001	17675	Table_map	1	17716	table_id: # (test.t1)
+master-bin.000001	17716	Write_rows	1	17750	table_id: # flags: STMT_END_F
+master-bin.000001	17750	Table_map	1	17791	table_id: # (test.t1)
+master-bin.000001	17791	Write_rows	1	17825	table_id: # flags: STMT_END_F
+master-bin.000001	17825	Table_map	1	17866	table_id: # (test.t1)
+master-bin.000001	17866	Write_rows	1	17900	table_id: # flags: STMT_END_F
+master-bin.000001	17900	Table_map	1	17941	table_id: # (test.t1)
+master-bin.000001	17941	Write_rows	1	17975	table_id: # flags: STMT_END_F
+master-bin.000001	17975	Table_map	1	18016	table_id: # (test.t1)
+master-bin.000001	18016	Write_rows	1	18050	table_id: # flags: STMT_END_F
+master-bin.000001	18050	Table_map	1	18091	table_id: # (test.t1)
+master-bin.000001	18091	Write_rows	1	18125	table_id: # flags: STMT_END_F
+master-bin.000001	18125	Table_map	1	18166	table_id: # (test.t1)
+master-bin.000001	18166	Write_rows	1	18200	table_id: # flags: STMT_END_F
+master-bin.000001	18200	Table_map	1	18241	table_id: # (test.t1)
+master-bin.000001	18241	Write_rows	1	18275	table_id: # flags: STMT_END_F
+master-bin.000001	18275	Table_map	1	18316	table_id: # (test.t1)
+master-bin.000001	18316	Write_rows	1	18350	table_id: # flags: STMT_END_F
+master-bin.000001	18350	Table_map	1	18391	table_id: # (test.t1)
+master-bin.000001	18391	Write_rows	1	18425	table_id: # flags: STMT_END_F
+master-bin.000001	18425	Table_map	1	18466	table_id: # (test.t1)
+master-bin.000001	18466	Write_rows	1	18500	table_id: # flags: STMT_END_F
+master-bin.000001	18500	Table_map	1	18541	table_id: # (test.t1)
+master-bin.000001	18541	Write_rows	1	18575	table_id: # flags: STMT_END_F
+master-bin.000001	18575	Table_map	1	18616	table_id: # (test.t1)
+master-bin.000001	18616	Write_rows	1	18650	table_id: # flags: STMT_END_F
+master-bin.000001	18650	Table_map	1	18691	table_id: # (test.t1)
+master-bin.000001	18691	Write_rows	1	18725	table_id: # flags: STMT_END_F
+master-bin.000001	18725	Table_map	1	18766	table_id: # (test.t1)
+master-bin.000001	18766	Write_rows	1	18800	table_id: # flags: STMT_END_F
+master-bin.000001	18800	Table_map	1	18841	table_id: # (test.t1)
+master-bin.000001	18841	Write_rows	1	18875	table_id: # flags: STMT_END_F
+master-bin.000001	18875	Table_map	1	18916	table_id: # (test.t1)
+master-bin.000001	18916	Write_rows	1	18950	table_id: # flags: STMT_END_F
+master-bin.000001	18950	Table_map	1	18991	table_id: # (test.t1)
+master-bin.000001	18991	Write_rows	1	19025	table_id: # flags: STMT_END_F
+master-bin.000001	19025	Table_map	1	19066	table_id: # (test.t1)
+master-bin.000001	19066	Write_rows	1	19100	table_id: # flags: STMT_END_F
+master-bin.000001	19100	Table_map	1	19141	table_id: # (test.t1)
+master-bin.000001	19141	Write_rows	1	19175	table_id: # flags: STMT_END_F
+master-bin.000001	19175	Table_map	1	19216	table_id: # (test.t1)
+master-bin.000001	19216	Write_rows	1	19250	table_id: # flags: STMT_END_F
+master-bin.000001	19250	Table_map	1	19291	table_id: # (test.t1)
+master-bin.000001	19291	Write_rows	1	19325	table_id: # flags: STMT_END_F
+master-bin.000001	19325	Table_map	1	19366	table_id: # (test.t1)
+master-bin.000001	19366	Write_rows	1	19400	table_id: # flags: STMT_END_F
+master-bin.000001	19400	Table_map	1	19441	table_id: # (test.t1)
+master-bin.000001	19441	Write_rows	1	19475	table_id: # flags: STMT_END_F
+master-bin.000001	19475	Table_map	1	19516	table_id: # (test.t1)
+master-bin.000001	19516	Write_rows	1	19550	table_id: # flags: STMT_END_F
+master-bin.000001	19550	Table_map	1	19591	table_id: # (test.t1)
+master-bin.000001	19591	Write_rows	1	19625	table_id: # flags: STMT_END_F
+master-bin.000001	19625	Table_map	1	19666	table_id: # (test.t1)
+master-bin.000001	19666	Write_rows	1	19700	table_id: # flags: STMT_END_F
+master-bin.000001	19700	Table_map	1	19741	table_id: # (test.t1)
+master-bin.000001	19741	Write_rows	1	19775	table_id: # flags: STMT_END_F
+master-bin.000001	19775	Table_map	1	19816	table_id: # (test.t1)
+master-bin.000001	19816	Write_rows	1	19850	table_id: # flags: STMT_END_F
+master-bin.000001	19850	Table_map	1	19891	table_id: # (test.t1)
+master-bin.000001	19891	Write_rows	1	19925	table_id: # flags: STMT_END_F
+master-bin.000001	19925	Table_map	1	19966	table_id: # (test.t1)
+master-bin.000001	19966	Write_rows	1	20000	table_id: # flags: STMT_END_F
+master-bin.000001	20000	Table_map	1	20041	table_id: # (test.t1)
+master-bin.000001	20041	Write_rows	1	20075	table_id: # flags: STMT_END_F
+master-bin.000001	20075	Table_map	1	20116	table_id: # (test.t1)
+master-bin.000001	20116	Write_rows	1	20150	table_id: # flags: STMT_END_F
+master-bin.000001	20150	Table_map	1	20191	table_id: # (test.t1)
+master-bin.000001	20191	Write_rows	1	20225	table_id: # flags: STMT_END_F
+master-bin.000001	20225	Table_map	1	20266	table_id: # (test.t1)
+master-bin.000001	20266	Write_rows	1	20300	table_id: # flags: STMT_END_F
+master-bin.000001	20300	Table_map	1	20341	table_id: # (test.t1)
+master-bin.000001	20341	Write_rows	1	20375	table_id: # flags: STMT_END_F
+master-bin.000001	20375	Table_map	1	20416	table_id: # (test.t1)
+master-bin.000001	20416	Write_rows	1	20450	table_id: # flags: STMT_END_F
+master-bin.000001	20450	Table_map	1	20491	table_id: # (test.t1)
+master-bin.000001	20491	Write_rows	1	20525	table_id: # flags: STMT_END_F
+master-bin.000001	20525	Table_map	1	20566	table_id: # (test.t1)
+master-bin.000001	20566	Write_rows	1	20600	table_id: # flags: STMT_END_F
+master-bin.000001	20600	Table_map	1	20641	table_id: # (test.t1)
+master-bin.000001	20641	Write_rows	1	20675	table_id: # flags: STMT_END_F
+master-bin.000001	20675	Table_map	1	20716	table_id: # (test.t1)
+master-bin.000001	20716	Write_rows	1	20750	table_id: # flags: STMT_END_F
+master-bin.000001	20750	Table_map	1	20791	table_id: # (test.t1)
+master-bin.000001	20791	Write_rows	1	20825	table_id: # flags: STMT_END_F
+master-bin.000001	20825	Table_map	1	20866	table_id: # (test.t1)
+master-bin.000001	20866	Write_rows	1	20900	table_id: # flags: STMT_END_F
+master-bin.000001	20900	Table_map	1	20941	table_id: # (test.t1)
+master-bin.000001	20941	Write_rows	1	20975	table_id: # flags: STMT_END_F
+master-bin.000001	20975	Table_map	1	21016	table_id: # (test.t1)
+master-bin.000001	21016	Write_rows	1	21050	table_id: # flags: STMT_END_F
+master-bin.000001	21050	Table_map	1	21091	table_id: # (test.t1)
+master-bin.000001	21091	Write_rows	1	21125	table_id: # flags: STMT_END_F
+master-bin.000001	21125	Table_map	1	21166	table_id: # (test.t1)
+master-bin.000001	21166	Write_rows	1	21200	table_id: # flags: STMT_END_F
+master-bin.000001	21200	Table_map	1	21241	table_id: # (test.t1)
+master-bin.000001	21241	Write_rows	1	21275	table_id: # flags: STMT_END_F
+master-bin.000001	21275	Table_map	1	21316	table_id: # (test.t1)
+master-bin.000001	21316	Write_rows	1	21350	table_id: # flags: STMT_END_F
+master-bin.000001	21350	Table_map	1	21391	table_id: # (test.t1)
+master-bin.000001	21391	Write_rows	1	21425	table_id: # flags: STMT_END_F
+master-bin.000001	21425	Table_map	1	21466	table_id: # (test.t1)
+master-bin.000001	21466	Write_rows	1	21500	table_id: # flags: STMT_END_F
+master-bin.000001	21500	Table_map	1	21541	table_id: # (test.t1)
+master-bin.000001	21541	Write_rows	1	21575	table_id: # flags: STMT_END_F
+master-bin.000001	21575	Table_map	1	21616	table_id: # (test.t1)
+master-bin.000001	21616	Write_rows	1	21650	table_id: # flags: STMT_END_F
+master-bin.000001	21650	Table_map	1	21691	table_id: # (test.t1)
+master-bin.000001	21691	Write_rows	1	21725	table_id: # flags: STMT_END_F
+master-bin.000001	21725	Table_map	1	21766	table_id: # (test.t1)
+master-bin.000001	21766	Write_rows	1	21800	table_id: # flags: STMT_END_F
+master-bin.000001	21800	Table_map	1	21841	table_id: # (test.t1)
+master-bin.000001	21841	Write_rows	1	21875	table_id: # flags: STMT_END_F
+master-bin.000001	21875	Table_map	1	21916	table_id: # (test.t1)
+master-bin.000001	21916	Write_rows	1	21950	table_id: # flags: STMT_END_F
+master-bin.000001	21950	Table_map	1	21991	table_id: # (test.t1)
+master-bin.000001	21991	Write_rows	1	22025	table_id: # flags: STMT_END_F
+master-bin.000001	22025	Table_map	1	22066	table_id: # (test.t1)
+master-bin.000001	22066	Write_rows	1	22100	table_id: # flags: STMT_END_F
+master-bin.000001	22100	Table_map	1	22141	table_id: # (test.t1)
+master-bin.000001	22141	Write_rows	1	22175	table_id: # flags: STMT_END_F
+master-bin.000001	22175	Table_map	1	22216	table_id: # (test.t1)
+master-bin.000001	22216	Write_rows	1	22250	table_id: # flags: STMT_END_F
+master-bin.000001	22250	Table_map	1	22291	table_id: # (test.t1)
+master-bin.000001	22291	Write_rows	1	22325	table_id: # flags: STMT_END_F
+master-bin.000001	22325	Table_map	1	22366	table_id: # (test.t1)
+master-bin.000001	22366	Write_rows	1	22400	table_id: # flags: STMT_END_F
+master-bin.000001	22400	Table_map	1	22441	table_id: # (test.t1)
+master-bin.000001	22441	Write_rows	1	22475	table_id: # flags: STMT_END_F
+master-bin.000001	22475	Table_map	1	22516	table_id: # (test.t1)
+master-bin.000001	22516	Write_rows	1	22550	table_id: # flags: STMT_END_F
+master-bin.000001	22550	Table_map	1	22591	table_id: # (test.t1)
+master-bin.000001	22591	Write_rows	1	22625	table_id: # flags: STMT_END_F
+master-bin.000001	22625	Table_map	1	22666	table_id: # (test.t1)
+master-bin.000001	22666	Write_rows	1	22700	table_id: # flags: STMT_END_F
+master-bin.000001	22700	Table_map	1	22741	table_id: # (test.t1)
+master-bin.000001	22741	Write_rows	1	22775	table_id: # flags: STMT_END_F
+master-bin.000001	22775	Table_map	1	22816	table_id: # (test.t1)
+master-bin.000001	22816	Write_rows	1	22850	table_id: # flags: STMT_END_F
+master-bin.000001	22850	Table_map	1	22891	table_id: # (test.t1)
+master-bin.000001	22891	Write_rows	1	22925	table_id: # flags: STMT_END_F
+master-bin.000001	22925	Table_map	1	22966	table_id: # (test.t1)
+master-bin.000001	22966	Write_rows	1	23000	table_id: # flags: STMT_END_F
+master-bin.000001	23000	Table_map	1	23041	table_id: # (test.t1)
+master-bin.000001	23041	Write_rows	1	23075	table_id: # flags: STMT_END_F
+master-bin.000001	23075	Table_map	1	23116	table_id: # (test.t1)
+master-bin.000001	23116	Write_rows	1	23150	table_id: # flags: STMT_END_F
+master-bin.000001	23150	Table_map	1	23191	table_id: # (test.t1)
+master-bin.000001	23191	Write_rows	1	23225	table_id: # flags: STMT_END_F
+master-bin.000001	23225	Table_map	1	23266	table_id: # (test.t1)
+master-bin.000001	23266	Write_rows	1	23300	table_id: # flags: STMT_END_F
+master-bin.000001	23300	Table_map	1	23341	table_id: # (test.t1)
+master-bin.000001	23341	Write_rows	1	23375	table_id: # flags: STMT_END_F
+master-bin.000001	23375	Table_map	1	23416	table_id: # (test.t1)
+master-bin.000001	23416	Write_rows	1	23450	table_id: # flags: STMT_END_F
+master-bin.000001	23450	Table_map	1	23491	table_id: # (test.t1)
+master-bin.000001	23491	Write_rows	1	23525	table_id: # flags: STMT_END_F
+master-bin.000001	23525	Table_map	1	23566	table_id: # (test.t1)
+master-bin.000001	23566	Write_rows	1	23600	table_id: # flags: STMT_END_F
+master-bin.000001	23600	Table_map	1	23641	table_id: # (test.t1)
+master-bin.000001	23641	Write_rows	1	23675	table_id: # flags: STMT_END_F
+master-bin.000001	23675	Table_map	1	23716	table_id: # (test.t1)
+master-bin.000001	23716	Write_rows	1	23750	table_id: # flags: STMT_END_F
+master-bin.000001	23750	Table_map	1	23791	table_id: # (test.t1)
+master-bin.000001	23791	Write_rows	1	23825	table_id: # flags: STMT_END_F
+master-bin.000001	23825	Table_map	1	23866	table_id: # (test.t1)
+master-bin.000001	23866	Write_rows	1	23900	table_id: # flags: STMT_END_F
+master-bin.000001	23900	Table_map	1	23941	table_id: # (test.t1)
+master-bin.000001	23941	Write_rows	1	23975	table_id: # flags: STMT_END_F
+master-bin.000001	23975	Table_map	1	24016	table_id: # (test.t1)
+master-bin.000001	24016	Write_rows	1	24050	table_id: # flags: STMT_END_F
+master-bin.000001	24050	Table_map	1	24091	table_id: # (test.t1)
+master-bin.000001	24091	Write_rows	1	24125	table_id: # flags: STMT_END_F
+master-bin.000001	24125	Table_map	1	24166	table_id: # (test.t1)
+master-bin.000001	24166	Write_rows	1	24200	table_id: # flags: STMT_END_F
+master-bin.000001	24200	Table_map	1	24241	table_id: # (test.t1)
+master-bin.000001	24241	Write_rows	1	24275	table_id: # flags: STMT_END_F
+master-bin.000001	24275	Table_map	1	24316	table_id: # (test.t1)
+master-bin.000001	24316	Write_rows	1	24350	table_id: # flags: STMT_END_F
+master-bin.000001	24350	Table_map	1	24391	table_id: # (test.t1)
+master-bin.000001	24391	Write_rows	1	24425	table_id: # flags: STMT_END_F
+master-bin.000001	24425	Table_map	1	24466	table_id: # (test.t1)
+master-bin.000001	24466	Write_rows	1	24500	table_id: # flags: STMT_END_F
+master-bin.000001	24500	Table_map	1	24541	table_id: # (test.t1)
+master-bin.000001	24541	Write_rows	1	24575	table_id: # flags: STMT_END_F
+master-bin.000001	24575	Table_map	1	24616	table_id: # (test.t1)
+master-bin.000001	24616	Write_rows	1	24650	table_id: # flags: STMT_END_F
+master-bin.000001	24650	Table_map	1	24691	table_id: # (test.t1)
+master-bin.000001	24691	Write_rows	1	24725	table_id: # flags: STMT_END_F
+master-bin.000001	24725	Table_map	1	24766	table_id: # (test.t1)
+master-bin.000001	24766	Write_rows	1	24800	table_id: # flags: STMT_END_F
+master-bin.000001	24800	Table_map	1	24841	table_id: # (test.t1)
+master-bin.000001	24841	Write_rows	1	24875	table_id: # flags: STMT_END_F
+master-bin.000001	24875	Table_map	1	24916	table_id: # (test.t1)
+master-bin.000001	24916	Write_rows	1	24950	table_id: # flags: STMT_END_F
+master-bin.000001	24950	Table_map	1	24991	table_id: # (test.t1)
+master-bin.000001	24991	Write_rows	1	25025	table_id: # flags: STMT_END_F
+master-bin.000001	25025	Table_map	1	25066	table_id: # (test.t1)
+master-bin.000001	25066	Write_rows	1	25100	table_id: # flags: STMT_END_F
+master-bin.000001	25100	Table_map	1	25141	table_id: # (test.t1)
+master-bin.000001	25141	Write_rows	1	25175	table_id: # flags: STMT_END_F
+master-bin.000001	25175	Table_map	1	25216	table_id: # (test.t1)
+master-bin.000001	25216	Write_rows	1	25250	table_id: # flags: STMT_END_F
+master-bin.000001	25250	Table_map	1	25291	table_id: # (test.t1)
+master-bin.000001	25291	Write_rows	1	25325	table_id: # flags: STMT_END_F
+master-bin.000001	25325	Table_map	1	25366	table_id: # (test.t1)
+master-bin.000001	25366	Write_rows	1	25400	table_id: # flags: STMT_END_F
+master-bin.000001	25400	Table_map	1	25441	table_id: # (test.t1)
+master-bin.000001	25441	Write_rows	1	25475	table_id: # flags: STMT_END_F
+master-bin.000001	25475	Table_map	1	25516	table_id: # (test.t1)
+master-bin.000001	25516	Write_rows	1	25550	table_id: # flags: STMT_END_F
+master-bin.000001	25550	Table_map	1	25591	table_id: # (test.t1)
+master-bin.000001	25591	Write_rows	1	25625	table_id: # flags: STMT_END_F
+master-bin.000001	25625	Table_map	1	25666	table_id: # (test.t1)
+master-bin.000001	25666	Write_rows	1	25700	table_id: # flags: STMT_END_F
+master-bin.000001	25700	Table_map	1	25741	table_id: # (test.t1)
+master-bin.000001	25741	Write_rows	1	25775	table_id: # flags: STMT_END_F
+master-bin.000001	25775	Table_map	1	25816	table_id: # (test.t1)
+master-bin.000001	25816	Write_rows	1	25850	table_id: # flags: STMT_END_F
+master-bin.000001	25850	Table_map	1	25891	table_id: # (test.t1)
+master-bin.000001	25891	Write_rows	1	25925	table_id: # flags: STMT_END_F
+master-bin.000001	25925	Table_map	1	25966	table_id: # (test.t1)
+master-bin.000001	25966	Write_rows	1	26000	table_id: # flags: STMT_END_F
+master-bin.000001	26000	Table_map	1	26041	table_id: # (test.t1)
+master-bin.000001	26041	Write_rows	1	26075	table_id: # flags: STMT_END_F
+master-bin.000001	26075	Table_map	1	26116	table_id: # (test.t1)
+master-bin.000001	26116	Write_rows	1	26150	table_id: # flags: STMT_END_F
+master-bin.000001	26150	Table_map	1	26191	table_id: # (test.t1)
+master-bin.000001	26191	Write_rows	1	26225	table_id: # flags: STMT_END_F
+master-bin.000001	26225	Table_map	1	26266	table_id: # (test.t1)
+master-bin.000001	26266	Write_rows	1	26300	table_id: # flags: STMT_END_F
+master-bin.000001	26300	Table_map	1	26341	table_id: # (test.t1)
+master-bin.000001	26341	Write_rows	1	26375	table_id: # flags: STMT_END_F
+master-bin.000001	26375	Table_map	1	26416	table_id: # (test.t1)
+master-bin.000001	26416	Write_rows	1	26450	table_id: # flags: STMT_END_F
+master-bin.000001	26450	Table_map	1	26491	table_id: # (test.t1)
+master-bin.000001	26491	Write_rows	1	26525	table_id: # flags: STMT_END_F
+master-bin.000001	26525	Table_map	1	26566	table_id: # (test.t1)
+master-bin.000001	26566	Write_rows	1	26600	table_id: # flags: STMT_END_F
+master-bin.000001	26600	Table_map	1	26641	table_id: # (test.t1)
+master-bin.000001	26641	Write_rows	1	26675	table_id: # flags: STMT_END_F
+master-bin.000001	26675	Table_map	1	26716	table_id: # (test.t1)
+master-bin.000001	26716	Write_rows	1	26750	table_id: # flags: STMT_END_F
+master-bin.000001	26750	Table_map	1	26791	table_id: # (test.t1)
+master-bin.000001	26791	Write_rows	1	26825	table_id: # flags: STMT_END_F
+master-bin.000001	26825	Table_map	1	26866	table_id: # (test.t1)
+master-bin.000001	26866	Write_rows	1	26900	table_id: # flags: STMT_END_F
+master-bin.000001	26900	Table_map	1	26941	table_id: # (test.t1)
+master-bin.000001	26941	Write_rows	1	26975	table_id: # flags: STMT_END_F
+master-bin.000001	26975	Table_map	1	27016	table_id: # (test.t1)
+master-bin.000001	27016	Write_rows	1	27050	table_id: # flags: STMT_END_F
+master-bin.000001	27050	Table_map	1	27091	table_id: # (test.t1)
+master-bin.000001	27091	Write_rows	1	27125	table_id: # flags: STMT_END_F
+master-bin.000001	27125	Table_map	1	27166	table_id: # (test.t1)
+master-bin.000001	27166	Write_rows	1	27200	table_id: # flags: STMT_END_F
+master-bin.000001	27200	Table_map	1	27241	table_id: # (test.t1)
+master-bin.000001	27241	Write_rows	1	27275	table_id: # flags: STMT_END_F
+master-bin.000001	27275	Table_map	1	27316	table_id: # (test.t1)
+master-bin.000001	27316	Write_rows	1	27350	table_id: # flags: STMT_END_F
+master-bin.000001	27350	Table_map	1	27391	table_id: # (test.t1)
+master-bin.000001	27391	Write_rows	1	27425	table_id: # flags: STMT_END_F
+master-bin.000001	27425	Table_map	1	27466	table_id: # (test.t1)
+master-bin.000001	27466	Write_rows	1	27500	table_id: # flags: STMT_END_F
+master-bin.000001	27500	Table_map	1	27541	table_id: # (test.t1)
+master-bin.000001	27541	Write_rows	1	27575	table_id: # flags: STMT_END_F
+master-bin.000001	27575	Table_map	1	27616	table_id: # (test.t1)
+master-bin.000001	27616	Write_rows	1	27650	table_id: # flags: STMT_END_F
+master-bin.000001	27650	Table_map	1	27691	table_id: # (test.t1)
+master-bin.000001	27691	Write_rows	1	27725	table_id: # flags: STMT_END_F
+master-bin.000001	27725	Table_map	1	27766	table_id: # (test.t1)
+master-bin.000001	27766	Write_rows	1	27800	table_id: # flags: STMT_END_F
+master-bin.000001	27800	Table_map	1	27841	table_id: # (test.t1)
+master-bin.000001	27841	Write_rows	1	27875	table_id: # flags: STMT_END_F
+master-bin.000001	27875	Table_map	1	27916	table_id: # (test.t1)
+master-bin.000001	27916	Write_rows	1	27950	table_id: # flags: STMT_END_F
+master-bin.000001	27950	Table_map	1	27991	table_id: # (test.t1)
+master-bin.000001	27991	Write_rows	1	28025	table_id: # flags: STMT_END_F
+master-bin.000001	28025	Table_map	1	28066	table_id: # (test.t1)
+master-bin.000001	28066	Write_rows	1	28100	table_id: # flags: STMT_END_F
+master-bin.000001	28100	Table_map	1	28141	table_id: # (test.t1)
+master-bin.000001	28141	Write_rows	1	28175	table_id: # flags: STMT_END_F
+master-bin.000001	28175	Table_map	1	28216	table_id: # (test.t1)
+master-bin.000001	28216	Write_rows	1	28250	table_id: # flags: STMT_END_F
+master-bin.000001	28250	Table_map	1	28291	table_id: # (test.t1)
+master-bin.000001	28291	Write_rows	1	28325	table_id: # flags: STMT_END_F
+master-bin.000001	28325	Table_map	1	28366	table_id: # (test.t1)
+master-bin.000001	28366	Write_rows	1	28400	table_id: # flags: STMT_END_F
+master-bin.000001	28400	Table_map	1	28441	table_id: # (test.t1)
+master-bin.000001	28441	Write_rows	1	28475	table_id: # flags: STMT_END_F
+master-bin.000001	28475	Table_map	1	28516	table_id: # (test.t1)
+master-bin.000001	28516	Write_rows	1	28550	table_id: # flags: STMT_END_F
+master-bin.000001	28550	Table_map	1	28591	table_id: # (test.t1)
+master-bin.000001	28591	Write_rows	1	28625	table_id: # flags: STMT_END_F
+master-bin.000001	28625	Table_map	1	28666	table_id: # (test.t1)
+master-bin.000001	28666	Write_rows	1	28700	table_id: # flags: STMT_END_F
+master-bin.000001	28700	Table_map	1	28741	table_id: # (test.t1)
+master-bin.000001	28741	Write_rows	1	28775	table_id: # flags: STMT_END_F
+master-bin.000001	28775	Table_map	1	28816	table_id: # (test.t1)
+master-bin.000001	28816	Write_rows	1	28850	table_id: # flags: STMT_END_F
+master-bin.000001	28850	Table_map	1	28891	table_id: # (test.t1)
+master-bin.000001	28891	Write_rows	1	28925	table_id: # flags: STMT_END_F
+master-bin.000001	28925	Table_map	1	28966	table_id: # (test.t1)
+master-bin.000001	28966	Write_rows	1	29000	table_id: # flags: STMT_END_F
+master-bin.000001	29000	Table_map	1	29041	table_id: # (test.t1)
+master-bin.000001	29041	Write_rows	1	29075	table_id: # flags: STMT_END_F
+master-bin.000001	29075	Table_map	1	29116	table_id: # (test.t1)
+master-bin.000001	29116	Write_rows	1	29150	table_id: # flags: STMT_END_F
+master-bin.000001	29150	Table_map	1	29191	table_id: # (test.t1)
+master-bin.000001	29191	Write_rows	1	29225	table_id: # flags: STMT_END_F
+master-bin.000001	29225	Table_map	1	29266	table_id: # (test.t1)
+master-bin.000001	29266	Write_rows	1	29300	table_id: # flags: STMT_END_F
+master-bin.000001	29300	Table_map	1	29341	table_id: # (test.t1)
+master-bin.000001	29341	Write_rows	1	29375	table_id: # flags: STMT_END_F
+master-bin.000001	29375	Table_map	1	29416	table_id: # (test.t1)
+master-bin.000001	29416	Write_rows	1	29450	table_id: # flags: STMT_END_F
+master-bin.000001	29450	Table_map	1	29491	table_id: # (test.t1)
+master-bin.000001	29491	Write_rows	1	29525	table_id: # flags: STMT_END_F
+master-bin.000001	29525	Table_map	1	29566	table_id: # (test.t1)
+master-bin.000001	29566	Write_rows	1	29600	table_id: # flags: STMT_END_F
+master-bin.000001	29600	Table_map	1	29641	table_id: # (test.t1)
+master-bin.000001	29641	Write_rows	1	29675	table_id: # flags: STMT_END_F
+master-bin.000001	29675	Table_map	1	29716	table_id: # (test.t1)
+master-bin.000001	29716	Write_rows	1	29750	table_id: # flags: STMT_END_F
+master-bin.000001	29750	Table_map	1	29791	table_id: # (test.t1)
+master-bin.000001	29791	Write_rows	1	29825	table_id: # flags: STMT_END_F
+master-bin.000001	29825	Table_map	1	29866	table_id: # (test.t1)
+master-bin.000001	29866	Write_rows	1	29900	table_id: # flags: STMT_END_F
+master-bin.000001	29900	Table_map	1	29941	table_id: # (test.t1)
+master-bin.000001	29941	Write_rows	1	29975	table_id: # flags: STMT_END_F
+master-bin.000001	29975	Table_map	1	30016	table_id: # (test.t1)
+master-bin.000001	30016	Write_rows	1	30050	table_id: # flags: STMT_END_F
+master-bin.000001	30050	Table_map	1	30091	table_id: # (test.t1)
+master-bin.000001	30091	Write_rows	1	30125	table_id: # flags: STMT_END_F
+master-bin.000001	30125	Table_map	1	30166	table_id: # (test.t1)
+master-bin.000001	30166	Write_rows	1	30200	table_id: # flags: STMT_END_F
+master-bin.000001	30200	Table_map	1	30241	table_id: # (test.t1)
+master-bin.000001	30241	Write_rows	1	30275	table_id: # flags: STMT_END_F
+master-bin.000001	30275	Xid	1	30302	COMMIT /* XID */
+master-bin.000001	30302	Rotate	1	30346	master-bin.000002;pos=4
 drop table t1;
 set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
@@ -1083,13 +1083,13 @@ deallocate prepare stmt;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	227	Query	1	295	BEGIN
-master-bin.000001	295	Table_map	1	337	table_id: # (test.t1)
-master-bin.000001	337	Write_rows	1	383	table_id: # flags: STMT_END_F
-master-bin.000001	383	Query	1	452	COMMIT
-master-bin.000001	452	Query	1	528	use `test`; drop table t1
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	228	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
+master-bin.000001	228	Query	1	296	BEGIN
+master-bin.000001	296	Table_map	1	338	table_id: # (test.t1)
+master-bin.000001	338	Write_rows	1	384	table_id: # flags: STMT_END_F
+master-bin.000001	384	Query	1	453	COMMIT
+master-bin.000001	453	Query	1	529	use `test`; drop table t1
 reset master;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 USE bug39182;
@@ -1289,14 +1289,14 @@ drop table if exists t3;
 create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	346		
+master-bin.000001	347		
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 show master status /* must show new binlog index after rotating */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000002	106		
+master-bin.000002	107		
 drop table t3;
 #
 # Bug #45998: database crashes when running "create as select"

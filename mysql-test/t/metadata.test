@@ -130,3 +130,60 @@ SELECT COALESCE(d, d), IFNULL(d, d), IF(i, d, d),
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+# Verify that column metadata is correct for all possible data types.
+# Originally about BUG#42980 "Client doesn't set NUM_FLAG for DECIMAL"
+
+create table t1(
+# numeric types
+bool_col bool,
+boolean_col boolean,
+bit_col bit(5),
+tiny tinyint,
+tiny_uns tinyint unsigned,
+small smallint,
+small_uns smallint unsigned,
+medium mediumint,
+medium_uns mediumint unsigned,
+int_col int,
+int_col_uns int unsigned,
+big bigint,
+big_uns bigint unsigned,
+decimal_col decimal(10,5),
+# synonyms of DECIMAL
+numeric_col numeric(10),
+fixed_col fixed(10),
+dec_col dec(10),
+decimal_col_uns decimal(10,5) unsigned,
+fcol float,
+fcol_uns float unsigned,
+dcol double,
+double_precision_col double precision,
+dcol_uns double unsigned,
+# date/time types
+date_col date,
+time_col time,
+timestamp_col timestamp,
+year_col year,
+datetime_col datetime,
+# string types
+char_col char(5),
+varchar_col varchar(10),
+binary_col binary(10),
+varbinary_col varbinary(10),
+tinyblob_col tinyblob,
+blob_col blob,
+mediumblob_col mediumblob,
+longblob_col longblob,
+text_col text,
+mediumtext_col mediumtext,
+longtext_col longtext,
+enum_col enum("A","B","C"),
+set_col set("F","E","D")
+);
+
+--enable_metadata
+select * from t1;
+--disable_metadata
+
+drop table t1;

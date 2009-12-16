@@ -107,7 +107,7 @@ SELECT @@global.big_tables;
 # Check if the value in  SESSION Tables matches values in variable           #
 ##############################################################################
 
-SELECT @@big_tables = VARIABLE_VALUE 
+SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='big_tables';
 --echo Bug # 34839: Values in variable and information_schema do not match for autocommit

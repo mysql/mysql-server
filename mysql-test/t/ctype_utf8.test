@@ -2,6 +2,8 @@
 # Tests with the utf8 character set
 #
 
+--source include/have_innodb.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -256,9 +258,7 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: keys with prefix compression, case insensitive collation.
 #
---disable_warnings
 create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
---enable_warnings
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 --error ER_DUP_ENTRY
@@ -306,9 +306,7 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: fixed length keys, case insensitive collation
 #
---disable_warnings
 create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
---enable_warnings
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -383,12 +381,10 @@ drop table t1;
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check BDB, case insensitive collation
 #
---disable_warnings
 create table t1 (
 c char(10) character set utf8,
 unique key a (c(1))
 ) engine=innodb;
---enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error ER_DUP_ENTRY
 insert into t1 values ('aa');
@@ -506,12 +502,10 @@ drop table t1;
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check BDB, binary collation
 #
---disable_warnings
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
 ) engine=innodb;
---enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error ER_DUP_ENTRY
 insert into t1 values ('aa');
@@ -543,12 +537,10 @@ drop table t1;
 # Bug#4594: column index make = failed for gbk, but like works
 # Check InnoDB
 #
---disable_warnings
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str  (str(2))
 ) engine=innodb;
---enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -581,12 +573,10 @@ drop table t1;
 # the same for BDB
 #
 
---disable_warnings
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str (str(2))
 ) engine=innodb;
---enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -603,14 +593,11 @@ DROP TABLE t1;
 #
 # Bug #5723: length(<varchar utf8 field>) returns varying results
 #
---disable_warnings
 SET NAMES utf8;
---disable_warnings
 CREATE TABLE t1 (
   subject varchar(255) character set utf8 collate utf8_unicode_ci,
   p varchar(15) character set utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
 INSERT INTO t1 VALUES ('aaa','bbb');
 SELECT length(subject) FROM t1;
@@ -661,18 +648,14 @@ DROP TABLE t1;
 # Bug #6019 SELECT tries to use too short prefix index on utf8 data
 #
 set names utf8;
---disable_warnings
 create table t1 (
   a int primary key,
   b varchar(6),
   index b3(b(3))
 ) engine=innodb character set=utf8;
---enable_warnings
 insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
---disable_warnings
 alter table t1 engine=innodb;
---enable_warnings
 select * from t1 where b like 'foob%';
 drop table t1;
 
@@ -841,14 +824,12 @@ INSERT INTO t1 VALUES
 (1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
 (2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
 
---disable_warnings
 CREATE TABLE t2 (
   `msisdn` varchar(15) NOT NULL default '',
   `operator_id` int(11) NOT NULL default '0',
   `created` datetime NOT NULL default '0000-00-00 00:00:00',
   UNIQUE KEY `PK_user` (`msisdn`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
---enable_warnings
 
 INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 
@@ -1013,10 +994,8 @@ drop table t1;
 # additional tests from duplicate bug#20744 MySQL return no result
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb  default character set utf8 collate utf8_general_ci;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1024,10 +1003,8 @@ select a as gci2 from t1 where a like 'あいうえおかきくけこさしす�
 drop table t1;
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_unicode_ci;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1035,10 +1012,8 @@ select a as uci2 from t1 where a like 'あいうえおかきくけこさしす�
 drop table t1;
 
 set names utf8;
---disable_warnings
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_bin;
---enable_warnings
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1363,26 +1338,22 @@ select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
 drop table t1;
 
-
 #
 # Bug#19960: Inconsistent results when joining
 # InnoDB tables using partial UTF8 indexes
 #
---disable_warnings
+
 CREATE TABLE t1 (
   colA int(11) NOT NULL,
   colB varchar(255) character set utf8 NOT NULL,
    PRIMARY KEY  (colA)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t1 (colA, colB) VALUES (1, 'foo'), (2, 'foo bar');
---disable_warnings
 CREATE TABLE t2 (
   colA int(11) NOT NULL,
   colB varchar(255) character set utf8 NOT NULL,
    KEY bad  (colA,colB(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
 INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
 SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
 WHERE t1.colA < 3;
@@ -1456,3 +1427,22 @@ SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+
+--echo Start of 5.4 tests
+#
+# Bug#26474: Add Sinhala script (Sri Lanka) collation to MySQL
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (
+        predicted_order int NOT NULL,
+        utf8_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8;
+INSERT INTO t1 VALUES (19, x'E0B696'), (30, x'E0B69AE0B798'), (61, x'E0B6AF'), (93, x'E0B799'), (52, x'E0B6A6'), (73, x'E0B6BBE0B78AE2808D'), (3, x'E0B686'), (56, x'E0B6AA'), (55, x'E0B6A9'), (70, x'E0B6B9'), (94, x'E0B79A'), (80, x'E0B785'), (25, x'E0B69AE0B791'), (48, x'E0B6A2'), (13, x'E0B690'), (86, x'E0B793'), (91, x'E0B79F'), (81, x'E0B786'), (79, x'E0B784'), (14, x'E0B691'), (99, x'E0B78A'), (8, x'E0B68B'), (68, x'E0B6B7'), (22, x'E0B69A'), (16, x'E0B693'), (33, x'E0B69AE0B7B3'), (38, x'E0B69AE0B79D'), (21, x'E0B683'), (11, x'E0B68E'), (77, x'E0B782'), (40, x'E0B69AE0B78A'), (101, x'E0B78AE2808DE0B6BB'), (35, x'E0B69AE0B79A'), (1, x'E0B7B4'), (9, x'E0B68C'), (96, x'E0B79C'), (6, x'E0B689'), (95, x'E0B79B'), (88, x'E0B796'), (64, x'E0B6B3'), (26, x'E0B69AE0B792'), (82, x'E0B78F'), (28, x'E0B69AE0B794'), (39, x'E0B69AE0B79E'), (97, x'E0B79D'), (2, x'E0B685'), (75, x'E0B780'), (34, x'E0B69AE0B799'), (69, x'E0B6B8'), (83, x'E0B790'), (18, x'E0B695'), (90, x'E0B7B2'), (17, x'E0B694'), (72, x'E0B6BB'), (66, x'E0B6B5'), (59, x'E0B6AD'), (44, x'E0B69E'), (15, x'E0B692'), (23, x'E0B69AE0B78F'), (65, x'E0B6B4'), (42, x'E0B69C'), (63, x'E0B6B1'), (85, x'E0B792'), (47, x'E0B6A1'), (49, x'E0B6A3'), (92, x'E0B7B3'), (78, x'E0B783'), (36, x'E0B69AE0B79B'), (4, x'E0B687'), (24, x'E0B69AE0B790'), (87, x'E0B794'), (37, x'E0B69AE0B79C'), (32, x'E0B69AE0B79F'), (29, x'E0B69AE0B796'), (43, x'E0B69D'), (62, x'E0B6B0'), (100, x'E0B78AE2808DE0B6BA'), (60, x'E0B6AE'), (45, x'E0B69F'), (12, x'E0B68F'), (46, x'E0B6A0'), (50, x'E0B6A5'), (51, x'E0B6A4'), (5, x'E0B688'), (76, x'E0B781'), (89, x'E0B798'), (74, x'E0B6BD'), (10, x'E0B68D'), (57, x'E0B6AB'), (71, x'E0B6BA'), (58, x'E0B6AC'), (27, x'E0B69AE0B793'), (54, x'E0B6A8'), (84, x'E0B791'), (31, x'E0B69AE0B7B2'), (98, x'E0B79E'), (53, x'E0B6A7'), (41, x'E0B69B'), (67, x'E0B6B6'), (7, x'E0B68A'), (20, x'E0B682');
+SELECT predicted_order, hex(utf8_encoding) FROM t1 ORDER BY utf8_encoding COLLATE utf8_sinhala_ci;
+DROP TABLE t1;
+
+--echo End of 5.4 tests
+

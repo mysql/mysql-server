@@ -1,3 +1,6 @@
+#ifndef HA_NDBCLUSTER_BINLOG_INCLUDED
+#define HA_NDBCLUSTER_BINLOG_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
@@ -225,3 +228,5 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 { thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 Ndb* check_ndb_in_thd(THD* thd);
+
+#endif /* HA_NDBCLUSTER_BINLOG_INCLUDED */

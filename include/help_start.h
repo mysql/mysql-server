@@ -1,3 +1,6 @@
+#ifndef HELP_START_INCLUDED
+#define HELP_START_INCLUDED
+
 /* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -22,3 +25,4 @@
 #define fputc(s,f)   consoleprintf("%c", s)
 #define putchar(s)   consoleprintf("%c", s)
 #endif
+#endif /* HELP_START_INCLUDED */

@@ -4672,7 +4672,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 CHARSET_INFO my_charset_sjis_japanese_ci=
 {
     13,0,0,		/* number */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_NONASCII,	/* state */
     "sjis",		/* cs name    */
     "sjis_japanese_ci",	/* name */
     "",			/* comment    */
@@ -4704,7 +4704,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
 CHARSET_INFO my_charset_sjis_bin=
 {
     88,0,0,		/* number */
-    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_NONASCII, /* state  */
     "sjis",		/* cs name    */
     "sjis_bin",		/* name */
     "",			/* comment    */

@@ -1,3 +1,6 @@
+#ifndef TZFILE_INCLUDED
+#define TZFILE_INCLUDED
+
 /* Copyright (C) 2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -134,3 +137,5 @@ struct tzhead {
 */
 
 #define isleap(y) (((y) % 4) == 0 && (((y) % 100) != 0 || ((y) % 400) == 0))
+
+#endif

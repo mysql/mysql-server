@@ -52,7 +52,7 @@ SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.innodb_rollback_on_timeout = VARIABLE_VALUE
+SELECT IF(@@GLOBAL.innodb_rollback_on_timeout, "ON", "OFF") = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_rollback_on_timeout';
 --echo 1 Expected

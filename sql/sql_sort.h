@@ -1,3 +1,6 @@
+#ifndef SQL_SORT_INCLUDED
+#define SQL_SORT_INCLUDED
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -87,3 +90,5 @@ int merge_buffers(SORTPARAM *param,IO_CACHE *from_file,
 		  BUFFPEK *lastbuff,BUFFPEK *Fb,
 		  BUFFPEK *Tb,int flag);
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length);
+
+#endif /* SQL_SORT_INCLUDED */

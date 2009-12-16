@@ -53,8 +53,8 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   uint16 bit_pos;                       /* Position to bit part */
   uint16 flag;
   uint16 length;			/* Keylength */
+  uint16 language;
   uint8  type;				/* Type of key (for sort) */
-  uint8  language;
   uint8  null_bit;			/* bitmask to test for NULL */
   uint8  bit_start,bit_end;		/* if bit field */
   uint8  bit_length;                    /* Length of bit part */

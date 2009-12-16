@@ -2,7 +2,7 @@ drop table if exists t1,t2;
 select 1, 1.0, -1, "hello", NULL;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					1	8	1	1	N	32897	0	63
-def					1.0	246	4	3	N	129	1	63
+def					1.0	246	4	3	N	32897	1	63
 def					-1	8	2	2	N	32897	0	63
 def					hello	253	5	5	N	1	31	8
 def					NULL	6	0	0	Y	32896	0	63
@@ -18,7 +18,7 @@ def	test	t1	t1	d	d	3	11	0	Y	32768	0	63
 def	test	t1	t1	e	e	8	20	0	Y	32768	0	63
 def	test	t1	t1	f	f	4	3	0	Y	32768	2	63
 def	test	t1	t1	g	g	5	4	0	Y	32768	3	63
-def	test	t1	t1	h	h	246	7	0	Y	0	4	63
+def	test	t1	t1	h	h	246	7	0	Y	32768	4	63
 def	test	t1	t1	i	i	13	4	0	Y	32864	0	63
 def	test	t1	t1	j	j	10	10	0	Y	128	0	63
 def	test	t1	t1	k	k	7	19	0	N	9441	0	63
@@ -199,3 +199,95 @@ def				IFNULL(d, d)	IFNULL(d, d)	10	10	10	Y	128	0	63
 def				LEAST(d, d)	LEAST(d, d)	10	10	10	Y	128	0	63
 DROP TABLE t1;
 End of 5.0 tests
+create table t1(
+# numeric types
+bool_col bool,
+boolean_col boolean,
+bit_col bit(5),
+tiny tinyint,
+tiny_uns tinyint unsigned,
+small smallint,
+small_uns smallint unsigned,
+medium mediumint,
+medium_uns mediumint unsigned,
+int_col int,
+int_col_uns int unsigned,
+big bigint,
+big_uns bigint unsigned,
+decimal_col decimal(10,5),
+# synonyms of DECIMAL
+numeric_col numeric(10),
+fixed_col fixed(10),
+dec_col dec(10),
+decimal_col_uns decimal(10,5) unsigned,
+fcol float,
+fcol_uns float unsigned,
+dcol double,
+double_precision_col double precision,
+dcol_uns double unsigned,
+# date/time types
+date_col date,
+time_col time,
+timestamp_col timestamp,
+year_col year,
+datetime_col datetime,
+# string types
+char_col char(5),
+varchar_col varchar(10),
+binary_col binary(10),
+varbinary_col varbinary(10),
+tinyblob_col tinyblob,
+blob_col blob,
+mediumblob_col mediumblob,
+longblob_col longblob,
+text_col text,
+mediumtext_col mediumtext,
+longtext_col longtext,
+enum_col enum("A","B","C"),
+set_col set("F","E","D")
+);
+select * from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	bool_col	bool_col	1	1	0	Y	32768	0	63
+def	test	t1	t1	boolean_col	boolean_col	1	1	0	Y	32768	0	63
+def	test	t1	t1	bit_col	bit_col	16	5	0	Y	32	0	63
+def	test	t1	t1	tiny	tiny	1	4	0	Y	32768	0	63
+def	test	t1	t1	tiny_uns	tiny_uns	1	3	0	Y	32800	0	63
+def	test	t1	t1	small	small	2	6	0	Y	32768	0	63
+def	test	t1	t1	small_uns	small_uns	2	5	0	Y	32800	0	63
+def	test	t1	t1	medium	medium	9	9	0	Y	32768	0	63
+def	test	t1	t1	medium_uns	medium_uns	9	8	0	Y	32800	0	63
+def	test	t1	t1	int_col	int_col	3	11	0	Y	32768	0	63
+def	test	t1	t1	int_col_uns	int_col_uns	3	10	0	Y	32800	0	63
+def	test	t1	t1	big	big	8	20	0	Y	32768	0	63
+def	test	t1	t1	big_uns	big_uns	8	20	0	Y	32800	0	63
+def	test	t1	t1	decimal_col	decimal_col	246	12	0	Y	32768	5	63
+def	test	t1	t1	numeric_col	numeric_col	246	11	0	Y	32768	0	63
+def	test	t1	t1	fixed_col	fixed_col	246	11	0	Y	32768	0	63
+def	test	t1	t1	dec_col	dec_col	246	11	0	Y	32768	0	63
+def	test	t1	t1	decimal_col_uns	decimal_col_uns	246	11	0	Y	32800	5	63
+def	test	t1	t1	fcol	fcol	4	12	0	Y	32768	31	63
+def	test	t1	t1	fcol_uns	fcol_uns	4	12	0	Y	32800	31	63
+def	test	t1	t1	dcol	dcol	5	22	0	Y	32768	31	63
+def	test	t1	t1	double_precision_col	double_precision_col	5	22	0	Y	32768	31	63
+def	test	t1	t1	dcol_uns	dcol_uns	5	22	0	Y	32800	31	63
+def	test	t1	t1	date_col	date_col	10	10	0	Y	128	0	63
+def	test	t1	t1	time_col	time_col	11	8	0	Y	128	0	63
+def	test	t1	t1	timestamp_col	timestamp_col	7	19	0	N	9441	0	63
+def	test	t1	t1	year_col	year_col	13	4	0	Y	32864	0	63
+def	test	t1	t1	datetime_col	datetime_col	12	19	0	Y	128	0	63
+def	test	t1	t1	char_col	char_col	254	5	0	Y	0	0	8
+def	test	t1	t1	varchar_col	varchar_col	253	10	0	Y	0	0	8
+def	test	t1	t1	binary_col	binary_col	254	10	0	Y	128	0	63
+def	test	t1	t1	varbinary_col	varbinary_col	253	10	0	Y	128	0	63
+def	test	t1	t1	tinyblob_col	tinyblob_col	252	255	0	Y	144	0	63
+def	test	t1	t1	blob_col	blob_col	252	65535	0	Y	144	0	63
+def	test	t1	t1	mediumblob_col	mediumblob_col	252	16777215	0	Y	144	0	63
+def	test	t1	t1	longblob_col	longblob_col	252	4294967295	0	Y	144	0	63
+def	test	t1	t1	text_col	text_col	252	65535	0	Y	16	0	8
+def	test	t1	t1	mediumtext_col	mediumtext_col	252	16777215	0	Y	16	0	8
+def	test	t1	t1	longtext_col	longtext_col	252	4294967295	0	Y	16	0	8
+def	test	t1	t1	enum_col	enum_col	254	1	0	Y	256	0	8
+def	test	t1	t1	set_col	set_col	254	5	0	Y	2048	0	8
+bool_col	boolean_col	bit_col	tiny	tiny_uns	small	small_uns	medium	medium_uns	int_col	int_col_uns	big	big_uns	decimal_col	numeric_col	fixed_col	dec_col	decimal_col_uns	fcol	fcol_uns	dcol	double_precision_col	dcol_uns	date_col	time_col	timestamp_col	year_col	datetime_col	char_col	varchar_col	binary_col	varbinary_col	tinyblob_col	blob_col	mediumblob_col	longblob_col	text_col	mediumtext_col	longtext_col	enum_col	set_col
+drop table t1;

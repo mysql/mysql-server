@@ -1,3 +1,5 @@
+#ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
+#define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
 /*
   Errors a handler can give you
@@ -66,3 +68,4 @@ static const char *handler_error_messages[]=
   "Too many active concurrent transactions"
 };
 
+#endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

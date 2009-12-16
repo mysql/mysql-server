@@ -1,3 +1,6 @@
+#ifndef VIO_PRIV_INCLUDED
+#define VIO_PRIV_INCLUDED
+
 /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -22,7 +25,10 @@
 #include <m_string.h>
 #include <violite.h>
 
-void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
+#ifdef _WIN32
+void	vio_win32_timeout(Vio *vio, uint which, uint timeout);
+#endif
+
 void	vio_timeout(Vio *vio,uint which, uint timeout);
 
 #ifdef HAVE_OPENSSL
@@ -38,3 +44,4 @@ void vio_ssl_delete(Vio *vio);
 int vio_ssl_blocking(Vio *vio, my_bool set_blocking_mode, my_bool *old_mode);
 
 #endif /* HAVE_OPENSSL */
+#endif /* VIO_PRIV_INCLUDED */

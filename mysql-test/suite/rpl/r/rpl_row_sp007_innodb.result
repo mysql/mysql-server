@@ -22,8 +22,6 @@ END|
 < ---- Master selects-- >
 -------------------------
 CALL test.p1(12);
-Warnings:
-Note	1051	Unknown table 't1'
 SELECT * FROM test.t1;
 num
 12

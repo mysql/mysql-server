@@ -69,12 +69,12 @@ ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the valu
 SET @@global.log_bin_trust_function_creators = test;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_063_06-----------------------#'
-SELECT @@global.log_bin_trust_function_creators = VARIABLE_VALUE 
+SELECT IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
-@@global.log_bin_trust_function_creators = VARIABLE_VALUE
+IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE
 1
-SELECT @@session.log_bin_trust_function_creators = VARIABLE_VALUE 
+SELECT IF(@@session.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable

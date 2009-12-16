@@ -411,7 +411,7 @@ void
 srv_init(void);
 /*==========*/
 /*********************************************************************//**
-Frees the OS fast mutex created in srv_boot(). */
+Frees the data structures created in srv_init(). */
 UNIV_INTERN
 void
 srv_free(void);
