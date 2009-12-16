@@ -341,7 +341,7 @@ static int write_conflict_row(NDB_SHARE *share,
   }
   {
     uint32 server_id= (uint32)::server_id;
-    uint32 master_server_id= (uint32)active_mi->master_server_id;
+    uint32 master_server_id= (uint32)active_mi->master_id;
     uint64 master_epoch= (uint64)active_mi->master_epoch;
     uint32 count= (uint32)++(cfn_share->m_count);
     if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
@@ -3275,7 +3275,7 @@ int ha_ndbcluster::write_row(uchar *record)
 #ifdef HAVE_NDB_BINLOG
   if (m_share == ndb_apply_status_share && table->in_use->slave_thread)
   {
-    uint32 sid, master_server_id= active_mi->master_server_id;
+    uint32 sid, master_server_id= active_mi->master_id;
     memcpy(&sid, table->field[0]->ptr + (record - table->record[0]), sizeof(sid));
     if (sid == master_server_id)
     {

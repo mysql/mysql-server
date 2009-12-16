@@ -50,5 +50,7 @@ Last_IO_Error	#
 Last_SQL_Errno	9
 Last_SQL_Error	Error in Begin_load_query event: write to '../../tmp/SQL_LOAD.data' failed
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 drop table t1;
 drop table t1;

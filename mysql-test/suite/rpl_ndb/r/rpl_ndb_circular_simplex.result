@@ -54,6 +54,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	2
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
@@ -104,4 +106,6 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 DROP TABLE t1;
