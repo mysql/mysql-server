@@ -41,7 +41,7 @@ have disabled the InnoDB inlining in this file. */
 #include <mysql/plugin.h>
 
 #ifndef MYSQL_SERVER
-/* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
+/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
 #endif /* MYSQL_SERVER */
@@ -54,6 +54,7 @@ static ulong commit_threads = 0;
 static pthread_mutex_t commit_threads_m;
 static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
+static pthread_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 
 /*
@@ -661,6 +662,12 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_DUPLICATE_KEY) {
 
+		/* Be cautious with returning this error, since
+		mysql could re-enter the storage layer to get
+		duplicated key info, the operation requires a
+		valid table handle and/or transaction information,
+		which might not always be available in the error
+		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
@@ -761,35 +768,6 @@ convert_error_code_to_mysql(
     	} else {
     		return(-1);			// Unknown error
     	}
-}
-
-/*****************************************************************
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex.
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*****************************************************************
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*****************************************************************
@@ -1498,70 +1476,148 @@ innobase_invalidate_query_cache(
 #endif
 }
 
-/*********************************************************************
-Display an SQL identifier. */
-extern "C"
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen)/* in: length of name */
+/*****************************************************************//**
+Convert an SQL identifier to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+static
+char*
+innobase_convert_identifier(
+/*========================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		file_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an UTF-8 string */
 {
-	const char*	s	= name;
-	char*		qname	= NULL;
+	char nz[NAME_LEN + 1];
+#if MYSQL_VERSION_ID >= 50141
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
+#else /* MYSQL_VERSION_ID >= 50141 */
+	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+#endif /* MYSQL_VERSION_ID >= 50141 */
+
+	const char*	s	= id;
 	int		q;
 
-	if (table_id) {
-		/* Decode the table name.  The filename_to_tablename()
-		function expects a NUL-terminated string.  The input and
-		output strings buffers must not be shared.  The function
-		only produces more output when the name contains other
-		characters than [0-9A-Z_a-z]. */
-          char*	temp_name = (char*) my_malloc((uint) namelen + 1, MYF(MY_WME));
-          uint	qnamelen = (uint) (namelen
-                                   + (1 + sizeof srv_mysql50_table_name_prefix));
+	if (file_id) {
+		/* Decode the table name.  The MySQL function expects
+		a NUL-terminated string.  The input and output strings
+		buffers must not be shared. */
 
-		if (temp_name) {
-                  qname = (char*) my_malloc(qnamelen, MYF(MY_WME));
-			if (qname) {
-				memcpy(temp_name, name, namelen);
-				temp_name[namelen] = 0;
-				s = qname;
-				namelen = filename_to_tablename(temp_name,
-						qname, qnamelen);
-			}
-			my_free(temp_name, MYF(0));
+		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
+			idlen = (sizeof nz) - 1;
 		}
+
+		memcpy(nz, id, idlen);
+		nz[idlen] = 0;
+
+		s = nz2;
+#if MYSQL_VERSION_ID >= 50141
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+		goto no_quote;
+#else /* MYSQL_VERSION_ID >= 50141 */
+		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
-	if (!trx || !trx->mysql_thd) {
-
+	/* See if the identifier needs to be quoted. */
+	if (UNIV_UNLIKELY(!thd)) {
 		q = '"';
 	} else {
-		q = get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						s, (int) namelen);
+		q = get_quote_char_for_identifier((THD*) thd, s, (int) idlen);
 	}
 
 	if (q == EOF) {
-		fwrite(s, 1, namelen, f);
-	} else {
-		const char*	e = s + namelen;
-		putc(q, f);
-		while (s < e) {
-			int	c = *s++;
-			if (c == q) {
-				putc(c, f);
-			}
-			putc(c, f);
+#if MYSQL_VERSION_ID >= 50141
+no_quote:
+#endif /* MYSQL_VERSION_ID >= 50141 */
+		if (UNIV_UNLIKELY(idlen > buflen)) {
+			idlen = buflen;
 		}
-		putc(q, f);
+		memcpy(buf, s, idlen);
+		return(buf + idlen);
 	}
 
-	my_free(qname, MYF(MY_ALLOW_ZERO_PTR));
+	/* Quote the identifier. */
+	if (buflen < 2) {
+		return(buf);
+	}
+
+	*buf++ = q;
+	buflen--;
+
+	for (; idlen; idlen--) {
+		int	c = *s++;
+		if (UNIV_UNLIKELY(c == q)) {
+			if (UNIV_UNLIKELY(buflen < 3)) {
+				break;
+			}
+
+			*buf++ = c;
+			*buf++ = c;
+			buflen -= 2;
+		} else {
+			if (UNIV_UNLIKELY(buflen < 2)) {
+				break;
+			}
+
+			*buf++ = c;
+			buflen--;
+		}
+	}
+
+	*buf++ = q;
+	return(buf);
+}
+
+/*****************************************************************//**
+Convert a table or index name to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+extern "C"
+char*
+innobase_convert_name(
+/*==================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		table_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an index name */
+{
+	char*		s	= buf;
+	const char*	bufend	= buf + buflen;
+
+	if (table_id) {
+		const char*	slash = (const char*) memchr(id, '/', idlen);
+		if (!slash) {
+
+			goto no_db_name;
+		}
+
+		/* Print the database name and table name separately. */
+		s = innobase_convert_identifier(s, bufend - s, id, slash - id,
+						thd, TRUE);
+		if (UNIV_LIKELY(s < bufend)) {
+			*s++ = '.';
+			s = innobase_convert_identifier(s, bufend - s,
+							slash + 1, idlen
+							- (slash - id) - 1,
+							thd, TRUE);
+		}
+	} else {
+no_db_name:
+		s = innobase_convert_identifier(buf, buflen, id, idlen,
+						thd, table_id);
+	}
+
+	return(s);
+
 }
 
 /**************************************************************************
@@ -1932,6 +1988,7 @@ innobase_init(
 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
+	pthread_mutex_init(&analyze_mutex, MY_MUTEX_INIT_FAST);
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
@@ -1971,6 +2028,7 @@ innobase_end(handlerton *hton, ha_panic_function type)
 		pthread_mutex_destroy(&prepare_commit_mutex);
 		pthread_mutex_destroy(&commit_threads_m);
 		pthread_mutex_destroy(&commit_cond_m);
+		pthread_mutex_destroy(&analyze_mutex);
 		pthread_cond_destroy(&commit_cond);
 	}
 
@@ -2214,6 +2272,8 @@ innobase_rollback(
 	first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
+
+	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
@@ -3240,7 +3300,10 @@ ha_innobase::store_key_val_for_row(
 		} else if (mysql_type == MYSQL_TYPE_TINY_BLOB
 			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
 			|| mysql_type == MYSQL_TYPE_BLOB
-			|| mysql_type == MYSQL_TYPE_LONG_BLOB) {
+			|| mysql_type == MYSQL_TYPE_LONG_BLOB
+			/* MYSQL_TYPE_GEOMETRY data is treated
+			as BLOB data in innodb. */
+			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
 
 			CHARSET_INFO*	cs;
 			ulint		key_len;
@@ -3968,24 +4031,29 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc <= col_max_value
-			    && auto_inc >= prebuilt->autoinc_last_value) {
+			if (auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
-				ut_a(prebuilt->autoinc_increment > 0);
+				/* This should filter out the negative
+				values set explicitly by the user. */
+				if (auto_inc <= col_max_value) {
+					ut_a(prebuilt->autoinc_increment > 0);
 
-				ulonglong	need;
-				ulonglong	offset;
+					ulonglong	need;
+					ulonglong	offset;
 
-				offset = prebuilt->autoinc_offset;
-				need = prebuilt->autoinc_increment;
+					offset = prebuilt->autoinc_offset;
+					need = prebuilt->autoinc_increment;
 
-				auto_inc = innobase_next_autoinc(
-					auto_inc, need, offset, col_max_value);
+					auto_inc = innobase_next_autoinc(
+						auto_inc,
+						need, offset, col_max_value);
 
-				err = innobase_set_max_autoinc(auto_inc);
+					err = innobase_set_max_autoinc(
+						auto_inc);
 
-				if (err != DB_SUCCESS) {
-					error = err;
+					if (err != DB_SUCCESS) {
+						error = err;
+					}
 				}
 			}
 			break;
@@ -5186,7 +5254,7 @@ create_table_def(
 		if (dict_col_name_is_reserved(field->field_name)){
 			push_warning_printf(
 				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_ERROR,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column name '%s'. '%s' is a "
@@ -5433,13 +5501,15 @@ ha_innobase::create(
 	1. <database_name>/<table_name>: for normal table creation
 	2. full path: for temp table creation, or sym link
 
-	When srv_file_per_table is on, check for full path pattern, i.e.
+	When srv_file_per_table is on and mysqld_embedded is off,
+	check for full path pattern, i.e.
 	X:\dir\...,		X is a driver letter, or
 	\\dir1\dir2\...,	UNC path
 	returns error if it is in full path format, but not creating a temp.
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
 	if (srv_file_per_table
+	    && !mysqld_embedded
 	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')
@@ -5595,18 +5665,22 @@ ha_innobase::create(
 	setup at this stage and so we use thd. */
 
 	/* We need to copy the AUTOINC value from the old table if
-	this is an ALTER TABLE. */
+	this is an ALTER TABLE or CREATE INDEX because CREATE INDEX
+	does a table copy too. */
 
 	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
-	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
-	    && create_info->auto_increment_value != 0) {
+	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+	    || thd_sql_command(thd) == SQLCOM_CREATE_INDEX)
+	    && create_info->auto_increment_value > 0) {
 
-		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or
-		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
-		definition from the dictionary and get the current value
-		of the auto increment field. Set a new value to the
-		auto increment field if the value is greater than the
-		maximum value in the column. */
+		/* Query was one of :
+		CREATE TABLE ...AUTO_INCREMENT = x; or
+		ALTER TABLE...AUTO_INCREMENT = x;   or
+		CREATE INDEX x on t(...);
+		Find out a table definition from the dictionary and get
+		the current value of the auto increment field. Set a new
+		value to the auto increment field if the value is greater
+		than the maximum value in the column. */
 
 		auto_inc_value = create_info->auto_increment_value;
 
@@ -5945,6 +6019,24 @@ ha_innobase::rename_table(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
+
+	/* Add a special case to handle the Duplicated Key error
+	and return DB_ERROR instead.
+	This is to avoid a possible SIGSEGV error from mysql error
+	handling code. Currently, mysql handles the Duplicated Key
+	error by re-entering the storage layer and getting dup key
+	info by calling get_dup_key(). This operation requires a valid
+	table handle ('row_prebuilt_t' structure) which could no
+	longer be available in the error handling stage. The suggested
+	solution is to report a 'table exists' error message (since
+	the dup key error here is due to an existing table whose name
+	is the one we are trying to rename to) and return the generic
+	error code. */
+	if (error == (int) DB_DUPLICATE_KEY) {
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
+
+		error = DB_ERROR;
+	}
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -6428,8 +6520,14 @@ ha_innobase::analyze(
 	THD*		thd,		/* in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
 {
+	/* Serialize ANALYZE TABLE inside InnoDB, see
+	Bug#38996 Race condition in ANALYZE TABLE */
+	pthread_mutex_lock(&analyze_mutex);
+
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+
+	pthread_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }
@@ -7027,8 +7125,9 @@ ha_innobase::external_lock(
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
 		ulong const tx_isolation = thd_tx_isolation(current_thd);
-		if (tx_isolation <= ISO_READ_COMMITTED &&
-		    binlog_format == BINLOG_FORMAT_STMT)
+		if (tx_isolation <= ISO_READ_COMMITTED 
+                   && binlog_format == BINLOG_FORMAT_STMT 
+                   && thd_binlog_filter_ok(thd))
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
@@ -7865,6 +7964,7 @@ ha_innobase::get_auto_increment(
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
 		ulonglong	need;
+		ulonglong	current;
 		ulonglong	next_value;
 		ulonglong	col_max_value;
 
@@ -7873,11 +7973,12 @@ ha_innobase::get_auto_increment(
 		col_max_value = innobase_get_int_col_max_value(
 			table->next_number_field);
 
+		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;
 
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
-			*first_value, need, offset, col_max_value);
+			current, need, offset, col_max_value);
 
 		prebuilt->autoinc_last_value = next_value;
 
@@ -8171,8 +8272,7 @@ innobase_xa_prepare(
 		executing XA PREPARE and XA COMMIT commands.
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time.
-		*/
+		to block for undefined period of time. */
 		pthread_mutex_lock(&prepare_commit_mutex);
 		trx->active_trans = 2;
 	}
@@ -8502,7 +8602,7 @@ innobase_index_name_is_reserved(
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
 			push_warning_printf((THD*) trx->mysql_thd,
-					    MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_CANT_CREATE_TABLE,
 					    "Cannot Create Index with name "
 					    "'%s'. The name is reserved "

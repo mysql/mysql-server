@@ -413,7 +413,7 @@ cleanup:
         therefore be treated as a DDL.
       */
       int log_result= thd->binlog_query(query_type,
-                                        thd->query, thd->query_length,
+                                        thd->query(), thd->query_length(),
                                         is_trans, FALSE, errcode);
 
       if (log_result)
@@ -426,7 +426,8 @@ cleanup:
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
-  if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
+  if (error < 0 || 
+      (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
   {
     /*
       If a TRUNCATE TABLE was issued, the number of rows should be reported as
@@ -850,7 +851,7 @@ void multi_delete::abort()
     {
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query, thd->query_length,
+                        thd->query(), thd->query_length(),
                         transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= true;
@@ -1024,7 +1025,7 @@ bool multi_delete::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query, thd->query_length,
+                            thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode) &&
           !normal_tables)
       {
@@ -1089,6 +1090,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
+  bool is_temporary_table= false;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1099,6 +1101,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
+    is_temporary_table= true;
     handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
@@ -1162,11 +1165,9 @@ end:
   {
     if (!error)
     {
-      /*
-        TRUNCATE must always be statement-based binlogged (not row-based) so
-        we don't test current_stmt_binlog_row_based.
-      */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      /* In RBR, the statement is not binlogged if the table is temporary. */
+      if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
+        write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));

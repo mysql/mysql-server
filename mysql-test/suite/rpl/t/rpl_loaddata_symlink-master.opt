@@ -1,0 +1,1 @@
+--secure-file-priv=$MYSQLTEST_VARDIR/std_data_master_link
