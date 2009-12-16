@@ -229,7 +229,7 @@ static void reap_plugins(void);
 
 
 /* declared in set_var.cc */
-extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
+extern sys_var *intern_find_sys_var(const char *str, uint length);
 extern bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
                                  const char *name, longlong val);
 
@@ -1014,6 +1014,9 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   DBUG_ENTER("plugin_initialize");
 
   safe_mutex_assert_owner(&LOCK_plugin);
+  DBUG_ASSERT(plugin->state == PLUGIN_IS_UNINITIALIZED);
+
+  pthread_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1033,6 +1036,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     }
   }
 
+  pthread_mutex_lock(&LOCK_plugin);
+
   plugin->state= PLUGIN_IS_READY;
 
   if (plugin->plugin->status_vars)
@@ -1050,9 +1055,10 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       {0, 0, SHOW_UNDEF}
     };
     if (add_status_vars(array)) // add_status_vars makes a copy
-      goto err;
+      goto err1;
 #else
-    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+    if (add_status_vars(plugin->plugin->status_vars))
+      goto err1;
 #endif /* FIX_LATER */
   }
 
@@ -1074,6 +1080,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
 
   DBUG_RETURN(0);
 err:
+  pthread_mutex_lock(&LOCK_plugin);
+err1:
   DBUG_RETURN(1);
 }
 
@@ -1686,7 +1694,6 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   }
   else
   {
-    DBUG_ASSERT(tmp->state == PLUGIN_IS_UNINITIALIZED);
     if (plugin_initialize(tmp))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
@@ -2164,7 +2171,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
 
   pthread_mutex_lock(&LOCK_plugin);
   rw_rdlock(&LOCK_system_variables_hash);
-  if ((var= intern_find_sys_var(str, length, false)) &&
+  if ((var= intern_find_sys_var(str, length)) &&
       (pi= var->cast_pluginvar()))
   {
     rw_unlock(&LOCK_system_variables_hash);
@@ -2183,11 +2190,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
     rw_unlock(&LOCK_system_variables_hash);
   pthread_mutex_unlock(&LOCK_plugin);
 
-  /*
-    If the variable exists but the plugin it is associated with is not ready
-    then the intern_plugin_lock did not raise an error, so we do it here.
-  */
-  if (pi && !var)
+  if (!var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   DBUG_RETURN(var);
 }
@@ -2390,7 +2393,7 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
       st_bookmark *v= (st_bookmark*) my_hash_element(&bookmark_hash,idx);
 
       if (v->version <= thd->variables.dynamic_variables_version ||
-          !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
+          !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
           !(pi= var->cast_pluginvar()) ||
           v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
         continue;
@@ -2483,7 +2486,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   {
     v= (st_bookmark*) my_hash_element(&bookmark_hash, idx);
     if (v->version > vars->dynamic_variables_version ||
-        !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
+        !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
         !(pivar= var->cast_pluginvar()) ||
         v->key[0] != (pivar->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
       continue;
