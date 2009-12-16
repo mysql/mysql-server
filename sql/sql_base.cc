@@ -3693,6 +3693,7 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table)
     case OT_WAIT:
       result= (thd->mdl_context.wait_for_locks(&m_mdl_requests) ||
                tdc_wait_for_old_versions(thd, &m_mdl_requests));
+      DBUG_ASSERT(thd->mysys_var->current_mutex == NULL);
       break;
     case OT_DISCOVER:
       {
