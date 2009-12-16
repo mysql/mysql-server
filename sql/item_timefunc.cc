@@ -386,7 +386,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	if (tmp - val > 6)
 	  tmp= (char*) val + 6;
 	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
-	frac_part= 6 - (uint) (tmp - val);
+	frac_part= 6 - (int) (tmp - val);
 	if (frac_part > 0)
 	  l_time->second_part*= (ulong) log_10_int[frac_part];
 	val= tmp;
