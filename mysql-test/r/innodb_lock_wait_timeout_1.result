@@ -48,6 +48,24 @@ commit;
 set autocommit=default;
 drop table t1;
 #
+# Bug #37183 insert ignore into .. select ... hangs 
+#            after deadlock was encountered
+#
+create table t1(id int primary key,v int)engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7);
+create table t2 like t1;
+begin;
+update t1 set v=id*2 where id=1;
+begin;
+update t1 set v=id*2 where id=2;
+update t1 set v=id*2 where id=2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+insert ignore into t2 select * from t1 where id=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+drop table t1, t2;
+#
 # Bug#41756 Strange error messages about locks from InnoDB
 #
 drop table if exists t1;

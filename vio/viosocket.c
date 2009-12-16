@@ -415,14 +415,14 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 /*
   Finish pending IO on pipe. Honor wait timeout
 */
-static int pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_millis)
+static size_t pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_ms)
 {
   DWORD length;
   DWORD ret;
 
   DBUG_ENTER("pipe_complete_io");
 
-  ret= WaitForSingleObject(vio->pipe_overlapped.hEvent, timeout_millis);
+  ret= WaitForSingleObject(vio->pipe_overlapped.hEvent, timeout_ms);
   /*
     WaitForSingleObjects will normally return WAIT_OBJECT_O (success, IO completed)
     or WAIT_TIMEOUT.
@@ -431,14 +431,14 @@ static int pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_mill
   {
     CancelIo(vio->hPipe);
     DBUG_PRINT("error",("WaitForSingleObject() returned  %d", ret));
-    DBUG_RETURN(-1);
+    DBUG_RETURN((size_t)-1);
   }
 
   if (!GetOverlappedResult(vio->hPipe,&(vio->pipe_overlapped),&length, FALSE))
   {
     DBUG_PRINT("error",("GetOverlappedResult() returned last error  %d", 
       GetLastError()));
-    DBUG_RETURN(-1);
+    DBUG_RETURN((size_t)-1);
   }
 
   DBUG_RETURN(length);
@@ -448,12 +448,17 @@ static int pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_mill
 size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
 {
   DWORD bytes_read;
+  size_t retval;
   DBUG_ENTER("vio_read_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
+  if (ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
       &(vio->pipe_overlapped)))
+  {
+    retval= bytes_read;
+  }
+  else
   {
     if (GetLastError() != ERROR_IO_PENDING)
     {
@@ -461,23 +466,28 @@ size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
         GetLastError()));
       DBUG_RETURN((size_t)-1);
     }
-    bytes_read= pipe_complete_io(vio, buf, size,vio->read_timeout_millis);
+    retval= pipe_complete_io(vio, buf, size,vio->read_timeout_ms);
   }
 
-  DBUG_PRINT("exit", ("%d", bytes_read));
-  DBUG_RETURN(bytes_read);
+  DBUG_PRINT("exit", ("%lld", (longlong)retval));
+  DBUG_RETURN(retval);
 }
 
 
 size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
   DWORD bytes_written;
+  size_t retval;
   DBUG_ENTER("vio_write_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written,
+  if (WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written, 
       &(vio->pipe_overlapped)))
+  {
+    retval= bytes_written;
+  }
+  else
   {
     if (GetLastError() != ERROR_IO_PENDING)
     {
@@ -485,12 +495,11 @@ size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
         GetLastError()));
       DBUG_RETURN((size_t)-1);
     }
-    bytes_written = pipe_complete_io(vio, (char *)buf, size, 
-        vio->write_timeout_millis);
+    retval= pipe_complete_io(vio, (char *)buf, size, vio->write_timeout_ms);
   }
 
-  DBUG_PRINT("exit", ("%d", bytes_written));
-  DBUG_RETURN(bytes_written);
+  DBUG_PRINT("exit", ("%lld", (longlong)retval));
+  DBUG_RETURN(retval);
 }
 
 
@@ -515,21 +524,21 @@ int vio_close_pipe(Vio * vio)
 
 void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
 {
-    DWORD timeout_millis;
+    DWORD timeout_ms;
     /*
       Windows is measuring timeouts in milliseconds. Check for possible int 
       overflow.
     */
     if (timeout_sec > UINT_MAX/1000)
-      timeout_millis= INFINITE;
+      timeout_ms= INFINITE;
     else
-      timeout_millis= timeout_sec * 1000;
+      timeout_ms= timeout_sec * 1000;
 
     /* which == 1 means "write", which == 0 means "read".*/
     if(which)
-      vio->write_timeout_millis= timeout_millis;
+      vio->write_timeout_ms= timeout_ms;
     else
-      vio->read_timeout_millis= timeout_millis;
+      vio->read_timeout_ms= timeout_ms;
 }
 
 
@@ -564,7 +573,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
          WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
       */
       if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                                 vio->read_timeout_millis) != WAIT_OBJECT_0)
+                                 vio->read_timeout_ms) != WAIT_OBJECT_0)
       {
         DBUG_RETURN(-1);
       };
@@ -621,7 +630,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   while (remain != 0)
   {
     if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                               vio->write_timeout_millis) != WAIT_OBJECT_0)
+                               vio->write_timeout_ms) != WAIT_OBJECT_0)
     {
       DBUG_RETURN((size_t) -1);
     }
