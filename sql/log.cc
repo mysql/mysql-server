@@ -4511,6 +4511,9 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 
 void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 {
+#ifdef HAVE_REPLICATION
+  bool check_purge= false;
+#endif
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_lock(&LOCK_log);
   if ((flags & RP_FORCE_ROTATE) ||
@@ -4518,16 +4521,24 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   {
     new_file_without_locking();
 #ifdef HAVE_REPLICATION
-    if (expire_logs_days)
-    {
-      time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-        purge_logs_before_date(purge_time);
-    }
+    check_purge= true;
 #endif
   }
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_unlock(&LOCK_log);
+
+#ifdef HAVE_REPLICATION
+  /*
+    NOTE: Run purge_logs wo/ holding LOCK_log
+          as it otherwise will deadlock in ndbcluster_binlog_index_purge_file
+  */
+  if (check_purge && expire_logs_days)
+  {
+    time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    if (purge_time >= 0)
+      purge_logs_before_date(purge_time);
+  }
+#endif
 }
 
 uint MYSQL_BIN_LOG::next_file_id()

@@ -1029,7 +1029,7 @@ err:
      false - condition not met
 */
 
-bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
+bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -1039,8 +1039,12 @@ bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 
   if (until_condition == UNTIL_MASTER_POS)
   {
+    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+      DBUG_RETURN(FALSE);
     log_name= group_master_log_name;
-    log_pos= master_beg_pos;
+    log_pos= (!ev)? group_master_log_pos :
+      ((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+       group_master_log_pos : ev->log_pos - ev->data_written);
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */
