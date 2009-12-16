@@ -3127,7 +3127,7 @@ String *udf_handler::val_str(String *str,String *save_str)
   if (res == str->ptr())
   {
     str->length(res_length);
-    DBUG_PRINT("exit", ("str: %s", str->ptr()));
+    DBUG_PRINT("exit", ("str: %*.s", (int) str->length(), str->ptr()));
     DBUG_RETURN(str);
   }
   save_str->set(res, res_length, str->charset());

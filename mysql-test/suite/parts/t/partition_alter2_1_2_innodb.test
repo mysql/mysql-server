@@ -1,5 +1,5 @@
 ################################################################################
-# t/partition_alter2_2_innodb.test                                             #
+# t/partition_alter2_1_2_innodb.test                                           #
 #                                                                              #
 # Purpose:                                                                     #
 #  Tests around Alter column used in partitioning function                     #
@@ -39,6 +39,8 @@ SET @max_row = 20;
 ##### Execute more tests                                             #####
 let $more_trigger_tests= 0;
 let $more_pk_ui_tests= 0;
+# only do the second part
+let $only_part_2= 1;
 
 # The server must support partitioning.
 --source include/have_partition.inc
@@ -70,7 +72,7 @@ let $MAX_VALUE= (2147483646);
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
---source suite/parts/inc/partition_alter2_2.inc
+--source suite/parts/inc/partition_alter2_1.inc
 
 #------------------------------------------------------------------------------#
 # Execute storage engine specific tests
