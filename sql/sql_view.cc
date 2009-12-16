@@ -818,7 +818,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
     thd->variables.sql_mode|= sql_mode;
   }
-  DBUG_PRINT("info", ("View: %s", view_query.ptr()));
+  DBUG_PRINT("info",
+             ("View: %*.s", (int) view_query.length(), view_query.ptr()));
 
   /* fill structure */
   view->source= thd->lex->create_view_select;

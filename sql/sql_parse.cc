@@ -6465,7 +6465,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     {
       thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
-      lex_start(thd);
     }
     
     if (thd)
