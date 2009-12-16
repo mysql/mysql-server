@@ -134,7 +134,7 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
-SELECT @@session.sql_log_bin = VARIABLE_VALUE 
+SELECT IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_log_bin';
 SELECT @@session.sql_log_bin;

@@ -386,7 +386,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	if (tmp - val > 6)
 	  tmp= (char*) val + 6;
 	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
-	frac_part= 6 - (uint) (tmp - val);
+	frac_part= 6 - (int) (tmp - val);
 	if (frac_part > 0)
 	  l_time->second_part*= (ulong) log_10_int[frac_part];
 	val= tmp;
@@ -865,6 +865,8 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
 {
   const char *end=str+length;
   uint i;
+  long msec_length= 0;
+
   while (str != end && !my_isdigit(cs,*str))
     str++;
 
@@ -874,12 +876,7 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
       value= value*LL(10) + (longlong) (*str - '0');
-    if (transform_msec && i == count - 1) // microseconds always last
-    {
-      long msec_length= 6 - (uint) (str - start);
-      if (msec_length > 0)
-	value*= (long) log_10_int[msec_length];
-    }
+    msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
       str++;
@@ -893,6 +890,10 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
       break;
     }
   }
+
+  if (transform_msec && msec_length > 0)
+    values[count - 1] *= (long) log_10_int[msec_length];
+
   return (str != end);
 }
 
@@ -936,6 +937,48 @@ longlong Item_func_to_days::val_int()
 }
 
 
+longlong Item_func_to_seconds::val_int_endpoint(bool left_endp,
+                                                bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong seconds;
+  longlong days;
+  int dummy;                                /* unused */
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
+  {
+    /* got NULL, leave the incl_endp intact */
+    return LONGLONG_MIN;
+  }
+  seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
+  seconds= ltime.neg ? -seconds : seconds;
+  days= (longlong) calc_daynr(ltime.year, ltime.month, ltime.day);
+  seconds+= days * 24L * 3600L;
+  /* Set to NULL if invalid date, but keep the value */
+  null_value= check_date(&ltime,
+                         (ltime.year || ltime.month || ltime.day),
+                         (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE),
+                         &dummy);
+  /*
+    Even if the evaluation return NULL, seconds is useful for pruning
+  */
+  return seconds;
+}
+
+longlong Item_func_to_seconds::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong seconds;
+  longlong days;
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+    return 0;
+  seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
+  seconds=ltime.neg ? -seconds : seconds;
+  days= (longlong) calc_daynr(ltime.year, ltime.month, ltime.day);
+  return seconds + days * 24L * 3600L;
+}
+
 /*
   Get information about this Item tree monotonicity
 
@@ -958,6 +1001,17 @@ enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
       return MONOTONIC_STRICT_INCREASING_NOT_NULL;
     if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
       return MONOTONIC_INCREASING_NOT_NULL;
+  }
+  return NON_MONOTONIC;
+}
+
+enum_monotonicity_info Item_func_to_seconds::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM)
+  {
+    if (args[0]->field_type() == MYSQL_TYPE_DATE ||
+        args[0]->field_type() == MYSQL_TYPE_DATETIME)
+      return MONOTONIC_STRICT_INCREASING_NOT_NULL;
   }
   return NON_MONOTONIC;
 }
@@ -1801,7 +1855,7 @@ longlong Item_func_sec_to_time::val_int()
   sec_to_time(arg_val, args[0]->unsigned_flag, &ltime);
 
   return (ltime.neg ? -1 : 1) *
-    ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 
@@ -2613,7 +2667,8 @@ longlong Item_time_typecast::val_int()
     null_value= 1;
     return 0;
   }
-  return ltime.hour * 10000L + ltime.minute * 100 + ltime.second;
+  return (ltime.neg ? -1 : 1) *
+    (longlong) ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 String *Item_time_typecast::val_str(String *str)

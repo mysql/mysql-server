@@ -1,3 +1,6 @@
+#ifndef ITEM_SUM_INCLUDED
+#define ITEM_SUM_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -299,13 +302,14 @@ class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
-public:
+protected:
   /**
     Aggregator class instance. Not set initially. Allocated only after
     it is determined if the incoming data are already distinct.
   */
   Aggregator *aggr;
 
+private:
   /**
     Used in making ROLLUP. Set for the ROLLUP copies of the original
     Item_sum and passed to create_tmp_field() to cause it to work
@@ -320,6 +324,11 @@ public:
     0 if it was AGGREGATE()
   */
   bool with_distinct;
+
+public:
+
+  bool has_force_copy_fields() const { return force_copy_fields; }
+  bool has_with_distinct()     const { return with_distinct; }
 
   enum Sumfunctype
   { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
@@ -355,6 +364,7 @@ protected:
   Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
+  static ulonglong ram_limitation(THD *thd);
 
 public:  
 
@@ -403,22 +413,6 @@ public:
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
-  /*
-    This method is used for debug purposes to print the name of an
-    item to the debug log. The second use of this method is as
-    a helper function of print(), where it is applicable.
-    To suit both goals it should return a meaningful,
-    distinguishable and sintactically correct string.  This method
-    should not be used for runtime type identification, use enum
-    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
-    instead.
-
-    NOTE: for Items inherited from Item_sum, func_name() return part of
-    function name till first argument (including '(') to make difference in
-    names for functions with 'distinct' clause and without 'distinct' and
-    also to make printing of items inherited from Item_sum uniform.
-  */
-  virtual const char *func_name() const= 0;
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }
@@ -444,12 +438,12 @@ public:
     may be initialized to 0 by clear() and to NULL by
     no_rows_in_result().
   */
-  void no_rows_in_result()
+  virtual void no_rows_in_result()
   {
     if (!aggr)
-     set_aggregator(with_distinct ?
-                    Aggregator::DISTINCT_AGGREGATOR :
-                    Aggregator::SIMPLE_AGGREGATOR);
+      set_aggregator(with_distinct ?
+                     Aggregator::DISTINCT_AGGREGATOR :
+                     Aggregator::SIMPLE_AGGREGATOR);
     reset();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -508,11 +502,12 @@ public:
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);
+
   virtual void clear()= 0;
   virtual bool add()= 0;
-  virtual bool setup(THD *thd) {return 0;}
+  virtual bool setup(THD *thd) { return false; }
 
-  void cleanup ();
+  virtual void cleanup();
 };
 
 
@@ -530,9 +525,6 @@ class Unique;
 class Aggregator_distinct : public Aggregator
 {
   friend class Item_sum_sum;
-  friend class Item_sum_count;
-  friend class Item_sum_avg;
-protected:
 
   /* 
     flag to prevent consecutive runs of endup(). Normally in endup there are 
@@ -564,7 +556,7 @@ protected:
   uint32 *field_lengths;
 
   /*
-    used in conjunction with 'table' to support the access to Field classes 
+    Used in conjunction with 'table' to support the access to Field classes 
     for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
   */
   TMP_TABLE_PARAM *tmp_table_param;
@@ -634,7 +626,6 @@ public:
 
 class Item_sum_num :public Item_sum
 {
-  friend class Aggregator_distinct;
 protected:
   /*
    val_xxx() functions may be called several times during the execution of a 
@@ -689,14 +680,14 @@ protected:
   void fix_length_and_dec();
 
 public:
-  Item_sum_sum(Item *item_par, bool distinct= FALSE) :Item_sum_num(item_par) 
+  Item_sum_sum(Item *item_par, bool distinct) :Item_sum_num(item_par) 
   {
     set_distinct(distinct);
   }
   Item_sum_sum(THD *thd, Item_sum_sum *item);
   enum Sumfunctype sum_func () const 
   { 
-    return with_distinct ? SUM_DISTINCT_FUNC : SUM_FUNC; 
+    return has_with_distinct() ? SUM_DISTINCT_FUNC : SUM_FUNC; 
   }
   void clear();
   bool add();
@@ -710,7 +701,7 @@ public:
   void no_rows_in_result() {}
   const char *func_name() const 
   { 
-    return with_distinct ? "sum(distinct " : "sum("; 
+    return has_with_distinct() ? "sum(distinct " : "sum("; 
   }
   Item *copy_or_same(THD* thd);
 };
@@ -749,7 +740,7 @@ class Item_sum_count :public Item_sum_int
   {}
   enum Sumfunctype sum_func () const 
   { 
-    return with_distinct ? COUNT_DISTINCT_FUNC : COUNT_FUNC; 
+    return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC; 
   }
   void no_rows_in_result() { count=0; }
   void make_const(longlong count_arg) 
@@ -762,7 +753,7 @@ class Item_sum_count :public Item_sum_int
   void update_field();
   const char *func_name() const 
   { 
-    return with_distinct ? "count(distinct " : "count(";
+    return has_with_distinct() ? "count(distinct " : "count(";
   }
   Item *copy_or_same(THD* thd);
 };
@@ -793,6 +784,7 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
 };
 
 
@@ -803,7 +795,7 @@ public:
   uint prec_increment;
   uint f_precision, f_scale, dec_bin_size;
 
-  Item_sum_avg(Item *item_par, bool distinct= FALSE) 
+  Item_sum_avg(Item *item_par, bool distinct) 
     :Item_sum_sum(item_par, distinct), count(0) 
   {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
@@ -813,7 +805,7 @@ public:
   void fix_length_and_dec();
   enum Sumfunctype sum_func () const 
   {
-    return with_distinct ? AVG_DISTINCT_FUNC : AVG_FUNC;
+    return has_with_distinct() ? AVG_DISTINCT_FUNC : AVG_FUNC;
   }
   void clear();
   bool add();
@@ -829,7 +821,7 @@ public:
   void no_rows_in_result() {}
   const char *func_name() const 
   { 
-    return with_distinct ? "avg(distinct " : "avg("; 
+    return has_with_distinct() ? "avg(distinct " : "avg("; 
   }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
@@ -869,6 +861,7 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  const char *func_name() const { DBUG_ASSERT(0); return "variance_field"; }
 };
 
 
@@ -944,6 +937,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return REAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
+  const char *func_name() const { DBUG_ASSERT(0); return "std_field"; }
 };
 
 /*
@@ -969,14 +963,13 @@ class Item_sum_std :public Item_sum_variance
 };
 
 // This class is a string or number function depending on num_func
-
+class Arg_comparator;
+class Item_cache;
 class Item_sum_hybrid :public Item_sum
 {
 protected:
-  String value,tmp_value;
-  double sum;
-  longlong sum_int;
-  my_decimal sum_dec;
+  Item_cache *value;
+  Arg_comparator *cmp;
   Item_result hybrid_type;
   enum_field_types hybrid_field_type;
   int cmp_sign;
@@ -984,12 +977,17 @@ protected:
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
-    :Item_sum(item_par), sum(0.0), sum_int(0),
+    :Item_sum(item_par), value(0), cmp(0),
     hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
     cmp_sign(sign), was_values(TRUE)
   { collation.set(&my_charset_bin); }
-  Item_sum_hybrid(THD *thd, Item_sum_hybrid *item);
+  Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
+    :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
+    hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
+    was_values(item->was_values)
+  { }
   bool fix_fields(THD *, Item **);
+  void setup(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();
@@ -1413,3 +1411,5 @@ public:
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 };
+
+#endif /* ITEM_SUM_INCLUDED */

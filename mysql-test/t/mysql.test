@@ -367,6 +367,14 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --enable_query_log
 
 #
+# Bug#26780: patch to add auto vertical output option to the cli.
+#
+# Make this wide enough that it will wrap almost everywhere.
+--exec $MYSQL test --auto-vertical-output --table -e "SELECT 1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0;"
+# Too short to wrap.
+--exec $MYSQL test --auto-vertical-output --table -e "SELECT 1;"
+
+#
 # Bug #25146: Some warnings/errors not shown when using --show-warnings
 #
 
@@ -390,10 +398,16 @@ drop tables t1, t2;
 #
 # Bug #27884: mysql --html does not quote HTML special characters in output
 # 
---exec $MYSQL --html test -e "select '< & >' as '<'"
+--write_file $MYSQLTEST_VARDIR/tmp/bug27884.sql
+SELECT '< & >' AS `<`;
+EOF
+--exec $MYSQL --html test < $MYSQLTEST_VARDIR/tmp/bug27884.sql
+
+remove_file $MYSQLTEST_VARDIR/tmp/bug27884.sql;
+
 
 #
-# Bug #27884: mysql client + null byte
+# Bug #28203: mysql client + null byte
 # 
 create table t1 (a char(5));
 insert into t1 values ('\0b\0');
@@ -406,5 +420,5 @@ insert into t1 values ('\0b\0');
 --exec $MYSQL --xml test -e "select a from t1"
 drop table t1;
 
---echo
---echo End of tests
+
+--echo End of 5.0 tests

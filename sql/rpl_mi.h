@@ -20,6 +20,7 @@
 
 #include "rpl_rli.h"
 #include "rpl_reporting.h"
+#include "my_sys.h"
 
 
 /*****************************************************************************
@@ -58,8 +59,9 @@
 class Master_info : public Slave_reporting_capability
 {
  public:
-  Master_info();
+  Master_info(bool is_slave_recovery);
   ~Master_info();
+  bool shall_ignore_server_id(ulong s_id);
 
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
@@ -100,15 +102,25 @@ class Master_info : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+  /*
+    Keeps track of the number of events before fsyncing.
+    The option --sync-master-info determines how many
+    events should happen before fsyncing.
+  */
+  uint sync_counter;
+  float heartbeat_period;         // interface with CHANGE MASTER or master.info
+  ulonglong received_heartbeats;  // counter of received heartbeat events
+  DYNAMIC_ARRAY ignore_server_ids;
+  ulong master_id;
 };
-
-void init_master_info_with_options(Master_info* mi);
+void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
+int change_master_server_id_cmp(ulong *id1, ulong *id2);
 
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

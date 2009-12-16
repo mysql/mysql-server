@@ -1,3 +1,6 @@
+#ifndef STRUCTS_INCLUDED
+#define STRUCTS_INCLUDED
+
 /* Copyright (C) 2000-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +19,9 @@
 
 /* The old structures from unireg */
 
-struct st_table;
+struct TABLE;
 class Field;
+class THD;
 
 typedef struct st_date_time_format {
   uchar positions[8];
@@ -97,7 +101,7 @@ typedef struct st_key {
   union {
     int  bdb_return_if_eq;
   } handler;
-  struct st_table *table;
+  TABLE *table;
 } KEY;
 
 
@@ -113,30 +117,6 @@ typedef struct st_reginfo {		/* Extra info about reg */
   */
   bool impossible_range;
 } REGINFO;
-
-
-struct st_read_record;				/* For referense later */
-class SQL_SELECT;
-class THD;
-class handler;
-
-typedef struct st_read_record {			/* Parameter to read_record */
-  struct st_table *table;			/* Head-form */
-  handler *file;
-  struct st_table **forms;			/* head and ref forms */
-  int (*read_record)(struct st_read_record *);
-  THD *thd;
-  SQL_SELECT *select;
-  uint cache_records;
-  uint ref_length,struct_length,reclength,rec_cache_size,error_offset;
-  uint index;
-  uchar *ref_pos;				/* pointer to form->refpos */
-  uchar *record;
-  uchar *rec_buf;                /* to read field values  after filesort */
-  uchar	*cache,*cache_pos,*cache_end,*read_positions;
-  IO_CACHE *io_cache;
-  bool print_error, ignore_not_found_rows;
-} READ_RECORD;
 
 
 /*
@@ -380,3 +360,5 @@ public:
   Discrete_interval* get_tail() const { return tail; };
   Discrete_interval* get_current() const { return current; };
 };
+
+#endif /* STRUCTS_INCLUDED */

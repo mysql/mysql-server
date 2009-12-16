@@ -1582,3 +1582,56 @@ create table t3 (a int) row_format=page;
 
 --echo
 --echo End of 5.1 tests
+
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug #43054 	Assertion `!table->auto_increment_field_not_null' 
+--echo # --       failed when redefining trigger
+--echo
+
+#--disable_abort_on_error
+
+CREATE TABLE B (
+  pk INTEGER AUTO_INCREMENT,
+  int_key INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (int_key)
+);
+
+INSERT IGNORE INTO B VALUES ('9', '9');
+
+CREATE TABLE IF NOT EXISTS t1 ( 
+  `pk` INTEGER NOT NULL AUTO_INCREMENT , 
+  `int` INTEGER ,
+   PRIMARY KEY ( `pk` ) 
+) SELECT `pk` , `int_key` FROM B ;
+
+--delimiter |
+
+CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN 
+  INSERT INTO t1 ( `int` ) VALUES (4 ),( 8 ),( 2 ) ; 
+END ; |
+
+--delimiter ;
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+CREATE TABLE IF NOT EXISTS t1 ( 
+  `pk` INTEGER NOT NULL AUTO_INCREMENT , 
+  `int` INTEGER ,
+  PRIMARY KEY ( `pk` ) 
+) SELECT `pk` , `int_key` FROM B ;
+
+--delimiter |
+--error ER_NOT_SUPPORTED_YET
+CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN 
+  UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
+END ;|
+
+--delimiter ;
+
+DROP TABLE t1;
+DROP TABLE B;

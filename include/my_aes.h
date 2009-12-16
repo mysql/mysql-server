@@ -1,3 +1,6 @@
+#ifndef MY_AES_INCLUDED
+#define MY_AES_INCLUDED
+
 /* Copyright (C) 2002 MySQL AB
 
  This program is free software; you can redistribute it and/or modify
@@ -63,3 +66,5 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
 int my_aes_get_size(int source_length);
 
 C_MODE_END
+
+#endif /* MY_AES_INCLUDED */

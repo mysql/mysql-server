@@ -1,3 +1,6 @@
+#ifndef SET_VAR_INCLUDED
+#define SET_VAR_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -172,6 +175,27 @@ public:
   { return (uchar*) value; }
 };
 
+/**
+   Unsigned int system variable class
+ */
+class sys_var_uint_ptr :public sys_var
+{
+public:
+  sys_var_uint_ptr(sys_var_chain *chain, const char *name_arg, 
+                  uint *value_ptr_arg,
+                  sys_after_update_func after_update_arg= NULL)
+    :sys_var(name_arg, after_update_arg),
+     value(value_ptr_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE show_type() { return SHOW_INT; }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return (uchar*) value; }
+private:
+  uint *value;
+};
 
 /*
   A global ulong variable that is protected by LOCK_global_system_variables
@@ -519,10 +543,16 @@ public:
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
-    int ret= 0;
-    if (check_func)
-      ret= (*check_func)(thd, var);
-    return ret ? ret : check_enum(thd, var, enum_names);
+    /*
+      check_enum fails if the character representation supplied was wrong
+      or that the integer value was wrong or missing.
+    */
+    if (check_enum(thd, var, enum_names))
+      return TRUE;
+    else if ((check_func && (*check_func)(thd, var)))
+      return TRUE;
+    else
+      return FALSE;
   }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
@@ -585,18 +615,6 @@ public:
   void set_default(THD *thd, enum_var_type type);
   bool update(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-};
-
-class sys_var_thd_table_type :public sys_var_thd_storage_engine
-{
-public:
-  sys_var_thd_table_type(sys_var_chain *chain, const char *name_arg, 
-                         plugin_ref SV::*offset_arg)
-    :sys_var_thd_storage_engine(chain, name_arg, offset_arg)
-  {}
-  void warn_deprecated(THD *thd);
-  void set_default(THD *thd, enum_var_type type);
-  bool update(THD *thd, set_var *var);
 };
 
 class sys_var_thd_bit :public sys_var_thd
@@ -1188,19 +1206,6 @@ public:
 };
 
 
-class sys_var_trust_routine_creators :public sys_var_bool_ptr
-{
-  /* We need a derived class only to have a warn_deprecated() */
-public:
-  sys_var_trust_routine_creators(sys_var_chain *chain,
-                                 const char *name_arg, my_bool *value_arg) :
-    sys_var_bool_ptr(chain, name_arg, value_arg) {};
-  void warn_deprecated(THD *thd);
-  void set_default(THD *thd, enum_var_type type);
-  bool update(THD *thd, set_var *var);
-};
-
-
 /**
   Handler for setting the system variable --read-only.
 */
@@ -1490,3 +1495,5 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));
+
+#endif /* SET_VAR_INCLUDED */

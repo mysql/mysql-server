@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,16 @@
 
 #ifndef MYSQL_CLIENT
 
+/*
+  the following #define adds server-only members to enum_mysql_show_type,
+  that is defined in mysql/plugin.h
+  it has to be before mysql/plugin.h is included.
+*/
+#define SHOW_always_last SHOW_KEY_CACHE_LONG, \
+            SHOW_KEY_CACHE_LONGLONG, SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
+            SHOW_HAVE, SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, \
+            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS
+
 #include <my_global.h>
 #include <mysql_version.h>
 #include <mysql_embed.h>
@@ -43,6 +53,10 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include <mysql/psi/mysql_file.h>
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 class Parser_state;
 
@@ -111,16 +125,35 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-#define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
-  do {                                                                               \
-    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
-      push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
-    else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+/*
+  Generates a warning that a feature is deprecated. After a specified
+  version asserts that the feature is removed.
+
+  Using it as
+
+  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+
+  Will result in a warning
+ 
+  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
+   use 'GOOD' instead"
+
+   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
+   Note that the version is TWO numbers, separated with a comma
+   (two macro arguments, that is)
+*/
+#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+  do {                                                                      \
+    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
+    if (((THD *) Thd) != NULL)                                              \
+      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+                        ER_WARN_DEPRECATED_SYNTAX,                          \
+                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
+                        (Old), #VerHi "." #VerLo, (New));                   \
+    else                                                                    \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
+                        "in MySQL %s. Please use %s instead.",              \
+                        (Old), #VerHi "." #VerLo, (New));                   \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -295,7 +328,7 @@ protected:
 #define TABLE_OPEN_CACHE_DEFAULT 400
 #define TABLE_DEF_CACHE_DEFAULT 400
 /**
-  We must have room for at least 256 table definitions in the table
+  We must have room for at least 400 table definitions in the table
   cache, since otherwise there is no chance prepared
   statements that use these many tables can work.
   Prepared statements use table definition cache ids (table_map_id)
@@ -418,17 +451,7 @@ protected:
 #if defined(__WIN__)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/**< Flush every half hour */
-
-#define INTERRUPT_PRIOR -2
-#define CONNECT_PRIOR	-1
-#define WAIT_PRIOR	0
-#define QUERY_PRIOR	2
-#else
-#define INTERRUPT_PRIOR 10
-#define CONNECT_PRIOR	9
-#define WAIT_PRIOR	8
-#define QUERY_PRIOR	6
-#endif /* __WIN92__ */
+#endif /* __WIN__ */
 
 	/* Bits from testflag */
 #define TEST_PRINT_CACHED_TABLES 1
@@ -662,7 +685,6 @@ enum enum_parsing_place
   IN_ON
 };
 
-struct st_table;
 
 #define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 class THD;
@@ -858,6 +880,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               bool no_error);
 bool check_host_name(LEX_STRING *str);
 
+CHARSET_INFO *merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
@@ -900,6 +924,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 #include "tztime.h"
 #ifdef MYSQL_SERVER
 #include "sql_servers.h"
+#include "records.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -907,7 +932,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
-  unsigned int result_in_binary_protocol:1;
+  unsigned int protocol_type:2;
   unsigned int more_results_exists:1;
   unsigned int in_trans:1;
   unsigned int autocommit:1;
@@ -926,6 +951,8 @@ struct Query_cache_query_flags
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
+#define query_cache_abort(A) query_cache.abort(A)
+#define query_cache_end_of_result(A) query_cache.end_of_result(A)
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
@@ -963,102 +990,8 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-/*
-  Error injector Macros to enable easy testing of recovery after failures
-  in various error cases.
-*/
-#ifndef ERROR_INJECT_SUPPORT
-
-#define ERROR_INJECT(x) 0
-#define ERROR_INJECT_ACTION(x,action) 0
-#define ERROR_INJECT_CRASH(x) 0
-#define ERROR_INJECT_VALUE(x) 0
-#define ERROR_INJECT_VALUE_ACTION(x,action) 0
-#define ERROR_INJECT_VALUE_CRASH(x) 0
-#define SET_ERROR_INJECT_VALUE(x)
-
-#else
-
-inline bool check_and_unset_keyword(const char *dbug_str)
-{
-  const char *extra_str= "-d,";
-  char total_str[200];
-  if (_db_strict_keyword_ (dbug_str))
-  {
-    strxmov(total_str, extra_str, dbug_str, NullS);
-    DBUG_SET(total_str);
-    return 1;
-  }
-  return 0;
-}
-
-
-inline bool
-check_and_unset_inject_value(int value)
-{
-  THD *thd= current_thd;
-  if (thd->error_inject_value == (uint)value)
-  {
-    thd->error_inject_value= 0;
-    return 1;
-  }
-  return 0;
-}
-
-/*
-  ERROR INJECT MODULE:
-  --------------------
-  These macros are used to insert macros from the application code.
-  The event that activates those error injections can be activated
-  from SQL by using:
-  SET SESSION dbug=+d,code;
-
-  After the error has been injected, the macros will automatically
-  remove the debug code, thus similar to using:
-  SET SESSION dbug=-d,code
-  from SQL.
-
-  ERROR_INJECT_CRASH will inject a crash of the MySQL Server if code
-  is set when macro is called. ERROR_INJECT_CRASH can be used in
-  if-statements, it will always return FALSE unless of course it
-  crashes in which case it doesn't return at all.
-
-  ERROR_INJECT_ACTION will inject the action specified in the action
-  parameter of the macro, before performing the action the code will
-  be removed such that no more events occur. ERROR_INJECT_ACTION
-  can also be used in if-statements and always returns FALSE.
-  ERROR_INJECT can be used in a normal if-statement, where the action
-  part is performed in the if-block. The macro returns TRUE if the
-  error was activated and otherwise returns FALSE. If activated the
-  code is removed.
-
-  Sometimes it is necessary to perform error inject actions as a serie
-  of events. In this case one can use one variable on the THD object.
-  Thus one sets this value by using e.g. SET_ERROR_INJECT_VALUE(100).
-  Then one can later test for it by using ERROR_INJECT_CRASH_VALUE,
-  ERROR_INJECT_ACTION_VALUE and ERROR_INJECT_VALUE. This have the same
-  behaviour as the above described macros except that they use the
-  error inject value instead of a code used by DBUG macros.
-*/
-#define SET_ERROR_INJECT_VALUE(x) \
-  current_thd->error_inject_value= (x)
-#define ERROR_INJECT_CRASH(code) \
-  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
-#define ERROR_INJECT_ACTION(code, action) \
-  (check_and_unset_keyword(code) ? ((action), 0) : 0)
-#define ERROR_INJECT(code) \
-  check_and_unset_keyword(code)
-#define ERROR_INJECT_VALUE(value) \
-  check_and_unset_inject_value(value)
-#define ERROR_INJECT_VALUE_ACTION(value,action) \
-  (check_and_unset_inject_value(value) ? (action) : 0)
-#define ERROR_INJECT_VALUE_CRASH(value) \
-  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
-
-#endif
-
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1141,9 +1074,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
                           bool *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
-		  bool no_grant, bool no_errors, bool schema_db);
-bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			uint number, bool no_errors);
+                  bool no_grant, bool no_errors, bool schema_db);
+bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
+                        bool any_combination_of_privileges_will_do,
+                        uint number,
+                        bool no_errors);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
                          ulong *save_priv, bool no_grant, bool no_errors,
@@ -1153,8 +1088,10 @@ inline bool check_access(THD *thd, ulong access, const char *db,
     *save_priv= GLOBAL_ACLS;
   return false;
 }
-inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			uint number, bool no_errors)
+inline bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
+                               bool any_combination_of_privileges_will_do,
+                               uint number,
+                               bool no_errors)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
@@ -1247,6 +1184,8 @@ int prepare_create_field(Create_field *sql_field,
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
+CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
+                                    HA_CREATE_INFO *create_info);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info,
@@ -1418,7 +1357,6 @@ void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
 void reset_status_vars();
-
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 /* log tables */
@@ -1444,19 +1382,6 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 #define is_schema_db(X) \
   !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
-
-/* sql_prepare.cc */
-
-void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_close(THD *thd, char *packet);
-void mysql_sql_stmt_prepare(THD *thd);
-void mysql_sql_stmt_execute(THD *thd);
-void mysql_sql_stmt_close(THD *thd);
-void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_reset(THD *thd, char *packet);
-void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-void reinit_stmt_before_use(THD *thd, LEX *lex);
 
 /* sql_handler.cc */
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
@@ -1636,6 +1561,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
                            uint *fast_alter_partition);
+char *generate_partition_syntax(partition_info *part_info,
+                                uint *buf_length, bool use_sql_alloc,
+                                bool show_partition_options,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info);
 #endif
 
 /* bits for last argument to remove_table_from_cache() */
@@ -1957,6 +1887,7 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 #ifdef MYSQL_SERVER
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
+extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
@@ -1991,10 +1922,13 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
-extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong expire_logs_days;
+extern uint sync_binlog_period, sync_relaylog_period, 
+            sync_relayloginfo_period, sync_masterinfo_period;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
+extern my_bool relay_log_recovery;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options;
@@ -2054,14 +1988,13 @@ extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
+extern pthread_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
        LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
-       LOCK_prepared_stmt_count, LOCK_error_messages,
-       LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count;
+       LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
@@ -2105,7 +2038,7 @@ extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_community_features;
+extern SHOW_COMP_OPTION have_profiling;
 
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
@@ -2256,12 +2189,6 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select, int use_record_cache, 
-                      bool print_errors, bool disable_rr_cache);
-void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
-                          bool print_error, uint idx);
-void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
 		 ha_rows max_rows, bool sort_positions,
@@ -2333,10 +2260,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
@@ -2546,6 +2474,17 @@ inline void kill_delayed_threads(void) {}
 #define IS_FILES_CHECKSUM            35
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
+
+#define IS_TABLESPACES_TABLESPACE_NAME    0
+#define IS_TABLESPACES_ENGINE             1
+#define IS_TABLESPACES_TABLESPACE_TYPE    2
+#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
+#define IS_TABLESPACES_EXTENT_SIZE        4
+#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
+#define IS_TABLESPACES_MAXIMUM_SIZE       6
+#define IS_TABLESPACES_NODEGROUP_ID       7
+#define IS_TABLESPACES_TABLESPACE_COMMENT 8
+
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 

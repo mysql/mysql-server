@@ -38,6 +38,10 @@
 
 #include "mysql.h"
 
+#ifndef __WIN__
+#include <netdb.h>
+#endif
+
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
 #undef net_buffer_length
@@ -426,7 +430,7 @@ HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
-			    0,
+			    FILE_FLAG_OVERLAPPED,
 			    NULL )) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
@@ -660,7 +664,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 err2:
   if (error_allow == 0)
   {
-    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+    net->vio= vio_new_win32shared_memory(handle_file_map,handle_map,
                                          event_server_wrote,
                                          event_server_read,event_client_wrote,
                                          event_client_read,event_conn_closed);
@@ -710,10 +714,14 @@ err:
 }
 #endif
 
-/*****************************************************************************
+/**
   Read a packet from server. Give error message if socket was down
   or packet is an error message
-*****************************************************************************/
+
+  @retval  packet_error    An error occurred during reading.
+                           Error message is set.
+  @retval  
+*/
 
 ulong
 cli_safe_read(MYSQL *mysql)
@@ -879,31 +887,132 @@ void free_old_query(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Finish reading of a partial result set from the server.
+  Get the EOF packet, and update mysql->status
+  and mysql->warning_count.
+
+  @return  TRUE if a communication or protocol error, an error
+           is set in this case, FALSE otherwise.
+*/
+
+my_bool flush_one_result(MYSQL *mysql)
+{
+  ulong packet_length;
+
+  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY);
+
+  do
+  {
+    packet_length= cli_safe_read(mysql);
+    /*
+      There is an error reading from the connection,
+      or (sic!) there were no error and no
+      data in the stream, i.e. no more data from the server.
+      Since we know our position in the stream (somewhere in
+      the middle of a result set), this latter case is an error too
+      -- each result set must end with a EOF packet.
+      cli_safe_read() has set an error for us, just return.
+    */
+    if (packet_length == packet_error)
+      return TRUE;
+  }
+  while (packet_length > 8 || mysql->net.read_pos[0] != 254);
+
+  /* Analyze EOF packet of the result set. */
+
+  if (protocol_41(mysql))
+  {
+    char *pos= (char*) mysql->net.read_pos + 1;
+    mysql->warning_count=uint2korr(pos);
+    pos+=2;
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+  }
+  return FALSE;
+}
+
+
+/**
+  Read a packet from network. If it's an OK packet, flush it.
+
+  @return  TRUE if error, FALSE otherwise. In case of 
+           success, is_ok_packet is set to TRUE or FALSE,
+           based on what we got from network.
+*/
+
+my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
+{
+  ulong packet_length= cli_safe_read(mysql);
+
+  if (packet_length == packet_error)
+    return TRUE;
+
+  /* cli_safe_read always reads a non-empty packet. */
+  DBUG_ASSERT(packet_length);
+
+  *is_ok_packet= mysql->net.read_pos[0] == 0;
+  if (*is_ok_packet)
+  {
+    uchar *pos= mysql->net.read_pos + 1;
+
+    net_field_length_ll(&pos); /* affected rows */
+    net_field_length_ll(&pos); /* insert id */
+
+    mysql->server_status=uint2korr(pos);
+    pos+=2;
+
+    if (protocol_41(mysql))
+    {
+      mysql->warning_count=uint2korr(pos);
+      pos+=2;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Flush result set sent from server
 */
 
-static void cli_flush_use_result(MYSQL *mysql)
+static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
 {
   /* Clear the current execution status */
   DBUG_ENTER("cli_flush_use_result");
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
-  for (;;)
+
+  if (flush_one_result(mysql))
+    DBUG_VOID_RETURN;                           /* An error occurred */
+
+  if (! flush_all_results)
+    DBUG_VOID_RETURN;
+
+  while (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
   {
-    ulong pkt_len;
-    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
-      break;
-    if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+    my_bool is_ok_packet;
+    if (opt_flush_ok_packet(mysql, &is_ok_packet))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
+    if (is_ok_packet)
     {
-      if (protocol_41(mysql))
-      {
-        char *pos= (char*) mysql->net.read_pos + 1;
-        mysql->warning_count=uint2korr(pos); pos+=2;
-        mysql->server_status=uint2korr(pos); pos+=2;
-      }
-      break;                            /* End of data */
+      /*
+        Indeed what we got from network was an OK packet, and we
+        know that OK is the last one in a multi-result-set, so
+        just return.
+      */
+      DBUG_VOID_RETURN;
     }
+    /*
+      It's a result set, not an OK packet. A result set contains
+      of two result set subsequences: field metadata, terminated
+      with EOF packet, and result set data, again terminated with
+      EOF packet. Read and flush them.
+    */
+    if (flush_one_result(mysql) || flush_one_result(mysql))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
   }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1009,7 +1118,7 @@ mysql_free_result(MYSQL_RES *result)
         mysql->unbuffered_fetch_owner= 0;
       if (mysql->status == MYSQL_STATUS_USE_RESULT)
       {
-        (*mysql->methods->flush_use_result)(mysql);
+        (*mysql->methods->flush_use_result)(mysql, FALSE);
         mysql->status=MYSQL_STATUS_READY;
         if (mysql->unbuffered_fetch_owner)
           *mysql->unbuffered_fetch_owner= TRUE;
@@ -1036,7 +1145,6 @@ static const char *default_options[]=
   "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
-  "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation",
@@ -1090,6 +1198,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
     char **option=argv;
     while (*++option)
     {
+      if (option[0] == args_separator)          /* skip arguments separator */
+        continue;
       /* DBUG_PRINT("info",("option: %s",option[0])); */
       if (option[0][0] == '-' && option[0][1] == '-')
       {
@@ -1182,7 +1292,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  my_free(options->ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_capath = my_strdup(opt_arg, MYF(MY_WME));
           break;
-        case 26:			/* ssl_cipher */
+        case 23:			/* ssl_cipher */
           my_free(options->ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
@@ -1191,7 +1301,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 14:
 	case 15:
 	case 16:
-        case 26:
+        case 23:
 	  break;
 #endif /* HAVE_OPENSSL */
 	case 17:			/* charset-lib */
@@ -1214,24 +1324,11 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 22:
 	  options->client_flag&= ~CLIENT_LOCAL_FILES;
           break;
-	case 23:  /* replication probe */
-#ifndef TO_BE_DELETED
-	  options->rpl_probe= 1;
-#endif
-	  break;
-	case 24: /* enable-reads-from-master */
-	  options->no_master_reads= 0;
-	  break;
-	case 25: /* repl-parse-query */
-#ifndef TO_BE_DELETED
-	  options->rpl_parse= 1;
-#endif
-	  break;
-	case 27:
+	case 24: /* max-allowed-packet */
           if (opt_arg)
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
-        case 28:		/* protocol */
+        case 25: /* protocol */
           if ((options->protocol= find_type(opt_arg,
 					    &sql_protocol_typelib,0)) <= 0)
           {
@@ -1239,24 +1336,24 @@ void mysql_read_default_options(struct st_mysql_options *options,
             exit(1);
           }
           break;
-        case 29:		/* shared_memory_base_name */
+        case 26: /* shared_memory_base_name */
 #ifdef HAVE_SMEM
           if (options->shared_memory_base_name != def_shared_memory_base_name)
             my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
 #endif
           break;
-	case 30:
+	case 27: /* multi-results */
 	  options->client_flag|= CLIENT_MULTI_RESULTS;
 	  break;
-	case 31:
-	case 32:
+	case 28: /* multi-statements */
+	case 29: /* multi-queries */
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case 33: /* secure-auth */
+        case 30: /* secure-auth */
           options->secure_auth= TRUE;
           break;
-        case 34: /* report-data-truncation */
+        case 31: /* report-data-truncation */
           options->report_data_truncation= opt_arg ? test(atoi(opt_arg)) : 1;
           break;
 	default:
@@ -1583,16 +1680,8 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql), sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
-  mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
   mysql->charset=default_client_charset_info;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
-  /*
-    By default, we are a replication pivot. The caller must reset it
-    after we return if this is not the case.
-  */
-#ifndef TO_BE_DELETED
-  mysql->rpl_pivot = 1;
-#endif
 
   /*
     Only enable LOAD DATA INFILE by default if configured with
@@ -1819,52 +1908,298 @@ static MYSQL_METHODS client_methods=
 #endif
 };
 
+
+
+typedef enum my_cs_match_type_enum
+{
+  /* MySQL and OS charsets are fully compatible */
+  my_cs_exact,
+  /* MySQL charset is very close to OS charset  */
+  my_cs_approx,
+  /*
+    MySQL knows this charset, but it is not supported as client character set.
+  */
+  my_cs_unsupp
+} my_cs_match_type;
+
+
+typedef struct str2str_st
+{
+  const char *os_name;
+  const char *my_name;
+  my_cs_match_type param;
+} MY_CSET_OS_NAME;
+
+const MY_CSET_OS_NAME charsets[]=
+{
+#ifdef __WIN__
+  {"cp437",          "cp850",    my_cs_approx},
+  {"cp850",          "cp850",    my_cs_exact},
+  {"cp852",          "cp852",    my_cs_exact},
+  {"cp858",          "cp850",    my_cs_approx},
+  {"cp866",          "cp866",    my_cs_exact},
+  {"cp874",          "tis620",   my_cs_approx},
+  {"cp932",          "cp932",    my_cs_exact},
+  {"cp936",          "gbk",      my_cs_approx},
+  {"cp949",          "euckr",    my_cs_approx},
+  {"cp950",          "big5",     my_cs_exact},
+  {"cp1200",         "utf16le",  my_cs_unsupp},
+  {"cp1201",         "utf16",    my_cs_unsupp},
+  {"cp1250",         "cp1250",   my_cs_exact},
+  {"cp1251",         "cp1251",   my_cs_exact},
+  {"cp1252",         "latin1",   my_cs_exact},
+  {"cp1253",         "greek",    my_cs_exact},
+  {"cp1254",         "latin5",   my_cs_exact},
+  {"cp1255",         "hebrew",   my_cs_approx},
+  {"cp1256",         "cp1256",   my_cs_exact},
+  {"cp1257",         "cp1257",   my_cs_exact},
+  {"cp10000",        "macroman", my_cs_exact},
+  {"cp10001",        "sjis",     my_cs_approx},
+  {"cp10002",        "big5",     my_cs_approx},
+  {"cp10008",        "gb2312",   my_cs_approx},
+  {"cp10021",        "tis620",   my_cs_approx},
+  {"cp10029",        "macce",    my_cs_exact},
+  {"cp12001",        "utf32",    my_cs_unsupp},
+  {"cp20107",        "swe7",     my_cs_exact},
+  {"cp20127",        "ascii",    my_cs_exact},
+  {"cp20866",        "koi8r",    my_cs_exact},
+  {"cp20932",        "ujis",     my_cs_exact},
+  {"cp20936",        "gb2312",   my_cs_approx},
+  {"cp20949",        "euckr",    my_cs_approx},
+  {"cp21866",        "koi8u",    my_cs_exact},
+  {"cp28591",        "latin1",   my_cs_approx},
+  {"cp28592",        "latin2",   my_cs_exact},
+  {"cp28597",        "greek",    my_cs_exact},
+  {"cp28598",        "hebrew",   my_cs_exact},
+  {"cp28599",        "latin5",   my_cs_exact},
+  {"cp28603",        "latin7",   my_cs_exact},
+#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
+  {"cp28605",        "latin9",   my_cs_exact},
+#endif
+  {"cp38598",        "hebrew",   my_cs_exact},
+  {"cp51932",        "ujis",     my_cs_exact},
+  {"cp51936",        "gb2312",   my_cs_exact},
+  {"cp51949",        "euckr",    my_cs_exact},
+  {"cp51950",        "big5",     my_cs_exact},
+#ifdef UNCOMMENT_THIS_WHEN_WL_WL_4024_IS_DONE
+  {"cp54936",        "gb18030",  my_cs_exact},
+#endif
+  {"cp65001",        "utf8",     my_cs_exact},
+
+#else /* not Windows */
+
+  {"646",            "latin1",   my_cs_approx}, /* Default on Solaris */
+  {"ANSI_X3.4-1968", "ascii",    my_cs_exact},
+  {"ansi1251",       "cp1251",   my_cs_exact},
+  {"armscii8",       "armscii8", my_cs_exact},
+  {"armscii-8",      "armscii8", my_cs_exact},
+  {"ASCII",          "ascii",    my_cs_exact},
+  {"Big5",           "big5",     my_cs_exact},
+  {"cp1251",         "cp1251",   my_cs_exact},
+  {"cp1255",         "hebrew",   my_cs_approx},
+  {"CP866",          "cp866",    my_cs_exact},
+  {"eucCN",          "gb2312",   my_cs_exact},
+  {"euc-CN",         "gb2312",   my_cs_exact},
+  {"eucJP",          "ujis",     my_cs_exact},
+  {"euc-JP",         "ujis",     my_cs_exact},
+  {"eucKR",          "euckr",    my_cs_exact},
+  {"euc-KR",         "euckr",    my_cs_exact},
+#ifdef UNCOMMENT_THIS_WHEN_WL_WL_4024_IS_DONE
+  {"gb18030",        "gb18030",  my_cs_exact},
+#endif
+  {"gb2312",         "gb2312",   my_cs_exact},
+  {"gbk",            "gbk",      my_cs_exact},
+  {"georgianps",     "geostd8",  my_cs_exact},
+  {"georgian-ps",    "geostd8",  my_cs_exact},
+  {"IBM-1252",       "cp1252",   my_cs_exact},
+
+  {"iso88591",       "latin1",   my_cs_approx},
+  {"ISO_8859-1",     "latin1",   my_cs_approx},
+  {"ISO8859-1",      "latin1",   my_cs_approx},
+  {"ISO-8859-1",     "latin1",   my_cs_approx},
+
+  {"iso885913",      "latin7",   my_cs_exact},
+  {"ISO_8859-13",    "latin7",   my_cs_exact},
+  {"ISO8859-13",     "latin7",   my_cs_exact},
+  {"ISO-8859-13",    "latin7",   my_cs_exact},
+
+#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
+  {"iso885915",      "latin9",   my_cs_exact},
+  {"ISO_8859-15",    "latin9",   my_cs_exact},
+  {"ISO8859-15",     "latin9",   my_cs_exact},
+  {"ISO-8859-15",    "latin9",   my_cs_exact},
+#endif
+
+  {"iso88592",       "latin2",   my_cs_exact},
+  {"ISO_8859-2",     "latin2",   my_cs_exact},
+  {"ISO8859-2",      "latin2",   my_cs_exact},
+  {"ISO-8859-2",     "latin2",   my_cs_exact},
+
+  {"iso88597",       "greek",    my_cs_exact},
+  {"ISO_8859-7",     "greek",    my_cs_exact},
+  {"ISO8859-7",      "greek",    my_cs_exact},
+  {"ISO-8859-7",     "greek",    my_cs_exact},
+
+  {"iso88598",       "hebrew",   my_cs_exact},
+  {"ISO_8859-8",     "hebrew",   my_cs_exact},
+  {"ISO8859-8",      "hebrew",   my_cs_exact},
+  {"ISO-8859-8",     "hebrew",   my_cs_exact},
+
+  {"iso88599",       "latin5",   my_cs_exact},
+  {"ISO_8859-9",     "latin5",   my_cs_exact},
+  {"ISO8859-9",      "latin5",   my_cs_exact},
+  {"ISO-8859-9",     "latin5",   my_cs_exact},
+
+  {"koi8r",          "koi8r",    my_cs_exact},
+  {"KOI8-R",         "koi8r",    my_cs_exact},
+  {"koi8u",          "koi8u",    my_cs_exact},
+  {"KOI8-U",         "koi8u",    my_cs_exact},
+
+  {"roman8",         "hp8",      my_cs_exact}, /* Default on HP UX */
+
+  {"Shift_JIS",      "sjis",     my_cs_exact},
+  {"SJIS",           "sjis",     my_cs_exact},
+  {"shiftjisx0213",  "sjis",     my_cs_exact},
+  
+  {"tis620",         "tis620",   my_cs_exact},
+  {"tis-620",        "tis620",   my_cs_exact},
+
+  {"ujis",           "ujis",     my_cs_exact},
+
+  {"US-ASCII",       "ascii",    my_cs_exact},
+
+  {"utf8",           "utf8",     my_cs_exact},
+  {"utf-8",          "utf8",     my_cs_exact},
+#endif
+  {NULL,             NULL,       0}
+};
+
+
+static const char *
+my_os_charset_to_mysql_charset(const char *csname)
+{
+  const MY_CSET_OS_NAME *csp;
+  for (csp= charsets; csp->os_name; csp++)
+  {
+    if (!my_strcasecmp(&my_charset_latin1, csp->os_name, csname))
+    {
+      switch (csp->param)
+      {
+      case my_cs_exact:
+        return csp->my_name;
+
+      case my_cs_approx:
+        /*
+          Maybe we should print a warning eventually:
+          character set correspondence is not exact.
+        */
+        return csp->my_name;
+
+      default:
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "OS character set '%s'"
+                        " is not supported by MySQL client",
+                         MYF(0), csp->my_name);
+        goto def;
+      }
+    }
+  }
+
+  my_printf_error(ER_UNKNOWN_ERROR,
+                  "Unknown OS character set '%s'.",
+                  MYF(0), csname);
+
+def:
+  csname= MYSQL_DEFAULT_CHARSET_NAME;
+  my_printf_error(ER_UNKNOWN_ERROR,
+                  "Switching to the default character set '%s'.",
+                  MYF(0), csname);
+  return csname;
+}
+
+
+#ifndef __WIN__
+#include <stdlib.h> /* for getenv() */
+#ifdef HAVE_LANGINFO_H
+#include <langinfo.h>
+#endif
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
+#endif /* __WIN__ */
+
+
+static int
+mysql_autodetect_character_set(MYSQL *mysql)
+{
+  const char *csname= MYSQL_DEFAULT_CHARSET_NAME;
+
+#ifdef __WIN__
+  char cpbuf[64];
+  {
+    my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
+    csname= my_os_charset_to_mysql_charset(cpbuf);
+  }
+#elif defined(HAVE_SETLOCALE) && defined(HAVE_NL_LANGINFO)
+  {
+    if (setlocale(LC_CTYPE, "") && (csname= nl_langinfo(CODESET)))
+      csname= my_os_charset_to_mysql_charset(csname);
+  }
+#endif
+
+  if (!(mysql->options.charset_name= my_strdup(csname, MYF(MY_WME))))
+    return 1;
+  return 0;
+}
+
+
+static void
+mysql_set_character_set_with_default_collation(MYSQL *mysql)
+{
+  const char *save= charsets_dir;
+  if (mysql->options.charset_dir)
+    charsets_dir=mysql->options.charset_dir;
+
+  if ((mysql->charset= get_charset_by_csname(mysql->options.charset_name,
+                                             MY_CS_PRIMARY, MYF(MY_WME))))
+  {
+    /* Try to set compiled default collation when it's possible. */
+    CHARSET_INFO *collation;
+    if ((collation= 
+         get_charset_by_name(MYSQL_DEFAULT_COLLATION_NAME, MYF(MY_WME))) &&
+                             my_charset_same(mysql->charset, collation))
+    {
+      mysql->charset= collation;
+    }
+    else
+    {
+      /*
+        Default compiled collation not found, or is not applicable
+        to the requested character set.
+        Continue with the default collation of the character set.
+      */
+    }
+  }
+  charsets_dir= save;
+}
+
+
 C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
-  const char *default_collation_name;
-  
   /* Set character set */
   if (!mysql->options.charset_name)
   {
-    default_collation_name= MYSQL_DEFAULT_COLLATION_NAME;
     if (!(mysql->options.charset_name= 
        my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+      return 1;
+  }
+  else if (!strcmp(mysql->options.charset_name,
+                   MYSQL_AUTODETECT_CHARSET_NAME) &&
+            mysql_autodetect_character_set(mysql))
     return 1;
-  }
-  else
-    default_collation_name= NULL;
-  
-  {
-    const char *save= charsets_dir;
-    if (mysql->options.charset_dir)
-      charsets_dir=mysql->options.charset_dir;
-    mysql->charset=get_charset_by_csname(mysql->options.charset_name,
-                                         MY_CS_PRIMARY, MYF(MY_WME));
-    if (mysql->charset && default_collation_name)
-    {
-      CHARSET_INFO *collation;
-      if ((collation= 
-           get_charset_by_name(default_collation_name, MYF(MY_WME))))
-      {
-        if (!my_charset_same(mysql->charset, collation))
-        {
-          my_printf_error(ER_UNKNOWN_ERROR, 
-                         "COLLATION %s is not valid for CHARACTER SET %s",
-                         MYF(0),
-                         default_collation_name, mysql->options.charset_name);
-          mysql->charset= NULL;
-        }
-        else
-        {
-          mysql->charset= collation;
-        }
-      }
-      else
-        mysql->charset= NULL;
-    }
-    charsets_dir= save;
-  }
+
+  mysql_set_character_set_with_default_collation(mysql);
 
   if (!mysql->charset)
   {
@@ -1896,9 +2231,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
   char		*end,*host_info= NULL;
-  my_socket	sock;
-  in_addr_t	ip_addr;
-  struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
 #ifdef MYSQL_SERVER
@@ -1918,6 +2250,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+  /* Test whether we're already connected */
+  if (net->vio)
+  {
+    set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -1997,7 +2336,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
-      sock=0;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
       my_snprintf(host_info=buff, sizeof(buff)-1,
@@ -2012,12 +2350,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (unix_socket || mysql_unix_port) &&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
-    host=LOCAL_HOST;
-    if (!unix_socket)
-      unix_socket=mysql_unix_port;
-    host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
-    DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
-    if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
+    DBUG_PRINT("info", ("Using socket"));
+    my_socket sock= socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
                                unknown_sqlstate,
@@ -2025,12 +2360,28 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                socket_errno);
       goto error;
     }
+
     net->vio= vio_new(sock, VIO_TYPE_SOCKET,
                       VIO_LOCALHOST | VIO_BUFFERED_READ);
-    bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
-    UNIXaddr.sun_family = AF_UNIX;
+    if (!net->vio)
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+      set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+      closesocket(sock);
+      goto error;
+    }
+
+    host= LOCAL_HOST;
+    if (!unix_socket)
+      unix_socket= mysql_unix_port;
+    host_info= (char*) ER(CR_LOCALHOST_CONNECTION);
+    DBUG_PRINT("info", ("Using UNIX sock '%s'", unix_socket));
+
+    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    UNIXaddr.sun_family= AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
-    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+
+    if (my_connect(sock, (struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		   mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",
@@ -2039,6 +2390,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                unknown_sqlstate,
                                ER(CR_CONNECTION_ERROR),
                                unix_socket, socket_errno);
+      vio_delete(net->vio);
+      net->vio= 0;
       goto error;
     }
     mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
@@ -2049,7 +2402,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
        (! have_tcpip && (unix_socket || !host && is_NT()))))
   {
-    sock=0;
     if ((hPipe= create_named_pipe(mysql, mysql->options.connect_timeout,
                                   (char**) &host, (char**) &unix_socket)) ==
 	INVALID_HANDLE_VALUE)
@@ -2067,7 +2419,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     else
     {
-      net->vio=vio_new_win32pipe(hPipe);
+      net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
@@ -2079,94 +2431,124 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
-    int status= -1;
+    struct addrinfo *res_lst, hints, *t_res;
+    int gai_errno;
+    char port_buf[NI_MAXSERV];
+    my_socket sock= SOCKET_ERROR;
+    int UNINIT_VAR(saved_error), status= -1;
+
     unix_socket=0;				/* This is not used */
+
     if (!port)
-      port=mysql_port;
+      port= mysql_port;
+
     if (!host)
-      host=LOCAL_HOST;
-    my_snprintf(host_info=buff,sizeof(buff)-1,ER(CR_TCP_CONNECTION),host);
-    DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
+      host= LOCAL_HOST;
+
+    my_snprintf(host_info=buff, sizeof(buff)-1, ER(CR_TCP_CONNECTION), host);
+    DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host, port));
 #ifdef MYSQL_SERVER
     thr_alarm_init(&alarmed);
     thr_alarm(&alarmed, mysql->options.connect_timeout, &alarm_buff);
 #endif
-    /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
+
+    DBUG_PRINT("info",("IP '%s'", "client"));
+
 #ifdef MYSQL_SERVER
     thr_end_alarm(&alarmed);
 #endif
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype= SOCK_STREAM;
+    hints.ai_protocol= IPPROTO_TCP;
+    hints.ai_family= AF_UNSPEC;
+
+    DBUG_PRINT("info",("IPV6 getaddrinfo %s", host));
+    my_snprintf(port_buf, NI_MAXSERV, "%d", port);
+    gai_errno= getaddrinfo(host, port_buf, &hints, &res_lst);
+
+    if (gai_errno != 0) 
+    { 
+      /* 
+        For DBUG we are keeping the right message but for client we default to
+        historical error message.
+      */
+      DBUG_PRINT("info",("IPV6 getaddrinfo error %d", gai_errno));
+      set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                               ER(CR_UNKNOWN_HOST), host, errno);
+
+      goto error;
+    }
+
+    /*
+      A hostname might map to multiple IP addresses (IPv4/IPv6). Go over the
+      list of IP addresses until a successful connection can be established.
+    */
+    DBUG_PRINT("info", ("Try connect on all addresses for host."));
+    for (t_res= res_lst; t_res; t_res= t_res->ai_next)
+    {
+      DBUG_PRINT("info", ("Create socket, family: %d  type: %d  proto: %d",
+                          t_res->ai_family, t_res->ai_socktype,
+                          t_res->ai_protocol));
+      sock= socket(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
+      if (sock == SOCKET_ERROR)
+      {
+        saved_error= socket_errno;
+        continue;
+      }
+
+      DBUG_PRINT("info", ("Connect socket"));
+      status= my_connect(sock, t_res->ai_addr, t_res->ai_addrlen,
+                         mysql->options.connect_timeout);
+      /*
+        Here we rely on my_connect() to return success only if the
+        connect attempt was really successful. Otherwise we would stop
+        trying another address, believing we were successful.
+      */
+      if (!status)
+        break;
+
+      /*
+        Save value as socket errno might be overwritten due to
+        calling a socket function below.
+      */
+      saved_error= socket_errno;
+
+      DBUG_PRINT("info", ("No success, close socket, try next address."));
+      closesocket(sock);
+    }
+    DBUG_PRINT("info",
+               ("End of connect attempts, sock: %d  status: %d  error: %d",
+                sock, status, saved_error));
+
+    freeaddrinfo(res_lst);
+
     if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                               ER(CR_IPSOCK_ERROR), socket_errno);
+                                ER(CR_IPSOCK_ERROR), saved_error);
       goto error;
-    }
-    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
-    bzero((char*) &sock_addr,sizeof(sock_addr));
-    sock_addr.sin_family = AF_INET;
-    sock_addr.sin_port = (ushort) htons((ushort) port);
-
-    /*
-      The server name may be a host name or IP address
-    */
-
-    if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
-    {
-      memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
-      status= my_connect(sock, (struct sockaddr *) &sock_addr,
-                         sizeof(sock_addr), mysql->options.connect_timeout);
-    }
-    else
-    {
-      int i, tmp_errno;
-      struct hostent tmp_hostent,*hp;
-      char buff2[GETHOSTBYNAME_BUFF_SIZE];
-      hp = my_gethostbyname_r(host,&tmp_hostent,buff2,sizeof(buff2),
-			      &tmp_errno);
-
-      /*
-        Don't attempt to connect to non IPv4 addresses as the client could
-        end up sending information to a unknown server. For example, a IPv6
-        address might be returned from gethostbyname depending on options
-        set via the RES_OPTIONS environment variable.
-      */
-      if (!hp || (hp->h_addrtype != AF_INET))
-      {
-	my_gethostbyname_r_free();
-        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                                 ER(CR_UNKNOWN_HOST), host, tmp_errno);
-	goto error;
-      }
-
-      for (i= 0; status && hp->h_addr_list[i]; i++)
-      {
-        IF_DBUG(char ipaddr[18];)
-        memcpy(&sock_addr.sin_addr, hp->h_addr_list[i],
-               min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
-        DBUG_PRINT("info",("Trying %s...",
-                          (my_inet_ntoa(sock_addr.sin_addr, ipaddr), ipaddr)));
-        /*
-          Here we rely on my_connect() to return success only if the
-          connect attempt was really successful. Otherwise we would stop
-          trying another address, believing we were successful.
-        */
-        status= my_connect(sock, (struct sockaddr *) &sock_addr,
-                           sizeof(sock_addr), mysql->options.connect_timeout);
-      }
-
-      my_gethostbyname_r_free();
     }
 
     if (status)
     {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
-			  host));
+      DBUG_PRINT("error",("Got error %d on connect to '%s'", saved_error, host));
       set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                               ER(CR_CONN_HOST_ERROR), host, socket_errno);
+                                ER(CR_CONN_HOST_ERROR), host, saved_error);
+      goto error;
+    }
+
+    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
+    if (! net->vio )
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+      set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+      closesocket(sock);
       goto error;
     }
   }
+
+  DBUG_PRINT("info", ("net->vio: %p", net->vio));
   if (!net->vio)
   {
     DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));
@@ -2302,14 +2684,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (client_flag & CLIENT_MULTI_STATEMENTS)
     client_flag|= CLIENT_MULTI_RESULTS;
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (mysql->options.ssl_key || mysql->options.ssl_cert ||
       mysql->options.ssl_ca || mysql->options.ssl_capath ||
       mysql->options.ssl_cipher)
     mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     client_flag|=CLIENT_SSL;
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
@@ -2338,7 +2720,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
   mysql->client_flag=client_flag;
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (client_flag & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -2389,7 +2771,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
 
   }
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
 		     mysql->server_version,mysql->server_capabilities,
@@ -2526,11 +2908,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->reconnect=reconnect;
   }
 
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
-    goto error;
-#endif
-
   DBUG_PRINT("exit", ("Mysql handler: 0x%lx", (long) mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
@@ -2552,28 +2929,6 @@ error:
 }
 
 
-/* needed when we move MYSQL structure to a different address */
-
-#ifndef TO_BE_DELETED
-static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
-{
-  MYSQL *tmp, *tmp_prev;
-  if (mysql->master == old_mysql)
-    mysql->master= mysql;
-  if (mysql->last_used_con == old_mysql)
-    mysql->last_used_con= mysql;
-  if (mysql->last_used_slave == old_mysql)
-    mysql->last_used_slave= mysql;
-  for (tmp_prev = mysql, tmp = mysql->next_slave;
-       tmp != old_mysql;tmp = tmp->next_slave)
-  {
-    tmp_prev= tmp;
-  }
-  tmp_prev->next_slave= mysql;
-}
-#endif
-
-
 my_bool mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
@@ -2592,8 +2947,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql_init(&tmp_mysql);
   tmp_mysql.options= mysql->options;
   tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
-  tmp_mysql.rpl_pivot= mysql->rpl_pivot;
-  
+
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
@@ -2627,7 +2981,6 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
-  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
   net_clear(&mysql->net, 1);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -2805,23 +3158,6 @@ void STDCALL mysql_close(MYSQL *mysql)
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
-#ifndef TO_BE_DELETED
-    /* free/close slave list */
-    if (mysql->rpl_pivot)
-    {
-      MYSQL* tmp;
-      for (tmp = mysql->next_slave; tmp != mysql; )
-      {
-	/* trick to avoid following freed pointer */
-	MYSQL* tmp1 = tmp->next_slave;
-	mysql_close(tmp);
-	tmp = tmp1;
-      }
-      mysql->rpl_pivot=0;
-    }
-#endif
-    if (mysql != mysql->master)
-      mysql_close(mysql->master);
 #ifndef MYSQL_SERVER
     if (mysql->thd)
       (*mysql->methods->free_embedded_thd)(mysql);
@@ -2840,12 +3176,6 @@ static my_bool cli_read_query_result(MYSQL *mysql)
   MYSQL_DATA *fields;
   ulong length;
   DBUG_ENTER("cli_read_query_result");
-
-  /*
-    Read from the connection which we actually used, which
-    could differ from the original connection if we have slaves
-  */
-  mysql = mysql->last_used_con;
 
   if ((length = cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
@@ -2921,23 +3251,6 @@ int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   DBUG_ENTER("mysql_send_query");
-  DBUG_PRINT("enter",("rpl_parse: %d  rpl_pivot: %d",
-		      mysql->options.rpl_parse, mysql->rpl_pivot));
-#ifndef TO_BE_DELETED
-  if (mysql->options.rpl_parse && mysql->rpl_pivot)
-  {
-    switch (mysql_rpl_query_type(query, length)) {
-    case MYSQL_RPL_MASTER:
-      DBUG_RETURN(mysql_master_send_query(mysql, query, length));
-    case MYSQL_RPL_SLAVE:
-      DBUG_RETURN(mysql_slave_send_query(mysql, query, length));
-    case MYSQL_RPL_ADMIN:
-      break;					/* fall through */
-    }
-  }
-  mysql->last_used_con = mysql;
-#endif
-
   DBUG_RETURN(simple_command(mysql, COM_QUERY, (uchar*) query, length, 1));
 }
 
@@ -2964,8 +3277,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
-  /* read from the actually used connection */
-  mysql = mysql->last_used_con;
+
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -3019,8 +3331,6 @@ static MYSQL_RES * cli_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("cli_use_result");
-
-  mysql = mysql->last_used_con;
 
   if (!mysql->fields)
     DBUG_RETURN(0);

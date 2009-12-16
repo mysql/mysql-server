@@ -98,6 +98,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
+                opt_slave_apply= 0, 
+                opt_include_master_host_port= 0,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
@@ -118,7 +120,10 @@ static my_bool server_supports_switching_charsets= TRUE;
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
+#define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
+#define MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL 2
 static uint opt_mysql_port= 0, opt_master_data;
+static uint opt_slave_data;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
@@ -206,6 +211,10 @@ static struct my_option my_long_options[] =
   {"allow-keywords", OPT_KEYWORDS,
    "Allow creation of column names that are keywords.", (uchar**) &opt_keywords,
    (uchar**) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
+   "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
+   (uchar**) &opt_slave_apply, (uchar**) &opt_slave_apply, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -264,6 +273,19 @@ static struct my_option my_long_options[] =
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (uchar**) &opt_disable_keys,
    (uchar**) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA,
+   "This causes the binary log position and filename of the master to be "
+   "appended to the dumped data output. Setting the value to 1, will print"
+   "it as a CHANGE MASTER command in the dumped data output; if equal"
+   " to 2, that command will be prefixed with a comment symbol. "
+   "This option will turn --lock-all-tables on, unless "
+   "--single-transaction is specified too (in which case a "
+   "global read lock is only taken a short time at the beginning of the dump "
+   "- don't forget to read about --single-transaction below). In all cases "
+   "any action on logs will happen at the exact moment of the dump."
+   "Option automatically turns --lock-tables off.",
+   (uchar**) &opt_slave_data, (uchar**) &opt_slave_data, 0,
+   GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, 0, 0, 0},
   {"events", 'E', "Dump events.",
      (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -317,6 +339,12 @@ static struct my_option my_long_options[] =
    "use the directive multiple times, once for each table.  Each table must "
    "be specified with both database and table names, e.g. --ignore-table=database.table",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
+   "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' in dump produced with --dump-slave.",
+   (uchar**) &opt_include_master_host_port, 
+   (uchar**) &opt_include_master_host_port, 
+   0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    (uchar**) &opt_ignore, (uchar**) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -402,7 +430,7 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_routines, (uchar**) &opt_routines, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
+   "Add 'SET NAMES default_character_set' to the output.",
    (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
@@ -764,6 +792,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!argument) /* work like in old versions */
       opt_master_data= MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
     break;
+  case (int) OPT_MYSQLDUMP_SLAVE_DATA:
+    if (!argument) /* work like in old versions */
+      opt_slave_data= MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
+    break;
   case (int) OPT_OPTIMIZE:
     extended_insert= opt_drop= opt_lock= quick= create_options=
       opt_disable_keys= lock_tables= opt_set_charset= 1;
@@ -858,12 +890,13 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
-  load_defaults("my",load_default_groups,argc,argv);
+  if (load_defaults("my",load_default_groups,argc,argv))
+    return 1;
   defaults_argv= *argv;
 
-  if (hash_init(&ignore_table, charset_info, 16, 0, 0,
-                (hash_get_key) get_table_key,
-                (hash_free_key) free_table_ent, 0))
+  if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
+                   (my_hash_get_key) get_table_key,
+                   (my_hash_free_key) free_table_ent, 0))
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
@@ -896,6 +929,14 @@ static int get_options(int *argc, char ***argv)
     return(EX_USAGE);
   }
 
+  /* We don't delete master logs if slave data option */
+  if (opt_slave_data)
+  {
+    opt_lock_all_tables= !opt_single_transaction;
+    opt_master_data= 0;
+    opt_delete_master_logs= 0;
+  }
+
   /* Ensure consistency of the set of binlog & locking options */
   if (opt_delete_master_logs && !opt_master_data)
     opt_master_data= MYSQL_OPT_MASTER_DATA_COMMENTED_SQL;
@@ -906,7 +947,10 @@ static int get_options(int *argc, char ***argv)
     return(EX_USAGE);
   }
   if (opt_master_data)
+  {
     opt_lock_all_tables= !opt_single_transaction;
+    opt_slave_data= 0;
+  }
   if (opt_single_transaction || opt_lock_all_tables)
     lock_tables= 0;
   if (enclosed && opt_enclosed)
@@ -1273,120 +1317,68 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
 }
 
 /**
-  Rewrite CREATE TRIGGER statement, enclosing DEFINER clause in
-  version-specific comment.
+  Rewrite statement, enclosing DEFINER clause in version-specific comment.
 
-  This function parses the CREATE TRIGGER statement and encloses
-  DEFINER-clause in version-specific comment:
-    input query:     CREATE DEFINER=a@b TRIGGER ...
-    rewritten query: CREATE * / / *!50017 DEFINER=a@b * / / *!50003 TRIGGER ...
-
-  @note This function will go away when WL#3995 is implemented.
-
-  @param[in] trigger_def_str    CREATE TRIGGER statement string.
-  @param[in] trigger_def_length length of the trigger_def_str.
-
-  @return pointer to the new allocated query string.
-*/
-
-static char *cover_definer_clause_in_trigger(const char *trigger_def_str,
-                                             uint trigger_def_length)
-{
-  char *query_str= NULL;
-  char *definer_begin= my_case_str(trigger_def_str, trigger_def_length,
-                                   C_STRING_WITH_LEN(" DEFINER"));
-  char *definer_end;
-
-  if (!definer_begin)
-    return NULL;
-
-  definer_end= my_case_str(definer_begin, strlen(definer_begin),
-                           C_STRING_WITH_LEN(" TRIGGER"));
-
-  if (definer_end)
-  {
-    char *query_str_tail;
-
-    /*
-       Allocate memory for new query string: original string
-       from SHOW statement and version-specific comments.
-     */
-    query_str= alloc_query_str(trigger_def_length + 23);
-
-    query_str_tail= strnmov(query_str,
-                            trigger_def_str,
-                            definer_begin - trigger_def_str);
-
-    query_str_tail= strmov(query_str_tail,
-                           "*/ /*!50017");
-
-    query_str_tail= strnmov(query_str_tail,
-                            definer_begin,
-                            definer_end - definer_begin);
-
-    query_str_tail= strxmov(query_str_tail,
-                            "*/ /*!50003",
-                            definer_end,
-                            NullS);
-  }
-
-  return query_str;
-}
-
-/**
-  Rewrite CREATE FUNCTION or CREATE PROCEDURE statement, enclosing DEFINER
-  clause in version-specific comment.
-
-  This function parses the CREATE FUNCTION | PROCEDURE statement and
-  encloses DEFINER-clause in version-specific comment:
+  This function parses any CREATE statement and encloses DEFINER-clause in
+  version-specific comment:
     input query:     CREATE DEFINER=a@b FUNCTION ...
     rewritten query: CREATE * / / *!50020 DEFINER=a@b * / / *!50003 FUNCTION ...
 
   @note This function will go away when WL#3995 is implemented.
 
-  @param[in] def_str        CREATE FUNCTION|PROCEDURE statement string.
-  @param[in] def_str_length length of the def_str.
+  @param[in] stmt_str                 CREATE statement string.
+  @param[in] stmt_length              Length of the stmt_str.
+  @param[in] definer_version_str      Minimal MySQL version number when
+                                      DEFINER clause is supported in the
+                                      given statement.
+  @param[in] definer_version_length   Length of definer_version_str.
+  @param[in] stmt_version_str         Minimal MySQL version number when the
+                                      given statement is supported.
+  @param[in] stmt_version_length      Length of stmt_version_str.
+  @param[in] keyword_str              Keyword to look for after CREATE.
+  @param[in] keyword_length           Length of keyword_str.
 
   @return pointer to the new allocated query string.
 */
 
-static char *cover_definer_clause_in_sp(const char *def_str,
-                                        uint def_str_length)
+static char *cover_definer_clause(const char *stmt_str,
+                                  uint stmt_length,
+                                  const char *definer_version_str,
+                                  uint definer_version_length,
+                                  const char *stmt_version_str,
+                                  uint stmt_version_length,
+                                  const char *keyword_str,
+                                  uint keyword_length)
 {
-  char *query_str= NULL;
-  char *definer_begin= my_case_str(def_str, def_str_length,
+  char *definer_begin= my_case_str(stmt_str, stmt_length,
                                    C_STRING_WITH_LEN(" DEFINER"));
-  char *definer_end;
+  char *definer_end= NULL;
+
+  char *query_str= NULL;
+  char *query_ptr;
 
   if (!definer_begin)
     return NULL;
 
   definer_end= my_case_str(definer_begin, strlen(definer_begin),
-                           C_STRING_WITH_LEN(" PROCEDURE"));
+                           keyword_str, keyword_length);
 
   if (!definer_end)
-  {
-    definer_end= my_case_str(definer_begin, strlen(definer_begin),
-                             C_STRING_WITH_LEN(" FUNCTION"));
-  }
+    return NULL;
 
-  if (definer_end)
-  {
-    char *query_str_tail;
+  /*
+    Allocate memory for new query string: original string
+    from SHOW statement and version-specific comments.
+  */
+  query_str= alloc_query_str(stmt_length + 23);
 
-    /*
-      Allocate memory for new query string: original string
-      from SHOW statement and version-specific comments.
-    */
-    query_str= alloc_query_str(def_str_length + 23);
-
-    query_str_tail= strnmov(query_str, def_str, definer_begin - def_str);
-    query_str_tail= strmov(query_str_tail, "*/ /*!50020");
-    query_str_tail= strnmov(query_str_tail, definer_begin,
-                            definer_end - definer_begin);
-    query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
-                            definer_end, NullS);
-  }
+  query_ptr= strnmov(query_str, stmt_str, definer_begin - stmt_str);
+  query_ptr= strnmov(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= strnmov(query_ptr, definer_version_str, definer_version_length);
+  query_ptr= strnmov(query_ptr, definer_begin, definer_end - definer_begin);
+  query_ptr= strnmov(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= strnmov(query_ptr, stmt_version_str, stmt_version_length);
+  query_ptr= strxmov(query_ptr, definer_end, NullS);
 
   return query_str;
 }
@@ -1419,8 +1411,8 @@ static void free_resources()
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-  if (hash_inited(&ignore_table))
-    hash_free(&ignore_table);
+  if (my_hash_inited(&ignore_table))
+    my_hash_free(&ignore_table);
   if (extended_insert)
     dynstr_free(&extended_row);
   if (insert_pat_inited)
@@ -1922,6 +1914,8 @@ static uint dump_events_for_db(char *db)
         */
         if (strlen(row[3]) != 0)
         {
+          char *query_str;
+
           if (opt_drop)
             fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n", 
                 event_name, delimiter);
@@ -1948,31 +1942,36 @@ static uint dump_events_for_db(char *db)
                                 row[4],   /* character_set_results */
                                 row[5]);  /* collation_connection */
           }
-            else
-            {
-              /*
-                mysqldump is being run against the server, that does not
-                provide character set information in SHOW CREATE
-                statements.
+          else
+          {
+            /*
+              mysqldump is being run against the server, that does not
+              provide character set information in SHOW CREATE
+              statements.
 
-                NOTE: the dump may be incorrect, since character set
-                information is required in order to restore event properly.
-              */
+              NOTE: the dump may be incorrect, since character set
+              information is required in order to restore event properly.
+            */
 
-              fprintf(sql_file,
-                      "--\n"
-                      "-- WARNING: old server version. "
-                        "The following dump may be incomplete.\n"
-                      "--\n");
-            }
+            fprintf(sql_file,
+                    "--\n"
+                    "-- WARNING: old server version. "
+                      "The following dump may be incomplete.\n"
+                    "--\n");
+          }
 
           switch_sql_mode(sql_file, delimiter, row[1]);
 
           switch_time_zone(sql_file, delimiter, row[2]);
 
+          query_str= cover_definer_clause(row[3], strlen(row[3]),
+                                          C_STRING_WITH_LEN("50117"),
+                                          C_STRING_WITH_LEN("50106"),
+                                          C_STRING_WITH_LEN(" EVENT"));
+
           fprintf(sql_file,
                   "/*!50106 %s */ %s\n",
-                  (const char *) row[3],
+                  (const char *) (query_str != NULL ? query_str : row[3]),
                   (const char *) delimiter);
 
           restore_time_zone(sql_file, delimiter);
@@ -2003,7 +2002,7 @@ static uint dump_events_for_db(char *db)
   mysql_free_result(event_list_res);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -2127,7 +2126,16 @@ static uint dump_routines_for_db(char *db)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
 
-            query_str= cover_definer_clause_in_sp(row[2], strlen(row[2]));
+            query_str= cover_definer_clause(row[2], strlen(row[2]),
+                                            C_STRING_WITH_LEN("50020"),
+                                            C_STRING_WITH_LEN("50003"),
+                                            C_STRING_WITH_LEN(" FUNCTION"));
+
+            if (!query_str)
+              query_str= cover_definer_clause(row[2], strlen(row[2]),
+                                              C_STRING_WITH_LEN("50020"),
+                                              C_STRING_WITH_LEN("50003"),
+                                              C_STRING_WITH_LEN(" PROCEDURE"));
 
             if (mysql_num_fields(routine_res) >= 6)
             {
@@ -2197,7 +2205,7 @@ static uint dump_routines_for_db(char *db)
     DBUG_RETURN(1);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -2806,8 +2814,10 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 
   while ((row= mysql_fetch_row(show_create_trigger_rs)))
   {
-    char *query_str= cover_definer_clause_in_trigger(row[2], strlen(row[2]));
-
+    char *query_str= cover_definer_clause(row[2], strlen(row[2]),
+                                          C_STRING_WITH_LEN("50017"),
+                                          C_STRING_WITH_LEN("50003"),
+                                          C_STRING_WITH_LEN(" TRIGGER"));
 
     if (switch_db_collation(sql_file, db_name, ";",
                             db_cl_name, row[5], &db_cl_altered))
@@ -3992,7 +4002,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 my_bool include_table(const uchar *hash_key, size_t len)
 {
-  return !hash_search(&ignore_table, hash_key, len);
+  return ! my_hash_search(&ignore_table, hash_key, len);
 }
 
 
@@ -4077,7 +4087,7 @@ static int dump_all_tables_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   if (flush_privileges && using_mysql_db == 0)
   {
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
@@ -4151,7 +4161,7 @@ static my_bool dump_all_views_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -4323,7 +4333,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 } /* dump_selected_tables */
 
@@ -4366,6 +4376,130 @@ static int do_show_master_status(MYSQL *mysql_con)
   }
   return 0;
 }
+
+static int do_stop_slave_sql(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  /* We need to check if the slave sql is running in the first place */
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+    return(1);
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[11])
+    {
+      /* if SLAVE SQL is not running, we don't stop it */
+      if (!strcmp(row[11],"No"))
+      {
+        mysql_free_result(slave);
+        /* Silently assume that they don't have the slave running */
+        return(0);
+      }
+    }
+  }
+  mysql_free_result(slave);
+
+  /* now, stop slave if running */
+  if (mysql_query_with_error_report(mysql_con, 0, "STOP SLAVE SQL_THREAD"))
+    return(1);
+
+  return(0);
+}
+
+static int add_stop_slave(void)
+{
+  if (opt_comments)
+    fprintf(md_result_file,
+            "\n--\n-- stop slave statement to make a recovery dump)\n--\n\n");
+  fprintf(md_result_file, "STOP SLAVE;\n");
+  return(0);
+}
+
+static int add_slave_statements(void)
+{
+  if (opt_comments)
+    fprintf(md_result_file,
+            "\n--\n-- start slave statement to make a recovery dump)\n--\n\n");
+  fprintf(md_result_file, "START SLAVE;\n");
+  return(0);
+}
+
+static int do_show_slave_status(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  const char *comment_prefix=
+    (opt_slave_data == MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL) ? "-- " : "";
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+  {
+    if (!ignore_errors)
+    {
+      /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
+      my_printf_error(0, "Error: Slave not set up", MYF(0));
+    }
+    mysql_free_result(slave);
+    return 1;
+  }
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[9] && row[21])
+    {
+      /* SHOW MASTER STATUS reports file and position */
+      if (opt_comments)
+        fprintf(md_result_file,
+                "\n--\n-- Position to start replication or point-in-time "
+                "recovery from (the master of this slave)\n--\n\n");
+
+      fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
+
+      if (opt_include_master_host_port)
+      {
+        if (row[1])
+          fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
+        if (row[3])
+          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+      }
+      fprintf(md_result_file,
+              "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
+
+      check_io(md_result_file);
+    }
+    mysql_free_result(slave);
+  }
+  return 0;
+}
+
+static int do_start_slave_sql(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  /* We need to check if the slave sql is stopped in the first place */
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+    return(1);
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[11])
+    {
+      /* if SLAVE SQL is not running, we don't start it */
+      if (!strcmp(row[11],"Yes"))
+      {
+        mysql_free_result(slave);
+        /* Silently assume that they don't have the slave running */
+        return(0);
+      }
+    }
+  }
+  mysql_free_result(slave);
+
+  /* now, start slave if stopped */
+  if (mysql_query_with_error_report(mysql_con, 0, "START SLAVE"))
+  {
+    my_printf_error(0, "Error: Unable to start slave", MYF(0));
+    return 1;
+  }
+  return(0);
+}
+
 
 
 static int do_flush_tables_read_lock(MYSQL *mysql_con)
@@ -5029,6 +5163,9 @@ int main(int argc, char **argv)
   if (!path)
     write_header(md_result_file, *argv);
 
+  if (opt_slave_data && do_stop_slave_sql(mysql))
+    goto err;
+
   if ((opt_lock_all_tables || opt_master_data) &&
       do_flush_tables_read_lock(mysql))
     goto err;
@@ -5047,7 +5184,12 @@ int main(int argc, char **argv)
       goto err;
     flush_logs= 0; /* not anymore; that would not be sensible */
   }
+  /* Add 'STOP SLAVE to beginning of dump */
+  if (opt_slave_apply && add_stop_slave())
+    goto err;
   if (opt_master_data && do_show_master_status(mysql))
+    goto err;
+  if (opt_slave_data && do_show_slave_status(mysql))
     goto err;
   if (opt_single_transaction && do_unlock_tables(mysql)) /* unlock but no commit! */
     goto err;
@@ -5075,6 +5217,14 @@ int main(int argc, char **argv)
       dump_tablespaces_for_databases(argv);
     dump_databases(argv);
   }
+
+  /* if --dump-slave , start the slave sql thread */
+  if (opt_slave_data && do_start_slave_sql(mysql))
+    goto err;
+
+  /* add 'START SLAVE' to end of dump */
+  if (opt_slave_apply && add_slave_statements())
+    goto err;
 
   /* ensure dumped data flushed */
   if (md_result_file && fflush(md_result_file))

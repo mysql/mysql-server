@@ -2377,7 +2377,6 @@ create procedure bug4902()
 begin
 show charset like 'foo';
 show collation like 'foo';
-show column types;
 show create table t1;
 show create database test;
 show databases like 'foo';
@@ -2395,9 +2394,6 @@ end|
 call bug4902()|
 Charset	Description	Default collation	Maxlen
 Collation	Charset	Id	Default	Compiled	Sortlen
-Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
-tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
-tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
@@ -2419,9 +2415,6 @@ Level	Code	Message
 call bug4902()|
 Charset	Description	Default collation	Maxlen
 Collation	Charset	Id	Default	Compiled	Sortlen
-Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
-tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
-tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
@@ -3328,9 +3321,43 @@ call bug11529()|
 call bug11529()|
 delete from t1|
 drop procedure bug11529|
+set character set utf8|
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
+create procedure bug6063()
+begin
+l√¢bel: begin end;
+label: begin end;
+label1: begin end;
+end|
+create procedure bug7088_1()
+label1: begin end label1|
+create procedure bug7088_2()
+l√§bel1: begin end|
+call bug6063()|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug6063|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug6063		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug6063`()
+begin
+l‚bel: begin end;
+label: begin end;
+label1: begin end;
+end	utf8	latin1_swedish_ci	latin1_swedish_ci
+show create procedure bug7088_1|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug7088_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_1`()
+label1: begin end label1	utf8	latin1_swedish_ci	latin1_swedish_ci
+show create procedure bug7088_2|
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug7088_2		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_2`()
+l‰bel1: begin end	utf8	latin1_swedish_ci	latin1_swedish_ci
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
 drop procedure if exists bug9565_sub|
 drop procedure if exists bug9565|
 create procedure bug9565_sub()
@@ -4278,19 +4305,10 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
 REPAIR TABLE t1;
-BACKUP TABLE t1 to '<MYSQLTEST_VARDIR>/tmp/';
-DROP TABLE t1;
-RESTORE TABLE t1 FROM '<MYSQLTEST_VARDIR>/tmp/';
 END|
 call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-Table	Op	Msg_type	Msg_text
-test.t1	backup	Warning	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 6.0. Please use MySQL Administrator (mysqldump, mysql) instead
-test.t1	backup	status	OK
-Table	Op	Msg_type	Msg_text
-test.t1	restore	Warning	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 6.0. Please use MySQL Administrator (mysqldump, mysql) instead
-test.t1	restore	status	OK
 drop procedure bug13012|
 create view v1 as select * from t1|
 create procedure bug13012()
@@ -6930,6 +6948,191 @@ CALL p1;
 ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
+#
+# Bug#47627: SET @@{global.session}.local_variable in stored routine causes crash
+# Bug#48626: Crash or lost connection using SET for declared variables with @@
+#
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@SESSION.v= 10;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET v= 10;
+END//
+call p2()//
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SELECT @@SESSION.v;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p4()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@GLOBAL.v= 10;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p5()
+BEGIN
+DECLARE init_connect INT DEFAULT 0;
+SET init_connect= 10;
+SET @@GLOBAL.init_connect= 'SELECT 1';
+SET @@SESSION.IDENTITY= 1;
+SELECT @@SESSION.IDENTITY;
+SELECT @@GLOBAL.init_connect;
+SELECT init_connect;
+END//
+CREATE PROCEDURE p6()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@v= 0;
+END//
+ERROR HY000: Unknown system variable 'v'
+SET @old_init_connect= @@GLOBAL.init_connect;
+CALL p5();
+@@SESSION.IDENTITY
+1
+@@GLOBAL.init_connect
+SELECT 1
+init_connect
+10
+SET @@GLOBAL.init_connect= @old_init_connect;
+DROP PROCEDURE p2;
+DROP PROCEDURE p5;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t_non_existing;
+DROP TABLE IF EXISTS t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+DECLARE v INT;
+SELECT a INTO v FROM t_non_existing;
+RETURN 1;
+END|
+CREATE TABLE t1 (a INT) ENGINE = myisam;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE a = f1();
+ERROR 42S02: Table 'test.t_non_existing' doesn't exist
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(a INT, b CHAR)
+BEGIN
+IF a > 0 THEN
+CALL p1(a-1, 'ab');
+ELSE
+SELECT 1;
+END IF;
+END|
+SET @save_max_sp_recursion= @@max_sp_recursion_depth;
+SET @@max_sp_recursion_depth= 5;
+CALL p1(4, 'a');
+1
+1
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+SET @@max_sp_recursion_depth= @save_max_sp_recursion;
+DROP PROCEDURE p1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(a CHAR)
+BEGIN
+SELECT 1;
+SELECT CAST('10 ' as UNSIGNED INTEGER);
+SELECT 1;
+END|
+CALL p1('data truncated parameter');
+1
+1
+CAST('10 ' as UNSIGNED INTEGER)
+10
+1
+1
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+DROP PROCEDURE p1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+CREATE PROCEDURE p1()
+CALL p2()|
+CREATE PROCEDURE p2()
+CALL p3()|
+CREATE PROCEDURE p3()
+CALL p4()|
+CREATE PROCEDURE p4()
+BEGIN
+SELECT 1;
+SELECT CAST('10 ' as UNSIGNED INTEGER);
+SELECT 2;
+END|
+CALL p1();
+1
+1
+CAST('10 ' as UNSIGNED INTEGER)
+10
+2
+2
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a CHAR(2));
+INSERT INTO t1 VALUES ('aa');
+CREATE FUNCTION f1() RETURNS CHAR
+RETURN (SELECT f2())|
+CREATE FUNCTION f2() RETURNS CHAR
+RETURN (SELECT f3())|
+CREATE FUNCTION f3() RETURNS CHAR
+RETURN (SELECT f4())|
+CREATE FUNCTION f4() RETURNS CHAR
+BEGIN
+RETURN (SELECT a FROM t1);
+END|
+SELECT f1();
+f1()
+a
+Warnings:
+Warning	1265	Data truncated for column 'f4()' at row 1
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+DROP TABLE t1;
+#
+# Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
+#            strict SQL mode
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1 ()
+COMMENT
+'12345678901234567890123456789012345678901234567890123456789012345678901234567890'
+BEGIN
+END;
+SELECT comment FROM mysql.proc WHERE name = "p1";
+comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
+routine_comment
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+DROP PROCEDURE p1;

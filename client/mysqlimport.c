@@ -55,11 +55,10 @@ static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
-		*default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
 static char * opt_mysql_unix_port=0;
 static longlong opt_ignore_lines= -1;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
 #include <sslopt-vars.h>
 
 #ifdef HAVE_SMEM
@@ -282,10 +281,6 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr, "You can't use --ignore (-i) and --replace (-r) at the same time.\n");
     return(1);
   }
-  if (strcmp(default_charset, charset_info->csname) &&
-      !(charset_info= get_charset_by_csname(default_charset,
-  					    MY_CS_PRIMARY, MYF(MY_WME))))
-    exit(1);
   if (*argc < 2)
   {
     usage();
@@ -440,6 +435,7 @@ static MYSQL *db_connect(char *host, char *database,
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(mysql_real_connect(mysql,host,user,passwd,
                            database,opt_mysql_port,opt_mysql_unix_port,
                            0)))
@@ -596,7 +592,8 @@ int main(int argc, char **argv)
   char **argv_to_free;
   MY_INIT(argv[0]);
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    return 1;
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))
@@ -614,8 +611,8 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
-    VOID(pthread_mutex_init(&counter_mutex, NULL));
-    VOID(pthread_cond_init(&count_threshhold, NULL));
+    pthread_mutex_init(&counter_mutex, NULL);
+    pthread_cond_init(&count_threshhold, NULL);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
@@ -654,8 +651,8 @@ int main(int argc, char **argv)
       pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
     }
     pthread_mutex_unlock(&counter_mutex);
-    VOID(pthread_mutex_destroy(&counter_mutex));
-    VOID(pthread_cond_destroy(&count_threshhold));
+    pthread_mutex_destroy(&counter_mutex);
+    pthread_cond_destroy(&count_threshhold);
     pthread_attr_destroy(&attr);
   }
   else

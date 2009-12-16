@@ -161,7 +161,7 @@ static int run_test(const char *filename)
   row_count=deleted=0;
   for (i=49 ; i>=1 ; i-=2 )
   {
-    if (insert_count-- == 0) { VOID(mi_close(file)) ; exit(0) ; }
+    if (insert_count-- == 0) { (void) mi_close(file); exit(0) ; }
     j=i%25 +1;
     create_record(record,j);
     error=mi_write(file,record);
@@ -225,7 +225,7 @@ static int run_test(const char *filename)
     found=0;
     while ((error=mi_rrnd(file,read_record,pos)) == 0)
     {
-      if (update_count-- == 0) { VOID(mi_close(file)) ; exit(0) ; }
+      if (update_count-- == 0) { (void) mi_close(file); exit(0) ; }
       memcpy(record,read_record,rec_length);
       update_record(record);
       if (mi_update(file,read_record,record))
@@ -252,7 +252,7 @@ static int run_test(const char *filename)
     for (i=0 ; i <= 10 ; i++)
     {
       /* testing */
-      if (remove_count-- == 0) { VOID(mi_close(file)) ; exit(0) ; }
+      if (remove_count-- == 0) { (void) mi_close(file); exit(0) ; }
       j=i*2;
       if (!flags[j])
 	continue;
@@ -679,3 +679,5 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include "mi_extrafunc.h"

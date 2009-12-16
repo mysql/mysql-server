@@ -1,0 +1,47 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+include/stop_slave.inc
+SET @old_log_output= @@log_output;
+SET GLOBAL log_output= 'TABLE';
+SET @old_long_query_time= @@long_query_time;
+SET GLOBAL long_query_time= 2;
+TRUNCATE mysql.slow_log;
+include/start_slave.inc
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 values(1, 1);
+INSERT INTO t1 values(1, sleep(3));
+TRUNCATE mysql.slow_log;
+SELECT 1, sleep(3);
+1	sleep(3)
+1	0
+SELECT 1;
+1
+1
+TRUNCATE mysql.slow_log;
+SET TIMESTAMP= 1;
+SELECT 2, sleep(3);
+2	sleep(3)
+2	0
+SELECT 2;
+2
+2
+TRUNCATE mysql.slow_log;
+SET @old_slow_query_log= @@slow_query_log;
+SET GLOBAL slow_query_log= 'OFF';
+SELECT 3, sleep(3);
+3	sleep(3)
+3	0
+SELECT 3;
+3
+3
+TRUNCATE mysql.slow_log;
+SET GLOBAL slow_query_log= @old_slow_query_log;
+DROP TABLE t1;
+include/stop_slave.inc
+SET GLOBAL long_query_time= @old_long_query_time;
+SET GLOBAL log_output= @old_log_output;
+include/start_slave.inc

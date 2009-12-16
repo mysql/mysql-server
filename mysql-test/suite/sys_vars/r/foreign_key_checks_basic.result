@@ -65,10 +65,10 @@ SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARI
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_032_07------------------------#'
-SELECT @@session.foreign_key_checks = VARIABLE_VALUE 
+SELECT IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='foreign_key_checks';
-@@session.foreign_key_checks = VARIABLE_VALUE
+IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.foreign_key_checks;
 @@session.foreign_key_checks

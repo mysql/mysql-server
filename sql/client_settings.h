@@ -14,6 +14,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef CLIENT_SETTINGS_INCLUDED
+#define CLIENT_SETTINGS_INCLUDED
+#else
+#error You have already included an client_settings.h and it should not be included twice
+#endif /* CLIENT_SETTINGS_INCLUDED */
+
 #include <thr_alarm.h>
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
@@ -24,10 +30,6 @@
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 #define read_user_name(A) {}
-#define mysql_rpl_query_type(A,B) MYSQL_RPL_ADMIN
-#define mysql_master_send_query(A, B, C) 1
-#define mysql_slave_send_query(A, B, C) 1
-#define mysql_rpl_probe(mysql) 0
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 

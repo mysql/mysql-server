@@ -1,0 +1,72 @@
+SET NAMES utf8;
+DROP DATABASE IF EXISTS `Ã³`;
+DROP DATABASE IF EXISTS `Ăł`;
+DROP DATABASE IF EXISTS `цЁ`;
+DROP DATABASE IF EXISTS `ó`;
+
+iso88591
+@@character_set_client
+latin1
+Database: ó
++--------+
+| Tables |
++--------+
++--------+
+
+iso88592
+@@character_set_client
+latin2
+Database: ó
++--------+
+| Tables |
++--------+
++--------+
+
+koi8r
+@@character_set_client
+koi8r
+Database: ó
++--------+
+| Tables |
++--------+
++--------+
+
+utf8
+@@character_set_client
+utf8
+Database: ó
++--------+
+| Tables |
++--------+
++--------+
+Database: Ã³
++--------+
+| Tables |
++--------+
++--------+
+Database: Ăł
++--------+
+| Tables |
++--------+
++--------+
+Database: цЁ
++--------+
+| Tables |
++--------+
++--------+
+SHOW DATABASES LIKE 'Ã³';
+Database (Ã³)
+Ã³
+SHOW DATABASES LIKE 'Ăł';
+Database (Ăł)
+Ăł
+SHOW DATABASES LIKE 'цЁ';
+Database (цЁ)
+цЁ
+SHOW DATABASES LIKE 'ó';
+Database (ó)
+ó
+DROP DATABASE `Ã³`;
+DROP DATABASE `Ăł`;
+DROP DATABASE `цЁ`;
+DROP DATABASE `ó`;

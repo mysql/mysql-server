@@ -36,15 +36,22 @@ public:
   sp_cache();
   ~sp_cache();
 
-  inline void insert(sp_head *sp)
+  /**
+   Inserts a sp_head object into a hash table.
+
+   @returns Success status
+     @return TRUE Failure
+     @return FALSE Success
+  */
+  inline bool insert(sp_head *sp)
   {
-    /* TODO: why don't we check return value? */
-    my_hash_insert(&m_hashtable, (const uchar *)sp);
+    return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
   inline sp_head *lookup(char *name, uint namelen)
   {
-    return (sp_head *)hash_search(&m_hashtable, (const uchar *)name, namelen);
+    return (sp_head *) my_hash_search(&m_hashtable, (const uchar *)name,
+                                      namelen);
   }
 
 #ifdef NOT_USED
@@ -255,15 +262,15 @@ sp_cache::sp_cache()
 
 sp_cache::~sp_cache()
 {
-  hash_free(&m_hashtable);
+  my_hash_free(&m_hashtable);
 }
 
 
 void
 sp_cache::init()
 {
-  hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
-	    hash_get_key_for_sp_head, hash_free_sp_head, 0);
+  my_hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
+               hash_get_key_for_sp_head, hash_free_sp_head, 0);
   version= 0;
 }
 
@@ -271,5 +278,5 @@ sp_cache::init()
 void
 sp_cache::cleanup()
 {
-  hash_free(&m_hashtable);
+  my_hash_free(&m_hashtable);
 }

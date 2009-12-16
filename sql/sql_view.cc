@@ -269,11 +269,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
                     0, 0, is_schema_db(view->db)) ||
-       check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+       check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0, is_schema_db(view->db)) ||
-        check_grant(thd, DROP_ACL, view, 0, 1, 0))))
+        check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
     goto err;
 
   for (sl= select_lex; sl; sl= sl->next_select())
@@ -323,7 +323,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
                          &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
-            check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
+            check_grant(thd, SELECT_ACL, tbl, FALSE, 1, FALSE))
           goto err;
       }
     }
@@ -620,7 +620,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     res= TRUE;
     goto err;
   }
-  VOID(pthread_mutex_lock(&LOCK_open));
+  pthread_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -662,11 +662,12 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     int errcode= query_error_code(thd, TRUE);
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
+    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          buff.ptr(), buff.length(), FALSE, FALSE, errcode))
+      res= TRUE;
   }
 
-  VOID(pthread_mutex_unlock(&LOCK_open));
+  pthread_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   start_waiting_global_read_lock(thd);
@@ -818,7 +819,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
     thd->variables.sql_mode|= sql_mode;
   }
-  DBUG_PRINT("info", ("View: %s", view_query.ptr()));
+  DBUG_PRINT("info",
+             ("View: %*.s", (int) view_query.length(), view_query.ptr()));
 
   /* fill structure */
   view->source= thd->lex->create_view_select;
@@ -1233,8 +1235,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (!table->prelocking_placeholder &&
         (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
-      if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, TRUE))
+      if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
+                             UINT_MAX, TRUE) &&
+          check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
@@ -1244,7 +1247,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
              (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !table->belong_to_view)
     {
-      if (check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, FALSE))
+      if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
         goto err;
     }
 
@@ -1578,7 +1581,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
 
-  VOID(pthread_mutex_lock(&LOCK_open));
+  pthread_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
     TABLE_SHARE *share;
@@ -1652,10 +1655,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    write_bin_log(thd, !something_wrong, thd->query, thd->query_length);
+    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+      something_wrong= 1;
   }
 
-  VOID(pthread_mutex_unlock(&LOCK_open));
+  pthread_mutex_unlock(&LOCK_open);
   
   if (something_wrong)
   {
