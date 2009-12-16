@@ -19,11 +19,11 @@ MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
  IF(NOT ${var})
    IF (EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
      FILE (STRINGS  ${CMAKE_SOURCE_DIR}/configure.in str  REGEX  "^[ ]*${keyword}=")
-	 IF(str)
-	   STRING(REPLACE "${keyword}=" "" str ${str})
-	   STRING(REGEX REPLACE  "[ ].*" ""  str ${str})
-	   SET(${var} ${str} CACHE INTERNAL "Config variable")
-	 ENDIF()
+    IF(str)
+      STRING(REPLACE "${keyword}=" "" str ${str})
+      STRING(REGEX REPLACE  "[ ].*" ""  str ${str})
+      SET(${var} ${str} CACHE INTERNAL "Config variable")
+    ENDIF()
    ENDIF()
  ENDIF()
 ENDMACRO()
@@ -35,19 +35,19 @@ MACRO(GET_MYSQL_VERSION)
 
   IF(NOT VERSION_STRING)
     IF(EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
-    FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  str REGEX "AM_INIT_AUTOMAKE")
-    STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\)]+" VERSION_STRING "${str}")
-    IF(NOT VERSION_STRING)
-      FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
-      STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\]]+" VERSION_STRING "${str}")
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  str REGEX "AM_INIT_AUTOMAKE")
+      STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\)]+" VERSION_STRING "${str}")
+      IF(NOT VERSION_STRING)
+        FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
+        STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\]]+" VERSION_STRING "${str}")
+      ENDIF()
     ENDIF()
-	ENDIF()
   ENDIF()
 
   IF(NOT VERSION_STRING)
     MESSAGE(FATAL_ERROR 
-	"VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
-	"when calling cmake")
+  "VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
+  "when calling cmake")
   ENDIF()
   
   SET(VERSION ${VERSION_STRING})
@@ -100,18 +100,18 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
        SET(SYSTEM_NAME_AND_PROCESSOR "win32")
      ENDIF()
     ELSE()
-	  IF(NOT PLATFORM)
-	    SET(PLATFORM ${CMAKE_SYSTEM_NAME})
-	  ENDIF()
-	  IF(NOT MACHINE)
-	    SET(MACHINE ${CMAKE_SYSTEM_PROCESSOR})
-		IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT ${MACHINE} MATCHES "ia64")
-		  # On almost every 64 bit machine (except IA64) it is possible
-		  # to build 32 bit packages. Add -64bit suffix to differentiate 
-		  # between 32 and 64 bit packages.
-		  SET(MACHINE ${MACHINE}-64bit)
-		ENDIF()
-	  ENDIF()
+    IF(NOT PLATFORM)
+      SET(PLATFORM ${CMAKE_SYSTEM_NAME})
+    ENDIF()
+    IF(NOT MACHINE)
+      SET(MACHINE ${CMAKE_SYSTEM_PROCESSOR})
+      IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT ${MACHINE} MATCHES "ia64")
+        # On almost every 64 bit machine (except IA64) it is possible
+        # to build 32 bit packages. Add -64bit suffix to differentiate 
+        # between 32 and 64 bit packages.
+        SET(MACHINE ${MACHINE}-64bit)
+      ENDIF()
+    ENDIF()
       SET(SYSTEM_NAME_AND_PROCESSOR "${PLATFORM}-${MACHINE}")
     ENDIF()
   ENDIF()
@@ -125,10 +125,11 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
   SET(CPACK_PACKAGE_FILE_NAME ${package_name})
 ENDIF()
 
+
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
   SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
 ENDIF()
-SET(CPACK_PACKAGE_VENDOR "Sun Microsystems")
+SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
 SET(CPACK_SOURCE_IGNORE_FILES 
   \\\\.bzr/
@@ -136,7 +137,78 @@ SET(CPACK_SOURCE_IGNORE_FILES
   .bzrignore
   CMakeCache.txt
   /CMakeFiles/
+  /version_resources/
   /_CPack_Packages/
   $.gz
   $.zip
 )
+
+# Defintions for windows version resources
+SET(PRODUCTNAME "MySQL Server")
+SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
+
+# Function to embed version info into executables/dlls on Windows
+# Refer http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
+# for more information
+FUNCTION(EMBED_VERSION_INFO target)
+  IF(NOT WIN32)
+   RETURN()
+  ENDIF()
+  IF(NOT CMAKE_RC_COMPILER)
+    RETURN()
+  ENDIF()
+  
+  GET_TARGET_PROPERTY(target_type ${target} TYPE)
+  IF(target_type MATCHES "STATIC")
+    RETURN()
+  ENDIF()
+  IF(TARGET_TYPE MATCHES "EXE")
+    SET(FILETYPE VFT_APP)
+  ELSE()
+    SET(FILETYPE VFT_DLL)
+  ENDIF()
+  
+  IF(NOT MAJOR_VERSION)
+    MESSAGE(FATAL_ERROR "MAJOR_VERSION is not defined")
+  ENDIF()
+  IF(NOT MINOR_VERSION)
+    MESSAGE(FATAL_ERROR "MINOR_VERSION is not defined")
+  ENDIF()
+  IF(NOT PATCH)
+    SET(PATCH 0)
+  ENDIF()
+ 
+  GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+  GET_FILENAME_COMPONENT(INTERNALNAME ${target_location} NAME_WE)
+  IF(NOT FILEDESCRIPTION)
+    SET(FILEDESCRIPTION ${INTERNALNAME})
+  ENDIF()
+  GET_FILENAME_COMPONENT(ORIGINALFILENAME ${target_location} NAME)
+  
+  # Directory where we have resouce script and compiled .res file
+  SET(RES_DIR ${CMAKE_CURRENT_BINARY_DIR}/version_resources)
+  
+  # Create resource script (.rc)
+  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/versioninfo.rc.in 
+   ${RES_DIR}/${target}_versioninfo.rc)
+  
+  # Compile resource script to object if required
+  IF(EXISTS ${RES_DIR}/${target}_versioninfo.res)
+   IF(${RES_DIR}/${target}_versioninfo.rc IS_NEWER_THAN
+    ${RES_DIR}/${target}_versioninfo.res)
+    SET(RUN_RC 1)
+   ENDIF()
+  ELSE()
+    SET(RUN_RC 1)
+  ENDIF()
+  
+  IF(RUN_RC)
+    # Run resource compiler
+    EXECUTE_PROCESS(
+    COMMAND ${CMAKE_RC_COMPILER} /nologo /fo ${target}_versioninfo.res  
+    ${target}_versioninfo.rc
+    WORKING_DIRECTORY ${RES_DIR}
+    )
+  ENDIF()
+  TARGET_LINK_LIBRARIES(${target} ${RES_DIR}/${target}_versioninfo.res)
+ENDFUNCTION()

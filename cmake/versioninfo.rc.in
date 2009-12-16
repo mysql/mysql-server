@@ -1,0 +1,25 @@
+#include <windows.h>
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH@,0
+PRODUCTVERSION  @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH@,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS__WINDOWS32
+FILETYPE        @FILETYPE@
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "FileDescription",  "@FILEDESCRIPTION@\0"
+            VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@\0"
+            VALUE "InternalName",     "@INTERNALNAME@\0"
+            VALUE "OriginalFilename", "@ORIGINALFILENAME@\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
