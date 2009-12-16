@@ -746,6 +746,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  IDENT_QUOTED
 %token  IF
 %token  IGNORE_SYM
+%token  IGNORE_SERVER_IDS_SYM
 %token  IMPORT
 %token  INDEXES
 %token  INDEX_SYM
@@ -1572,6 +1573,12 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             bzero((char*) &lex->mi, sizeof(lex->mi));
+            /*
+              resetting flags that can left from the previous CHANGE MASTER
+            */
+            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
+                                  sizeof(::server_id), 16, 16);
           }
           master_defs
           {}
@@ -1637,6 +1644,10 @@ master_def:
             Lex->mi.ssl_verify_server_cert= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
+        | IGNORE_SERVER_IDS_SYM EQ '(' ignore_server_id_list ')'
+          {
+            Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
+          }
        | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
          {
            Lex->mi.heartbeat_period= (float) $3->val_real();
@@ -1679,6 +1690,18 @@ master_def:
          }
         | master_file_def
         ;
+
+ignore_server_id_list:
+          /* Empty */
+          | ignore_server_id
+          | ignore_server_id_list ',' ignore_server_id
+        ;
+
+ignore_server_id:
+          ulong_num
+          {
+            insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
+          }
 
 master_file_def:
           MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys

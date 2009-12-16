@@ -1,0 +1,114 @@
+# This test checks that the slave rejects events originating
+# by a server from the list of ignored originators (bug#27808 etc)
+#
+# phases of tests:
+#
+# 0. master_id new line in show slave status
+# 1. syntax related: 
+#    a. error reporting if options clash;
+#    b. overriding the old IGNORE_SERVER_IDS setup by the following 
+#       CHANGE MASTER ... IGNORE_SERVER_IDS= (list);
+#    c. the old setup preserving by CHANGE MASTER w/o IGNORE_SERVER_IDS
+#    d. resetting the ignored server ids with the empty list arg to 
+#       IGNORE_SERVER_IDS=()
+#    e. RESET SLAVE preserves the list
+# 2. run time related: 
+#    a. observing no processing events from a master listed in IGNORE_SERVER_IDS
+#    b. nullifying the list and resuming of taking binlog from the very beginning with
+#       executing events this time
+
+source include/master-slave.inc;
+
+connection slave;
+
+# a new line for master_id
+let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
+echo master_id: $master_id;
+
+stop slave;
+--echo *** --replicate-same-server-id and change master option can clash ***
+--error ER_SLAVE_IGNORE_SERVER_IDS
+change master to IGNORE_SERVER_IDS= (2, 1);
+--echo *** must be empty due to the error ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+
+change master to IGNORE_SERVER_IDS= (10, 100);
+--echo *** must be 10, 100 ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+reset slave;
+--echo *** must be empty due to reset slave ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+change master to IGNORE_SERVER_IDS= (10, 100);
+--echo *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
+change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
+--echo *** must be 1, 3, 4, 5 due to overriding policy ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+--echo *** ignore master (server 1) queries for a while ***
+start slave;
+
+connection master;
+
+#connection slave;
+sync_slave_with_master;
+let $slave_relay_pos0= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+
+connection master;
+create table t1 (n int);
+let $master_binlog_end= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+connection slave;
+let $slave_param= Exec_Master_Log_Pos;
+let $slave_param_value= $master_binlog_end;
+source include/wait_for_slave_param.inc;
+--echo *** must be empty as the event is to be filtered out ***
+show tables;
+--echo *** allowing events from master ***
+let $slave_relay_pos1= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
+#
+# checking stability of relay log pos
+#
+if (`select $slave_relay_pos1 - $slave_relay_pos0`)
+{
+    --echo Error: relay log position changed:  $slave_relay_pos0, $slave_relay_pos1
+    query_vertical show slave status;
+}
+
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+reset slave;
+change master to IGNORE_SERVER_IDS= (10, 100);
+--echo *** the list must remain (10, 100) after reset slave ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+
+change master to IGNORE_SERVER_IDS= ();
+--echo *** must be empty due to IGNORE_SERVER_IDS empty list ***
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+start slave;
+
+connection master;
+
+#connection slave;
+sync_slave_with_master;
+--echo *** must have caught create table ***
+show tables;
+
+# cleanup
+connection master;
+drop table t1;
+#connection slave
+sync_slave_with_master;
+
+--echo end of the tests
+
+
+
+
+
+

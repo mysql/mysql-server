@@ -145,6 +145,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1364
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (2);
@@ -197,6 +199,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
 SHOW SLAVE STATUS;
@@ -239,6 +243,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (5);
@@ -283,6 +289,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -327,6 +335,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -370,6 +380,8 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;
