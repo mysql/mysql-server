@@ -150,7 +150,7 @@ SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
 # Function to embed version info into executables/dlls on Windows
 # Refer http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more information
-FUNCTION(EMBED_VERSION_INFO target)
+FUNCTION(WIN32_ADD_VERSION_INFO SOURCES)
   IF(NOT WIN32)
    RETURN()
   ENDIF()
@@ -158,14 +158,8 @@ FUNCTION(EMBED_VERSION_INFO target)
     RETURN()
   ENDIF()
   
-  GET_TARGET_PROPERTY(target_type ${target} TYPE)
-  IF(target_type MATCHES "STATIC")
-    RETURN()
-  ENDIF()
-  IF(TARGET_TYPE MATCHES "EXE")
+  IF(NOT FILETYPE)
     SET(FILETYPE VFT_APP)
-  ELSE()
-    SET(FILETYPE VFT_DLL)
   ENDIF()
   
   IF(NOT MAJOR_VERSION)
@@ -185,29 +179,7 @@ FUNCTION(EMBED_VERSION_INFO target)
   ENDIF()
   GET_FILENAME_COMPONENT(ORIGINALFILENAME ${target_location} NAME)
   
-  # Directory where we have resouce script and compiled .res file
-  SET(RES_DIR ${CMAKE_BINARY_DIR}/version_resources)
-  
-  # Create resource script (.rc)
   CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/versioninfo.rc.in 
-   ${RES_DIR}/${target}_versioninfo.rc)
-  
-  # Compile resource script to object if required
-  IF(EXISTS ${RES_DIR}/${target}_versioninfo.res)
-   IF(${RES_DIR}/${target}_versioninfo.rc IS_NEWER_THAN
-    ${RES_DIR}/${target}_versioninfo.res)
-    SET(RUN_RC 1)
-   ENDIF()
-  ELSE()
-    SET(RUN_RC 1)
-  ENDIF()
-  
-  IF(RUN_RC)
-    # Run resource compiler
-    EXECUTE_PROCESS(
-    COMMAND ${CMAKE_RC_COMPILER} ${target}_versioninfo.rc
-    WORKING_DIRECTORY ${RES_DIR} OUTPUT_QUIET
-    )
-  ENDIF()
-  TARGET_LINK_LIBRARIES(${target} ${RES_DIR}/${target}_versioninfo.res)
+   ${CMAKE_CURRENT_BINARY_DIR}/${target}_versioninfo.rc)
+  LIST(APPEND ${SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/${target}_versioninfo.rc)
 ENDFUNCTION()
