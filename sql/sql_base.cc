@@ -8488,19 +8488,26 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   	  result=1;
         }
         /* Kill delayed insert threads */
-        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-            ! in_use->killed)
+        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT))
         {
-	  in_use->killed= THD::KILL_CONNECTION;
-	  pthread_mutex_lock(&in_use->mysys_var->mutex);
-	  if (in_use->mysys_var->current_cond)
-	  {
-	    pthread_mutex_lock(in_use->mysys_var->current_mutex);
-            signalled= 1;
-	    pthread_cond_broadcast(in_use->mysys_var->current_cond);
-	    pthread_mutex_unlock(in_use->mysys_var->current_mutex);
-	  }
-	  pthread_mutex_unlock(&in_use->mysys_var->mutex);
+          if (!in_use->killed)
+          {
+            in_use->killed= THD::KILL_CONNECTION;
+            pthread_mutex_lock(&in_use->mysys_var->mutex);
+            if (in_use->mysys_var->current_cond)
+            {
+              pthread_mutex_lock(in_use->mysys_var->current_mutex);
+              signalled= 1;
+              pthread_cond_broadcast(in_use->mysys_var->current_cond);
+              pthread_mutex_unlock(in_use->mysys_var->current_mutex);
+            }
+            pthread_mutex_unlock(&in_use->mysys_var->mutex);
+          }
+          /*
+            Don't abort locks. Instead give the delayed insert thread
+            time to finish it's inserts and die gracefully. 
+          */
+          continue;
         }
         /*
 	  Now we must abort all tables locks used by this thread

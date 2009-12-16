@@ -388,7 +388,7 @@ MSG
   }
   elsif (@$extra_warnings)
   {
-    mtr_error("There were errors/warnings in server logs after running test cases.");
+    mtr_error("There where errors/warnings in server logs after running test cases.");
   }
   elsif ($fail)
   {
