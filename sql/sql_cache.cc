@@ -421,12 +421,16 @@ TYPELIB query_cache_type_typelib=
   effect by another thread. This enables a quick path in execution to skip waits
   when the outcome is known.
 
+  @param use_timeout TRUE if the lock can abort because of a timeout.
+
+  @note use_timeout is optional and default value is FALSE.
+
   @return
    @retval FALSE An exclusive lock was taken
    @retval TRUE The locking attempt failed
 */
 
-bool Query_cache::try_lock(void)
+bool Query_cache::try_lock(bool use_timeout)
 {
   bool interrupt= FALSE;
   DBUG_ENTER("Query_cache::try_lock");
@@ -456,7 +460,26 @@ bool Query_cache::try_lock(void)
     else
     {
       DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED);
-      pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+      /*
+        To prevent send_result_to_client() and query_cache_insert() from
+        blocking execution for too long a timeout is put on the lock.
+      */
+      if (use_timeout)
+      {
+        struct timespec waittime;
+        set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
+        int res= pthread_cond_timedwait(&COND_cache_status_changed,
+                                        &structure_guard_mutex,&waittime);
+        if (res == ETIMEDOUT)
+        {
+          interrupt= TRUE;
+          break;
+        }
+      }
+      else
+      {
+        pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+      }
     }
   }
   pthread_mutex_unlock(&structure_guard_mutex);
@@ -1119,8 +1142,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
-  if ((local_tables= is_cacheable(thd, thd->query_length,
-				  thd->query, thd->lex, tables_used,
+  if ((local_tables= is_cacheable(thd, thd->query_length(),
+				  thd->query(), thd->lex, tables_used,
 				  &tables_type)))
   {
     NET *net= &thd->net;
@@ -1190,8 +1213,14 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       A table- or a full flush operation can potentially take a long time to
       finish. We choose not to wait for them and skip caching statements
       instead.
+
+      In case the wait time can't be determined there is an upper limit which
+      causes try_lock() to abort with a time out.
+
+      The 'TRUE' parameter indicate that the lock is allowed to timeout
+
     */
-    if (try_lock())
+    if (try_lock(TRUE))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
@@ -1210,7 +1239,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
+      memcpy(thd->query() + thd->query_length() + 1, thd->db, 
+        thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1218,24 +1248,24 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
-    tot_length= thd->query_length + thd->db_length + 1 +
+    tot_length= thd->query_length() + thd->db_length + 1 +
       QUERY_CACHE_FLAGS_SIZE;
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
     */
-    memcpy((void *)(thd->query + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+    memcpy((void*) (thd->query() + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
-      hash_search(&queries, (uchar*) thd->query, tot_length);
+      hash_search(&queries, (uchar*) thd->query(), tot_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
       Query_cache_block *query_block;
-      query_block= write_block_data(tot_length, (uchar*) thd->query,
+      query_block= write_block_data(tot_length, (uchar*) thd->query(),
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, local_tables);
       if (query_block != 0)
@@ -1384,8 +1414,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Try to obtain an exclusive lock on the query cache. If the cache is
     disabled or if a full cache flush is in progress, the attempt to
     get the lock is aborted.
+
+    The 'TRUE' parameter indicate that the lock is allowed to timeout
   */
-  if (try_lock())
+  if (try_lock(TRUE))
     goto err;
 
   if (query_cache_size == 0)

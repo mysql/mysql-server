@@ -1717,7 +1717,7 @@ static void network_init(void)
     saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
     saPipeSecurity.bInheritHandle = FALSE;
     if ((hPipe= CreateNamedPipe(pipe_name,
-				PIPE_ACCESS_DUPLEX,
+				PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
 				PIPE_TYPE_BYTE |
 				PIPE_READMODE_BYTE |
 				PIPE_WAIT,
@@ -2520,7 +2520,7 @@ terribly wrong...\n");
     }
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query, 1024);
+    my_safe_print_str("thd->query", thd->query(), 1024);
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "thd->killed=%s\n", kreason);
   }
@@ -3888,6 +3888,27 @@ server.");
 
   if (opt_bin_log)
   {
+    /* Reports an error and aborts, if the --log-bin's path 
+       is a directory.*/
+    if (opt_bin_logname && 
+        opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin option", opt_bin_logname);
+      unireg_abort(1);
+    }
+
+    /* Reports an error and aborts, if the --log-bin-index's path 
+       is a directory.*/
+    if (opt_binlog_index_name && 
+        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1] 
+        == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin-index option", opt_binlog_index_name);
+      unireg_abort(1);
+    }
+
     char buf[FN_REFLEN];
     const char *ln;
     ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
@@ -5203,17 +5224,30 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 pthread_handler_t handle_connections_namedpipes(void *arg)
 {
   HANDLE hConnectedPipe;
-  BOOL fConnected;
+  OVERLAPPED connectOverlapped= {0};
   THD *thd;
   my_thread_init();
   DBUG_ENTER("handle_connections_namedpipes");
-  (void) my_pthread_getprio(pthread_self());		// For debugging
-
+  connectOverlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (!connectOverlapped.hEvent)
+  {
+    sql_print_error("Can't create event, last error=%u", GetLastError());
+    unireg_abort(1);
+  }
   DBUG_PRINT("general",("Waiting for named pipe connections."));
   while (!abort_loop)
   {
     /* wait for named pipe connection */
-    fConnected = ConnectNamedPipe(hPipe, NULL);
+    BOOL fConnected= ConnectNamedPipe(hPipe, &connectOverlapped);
+    if (!fConnected && (GetLastError() == ERROR_IO_PENDING))
+    {
+        /*
+          ERROR_IO_PENDING says async IO has started but not yet finished.
+          GetOverlappedResult will wait for completion.
+        */
+        DWORD bytes;
+        fConnected= GetOverlappedResult(hPipe, &connectOverlapped,&bytes, TRUE);
+    }
     if (abort_loop)
       break;
     if (!fConnected)
@@ -5222,7 +5256,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     {
       CloseHandle(hPipe);
       if ((hPipe= CreateNamedPipe(pipe_name,
-                                  PIPE_ACCESS_DUPLEX,
+                                  PIPE_ACCESS_DUPLEX |
+                                  FILE_FLAG_OVERLAPPED,
                                   PIPE_TYPE_BYTE |
                                   PIPE_READMODE_BYTE |
                                   PIPE_WAIT,
@@ -5242,7 +5277,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
     if ((hPipe = CreateNamedPipe(pipe_name,
-				 PIPE_ACCESS_DUPLEX,
+                 PIPE_ACCESS_DUPLEX |
+                 FILE_FLAG_OVERLAPPED,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |
 				 PIPE_WAIT,
@@ -5264,7 +5300,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
       CloseHandle(hConnectedPipe);
       continue;
     }
-    if (!(thd->net.vio = vio_new_win32pipe(hConnectedPipe)) ||
+    if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -5275,7 +5311,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
     create_new_thread(thd);
   }
-
+  CloseHandle(connectOverlapped.hEvent);
   decrement_handler_count();
   DBUG_RETURN(0);
 }
@@ -5452,8 +5488,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
       errmsg= "Could not set client to read mode";
       goto errorconn;
     }
-    if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
-                                                   handle_client_file_map,
+    if (!(thd->net.vio= vio_new_win32shared_memory(handle_client_file_map,
                                                    handle_client_map,
                                                    event_client_wrote,
                                                    event_client_read,
@@ -8643,20 +8678,20 @@ static int fix_paths(void)
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
   }
-  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
-  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
-    --mysql_unpacked_real_data_home_len;
-
-
   convert_dirname(language,language,NullS);
+  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
                                       get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
+
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= 
+    (int) strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))

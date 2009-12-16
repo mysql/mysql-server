@@ -451,7 +451,7 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
   default:
@@ -4736,19 +4736,6 @@ void Item_func_get_user_var::fix_length_and_dec()
     thd->fatal_error();
 
   return;
-}
-
-
-uint Item_func_get_user_var::decimal_precision() const
-{
-  uint precision= max_length;
-  Item_result restype= result_type();
-
-  /* Default to maximum as the precision is unknown a priori. */
-  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= DECIMAL_MAX_PRECISION;
-
-  return precision;
 }
 
 

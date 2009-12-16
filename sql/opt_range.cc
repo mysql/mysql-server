@@ -446,9 +446,9 @@ public:
                                   range_key, *range_key_flag);
     *range_key_flag|= key_tree->min_flag;
     if (key_tree->next_key_part &&
+	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
-	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)) &&
-	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
       res+= key_tree->next_key_part->store_min_key(key, range_key,
                                                    range_key_flag);
     return res;
@@ -462,9 +462,9 @@ public:
                                  range_key, *range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
+	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
-	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
-	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
       res+= key_tree->next_key_part->store_max_key(key, range_key,
                                                    range_key_flag);
     return res;
@@ -1700,6 +1700,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
     (*next_arg)= tmp;
+    tmp->part= this->part;
   }
   else
   {
@@ -5709,6 +5710,27 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
+
   if (param->using_real_indexes)
     optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                           key_part->part);
@@ -5891,6 +5913,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  /*
+    Any sargable predicate except "<=>" involving NULL as a constant is always
+    FALSE
+  */
+  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
+  {
+    tree= &null_element;
+    goto end;
+  }
+  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -5936,7 +5969,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(field,value) == 0)
+    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5951,14 +5984,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field, value) <= 0))
+        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
       tree->min_flag=NEAR_MIN;
     tree->max_flag= NO_MAX_RANGE;
     break;
   case Item_func::GE_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field,value) < 0))
+        (stored_field_cmp_to_item(param->thd, field, value) < 0))
       tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
@@ -6639,6 +6672,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
     else if ((cmp=tmp->cmp_max_to_min(key2)) < 0)
     {						// Found tmp.max < key2.min
       SEL_ARG *next=tmp->next;
+      /* key1 on the left of key2 non-overlapping */
       if (cmp == -2 && eq_tree(tmp->next_key_part,key2->next_key_part))
       {
 	// Join near ranges like tmp.max < 0 and key2.min >= 0
@@ -6667,6 +6701,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       int tmp_cmp;
       if ((tmp_cmp=tmp->cmp_min_to_max(key2)) > 0) // if tmp.min > key2.max
       {
+        /* tmp is on the right of key2 non-overlapping */
 	if (tmp_cmp == 2 && eq_tree(tmp->next_key_part,key2->next_key_part))
 	{					// ranges are connected
 	  tmp->copy_min_to_min(key2);
@@ -6701,25 +6736,52 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       }
     }
 
-    // tmp.max >= key2.min && tmp.min <= key.max  (overlapping ranges)
+    /* 
+      tmp.min >= key2.min && tmp.min <= key.max  (overlapping ranges)
+      key2.min <= tmp.min <= key2.max 
+    */  
     if (eq_tree(tmp->next_key_part,key2->next_key_part))
     {
       if (tmp->is_same(key2))
       {
+        /* 
+          Found exact match of key2 inside key1. 
+          Use the relevant range in key1.
+        */
 	tmp->merge_flags(key2);			// Copy maybe flags
 	key2->increment_use_count(-1);		// Free not used tree
       }
       else
       {
 	SEL_ARG *last=tmp;
+        SEL_ARG *first=tmp;
+        /* 
+          Find the last range in tmp that overlaps key2 and has the same 
+          condition on the rest of the keyparts.
+        */
 	while (last->next && last->next->cmp_min_to_max(key2) <= 0 &&
 	       eq_tree(last->next->next_key_part,key2->next_key_part))
 	{
+          /*
+            We've found the last overlapping key1 range in last.
+            This means that the ranges between (and including) the 
+            first overlapping range (tmp) and the last overlapping range
+            (last) are fully nested into the current range of key2 
+            and can safely be discarded. We just need the minimum endpoint
+            of the first overlapping range (tmp) so we can compare it with
+            the minimum endpoint of the enclosing key2 range.
+          */
 	  SEL_ARG *save=last;
 	  last=last->next;
 	  key1=key1->tree_delete(save);
 	}
-        last->copy_min(tmp);
+        /*
+          The tmp range (the first overlapping range) could have been discarded
+          by the previous loop. We should re-direct tmp to the new united range 
+          that's taking its place.
+        */
+        tmp= last;
+        last->copy_min(first);
         bool full_range= last->copy_min(key2);
         if (!full_range)
         {
@@ -7229,27 +7291,25 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 }
 
 
-/*
-  Count how many times SEL_ARG graph "root" refers to its part "key"
+/**
+  Count how many times SEL_ARG graph "root" refers to its part "key" via
+  transitive closure.
   
-  SYNOPSIS
-    count_key_part_usage()
-      root  An RB-Root node in a SEL_ARG graph.
-      key   Another RB-Root node in that SEL_ARG graph.
+  @param root  An RB-Root node in a SEL_ARG graph.
+  @param key   Another RB-Root node in that SEL_ARG graph.
 
-  DESCRIPTION
-    The passed "root" node may refer to "key" node via root->next_key_part,
-    root->next->n
+  The passed "root" node may refer to "key" node via root->next_key_part,
+  root->next->n
 
-    This function counts how many times the node "key" is referred (via
-    SEL_ARG::next_key_part) by 
-     - intervals of RB-tree pointed by "root", 
-     - intervals of RB-trees that are pointed by SEL_ARG::next_key_part from 
-       intervals of RB-tree pointed by "root",
-     - and so on.
+  This function counts how many times the node "key" is referred (via
+  SEL_ARG::next_key_part) by 
+  - intervals of RB-tree pointed by "root", 
+  - intervals of RB-trees that are pointed by SEL_ARG::next_key_part from 
+  intervals of RB-tree pointed by "root",
+  - and so on.
     
-    Here is an example (horizontal links represent next_key_part pointers, 
-    vertical links - next/prev prev pointers):  
+  Here is an example (horizontal links represent next_key_part pointers, 
+  vertical links - next/prev prev pointers):  
     
          +----+               $
          |root|-----------------+
@@ -7269,8 +7329,8 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
           ...     +---+       $    |
                   |   |------------+
                   +---+       $
-  RETURN 
-    Number of links to "key" from nodes reachable from "root".
+  @return 
+  Number of links to "key" from nodes reachable from "root".
 */
 
 static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
@@ -7525,8 +7585,8 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     param->first_null_comp= key_tree->part+1;
 
   if (key_tree->next_key_part &&
-      key_tree->next_key_part->part == key_tree->part+1 &&
-      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
+      key_tree->next_key_part->part == key_tree->part+1)
   {						// const key as prefix
     if (min_key_length == max_key_length &&
 	!memcmp(min_key, max_key, (uint) (tmp_max_key - max_key)) &&
@@ -7807,8 +7867,8 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                                  &tmp_max_key,max_key_flag);
 
   if (key_tree->next_key_part &&
-      key_tree->next_key_part->part == key_tree->part+1 &&
-      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
+      key_tree->next_key_part->part == key_tree->part+1)
   {						  // const key as prefix
     if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
          memcmp(min_key, max_key, (uint)(tmp_max_key - max_key))==0 &&
@@ -9790,7 +9850,11 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     }
     else if (cur_arg->const_item())
     {
-      DBUG_RETURN(TRUE);
+      /*
+        For predicates of the form "const OP expr" we also have to check 'expr'
+        to make a decision.
+      */
+      continue;
     }
     else
       DBUG_RETURN(FALSE);

@@ -1020,7 +1020,11 @@ buf_pool_free(void)
 		os_mem_free_large(chunk->mem, chunk->mem_size);
 	}
 
-	buf_pool->n_chunks = 0;
+	mem_free(buf_pool->chunks);
+	hash_table_free(buf_pool->page_hash);
+	hash_table_free(buf_pool->zip_hash);
+	mem_free(buf_pool);
+	buf_pool = NULL;
 }
 
 /********************************************************************//**
@@ -1163,10 +1167,15 @@ buf_relocate(
 #ifdef UNIV_LRU_DEBUG
 		/* buf_pool->LRU_old must be the first item in the LRU list
 		whose "old" flag is set. */
+		ut_a(buf_pool->LRU_old->old);
 		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
 		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
 		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
 		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+	} else {
+		/* Check that the "old" flag is consistent in
+		the block and its neighbours. */
+		buf_page_set_old(dpage, buf_page_is_old(dpage));
 #endif /* UNIV_LRU_DEBUG */
 	}
 

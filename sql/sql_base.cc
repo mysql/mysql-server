@@ -25,6 +25,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
+#include "rpl_filter.h"
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -1547,6 +1548,7 @@ void close_temporary_tables(THD *thd)
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
       qinfo.db= db.ptr();
+      qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
       mysql_bin_log.write(&qinfo);
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
@@ -2933,7 +2935,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
                         table->s->db.str, table->s->table_name.str,
                         (long) table));
-    VOID(my_hash_insert(&open_cache,(uchar*) table));
+    if (my_hash_insert(&open_cache,(uchar*) table))
+    {
+      my_free(table, MYF(0));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_RETURN(NULL);
+    }
   }
 
   check_unused();				// Debugging call
@@ -5098,7 +5105,16 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 
 int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+  /*
+    In SBR mode, we are only proceeding if we are binlogging this
+    statement, ie, the filtering rules won't later filter this out.
+
+    This check here is needed to prevent some spurious error to be
+    raised in some cases (See BUG#42829).
+   */
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
+      (thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
+       binlog_filter->db_ok(thd->db)))
   {
     /*
       Compute the starting vectors for the computations by creating a
