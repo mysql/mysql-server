@@ -481,6 +481,15 @@ public:
   NdbScanOrdering getOrdering() const
   { return m_ordering; }
 
+  /**
+   * Get the NdbInterpretedCode object needed for defining a scan filter for 
+   * this operation. Create one if needed.
+   * It is an error to call this method on a lookup operation.
+   * @return The interpreted code object, NULL if an error occured 
+   * (call getNdbError() for details).
+   */
+  NdbInterpretedCode* getCreateInterpretedCode();
+
 private:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -526,8 +535,13 @@ private:
     * Used for old-style result retrieval (using getValue()).*/
   NdbRecAttr* m_firstRecAttr;
   NdbRecAttr* m_lastRecAttr;
+
   /** Ordering of scan results (only applies to ordered index scans.)*/
   NdbScanOrdering m_ordering;
+
+  /** A scan filter is mapped to an interpeter code program, which is stored
+   * here. (This field is NULL if no scan filter has been defined.)*/
+  NdbInterpretedCode* m_interpretedCode;
 
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
@@ -578,6 +592,12 @@ private:
 
   const NdbReceiver& getReceiver(Uint32 recNo) const;
 
+  /** 
+   * If the operation has a scan filter, append the corresponding
+   * interpreter code to a buffer.
+   * @param attrInfo The buffer to which the code should be appended.
+   * @return possible error code */
+  int prepareScanFilter(Uint32Buffer& attrInfo) const;
 }; // class NdbQueryOperationImpl
 
 

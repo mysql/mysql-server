@@ -3126,6 +3126,10 @@ Dbspj::parseDA(Build_context& ctx,
        *   DATA0[LO/HI] = Length / #param
        *   DATA1..N     = PARAM-0...PARAM-M
        *
+       * IF PI_ATTR_INTERPRET
+       *   DATA0[LO] = Length of program
+       *   DATA1..N     = Program (scan filter)
+       *
        * IF NI_ATTR_LINKED
        *   DATA0[LO/HI] = Length / #
        *
@@ -3159,7 +3163,10 @@ Dbspj::parseDA(Build_context& ctx,
         if (treeBits & DABits::NI_ATTR_INTERPRET)
         {
           jam();
-
+          /** 
+           * Having two interpreter programs is an error.
+           */
+          ndbrequire(!(paramBits & DABits::PI_ATTR_INTERPRET));
           Uint32 cnt_len = * tree.ptr++;
           Uint32 len = cnt_len & 0xFFFF; // Length of interpret program
           Uint32 cnt = cnt_len >> 16;    // #Arguments to program
@@ -3214,7 +3221,7 @@ Dbspj::parseDA(Build_context& ctx,
             treeNodePtr.p->m_bits |= TreeNode::T_ATTRINFO_CONSTRUCTED;
           }
         }
-        else
+        else // if (treeBits & DABits::NI_ATTR_INTERPRET)
         {
           jam();
           /**
@@ -3226,20 +3233,52 @@ Dbspj::parseDA(Build_context& ctx,
 
           ndbassert((treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED)!= 0);
 
-          /**
-           * Tree node has interpreted execution,
-           *   but no interpreted program specified
-           *   auto-add Exit_ok (i.e return each row)
-           */
-          Uint32 tmp = Interpreter::ExitOK();
-          err = DbspjErr::OutOfSectionMemory;
-          if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
-          {
-            DEBUG_CRASH();
-            break;
+          if (!(paramBits & DABits::PI_ATTR_INTERPRET)){
+            jam();
+
+            /**
+             * Tree node has interpreted execution,
+             *   but no interpreted program specified
+             *   auto-add Exit_ok (i.e return each row)
+             */
+            Uint32 tmp = Interpreter::ExitOK();
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
+            {
+              DEBUG_CRASH();
+              break;
+            }
+            sectionptrs[1] = 1;
           }
-          sectionptrs[1] = 1;
+        } // if (treeBits & DABits::NI_ATTR_INTERPRET)
+      } // if (interpreted)
+
+      if (paramBits & DABits::PI_ATTR_INTERPRET)
+      {
+        jam();
+        
+        /**
+         * Add the interpreted code that represents the scan filter.
+         */
+        const Uint32 len = * param.ptr++;
+        ndbassert(len <= 0xFFFF);
+        ndbassert(len > 0);
+        err = DbspjErr::OutOfSectionMemory;
+        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, len)))
+        {
+          DEBUG_CRASH();
+          break;
         }
+        ndbout_c("Dbspj::parseDA() adding program of %d words.", len);
+        
+        param.ptr += len;
+        /**
+         * The interpreted code is added is in the "Interpreted execute region"
+         * of the attrinfo (see Dbtup::interpreterStartLab() for details).
+         * It will thus execute before reading the attributes that constitutes
+         * the projections.
+         */
+        sectionptrs[1] = len; 
       }
 
       Uint32 sum_read = 0;
@@ -3322,7 +3361,7 @@ Dbspj::parseDA(Build_context& ctx,
 
       treeNodePtr.p->m_send.m_attrInfoParamPtrI = attrParamPtrI;
       treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
-    }
+    } // if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
 
     return 0;
   } while (0);

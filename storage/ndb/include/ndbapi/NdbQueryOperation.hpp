@@ -36,12 +36,13 @@ class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
 class NdbTransaction;
-
+class NdbRecord;
+class NdbScanFilter;
+class NdbInterpretedCode;
 
 /** Opaque implementation classes*/
 class NdbQueryImpl;
 class NdbQueryOperationImpl;
-class NdbRecord;
 
 /**
  * NdbQuery are create when a NdbQueryDefinition is submitted for
@@ -268,6 +269,23 @@ public:
 
   /** Get the result ordering for this operation.*/
   NdbScanOrdering getOrdering() const;
+
+
+  /**
+   * Get the NdbInterpretedCode object needed for defining a scan filter for 
+   * this operation. Create one if needed.
+   *
+   * Typically, one would create an NdbScanFilterObject on the stack, e.g.:
+   *   NdbScanFilter filter(op->getCreateInterpretedCode());
+   *   filter.filter.begin();
+   *   filter.ge(0, 5U); // Check if column 1 is greater of equal to 5.
+   *   filter.end();
+   *
+   * It is an error to call this method on a lookup operation.
+   * @return The interpreted code object, NULL if an error occured 
+   * (call getNdbError() for details).
+   */
+  NdbInterpretedCode* getCreateInterpretedCode() const;
 
 private:
   // Opaque implementation class instance.

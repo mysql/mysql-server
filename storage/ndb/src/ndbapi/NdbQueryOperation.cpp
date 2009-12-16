@@ -31,6 +31,8 @@
 #include "TransporterFacade.hpp"
 #include "NdbApiSignal.hpp"
 #include "NdbTransaction.hpp"
+#include "NdbInterpretedCode.hpp"
+#include "NdbScanFilter.hpp"
 
 #if 0
 #define DEBUG_CRASH() assert(false)
@@ -48,6 +50,7 @@ STATIC_CONST(Err_ReceiveFromNdbFailed = 4008);
 STATIC_CONST(Err_NodeFailCausedAbort = 4028);
 STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
 STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
+STATIC_CONST(Err_FinaliseNotCalled = 4519);
 
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 STATIC_CONST(tupleNotFound = 0xffffffff);
@@ -495,6 +498,10 @@ NdbQueryOperation::getOrdering() const
   return m_impl.getOrdering();
 }
 
+NdbInterpretedCode* NdbQueryOperation::getCreateInterpretedCode() const
+{
+  return m_impl.getCreateInterpretedCode();
+}
 
 ///////////////////////////////////////////
 /////////  NdbQueryImpl methods ///////////
@@ -2121,7 +2128,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_read_mask(NULL),
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL),
-  m_ordering(NdbScanOrdering_unordered)
+  m_ordering(NdbScanOrdering_unordered),
+  m_interpretedCode(NULL)
 { 
   // Fill in operations parent refs, and append it as child of its parents
   for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
@@ -2195,6 +2203,9 @@ NdbQueryOperationImpl::postFetchRelease()
   if (m_resultRef!=NULL) {
     *m_resultRef = NULL;
   }
+
+  delete m_interpretedCode;
+  m_interpretedCode = NULL;
 } //NdbQueryOperationImpl::postFetchRelease()
 
 
@@ -2678,6 +2689,16 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     attrInfo.append(m_params);    
   }
 
+  if(m_interpretedCode!=NULL)
+  {
+    requestInfo |= DABits::PI_ATTR_INTERPRET;
+    const int error = getRoot().prepareScanFilter(attrInfo);
+    if (unlikely(error != 0)) 
+    {
+      return error;
+    }
+  }
+
   requestInfo |= DABits::PI_ATTR_LIST;
   const int error = serializeProject(attrInfo);
   if (unlikely(error)) {
@@ -2918,6 +2939,61 @@ NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
   }
   
   m_ordering = ordering;
+  return 0;
+} // NdbQueryOperationImpl::setOrdering()
+
+NdbInterpretedCode* 
+NdbQueryOperationImpl::getCreateInterpretedCode()
+{
+  if (getQueryOperationDef().isScanOperation())
+  {
+    if (m_interpretedCode==NULL)
+    {
+      m_interpretedCode = 
+        new NdbInterpretedCode(&getQueryOperationDef().getTable());
+      if (m_interpretedCode==NULL)
+      {
+        getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+      }
+    }
+  }
+  else
+  {
+    // Lookup operation
+    assert(m_interpretedCode==NULL);
+    getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+  }
+  return m_interpretedCode;
+} // NdbQueryOperationImpl::getCreateInterpretedCode()
+
+int
+NdbQueryOperationImpl::prepareScanFilter(Uint32Buffer& attrInfo) const
+{
+  assert(getQueryOperationDef().isScanOperation());
+  // There should be no subroutines in a scan filter.
+  assert(m_interpretedCode->m_first_sub_instruction_pos==0);
+
+  if ((m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) == 0)
+  {
+    //  NdbInterpretedCode::finalise() not called.
+    return Err_FinaliseNotCalled;
+  }
+
+  assert(m_interpretedCode->m_instructions_length > 0);
+  assert(m_interpretedCode->m_instructions_length <= 0xffff);
+
+  // Allocate space for program and length field.
+  Uint32* const buffer = 
+    attrInfo.alloc(1+m_interpretedCode->m_instructions_length);
+  if(unlikely(buffer==NULL))
+  {
+    return Err_MemoryAlloc;
+  }
+
+  buffer[0] = m_interpretedCode->m_instructions_length;
+  memcpy(buffer+1, 
+         m_interpretedCode->m_buffer, 
+         m_interpretedCode->m_instructions_length * sizeof(Uint32));
   return 0;
 }
 
