@@ -37,13 +37,12 @@ Master_info::Master_info()
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0),
    heartbeat_period(0), received_heartbeats(0),
    inited(0), abort_slave(0), slave_running(0), slave_run_id(0),
-   master_id(-1)
+   master_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
 
-  master_id= (uint32)ULONG_MAX;
   master_epoch= 0;
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
   bzero((char*) &file, sizeof(file));

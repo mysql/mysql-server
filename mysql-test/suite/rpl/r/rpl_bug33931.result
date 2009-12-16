@@ -45,5 +45,5 @@ Last_SQL_Errno	#
 Last_SQL_Error	Failed during slave thread initialization
 Master_Bind	
 Replicate_Ignore_Server_Ids	
-Master_Server_Id	4294967295
+Master_Server_Id	0
 SET GLOBAL debug="";
