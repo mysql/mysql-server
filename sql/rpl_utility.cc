@@ -19,18 +19,16 @@
 #include "rpl_rli.h"
 
 /**
-   Template function to compare two objects.
+   Function to compare two size_t integers for their relative
+   order. Used below.
  */
-namespace {
-  template <class Type>
-  int compare(Type a, Type b)
-  {
-    if (a < b)
-      return -1;
-    if (b < a)
-      return 1;
-    return 0;
-  }
+int compare(size_t a, size_t b)
+{
+  if (a < b)
+    return -1;
+  if (b < a)
+    return 1;
+  return 0;
 }
 
 
