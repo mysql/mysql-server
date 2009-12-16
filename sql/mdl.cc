@@ -1254,7 +1254,8 @@ MDL_context::wait_for_locks(MDL_request_list *mdl_requests)
     }
     if (!mdl_request)
     {
-      pthread_mutex_unlock(&LOCK_mdl);
+      /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
+      MDL_EXIT_COND(m_thd, mysys_var, old_msg);
       break;
     }
     pthread_cond_wait(&COND_mdl, &LOCK_mdl);
