@@ -709,8 +709,10 @@ row_merge_read(
 						 (ulint) (ofs & 0xFFFFFFFF),
 						 (ulint) (ofs >> 32),
 						 sizeof *buf);
+#ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
 	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+#endif /* POSIX_FADV_DONTNEED */
 
 	if (UNIV_UNLIKELY(!success)) {
 		ut_print_timestamp(stderr);
@@ -742,9 +744,11 @@ row_merge_write(
 	}
 #endif /* UNIV_DEBUG */
 
+#ifdef POSIX_FADV_DONTNEED
 	/* The block will be needed on the next merge pass,
 	but it can be evicted from the file cache meanwhile. */
 	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+#endif /* POSIX_FADV_DONTNEED */
 
 	return(UNIV_LIKELY(os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
 					 (ulint) (ofs & 0xFFFFFFFF),
@@ -1594,11 +1598,13 @@ row_merge(
 	of.offset = 0;
 	of.n_rec = 0;
 
+#ifdef POSIX_FADV_SEQUENTIAL
 	/* The input file will be read sequentially, starting from the
 	beginning and the middle.  In Linux, the POSIX_FADV_SEQUENTIAL
 	affects the entire file.  Each block will be read exactly once. */
 	posix_fadvise(file->fd, 0, 0,
 		      POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
+#endif /* POSIX_FADV_SEQUENTIAL */
 
 	/* Merge blocks to the output file. */
 	ohalf = 0;
