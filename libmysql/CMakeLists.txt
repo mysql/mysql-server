@@ -76,7 +76,6 @@ mysql_more_results
 mysql_next_result
 mysql_num_fields
 mysql_num_rows
-mysql_odbc_escape_string
 mysql_options
 mysql_stmt_param_count
 mysql_stmt_param_metadata
