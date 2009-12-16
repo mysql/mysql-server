@@ -1827,8 +1827,9 @@ String *Item_func_database::val_str(String *str)
 
 
 /**
-  @todo
-  make USER() replicate properly (currently it is replicated to "")
+  @note USER() is replicated correctly if binlog_format=ROW or (as of
+  BUG#28086) binlog_format=MIXED, but is incorrectly replicated to ''
+  if binlog_format=STATEMENT.
 */
 bool Item_func_user::init(const char *user, const char *host)
 {
