@@ -186,7 +186,7 @@ FUNCTION(EMBED_VERSION_INFO target)
   GET_FILENAME_COMPONENT(ORIGINALFILENAME ${target_location} NAME)
   
   # Directory where we have resouce script and compiled .res file
-  SET(RES_DIR ${CMAKE_CURRENT_BINARY_DIR}/version_resources)
+  SET(RES_DIR ${CMAKE_BINARY_DIR}/version_resources)
   
   # Create resource script (.rc)
   CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/versioninfo.rc.in 
@@ -205,9 +205,8 @@ FUNCTION(EMBED_VERSION_INFO target)
   IF(RUN_RC)
     # Run resource compiler
     EXECUTE_PROCESS(
-    COMMAND ${CMAKE_RC_COMPILER} /nologo /fo ${target}_versioninfo.res  
-    ${target}_versioninfo.rc
-    WORKING_DIRECTORY ${RES_DIR}
+    COMMAND ${CMAKE_RC_COMPILER} ${target}_versioninfo.rc
+    WORKING_DIRECTORY ${RES_DIR} OUTPUT_QUIET
     )
   ENDIF()
   TARGET_LINK_LIBRARIES(${target} ${RES_DIR}/${target}_versioninfo.res)
