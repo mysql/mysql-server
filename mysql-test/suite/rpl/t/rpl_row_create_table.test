@@ -292,4 +292,40 @@ connection master;
 DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
+#
+# BUG#48506: crash in CREATE TABLE <existing_view> IF NOT EXISTS LIKE
+# <tmp_tbl> with RBL
+#
+
+source include/master-slave-reset.inc;
+
+connection master;
+CREATE TEMPORARY TABLE t7(c1 INT);
+CREATE TABLE t5(c1 INT);
+CREATE TABLE t4(c1 INT);
+CREATE VIEW bug48506_t1 AS SELECT 1;
+CREATE VIEW bug48506_t2 AS SELECT * FROM t4;
+CREATE VIEW bug48506_t3 AS SELECT t5.c1 AS A, t4.c1 AS B FROM t5, t4;
+CREATE TABLE bug48506_t4(c1 INT);
+--disable_warnings
+sync_slave_with_master;
+DROP VIEW bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TABLE bug48506_t4;
+
+connection master;
+CREATE TABLE IF NOT EXISTS bug48506_t1 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t2 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t3 LIKE t7;
+CREATE TABLE IF NOT EXISTS bug48506_t4 LIKE t7;
+--enable_warnings
+sync_slave_with_master;
+
+SHOW TABLES LIKE 'bug48506%';
+
+connection master;
+DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
+DROP TEMPORARY TABLES t7;
+DROP TABLES t4, t5;
+DROP TABLES IF EXISTS bug48506_t4;
+source include/master-slave-end.inc;
 --echo end of the tests
