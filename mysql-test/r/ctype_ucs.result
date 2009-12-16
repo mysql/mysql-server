@@ -116,6 +116,26 @@ select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
 SET CHARACTER SET koi8r;
+create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
+insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
+insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
+select hex(a) from t1 where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+select hex(a) from t1 ignore key(a) where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+drop table t1;
 CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2, word2 CHAR(64) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (_koi8r'ò',_koi8r'ò'), (X'2004',X'2004');
 SELECT hex(word) FROM t1 ORDER BY word;
