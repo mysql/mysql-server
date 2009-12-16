@@ -144,7 +144,7 @@ SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c'
-Master_Bind  
+Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 SELECT * FROM t1;
