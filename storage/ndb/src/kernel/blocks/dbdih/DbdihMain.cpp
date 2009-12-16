@@ -17085,9 +17085,9 @@ Dbdih::sendToRandomNodes(const char * msg,
 
     for (Uint32 i = 0; i<remove; i++)
     {
-      Uint32 i = rand() % nodes.size();
-      masked.set(nodes[i]);
-      nodes.erase(i);
+      Uint32 rand_node = rand() % nodes.size();
+      masked.set(nodes[rand_node]);
+      nodes.erase(rand_node);
     }
   }
 

@@ -515,7 +515,9 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
   ndbrequire(ptr.p->m_real_page_i == RNIL);
 
   if (! (state & Page_entry::LOCKED))
+  {
     ndbrequire(! (state & Page_entry::REQUEST));
+  }
 
   if (ptr.p->m_copy_page_i != RNIL)
   {

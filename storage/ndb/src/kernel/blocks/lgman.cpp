@@ -2951,7 +2951,9 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     prev = pageP->m_data + pos - 1;
     
     if(((* prev) >> 16) & File_formats::Undofile::UNDO_NEXT_LSN)
+    {
       ndbrequire(lsn + 1 == ptr.p->m_last_read_lsn);
+    }
 
     ptr.p->m_pos[CONSUMER] = consumer;
     ptr.p->m_free_buffer_words += File_formats::UNDO_PAGE_WORDS;
