@@ -1,0 +1,24 @@
+set @old_innodb_file_format_check=@@innodb_file_format_check;
+select @old_innodb_file_format_check;
+@old_innodb_file_format_check
+Antelope
+set global innodb_file_format_check = Barracuda;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check = DEFAULT;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check = @old_innodb_file_format_check;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
+set global innodb_file_format_check = cheetah;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check = Bear;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check = on;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check = off;
+ERROR HY000: Incorrect arguments to SET

@@ -583,6 +583,12 @@ pars_info_get_bound_id(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name);	/*!< in: bound id name to find */
 
+/******************************************************************//**
+Release any resources used by the lexer. */
+UNIV_INTERN
+void
+pars_lexer_close(void);
+/*==================*/
 
 /** Extra information supplied for pars_sql(). */
 struct pars_info_struct {
