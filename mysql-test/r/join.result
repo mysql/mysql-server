@@ -752,8 +752,8 @@ statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statist
 columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	COLUMN_COMMENT
-user	Host	NULL	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		NULL	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
-user	User	NULL	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		NULL	mysql		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
+user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		
+user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1063,6 +1063,60 @@ a	b	c	d
 127	NULL	127	NULL
 128	NULL	128	NULL
 DROP TABLE IF EXISTS t1,t2;
+#
+# Bug #42116: Mysql crash on specific query
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, INDEX (a));
+CREATE TABLE t4 (a INT);
+CREATE TABLE t5 (a INT);
+CREATE TABLE t6 (a INT);
+INSERT INTO t1 VALUES (1), (1), (1);
+INSERT INTO t2 VALUES
+(2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES
+(3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
+EXPLAIN
+SELECT * 
+FROM 
+t1 JOIN t2 ON t1.a = t2.a 
+LEFT JOIN 
+(
+(
+t3 LEFT JOIN t4 ON t3.a = t4.a
+) 
+LEFT JOIN 
+(
+t5 LEFT JOIN t6 ON t5.a = t6.a
+) 
+ON t4.a = t5.a
+) 
+ON t1.a = t3.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using index
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer
+SELECT * 
+FROM 
+t1 JOIN t2 ON t1.a = t2.a 
+LEFT JOIN 
+(
+(
+t3 LEFT JOIN t4 ON t3.a = t4.a
+) 
+LEFT JOIN 
+(
+t5 LEFT JOIN t6 ON t5.a = t6.a
+) 
+ON t4.a = t5.a
+) 
+ON t1.a = t3.a;
+a	a	a	a	a	a
+DROP TABLE t1,t2,t3,t4,t5,t6;
 End of 5.0 tests.
 CREATE TABLE t1 (f1 int);
 CREATE TABLE t2 (f1 int);

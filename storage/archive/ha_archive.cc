@@ -172,8 +172,8 @@ int archive_db_init(void *p)
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&archive_open_tables, table_alias_charset, 32, 0, 0,
-                (hash_get_key) archive_get_key, 0, 0))
+  if (my_hash_init(&archive_open_tables, table_alias_charset, 32, 0, 0,
+                (my_hash_get_key) archive_get_key, 0, 0))
   {
     VOID(pthread_mutex_destroy(&archive_mutex));
   }
@@ -198,7 +198,7 @@ error:
 
 int archive_db_done(void *p)
 {
-  hash_free(&archive_open_tables);
+  my_hash_free(&archive_open_tables);
   VOID(pthread_mutex_destroy(&archive_mutex));
 
   return 0;
@@ -316,9 +316,9 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
   pthread_mutex_lock(&archive_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(ARCHIVE_SHARE*) hash_search(&archive_open_tables,
-                                           (uchar*) table_name,
-                                           length)))
+  if (!(share=(ARCHIVE_SHARE*) my_hash_search(&archive_open_tables,
+                                              (uchar*) table_name,
+                                              length)))
   {
     char *tmp_name;
     azio_stream archive_tmp;
@@ -361,6 +361,12 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
     share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
+    /*
+      If archive version is less than 3, It should be upgraded before
+      use.
+    */
+    if (archive_tmp.version < ARCHIVE_VERSION)
+      *rc= HA_ERR_TABLE_NEEDS_UPGRADE;
     azclose(&archive_tmp);
 
     VOID(my_hash_insert(&archive_open_tables, (uchar*) share));
@@ -394,7 +400,7 @@ int ha_archive::free_share()
   pthread_mutex_lock(&archive_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&archive_open_tables, (uchar*) share);
+    my_hash_delete(&archive_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     /* 
@@ -492,7 +498,15 @@ int ha_archive::open(const char *name, int mode, uint open_options)
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, &rc);
 
-  if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+ /*
+    Allow open on crashed table in repair mode only.
+    Block open on 5.0 ARCHIVE table. Though we have almost all
+    routines to access these tables, they were not well tested.
+    For now we have to refuse to open such table to avoid
+    potential data loss.
+  */
+  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
   {
     /* purecov: begin inspected */
     free_share();

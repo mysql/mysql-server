@@ -78,6 +78,9 @@ static const char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name= 0;
+#endif
 static const char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
@@ -992,13 +995,13 @@ static struct my_option my_long_options[] =
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
    "statements: 'never' disables it and works only for binlogs without "
-   "row-based events; 'auto' is the default and prints base64 only when "
-   "necessary (i.e., for row-based events and format description events); "
-   "'decode-rows' suppresses BINLOG statements for row events, but does "
-   "not exit as an error if a row event is found, unlike 'never'; "
-   "'always' prints base64 whenever possible. 'always' is for debugging "
-   "only and should not be used in a production system. The default is "
-   "'auto'. --base64-output is a short form for --base64-output=always."
+   "row-based events; 'decode-rows' decodes row events into commented SQL "
+   "statements if the --verbose option is also given; 'auto' prints base64 "
+   "only when necessary (i.e., for row-based events and format description "
+   "events); 'always' prints base64 whenever possible. 'always' is for "
+   "debugging only and should not be used in a production system. If this "
+   "argument is not given, the default is 'auto'; if it is given with no "
+   "argument, 'always' is used."
    ,(uchar**) &opt_base64_output_mode_str,
    (uchar**) &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1077,6 +1080,12 @@ static struct my_option my_long_options[] =
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", (uchar**) &charset,
    (uchar**) &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
+   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
+   (uchar**) &shared_memory_base_name, 
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"short-form", 's', "Just show regular queries: no extra info and no "
    "row-based events. This is for testing only, and should not be used in "
    "production systems. If you want to suppress base64-output, consider "
@@ -1349,7 +1358,6 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
@@ -1379,6 +1387,11 @@ static Exit_status safe_connect()
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+                  shared_memory_base_name);
+#endif
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
     error("Failed on connect: %s", mysql_error(mysql));
@@ -1912,7 +1925,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       return ERROR_STOP;
     }
 #endif 
-    if (init_io_cache(file, fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
+    if (init_io_cache(file, my_fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
     {
       error("Failed to init IO cache.");
@@ -2001,8 +2014,9 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
+  load_defaults("my", load_default_groups, &argc, &argv);
+  defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
-  defaults_argv=argv;
 
   if (!argc)
   {

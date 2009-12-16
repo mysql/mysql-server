@@ -13,6 +13,7 @@
 #   part_optA-D   Extra partitioning options (E.g. INDEX/DATA DIR)             #
 #                                                                              #
 #   have_bug33158 NDB case insensitive create, but case sensitive rename       #
+#   no_truncate   No support for truncate partition                            #
 #------------------------------------------------------------------------------#
 # Original Author: mattiasj                                                    #
 # Original Date: 2008-06-27                                                    #
@@ -518,6 +519,95 @@ DROP TABLE TableA;
 }
 # End of $can_only_key
 
+if ($no_truncate)
+{
+--echo # Verify that TRUNCATE PARTITION gives error
+eval CREATE TABLE t1
+(a BIGINT AUTO_INCREMENT PRIMARY KEY,
+ b VARCHAR(255))
+ENGINE = $engine
+PARTITION BY KEY (a)
+(PARTITION LT1000,
+ PARTITION LT2000,
+ PARTITION MAX);
+INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED, ER_ILLEGAL_HA
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+}
+if (!$no_truncate)
+{
+--echo # Testing TRUNCATE PARTITION
+eval CREATE TABLE t1
+(a BIGINT AUTO_INCREMENT PRIMARY KEY,
+ b VARCHAR(255))
+ENGINE = $engine
+PARTITION BY RANGE (a)
+(PARTITION LT1000 VALUES LESS THAN (1000),
+ PARTITION LT2000 VALUES LESS THAN (2000),
+ PARTITION MAX VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY a;
+ALTER TABLE t1 ANALYZE PARTITION MAX;
+--echo # Truncate without FLUSH
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (1)");
+SELECT * FROM t1 WHERE a >= 2000;
+--echo # Truncate with FLUSH after
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (2)");
+SELECT * FROM t1 WHERE a >= 2000;
+--echo # Truncate with FLUSH before
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (3)");
+SELECT * FROM t1 WHERE a >= 2000;
+--echo # Truncate with FLUSH after INSERT
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION MAX;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (4)");
+SELECT * FROM t1 WHERE a >= 2000;
+--echo # Truncate without FLUSH
+ALTER TABLE t1 TRUNCATE PARTITION LT1000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (1)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH after
+ALTER TABLE t1 TRUNCATE PARTITION LT1000;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (2)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH before
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION LT1000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (3)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH after INSERT
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION LT1000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (4)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate without FLUSH
+ALTER TABLE t1 TRUNCATE PARTITION LT2000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (1)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH after
+ALTER TABLE t1 TRUNCATE PARTITION LT2000;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (2)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH before
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION LT2000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (3)");
+SELECT * FROM t1 ORDER BY a;
+--echo # Truncate with FLUSH after INSERT
+FLUSH TABLES;
+ALTER TABLE t1 TRUNCATE PARTITION LT2000;
+INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (4)");
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+}
 --echo # Cleaning up before exit
 eval USE $old_db;
 DROP DATABASE MySQL_Test_DB;

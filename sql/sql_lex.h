@@ -17,6 +17,9 @@
   @defgroup Semantic_Analysis Semantic Analysis
 */
 
+#ifndef SQL_LEX_INCLUDED
+#define SQL_LEX_INCLUDED
+
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
@@ -94,7 +97,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
-  SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
+  SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
   SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
   SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
@@ -118,7 +121,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_TRIGGER,
   SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
-
+  SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
+  SQLCOM_SHOW_RELAYLOG_EVENTS, 
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...
@@ -203,17 +207,19 @@ typedef struct st_lex_master_info
 {
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
+  float heartbeat_period;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {SSL_UNCHANGED, SSL_DISABLE, SSL_ENABLE}
-    ssl, ssl_verify_server_cert;
+  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+  DYNAMIC_ARRAY repl_ignore_server_ids;
 } LEX_MASTER_INFO;
 
 
@@ -394,7 +400,7 @@ public:
     Base class for st_select_lex (SELECT_LEX) & 
     st_select_lex_unit (SELECT_LEX_UNIT)
 */
-struct st_lex;
+struct LEX;
 class st_select_lex;
 class st_select_lex_unit;
 class st_select_lex_node {
@@ -464,7 +470,7 @@ public:
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
   friend class st_select_lex_unit;
-  friend bool mysql_new_select(struct st_lex *lex, bool move_down);
+  friend bool mysql_new_select(LEX *lex, bool move_down);
   friend bool mysql_make_view(THD *thd, File_parser *parser,
                               TABLE_LIST *table, uint flags);
 private:
@@ -584,7 +590,7 @@ public:
   /* Saved values of the WHERE and HAVING clauses*/
   Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
-  st_lex *parent_lex;
+  LEX *parent_lex;
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
   SQL_LIST	      table_list;
@@ -893,7 +899,7 @@ public:
   enum enum_enable_or_disable   keys_onoff;
   enum tablespace_op_type       tablespace_op;
   List<char>                    partition_names;
-  uint                          no_parts;
+  uint                          num_parts;
   enum_alter_table_change_level change_level;
   Create_field                 *datetime_field;
   bool                          error_if_not_empty;
@@ -903,7 +909,7 @@ public:
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     tablespace_op(NO_TABLESPACE_OP),
-    no_parts(0),
+    num_parts(0),
     change_level(ALTER_TABLE_METADATA_ONLY),
     datetime_field(NULL),
     error_if_not_empty(FALSE)
@@ -918,7 +924,7 @@ public:
     flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;
-    no_parts= 0;
+    num_parts= 0;
     partition_names.empty();
     change_level= ALTER_TABLE_METADATA_ONLY;
     datetime_field= 0;
@@ -950,6 +956,9 @@ extern sys_var *trg_new_row_fake_var;
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
+
 
 /*
   Class representing list of all tables used by statement.
@@ -958,7 +967,7 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
   stored functions/triggers to this list in order to pre-open and lock
   them.
 
-  Also used by st_lex::reset_n_backup/restore_backup_query_tables_list()
+  Also used by LEX::reset_n_backup/restore_backup_query_tables_list()
   methods to save and restore this information.
 */
 
@@ -1486,9 +1495,13 @@ public:
 
   /**
     TRUE if we're parsing a prepared statement: in this mode
-    we should allow placeholders and disallow multi-statements.
+    we should allow placeholders.
   */
   bool stmt_prepare_mode;
+  /**
+    TRUE if we should allow multi-statements.
+  */
+  bool multi_statements;
 
   /** State of the lexical analyser for comments. */
   enum_comment_state in_comment;
@@ -1518,10 +1531,66 @@ public:
   CHARSET_INFO *m_underscore_cs;
 };
 
+/**
+  Abstract representation of a statement.
+  This class is an interface between the parser and the runtime.
+  The parser builds the appropriate sub classes of Sql_statement
+  to represent a SQL statement in the parsed tree.
+  The execute() method in the sub classes contain the runtime implementation.
+  Note that this interface is used for SQL statement recently implemented,
+  the code for older statements tend to load the LEX structure with more
+  attributes instead.
+  The recommended way to implement new statements is to sub-class
+  Sql_statement, as this improves code modularity (see the 'big switch' in
+  dispatch_command()), and decrease the total size of the LEX structure
+  (therefore saving memory in stored programs).
+*/
+class Sql_statement : public Sql_alloc
+{
+public:
+  /**
+    Execute this SQL statement.
+    @param thd the current thread.
+    @return 0 on success.
+  */
+  virtual bool execute(THD *thd) = 0;
+
+protected:
+  /**
+    Constructor.
+    @param lex the LEX structure that represents parts of this statement.
+  */
+  Sql_statement(LEX *lex)
+    : m_lex(lex)
+  {}
+
+  /** Destructor. */
+  virtual ~Sql_statement()
+  {
+    /*
+      Sql_statement objects are allocated in thd->mem_root.
+      In MySQL, the C++ destructor is never called, the underlying MEM_ROOT is
+      simply destroyed instead.
+      Do not rely on the destructor for any cleanup.
+    */
+    DBUG_ASSERT(FALSE);
+  }
+
+protected:
+  /**
+    The legacy LEX structure for this statement.
+    The LEX structure contains the existing properties of the parsed tree.
+    TODO: with time, attributes from LEX should move to sub classes of
+    Sql_statement, so that the parser only builds Sql_statement objects
+    with the minimum set of attributes, instead of a LEX structure that
+    contains the collection of every possible attribute.
+  */
+  LEX *m_lex;
+};
 
 /* The state of the lex parsing. This is saved in the THD struct */
 
-typedef struct st_lex : public Query_tables_list
+struct LEX: public Query_tables_list
 {
   SELECT_LEX_UNIT unit;                         /* most upper unit */
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
@@ -1619,6 +1688,9 @@ typedef struct st_lex : public Query_tables_list
   */
   nesting_map allow_sum_func;
   enum_sql_command sql_command;
+
+  Sql_statement *m_stmt;
+
   /*
     Usually `expr` rule of yacc is quite reused but some commands better
     not support subqueries which comes standard with this rule, like
@@ -1768,9 +1840,9 @@ typedef struct st_lex : public Query_tables_list
   */
   bool protect_against_global_read_lock;
 
-  st_lex();
+  LEX();
 
-  virtual ~st_lex()
+  virtual ~LEX()
   {
     destroy_query_tables_list();
     plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
@@ -1812,7 +1884,7 @@ typedef struct st_lex : public Query_tables_list
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
     SYNOPSIS
-      st_lex::which_check_option_applicable()
+      LEX::which_check_option_applicable()
 
     RETURN
       TRUE   have to take 'WHITH CHECK OPTION' clause into account
@@ -1884,7 +1956,37 @@ typedef struct st_lex : public Query_tables_list
     }
     return FALSE;
   }
-} LEX;
+};
+
+
+/**
+  Set_signal_information is a container used in the parsed tree to represent
+  the collection of assignments to condition items in the SIGNAL and RESIGNAL
+  statements.
+*/
+class Set_signal_information
+{
+public:
+  /** Constructor. */
+  Set_signal_information();
+
+  /** Copy constructor. */
+  Set_signal_information(const Set_signal_information& set);
+
+  /** Destructor. */
+  ~Set_signal_information()
+  {}
+
+  /** Clear all items. */
+  void clear();
+
+  /**
+    For each contition item assignment, m_item[] contains the parsed tree
+    that represents the expression assigned, if any.
+    m_item[] is an array indexed by Diag_condition_item_name.
+  */
+  Item *m_item[LAST_DIAG_SET_PROPERTY+1];
+};
 
 
 /**
@@ -1913,6 +2015,12 @@ public:
   */
   uchar *yacc_yyvs;
 
+  /**
+    Fragments of parsed tree,
+    used during the parsing of SIGNAL and RESIGNAL.
+  */
+  Set_signal_information m_set_signal_info;
+
   /*
     TODO: move more attributes from the LEX structure here.
   */
@@ -1939,7 +2047,7 @@ public:
 };
 
 
-struct st_lex_local: public st_lex
+struct st_lex_local: public LEX
 {
   static void *operator new(size_t size) throw()
   {
@@ -1969,6 +2077,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
   @} (End of group Semantic_Analysis)
 */
 
-int my_missing_function_error(const LEX_STRING &token, const char *name);
+void my_missing_function_error(const LEX_STRING &token, const char *name);
 
 #endif /* MYSQL_SERVER */
+#endif /* SQL_LEX_INCLUDED */

@@ -36,7 +36,7 @@ int my_delete(const char *name, myf MyFlags)
   DBUG_RETURN(err);
 } /* my_delete */
 
-#if defined(__WIN__) && defined(__NT__)
+#if defined(__WIN__)
 /*
   Delete file which is possibly not closed.
 

@@ -311,9 +311,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str, enum_query_type query_type)
 {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 
@@ -475,6 +480,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
+  row[i]->cache_value();
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -1826,6 +1832,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
+    row[i]->store(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
@@ -1863,7 +1870,8 @@ void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(0);
 }
 
-int  init_read_record_seq(JOIN_TAB *tab);
+int  read_first_record_seq(JOIN_TAB *tab);
+int rr_sequential(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 
@@ -1945,10 +1953,12 @@ int subselect_single_select_engine::exec()
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
-              tab->read_first_record= init_read_record_seq;
+              tab->read_record.read_record= rr_sequential;
+              tab->read_first_record= read_first_record_seq;
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
             }

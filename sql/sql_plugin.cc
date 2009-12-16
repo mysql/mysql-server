@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,6 @@
 #include <my_getopt.h>
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
-
-#ifdef DBUG_OFF
-#define plugin_ref_to_int(A) A
-#define plugin_int_to_ref(A) A
-#else
-#define plugin_ref_to_int(A) (A ? A[0] : NULL)
-#define plugin_int_to_ref(A) &(A)
-#endif
 
 extern struct st_mysql_plugin *mysqld_builtins[];
 
@@ -54,7 +46,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
-  { C_STRING_WITH_LEN("INFORMATION SCHEMA") }
+  { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("REPLICATION") },
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -93,7 +86,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -101,10 +95,13 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 
-static bool initialized= 0;
+/* support for Services */
+
+#include "sql_plugin_services.h"
 
 /*
   A mutex LOCK_plugin must be acquired before accessing the
@@ -117,6 +114,8 @@ static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static bool reap_needed= false;
 static int plugin_array_version=0;
+
+static bool initialized= 0;
 
 /*
   write-lock on LOCK_system_variables_hash is required before modifying
@@ -230,6 +229,22 @@ extern bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 #endif /* EMBEDDED_LIBRARY */
 
+static void report_error(int where_to, uint error, ...)
+{
+  va_list args;
+  if (where_to & REPORT_TO_USER)
+  {
+    va_start(args, error);
+    my_printv_error(error, ER(error), MYF(0), args);
+    va_end(args);
+  }
+  if (where_to & REPORT_TO_LOG)
+  {
+    va_start(args, error);
+    error_log_print(ERROR_LEVEL, ER_DEFAULT(error), args);
+    va_end(args);
+  }
+}
 
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
@@ -350,7 +365,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
-  uint plugin_dir_len, dummy_errors, dlpathlen;
+  uint plugin_dir_len, dummy_errors, dlpathlen, i;
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
@@ -365,10 +380,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
   {
-    if (report & REPORT_TO_USER)
-      my_error(ER_UDF_NO_PATHS, MYF(0));
-    if (report & REPORT_TO_LOG)
-      sql_print_error("%s", ER(ER_UDF_NO_PATHS));
+    report_error(report, ER_UDF_NO_PATHS);
     DBUG_RETURN(0);
   }
   /* If this dll is already loaded just increase ref_count. */
@@ -393,20 +405,14 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (*errmsg == ':') errmsg++;
       if (*errmsg == ' ') errmsg++;
     }
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, errno, errmsg);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, errmsg);
+    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, errno, errmsg);
     DBUG_RETURN(0);
   }
   /* Determine interface version */
   if (!(sym= dlsym(plugin_dl.handle, plugin_interface_version_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_interface_version_sym);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), plugin_interface_version_sym);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_interface_version_sym);
     DBUG_RETURN(0);
   }
   plugin_dl.version= *(int *)sym;
@@ -415,28 +421,42 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       (plugin_dl.version >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
-               "plugin interface version mismatch");
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, 0,
-                      "plugin interface version mismatch");
+    report_error(report, ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
+                 "plugin interface version mismatch");
     DBUG_RETURN(0);
   }
+
+  /* link the services in */
+  for (i= 0; i < array_elements(list_of_services); i++)
+  {
+    if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
+    {
+      uint ver= (uint)(intptr)*(void**)sym;
+      if (ver > list_of_services[i].version ||
+        (ver >> 8) < (list_of_services[i].version >> 8))
+      {
+        char buf[MYSQL_ERRMSG_SIZE];
+        my_snprintf(buf, sizeof(buf),
+                    "service '%s' interface version mismatch",
+                    list_of_services[i].name);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0, buf);
+        DBUG_RETURN(0);
+      }
+      *(void**)sym= list_of_services[i].service;
+    }
+  }
+
   /* Find plugin declarations */
   if (!(sym= dlsym(plugin_dl.handle, plugin_declarations_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_declarations_sym);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), plugin_declarations_sym);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, MYF(0),
+                 plugin_declarations_sym);
     DBUG_RETURN(0);
   }
 
   if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
   {
-    int i;
     uint sizeof_st_plugin;
     struct st_mysql_plugin *old, *cur;
     char *ptr= (char *)sym;
@@ -446,11 +466,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     else
     {
 #ifdef ERROR_ON_NO_SIZEOF_PLUGIN_SYMBOL
-      free_plugin_mem(&plugin_dl);
-      if (report & REPORT_TO_USER)
-        my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), sizeof_st_plugin_sym);
-      if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), sizeof_st_plugin_sym);
+      report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
       DBUG_RETURN(0);
 #else
       /*
@@ -472,10 +488,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
-      if (report & REPORT_TO_USER)
-        my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
-      if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
       DBUG_RETURN(0);
     }
     /*
@@ -497,10 +510,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+    report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -511,19 +521,13 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     free_plugin_mem(&plugin_dl);
-    if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
+    report_error(report, ER_OUTOFMEMORY, sizeof(struct st_plugin_dl));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);
 #else
   DBUG_ENTER("plugin_dl_add");
-  if (report & REPORT_TO_USER)
-    my_error(ER_FEATURE_DISABLED, MYF(0), "plugin", "HAVE_DLOPEN");
-  if (report & REPORT_TO_LOG)
-    sql_print_error(ER(ER_FEATURE_DISABLED), "plugin", "HAVE_DLOPEN");
+  report_error(report, ER_FEATURE_DISABLED, "plugin", "HAVE_DLOPEN");
   DBUG_RETURN(0);
 #endif
 }
@@ -574,14 +578,15 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
-        hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
+        my_hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
       if (plugin)
         DBUG_RETURN(plugin);
     }
   }
   else
     DBUG_RETURN((st_plugin_int *)
-        hash_search(&plugin_hash[type], (const uchar *)name->str, name->length));
+        my_hash_search(&plugin_hash[type], (const uchar *)name->str,
+                       name->length));
   DBUG_RETURN(0);
 }
 
@@ -639,7 +644,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
     /*
       For debugging, we do an additional malloc which allows the
       memory manager and/or valgrind to track locked references and
-      double unlocks to aid resolving reference counting.problems.
+      double unlocks to aid resolving reference counting problems.
     */
     if (!(plugin= (plugin_ref) my_malloc_ci(sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
@@ -722,10 +727,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   DBUG_ENTER("plugin_add");
   if (plugin_find_internal(name, MYSQL_ANY_PLUGIN))
   {
-    if (report & REPORT_TO_USER)
-      my_error(ER_UDF_EXISTS, MYF(0), name->str);
-    if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_UDF_EXISTS), name->str);
+    report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
@@ -752,10 +754,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
                  " plugin is too different", NullS);
-        if (report & REPORT_TO_USER)
-          my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dl->str, 0, buf);
-        if (report & REPORT_TO_LOG)
-          sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dl->str, 0, buf);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }
       tmp.plugin= plugin;
@@ -784,10 +783,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       DBUG_RETURN(FALSE);
     }
   }
-  if (report & REPORT_TO_USER)
-    my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), name->str);
-  if (report & REPORT_TO_LOG)
-    sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), name->str);
+  report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
 err:
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);
@@ -858,7 +854,7 @@ static void plugin_del(struct st_plugin_int *plugin)
   safe_mutex_assert_owner(&LOCK_plugin);
   /* Free allocated strings before deleting the plugin. */
   plugin_vars_free_values(plugin->system_vars);
-  hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
+  my_hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state= PLUGIN_IS_FREED;
@@ -1133,8 +1129,8 @@ int plugin_init(int *argc, char **argv, int flags)
   init_alloc_root(&plugin_mem_root, 4096, 4096);
   init_alloc_root(&tmp_root, 4096, 4096);
 
-  if (hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
-                  get_bookmark_hash_key, NULL, HASH_UNIQUE))
+  if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
+                   get_bookmark_hash_key, NULL, HASH_UNIQUE))
       goto err;
 
 
@@ -1148,8 +1144,8 @@ int plugin_init(int *argc, char **argv, int flags)
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
-    if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                  get_plugin_hash_key, NULL, HASH_UNIQUE))
+    if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
+                     get_plugin_hash_key, NULL, HASH_UNIQUE))
       goto err;
   }
 
@@ -1627,7 +1623,7 @@ void plugin_shutdown(void)
   /* Dispose of the memory */
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
-    hash_free(&plugin_hash[i]);
+    my_hash_free(&plugin_hash[i]);
   delete_dynamic(&plugin_array);
 
   count= plugin_dl_array.elements;
@@ -1639,7 +1635,7 @@ void plugin_shutdown(void)
   my_afree(dl);
   delete_dynamic(&plugin_dl_array);
 
-  hash_free(&bookmark_hash);
+  my_hash_free(&bookmark_hash);
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -1660,7 +1656,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
-  if (check_table_access(thd, INSERT_ACL, &tables, 1, FALSE))
+  if (check_table_access(thd, INSERT_ACL, &tables, FALSE, 1, FALSE))
     DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
@@ -1764,12 +1760,13 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   reap_plugins();
   pthread_mutex_unlock(&LOCK_plugin);
 
+  uchar user_key[MAX_KEY_LENGTH];
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  if (! table->file->index_read_idx_map(table->record[0], 0,
-                                        (uchar *)table->field[0]->ptr,
-                                        HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT))
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (! table->file->index_read_idx_map(table->record[0], 0, user_key,
+                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     int error;
     /*
@@ -1827,7 +1824,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     HASH *hash= plugin_hash + type;
     for (idx= 0; idx < total; idx++)
     {
-      plugin= (struct st_plugin_int *) hash_element(hash, idx);
+      plugin= (struct st_plugin_int *) my_hash_element(hash, idx);
       plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
@@ -2066,7 +2063,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   const char *strvalue= "NULL", *str;
   TYPELIB *typelib;
   ulonglong result;
-  uint error_len;
+  uint error_len= 0;                            // init as only set on error
   bool not_used;
   int length;
 
@@ -2226,8 +2223,8 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
 
   varname[0]= flags & PLUGIN_VAR_TYPEMASK;
 
-  result= (st_bookmark*) hash_search(&bookmark_hash,
-                                     (const uchar*) varname, length - 1);
+  result= (st_bookmark*) my_hash_search(&bookmark_hash,
+                                        (const uchar*) varname, length - 1);
 
   my_afree(varname);
   return result;
@@ -2387,7 +2384,7 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
     {
       sys_var_pluginvar *pi;
       sys_var *var;
-      st_bookmark *v= (st_bookmark*) hash_element(&bookmark_hash,idx);
+      st_bookmark *v= (st_bookmark*) my_hash_element(&bookmark_hash,idx);
 
       if (v->version <= thd->variables.dynamic_variables_version ||
           !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
@@ -2481,7 +2478,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   rw_rdlock(&LOCK_system_variables_hash);
   for (idx= 0; idx < bookmark_hash.records; idx++)
   {
-    v= (st_bookmark*) hash_element(&bookmark_hash, idx);
+    v= (st_bookmark*) my_hash_element(&bookmark_hash, idx);
     if (v->version > vars->dynamic_variables_version ||
         !(var= intern_find_sys_var(v->key + 1, v->name_len, true)) ||
         !(pivar= var->cast_pluginvar()) ||
@@ -2665,7 +2662,9 @@ uchar* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
     {
       if (!(value & mask))
         continue;
-      str.append(typelib->type_names[i], typelib->type_lengths[i]);
+      str.append(typelib->type_names[i], typelib->type_lengths
+                                       ? typelib->type_lengths[i]
+                                       : strlen(typelib->type_names[i]));
       str.append(',');
     }
 

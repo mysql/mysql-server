@@ -551,9 +551,6 @@ exit handler 2
 exit handler 2
 exit handler 1
 exit handler 1
-Warnings:
-Note	1051	Unknown table 'tqq'
-Note	1051	Unknown table 'tqq'
 create table res_t1(w char unique, x char);
 insert into res_t1 values ('a', 'b');
 CREATE PROCEDURE h1 ()

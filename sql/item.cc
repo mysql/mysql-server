@@ -264,10 +264,11 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
   {
+    ErrConvString err(res);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
-                        str_value.c_ptr());
+                        err.ptr());
   }
   return decimal_value;
 }
@@ -435,26 +436,17 @@ Item::Item(THD *thd, Item *item):
 }
 
 
-/**
-  Decimal precision of the item.
-
-  @remark The precision must not be capped as it can be used in conjunction
-          with Item::decimals to determine the size of the integer part when
-          constructing a decimal data type.
-
-  @see Item::decimal_int_part()
-  @see Item::decimals
-*/
-
 uint Item::decimal_precision() const
 {
-  uint precision= max_length;
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
-
-  return precision;
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
+  return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2456,6 +2448,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
   tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
+    ErrConvString err(cptr, cs);
     /*
       We can use str_value.ptr() here as Item_string is gurantee to put an
       end \0 here.
@@ -2463,7 +2456,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }
@@ -2493,10 +2486,11 @@ longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
       (err > 0 ||
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
+    ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        cptr);
+                        err.ptr());
   }
   return tmp;
 }
@@ -2583,7 +2577,8 @@ Item_param::Item_param(uint pos_in_query_arg) :
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func),
-  limit_clause_param(FALSE)
+  limit_clause_param(FALSE),
+  m_out_param_info(NULL)
 {
   name= (char*) "?";
   /* 
@@ -2665,6 +2660,17 @@ void Item_param::set_decimal(const char *str, ulong length)
   DBUG_VOID_RETURN;
 }
 
+void Item_param::set_decimal(const my_decimal *dv)
+{
+  state= DECIMAL_VALUE;
+
+  my_decimal2decimal(dv, &decimal_value);
+
+  decimals= (uint8) decimal_value.frac;
+  unsigned_flag= !decimal_value.sign();
+  max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
+                                             decimals, unsigned_flag);
+}
 
 /**
   Set parameter value from MYSQL_TIME value.
@@ -3287,6 +3293,158 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
   str_value_ptr.swap(src->str_value_ptr);
 }
 
+
+/**
+  This operation is intended to store some item value in Item_param to be
+  used later.
+
+  @param thd    thread context
+  @param ctx    stored procedure runtime context
+  @param it     a pointer to an item in the tree
+
+  @return Error status
+    @retval TRUE on error
+    @retval FALSE on success
+*/
+
+bool
+Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
+{
+  Item *value= *it;
+
+  if (value->is_null())
+  {
+    set_null();
+    return FALSE;
+  }
+
+  null_value= FALSE;
+
+  switch (value->result_type()) {
+  case STRING_RESULT:
+  {
+    char str_buffer[STRING_BUFFER_USUAL_SIZE];
+    String sv_buffer(str_buffer, sizeof(str_buffer), &my_charset_bin);
+    String *sv= value->val_str(&sv_buffer);
+
+    if (!sv)
+      return TRUE;
+
+    set_str(sv->c_ptr_safe(), sv->length());
+    str_value_ptr.set(str_value.ptr(),
+                      str_value.length(),
+                      str_value.charset());
+    collation.set(str_value.charset(), DERIVATION_COERCIBLE);
+    decimals= 0;
+    param_type= MYSQL_TYPE_STRING;
+
+    break;
+  }
+
+  case REAL_RESULT:
+    set_double(value->val_real());
+      param_type= MYSQL_TYPE_DOUBLE;
+    break;
+
+  case INT_RESULT:
+    set_int(value->val_int(), value->max_length);
+    param_type= MYSQL_TYPE_LONG;
+    break;
+
+  case DECIMAL_RESULT:
+  {
+    my_decimal dv_buf;
+    my_decimal *dv= value->val_decimal(&dv_buf);
+
+    if (!dv)
+      return TRUE;
+
+    set_decimal(dv);
+    param_type= MYSQL_TYPE_NEWDECIMAL;
+
+    break;
+  }
+
+  default:
+    /* That can not happen. */
+
+    DBUG_ASSERT(TRUE);  // Abort in debug mode.
+
+    set_null();         // Set to NULL in release mode.
+    return FALSE;
+  }
+
+  item_result_type= value->result_type();
+  item_type= value->type();
+  return FALSE;
+}
+
+
+/**
+  Setter of Item_param::m_out_param_info.
+
+  m_out_param_info is used to store information about store routine
+  OUT-parameters, such as stored routine name, database, stored routine
+  variable name. It is supposed to be set in sp_head::execute() after
+  Item_param::set_value() is called.
+*/
+
+void
+Item_param::set_out_param_info(Send_field *info)
+{
+  m_out_param_info= info;
+}
+
+
+/**
+  Getter of Item_param::m_out_param_info.
+
+  m_out_param_info is used to store information about store routine
+  OUT-parameters, such as stored routine name, database, stored routine
+  variable name. It is supposed to be retrieved in
+  Protocol_binary::send_out_parameters() during creation of OUT-parameter
+  result set.
+*/
+
+const Send_field *
+Item_param::get_out_param_info() const
+{
+  return m_out_param_info;
+}
+
+
+/**
+  Fill meta-data information for the corresponding column in a result set.
+  If this is an OUT-parameter of a stored procedure, preserve meta-data of
+  stored-routine variable.
+
+  @param field container for meta-data to be filled
+*/
+
+void Item_param::make_field(Send_field *field)
+{
+  Item::make_field(field);
+
+  if (!m_out_param_info)
+    return;
+
+  /*
+    This is an OUT-parameter of stored procedure. We should use
+    OUT-parameter info to fill out the names.
+  */
+
+  field->db_name= m_out_param_info->db_name;
+  field->table_name= m_out_param_info->table_name;
+  field->org_table_name= m_out_param_info->org_table_name;
+  field->col_name= m_out_param_info->col_name;
+  field->org_col_name= m_out_param_info->org_col_name;
+  field->length= m_out_param_info->length;
+  field->charsetnr= m_out_param_info->charsetnr;
+  field->flags= m_out_param_info->flags;
+  field->decimals= m_out_param_info->decimals;
+  field->type= m_out_param_info->type;
+}
+
 /****************************************************************************
   Item_copy
 ****************************************************************************/
@@ -3518,7 +3676,7 @@ void Item_copy_decimal::copy()
 
 
 /*
-  Functions to convert item to field (for send_fields)
+  Functions to convert item to field (for send_result_set_metadata)
 */
 
 /* ARGSUSED */
@@ -4782,7 +4940,6 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   {
     THD *thd= current_thd;
     char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
     uint diff= str->length() - wlen;
     set_if_smaller(diff, 3);
     octet2hex(hexbuf, str->ptr() + wlen, diff);
@@ -4795,16 +4952,14 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     if ((thd->variables.sql_mode &
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
       null_value= 1;
       str= 0;
     }
     else
     {
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
       str->length(wlen);
     }
-    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
   }
   return str;
@@ -4908,7 +5063,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case MYSQL_TYPE_TINY:
     field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
@@ -6866,52 +7021,61 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 }
 
 /**
-  Compare the value stored in field, with the original item.
+  Compare the value stored in field with the expression from the query.
 
-  @param field   field which the item is converted and stored in
-  @param item    original item
+  @param field   Field which the Item is stored in after conversion
+  @param item    Original expression from query
 
-  @return Return an integer greater than, equal to, or less than 0 if
-          the value stored in the field is greater than,  equal to,
-          or less than the original item
+  @return Returns an integer greater than, equal to, or less than 0 if
+          the value stored in the field is greater than, equal to,
+          or less than the original Item. A 0 may also be returned if 
+          out of memory.          
 
   @note We only use this on the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
 */
 
-int stored_field_cmp_to_item(Field *field, Item *item)
+int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 {
-
   Item_result res_type=item_cmp_type(field->result_type(),
 				     item->result_type());
   if (res_type == STRING_RESULT)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin),*item_result;
+    
+    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin);
     String field_tmp(field_buff,sizeof(field_buff),&my_charset_bin);
-    enum_field_types field_type;
-    item_result=item->val_str(&item_tmp);
+    String *item_result= item->val_str(&item_tmp);
+    /*
+      Some implementations of Item::val_str(String*) actually modify
+      the field Item::null_value, hence we can't check it earlier.
+    */
     if (item->null_value)
       return 0;
-    field->val_str(&field_tmp);
+    String *field_result= field->val_str(&field_tmp);
 
-    /*
-      If comparing DATE with DATETIME, append the time-part to the DATE.
-      So that the strings are equally formatted.
-      A DATE converted to string is 10 characters, and a DATETIME converted
-      to string is 19 characters.
-    */
-    field_type= field->type();
-    if (field_type == MYSQL_TYPE_DATE &&
-        item_result->length() == 19)
-      field_tmp.append(" 00:00:00");
-    else if (field_type == MYSQL_TYPE_DATETIME &&
-             item_result->length() == 10)
-      item_result->append(" 00:00:00");
+    enum_field_types field_type= field->type();
 
-    return stringcmp(&field_tmp,item_result);
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
+    {
+      enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
+
+      if (field_type == MYSQL_TYPE_DATE)
+        type= MYSQL_TIMESTAMP_DATE;
+
+      if (field_type == MYSQL_TYPE_DATETIME)
+        type= MYSQL_TIMESTAMP_DATETIME;
+        
+      const char *field_name= field->field_name;
+      MYSQL_TIME field_time, item_time;
+      get_mysql_time_from_str(thd, field_result, type, field_name, &field_time);
+      get_mysql_time_from_str(thd, item_result, type, field_name,  &item_time);
+
+      return my_time_compare(&field_time, &item_time);
+    }
+    return stringcmp(field_result, item_result);
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -6938,9 +7102,24 @@ int stored_field_cmp_to_item(Field *field, Item *item)
 
 Item_cache* Item_cache::get_cache(const Item *item)
 {
-  switch (item->result_type()) {
+  return get_cache(item, item->result_type());
+}
+
+
+/**
+  Get a cache item of given type.
+
+  @param item         value to be cached
+  @param type         required type of cache
+
+  @return cache item
+*/
+
+Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
+{
+  switch (type) {
   case INT_RESULT:
-    return new Item_cache_int();
+    return new Item_cache_int(item->field_type());
   case REAL_RESULT:
     return new Item_cache_real();
   case DECIMAL_RESULT:
@@ -6956,6 +7135,13 @@ Item_cache* Item_cache::get_cache(const Item *item)
   }
 }
 
+void Item_cache::store(Item *item)
+{
+  example= item;
+  if (!item)
+    null_value= TRUE;
+  value_cached= FALSE;
+}
 
 void Item_cache::print(String *str, enum_query_type query_type)
 {
@@ -6967,17 +7153,22 @@ void Item_cache::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
-void Item_cache_int::store(Item *item)
+bool  Item_cache_int::cache_value()
 {
-  value= item->val_int_result();
-  null_value= item->null_value;
-  unsigned_flag= item->unsigned_flag;
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value= example->val_int_result();
+  null_value= example->null_value;
+  unsigned_flag= example->unsigned_flag;
+  return TRUE;
 }
 
 
 void Item_cache_int::store(Item *item, longlong val_arg)
 {
+  /* An explicit values is given, save it. */
+  value_cached= TRUE;
   value= val_arg;
   null_value= item->null_value;
   unsigned_flag= item->unsigned_flag;
@@ -6987,6 +7178,8 @@ void Item_cache_int::store(Item *item, longlong val_arg)
 String *Item_cache_int::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   str->set(value, default_charset());
   return str;
 }
@@ -6995,21 +7188,52 @@ String *Item_cache_int::val_str(String *str)
 my_decimal *Item_cache_int::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_val);
   return decimal_val;
 }
 
-
-void Item_cache_real::store(Item *item)
+double Item_cache_int::val_real()
 {
-  value= item->val_result();
-  null_value= item->null_value;
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0.0;
+  return (double) value;
 }
 
+longlong Item_cache_int::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
+  return value;
+}
+
+bool Item_cache_real::cache_value()
+{
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value= example->val_result();
+  null_value= example->null_value;
+  return TRUE;
+}
+
+
+double Item_cache_real::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0.0;
+  return value;
+}
 
 longlong Item_cache_real::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
   return (longlong) rint(value);
 }
 
@@ -7017,6 +7241,8 @@ longlong Item_cache_real::val_int()
 String* Item_cache_real::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   str->set_real(value, decimals, default_charset());
   return str;
 }
@@ -7025,22 +7251,30 @@ String* Item_cache_real::val_str(String *str)
 my_decimal *Item_cache_real::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   double2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   return decimal_val;
 }
 
 
-void Item_cache_decimal::store(Item *item)
+bool Item_cache_decimal::cache_value()
 {
-  my_decimal *val= item->val_decimal_result(&decimal_value);
-  if (!(null_value= item->null_value) && val != &decimal_value)
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  my_decimal *val= example->val_decimal_result(&decimal_value);
+  if (!(null_value= example->null_value) && val != &decimal_value)
     my_decimal2decimal(val, &decimal_value);
+  return TRUE;
 }
 
 double Item_cache_decimal::val_real()
 {
   DBUG_ASSERT(fixed);
   double res;
+  if (!value_cached && !cache_value())
+    return NULL;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }
@@ -7049,6 +7283,8 @@ longlong Item_cache_decimal::val_int()
 {
   DBUG_ASSERT(fixed);
   longlong res;
+  if (!value_cached && !cache_value())
+    return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, &decimal_value, unsigned_flag, &res);
   return res;
 }
@@ -7056,6 +7292,8 @@ longlong Item_cache_decimal::val_int()
 String* Item_cache_decimal::val_str(String *str)
 {
   DBUG_ASSERT(fixed);
+  if (!value_cached && !cache_value())
+    return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, &decimal_value, decimals, FALSE,
                    &decimal_value);
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str);
@@ -7065,15 +7303,20 @@ String* Item_cache_decimal::val_str(String *str)
 my_decimal *Item_cache_decimal::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed);
+  if (!value_cached && !cache_value())
+    return NULL;
   return &decimal_value;
 }
 
 
-void Item_cache_str::store(Item *item)
+bool Item_cache_str::cache_value()
 {
-  value_buff.set(buffer, sizeof(buffer), item->collation.collation);
-  value= item->str_result(&value_buff);
-  if ((null_value= item->null_value))
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value_buff.set(buffer, sizeof(buffer), example->collation.collation);
+  value= example->str_result(&value_buff);
+  if ((null_value= example->null_value))
     value= 0;
   else if (value != &value_buff)
   {
@@ -7088,6 +7331,7 @@ void Item_cache_str::store(Item *item)
     value_buff.copy(*value);
     value= &value_buff;
   }
+  return TRUE;
 }
 
 double Item_cache_str::val_real()
@@ -7095,6 +7339,8 @@ double Item_cache_str::val_real()
   DBUG_ASSERT(fixed == 1);
   int err_not_used;
   char *end_not_used;
+  if (!value_cached && !cache_value())
+    return 0.0;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
 		      value->length(), &end_not_used, &err_not_used);
@@ -7106,6 +7352,8 @@ longlong Item_cache_str::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
+  if (!value_cached && !cache_value())
+    return 0;
   if (value)
     return my_strntoll(value->charset(), value->ptr(),
 		       value->length(), 10, (char**) 0, &err);
@@ -7113,9 +7361,21 @@ longlong Item_cache_str::val_int()
     return (longlong)0;
 }
 
+
+String* Item_cache_str::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
+  return value;
+}
+
+
 my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   if (value)
     string2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   else
@@ -7126,6 +7386,8 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 int Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
+  if (!value_cached && !cache_value())
+    return 0;
   int res= Item_cache::save_in_field(field, no_conversions);
   return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
           value->length() < field->field_length) ? 1 : res;
@@ -7160,13 +7422,30 @@ bool Item_cache_row::setup(Item * item)
 
 void Item_cache_row::store(Item * item)
 {
+  example= item;
+  if (!item)
+  {
+    null_value= TRUE;
+    return;
+  }
+  for (uint i= 0; i < item_count; i++)
+    values[i]->store(item->element_index(i));
+}
+
+
+bool Item_cache_row::cache_value()
+{
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
   null_value= 0;
-  item->bring_value();
+  example->bring_value();
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->store(item->element_index(i));
+    values[i]->cache_value();
     null_value|= values[i]->null_value;
   }
+  return TRUE;
 }
 
 

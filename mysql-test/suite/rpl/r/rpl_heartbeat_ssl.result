@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+*** Heartbeat over SSL ***
+include/stop_slave.inc
+RESET SLAVE;
+CHANGE MASTER TO 
+MASTER_HOST='127.0.0.1',
+MASTER_PORT=MASTER_PORT,
+MASTER_USER='root',
+MASTER_HEARTBEAT_PERIOD=0.1,
+MASTER_LOG_FILE='MASTER_BINLOG',
+MASTER_SSL=1,
+MASTER_SSL_CA='MYSQL_TEST_DIR/std_data/cacert.pem',
+MASTER_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
+MASTER_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem';
+include/start_slave.inc
+Master_SSL_Allowed: Yes
+Heartbeat event has received
+
+*** Clean up ***
+
+End of 6.0 test

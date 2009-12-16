@@ -1,3 +1,6 @@
+#ifndef NT_SERVC_INCLUDED
+#define NT_SERVC_INCLUDED
+
 /**
   @file
 
@@ -98,3 +101,5 @@ class NTService
 
 };
 /* ------------------------- the end -------------------------------------- */
+
+#endif /* NT_SERVC_INCLUDED */

@@ -31,7 +31,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   {
     hton= ha_default_handlerton(thd);
     if (ts_info->storage_engine != 0)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARN_USING_OTHER_HANDLER,
                           ER(ER_WARN_USING_OTHER_HANDLER),
                           ha_resolve_storage_engine_name(hton),
@@ -60,12 +60,12 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   }
   else
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         ha_resolve_storage_engine_name(hton),
                         "TABLESPACE or LOGFILE GROUP");
   }
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
   DBUG_RETURN(FALSE);
 }

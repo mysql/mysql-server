@@ -1,3 +1,6 @@
+#ifndef ITEM_STRFUNC_INCLUDED
+#define ITEM_STRFUNC_INCLUDED
+
 /* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -498,8 +501,13 @@ public:
 class Item_func_format :public Item_str_func
 {
   String tmp_str;
+  MY_LOCALE *locale;
 public:
-  Item_func_format(Item *org, Item *dec);
+  Item_func_format(Item *org, Item *dec): Item_str_func(org, dec) {}
+  Item_func_format(Item *org, Item *dec, Item *lang):
+  Item_str_func(org, dec, lang) {}
+  
+  MY_LOCALE *get_locale(Item *item);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "format"; }
@@ -842,3 +850,4 @@ public:
   String *val_str(String *);
 };
 
+#endif /* ITEM_STRFUNC_INCLUDED */

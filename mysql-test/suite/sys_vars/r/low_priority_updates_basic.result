@@ -118,16 +118,16 @@ ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '65550
 SET @@session.low_priority_updates = test;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_069_06-----------------------#'
-SELECT @@global.low_priority_updates = VARIABLE_VALUE 
+SELECT IF(@@global.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='low_priority_updates';
-@@global.low_priority_updates = VARIABLE_VALUE
+IF(@@global.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_069_07-----------------------#'
-SELECT @@session.low_priority_updates = VARIABLE_VALUE 
+SELECT IF(@@session.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='low_priority_updates';
-@@session.low_priority_updates = VARIABLE_VALUE
+IF(@@session.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_069_08----------------------#'
 SET @@low_priority_updates = FALSE;

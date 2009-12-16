@@ -58,10 +58,10 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Note: Retrieval of information within information_schema.columns about
 #       information_schema.user_privileges is in is_columns_is.test.
 
-# Show that TABLE_CATALOG is always NULL.
+# Show that TABLE_CATALOG is always 'def'.
 SELECT grantee, table_catalog, privilege_type
 FROM information_schema.user_privileges
-WHERE table_catalog IS NOT NULL;
+WHERE table_catalog IS NULL OR table_catalog <> 'def';
 
 
 --echo ##########################################################################
