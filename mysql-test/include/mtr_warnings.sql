@@ -201,6 +201,14 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== For more details"),
  /* This comes with innodb plugin tests */
  ("==[0-9]*== Warning: set address range perms: large range"),
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
 
  ("THE_LAST_SUPPRESSION")||
 
