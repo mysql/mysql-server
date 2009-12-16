@@ -103,8 +103,8 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     }
 
     // error inserts
-    if (ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0 ||
-        ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1) {
+    if ((ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0) ||
+        (ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;
@@ -189,8 +189,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       }
     }
     const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
-    if (ERROR_INSERTED(12003) && attrId == 0 ||
-        ERROR_INSERTED(12004) && lastAttr)
+    if ((ERROR_INSERTED(12003) && attrId == 0) ||
+        (ERROR_INSERTED(12004) && lastAttr))
     {
       errorCode = (TuxAddAttrRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;

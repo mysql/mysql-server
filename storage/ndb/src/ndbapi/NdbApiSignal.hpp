@@ -37,8 +37,8 @@
 #include <TransporterDefinitions.hpp>
 #include "Ndb.hpp"
 
-#define CAST_PTR(X,Y) static_cast<X*>(static_cast<void*>(Y))
-#define CAST_CONSTPTR(X,Y) static_cast<const X*>(static_cast<const void*>(Y))
+#define CAST_PTR(X,Y) reinterpret_cast<X*>(Y)
+#define CAST_CONSTPTR(X,Y) reinterpret_cast<const X*>(Y)
 
 /**
  * A NdbApiSignal : public SignalHeader
