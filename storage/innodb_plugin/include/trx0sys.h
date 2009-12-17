@@ -334,6 +334,12 @@ void
 trx_sys_file_format_tag_init(void);
 /*==============================*/
 /*****************************************************************//**
+Shutdown/Close the transaction system. */
+UNIV_INTERN
+void
+trx_sys_close(void);
+/*===============*/
+/*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
 UNIV_INTERN

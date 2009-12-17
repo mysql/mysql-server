@@ -443,3 +443,30 @@ DROP TABLE db1.t1, db1.t2;
 DROP USER mysqltest1@localhost;
 DROP DATABASE db1;
 End of 5.0 tests
+USE mysql;
+SELECT LEFT(CURRENT_USER(),INSTR(CURRENT_USER(),'@')-1) INTO @u;
+SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
+SELECT password FROM user WHERE user=@u AND host=@h INTO @pwd;
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	password	insert_priv
+root	localhost		Y
+UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	password	insert_priv
+root	localhost		N
+GRANT INSERT ON *.* TO CURRENT_USER();
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	password	insert_priv
+root	localhost		Y
+UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
+GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	password	insert_priv
+root	localhost	*0BB7188CF0DE9B403BA66E9DD810D82652D002EB	Y
+UPDATE user SET password=@pwd WHERE user=@u AND host=@h;
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+user	host	password	insert_priv
+root	localhost		Y
+FLUSH PRIVILEGES;
+USE test;
+End of 5.1 tests
