@@ -121,7 +121,7 @@ buf_pool_get_oldest_modification(void)
 	buf_page_t*	bpage;
 	ib_uint64_t	lsn;
 
-	buf_pool_mutex_enter();
+	buf_flush_list_mutex_enter();
 
 	bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
@@ -132,7 +132,7 @@ buf_pool_get_oldest_modification(void)
 		lsn = bpage->oldest_modification;
 	}
 
-	buf_pool_mutex_exit();
+	buf_flush_list_mutex_exit();
 
 	/* The returned answer may be out of date: the flush_list can
 	change after the mutex has been released. */
@@ -1018,20 +1018,13 @@ void
 buf_page_release(
 /*=============*/
 	buf_block_t*	block,		/*!< in: buffer block */
-	ulint		rw_latch,	/*!< in: RW_S_LATCH, RW_X_LATCH,
+	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
-	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(block);
 
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->page.buf_fix_count > 0);
-
-	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-		buf_pool_mutex_enter();
-		buf_flush_note_modification(block, mtr);
-		buf_pool_mutex_exit();
-	}
 
 	mutex_enter(&block->mutex);
 
