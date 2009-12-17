@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
                    )
 
 IF(WIN32)
- SET(EXTRA_SRC win32/NdbTick.c
+ SET(EXTRA_SRC
      win32/NdbDaemon.c
  )
  SET(EXTRA_LIB wsock32 ws2_32)
