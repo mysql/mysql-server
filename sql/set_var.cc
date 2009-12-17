@@ -122,6 +122,7 @@ static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 static byte *get_have_innodb(THD *thd);
 static byte *get_tmpdir(THD *thd);
+static byte *get_myisam_mmap_size(THD *thd);
 
 /*
   Variable definition list
@@ -623,6 +624,10 @@ sys_var_thd_bool  sys_keep_files_on_create("keep_files_on_create",
                                            &SV::keep_files_on_create);
 							    
 
+static sys_var_readonly         sys_myisam_mmap_size("myisam_mmap_size",
+                                                     OPT_GLOBAL,
+                                                     SHOW_LONGLONG,
+                                                     get_myisam_mmap_size);
 
 
 /*
@@ -723,6 +728,7 @@ sys_var *sys_variables[]=
   &sys_multi_range_count,
   &sys_myisam_data_pointer_size,
   &sys_myisam_max_sort_file_size,
+  &sys_myisam_mmap_size,
   &sys_myisam_repair_threads,
   &sys_myisam_sort_buffer_size,
   &sys_myisam_stats_method,
@@ -1026,6 +1032,7 @@ struct show_var_st init_vars[]= {
   {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
   {sys_myisam_max_sort_file_size.name, (char*) &sys_myisam_max_sort_file_size,
    SHOW_SYS},
+  {sys_myisam_mmap_size.name, (char*) &sys_myisam_mmap_size, SHOW_SYS},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
@@ -3179,6 +3186,11 @@ static byte *get_tmpdir(THD *thd)
   if (opt_mysql_tmpdir)
     return (byte *)opt_mysql_tmpdir;
   return (byte*)mysql_tmpdir;
+}
+
+static byte *get_myisam_mmap_size(THD *thd)
+{
+  return (byte *)&myisam_mmap_size;
 }
 
 /****************************************************************************

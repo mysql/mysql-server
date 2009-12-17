@@ -765,3 +765,9 @@ set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 
+--echo #
+--echo # BUG#37408 - Compressed MyISAM files should not require/use mmap()
+--echo #
+--echo # Test 'myisam_mmap_size' option is not dynamic
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@myisam_mmap_size= 500M;
