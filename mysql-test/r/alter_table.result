@@ -1268,4 +1268,74 @@ a	b
 4	b
 5	a
 DROP TABLE t1;
+#
+# Bug#45567: Fast ALTER TABLE broken for enum and set
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a ENUM('a1','a2'));
+INSERT INTO t1 VALUES ('a1'),('a2');
+# No copy: No modification
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# No copy: Add new enumeration to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a3');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# Copy: Modify and add new to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','xx','a5');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# Copy: Remove from the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','xx');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# Copy: Add new enumeration
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a0','xx');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# No copy: Add new enumerations to the end
+ALTER TABLE t1 MODIFY COLUMN a ENUM('a1','a2','a0','xx','a5','a6');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+CREATE TABLE t1 (a SET('a1','a2'));
+INSERT INTO t1 VALUES ('a1'),('a2');
+# No copy: No modification
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# No copy: Add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a3');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# Copy: Modify and add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','xx','a5');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# Copy: Remove from the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','xx');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# Copy: Add new member
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+# No copy: Add new to the end
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx','a5','a6');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# Copy: Numerical incrase (pack lenght)
+ALTER TABLE t1 MODIFY COLUMN a SET('a1','a2','a0','xx','a5','a6','a7','a8','a9','a10');
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
+f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
+this should affect no rows as there is no real change
+ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
 End of 5.1 tests

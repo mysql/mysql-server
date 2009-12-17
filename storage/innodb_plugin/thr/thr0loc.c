@@ -62,7 +62,7 @@ struct thr_local_struct{
 	os_thread_t	handle;	/*!< operating system handle to the thread */
 	ulint		slot_no;/*!< the index of the slot in the thread table
 				for this thread */
-	ibool		in_ibuf;/*!< TRUE if the the thread is doing an ibuf
+	ibool		in_ibuf;/*!< TRUE if the thread is doing an ibuf
 				operation */
 	hash_node_t	hash;	/*!< hash chain node */
 	ulint		magic_n;/*!< magic number (THR_LOCAL_MAGIC_N) */

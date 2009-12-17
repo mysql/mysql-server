@@ -1,0 +1,57 @@
+#
+# This test verifies if concurrent transactions that call a 
+# function which invokes a 'after/before insert action' trigger 
+# that inserts more than one values into a table with autoinc 
+# column will make the autoinc values become inconsistent on 
+# master and slave.
+#
+
+connection master;
+create table t1(a int) engine=innodb;
+create table t2(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+create table t3(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+delimiter |;
+CREATE FUNCTION f1_two_inserts_trigger() RETURNS INTEGER
+BEGIN
+   INSERT INTO t2(a) values(2),(3);
+   INSERT INTO t2(a) values(2),(3);
+   RETURN 1;
+END |
+eval create trigger tr11 $insert_action on t2 for each row begin
+    insert into t3(a) values(new.a);
+    insert into t3(a) values(new.a);
+end |
+delimiter ;|
+begin;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+insert into t1(a) values(f1_two_inserts_trigger());
+
+connection master1;
+#The default autocommit is set to 1, so the statement is auto committed
+insert into t2(a) values(4),(5);
+
+connection master;
+commit;
+insert into t1(a) values(f1_two_inserts_trigger());
+--echo # To verify if insert/update in an autoinc column causes statement to be logged in row format
+source include/show_binlog_events.inc;
+commit;
+
+connection master;
+sync_slave_with_master;
+--echo #Test if the results are consistent on master and slave
+--echo #for 'CALLS A FUNCTION which INVOKES A TRIGGER with $insert_action action'
+let $diff_table_1=master:test.t2;
+let $diff_table_2=slave:test.t2;
+source include/diff_tables.inc;
+let $diff_table_1=master:test.t3;
+let $diff_table_2=slave:test.t3;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+drop table t2;
+drop table t3;
+drop function f1_two_inserts_trigger;
+sync_slave_with_master;
+

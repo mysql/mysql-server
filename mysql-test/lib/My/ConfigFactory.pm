@@ -7,6 +7,7 @@ use Carp;
 
 use My::Config;
 use My::Find;
+use My::Platform;
 
 use File::Basename;
 
@@ -204,8 +205,10 @@ my @mysqld_rules=
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
  { '#log-error' => \&fix_log_error },
- { 'log' => \&fix_log },
- { 'log-slow-queries' => \&fix_log_slow_queries },
+ { 'general_log' => 1 },
+ { 'general_log_file' => \&fix_log },
+ { 'slow_query_log' => 1 },
+ { 'slow_query_log_file' => \&fix_log_slow_queries },
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
  { '#password' => sub { return shift->{ARGS}->{password} || ""; } },
  { 'server-id' => \&fix_server_id, },
@@ -216,7 +219,13 @@ my @mysqld_rules=
  { 'ssl-key' => \&fix_ssl_server_key },
   );
 
-
+if (IS_WINDOWS)
+{
+  # For simplicity, we use the same names for shared memory and 
+  # named pipes.
+  push(@mysqld_rules, {'shared-memory-base-name' => \&fix_socket});
+}
+ 
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group)= @_;
   my $hostname= $group->value('HostName');
@@ -361,6 +370,16 @@ sub post_check_client_group {
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
+  
+  if (IS_WINDOWS)
+  {
+    # Shared memory base may or may not be defined (e.g not defined in embedded)
+    my $shm = $group_to_copy_from->option("shared-memory-base-name");
+    if (defined $shm)
+    {
+      $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
+    }
+  }
 }
 
 
@@ -407,6 +426,7 @@ sub post_check_embedded_group {
     (
      '#log-error', # Embedded server writes stderr to mysqltest's log file
      'slave-net-timeout', # Embedded server are not build with replication
+     'shared-memory-base-name', # No shared memory for embedded
     );
 
   foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2009 Sun Microsystems, Inc.
 #  All rights reserved. Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,14 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/strings/libmystringslt.la \
 		  @ZLIB_LIBS@
 
-noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t
+noinst_PROGRAMS  = bitmap-t base64-t
+
+if NEED_THREAD
+# my_atomic-t is used to check thread functions, so it is safe to 
+# ignore the file in non-threaded builds.
+# In fact, it will not compile without thread support.
+noinst_PROGRAMS += my_atomic-t
+endif
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
