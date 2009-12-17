@@ -36,8 +36,10 @@ ERROR 42000: Access denied; you need the SUPER privilege for this operation
 SELECT @@session.sql_select_limit = @save_select_limit;
 @@session.sql_select_limit = @save_select_limit
 1
+SET @save_conn_id= connection_id();
 SET @@session.pseudo_thread_id=100;
 SET @@session.pseudo_thread_id=connection_id();
+SET @@session.pseudo_thread_id=@save_conn_id;
 SET @@session.sql_log_bin=0;
 SET @@session.sql_log_bin=1;
 drop table if exists t1,t2;
