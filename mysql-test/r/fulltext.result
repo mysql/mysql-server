@@ -551,3 +551,42 @@ EXECUTE s;
 MATCH (col) AGAINST('findme')
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+#
+# Bug #47930: MATCH IN BOOLEAN MODE returns too many results 
+#  inside subquery
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+INSERT INTO t2 VALUES (1,'Scargill');
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1), (2,1);
+# t2 should use full text index
+EXPLAIN
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2, t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	fulltext	b2	b2	0		1	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+# should return 0
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2, t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+count(*)
+0
+# should return 0
+SELECT count(*) FROM t1 WHERE 
+not exists(
+SELECT 1 FROM t2 IGNORE INDEX (b2), t3
+WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+);
+count(*)
+0
+DROP TABLE t1,t2,t3;
+End of 5.1 tests

@@ -421,12 +421,16 @@ TYPELIB query_cache_type_typelib=
   effect by another thread. This enables a quick path in execution to skip waits
   when the outcome is known.
 
+  @param use_timeout TRUE if the lock can abort because of a timeout.
+
+  @note use_timeout is optional and default value is FALSE.
+
   @return
    @retval FALSE An exclusive lock was taken
    @retval TRUE The locking attempt failed
 */
 
-bool Query_cache::try_lock(void)
+bool Query_cache::try_lock(bool use_timeout)
 {
   bool interrupt= FALSE;
   DBUG_ENTER("Query_cache::try_lock");
@@ -456,7 +460,26 @@ bool Query_cache::try_lock(void)
     else
     {
       DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED);
-      pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+      /*
+        To prevent send_result_to_client() and query_cache_insert() from
+        blocking execution for too long a timeout is put on the lock.
+      */
+      if (use_timeout)
+      {
+        struct timespec waittime;
+        set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
+        int res= pthread_cond_timedwait(&COND_cache_status_changed,
+                                        &structure_guard_mutex,&waittime);
+        if (res == ETIMEDOUT)
+        {
+          interrupt= TRUE;
+          break;
+        }
+      }
+      else
+      {
+        pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+      }
     }
   }
   pthread_mutex_unlock(&structure_guard_mutex);
@@ -1190,8 +1213,14 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       A table- or a full flush operation can potentially take a long time to
       finish. We choose not to wait for them and skip caching statements
       instead.
+
+      In case the wait time can't be determined there is an upper limit which
+      causes try_lock() to abort with a time out.
+
+      The 'TRUE' parameter indicate that the lock is allowed to timeout
+
     */
-    if (try_lock())
+    if (try_lock(TRUE))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
@@ -1385,8 +1414,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Try to obtain an exclusive lock on the query cache. If the cache is
     disabled or if a full cache flush is in progress, the attempt to
     get the lock is aborted.
+
+    The 'TRUE' parameter indicate that the lock is allowed to timeout
   */
-  if (try_lock())
+  if (try_lock(TRUE))
     goto err;
 
   if (query_cache_size == 0)

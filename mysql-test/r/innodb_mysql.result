@@ -2251,4 +2251,26 @@ c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t1;
+#
+# Bug #46175: NULL read_view and consistent read assertion
+#
+CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
+CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
+INSERT INTO t1 VALUES (),();
+INSERT INTO t2 VALUES (),();
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
+WHERE b =(SELECT a FROM t1 LIMIT 1);
+CREATE PROCEDURE p1(num INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+REPEAT
+SHOW CREATE VIEW v1;
+SET i:=i+1;
+UNTIL i>num END REPEAT;
+END|
+# Should not crash
+# Should not crash
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
 End of 5.1 tests
