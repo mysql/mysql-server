@@ -1876,21 +1876,21 @@ public:
     enter_cond(); this mutex is then released by exit_cond().
     Usage must be: lock mutex; enter_cond(); your code; exit_cond().
   */
-  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
-			  const char* msg)
+  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+                                const char* msg)
   {
     const char* old_msg = proc_info;
-    safe_mutex_assert_owner(mutex);
+    mysql_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
     return old_msg;
   }
-  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t *mutex,
                                 const char *msg)
   {
     /* TO BE REMOVED: temporary helper, to help with merges */
-    return enter_cond(&cond->m_cond, &mutex->m_mutex, msg);
+    return enter_cond((mysql_cond_t*) cond, (mysql_mutex_t*) mutex, msg);
   }
   inline void exit_cond(const char* old_msg)
   {
@@ -1900,12 +1900,12 @@ public:
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    pthread_mutex_unlock(mysys_var->current_mutex);
-    pthread_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_unlock(mysys_var->current_mutex);
+    mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
     proc_info = old_msg;
-    pthread_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
   inline time_t query_start() { query_start_used=1; return start_time; }

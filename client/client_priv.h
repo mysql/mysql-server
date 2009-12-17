@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2006 MySQL AB
+/* Copyright (C) 2001-2006 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,3 +87,24 @@ enum options_client
   OPT_INIT_COMMAND,
   OPT_MAX_CLIENT_OPTION
 };
+
+/**
+  First mysql version supporting the information schema.
+*/
+#define FIRST_INFORMATION_SCHEMA_VERSION 50003
+
+/**
+  Name of the information schema database.
+*/
+#define INFORMATION_SCHEMA_DB_NAME "information_schema"
+
+/**
+  First mysql version supporting the performance schema.
+*/
+#define FIRST_PERFORMANCE_SCHEMA_VERSION 50600
+
+/**
+  Name of the performance schema database.
+*/
+#define PERFORMANCE_SCHEMA_DB_NAME "performance_schema"
+
