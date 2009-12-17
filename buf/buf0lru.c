@@ -2018,6 +2018,7 @@ buf_LRU_print(void)
 
 	while (bpage != NULL) {
 
+		mutex_enter(buf_page_get_mutex(bpage));
 		fprintf(stderr, "BLOCK space %lu page %lu ",
 			(ulong) buf_page_get_space(bpage),
 			(ulong) buf_page_get_page_no(bpage));
@@ -2066,6 +2067,7 @@ buf_LRU_print(void)
 			break;
 		}
 
+		mutex_exit(buf_page_get_mutex(bpage));
 		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 

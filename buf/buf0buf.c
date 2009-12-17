@@ -153,12 +153,12 @@ list. We also keep a pointer to near the end of the LRU list,
 which we can use when we want to artificially age a page in the
 buf_pool. This is used if we know that some page is not needed
 again for some time: we insert the block right after the pointer,
-causing it to be replaced sooner than would noramlly be the case.
+causing it to be replaced sooner than would normally be the case.
 Currently this aging mechanism is used for read-ahead mechanism
 of pages, and it can also be used when there is a scan of a full
 table which cannot fit in the memory. Putting the pages near the
-of the LRU list, we make sure that most of the buf_pool stays in the
-main memory, undisturbed.
+end of the LRU list, we make sure that most of the buf_pool stays
+in the main memory, undisturbed.
 
 The unzip_LRU list contains a subset of the common LRU list.  The
 blocks on the unzip_LRU list hold a compressed file page and the
@@ -172,6 +172,7 @@ The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
+The access to this list is protected by flush_list_mutex.
 
 The chain of unmodified compressed blocks (buf_pool->zip_clean)
 contains the control blocks (buf_page_t) of those compressed pages
@@ -981,6 +982,7 @@ buf_pool_init(void)
 	/* 2. Initialize flushing fields
 	-------------------------------- */
 
+	mutex_create(&buf_pool->flush_list_mutex, SYNC_BUF_FLUSH_LIST);
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
@@ -1407,6 +1409,7 @@ buf_pool_page_hash_rebuild(void)
 			    buf_page_address_fold(b->space, b->offset), b);
 	}
 
+	buf_flush_list_mutex_enter();
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_ad(b->in_flush_list);
@@ -1434,6 +1437,7 @@ buf_pool_page_hash_rebuild(void)
 		}
 	}
 
+	buf_flush_list_mutex_exit();
 	buf_pool_mutex_exit();
 }
 
@@ -3534,11 +3538,6 @@ buf_validate(void)
 				}
 
 				n_lru++;
-
-				if (block->page.oldest_modification > 0) {
-					n_flush++;
-				}
-
 				break;
 
 			case BUF_BLOCK_NOT_USED:
@@ -3577,6 +3576,10 @@ buf_validate(void)
 			ut_error;
 			break;
 		}
+
+		/* It is OK to read oldest_modification here because
+		we have acquired buf_pool_zip_mutex above which acts
+		as the 'block->mutex' for these bpages. */
 		ut_a(!b->oldest_modification);
 		ut_a(buf_page_hash_get(b->space, b->offset) == b);
 
@@ -3584,23 +3587,23 @@ buf_validate(void)
 		n_zip++;
 	}
 
-	/* Check dirty compressed-only blocks. */
+	/* Check dirty blocks. */
 
+	buf_flush_list_mutex_enter();
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_ad(b->in_flush_list);
+		ut_a(b->oldest_modification);
+		n_flush++;
 
 		switch (buf_page_get_state(b)) {
 		case BUF_BLOCK_ZIP_DIRTY:
-			ut_a(b->oldest_modification);
 			n_lru++;
-			n_flush++;
 			n_zip++;
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
 				break;
-
 			case BUF_IO_WRITE:
 				switch (buf_page_get_flush_type(b)) {
 				case BUF_FLUSH_LRU:
@@ -3633,6 +3636,10 @@ buf_validate(void)
 		ut_a(buf_page_hash_get(b->space, b->offset) == b);
 	}
 
+	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
+
+	buf_flush_list_mutex_exit();
+
 	mutex_exit(&buf_pool_zip_mutex);
 
 	if (n_lru + n_free > buf_pool->curr_size + n_zip) {
@@ -3649,7 +3656,6 @@ buf_validate(void)
 			(ulong) n_free);
 		ut_error;
 	}
-	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
 
 	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
@@ -3690,6 +3696,7 @@ buf_print(void)
 	counts = mem_alloc(sizeof(ulint) * size);
 
 	buf_pool_mutex_enter();
+	buf_flush_list_mutex_enter();
 
 	fprintf(stderr,
 		"buf_pool size %lu\n"
@@ -3715,6 +3722,8 @@ buf_print(void)
 		(ulong) buf_pool->stat.n_pages_read,
 		(ulong) buf_pool->stat.n_pages_created,
 		(ulong) buf_pool->stat.n_pages_written);
+
+	buf_flush_list_mutex_exit();
 
 	/* Count the number of blocks belonging to each index in the buffer */
 
@@ -3839,6 +3848,7 @@ buf_get_latched_pages_number(void)
 		}
 	}
 
+	buf_flush_list_mutex_enter();
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_ad(b->in_flush_list);
@@ -3864,6 +3874,7 @@ buf_get_latched_pages_number(void)
 		}
 	}
 
+	buf_flush_list_mutex_exit();
 	mutex_exit(&buf_pool_zip_mutex);
 	buf_pool_mutex_exit();
 
@@ -3896,15 +3907,12 @@ buf_get_modified_ratio_pct(void)
 {
 	ulint	ratio;
 
-	buf_pool_mutex_enter();
-
+	/* This is for heuristics. No need to grab any mutex here. */
 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
 		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
 		   + UT_LIST_GET_LEN(buf_pool->free));
 
 	/* 1 + is there to avoid division by zero */
-
-	buf_pool_mutex_exit();
 
 	return(ratio);
 }
@@ -3924,6 +3932,7 @@ buf_print_io(
 	ut_ad(buf_pool);
 
 	buf_pool_mutex_enter();
+	buf_flush_list_mutex_enter();
 
 	fprintf(file,
 		"Buffer pool size   %lu\n"
@@ -3944,6 +3953,8 @@ buf_print_io(
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST]
 		+ buf_pool->init_flush[BUF_FLUSH_LIST],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+
+	buf_flush_list_mutex_exit();
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,

@@ -347,9 +347,8 @@ void
 buf_page_release(
 /*=============*/
 	buf_block_t*	block,		/*!< in: buffer block */
-	ulint		rw_latch,	/*!< in: RW_S_LATCH, RW_X_LATCH,
+	ulint		rw_latch);	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
-	mtr_t*		mtr);		/*!< in: mtr */
 /********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
 function can be used to prevent an important page from slipping out of
@@ -1102,8 +1101,9 @@ struct buf_page_struct{
 
 	UT_LIST_NODE_T(buf_page_t) list;
 					/*!< based on state, this is a
-					list node, protected only by
-					buf_pool_mutex, in one of the
+					list node, protected either by
+					buf_pool_mutex or by
+					flush_list_mutex, in one of the
 					following lists in buf_pool:
 
 					- BUF_BLOCK_NOT_USED:	free
@@ -1111,6 +1111,12 @@ struct buf_page_struct{
 					- BUF_BLOCK_ZIP_DIRTY:	flush_list
 					- BUF_BLOCK_ZIP_PAGE:	zip_clean
 					- BUF_BLOCK_ZIP_FREE:	zip_free[]
+
+					If bpage is part of flush_list
+					then the node pointers are
+					covered by flush_list_mutex.
+					Otherwise these pointers are
+					protected by buf_pool_mutex.
 
 					The contents of the list node
 					is undefined if !in_flush_list
@@ -1122,10 +1128,15 @@ struct buf_page_struct{
 
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
-					when buf_pool_mutex is free, the
+					when flush_list_mutex is free, the
 					following should hold: in_flush_list
 					== (state == BUF_BLOCK_FILE_PAGE
-					    || state == BUF_BLOCK_ZIP_DIRTY) */
+					    || state == BUF_BLOCK_ZIP_DIRTY)
+					Writes to this field must be
+					covered by both block->mutex
+					and flush_list_mutex. Hence
+					reads can happen while holding
+					any one of the two mutexes */
 	ibool		in_free_list;	/*!< TRUE if in buf_pool->free; when
 					buf_pool_mutex is free, the following
 					should hold: in_free_list
@@ -1135,7 +1146,8 @@ struct buf_page_struct{
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
-					modified */
+					modified. Protected by block
+					mutex */
 	ib_uint64_t	oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
@@ -1143,7 +1155,12 @@ struct buf_page_struct{
 					modification to this block
 					which has not yet been flushed
 					on disk; zero if all
-					modifications are on disk */
+					modifications are on disk.
+					Writes to this field must be
+					covered by both block->mutex
+					and flush_list_mutex. Hence
+					reads can happen while holding
+					any one of the two mutexes */
 	/* @} */
 	/** @name LRU replacement algorithm fields
 	These fields are protected by buf_pool_mutex only (not
@@ -1375,6 +1392,13 @@ struct buf_pool_struct{
 
 	/* @{ */
 
+	mutex_t		flush_list_mutex;/*!< mutex protecting the
+					flush list access. This mutex
+					protects flush_list, flush_rbt
+					and bpage::list pointers when
+					the bpage is on flush_list. It
+					also protects writes to
+					bpage::oldest_modification */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
@@ -1400,7 +1424,8 @@ struct buf_pool_struct{
 					also be on the flush_list.
 					This tree is relevant only in
 					recovery and is set to NULL
-					once the recovery is over. */
+					once the recovery is over.
+					Protected by flush_list_mutex */
 	ulint		freed_page_clock;/*!< a sequence number used
 					to count the number of buffer
 					blocks removed from the end of
@@ -1490,6 +1515,18 @@ Use these instead of accessing buf_pool_mutex directly. */
 #define buf_pool_mutex_enter() do {		\
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
 	mutex_enter(&buf_pool_mutex);		\
+} while (0)
+
+/** Test if flush list mutex is owned. */
+#define buf_flush_list_mutex_own() mutex_own(&buf_pool->flush_list_mutex)
+
+/** Acquire the flush list mutex. */
+#define buf_flush_list_mutex_enter() do {	\
+	mutex_enter(&buf_pool->flush_list_mutex);	\
+} while (0)
+/** Release the flush list mutex. */
+# define buf_flush_list_mutex_exit() do {	\
+	mutex_exit(&buf_pool->flush_list_mutex);	\
 } while (0)
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

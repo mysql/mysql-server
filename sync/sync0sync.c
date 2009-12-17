@@ -1092,6 +1092,7 @@ sync_thread_add_level(
 	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
+	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
