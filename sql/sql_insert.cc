@@ -1761,7 +1761,7 @@ public:
   pthread_mutex_t mutex;
   pthread_cond_t cond,cond_client;
   volatile uint tables_in_use,stacked_inserts;
-  volatile bool status,dead;
+  volatile bool status;
   COPY_INFO info;
   I_List<delayed_row> rows;
   ulong group_count;
@@ -1769,8 +1769,7 @@ public:
 
   Delayed_insert()
     :locks_in_memory(0),
-     table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
-     group_count(0)
+     table(0),tables_in_use(0),stacked_inserts(0), status(0), group_count(0)
   {
     thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
@@ -1918,9 +1917,8 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
   a given consumer (delayed insert thread), only at different
   stages of producer-consumer relationship.
 
-  'dead' and 'status' variables in Delayed_insert are redundant
-  too, since there is already 'di->thd.killed' and
-  di->stacked_inserts.
+  The 'status' variable in Delayed_insert is redundant
+  too, since there is already di->stacked_inserts.
 */
 
 static
@@ -2073,17 +2071,29 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   {
     thd_proc_info(client_thd, "waiting for handler lock");
     pthread_cond_signal(&cond);			// Tell handler to lock table
-    while (!dead && !thd.lock && ! client_thd->killed)
+    while (!thd.killed && !thd.lock && ! client_thd->killed)
     {
       pthread_cond_wait(&cond_client,&mutex);
     }
     thd_proc_info(client_thd, "got handler lock");
     if (client_thd->killed)
       goto error;
-    if (dead)
+    if (thd.killed)
     {
-      /* Don't copy over "Server shutdown in progress". */
-      if (thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+      /*
+        Copy the error message. Note that we don't treat fatal
+        errors in the delayed thread as fatal errors in the
+        main thread. If delayed thread was killed, we don't
+        want to send "Server shutdown in progress" in the
+        INSERT THREAD.
+
+        The thread could be killed with an error message if
+        di->handle_inserts() or di->open_and_lock_table() fails.
+        The thread could be killed without an error message if
+        killed using mysql_notify_thread_having_shared_lock() or
+        kill_delayed_threads_for_table().
+      */
+      if (!thd.is_error() || thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
         my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
       else
         my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
@@ -2454,7 +2464,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
           break;					// Time to die
       }
 
-      if (!di->status && !di->stacked_inserts)
+      /* Shouldn't wait if killed or an insert is waiting. */
+      if (!thd->killed && !di->status && !di->stacked_inserts)
       {
         struct timespec abstime;
         set_timespec(abstime, delayed_insert_timeout);
@@ -2465,7 +2476,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
         thd_proc_info(&(di->thd), "Waiting for INSERT");
 
         DBUG_PRINT("info",("Waiting for someone to insert rows"));
-        while (!thd->killed)
+        while (!thd->killed && !di->status)
         {
           int error;
 #if defined(HAVE_BROKEN_COND_TIMEDWAIT)
@@ -2481,13 +2492,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
           }
 #endif
 #endif
-          if (thd->killed || di->status)
-            break;
           if (error == ETIMEDOUT || error == ETIME)
-          {
             thd->killed= THD::KILL_CONNECTION;
-            break;
-          }
         }
         /* We can't lock di->mutex and mysys_var->mutex at the same time */
         pthread_mutex_unlock(&di->mutex);
@@ -2528,14 +2534,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
             di->table= 0;
             if (di->open_and_lock_table())
             {
-              di->dead= 1;
               thd->killed= THD::KILL_CONNECTION;
             }
           }
           else
           {
             /* Fatal error */
-            di->dead= 1;
             thd->killed= THD::KILL_CONNECTION;
           }
         }
@@ -2546,7 +2550,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
         if (di->handle_inserts())
         {
           /* Some fatal error */
-          di->dead= 1;
           thd->killed= THD::KILL_CONNECTION;
         }
       }
@@ -2598,7 +2601,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
   close_thread_tables(thd);			// Free the table
   di->table=0;
-  di->dead= 1;                                  // If error
   thd->killed= THD::KILL_CONNECTION;	        // If error
   pthread_cond_broadcast(&di->cond_client);	// Safety
   pthread_mutex_unlock(&di->mutex);
