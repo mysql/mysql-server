@@ -904,3 +904,9 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
+#
+# BUG#37408 - Compressed MyISAM files should not require/use mmap()
+#
+# Test 'myisam_mmap_size' option is not dynamic
+SET @@myisam_mmap_size= 500M;
+ERROR HY000: Variable 'myisam_mmap_size' is a read only variable
