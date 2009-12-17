@@ -1796,7 +1796,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB Plugin %s started; "
+			" InnoDB+ %s started; "
 			"log sequence number %llu\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
