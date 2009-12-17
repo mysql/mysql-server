@@ -917,7 +917,7 @@ static int check_connection(THD *thd)
   vio_keepalive(net->vio, TRUE);
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
+    char buff[SERVER_VERSION_LENGTH + 1 + SCRAMBLE_LENGTH + 1 + 64];
     ulong client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
 			  CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
 

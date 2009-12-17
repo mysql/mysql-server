@@ -73,7 +73,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
   net->last_errno= ei->last_errno;
-  strmake(net->last_error, ei->info, sizeof(net->last_error));
+  strmake(net->last_error, ei->info, sizeof(net->last_error) - 1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
   my_free((gptr) data, MYF(0));

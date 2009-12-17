@@ -651,7 +651,7 @@ Set_option::Set_option(Instance_map *instance_map_arg,
     instance_name= instance->options.instance_name;
 
      /* add prefix for add_option */
-    if ((option_len_arg < MAX_OPTION_LEN - 1) ||
+    if ((option_len_arg < MAX_OPTION_LEN - 1) &&
         (option_value_len_arg < MAX_OPTION_LEN - 1))
     {
       strmake(option, option_arg, option_len_arg);
