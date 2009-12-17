@@ -86,7 +86,7 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
   NDB_TICKS secs;
   Uint32 micros;
   NdbTick_CurrentMicrosecond(&secs, &micros);
-  return sec*1000 + micros/1000;
+  return secs*1000 + micros/1000;
 #else
   struct timeval tick_time;
   gettimeofday(&tick_time, 0);
