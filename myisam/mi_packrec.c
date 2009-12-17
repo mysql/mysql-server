@@ -1499,12 +1499,26 @@ my_bool _mi_memmap_file(MI_INFO *info)
 {
   byte *file_map;
   MYISAM_SHARE *share=info->s;
+  my_bool eom;
+
   DBUG_ENTER("mi_memmap_file");
 
   if (!share->file_map)
   {
     my_off_t data_file_length= share->state.state.data_file_length;
-    if (data_file_length > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+
+    if (myisam_mmap_size != SIZE_T_MAX)
+    {
+      pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+      eom= data_file_length > myisam_mmap_size - myisam_mmap_used - MEMMAP_EXTRA_MARGIN;
+      if (!eom)
+        myisam_mmap_used+= data_file_length + MEMMAP_EXTRA_MARGIN;
+      pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+    }
+    else
+      eom= data_file_length > myisam_mmap_size - MEMMAP_EXTRA_MARGIN;
+
+    if (eom)
     {
       DBUG_PRINT("warning", ("File is too large for mmap"));
       DBUG_RETURN(0);
@@ -1513,6 +1527,12 @@ my_bool _mi_memmap_file(MI_INFO *info)
         data_file_length + MEMMAP_EXTRA_MARGIN)
     {
       DBUG_PRINT("warning",("File isn't extended for memmap"));
+      if (myisam_mmap_size != SIZE_T_MAX)
+      {
+        pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+        myisam_mmap_used-= data_file_length + MEMMAP_EXTRA_MARGIN;
+        pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+      }
       DBUG_RETURN(0);
     }
     file_map=(byte*)
@@ -1522,6 +1542,12 @@ my_bool _mi_memmap_file(MI_INFO *info)
     {
       DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
       my_errno=errno;
+      if (myisam_mmap_size != SIZE_T_MAX)
+      {
+        pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+        myisam_mmap_used-= data_file_length + MEMMAP_EXTRA_MARGIN;
+        pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+      }
       DBUG_RETURN(0);
     }
     share->file_map= file_map;
@@ -1538,6 +1564,13 @@ void _mi_unmap_file(MI_INFO *info)
   VOID(my_munmap(info->s->file_map,
 	      (size_t) info->s->state.state.data_file_length+
 	      MEMMAP_EXTRA_MARGIN));
+
+  if (myisam_mmap_size != SIZE_T_MAX)
+  {
+    pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+    myisam_mmap_used-= info->s->state.state.data_file_length + MEMMAP_EXTRA_MARGIN;
+    pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+  }
 }
 
 

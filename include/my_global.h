@@ -793,6 +793,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX      (~((size_t) 0))
+#endif
 
 #ifndef HAVE_FINITE
 #define finite(x) (1.0 / fabs(x) > 0.0)
