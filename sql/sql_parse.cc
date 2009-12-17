@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2075,11 +2075,11 @@ mysql_execute_command(THD *thd)
       restore status variables, as we don't want 'show status' to cause
       changes
     */
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
     break;
   }
   case SQLCOM_SHOW_DATABASES:
