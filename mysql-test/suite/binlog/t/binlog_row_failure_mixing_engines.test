@@ -1,4 +1,0 @@
---source include/have_binlog_format_row.inc
---source include/have_innodb.inc
-
---source extra/binlog_tests/binlog_failure_mixing_engines.test

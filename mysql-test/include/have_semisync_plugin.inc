@@ -1,10 +1,9 @@
 #
-# Check if dynamic loading is supported
+# Check if server has support for loading plugins
 #
---require r/have_dynamic_loading.require
-disable_query_log;
-show variables like 'have_dynamic_loading';
-enable_query_log;
+if (`SELECT @@have_dynamic_loading != 'YES'`) {
+  --skip Requires dynamic loading
+}
 
 #
 # Check if the variable SEMISYNC_MASTER_PLUGIN is set
