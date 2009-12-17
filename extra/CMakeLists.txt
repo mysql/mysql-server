@@ -49,14 +49,14 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
                   ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
-ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
+MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys)
 
-ADD_EXECUTABLE(perror perror.c)
+MYSQL_ADD_EXECUTABLE(perror perror.c)
 ADD_DEPENDENCIES(perror GenError)
 TARGET_LINK_LIBRARIES(perror mysys)
 
-ADD_EXECUTABLE(resolveip resolveip.c)
+MYSQL_ADD_EXECUTABLE(resolveip resolveip.c)
 TARGET_LINK_LIBRARIES(resolveip mysys)
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   INCLUDE(CheckFunctionExists)
@@ -69,15 +69,12 @@ ENDIF()
 ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 IF(UNIX)
-  ADD_EXECUTABLE(innochecksum innochecksum.c)
-  
-  ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
+  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.c)
+
+  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
   TARGET_LINK_LIBRARIES(resolve_stack_dump mysys)
-  
-  ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
+
+  MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
-  
-  MYSQL_INSTALL_TARGETS(innochecksum mysql_waitpid resolve_stack_dump DESTINATION bin)
 ENDIF()
 
-MYSQL_INSTALL_TARGETS(perror resolveip my_print_defaults DESTINATION bin)

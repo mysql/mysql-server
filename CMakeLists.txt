@@ -19,6 +19,7 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
  CMAKE_POLICY(VERSION 2.8)
 endif()
 
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # First, decide about build type (debug or release)
 # If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE, 
@@ -70,6 +71,7 @@ INCLUDE(cmake/libutils.cmake)
 INCLUDE(cmake/dtrace.cmake)
 INCLUDE(cmake/plugin.cmake)
 INCLUDE(cmake/install_macros.cmake)
+INCLUDE(mysql_add_executable)
 
 # Handle options
 OPTION(DISABLE_SHARED 

@@ -31,38 +31,37 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
   MANDATORY 
   RECOMPILE_FOR_EMBEDDED)
 
-ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys)
+TARGET_LINK_LIBRARIES(myisam mysys)
 
-ADD_EXECUTABLE(myisamchk myisamchk.c)
-TARGET_LINK_LIBRARIES(myisamchk myisam mysys)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam)
 
-ADD_EXECUTABLE(myisamlog myisamlog.c)
-TARGET_LINK_LIBRARIES(myisamlog myisam mysys)
+MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
+TARGET_LINK_LIBRARIES(myisamchk myisam)
 
-ADD_EXECUTABLE(myisampack myisampack.c)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
+TARGET_LINK_LIBRARIES(myisamlog myisam)
 
-TARGET_LINK_LIBRARIES(myisampack myisam mysys)
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
+TARGET_LINK_LIBRARIES(myisampack myisam)
 
 IF(WITH_UNIT_TESTS AND FALSE)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
-  TARGET_LINK_LIBRARIES(mi_test1 myisam mysys)
+  TARGET_LINK_LIBRARIES(mi_test1 myisam)
 
   ADD_EXECUTABLE(mi_test2 mi_test2.c)
-  TARGET_LINK_LIBRARIES(mi_test2 myisam mysys)
+  TARGET_LINK_LIBRARIES(mi_test2 myisam)
 
   ADD_EXECUTABLE(mi_test3 mi_test3.c)
-  TARGET_LINK_LIBRARIES(mi_test3  myisam mysys)
+  TARGET_LINK_LIBRARIES(mi_test3  myisam)
 
   ADD_EXECUTABLE(sp_test sp_test.c)
-  TARGET_LINK_LIBRARIES(sp_test myisam mysys)
+  TARGET_LINK_LIBRARIES(sp_test myisam)
 
   ADD_EXECUTABLE(rt_test rt_test.c)
-  TARGET_LINK_LIBRARIES(rt_test myisam mysys)
+  TARGET_LINK_LIBRARIES(rt_test myisam)
 ENDIF()
   
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
-
-MYSQL_INSTALL_TARGETS(myisamchk myisamlog myisampack myisam_ftdump DESTINATION bin)
