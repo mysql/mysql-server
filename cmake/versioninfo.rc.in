@@ -13,7 +13,7 @@ BEGIN
         BLOCK "040904E4"
         BEGIN
             VALUE "FileDescription",  "@FILEDESCRIPTION@\0"
-            VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@\0"
+            VALUE "FileVersion",      "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@.0\0"
             VALUE "InternalName",     "@INTERNALNAME@\0"
             VALUE "OriginalFilename", "@ORIGINALFILENAME@\0"
         END
