@@ -511,8 +511,8 @@ err:
 longlong Item_func_spatial_rel::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
+  String *res1= args[0]->val_str(&cmp.value1);
+  String *res2= args[1]->val_str(&cmp.value2);
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
   MBR mbr1, mbr2;
