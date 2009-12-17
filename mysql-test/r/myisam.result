@@ -2252,4 +2252,50 @@ h+0	d + 0	e	g + 0
 1	1	3	0
 1	1	4	0
 DROP TABLE t1;
+#
+# Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
+# (same content / differen checksum)
+#
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+Table	Checksum
+test.t1	326284887
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+Table	Checksum
+test.t2	326284887
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+Table	Checksum
+test.t3	326284887
+drop table t1,t2,t3;
+CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
+INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),
+(6,'0'),(7,'0');
+INSERT INTO t1 SELECT a+10,b FROM t1;
+INSERT INTO t1 SELECT a+20,b FROM t1;
+INSERT INTO t1 SELECT a+40,b FROM t1;
+INSERT INTO t1 SELECT a+80,b FROM t1;
+INSERT INTO t1 SELECT a+160,b FROM t1;
+INSERT INTO t1 SELECT a+320,b FROM t1;
+INSERT INTO t1 SELECT a+640,b FROM t1;
+INSERT INTO t1 SELECT a+1280,b FROM t1;
+INSERT INTO t1 SELECT a+2560,b FROM t1;
+INSERT INTO t1 SELECT a+5120,b FROM t1;
+SET myisam_sort_buffer_size=4;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	myisam_sort_buffer_size is too small
+test.t1	repair	warning	Number of rows changed from 0 to 7168
+test.t1	repair	status	OK
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
 End of 5.1 tests

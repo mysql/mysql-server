@@ -1,6 +1,8 @@
 -- source include/have_innodb.inc
 -- source suite/innodb/include/have_innodb_plugin.inc
 
+call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
+
 let $format=`select @@innodb_file_format`;
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 
