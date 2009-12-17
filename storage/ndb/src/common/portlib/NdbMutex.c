@@ -19,7 +19,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbMem.h>
 
