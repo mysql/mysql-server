@@ -7118,7 +7118,7 @@ int ha_ndbcluster::create(const char *name,
       if (share && !do_event_op)
         set_binlog_nologging(share);
       ndbcluster_log_schema_op(thd,
-                               thd->query, thd->query_length,
+                               thd->query(), thd->query_length(),
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
@@ -7533,7 +7533,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!is_old_table_tmpfile)
     {
       /* "real" rename table */
-      ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
@@ -7542,7 +7542,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     else
     {
       /* final phase of offline alter table */
-      ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                                m_dbname, new_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_ALTER_TABLE_COMMIT,
@@ -7737,7 +7737,7 @@ retry_temporary_error1:
       thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, 0, 0, 1);
@@ -8767,7 +8767,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
   ndbcluster_log_schema_op(thd,
-                           thd->query, thd->query_length,
+                           thd->query(), thd->query_length(),
                            db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
   DBUG_VOID_RETURN;
 }
@@ -11690,9 +11690,11 @@ ndb_util_thread_fail:
   pthread_cond_signal(&COND_ndb_util_ready);
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
+
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 /*
@@ -12632,7 +12634,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
     all mysqld's will read frms from disk and setup new
     event operation for the table (new_op)
   */
-  ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
                            0, 0,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
@@ -12641,7 +12643,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
     all mysqld's will switch to using the new_op, and delete the old
     event operation
   */
-  ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
                            0, 0,
                            SOT_ONLINE_ALTER_TABLE_COMMIT,
@@ -12898,13 +12900,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   }
   if (is_tablespace)
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->tablespace_name,
                              0, 0,
                              SOT_TABLESPACE, 0, 0, 0);
   else
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->logfile_group_name,
                              0, 0,
                              SOT_LOGFILE_GROUP, 0, 0, 0);

@@ -1006,3 +1006,51 @@ DROP TABLE t1;
 
 ###
 --echo End of 5.0 tests
+
+--echo #
+--echo # BUG#47280 - strange results from count(*) with order by multiple 
+--echo #             columns without where/group
+--echo # 
+
+--echo # 
+--echo # Initialize test
+--echo # 
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  i INT,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,11),(2,12),(3,13);
+
+--echo #
+--echo # Start test
+--echo # All the following queries shall return 1 record
+--echo #
+
+--echo
+--echo # Masking all correct values {11...13} for column i in this result. 
+--replace_column 2 #
+SELECT MAX(pk) as max, i
+FROM t1
+ORDER BY max;
+
+--echo
+EXPLAIN
+SELECT MAX(pk) as max, i
+FROM t1
+ORDER BY max;
+
+--echo
+--echo # Only 11 is correct for collumn i in this result
+SELECT MAX(pk) as max, i
+FROM t1
+WHERE pk<2
+ORDER BY max;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+
+--echo End of 5.1 tests

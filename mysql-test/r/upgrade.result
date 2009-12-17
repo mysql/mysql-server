@@ -108,11 +108,7 @@ a-b-c
 show create view `a-b-c`.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `a`.`f1` AS `f1` from (`a-b-c`.`t1` `a` join `information_schema`.`tables` `b`) where (convert(`a`.`f1` using utf8) = `b`.`TABLE_NAME`)	utf8	utf8_general_ci
-Warnings:
-Note	1600	Creation context of view `a-b-c`.`v1' is invalid
 select * from `a-b-c`.v1;
 f1
-Warnings:
-Note	1600	Creation context of view `a-b-c`.`v1' is invalid
 drop database `a-b-c`;
 use test;

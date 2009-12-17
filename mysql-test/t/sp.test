@@ -8242,6 +8242,28 @@ while ($tab_count)
 DROP PROCEDURE p1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #46629: Item_in_subselect::val_int(): Assertion `0' 
+--echo # on subquery inside a SP
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT, b INT PRIMARY KEY);
+
+DELIMITER |;
+CREATE PROCEDURE p1 () 
+BEGIN 
+  SELECT a FROM t1 A WHERE A.b IN (SELECT b FROM t2 AS B);
+END|
+DELIMITER ;|
+--error ER_BAD_FIELD_ERROR
+CALL p1;
+--error ER_BAD_FIELD_ERROR
+CALL p1;
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------

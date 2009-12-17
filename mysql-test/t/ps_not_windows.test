@@ -2,6 +2,8 @@
 --source include/not_embedded.inc
 # Non-windows specific ps tests.
 --source include/not_windows.inc
+# requires dynamic loading
+--source include/have_dynamic_loading.inc
 
 #
 # Bug #20665: All commands supported in Stored Procedures should work in
