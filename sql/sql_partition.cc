@@ -6281,7 +6281,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
     */
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     lpt->thd->in_lock_tables= 1;
     err= reopen_tables(lpt->thd, 1, 1);
     lpt->thd->in_lock_tables= 0;
@@ -6295,7 +6295,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       unlink_open_table(lpt->thd, lpt->table, FALSE);
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
 }
 
@@ -6319,9 +6319,9 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
     We set lock to zero to ensure we don't do this twice
     and we set db_stat to zero to ensure we don't close twice.
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   close_data_files_and_morph_locks(thd, db, table_name);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 

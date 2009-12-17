@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -342,10 +342,10 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
        !(buf= (uchar*) my_malloc(len,myflags)))
     return TRUE;
   
-  if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
+  if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
     goto error;
-  tmp_len=my_read(fd, buf, len, myflags);
-  my_close(fd,myflags);
+  tmp_len= mysql_file_read(fd, buf, len, myflags);
+  mysql_file_close(fd, myflags);
   if (tmp_len != len)
     goto error;
   
@@ -414,7 +414,7 @@ static void init_available_charsets(void)
 
   bzero(&all_charsets,sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
-      
+
   /* Copy compiled charsets */
   for (cs=all_charsets;
        cs < all_charsets+array_elements(all_charsets)-1 ;
@@ -427,7 +427,7 @@ static void init_available_charsets(void)
           *cs= NULL;
     }
   }
-      
+
   strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(fname, MYF(0));
 }
@@ -484,7 +484,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
       To make things thread safe we are not allowing other threads to interfere
       while we may changing the cs_info_table
     */
-    pthread_mutex_lock(&THR_LOCK_charset);
+    mysql_mutex_lock(&THR_LOCK_charset);
 
     if (!(cs->state & (MY_CS_COMPILED|MY_CS_LOADED))) /* if CS is not in memory */
     {
@@ -506,7 +506,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     else
       cs= NULL;
 
-    pthread_mutex_unlock(&THR_LOCK_charset);
+    mysql_mutex_unlock(&THR_LOCK_charset);
   }
   return cs;
 }

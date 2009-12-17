@@ -1548,8 +1548,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
-void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
-                        pthread_cond_t *cond);
+void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
+                        mysql_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 /* open_and_lock_tables with optional derived handling */
 int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
@@ -2038,13 +2038,15 @@ extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
-       LOCK_mapped_file,LOCK_user_locks, LOCK_status,
-       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
-       LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
+extern pthread_mutex_t LOCK_mapped_file,
+       LOCK_error_log, LOCK_uuid_generator,
+       LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
+extern mysql_mutex_t LOCK_mysql_create_db, LOCK_lock_db, LOCK_open,
+       LOCK_user_locks, LOCK_status, LOCK_delayed_status, LOCK_delayed_insert,
+       LOCK_delayed_create;
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
@@ -2054,7 +2056,8 @@ extern pthread_cond_t COND_server_started;
 extern int mysqld_server_started;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern rw_lock_t LOCK_system_variables_hash;
-extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
+extern mysql_cond_t COND_refresh;
+extern pthread_cond_t COND_thread_count, COND_manager;
 extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
