@@ -27,40 +27,40 @@ INCLUDE_DIRECTORIES(
 
 ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_DEFINITIONS(${SSL_DEFINES})
-ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${READLINE_LIBRARY})
 ENDIF(UNIX)
 
-ADD_EXECUTABLE(mysqltest mysqltest.cc)
+MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
 
 
-ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
+MYSQL_ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient)
 
-ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
+MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
-ADD_EXECUTABLE(mysqlimport mysqlimport.c)
+MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
-ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
+MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
-ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
-ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
-ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
+MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
 
-ADD_EXECUTABLE(mysqlslap mysqlslap.c)
+MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
@@ -68,18 +68,4 @@ ADD_EXECUTABLE(echo echo.c)
 
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap 
 PROPERTIES HAS_CXX TRUE)
-
-SET(INSTALL_EXES 
- mysqlcheck 
- mysqldump 
- mysqlimport 
- mysql_upgrade 
- mysqlshow 
- mysqlslap 
- mysql 
- mysqladmin 
- mysqlbinlog 
- mysqltest)
- 
-MYSQL_INSTALL_TARGETS(${INSTALL_EXES} DESTINATION bin)
 
