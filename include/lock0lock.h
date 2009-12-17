@@ -579,10 +579,15 @@ lock_rec_print(
 /*************************************************************************
 Prints info of locks for all transactions. */
 
-void
+ibool
 lock_print_info_summary(
 /*====================*/
-	FILE*	file);	/* in: file where to print */
+			/* out: FALSE if not able to obtain
+			kernel mutex and exits without
+			printing info */
+	FILE*	file,	/* in: file where to print */
+	ibool   nowait);/* in: whether to wait for the kernel
+			mutex */
 /*************************************************************************
 Prints info of locks for each transaction. */
 
