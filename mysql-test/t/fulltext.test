@@ -484,3 +484,44 @@ PREPARE s FROM
 EXECUTE s;
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #47930: MATCH IN BOOLEAN MODE returns too many results 
+--echo #  inside subquery
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+INSERT INTO t2 VALUES (1,'Scargill');
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1), (2,1);
+
+--echo # t2 should use full text index
+EXPLAIN
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2, t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+--echo # should return 0
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2, t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+--echo # should return 0
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2 IGNORE INDEX (b2), t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+DROP TABLE t1,t2,t3;
+
+
+--echo End of 5.1 tests
