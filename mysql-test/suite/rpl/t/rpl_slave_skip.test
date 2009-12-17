@@ -1,3 +1,9 @@
+# Every statement in this test is either executing under ROW or
+# STATEMENT format, which requires the slave thread to be able to apply
+# both statement and row events. Hence, we only need to execute this
+# test for MIXED mode.
+source include/have_binlog_format_mixed.inc;
+
 source include/master-slave.inc;
 source include/have_innodb.inc;
 
