@@ -407,5 +407,10 @@ insert into t1 values ('\0b\0');
 --exec $MYSQL --xml test -e "select a from t1"
 drop table t1;
 
+--echo
+--echo Bug #47147: mysql client option --skip-column-names does not apply to vertical output
+--echo
+--exec $MYSQL --skip-column-names --vertical test -e "select 1 as a"
 
---echo End of 5.0 tests
+--echo
+--echo End of tests
