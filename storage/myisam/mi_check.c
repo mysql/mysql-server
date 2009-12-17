@@ -107,6 +107,9 @@ void myisamchk_init(MI_CHECK *param)
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+#ifdef THREAD
+  param->need_print_msg_lock= 0;
+#endif
 }
 
 	/* Check the status flags for the table */
@@ -804,7 +807,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       DBUG_DUMP("old",(uchar*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(uchar*) key, key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
 
       if (comp_flag & SEARCH_FIND && flag == 0)
 	mi_check_print_error(param,"Found duplicated key at page %s",llstr(page,llbuff));
@@ -874,7 +877,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(info->state->data_file_length,llbuff3)));
       DBUG_DUMP("key",(uchar*) key,key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
       goto err;
     }
     param->record_checksum+=(ha_checksum) record;
@@ -1548,9 +1551,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
-#if SIZEOF_CHARP == 4
-  DBUG_ASSERT(param->use_buffers < ((ulonglong) 1 << 32));
-#endif
+  DBUG_ASSERT(param->use_buffers < SIZE_T_MAX);
+
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
                         (size_t) param->use_buffers, 0, 0));
@@ -2565,8 +2567,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -2706,6 +2709,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   /* Initialize pthread structures before goto err. */
   pthread_mutex_init(&sort_info.mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&sort_info.cond, 0);
+  pthread_mutex_init(&param->print_msg_mutex, MY_MUTEX_INIT_FAST);
+  param->need_print_msg_lock= 1;
 
   if (!(sort_info.key_block=
 	alloc_key_blocks(param, (uint) param->sort_key_blocks,
@@ -3099,8 +3104,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -3110,6 +3116,8 @@ err:
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
+  pthread_mutex_destroy(&param->print_msg_mutex);
+  param->need_print_msg_lock= 0;
 
   my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));

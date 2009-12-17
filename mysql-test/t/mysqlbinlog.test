@@ -71,7 +71,8 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=239 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=330 $MYSQLD_DATADIR/master-bin.000002
+
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -107,7 +108,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=239 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=330 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --disable_query_log
@@ -376,6 +377,68 @@ FLUSH LOGS;
 
 # We do not need the results, just make sure that mysqlbinlog does not crash
 --exec $MYSQL_BINLOG --hexdump --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT  master-bin.000001 >/dev/null
+
+#
+# #46998
+# This test verifies if the 'BEGIN', 'COMMIT' and 'ROLLBACK' are output 
+# in regardless of database filtering
+#
+
+RESET MASTER;
+FLUSH LOGS;
+
+# The following three test cases were wrtten into binlog_transaction.000001
+# Test case1: Test if the 'BEGIN' and 'COMMIT' are output for the 'test' database 
+# in transaction1 base on innodb engine tables
+# use test;
+# create table t1(a int) engine= innodb;
+# use mysql;
+# create table t2(a int) engine= innodb;
+# Transaction1 begin
+# begin;
+# use test;
+# insert into t1 (a) values (1);
+# use mysql;
+# insert into t2 (a) values (1);
+# commit;
+# Transaction1 end
+
+# Test case2: Test if the 'BEGIN' and 'ROLLBACK' are output for the 'test' database 
+# in transaction2 base on innodb and myisam engine tables
+# use test;
+# create table t3(a int) engine= innodb;
+# use mysql;
+# create table t4(a int) engine= myisam;
+# Transaction2 begin
+# begin;
+# use test;
+# insert into t3 (a) values (2);
+# use mysql;
+# insert into t4 (a) values (2);
+# rollback;
+# Transaction2 end
+
+# Test case3: Test if the 'BEGIN' and 'COMMIT' are output for the 'test' database 
+# in transaction3 base on NDB engine tables
+# use test;
+# create table t5(a int) engine= NDB;
+# use mysql;
+# create table t6(a int) engine= NDB;
+# Transaction3 begin
+# begin;
+# use test;
+# insert into t5 (a) values (3);
+# use mysql;
+# insert into t6 (a) values (3);
+# commit;
+# Transaction3 end
+
+--echo #
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is exist
+--exec $MYSQL_BINLOG --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+--echo #
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is not exist
+--exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
 
 --echo End of 5.0 tests
 

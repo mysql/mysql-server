@@ -1357,7 +1357,7 @@ my_xpath_lex_scan(MY_XPATH *xpath,
                   MY_XPATH_LEX *lex, const char *beg, const char *end)
 {
   int ch, ctype, length;
-  for ( ; beg < end && *beg == ' ' ; beg++); // skip leading spaces
+  for ( ; beg < end && *beg == ' ' ; beg++) ; // skip leading spaces
   lex->beg= beg;
   
   if (beg >= end)
@@ -1426,7 +1426,7 @@ my_xpath_lex_scan(MY_XPATH *xpath,
 
   if (my_xdigit(ch)) // a sequence of digits
   {
-    for ( ; beg < end && my_xdigit(*beg) ; beg++);
+    for ( ; beg < end && my_xdigit(*beg) ; beg++) ;
     lex->end= beg;
     lex->term= MY_XPATH_LEX_DIGITS;
     return;
@@ -1434,7 +1434,7 @@ my_xpath_lex_scan(MY_XPATH *xpath,
 
   if (ch == '"' || ch == '\'')  // a string: either '...' or "..."
   {
-    for ( ; beg < end && *beg != ch ; beg++);
+    for ( ; beg < end && *beg != ch ; beg++) ;
     if (beg < end)
     {
       lex->end= beg+1;
