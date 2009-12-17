@@ -1,3 +1,4 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
 set storage_engine = InnoDB;
 set autocommit=1;
@@ -578,11 +579,11 @@ SUCCESS
 select f1();
 f1()
 2
-call p_verify_status_increment(0, 0, 1, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(0, 0, 1, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 # 17. Read-only statement, a function changes non-trans-table.
@@ -595,11 +596,11 @@ select f1() from t1;
 f1()
 2
 2
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 # 18. Read-write statement: UPDATE, change 0 (transactional) rows. 
@@ -627,7 +628,7 @@ SUCCESS
 drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 SUCCESS
 
 set sql_mode=default;
@@ -708,11 +709,11 @@ SUCCESS
 # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 #
 drop temporary table t2;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(1, 0, 0, 0);
 SUCCESS
 
 # 26. Verify that SET AUTOCOMMIT issues an implicit commit
@@ -829,11 +830,11 @@ create table if not exists t2 (a int) select 6 union select 7;
 Warnings:
 Note	1050	Table 't2' already exists
 # Sic: first commits the statement, and then the transaction.
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 4, 4);
 SUCCESS
 
 create table t3 select a from t2;
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
@@ -841,15 +842,15 @@ call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 rename table t4 to t3;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 truncate table t3;
-call p_verify_status_increment(4, 4, 4, 4);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 create view v1 as select * from t2;
