@@ -272,7 +272,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
   unix_socket_address.sun_family= AF_UNIX;
   strmake(unix_socket_address.sun_path, Options::Main::socket_file_name,
-          sizeof(unix_socket_address.sun_path));
+          sizeof(unix_socket_address.sun_path) - 1);
   unlink(unix_socket_address.sun_path); // in case we have stale socket file
 
   /*
