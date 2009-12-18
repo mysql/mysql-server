@@ -3,7 +3,7 @@
 -- source include/not_embedded.inc
 
 -- disable_query_log
-call mtr.add_suppression("NDB_SHARE: ./test/t1 already exists use_count=1. Moving away for safety, but possible memleak.");
+call mtr.add_suppression("NDB_SHARE: .* already exists use_count=[0-9]*. Moving away for safety, but possible memleak.");
 -- enable_query_log
 
 # see bug#21563
