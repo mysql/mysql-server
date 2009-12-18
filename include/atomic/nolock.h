@@ -17,7 +17,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #if defined(__i386__) || defined(_MSC_VER) || defined(__x86_64__)   \
-    || defined(HAVE_GCC_ATOMIC_BUILTINS)
+    || defined(HAVE_GCC_ATOMIC_BUILTINS) \
+    || defined(HAVE_SOLARIS_ATOMIC)
 
 #  ifdef MY_ATOMIC_MODE_DUMMY
 #    define LOCK_prefix ""
