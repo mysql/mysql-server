@@ -1922,9 +1922,9 @@ AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
                [mysql_cv_solaris_atomic],
   [AC_RUN_IFELSE(
      [AC_LANG_PROGRAM(
-        [
+        [[
         #include <atomic.h>
-        ]
+        ]],
      [[
         int foo = -10; int bar = 10;
         int64_t foo64 = -10; int64_t bar64 = 10;
@@ -1944,9 +1944,7 @@ AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
         bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
         if (bar64)
           return -1;
-        foo64 = atomic_or_64((volatile uint64_t *)&bar64, 0);
-        if (foo64)
-          return -1;
+        atomic_or_64((volatile uint64_t *)&bar64, 0);
         return 0;
      ]]
      )],
