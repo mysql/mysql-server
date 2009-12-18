@@ -14,6 +14,8 @@ include/start_slave.inc
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 values(1, 1);
 INSERT INTO t1 values(1, sleep(3));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 TRUNCATE mysql.slow_log;
 SELECT 1, sleep(3);
 1	sleep(3)
