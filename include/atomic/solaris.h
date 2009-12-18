@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,18 @@ my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
 }
 
 STATIC_INLINE int
+my_atomic_cas64(int64 volatile *a, int64 *cmp, int64 set)
+{
+	int ret;
+	int64 sav;
+	sav = (int64) atomic_cas_64((volatile uint64_t *)a, (uint64_t)*cmp,
+		(uint64_t)set);
+	if (! (ret = (sav == *cmp)))
+		*cmp = sav;
+	return ret;
+}
+
+STATIC_INLINE int
 my_atomic_casptr(void * volatile *a, void **cmp, void *set)
 {
 	int ret;
@@ -97,6 +109,14 @@ my_atomic_add32(int32 volatile *a, int32 v)
 	return (nv - v);
 }
 
+STATIC_INLINE int64
+my_atomic_add64(int64 volatile *a, int64 v)
+{
+	int64 nv;
+	nv = atomic_add_64_nv((volatile uint64_t *)a, v);
+	return (nv - v);
+}
+
 /* ------------------------------------------------------------------------ */
 
 #ifdef MY_ATOMIC_MODE_DUMMY
@@ -109,6 +129,9 @@ my_atomic_load16(int16 volatile *a)	{ return (*a); }
 
 STATIC_INLINE int32
 my_atomic_load32(int32 volatile *a)	{ return (*a); }
+
+STATIC_INLINE int64
+my_atomic_load64(int64 volatile *a)	{ return (*a); }
 
 STATIC_INLINE void *
 my_atomic_loadptr(void * volatile *a)	{ return (*a); }
@@ -123,6 +146,9 @@ my_atomic_store16(int16 volatile *a, int16 v)	{ *a = v; }
 
 STATIC_INLINE void
 my_atomic_store32(int32 volatile *a, int32 v)	{ *a = v; }
+
+STATIC_INLINE void
+my_atomic_store64(int64 volatile *a, int64 v)	{ *a = v; }
 
 STATIC_INLINE void
 my_atomic_storeptr(void * volatile *a, void *v)	{ *a = v; }
@@ -147,6 +173,12 @@ STATIC_INLINE int32
 my_atomic_load32(int32 volatile *a)
 {
 	return ((int32) atomic_or_32_nv((volatile uint32_t *)a, 0));
+}
+
+STATIC_INLINE int64
+my_atomic_load64(int64 volatile *a)
+{
+	return ((int64) atomic_or_64_nv((volatile uint64_t *)a, 0));
 }
 
 STATIC_INLINE void *
@@ -176,6 +208,12 @@ my_atomic_store32(int32 volatile *a, int32 v)
 }
 
 STATIC_INLINE void
+my_atomic_store64(int64 volatile *a, int64 v)
+{
+	(void) atomic_swap_64((volatile uint64_t *)a, (uint64_t)v);
+}
+
+STATIC_INLINE void
 my_atomic_storeptr(void * volatile *a, void *v)
 {
 	(void) atomic_swap_ptr(a, v);
@@ -201,6 +239,12 @@ STATIC_INLINE int32
 my_atomic_fas32(int32 volatile *a, int32 v)
 {
 	return ((int32) atomic_swap_32((volatile uint32_t *)a, (uint32_t)v));
+}
+
+STATIC_INLINE int64
+my_atomic_fas64(int64 volatile *a, int64 v)
+{
+	return ((int64) atomic_swap_64((volatile uint64_t *)a, (uint64_t)v));
 }
 
 STATIC_INLINE void *
