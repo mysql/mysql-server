@@ -151,4 +151,47 @@ SET(CPACK_SOURCE_IGNORE_FILES
 SET(PRODUCTNAME "MySQL Server")
 SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
 
+# Add version information to the exe and dll files
+# Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
+# for more info.
+IF(MSVC)
+  GET_TARGET_PROPERTY(location gen_versioninfo LOCATION)
+  IF(NOT location)
+    GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+    SET(FILETYPE VFT_APP)
+    CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
+    ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
 
+    SET(FILETYPE VFT_DLL)
+    CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
+      ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
+       ${CMAKE_BINARY_DIR}/versioninfo_dll.res
+    COMMAND ${CMAKE_RC_COMPILER} versioninfo_exe.rc
+    COMMAND ${CMAKE_RC_COMPILER} versioninfo_dll.rc
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+   )
+   ADD_CUSTOM_TARGET(gen_versioninfo
+      DEPENDS 
+     ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
+     ${CMAKE_BINARY_DIR}/versioninfo_dll.res
+   )
+  ENDIF()
+  
+  FUNCTION(ADD_VERSION_INFO target)
+    GET_TARGET_PROPERTY(target_type ${target} TYPE)
+    ADD_DEPENDENCIES(${target} gen_versioninfo)
+    IF(target_type MATCHES "SHARED" OR target_type MATCHES "MODULE")
+       SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
+        "\"${CMAKE_BINARY_DIR}/versioninfo_dll.res\"")
+    ELSEIF(target_type MATCHES "EXE")
+      SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
+      "${target_link_flags} \"${CMAKE_BINARY_DIR}/versioninfo_exe.res\"")
+    ENDIF()
+  ENDFUNCTION()
+ELSE()
+  FUNCTION(ADD_VERSION_INFO)
+  ENDFUNCTION()
+ENDIF()

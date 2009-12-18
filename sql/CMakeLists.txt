@@ -103,13 +103,14 @@ MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE})
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
+  GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
   IF (MINGW OR CYGWIN)
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "-Wl,--export-all-symbols")
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "{mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
     # Set module definition file. Also use non-incremental linker, 
     # incremental appears to crash from time to time,if used with /DEF option
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "/DEF:mysqld.def /INCREMENTAL:NO")
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
     FOREACH (CORELIB sql mysys dbug strings)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
