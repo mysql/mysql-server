@@ -517,8 +517,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                name, table->s, collation.collation);
     break;
   case DECIMAL_RESULT:
-    field= new Field_new_decimal(max_length, maybe_null, name,
-                                 decimals, unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
   default:
@@ -615,35 +614,6 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 }
 
 
-Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
-  :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
-  hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-  was_values(item->was_values)
-{
-  /* copy results from old value */
-  switch (hybrid_type) {
-  case INT_RESULT:
-    sum_int= item->sum_int;
-    break;
-  case DECIMAL_RESULT:
-    my_decimal2decimal(&item->sum_dec, &sum_dec);
-    break;
-  case REAL_RESULT:
-    sum= item->sum;
-    break;
-  case STRING_RESULT:
-    /*
-      This can happen with ROLLUP. Note that the value is already
-      copied at function call.
-    */
-    break;
-  case ROW_RESULT:
-  default:
-    DBUG_ASSERT(0);
-  }
-  collation.set(item->collation);
-}
-
 bool
 Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 {
@@ -663,15 +633,12 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
     max_length= 20;
-    sum_int= 0;
     break;
   case DECIMAL_RESULT:
     max_length= item->max_length;
-    my_decimal_set_zero(&sum_dec);
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
-    sum= 0.0;
     break;
   case STRING_RESULT:
     max_length= item->max_length;
@@ -680,10 +647,10 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
+  setup(args[0], NULL);
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
   maybe_null= 1;
   unsigned_flag=item->unsigned_flag;
-  collation.set(item->collation);
   result_field=0;
   null_value=1;
   fix_length_and_dec();
@@ -700,6 +667,30 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   fixed= 1;
   return FALSE;
 }
+
+
+/**
+  MIN/MAX function setup.
+
+  @param item       argument of MIN/MAX function
+  @param value_arg  calculated value of MIN/MAX function
+
+  @details
+    Setup cache/comparator of MIN/MAX functions. When called by the
+    copy_or_same function value_arg parameter contains calculated value
+    of the original MIN/MAX object and it is saved in this object's cache.
+*/
+
+void Item_sum_hybrid::setup(Item *item, Item *value_arg)
+{
+  value= Item_cache::get_cache(item);
+  value->setup(item);
+  value->store(value_arg);
+  cmp= new Arg_comparator();
+  cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
+  collation.set(item->collation);
+}
+
 
 Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
 					 uint convert_blob_length)
@@ -1270,8 +1261,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
                             0, name, &my_charset_bin);
   }
   else if (hybrid_type == DECIMAL_RESULT)
-    field= new Field_new_decimal(max_length, maybe_null, name,
-                                 decimals, unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
   else
     field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
   if (field)
@@ -1592,19 +1582,7 @@ void Item_sum_variance::update_field()
 
 void Item_sum_hybrid::clear()
 {
-  switch (hybrid_type) {
-  case INT_RESULT:
-    sum_int= 0;
-    break;
-  case DECIMAL_RESULT:
-    my_decimal_set_zero(&sum_dec);
-    break;
-  case REAL_RESULT:
-    sum= 0.0;
-    break;
-  default:
-    value.length(0);
-  }
+  value->null_value= 1;
   null_value= 1;
 }
 
@@ -1613,30 +1591,7 @@ double Item_sum_hybrid::val_real()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0.0;
-  switch (hybrid_type) {
-  case STRING_RESULT:
-  {
-    char *end_not_used;
-    int err_not_used;
-    String *res;  res=val_str(&str_value);
-    return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
-			     &end_not_used, &err_not_used) : 0.0);
-  }
-  case INT_RESULT:
-    if (unsigned_flag)
-      return ulonglong2double(sum_int);
-    return (double) sum_int;
-  case DECIMAL_RESULT:
-    my_decimal2double(E_DEC_FATAL_ERROR, &sum_dec, &sum);
-    return sum;
-  case REAL_RESULT:
-    return sum;
-  case ROW_RESULT:
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    return 0;
-  }
+  return value->val_real();
 }
 
 longlong Item_sum_hybrid::val_int()
@@ -1644,18 +1599,7 @@ longlong Item_sum_hybrid::val_int()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  switch (hybrid_type) {
-  case INT_RESULT:
-    return sum_int;
-  case DECIMAL_RESULT:
-  {
-    longlong result;
-    my_decimal2int(E_DEC_FATAL_ERROR, &sum_dec, unsigned_flag, &result);
-    return sum_int;
-  }
-  default:
-    return (longlong) rint(Item_sum_hybrid::val_real());
-  }
+  return value->val_int();
 }
 
 
@@ -1664,26 +1608,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  switch (hybrid_type) {
-  case STRING_RESULT:
-    string2my_decimal(E_DEC_FATAL_ERROR, &value, val);
-    break;
-  case REAL_RESULT:
-    double2my_decimal(E_DEC_FATAL_ERROR, sum, val);
-    break;
-  case DECIMAL_RESULT:
-    val= &sum_dec;
-    break;
-  case INT_RESULT:
-    int2my_decimal(E_DEC_FATAL_ERROR, sum_int, unsigned_flag, val);
-    break;
-  case ROW_RESULT:
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    break;
-  }
-  return val;					// Keep compiler happy
+  return value->val_decimal(val);
 }
 
 
@@ -1693,25 +1618,7 @@ Item_sum_hybrid::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  switch (hybrid_type) {
-  case STRING_RESULT:
-    return &value;
-  case REAL_RESULT:
-    str->set_real(sum,decimals, &my_charset_bin);
-    break;
-  case DECIMAL_RESULT:
-    my_decimal2string(E_DEC_FATAL_ERROR, &sum_dec, 0, 0, 0, str);
-    return str;
-  case INT_RESULT:
-    str->set_int(sum_int, unsigned_flag, &my_charset_bin);
-    break;
-  case ROW_RESULT:
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    break;
-  }
-  return str;					// Keep compiler happy
+  return value->val_str(str);
 }
 
 
@@ -1720,7 +1627,9 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   forced_const= FALSE;
-
+  if (cmp)
+    delete cmp;
+  cmp= 0;
   /*
     by default it is TRUE to avoid TRUE reporting by
     Item_func_not_all/Item_func_nop_all if this item was never called.
@@ -1741,63 +1650,22 @@ void Item_sum_hybrid::no_rows_in_result()
 
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
-  return new (thd->mem_root) Item_sum_min(thd, this);
+  Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
+  item->setup(args[0], value);
+  return item;
 }
 
 
 bool Item_sum_min::add()
 {
-  switch (hybrid_type) {
-  case STRING_RESULT:
+  /* args[0] < value */
+  int res= cmp->compare();
+  if (!args[0]->null_value &&
+      (null_value || res < 0))
   {
-    String *result=args[0]->val_str(&tmp_value);
-    if (!args[0]->null_value &&
-	(null_value || sortcmp(&value,result,collation.collation) > 0))
-    {
-      value.copy(*result);
-      null_value=0;
-    }
-  }
-  break;
-  case INT_RESULT:
-  {
-    longlong nr=args[0]->val_int();
-    if (!args[0]->null_value && (null_value ||
-				 (unsigned_flag && 
-				  (ulonglong) nr < (ulonglong) sum_int) ||
-				 (!unsigned_flag && nr < sum_int)))
-    {
-      sum_int=nr;
-      null_value=0;
-    }
-  }
-  break;
-  case DECIMAL_RESULT:
-  {
-    my_decimal value_buff, *val= args[0]->val_decimal(&value_buff);
-    if (!args[0]->null_value &&
-        (null_value || (my_decimal_cmp(&sum_dec, val) > 0)))
-    {
-      my_decimal2decimal(val, &sum_dec);
-      null_value= 0;
-    }
-  }
-  break;
-  case REAL_RESULT:
-  {
-    double nr= args[0]->val_real();
-    if (!args[0]->null_value && (null_value || nr < sum))
-    {
-      sum=nr;
-      null_value=0;
-    }
-  }
-  break;
-  case ROW_RESULT:
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    break;
+    value->store(args[0]);
+    value->cache_value();
+    null_value= 0;
   }
   return 0;
 }
@@ -1805,63 +1673,22 @@ bool Item_sum_min::add()
 
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
-  return new (thd->mem_root) Item_sum_max(thd, this);
+  Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
+  item->setup(args[0], value);
+  return item;
 }
 
 
 bool Item_sum_max::add()
 {
-  switch (hybrid_type) {
-  case STRING_RESULT:
+  /* args[0] > value */
+  int res= cmp->compare();
+  if (!args[0]->null_value &&
+      (null_value || res > 0))
   {
-    String *result=args[0]->val_str(&tmp_value);
-    if (!args[0]->null_value &&
-	(null_value || sortcmp(&value,result,collation.collation) < 0))
-    {
-      value.copy(*result);
-      null_value=0;
-    }
-  }
-  break;
-  case INT_RESULT:
-  {
-    longlong nr=args[0]->val_int();
-    if (!args[0]->null_value && (null_value ||
-				 (unsigned_flag && 
-				  (ulonglong) nr > (ulonglong) sum_int) ||
-				 (!unsigned_flag && nr > sum_int)))
-    {
-      sum_int=nr;
-      null_value=0;
-    }
-  }
-  break;
-  case DECIMAL_RESULT:
-  {
-    my_decimal value_buff, *val= args[0]->val_decimal(&value_buff);
-    if (!args[0]->null_value &&
-        (null_value || (my_decimal_cmp(val, &sum_dec) > 0)))
-    {
-      my_decimal2decimal(val, &sum_dec);
-      null_value= 0;
-    }
-  }
-  break;
-  case REAL_RESULT:
-  {
-    double nr= args[0]->val_real();
-    if (!args[0]->null_value && (null_value || nr > sum))
-    {
-      sum=nr;
-      null_value=0;
-    }
-  }
-  break;
-  case ROW_RESULT:
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    break;
+    value->store(args[0]);
+    value->cache_value();
+    null_value= 0;
   }
   return 0;
 }
@@ -2226,14 +2053,15 @@ void Item_sum_hybrid::update_field()
 void
 Item_sum_hybrid::min_max_update_str_field()
 {
-  String *res_str=args[0]->val_str(&value);
+  DBUG_ASSERT(cmp);
+  String *res_str=args[0]->val_str(&cmp->value1);
 
   if (!args[0]->null_value)
   {
-    result_field->val_str(&tmp_value);
+    result_field->val_str(&cmp->value2);
 
     if (result_field->is_null() ||
-	(cmp_sign * sortcmp(res_str,&tmp_value,collation.collation)) < 0)
+	(cmp_sign * sortcmp(res_str,&cmp->value2,collation.collation)) < 0)
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     result_field->set_notnull();
   }
