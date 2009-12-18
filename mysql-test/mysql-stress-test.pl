@@ -14,17 +14,16 @@
 # 
 # Design of stress script should allow one:
 # 
-#   - To stress test the mysqltest binary test engine.
-#   - To stress test the regular test suite and any additional test suites
-#     (such as mysql-test-extra-5.0).
-#   - To specify files with lists of tests both for initialization of
-#     stress db and for further testing itself.
-#   - To define the number of threads to be concurrently used in testing.
-#   - To define limitations for the test run. such as the number of tests or
-#     loops for execution or duration of testing, delay between test
-#     executions, and so forth.
-#   - To get a readable log file that can be used for identification of
-#     errors that occur during testing.
+#   - to use for stress testing mysqltest binary as test engine
+#   - to use for stress testing both regular test suite and any
+#     additional test suites (e.g. mysql-test-extra-5.0)
+#   - to specify files with lists of tests both for initialization of
+#     stress db and for further testing itself
+#   - to define number of threads that will be concurrently used in testing
+#   - to define limitations for test run. e.g. number of tests or loops
+#     for execution or duration of testing, delay between test executions, etc.
+#   - to get readable log file which can be used for identification of
+#     errors arose during testing
 # 
 # Basic scenarios:
 # 
@@ -58,6 +57,8 @@
 #       to reproduce and debug errors that was found in continued stress 
 #       testing
 #
+# 2009-01-28 OBN Additions and modifications per WL#4685
+#                
 ########################################################################
 
 use Config;
@@ -114,13 +115,15 @@ $opt_stress_mode="random";
 $opt_loop_count=0;
 $opt_test_count=0;
 $opt_test_duration=0;
-$opt_abort_on_error=0;
+# OBN: Changing abort-on-error default to -1 (for WL-4626/4685): -1 means no abort
+$opt_abort_on_error=-1;
 $opt_sleep_time = 0;
 $opt_threads=1;
 $pid_file="mysql_stress_test.pid";
 $opt_mysqltest= ($^O =~ /mswin32/i) ? "mysqltest.exe" : "mysqltest";
 $opt_check_tests_file="";
-@mysqltest_args=("--silent", "-v", "--skip-safemalloc");
+# OBM adding a setting for 'max-connect-retries=7' the default of 500 is to high  
+@mysqltest_args=("--silent", "-v", "--skip-safemalloc", "--max-connect-retries=7");
 
 # Client ip address
 $client_ip=inet_ntoa((gethostbyname(hostname()))[4]);
@@ -133,30 +136,66 @@ $client_ip=~ s/\.//g;
 #
 # S1 - Critical errors - cause immediately abort of testing. These errors
 #                        could be caused by server crash or impossibility
-#                        of test execution
+#                        of test execution. 
 #
 # S2 - Serious errors - these errors are bugs for sure as it knowns that 
 #                       they shouldn't appear during stress testing  
 #
-# S3 - Non-seriuos errros - these errors could be caused by fact that 
+# S3 - Unknown errors - Errors were returned but we don't know what they are 
+#                       so script can't determine if they are OK or not
+#
+# S4 - Non-seriuos errros - these errors could be caused by fact that 
 #                           we execute simultaneously statements that
 #                           affect tests executed by other threads
                             
 %error_strings = ( 'Failed in mysql_real_connect()' => S1,
+                   'Can\'t connect' => S1,       
                    'not found (Errcode: 2)' => S1 );
   
 %error_codes = ( 1012 => S2, 1015 => S2, 1021 => S2,
                  1027 => S2, 1037 => S2, 1038 => S2,
                  1039 => S2, 1040 => S2, 1046 => S2, 
-                 1180 => S2, 1181 => S2, 1203 => S2,
-                 1205 => S2, 1206 => S2, 1207 => S2, 
-                 1223 => S2, 2013 => S1);
+                 1053 => S2, 1180 => S2, 1181 => S2, 
+                 1203 => S2, 1205 => S4, 1206 => S2, 
+                 1207 => S2, 1213 => S4, 1223 => S2, 
+                 2002 => S1, 2003 => S1, 2006 => S1,
+                 2013 => S1 
+                 );
 
 share(%test_counters);
 %test_counters=( loop_count => 0, test_count=>0);
 
 share($exiting);
 $exiting=0;
+
+# OBN Code and 'set_exit_code' function added by ES to set an exit code based on the error category returned 
+#     in combination with the --abort-on-error value see WL#4685)
+use constant ABORT_MAKEWEIGHT => 20;  
+share($gExitCode);
+$gExitCode = 0;   # global exit code
+sub set_exit_code {
+	my $severity = shift;
+	my $code = 0;
+	if ( $severity =~ /^S(\d+)/ ) {
+		$severity = $1;
+		$code = 11 - $severity; # S1=10, S2=9, ... -- as per WL
+	}
+	else {
+	# we know how we call the sub: severity should be S<num>; so, we should never be here...
+		print STDERR "Unknown severity format: $severity; setting to S1\n";
+		$severity = 1;
+	}
+	$abort = 0;
+	if ( $severity <= $opt_abort_on_error ) {
+		# the test finished with a failure severe enough to abort. We are adding the 'abort flag' to the exit code
+		$code += ABORT_MAKEWEIGHT;
+		# but are not exiting just yet -- we need to update global exit code first
+		$abort = 1;
+	}
+	lock $gExitCode; # we can use lock here because the script uses threads anyway
+	$gExitCode = $code if $code > $gExitCode;
+	kill INT, $$ if $abort; # this is just a way to call sig_INT_handler: it will set exiting flag, which should do the rest
+}
 
 share($test_counters_lock);
 $test_counters_lock=0;
@@ -176,7 +215,8 @@ GetOptions("server-host=s", "server-logs-dir=s", "server-port=s",
            "threads=s", "sleep-time=s", "loop-count=i", "test-count=i",
            "test-duration=i", "test-suffix=s", "check-tests-file", 
            "verbose", "log-error-details", "cleanup", "mysqltest=s", 
-           "abort-on-error", "help") || usage();
+           # OBN: (changing 'abort-on-error' to numberic for WL-4626/4685) 
+           "abort-on-error=i" => \$opt_abort_on_error, "help") || usage();
 
 usage() if ($opt_help);
 
@@ -563,7 +603,15 @@ EOF
 
   if ($opt_test_duration)
   {
-    sleep($opt_test_duration);
+  # OBN - At this point we need to wait for the duration of the test, hoever
+  #       we need to be able to quit if an 'abort-on-error' condition has happend 
+  #       with one of the children (WL#4685). Using solution by ES and replacing 
+  #       the 'sleep' command with a loop checking the abort condition every second
+  
+	foreach ( 1..$opt_test_duration ) {       
+		last if $exiting;                     
+		sleep 1;                              
+	}
     kill INT, $$;                             #Interrupt child threads
   }
 
@@ -579,6 +627,8 @@ EOF
   }
   print "EXIT\n";
 }
+
+exit $gExitCode; # ES WL#4685: script should return a meaningful exit code
 
 sub test_init
 {
@@ -681,7 +731,9 @@ sub test_execute
         {
           if (!exists($error_codes{$err_code}))
           {
-            $severity="S3";
+            # OBN Changing severity level to S4 from S3 as S3 now reserved
+            #     for the case where the error is unknown (for WL#4626/4685
+            $severity="S4";
             $err_code=0;
           }
           else
@@ -734,6 +786,7 @@ sub test_execute
     {
       push @{$env->{test_status}}, "Severity $severity: $total";
       $env->{errors}->{total}=+$total;
+      set_exit_code($severity);  
     }
   }
 
@@ -748,18 +801,20 @@ sub test_execute
 
   log_session_errors($env, $test_file);
 
-  if (!$exiting && ($signal_num == 2 || $signal_num == 15 || 
-      ($opt_abort_on_error && $env->{errors}->{S1} > 0)))
+  #OBN Removing the case of S1 and abort-on-error as that is now set 
+  #     inside the set_exit_code function (for WL#4626/4685)
+  #if (!$exiting && ($signal_num == 2 || $signal_num == 15 || 
+  #       ($opt_abort_on_error && $env->{errors}->{S1} > 0)))
+  if (!$exiting && ($signal_num == 2 || $signal_num == 15))
   {
-    #mysqltest was interrupted with INT or TERM signals or test was 
-    #ran with --abort-on-error option and we got errors with severity S1
+    #mysqltest was interrupted with INT or TERM signals 
     #so we assume that we should cancel testing and exit
     $exiting=1;
+    # OBN - Adjusted text to exclude case of S1 and abort-on-error that 
+    #       was mentioned (for WL#4626/4685)
     print STDERR<<EOF;
 WARNING:
-   mysqltest was interrupted with INT or TERM signals or test was 
-   ran with --abort-on-error option and we got errors with severity S1
-   (test cann't connect to the server or server crashed) so we assume that 
+   mysqltest was interrupted with INT or TERM signals  so we assume that 
    we should cancel testing and exit. Please check log file for this thread 
    in $stress_log_file or 
    inspect below output of the last test case executed with mysqltest to 
@@ -840,12 +895,23 @@ LOOP:
              $client_env{test_count}."]:".
              " TID ".$client_env{thread_id}.
              " test: '$test_name' ".
-             " Errors: ".join(" ",@{$client_env{test_status}}),"\n";
-      print "\n";
+             " Errors: ".join(" ",@{$client_env{test_status}}).
+                ( $exiting ? " (thread aborting)" : "" )."\n";
     }
   
-    sleep($opt_sleep_time) if($opt_sleep_time);
-
+    # OBN - At this point we need to wait until the 'wait' time between test
+    #       executions passes (in case it is specifed) passes, hoever we need
+    #       to be able to quit and break out of the test if an 'abort-on-error' 
+    #       condition has happend with one of the other children (WL#4685). 
+    #       Using solution by ES and replacing the 'sleep' command with a loop 
+    #       checking the abort condition every second
+  
+	if ( $opt_sleep_time ) {                
+		foreach ( 1..$opt_sleep_time ) {     
+			last if $exiting;               
+			sleep 1;                        
+		}                                   
+	}                                       
   }
 }
 
@@ -1118,6 +1184,9 @@ mysql-stress-test.pl --stress-basedir=<dir> --stress-suite-basedir=<dir> --serve
 
 --cleanup
   Force to clean up working directory (specified with --stress-basedir)
+
+--abort-on-error=<number>
+  Causes the script to abort if an error with severity <= number was encounterd
 
 --log-error-details
   Enable errors details in the global error log file. (Default: off)

@@ -70,6 +70,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
 #define MY_DONT_OVERWRITE_FILE 1024	/* my_copy: Don't overwrite file */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
+#define MY_SYNC       4096      /* my_copy(): sync dst file */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
@@ -173,6 +174,16 @@ extern char *my_strndup(const char *from, size_t length,
 #define ORIG_CALLER_INFO    /* nothing */
 #define TRASH(A,B) /* nothing */
 #endif
+
+#if defined(ENABLED_DEBUG_SYNC)
+extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
+#define DEBUG_SYNC_C(_sync_point_name_) do {                            \
+    if (debug_sync_C_callback_ptr != NULL)                              \
+      (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
+  while(0)
+#else
+#define DEBUG_SYNC_C(_sync_point_name_)
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);

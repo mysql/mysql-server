@@ -257,6 +257,13 @@ int thd_binlog_format(const MYSQL_THD thd);
   @param  all   TRUE <=> rollback main transaction.
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
+
+/**
+  Check if binary logging is filtered for thread's current db.
+  @param  thd   Thread handle
+  @retval 1 the query is not filtered, 0 otherwise.
+*/
+bool thd_binlog_filter_ok(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;
@@ -282,3 +289,21 @@ trx_t*
 innobase_trx_allocate(
 /*==================*/
 	MYSQL_THD	thd);	/*!< in: user thread handle */
+
+
+/*********************************************************************//**
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name
+matches, this function pushes an warning message to the client,
+and returns true. */
+extern "C"
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if the index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const KEY*	key_info,	/* in: Indexes to be created */
+	ulint		num_of_keys);	/* in: Number of indexes to
+					be created. */
+
