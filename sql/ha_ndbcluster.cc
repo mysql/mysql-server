@@ -9581,6 +9581,11 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   DBUG_ENTER("ndbcluster_print_error");
   TABLE_SHARE share;
   const char *tab_name= (error_op) ? error_op->getTableName() : "";
+  if (tab_name == NULL) 
+  {
+    DBUG_ASSERT(tab_name != NULL);
+    tab_name= "";
+  }
   share.db.str= (char*) "";
   share.db.length= 0;
   share.table_name.str= (char *) tab_name;
