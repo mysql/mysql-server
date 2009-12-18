@@ -2406,6 +2406,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--core");
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 
@@ -2448,6 +2449,7 @@ sub ndbd_start {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--core");
 
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
