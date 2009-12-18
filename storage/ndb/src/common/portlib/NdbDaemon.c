@@ -27,6 +27,11 @@ char NdbDaemon_ErrorText[NdbDaemon_ErrorSize] = "";
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
+#ifdef _WIN32
+  /* Not used on Windows, only for compile  */ 
+  abort();
+  return -1;
+#else
   int lockfd = -1, logfd = -1, n;
   char buf[64];
 
@@ -144,18 +149,8 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
   }
   /* Success */
   return 0;
-}
-
-#if 0
-int
-NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
-{
-  /* Fail */
-  snprintf(NdbDaemon_ErrorText, NdbDaemon_ErrorSize,
-	   "Daemon mode not implemented");
-  return -1;
-}
 #endif
+}
 
 #ifdef NDB_DAEMON_TEST
 
