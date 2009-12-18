@@ -130,12 +130,12 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   ENDIF()
 
   # If signing is required, sign executables before installing
-  IF(SIGNCODE)
-    FOREACH(target ${TARGETS})
+  FOREACH(target ${TARGETS})
+    IF(SIGNCODE)
       SIGN_TARGET(${target})
-    ENDFOREACH()
-  ENDIF()
-
+    ENDIF()
+    ADD_VERSION_INFO(${target})
+  ENDFOREACH()
   
   INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION})
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
