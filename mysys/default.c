@@ -650,7 +650,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         int recursion_level)
 {
   char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
-  char *value, option[4096], tmp[FN_REFLEN];
+  char *value, option[4096+2], tmp[FN_REFLEN];
   static const char includedir_keyword[]= "includedir";
   static const char include_keyword[]= "include";
   const int max_recursion_level= 10;
