@@ -34,8 +34,9 @@ typedef pthread_mutex_t NdbMutex;
 
 /**
  * Create a mutex
+ *  - the allocated mutex should be released by calling
+ *    NdbMutex_Destroy 
  *
- * p_mutex: pointer to the mutex structure
  * returnvalue: pointer to the mutex structure
  */
 NdbMutex* NdbMutex_Create(void);
