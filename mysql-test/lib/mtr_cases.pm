@@ -42,6 +42,7 @@ our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
 our $reorder= 1;
+our $quick_collect;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -68,6 +69,13 @@ require "mtr_misc.pl";
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
 my $skip_test_reg;
+
+# Related to adding InnoDB plugin combinations
+my $lib_innodb_plugin;
+my $do_innodb_plugin;
+
+# If "Quick collect", set to 1 once a test to run has been found.
+my $some_test_found;
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -100,9 +108,21 @@ sub collect_test_cases ($$) {
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
+  $lib_innodb_plugin=
+    my_find_file($::basedir,
+		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
+		  "lib/mysql/plugin", "lib/plugin"],
+		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
+		  "ha_innodb_plugin.sl"],
+		 NOT_REQUIRED);
+  $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
+		      !(IS_WINDOWS && $::opt_embedded_server) &&
+		      $lib_innodb_plugin);
+
   foreach my $suite (split(",", $suites))
   {
     push(@$cases, collect_one_suite($suite, $opt_cases));
+    last if $some_test_found;
   }
 
   if ( @$opt_cases )
@@ -140,7 +160,7 @@ sub collect_test_cases ($$) {
     }
   }
 
-  if ( $reorder )
+  if ( $reorder && !$quick_collect)
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -387,7 +407,7 @@ sub collect_one_suite($)
   # Read combinations for this suite and build testcases x combinations
   # if any combinations exists
   # ----------------------------------------------------------------------
-  if ( ! $skip_combinations )
+  if ( ! $skip_combinations && ! $quick_collect )
   {
     my @combinations;
     my $combination_file= "$suitedir/combinations";
@@ -480,19 +500,16 @@ sub collect_one_suite($)
   # ----------------------------------------------------------------------
   # Testing InnoDB plugin.
   # ----------------------------------------------------------------------
-  my $lib_innodb_plugin=
-    mtr_file_exists(::vs_config_dirs('storage/innodb_plugin', 'ha_innodb_plugin.dll'),
-                    "$::basedir/storage/innodb_plugin/.libs/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.so",
-                    "$::basedir/lib/mysql/plugin/ha_innodb_plugin.dll");
-  if ($::mysql_version_id >= 50100 && !(IS_WINDOWS && $::opt_embedded_server) &&
-      $lib_innodb_plugin)
+  if ($do_innodb_plugin)
   {
     my @new_cases;
+    my $sep= (IS_WINDOWS) ? ';' : ':';
 
     foreach my $test (@cases)
     {
-      next if ($test->{'skip'} || !$test->{'innodb_test'});
+      next if (!$test->{'innodb_test'});
+      # If skipped due to no builtin innodb, we can still run it with plugin
+      next if ($test->{'skip'} && $test->{comment} ne "No innodb support");
       # Exceptions
       next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
       next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
@@ -502,6 +519,8 @@ sub collect_one_suite($)
       next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
       # Diff around innodb_thread_concurrency variable
       next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
+      # Can't work with InnoPlug. Test framework needs to be re-designed.
+      next if ($test->{'name'} eq 'main.innodb_bug46000');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
@@ -512,23 +531,24 @@ sub collect_one_suite($)
         }
         else
         {
-          $new_test->{$key}= $value;
+          $new_test->{$key}= $value unless ($key eq 'skip');
         }
       }
       my $plugin_filename= basename($lib_innodb_plugin);
+      my $plugin_list= "innodb=$plugin_filename" . $sep . "innodb_locks=$plugin_filename";
       push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{master_opt}}, "--plugin_load=$plugin_list");
       push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
       push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=innodb=$plugin_filename;innodb_locks=$plugin_filename");
+      push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
       if ($new_test->{combination})
       {
-        $new_test->{combination}.= ' + InnoDB plugin';
+        $new_test->{combination}.= '+innodb_plugin';
       }
       else
       {
-        $new_test->{combination}= 'InnoDB plugin';
+        $new_test->{combination}= 'innodb_plugin';
       }
       push(@new_cases, $new_test);
     }
@@ -644,6 +664,12 @@ sub optimize_cases {
 	$tinfo->{'innodb_test'}= 1
 	  if ( $default_engine =~ /^innodb/i );
       }
+    }
+
+    if ($quick_collect && ! $tinfo->{'skip'})
+    {
+      $some_test_found= 1;
+      return;
     }
   }
 }
@@ -909,14 +935,14 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need 'big-test' option";
+    $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need debug binaries";
+    $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
 
@@ -952,21 +978,24 @@ sub collect_one_test_case {
 
   if ($tinfo->{'federated_test'})
   {
-    # This is a test that need federated, enable it
+    # This is a test that needs federated, enable it
     push(@{$tinfo->{'master_opt'}}, "--loose-federated");
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
 
   if ( $tinfo->{'innodb_test'} )
   {
-    # This is a test that need innodb
+    # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
          ! exists $::mysqld_variables{'innodb'} )
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;
+      # This comment is checked for running with innodb plugin (see above),
+      # please keep that in mind if changing the text.
       $tinfo->{'comment'}= "No innodb support";
-      return $tinfo;
+      # But continue processing if we may run it with innodb plugin
+      return $tinfo unless $do_innodb_plugin;
     }
   }
   else
@@ -980,7 +1009,7 @@ sub collect_one_test_case {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test need binlog";
+      $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
   }
@@ -1008,6 +1037,17 @@ sub collect_one_test_case {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Not run for embedded server";
+      return $tinfo;
+    }
+  }
+
+  if ( $tinfo->{'need_ssl'} )
+  {
+    # This is a test that needs ssl
+    if ( ! $::opt_ssl_supported ) {
+      # SSL is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No SSL support";
       return $tinfo;
     }
   }
@@ -1093,6 +1133,7 @@ my @tags=
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
+ ["include/have_ssl.inc", "need_ssl", 1],
 );
 
 

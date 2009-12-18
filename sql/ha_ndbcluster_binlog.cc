@@ -244,8 +244,8 @@ static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error, my_bool disable_binlog,
                       my_bool reset_error)
 {
-  ulong save_thd_query_length= thd->query_length;
-  char *save_thd_query= thd->query;
+  ulong save_thd_query_length= thd->query_length();
+  char *save_thd_query= thd->query();
   ulong save_thread_id= thd->variables.pseudo_thread_id;
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
@@ -262,12 +262,12 @@ static void run_query(THD *thd, char *buf, char *end,
   if (disable_binlog)
     thd->options&= ~OPTION_BIN_LOG;
     
-  DBUG_PRINT("query", ("%s", thd->query));
+  DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->prelocked_mode);
 
-  mysql_parse(thd, thd->query, thd->query_length, &found_semicolon);
+  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
   if (no_print_error && thd->main_da.is_error())
   {
@@ -748,7 +748,7 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
   if (thd_ndb && thd_ndb->global_schema_lock_error != 0)
     return HA_ERR_NO_CONNECTION;
   sql_print_error("NDB: programming error, no lock taken while running "
-                  "query %s. Message: %s", thd->query, msg);
+                  "query %s. Message: %s", thd->query(), msg);
   abort();
   return -1;
 }
@@ -781,7 +781,7 @@ static int ndbcluster_global_schema_lock(THD *thd, int no_lock_queue,
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
   DBUG_PRINT("enter", ("query: %s, no_lock_queue: %d",
-                       thd->query, no_lock_queue));
+                       thd->query(), no_lock_queue));
   if (thd_ndb->global_schema_lock_count)
   {
     if (thd_ndb->global_schema_lock_trans)
@@ -5506,9 +5506,11 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     ndb_binlog_thread_running= -1;
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
+
+    DBUG_LEAVE;                               // Must match DBUG_ENTER()
     my_thread_end();
     pthread_exit(0);
-    DBUG_RETURN(NULL);
+    return NULL;                              // Avoid compiler warnings
   }
   lex_start(thd);
 
@@ -6340,10 +6342,11 @@ restart_cluster_failure:
   (void) pthread_cond_signal(&injector_cond);
 
   DBUG_PRINT("exit", ("ndb_binlog_thread"));
-  my_thread_end();
 
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
+  my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 bool

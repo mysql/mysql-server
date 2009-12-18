@@ -176,7 +176,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	107	Query	#	175	BEGIN
 #	175	Table_map	#	217	table_id: # (test.t7)
 #	217	Write_rows	#	273	table_id: # flags: STMT_END_F
-#	273	Query	#	344	ROLLBACK
+#	273	Query	#	342	COMMIT
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -327,7 +327,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	1330	Query	#	1398	BEGIN
 #	1398	Table_map	#	1439	table_id: # (test.t1)
 #	1439	Write_rows	#	1483	table_id: # flags: STMT_END_F
-#	1483	Query	#	1554	ROLLBACK
+#	1483	Query	#	1552	COMMIT
 SHOW TABLES;
 Tables_in_test
 t1

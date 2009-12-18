@@ -74,16 +74,24 @@ extern EventLogger * g_eventLogger;
 //#define EVENT_DEBUG
 //#define EVENT_PH3_DEBUG
 //#define EVENT_DEBUG2
-#if 0
+#if 1
 #undef DBUG_ENTER
 #undef DBUG_PRINT
 #undef DBUG_RETURN
 #undef DBUG_VOID_RETURN
 
+#if 0
 #define DBUG_ENTER(a) {ndbout_c("%s:%d >%s", __FILE__, __LINE__, a);}
 #define DBUG_PRINT(a,b) {ndbout << __FILE__ << ":" << __LINE__ << " " << a << ": "; ndbout_c b ;}
 #define DBUG_RETURN(a) { ndbout_c("%s:%d <", __FILE__, __LINE__); return(a); }
 #define DBUG_VOID_RETURN { ndbout_c("%s:%d <", __FILE__, __LINE__); return; }
+#else
+#define DBUG_ENTER(a)
+#define DBUG_PRINT(a,b)
+#define DBUG_RETURN(a) return a
+#define DBUG_VOID_RETURN return
+#endif
+
 #endif
 
 #define DBG_3R 0

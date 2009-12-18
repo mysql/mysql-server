@@ -110,7 +110,7 @@ dict_create_or_check_foreign_constraint_tables(void);
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were
 not named by the user. A generated constraint has a name of the format
-databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
+databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and are
 given locally for this table, that is, the number is not global, as in the
 old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */

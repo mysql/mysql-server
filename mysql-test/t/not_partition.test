@@ -15,7 +15,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 # Bug#39893: Crash if select on a partitioned table,
 #            when partitioning is disabled
 FLUSH TABLES;
---copy_file $MYSQLTEST_VARDIR/std_data_ln/parts/t1.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file $MYSQLTEST_VARDIR/std_data/parts/t1.frm $MYSQLD_DATADIR/test/t1.frm
 SELECT * FROM t1;
 TRUNCATE TABLE t1;
 ANALYZE TABLE t1;

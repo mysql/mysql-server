@@ -822,7 +822,7 @@ void Trix::execSUB_SYNC_CONF(Signal* signal)
     {
       jam();
       wait_gcp(signal, subRecPtr);
-      return;
+      DBUG_VOID_RETURN;
     }
     buildComplete(signal, subRecPtr);
   }
