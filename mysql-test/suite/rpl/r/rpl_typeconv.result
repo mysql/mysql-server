@@ -78,6 +78,10 @@ ENUM('master','	CHAR(10)       	                         	<Correct error>
 SET('master','s	CHAR(10)       	                         	<Correct error>
 SET('master','s	SET('master','s	                         	<Correct value>
 SET('master','s	SET('master','s	                         	<Correct value>
+SET('0','1','2'	SET('0','1','2'	                         	<Correct value>
+SET('0','1','2'	SET('0','1','2'	                         	<Correct error>
+SET('0','1','2'	SET('0','1','2'	                         	<Correct error>
+SET('0','1','2'	SET('0','1','2'	                         	<Correct error>
 TINYINT        	TINYINT        	                         	<Correct value>
 TINYINT        	SMALLINT       	                         	<Correct error>
 TINYINT        	MEDIUMINT      	                         	<Correct error>
@@ -176,6 +180,10 @@ ENUM('master','	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
 SET('master','s	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
 SET('master','s	SET('master','s	ALL_NON_LOSSY            	<Correct value>
 SET('master','s	SET('master','s	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct error>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct error>
 TINYINT        	TINYINT        	ALL_NON_LOSSY            	<Correct value>
 TINYINT        	SMALLINT       	ALL_NON_LOSSY            	<Correct value>
 TINYINT        	MEDIUMINT      	ALL_NON_LOSSY            	<Correct value>
@@ -274,6 +282,10 @@ ENUM('master','	CHAR(10)       	ALL_LOSSY                	<Correct error>
 SET('master','s	CHAR(10)       	ALL_LOSSY                	<Correct error>
 SET('master','s	SET('master','s	ALL_LOSSY                	<Correct value>
 SET('master','s	SET('master','s	ALL_LOSSY                	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY                	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY                	<Correct error>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY                	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY                	<Correct value>
 TINYINT        	TINYINT        	ALL_LOSSY                	<Correct value>
 TINYINT        	SMALLINT       	ALL_LOSSY                	<Correct error>
 TINYINT        	MEDIUMINT      	ALL_LOSSY                	<Correct error>
@@ -372,6 +384,10 @@ ENUM('master','	CHAR(10)       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct error>
 SET('master','s	CHAR(10)       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct error>
 SET('master','s	SET('master','s	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 SET('master','s	SET('master','s	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 TINYINT        	TINYINT        	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 TINYINT        	SMALLINT       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 TINYINT        	MEDIUMINT      	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
