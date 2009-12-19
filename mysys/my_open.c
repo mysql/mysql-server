@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ int my_close(File fd, myf MyFlags)
   DBUG_ENTER("my_close");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
 
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
 #ifndef _WIN32
   do
   {
@@ -90,12 +90,12 @@ int my_close(File fd, myf MyFlags)
   {
     my_free(my_file_info[fd].name, MYF(0));
 #if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
-    pthread_mutex_destroy(&my_file_info[fd].mutex);
+    mysql_mutex_destroy(&my_file_info[fd].mutex);
 #endif
     my_file_info[fd].type = UNOPEN;
   }
   my_file_opened--;
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(err);
 } /* my_close */
 
@@ -134,20 +134,21 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     }
     else
     {
-      pthread_mutex_lock(&THR_LOCK_open);
+      mysql_mutex_lock(&THR_LOCK_open);
       if ((my_file_info[fd].name = (char*) my_strdup(FileName,MyFlags)))
       {
         my_file_opened++;
         my_file_total_opened++;
         my_file_info[fd].type = type_of_file;
 #if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
-        pthread_mutex_init(&my_file_info[fd].mutex,MY_MUTEX_INIT_FAST);
+        mysql_mutex_init(key_my_file_info_mutex, &my_file_info[fd].mutex,
+                         MY_MUTEX_INIT_FAST);
 #endif
-        pthread_mutex_unlock(&THR_LOCK_open);
+        mysql_mutex_unlock(&THR_LOCK_open);
         DBUG_PRINT("exit",("fd: %d",fd));
         DBUG_RETURN(fd);
       }
-      pthread_mutex_unlock(&THR_LOCK_open);
+      mysql_mutex_unlock(&THR_LOCK_open);
       my_errno= ENOMEM;
     }
     (void) my_close(fd, MyFlags);

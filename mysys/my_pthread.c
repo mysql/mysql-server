@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ int my_sigwait(const sigset_t *set,int *sig)
 
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 
-extern pthread_mutex_t LOCK_localtime_r;
+extern mysql_mutex_t LOCK_localtime_r;
 
 #endif
 
@@ -104,10 +104,10 @@ extern pthread_mutex_t LOCK_localtime_r;
 struct tm *localtime_r(const time_t *clock, struct tm *res)
 {
   struct tm *tmp;
-  pthread_mutex_lock(&LOCK_localtime_r);
+  mysql_mutex_lock(&LOCK_localtime_r);
   tmp=localtime(clock);
   *res= *tmp;
-  pthread_mutex_unlock(&LOCK_localtime_r);
+  mysql_mutex_unlock(&LOCK_localtime_r);
   return res;
 }
 #endif
@@ -121,10 +121,10 @@ struct tm *localtime_r(const time_t *clock, struct tm *res)
 struct tm *gmtime_r(const time_t *clock, struct tm *res)
 {
   struct tm *tmp;
-  pthread_mutex_lock(&LOCK_localtime_r);
+  mysql_mutex_lock(&LOCK_localtime_r);
   tmp= gmtime(clock);
   *res= *tmp;
-  pthread_mutex_unlock(&LOCK_localtime_r);
+  mysql_mutex_unlock(&LOCK_localtime_r);
   return res;
 }
 #endif
@@ -317,14 +317,14 @@ int sigwait(sigset_t *setp, int *sigp)
     pthread_t sigwait_thread_id;
     inited=1;
     sigemptyset(&pending_set);
-    pthread_mutex_init(&LOCK_sigwait,MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&COND_sigwait,NULL);
+    pthread_mutex_init(&LOCK_sigwait, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&COND_sigwait, NULL);
 
     pthread_attr_init(&thr_attr);
     pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
     pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
     pthread_attr_setstacksize(&thr_attr,8196);
-    pthread_create(&sigwait_thread_id,&thr_attr,sigwait_thread,setp);
+    pthread_create(&sigwait_thread_id, &thr_attr, sigwait_thread, setp);
     pthread_attr_destroy(&thr_attr);
   }
 
@@ -351,7 +351,7 @@ int sigwait(sigset_t *setp, int *sigp)
 	return 0;
       }
     }
-    pthread_cond_wait(&COND_sigwait,&LOCK_sigwait);
+    pthread_cond_wait(&COND_sigwait, &LOCK_sigwait);
   }
   return 0;
 }

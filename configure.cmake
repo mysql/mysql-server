@@ -273,7 +273,7 @@ IF(UNIX)
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
-  MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNLS)
+  MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
@@ -285,7 +285,7 @@ IF(UNIX)
   FIND_PACKAGE(Threads)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
-    ${LIBM} ${LIBNLS} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
+    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
 
   LIST(REMOVE_DUPLICATES CMAKE_REQUIRED_LIBRARIES)
   LINK_LIBRARIES(${CMAKE_THREAD_LIBS_INIT})
@@ -1135,6 +1135,50 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
    SET(HAVE_LARGE_PAGE_OPTION 1)
   ENDIF()
 ENDIF()
+
+# Use of ALARMs to wakeup on timeout on sockets
+#
+# This feature makes use of a mutex and is a scalability hog we
+# try to avoid using. However we need support for SO_SNDTIMEO and
+# SO_RCVTIMEO socket options for this to work. So we will check
+# if this feature is supported by a simple TRY_RUN macro. However
+# on some OS's there is support for setting those variables but
+# they are silently ignored. For those OS's we will not attempt
+# to use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
+# See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
+# To use alarm is simple, simply avoid setting anything.
+
+IF(WIN32)
+  SET(HAVE_SOCKET_TIMEOUT 1)
+ELSEIF(CMAKE_SYSTEM MATCHES "HP")
+  SET(HAVE_SOCKET_TIMEOUT 0)
+ELSEIF(CMAKE_CROSSCOMPILING)
+  SET(HAVE_SOCKET_TIMEOUT 0)
+ELSE()
+SET(CMAKE_REQUIRED_LIBRARIES ${LIBNSL} ${LIBSOCKET}) 
+CHECK_C_SOURCE_RUNS(
+"
+ #include <sys/types.h>
+ #include <sys/socket.h>
+ #include <sys/time.h>
+ 
+ int main()
+ {    
+   int fd = socket(AF_INET, SOCK_STREAM, 0);
+   struct timeval tv;
+   int ret= 0;
+   tv.tv_sec= 2;
+   tv.tv_usec= 0;
+   ret|= setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+   ret|= setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+   return !!ret;
+ }
+" HAVE_SOCKET_TIMEOUT)
+ENDIF()
+
+SET(NO_ALARM "${HAVE_SOCKET_TIMEOUT}" CACHE BOOL 
+   "No need to use alarm to implement socket timeout")
+MARK_AS_ADVANCED(NO_ALARM)
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "AIX" OR CMAKE_SYSTEM_NAME STREQUAL "OS400")
   # xlC oddity - it complains about same inline function defined multiple times
