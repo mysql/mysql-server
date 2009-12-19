@@ -5690,8 +5690,8 @@ ER_PARTITION_WRONG_NO_SUBPART_ERROR
         eng "Wrong number of subpartitions defined, mismatch with previous setting"
         ger "Falsche Anzahl von Unterpartitionen definiert, stimmt nicht mit vorherigen Einstellungen überein"
         swe "Antal subpartitioner definierade och antal subpartitioner är inte lika"
-ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
-        eng "Constant/Random expression in (sub)partitioning function is not allowed"
+ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+        eng "Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed"
         ger "Konstante oder Random-Ausdrücke in (Unter-)Partitionsfunktionen sind nicht erlaubt"
         swe "Konstanta uttryck eller slumpmässiga uttryck är inte tillåtna (sub)partitioneringsfunktioner"
 ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR
