@@ -48,6 +48,7 @@
 #  elif defined(HAVE_SOLARIS_ATOMIC)
 #    include "solaris.h"
 #  endif
+#endif
 
 #if defined(make_atomic_cas_body) || defined(MY_ATOMICS_MADE)
 /*
