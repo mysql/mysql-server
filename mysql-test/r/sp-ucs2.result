@@ -120,3 +120,29 @@ DECLARE f2 VARCHAR(64) COLLATE ucs2_unicode_ci;
 RETURN 'str';
 END|
 ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+SET NAMES utf8;
+DROP FUNCTION IF EXISTS bug48766;
+CREATE FUNCTION bug48766 ()
+RETURNS ENUM( 'w' ) CHARACTER SET ucs2
+RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+bug48766		CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
+RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+DTD_IDENTIFIER
+enum('w') CHARSET ucs2
+DROP FUNCTION bug48766;
+CREATE FUNCTION bug48766 ()
+RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
+RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+bug48766		CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
+RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+DTD_IDENTIFIER
+enum('а','б','в','г') CHARSET ucs2
+DROP FUNCTION bug48766;

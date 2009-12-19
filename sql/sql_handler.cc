@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -143,14 +144,14 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
     if (! is_locked)
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, table_ptr))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
     if (! is_locked)
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
   }
   else if (tables->table)
   {
@@ -775,7 +776,7 @@ void mysql_ha_flush(THD *thd)
   TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_flush");
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {

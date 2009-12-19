@@ -3141,7 +3141,7 @@ int ha_federated::real_connect()
     to establish Federated connection to guard against a trivial
     Denial of Service scenerio.
   */
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(mysql == NULL);
 
