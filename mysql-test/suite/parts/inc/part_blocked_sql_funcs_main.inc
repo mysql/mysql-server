@@ -152,10 +152,16 @@ let $valsqlfunc = timestampdiff(YEAR,'2002-05-01','2001-01-01');
 let $coltype = datetime;
 --source suite/parts/inc/partition_blocked_sql_funcs.inc
 
-let $sqlfunc = unix_timestamp(col1);
-let $valsqlfunc = unix_timestamp ('2002-05-01');
-let $coltype = date;
---source suite/parts/inc/partition_blocked_sql_funcs.inc
+################################################################################
+# After the fix for bug #42849 the server behavior does not fit into this test's
+# architecture: for UNIX_TIMESTAMP() some of the queries in 
+# suite/parts/inc/partition_blocked_sql_funcs.inc will fail with a different
+# error (ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR) and some will succeed where
+################################################################################
+#let $sqlfunc = unix_timestamp(col1);
+#let $valsqlfunc = unix_timestamp ('2002-05-01');
+#let $coltype = date;
+#--source suite/parts/inc/partition_blocked_sql_funcs.inc
 
 let $sqlfunc = week(col1);
 let $valsqlfunc = week('2002-05-01');
