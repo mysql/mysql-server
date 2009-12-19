@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -482,7 +482,7 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
-    thd->set_query(query, length);
+    thd->set_query_and_id(query, length, next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -493,7 +493,6 @@ static void handle_bootstrap_impl(THD *thd)
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
     */
-    thd->query_id=next_query_id();
     thd->set_time();
     mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
@@ -915,29 +914,29 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query_id= global_query_id;
-
-  switch( command ) {
-  /* Ignore these statements. */
-  case COM_STATISTICS:
-  case COM_PING:
-    break;
-  /* Only increase id on these statements but don't count them. */
-  case COM_STMT_PREPARE: 
-  case COM_STMT_CLOSE:
-  case COM_STMT_RESET:
-    next_query_id();
-    break;
-  /* Increase id and count all other statements. */
-  default:
-    statistic_increment(thd->status_var.questions, &LOCK_status);
-    next_query_id();
+  {
+    query_id_t query_id;
+    switch( command ) {
+    /* Ignore these statements. */
+    case COM_STATISTICS:
+    case COM_PING:
+      query_id= get_query_id();
+      break;
+    /* Only increase id on these statements but don't count them. */
+    case COM_STMT_PREPARE: 
+    case COM_STMT_CLOSE:
+    case COM_STMT_RESET:
+      query_id= next_query_id() - 1;
+      break;
+    /* Increase id and count all other statements. */
+    default:
+      statistic_increment(thd->status_var.questions, &LOCK_status);
+      query_id= next_query_id() - 1;
+    }
+    thd->set_query_id(query_id);
   }
-
-  thread_running++;
+  inc_thread_running();
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-  pthread_mutex_unlock(&LOCK_thread_count);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1165,16 +1164,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         thd->security_ctx->priv_user,
                         (char *) thd->security_ctx->host_or_ip);
 
-      thd->set_query(beginning_of_next_stmt, length);
-      pthread_mutex_lock(&LOCK_thread_count);
+      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
       /*
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
-      thd->query_id= next_query_id();
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      pthread_mutex_unlock(&LOCK_thread_count);
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
@@ -1488,9 +1484,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
   thd->command=COM_SLEEP;
-  pthread_mutex_lock(&LOCK_thread_count); // For process list
-  thread_running--;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  dec_thread_running();
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -2081,11 +2075,11 @@ mysql_execute_command(THD *thd)
       restore status variables, as we don't want 'show status' to cause
       changes
     */
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
     break;
   }
   case SQLCOM_SHOW_DATABASES:

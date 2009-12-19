@@ -59,9 +59,9 @@ extern PSI_thread_key key_thread_alarm;
 
 #endif /* HAVE_PSI_INTERFACE */
 
-extern pthread_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
-extern pthread_mutex_t THR_LOCK_lock, THR_LOCK_isam, THR_LOCK_net;
-extern pthread_mutex_t THR_LOCK_charset, THR_LOCK_time;
+extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
+extern mysql_mutex_t THR_LOCK_lock, THR_LOCK_isam, THR_LOCK_net;
+extern mysql_mutex_t THR_LOCK_charset, THR_LOCK_time;
 #else /* THREAD */
 #include <my_no_pthread.h>
 #endif /* THREAD */
