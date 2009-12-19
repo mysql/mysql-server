@@ -68,18 +68,12 @@
 #include "atomic/nolock.h"
 #endif
 
-#ifndef make_atomic_cas_body
-/*
-  When implementing atomics using solaris.h we will end up here.
-  In this case we have already implemented all atomic functions
-  and no more work is needed, this is indicated by MY_ATOMICS_MADE
-  being defined but not make_atomic_cas_body.
-*/
-#ifndef MY_ATOMICS_MADE
+#ifndef MY_ATOMIC_NOLOCK
 /* nolock.h was not able to generate even a CAS function, fall back */
 #include "atomic/rwlock.h"
 #endif
-#else
+
+#ifndef MY_ATOMICS_MADE
 /* define missing functions by using the already generated ones */
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)                                 \
@@ -101,7 +95,6 @@
 #ifndef make_atomic_store_body
 #define make_atomic_store_body(S)                               \
   (void)(my_atomic_fas ## S (a, v));
-#endif
 #endif
 
 /*
@@ -295,6 +288,7 @@ make_atomic_store(ptr)
 #undef make_atomic_store_body
 #undef make_atomic_fas_body
 #undef intptr
+#endif
 
 /*
   the macro below defines (as an expression) the code that
