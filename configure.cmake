@@ -486,6 +486,7 @@ SET(HAVE_ALLOCA 1)
 CHECK_FUNCTION_EXISTS_UNIX (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS_UNIX (backtrace_symbols HAVE_BACKTRACE_SYMBOLS)
 CHECK_FUNCTION_EXISTS_UNIX (backtrace_symbols_fd HAVE_BACKTRACE_SYMBOLS_FD)
+CHECK_FUNCTION_EXISTS_UNIX (printstack HAVE_PRINTSTACK)
 CHECK_FUNCTION_EXISTS_UNIX (bcmp HAVE_BCMP)
 CHECK_FUNCTION_EXISTS_UNIX (bfill HAVE_BFILL)
 CHECK_FUNCTION_EXISTS_UNIX (bmove HAVE_BMOVE)
@@ -1207,15 +1208,23 @@ ELSEIF(NOT WITH_ATOMIC_OPS)
   CHECK_CXX_SOURCE_COMPILES("
   int main()
   {
-    int foo= -10;
-    int bar=  10;
+    int foo= -10; int bar= 10;
+    long long int foo64= -10; long long int bar64= 10;
     if (!__sync_fetch_and_add(&foo, bar) || foo)
       return -1;
     bar= __sync_lock_test_and_set(&foo, bar);
     if (bar || foo != 10)
-     return -1;
+      return -1;
     bar= __sync_val_compare_and_swap(&bar, foo, 15);
     if (bar)
+      return -1;
+    if (!__sync_fetch_and_add(&foo64, bar64) || foo64)
+      return -1;
+    bar64= __sync_lock_test_and_set(&foo64, bar64);
+    if (bar64 || foo64 != 10)
+      return -1;
+    bar64= __sync_val_compare_and_swap(&bar64, foo, 15);
+    if (bar64)
       return -1;
     return 0;
   }"
@@ -1238,17 +1247,27 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
  #include  <atomic.h>
   int main()
   {
-	int foo = -10; int bar = 10;
-	if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
-		return -1;
-	bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
-	if (bar || foo != 10)
-		return -1;
-	bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
-	if (bar)
-		return -1;
-	return 0;
-	}
+    int foo = -10; int bar = 10;
+    int64_t foo64 = -10; int64_t bar64 = 10;
+    if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
+      return -1;
+    bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
+    if (bar || foo != 10)
+     return -1;
+    bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
+    if (bar)
+      return -1;
+    if (atomic_add_64_nv((volatile uint64_t *)&foo64, bar64) || foo64)
+      return -1;
+    bar64 = atomic_swap_64((volatile uint64_t *)&foo64, (uint64_t)bar64);
+    if (bar64 || foo64 != 10)
+      return -1;
+    bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
+    if (bar64)
+      return -1;
+    atomic_or_64((volatile uint64_t *)&bar64, 0);
+    return 0;
+  }
 "  HAVE_SOLARIS_ATOMIC)
 ENDIF()
 

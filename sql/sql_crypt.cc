@@ -28,14 +28,7 @@
 
 #include "mysql_priv.h"
 
-SQL_CRYPT::SQL_CRYPT(const char *password, uint length)
-{
-  ulong rand_nr[2];
-  hash_password(rand_nr,password, length);
-  crypt_init(rand_nr);
-}
-
-void SQL_CRYPT::crypt_init(ulong *rand_nr)
+void SQL_CRYPT::init(ulong *rand_nr)
 {
   uint i;
   randominit(&rand,rand_nr[0],rand_nr[1]);
