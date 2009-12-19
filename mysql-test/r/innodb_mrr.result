@@ -318,7 +318,7 @@ filler char(10), key(d), primary key (a,b,c)) engine= innodb;
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 explain select * from t2 force index (d) where d < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	d	d	5	NULL	47	Using index condition; Using MRR
+1	SIMPLE	t2	range	d	d	5	NULL	53	Using index condition; Using MRR
 drop table t2;
 drop table t1;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
