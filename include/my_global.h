@@ -979,7 +979,7 @@ inline unsigned long long my_double2ulonglong(double d)
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 #ifndef SIZE_T_MAX
-#define SIZE_T_MAX ~((size_t) 0)
+#define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
 #ifndef isfinite

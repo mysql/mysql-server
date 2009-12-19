@@ -272,6 +272,7 @@
 #cmakedefine HAVE_BACKTRACE 1
 #cmakedefine HAVE_BACKTRACE_SYMBOLS 1
 #cmakedefine HAVE_BACKTRACE_SYMBOLS_FD 1
+#cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_STRUCT_SOCKADDR_IN6 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
 #cmakedefine HAVE_NETINET_IN6_H 1
