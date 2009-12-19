@@ -82,7 +82,7 @@ if NEED_THREAD
 libmysyslt_la_SOURCES +=   mf_keycache.c
 endif
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt my_times.c
 
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
