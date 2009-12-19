@@ -954,6 +954,8 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif
 #endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
+#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
+#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
 #define INT_MIN32       (~0x7FFFFFFFL)
 #define INT_MAX32       0x7FFFFFFFL
 #define UINT_MAX32      0xFFFFFFFFL

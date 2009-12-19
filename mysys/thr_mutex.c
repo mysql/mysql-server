@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #endif
 #endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
+/* Not instrumented */
 static pthread_mutex_t THR_LOCK_mutex;
 static ulong safe_mutex_count= 0;		/* Number of mutexes created */
 #ifdef SAFE_MUTEX_DETECT_DESTROY
@@ -85,7 +86,9 @@ int safe_mutex_init(safe_mutex_t *mp,
     pthread_mutex_unlock(&THR_LOCK_mutex);
   }
 #else
-  thread_safe_increment(safe_mutex_count, &THR_LOCK_mutex);
+  pthread_mutex_lock(&THR_LOCK_mutex);
+  safe_mutex_count++;
+  pthread_mutex_unlock(&THR_LOCK_mutex);
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
   return 0;
 }
@@ -344,7 +347,9 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
     mp->info= NULL;				/* Get crash if double free */
   }
 #else
-  thread_safe_sub(safe_mutex_count, 1, &THR_LOCK_mutex);
+  pthread_mutex_lock(&THR_LOCK_mutex);
+  safe_mutex_count--;
+  pthread_mutex_unlock(&THR_LOCK_mutex);
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
   return error;
 }
