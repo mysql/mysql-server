@@ -48,6 +48,34 @@ pthread_handler_t test_atomic_add(void *arg)
   return 0;
 }
 
+volatile int64 a64;
+/* add and sub a random number in a loop. Must get 0 at the end */
+pthread_handler_t test_atomic_add64(void *arg)
+{
+  int    m= (*(int *)arg)/2;
+  GCC_BUG_WORKAROUND int64 x;
+  for (x= ((int64)(intptr)(&m)); m ; m--)
+  {
+    x= (x*m+0xfdecba987654321LL) & INT_MAX64;
+    my_atomic_rwlock_wrlock(&rwl);
+    my_atomic_add64(&a64, x);
+    my_atomic_rwlock_wrunlock(&rwl);
+
+    my_atomic_rwlock_wrlock(&rwl);
+    my_atomic_add64(&a64, -x);
+    my_atomic_rwlock_wrunlock(&rwl);
+  }
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads)
+  {
+    bad= (a64 != 0);
+    pthread_cond_signal(&cond);
+  }
+  pthread_mutex_unlock(&mutex);
+  return 0;
+}
+
+
 /*
   1. generate thread number 0..N-1 from b32
   2. add it to bad
@@ -128,7 +156,7 @@ pthread_handler_t test_atomic_cas(void *arg)
 
 void do_tests()
 {
-  plan(4);
+  plan(6);
 
   bad= my_atomic_initialize();
   ok(!bad, "my_atomic_initialize() returned %d", bad);
@@ -141,6 +169,15 @@ void do_tests()
   test_concurrently("my_atomic_fas32", test_atomic_fas, THREADS, CYCLES);
   b32= c32= 0;
   test_concurrently("my_atomic_cas32", test_atomic_cas, THREADS, CYCLES);
+
+  {
+    int64 b=0x1000200030004000LL;
+    a64=0;
+    my_atomic_add64(&a64, b);
+    ok(a64==b, "add64");
+  }
+  a64=0;
+  test_concurrently("my_atomic_add64", test_atomic_add64, THREADS, CYCLES);
 
   my_atomic_rwlock_destroy(&rwl);
 }

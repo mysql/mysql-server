@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ my_off_t my_b_append_tell(IO_CACHE* info)
     answer to the question.
   */
 #ifdef THREAD
-  pthread_mutex_lock(&info->append_buffer_lock);
+  mysql_mutex_lock(&info->append_buffer_lock);
 #endif
 #ifndef DBUG_OFF
   /*
@@ -104,7 +104,7 @@ my_off_t my_b_append_tell(IO_CACHE* info)
 #endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
 #ifdef THREAD
-  pthread_mutex_unlock(&info->append_buffer_lock);
+  mysql_mutex_unlock(&info->append_buffer_lock);
 #endif
   return res;
 }

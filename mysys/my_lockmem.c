@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,9 +66,9 @@ uchar *my_malloc_lock(uint size,myf MyFlags)
     element->list.data=(uchar*) element;
     element->page=ptr;
     element->size=size;
-    pthread_mutex_lock(&THR_LOCK_malloc);
+    mysql_mutex_lock(&THR_LOCK_malloc);
     mem_list=list_add(mem_list,&element->list);
-    pthread_mutex_unlock(&THR_LOCK_malloc);
+    mysql_mutex_unlock(&THR_LOCK_malloc);
   }
   DBUG_RETURN(ptr);
 }
@@ -79,7 +79,7 @@ void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
   LIST *list;
   struct st_mem_list *element=0;
 
-  pthread_mutex_lock(&THR_LOCK_malloc);
+  mysql_mutex_lock(&THR_LOCK_malloc);
   for (list=mem_list ; list ; list=list->next)
   {
     element=(struct st_mem_list*) list->data;
@@ -90,7 +90,7 @@ void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
       break;
     }
   }
-  pthread_mutex_unlock(&THR_LOCK_malloc);
+  mysql_mutex_unlock(&THR_LOCK_malloc);
   if (element)
     my_free((uchar*) element,MYF(0));
   free(ptr);					/* Free even if not locked */
