@@ -287,8 +287,8 @@ make_atomic_store(ptr)
 #undef make_atomic_load_body
 #undef make_atomic_store_body
 #undef make_atomic_fas_body
-#undef intptr
 #endif
+#undef intptr
 
 /*
   the macro below defines (as an expression) the code that
