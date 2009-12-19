@@ -30,3 +30,109 @@ select * from t1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #49480: WHERE using YEAR columns returns unexpected results
+--echo #
+
+CREATE TABLE t2(yy YEAR(2), c2 CHAR(4));
+CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
+
+INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
+INSERT INTO t4 (c4) SELECT c2 FROM t2;
+UPDATE t2 SET yy = c2;
+UPDATE t4 SET yyyy = c4;
+
+SELECT * FROM t2;
+SELECT * FROM t4;
+
+--echo # Comparison of YEAR(2) with YEAR(4)
+
+SELECT * FROM t2, t4 WHERE yy = yyyy;
+SELECT * FROM t2, t4 WHERE yy <=> yyyy;
+SELECT * FROM t2, t4 WHERE yy < yyyy;
+SELECT * FROM t2, t4 WHERE yy > yyyy;
+
+--echo # Comparison of YEAR(2) with YEAR(2)
+
+SELECT * FROM t2 a, t2 b WHERE a.yy = b.yy;
+SELECT * FROM t2 a, t2 b WHERE a.yy <=> b.yy;
+SELECT * FROM t2 a, t2 b WHERE a.yy < b.yy;
+
+--echo # Comparison of YEAR(4) with YEAR(4)
+
+SELECT * FROM t4 a, t4 b WHERE a.yyyy = b.yyyy;
+SELECT * FROM t4 a, t4 b WHERE a.yyyy <=> b.yyyy;
+SELECT * FROM t4 a, t4 b WHERE a.yyyy < b.yyyy;
+
+--echo # Comparison with constants:
+
+SELECT * FROM t2 WHERE yy = NULL;
+SELECT * FROM t4 WHERE yyyy = NULL;
+SELECT * FROM t2 WHERE yy <=> NULL;
+SELECT * FROM t4 WHERE yyyy <=> NULL;
+SELECT * FROM t2 WHERE yy < NULL;
+SELECT * FROM t2 WHERE yy > NULL;
+
+SELECT * FROM t2 WHERE yy = NOW();
+SELECT * FROM t4 WHERE yyyy = NOW();
+
+SELECT * FROM t2 WHERE yy = 99;
+SELECT * FROM t2 WHERE 99 = yy;
+SELECT * FROM t4 WHERE yyyy = 99;
+
+SELECT * FROM t2 WHERE yy = 'test';
+SELECT * FROM t4 WHERE yyyy = 'test';
+
+SELECT * FROM t2 WHERE yy = '1999';
+SELECT * FROM t4 WHERE yyyy = '1999';
+
+SELECT * FROM t2 WHERE yy = 1999;
+SELECT * FROM t4 WHERE yyyy = 1999;
+
+SELECT * FROM t2 WHERE yy = 1999.1;
+SELECT * FROM t4 WHERE yyyy = 1999.1;
+
+SELECT * FROM t2 WHERE yy = 1998.9;
+SELECT * FROM t4 WHERE yyyy = 1998.9;
+
+--echo # Coverage tests for YEAR with zero/2000 constants:
+
+SELECT * FROM t2 WHERE yy = 0;
+SELECT * FROM t2 WHERE yy = '0';
+SELECT * FROM t2 WHERE yy = '0000';
+SELECT * FROM t2 WHERE yy = '2000';
+SELECT * FROM t2 WHERE yy = 2000;
+
+SELECT * FROM t4 WHERE yyyy = 0;
+SELECT * FROM t4 WHERE yyyy = '0';
+SELECT * FROM t4 WHERE yyyy = '0000';
+SELECT * FROM t4 WHERE yyyy = '2000';
+SELECT * FROM t4 WHERE yyyy = 2000;
+
+--echo # Comparison with constants those are out of YEAR range
+--echo # (coverage test for backward compatibility)
+
+SELECT COUNT(yy) FROM t2;
+SELECT COUNT(yyyy) FROM t4;
+
+SELECT COUNT(*) FROM t2 WHERE yy = -1;
+SELECT COUNT(*) FROM t4 WHERE yyyy > -1;
+SELECT COUNT(*) FROM t2 WHERE yy > -1000000000000000000;
+SELECT COUNT(*) FROM t4 WHERE yyyy > -1000000000000000000;
+
+SELECT COUNT(*) FROM t2 WHERE yy < 2156;
+SELECT COUNT(*) FROM t4 WHERE yyyy < 2156;
+SELECT COUNT(*) FROM t2 WHERE yy < 1000000000000000000;
+SELECT COUNT(*) FROM t4 WHERE yyyy < 1000000000000000000;
+
+SELECT * FROM t2 WHERE yy < 123;
+SELECT * FROM t2 WHERE yy > 123;
+SELECT * FROM t4 WHERE yyyy < 123;
+SELECT * FROM t4 WHERE yyyy > 123;
+
+DROP TABLE t2, t4;
+
+--echo #
+
+--echo End of 5.1 tests
