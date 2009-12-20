@@ -79,7 +79,7 @@ MACRO (MYSQL_CHECK_MULTIBYTE)
 ENDMACRO()
 
 MACRO (FIND_CURSES)
- INCLUDE (FindCurses)
+ FIND_PACKAGE(Curses) 
  MARK_AS_ADVANCED(CURSES_CURSES_H_PATH CURSES_FORM_LIBRARY CURSES_HAVE_CURSES_H)
  IF(NOT CURSES_FOUND)
    SET(ERRORMSG "Curses library not found. Please install appropriate package,
@@ -103,6 +103,18 @@ MACRO (FIND_CURSES)
    # the library is for  PA-RISC
    SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
    SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
+ ENDIF()
+
+ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+   # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 
+   # Lower-level libcurses calls are exposed by libtinfo
+   CHECK_LIBRARY_EXISTS(${CURSES_LIBRARY} tputs "" HAVE_TPUTS_IN_CURSES)
+   IF(NOT HAVE_TPUTS_IN_CURSES)
+     CHECK_LIBRARY_EXISTS(tinfo tputs "" HAVE_TPUTS_IN_TINFO)
+     IF(HAVE_TPUTS_IN_TINFO)
+       SET(CURSES_LIBRARY tinfo)
+     ENDIF()
+   ENDIF() 
  ENDIF()
 ENDMACRO()
 
