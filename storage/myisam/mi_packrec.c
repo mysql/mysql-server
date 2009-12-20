@@ -1502,11 +1502,11 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
     if (myisam_mmap_size != SIZE_T_MAX)
     {
-      pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+      mysql_mutex_lock(&THR_LOCK_myisam_mmap);
       eom= data_file_length > myisam_mmap_size - myisam_mmap_used - MEMMAP_EXTRA_MARGIN;
       if (!eom)
         myisam_mmap_used+= data_file_length + MEMMAP_EXTRA_MARGIN;
-      pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+      mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
     }
     else
       eom= data_file_length > myisam_mmap_size - MEMMAP_EXTRA_MARGIN;
@@ -1522,9 +1522,9 @@ my_bool _mi_memmap_file(MI_INFO *info)
       DBUG_PRINT("warning",("File isn't extended for memmap"));
       if (myisam_mmap_size != SIZE_T_MAX)
       {
-        pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+        mysql_mutex_lock(&THR_LOCK_myisam_mmap);
         myisam_mmap_used-= data_file_length + MEMMAP_EXTRA_MARGIN;
-        pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+        mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
       }
       DBUG_RETURN(0);
     }
@@ -1534,9 +1534,9 @@ my_bool _mi_memmap_file(MI_INFO *info)
     {
       if (myisam_mmap_size != SIZE_T_MAX)
       {
-        pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+        mysql_mutex_lock(&THR_LOCK_myisam_mmap);
         myisam_mmap_used-= data_file_length + MEMMAP_EXTRA_MARGIN;
-        pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+        mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
       }
       DBUG_RETURN(0);
     }
@@ -1555,9 +1555,9 @@ void _mi_unmap_file(MI_INFO *info)
 
   if (myisam_mmap_size != SIZE_T_MAX)
   {
-    pthread_mutex_lock(&THR_LOCK_myisam_mmap);
+    mysql_mutex_lock(&THR_LOCK_myisam_mmap);
     myisam_mmap_used-= info->s->mmaped_length + MEMMAP_EXTRA_MARGIN;
-    pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
+    mysql_mutex_unlock(&THR_LOCK_myisam_mmap);
   }
 }
 
