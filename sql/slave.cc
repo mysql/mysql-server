@@ -1612,6 +1612,12 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   pos= net_store_data(pos, (uchar*) report_user, report_user_len);
   pos= net_store_data(pos, (uchar*) report_password, report_password_len);
   int2store(pos, (uint16) report_port); pos+= 2;
+  /* 
+    Fake rpl_recovery_rank, which was removed in BUG#13963,
+    so that this server can register itself on old servers,
+    see BUG#49259.
+   */
+  int4store(pos, /* rpl_recovery_rank */ 0);    pos+= 4;
   /* The master will fill in master_id */
   int4store(pos, 0);                    pos+= 4;
 
