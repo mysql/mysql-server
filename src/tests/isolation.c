@@ -34,15 +34,15 @@ int test_main (int argc, char *argv[]) {
 
     // X writes a value, and B tries to read it in uncommitted
     {
-	DB_TXN *txnb;
-	r = env->txn_begin(env, txna, &txnb, DB_READ_UNCOMMITTED);                      CKERR(r);
+//	DB_TXN *txnb;
+//	r = env->txn_begin(env, txna, &txnb, DB_READ_UNCOMMITTED);                      CKERR(r);
 	{
 	    DBT key,val;
 	    r = db->put(db, txnx, dbt_init(&key, "x", 4), dbt_init(&val, "x", 4), 0);   CKERR(r);
 	    dbt_init_malloc(&val);
-	    r = db->get(db, txnb, dbt_init(&key, "x", 4), &val, 0);                     CKERR(r);
+	    r = db->get(db, txna, dbt_init(&key, "x", 4), &val, 0);                     CKERR(r);
 	}
-	r = txnb->commit(txnb, 0);                                                      CKERR(r);
+//	r = txnb->commit(txnb, 0);                                                      CKERR(r);
     }
     r = txna->commit(txna, 0);                                                          CKERR(r);
     r = txnx->commit(txnx, 0);                                                          CKERR(r);
