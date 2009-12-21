@@ -94,6 +94,7 @@ check_free(const Dbtup::Extent_info* extP)
 void 
 Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
+  const Uint32 limit = 512;
   ndbout_c("dirty pages");
   for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
   {
@@ -101,9 +102,14 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     PagePtr ptr;
     ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
     LocalDLList<Page> list(*pool, alloc.m_dirty_pages[i]);
-    for(list.first(ptr); !ptr.isNull(); list.next(ptr))
+    Uint32 c = 0;
+    for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       ndbout << ptr << " ";
+    }
+    if (c == limit)
+    {
+      ndbout << "MAXLIMIT ";
     }
     ndbout_c(" ");
   }
@@ -114,9 +120,14 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     Ptr<Page_request> ptr;
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[i]);
-    for(list.first(ptr); !ptr.isNull(); list.next(ptr))
+    Uint32 c = 0;
+    for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       ndbout << ptr << " ";
+    }
+    if (c == limit)
+    {
+      ndbout << "MAXLIMIT ";
     }
     ndbout_c(" ");
   }
@@ -127,9 +138,14 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     printf("  %d : ", i);
     Ptr<Extent_info> ptr;
     Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[i]);
-    for(list.first(ptr); !ptr.isNull(); list.next(ptr))
+    Uint32 c = 0;
+    for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       ndbout << ptr << " ";
+    }
+    if (c == limit)
+    {
+      ndbout << "MAXLIMIT ";
     }
     ndbout_c(" ");
   }
