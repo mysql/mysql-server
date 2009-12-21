@@ -1454,4 +1454,10 @@ GRANT PROCESS ON *.* TO test_u@localhost;
 SHOW ENGINE MYISAM MUTEX;
 SHOW ENGINE MYISAM STATUS;
 DROP USER test_u@localhost;
+#
+# Bug #48985: show create table crashes if previous access to the table
+#    was killed
+#
+SHOW CREATE TABLE non_existent;
+ERROR 70100: Query execution was interrupted
 End of 5.1 tests
