@@ -75,6 +75,34 @@ let $target_value = 'master,slave';
 let $can_convert  = 1;
 source extra/rpl_tests/check_type.inc;
 
+let $source_type  = SET('0','1','2','3','4','5','6');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6');
+let $target_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '5';
+let $target_value = '5';
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = SET('0','1','2','3','4','5','6','7','8','9','10');
+let $target_type  = SET('0','1','2','3','4','5','6');
+let $source_value = '7';
+let $target_value = '';
+let $can_convert  = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
 let $source_type  = TINYINT;
 let $target_type  = TINYINT;
 let $source_value = 1;
