@@ -990,9 +990,6 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
     {
       Item *idx_remainder_cond= 0;
       tab->pre_idx_push_select_cond= tab->select_cond;
-#if 0
-      /* 
-        psergey: enable the below when we backport BKA: */
       /*
         For BKA cache we store condition to special BKA cache field
         because evaluation of the condition requires additional operations
@@ -1011,7 +1008,6 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
            ~(tab->table->map | tab->join->const_table_map)))
         tab->cache_idx_cond= idx_cond;
       else
-#endif
         idx_remainder_cond= tab->table->file->idx_cond_push(keyno, idx_cond);
 
       /*

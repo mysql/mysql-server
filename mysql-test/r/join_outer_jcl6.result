@@ -1,3 +1,7 @@
+set join_cache_level=6;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	6
 drop table if exists t0,t1,t2,t3,t4,t5;
 CREATE TABLE t1 (
 grp int(11) default NULL,
@@ -39,11 +43,11 @@ NULL	NULL	NULL	4	7	D	7
 select t1.*,t2.* from t1 left join t2 using (a);
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 grp	a	c	id	a	c	d
@@ -66,9 +70,9 @@ grp	a	c	id	a	c	d
 1	1	a	3	4	A	4
 2	2	b	3	5	B	5
 2	3	c	3	6	C	6
-3	4	E	NULL	NULL	NULL	NULL
 3	5	C	3	6	C	6
 3	6	D	4	7	D	7
+3	4	E	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL
 select t1.*,t2.* from t1 natural left outer join t2;
 grp	a	c	id	a	c	d
@@ -95,15 +99,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using where; Using join buffer
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
-2	2	b	NULL	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4	4
 3	5	C	3	5	B	5	5
 3	6	D	3	6	C	6	6
+2	2	b	NULL	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL	NULL
 explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
 ERROR 42S22: Unknown column 't3.a' in 'on clause'
@@ -260,16 +264,16 @@ INSERT INTO t4 VALUES (2,-1,10361,1);
 INSERT INTO t4 VALUES (3,-1,10362,1);
 SELECT DISTINCT fill,desc_larga_cat,cred_total,Grup,Places,PlacesOcupades FROM t4 LEFT JOIN t3 ON t3.cod_asig=fill AND estat='S'   AND dni_pasaporte='11111111'   AND t3.idPla=1 , t2,t1 WHERE fill=t1.cod_asig   AND Places>PlacesOcupades   AND fill=idAssignatura   AND t4.idPla=1   AND papa=-1;
 fill	desc_larga_cat	cred_total	Grup	Places	PlacesOcupades
-10360	asdfggfg	6.0	0	55	0
 10360	asdfggfg	6.0	12	333	0
-10360	asdfggfg	6.0	33	8	0
-10360	asdfggfg	6.0	45	10	0
-10360	asdfggfg	6.0	55	2	0
-10360	asdfggfg	6.0	7887	85	0
-10360	asdfggfg	6.0	32767	7	0
 10361	Components i Circuits Electronics I	6.0	30	2	0
 10361	Components i Circuits Electronics I	6.0	40	3	0
+10360	asdfggfg	6.0	45	10	0
 10362	Laboratori d`Ordinadors	4.5	10	12	0
+10360	asdfggfg	6.0	55	2	0
+10360	asdfggfg	6.0	32767	7	0
+10360	asdfggfg	6.0	33	8	0
+10360	asdfggfg	6.0	7887	85	0
+10360	asdfggfg	6.0	0	55	0
 10362	Laboratori d`Ordinadors	4.5	11	111	0
 SELECT DISTINCT fill,t3.idPla FROM t4 LEFT JOIN t3 ON t3.cod_asig=t4.fill AND t3.estat='S' AND t3.dni_pasaporte='1234' AND t3.idPla=1 ;
 fill	idPla
@@ -304,19 +308,19 @@ select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner);
 name	name	id
 Antonio Paz	El Gato	1
 Antonio Paz	Perrito	2
-Lilliana Angelovska	NULL	NULL
 Thimble Smith	Happy	3
+Lilliana Angelovska	NULL	NULL
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 name	name	id
 Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -324,19 +328,19 @@ select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner);
 name	name	id
 Antonio Paz	El Gato	1
 Antonio Paz	Perrito	2
-Lilliana Angelovska	NULL	NULL
 Thimble Smith	Happy	3
+Lilliana Angelovska	NULL	NULL
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 name	name	id
 Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -344,20 +348,20 @@ select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-Lilliana Angelovska	NULL	NULL	NULL
 Thimble Smith	Happy	3	3
+Lilliana Angelovska	NULL	NULL	NULL
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
+NULL	NULL	NULL	2
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
 Antonio Paz	Perrito	2	1	1
-NULL	NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3	3
+NULL	NULL	NULL	NULL	2
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
@@ -638,9 +642,9 @@ fooID	barID	fooID
 30	3	30
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
+30	3	30
 10	1	NULL
 20	2	NULL
-30	3	30
 drop table t1,t2;
 create table t1 (i int);
 create table t2 (i int);
@@ -650,21 +654,21 @@ insert into t2 values(2),(3);
 insert into t3 values(2),(4);
 select * from t1 natural left join t2 natural left join t3;
 i
-1
 2
+1
 select * from t1 natural left join t2 where (t2.i is not null)=0;
 i
 1
 select * from t1 natural left join t2 where (t2.i is not null) is not null;
 i
-1
 2
+1
 select * from t1 natural left join t2 where (i is not null)=0;
 i
 select * from t1 natural left join t2 where (i is not null) is not null;
 i
-1
 2
+1
 drop table t1,t2,t3;
 create table t1 (f1 integer,f2 integer,f3 integer);
 create table t2 (f2 integer,f4 integer);
@@ -688,8 +692,8 @@ a1	a2	b1	b2	c1	c2
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -738,13 +742,13 @@ explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from
 order by m.match_id desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
@@ -764,7 +768,7 @@ t2 s straight_join t1 m where m.match_id = 1
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 t2 s straight_join t1 m where m.match_id = 1 
 order by UUX desc;
@@ -1019,40 +1023,40 @@ a	b	a	b
 7	8	7	5
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a NOT BETWEEN t2.b AND t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a != t2.a AND t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a AND (t2.b > t1.a OR t1.a > t1.b);
 a	b	a	b
@@ -1127,15 +1131,15 @@ a	b	a	b
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t1.a = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a IN(t2.a, t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a > IF(t1.a = t2.b-2, t2.b, t2.b-1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
 DROP TABLE t1,t2;
 DROP VIEW IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2;
@@ -1165,33 +1169,33 @@ INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t2 VALUES (2), (3);
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
 a	b
-1	NULL
 2	2
 3	3
+1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
 a	b
-1	NULL
 2	2
 3	3
+1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
 a	b
-1	NULL
 2	2
 3	3
+1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
 a	b
-1	NULL
 2	2
 3	3
+1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 a	b
-1	NULL
 2	2
 3	3
+1	NULL
 4	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
@@ -1224,7 +1228,7 @@ EXPLAIN
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	idx	idx	4	test.t1.id	2	Using where; Not exists
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.id	2	Using where; Not exists; Using join buffer
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	a
@@ -1234,9 +1238,9 @@ show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	5
-Handler_read_next	0
+Handler_read_next	9
 Handler_read_prev	0
-Handler_read_rnd	0
+Handler_read_rnd	3
 Handler_read_rnd_next	6
 DROP TABLE t1,t2;
 CREATE TABLE t1 (c int  PRIMARY KEY, e int NOT NULL);
@@ -1254,3 +1258,7 @@ SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d<=>NULL;
 c	e	d
 1	0	NULL
 DROP TABLE t1,t2;
+set join_cache_level=default;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	1

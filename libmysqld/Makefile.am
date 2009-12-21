@@ -63,6 +63,7 @@ sqlsources = ds_mrr.cc derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_profile.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
+        sql_join_cache.cc \
 	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \

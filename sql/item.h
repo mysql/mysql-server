@@ -913,6 +913,7 @@ public:
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+  virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
@@ -1571,6 +1572,7 @@ public:
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
+  bool add_field_to_set_processor(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);

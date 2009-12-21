@@ -1,0 +1,11 @@
+# 
+# Run select.test with BKA enabled 
+#
+
+set join_cache_level=6;
+show variables like 'join_cache_level';
+
+--source t/select.test
+
+set join_cache_level=default;
+show variables like 'join_cache_level';
