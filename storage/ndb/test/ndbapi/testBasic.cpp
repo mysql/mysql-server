@@ -21,6 +21,8 @@
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
+#include <Bitmask.hpp>
+#include <random.h>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -1658,6 +1660,234 @@ runDDInsertFailUpdateBatch(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+// Bug34348
+
+#define chk1(b) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << endl; result = NDBT_FAILED; continue; }
+#define chk2(b, e) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << ": " << e << endl; result = NDBT_FAILED; continue; }
+
+const char* tabname_bug34348 = "TBug34348";
+
+int
+runBug34348insert(NDBT_Context* ctx, NDBT_Step* step,
+                  HugoOperations& ops, int i, bool* rangeFull)
+{
+  const int rangeFullError = 633;
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  while (result == NDBT_OK)
+  {
+    int code = 0;
+    chk2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+    chk2(ops.pkInsertRecord(pNdb, i, 1) == 0, ops.getNdbError());
+    chk2(ops.execute_Commit(pNdb) == 0 || (code = ops.getNdbError().code) == rangeFullError, ops.getNdbError());
+    ops.closeTransaction(pNdb);
+    *rangeFull = (code == rangeFullError);
+    break;
+  }
+  return result;
+}
+
+int
+runBug34348delete(NDBT_Context* ctx, NDBT_Step* step,
+                  HugoOperations& ops, int i)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  while (result == NDBT_OK)
+  {
+    chk2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+    chk2(ops.pkDeleteRecord(pNdb, i, 1) == 0, ops.getNdbError());
+    chk2(ops.execute_Commit(pNdb) == 0, ops.getNdbError());
+    ops.closeTransaction(pNdb);
+    break;
+  }
+  return result;
+}
+
+int
+runBug34348(NDBT_Context* ctx, NDBT_Step* step)
+{
+  myRandom48Init(NdbTick_CurrentMillisecond());
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  const int loops = ctx->getNumLoops();
+  const int errInsDBACC = 3002;
+  const int errInsCLEAR = 0;
+  Uint32* rowmask = 0;
+
+  while (result == NDBT_OK)
+  {
+    chk1(restarter.insertErrorInAllNodes(errInsDBACC) == 0);
+    ndbout << "error insert " << errInsDBACC << " done" << endl;
+
+    const NdbDictionary::Table* pTab = 0;
+    while (result == NDBT_OK)
+    {
+      (void)pDict->dropTable(tabname_bug34348);
+      NdbDictionary::Table tab(tabname_bug34348);
+      {
+        NdbDictionary::Column col("a");
+        col.setType(NdbDictionary::Column::Unsigned);
+        col.setPrimaryKey(true);
+        tab.addColumn(col);
+      }
+      {
+        NdbDictionary::Column col("b");
+        col.setType(NdbDictionary::Column::Unsigned);
+        col.setNullable(false);
+        tab.addColumn(col);
+      }
+      chk2(pDict->createTable(tab) == 0, pDict->getNdbError());
+      chk2((pTab = pDict->getTable(tabname_bug34348)) != 0, pDict->getNdbError());
+      break;
+    }
+
+    HugoOperations ops(*pTab);
+    ops.setQuiet();
+
+    int rowmaxprev = 0;
+    int loop = 0;
+    while (result == NDBT_OK && loop < loops)
+    {
+      ndbout << "loop:" << loop << endl;
+      int rowcnt = 0;
+
+      // fill up
+      while (result == NDBT_OK)
+      {
+        bool rangeFull;
+        chk1(runBug34348insert(ctx, step, ops, rowcnt, &rangeFull) == NDBT_OK);
+        if (rangeFull)
+        {
+          // 360449 (1 fragment)
+          ndbout << "dir range full at " << rowcnt << endl;
+          break;
+        }
+        rowcnt++;
+      }
+      chk1(result == NDBT_OK);
+      const int rowmax = rowcnt;
+
+      if (loop == 0)
+        rowmaxprev = rowmax;
+      else
+        chk2(rowmaxprev == rowmax, "rowmaxprev:" << rowmaxprev << " rowmax:" << rowmax);
+
+      const int sz = (rowmax + 31) / 32;
+      delete [] rowmask;
+      rowmask = new Uint32 [sz];
+      BitmaskImpl::clear(sz, rowmask);
+      {
+        int i;
+        for (i = 0; i < rowmax; i++)
+          BitmaskImpl::set(sz, rowmask, i);
+      }
+
+      // random delete until insert succeeds
+      while (result == NDBT_OK)
+      {
+        int i = myRandom48(rowmax);
+        if (!BitmaskImpl::get(sz, rowmask, i))
+          continue;
+        chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+        BitmaskImpl::clear(sz, rowmask, i);
+        rowcnt--;
+        bool rangeFull;
+        chk1(runBug34348insert(ctx, step, ops, rowmax, &rangeFull) == NDBT_OK);
+        if (!rangeFull)
+        {
+          chk1(runBug34348delete(ctx, step, ops, rowmax) == NDBT_OK);
+          // 344063 (1 fragment)
+          ndbout << "dir range released at " << rowcnt << endl;
+          break;
+        }
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // delete about 1/2 remaining
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (!BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          if (myRandom48(100) < 50)
+            continue;
+          chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+          BitmaskImpl::clear(sz, rowmask, i);
+          rowcnt--;
+        }
+        ndbout << "deleted down to " << rowcnt << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // insert until full again
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          bool rangeFull;
+          chk1(runBug34348insert(ctx, step, ops, i, &rangeFull) == NDBT_OK);
+          // assume all can be inserted back
+          chk2(!rangeFull, "dir range full too early at " << rowcnt);
+          BitmaskImpl::set(sz, rowmask, i);
+          rowcnt++;
+        }
+        chk1(result == NDBT_OK);
+        ndbout << "inserted all back to " << rowcnt << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // delete all
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (!BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+          BitmaskImpl::clear(sz, rowmask, i);
+          rowcnt--;
+        }
+        ndbout << "deleted all" << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(rowcnt == 0);
+
+      loop++;
+    }
+
+    chk2(pDict->dropTable(tabname_bug34348) == 0, pDict->getNdbError());
+
+    chk1(restarter.insertErrorInAllNodes(errInsCLEAR) == 0);
+    ndbout << "error insert clear done" << endl;
+    break;
+  }
+
+  if (result != NDBT_OK && restarter.insertErrorInAllNodes(errInsCLEAR) != 0)
+    g_err << "error insert clear failed" << endl;
+
+  delete [] rowmask;
+  rowmask = 0;
+  return result;
+}
+
 template class Vector<NdbRecAttr*>;
 
 NDBT_TESTSUITE(testBasic);
@@ -1958,6 +2188,12 @@ TESTCASE("Bug20535",
 TESTCASE("DDInsertFailUpdateBatch",
          "Verify DD insert failure effect on other ops in batch on same PK"){
   STEP(runDDInsertFailUpdateBatch);
+}
+
+TESTCASE("Bug34348",
+         "Test fragment directory range full in ACC.\n"
+         "NOTE: If interrupted, must clear error insert 3002 manually"){
+  STEP(runBug34348);
 }
 NDBT_TESTSUITE_END(testBasic);
 
