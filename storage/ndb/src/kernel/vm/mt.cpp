@@ -935,9 +935,17 @@ fifo_used_pages(struct thr_data* selfptr)
 
 static
 void
-job_buffer_full()
+job_buffer_full(struct thr_data* selfptr)
 {
   ndbout_c("job buffer full");
+  abort();
+}
+
+static
+void
+out_of_job_buffer(struct thr_data* selfptr)
+{
+  ndbout_c("out of job buffer");
   abort();
 }
 
@@ -983,7 +991,7 @@ seize_buffer(struct thr_repository* rep, int thr_no, bool prioa)
       {
         if (unlikely(cnt == 0))
         {
-          job_buffer_full();
+          out_of_job_buffer(selfptr);
         }
         break;
       }
@@ -2206,7 +2214,7 @@ insert_signal(thr_job_queue *q, thr_jb_write_state *w, Uint32 prioa,
      */
     if (unlikely(write_index == q->m_head->m_read_index))
     {
-      job_buffer_full();
+      job_buffer_full(0);
     }
     new_buffer->m_len = 0;
     new_buffer->m_prioa = prioa;
