@@ -202,6 +202,7 @@ ErrorBundle ErrorCodes[] = {
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
   { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
+  { 633,  HA_ERR_INDEX_FILE_FULL, IS, "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
   { 826,  HA_ERR_RECORD_FILE_FULL, IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },

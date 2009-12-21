@@ -124,6 +124,9 @@ public:
   
   int wait_async(Ndb*, int timeout = -1);
 
+  const NdbError& getNdbError() const;
+  void setQuiet() { m_quiet = true; }
+
 protected:
   void allocRows(int rows);
   void deallocRows();
@@ -142,6 +145,10 @@ protected:
   int m_async_return;
   friend void HugoOperations_async_callback(int, NdbTransaction*, void*);
   void callback(int res, NdbTransaction*);
+
+  void setNdbError(const NdbError& error);
+  NdbError m_error;
+  bool m_quiet;
 };
 
 #endif
