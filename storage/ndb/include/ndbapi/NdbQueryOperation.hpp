@@ -81,8 +81,7 @@ public:
   const NdbParamOperand* getParameter(const char* name) const;
   const NdbParamOperand* getParameter(Uint32 num) const;
 
-  int setBound(const NdbRecord *keyRecord,
-               const class NdbIndexScanOperation::IndexBound *bound);
+  int setBound(const class NdbIndexScanOperation::IndexBound *bound);
 
   /**
    * Get the next tuple(s) from the global cursor on the query.
@@ -180,7 +179,6 @@ public:
   NdbQuery& getQuery() const;
 
 
-
   /**
    * Defines a retrieval operation of an attribute value.
    * The NDB API allocate memory for the NdbRecAttr object that
@@ -218,14 +216,11 @@ public:
 		       char* resultBuffer = 0);
 
   /**
-   * Retrieval of entire or partial rows may also be specified. For partial
-   * retrieval a bitmask should supplied.
+   * Retrieval of entire or partial rows may also be specified. 
+   * Layout af result record is as specified by tbl_record argument
+   * when the query was defined. For partial retrieval a bitmask should supplied.
    *
-   * The behaviour of mixing NdbRecord retrieval style with NdbRecAttr is
-   * is undefined - It should probably not be allowed.
-   *
-   * @param rec  Is a pointer to a NdbRecord specifying the byte layout of the
-   *             result row.
+   * Mixing NdbRecord retrieval style with NdbRecAttr is also allowed
    *
    * @resBuffer  Defines a buffer sufficient large to hold the result row.
    *
@@ -236,12 +231,10 @@ public:
    *         The column is only affected if 'mask[attrId >> 3]  & (1<<(attrId & 7))' is set
    * @return 0 on success, -1 otherwise (call getNdbError() for details).
    */
-  int setResultRowBuf (const NdbRecord *rec,
-                       char* resBuffer,
+  int setResultRowBuf (char* resBuffer,
                        const unsigned char* result_mask = 0);
 
-  int setResultRowRef (const NdbRecord* rec,
-                       const char* & bufRef,
+  int setResultRowRef (const char* & bufRef,
                        const unsigned char* result_mask = 0);
 
   // TODO: define how BLOB/CLOB should be retrieved.
@@ -293,6 +286,56 @@ private:
 
 }; // class NdbQueryOperation
 
+
+class NdbQueryParamValue
+{
+public:
+
+  // Raw data in NdbRecord::Attr format.
+  // NOTE: This is how mysqld prepare parameter values!
+  NdbQueryParamValue(const void* val);
+
+  // C-type string, terminated by '\0'
+  NdbQueryParamValue(const char* val);
+
+  // NULL-value, also used as optional end marker 
+  NdbQueryParamValue();
+  NdbQueryParamValue(Uint16 val);
+  NdbQueryParamValue(Uint32 val);
+  NdbQueryParamValue(Uint64 val);
+  NdbQueryParamValue(double val);
+
+  // More parameter c'tor to be added when required:
+//NdbQueryParamValue(Uint8 val);
+//NdbQueryParamValue(Int8 val);
+//NdbQueryParamValue(Int16 val);
+//NdbQueryParamValue(Int32 val);
+//NdbQueryParamValue(Int64 val);
+
+  // Get parameter value with required typeconversion to fit format
+  // expected by paramOp
+  int getValue(const class NdbParamOperandImpl& paramOp,
+               const void*& addr, size_t& len,
+               bool& is_null) const;
+
+private:
+  int m_type;
+
+  union
+  {
+    Uint8     uint8;
+    Int8      int8;
+    Uint16    uint16;
+    Int16     int16;
+    Uint32    uint32;
+    Int32     int32;
+    Uint64    uint64;
+    Int64     int64;
+    double    dbl;
+    const char* string;
+    const void* raw;
+  } m_value;
+};
 
 
 #endif

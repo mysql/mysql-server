@@ -23,6 +23,8 @@
 #include <NdbSqlUtil.hpp>
 #include <ndbapi_limits.h>
 
+class NdbTableImpl;
+
 class NdbRecord {
 public:
   /* Flag bits for the entire NdbRecord. */
