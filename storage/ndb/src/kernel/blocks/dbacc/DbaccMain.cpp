@@ -1553,6 +1553,12 @@ void Dbacc::insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::insertelementLab(Signal* signal) 
 {
+  if (unlikely(fragrecptr.p->dirRangeFull))
+  {
+    jam();
+    acckeyref1Lab(signal, ZDIR_RANGE_FULL_ERROR);
+    return;
+  }
   if (fragrecptr.p->firstOverflowRec == RNIL) {
     jam();
     allocOverflowPage(signal);
@@ -5218,6 +5224,12 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     /*       THE SLACK HAS IMPROVED AND IS NOW ACCEPTABLE AND WE    */
     /*       CAN FORGET ABOUT THE EXPAND PROCESS.                   */
     /*--------------------------------------------------------------*/
+    if (ERROR_INSERTED(3002))
+      debug_lh_vars("SLK");
+    if (fragrecptr.p->dirRangeFull == ZTRUE) {
+      jam();
+      fragrecptr.p->dirRangeFull = ZFALSE;
+    }
     return;
   }//if
   if (fragrecptr.p->firstOverflowRec == RNIL) {
@@ -5265,7 +5277,20 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   ptrNull(newDirptr);
   texpDirRangeIndex = texpDirInd >> 8;
   ptrCheckGuard(expDirRangePtr, cdirrangesize, dirRange);
-  arrGuard(texpDirRangeIndex, 256);
+  Uint32 max_dir_range_size = 256;
+  if (ERROR_INSERTED(3002)) {
+      debug_lh_vars("EXP");
+      max_dir_range_size = 2;
+  }
+  if (texpDirRangeIndex >= max_dir_range_size) {
+    jam();
+    ndbrequire(texpDirRangeIndex == max_dir_range_size);
+    if (fragrecptr.p->dirRangeFull == ZFALSE) {
+      jam();
+      fragrecptr.p->dirRangeFull = ZTRUE;
+    }
+    return;
+  }
   expDirptr.i = expDirRangePtr.p->dirArray[texpDirRangeIndex];
   if (expDirptr.i == RNIL) {
     jam();
@@ -5802,6 +5827,13 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     jam();
     fragrecptr.p->p--;
   }//if
+  
+  if (ERROR_INSERTED(3002))
+    debug_lh_vars("SHR");
+  if (fragrecptr.p->dirRangeFull == ZTRUE) {
+    jam();
+    fragrecptr.p->dirRangeFull = ZFALSE;
+  }
 
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
@@ -6192,6 +6224,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
 
   regFragPtr.p->activeDataPage = 0;
   regFragPtr.p->hasCharAttr = ZFALSE;
+  regFragPtr.p->dirRangeFull = ZFALSE;
   regFragPtr.p->nextAllocPage = 0;
   regFragPtr.p->fragState = FREEFRAG;
 }//Dbacc::initFragGeneral()
@@ -8502,3 +8535,25 @@ Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
   //  signal->theData[0] = src[0];
   //  signal->theData[1] = src[1];
 }
+
+#ifdef VM_TRACE
+void
+Dbacc::debug_lh_vars(const char* where)
+{
+  Uint32 b = fragrecptr.p->maxp + fragrecptr.p->p;
+  Uint32 di = b >> fragrecptr.p->k;
+  Uint32 ri = di >> 8;
+  ndbout
+    << "DBACC: " << where << ":"
+    << " frag:" << fragrecptr.p->myTableId
+    << "/" << fragrecptr.p->myfid
+    << " slack:" << (Int32)fragrecptr.p->slack
+    << "/" << fragrecptr.p->slackCheck
+    << " maxp:" << fragrecptr.p->maxp
+    << " p:" << fragrecptr.p->p
+    << " di:" << di
+    << " ri:" << ri
+    << " full:" << fragrecptr.p->dirRangeFull
+    << "\n";
+}
+#endif
