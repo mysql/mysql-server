@@ -602,3 +602,9 @@ LGMAN:
 TSMAN:
 -----
 16000: Fail to create data file
+
+ACC bug#34348
+-------------
+3002: limit frags to 2 directory pages (instead of 256)
+      print (if VM_TRACE) LH variables at expand and shrink
+      apply before mass data load, reset with error insert 0
