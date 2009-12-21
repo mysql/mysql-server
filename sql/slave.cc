@@ -1206,6 +1206,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
   }
+  else if (check_io_slave_killed(mi->io_thd, mi, NULL))
+    goto slave_killed_err;
   else if (is_network_error(mysql_errno(mysql)))
   {
     mi->report(WARNING_LEVEL, mysql_errno(mysql),
@@ -1258,7 +1260,9 @@ not always make sense; please check the manual before using it).";
   }
   else if (mysql_errno(mysql))
   {
-    if (is_network_error(mysql_errno(mysql)))
+    if (check_io_slave_killed(mi->io_thd, mi, NULL))
+      goto slave_killed_err;
+    else if (is_network_error(mysql_errno(mysql)))
     {
       mi->report(WARNING_LEVEL, mysql_errno(mysql),
                  "Get master SERVER_ID failed with error: %s", mysql_error(mysql));
@@ -1329,6 +1333,8 @@ be equal for the Statement-format replication to work";
         goto err;
       }
     }
+    else if (check_io_slave_killed(mi->io_thd, mi, NULL))
+      goto slave_killed_err;
     else if (is_network_error(mysql_errno(mysql)))
     {
       mi->report(WARNING_LEVEL, mysql_errno(mysql),
@@ -1390,6 +1396,8 @@ be equal for the Statement-format replication to work";
         goto err;
       }
     }
+    else if (check_io_slave_killed(mi->io_thd, mi, NULL))
+      goto slave_killed_err;
     else if (is_network_error(mysql_errno(mysql)))
     {
       mi->report(WARNING_LEVEL, mysql_errno(mysql),
@@ -1450,6 +1458,11 @@ err:
   DBUG_RETURN(0);
 
 network_err:
+  if (master_res)
+    mysql_free_result(master_res);
+  DBUG_RETURN(2);
+
+slave_killed_err:
   if (master_res)
     mysql_free_result(master_res);
   DBUG_RETURN(2);
@@ -2339,9 +2352,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       hits the UNTIL barrier.
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
-                                rli->group_master_log_pos :
-                                ev->log_pos - ev->data_written))
+        rli->is_until_satisfied(thd, ev))
     {
       char buf[22];
       sql_print_information("Slave SQL thread stopped because it reached its"
@@ -2678,7 +2689,7 @@ connected:
   if (ret == 1)
     /* Fatal error */
     goto err;
-  
+
   if (ret == 2) 
   { 
     if (check_io_slave_killed(mi->io_thd, mi, "Slave I/O thread killed"
@@ -3139,7 +3150,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   */
   pthread_mutex_lock(&rli->data_lock);
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied(rli->group_master_log_pos))
+      rli->is_until_satisfied(thd, NULL))
   {
     char buf[22];
     sql_print_information("Slave SQL thread stopped because it reached its"
