@@ -134,6 +134,12 @@ flag value must give the length also! */
 #define MLOG_BIGGEST_TYPE	((byte)46)	/* biggest value (used in
 						asserts) */
 
+/* Flags for MLOG_FILE operations (stored in the page number
+parameter, called log_flags in the functions).  The page number
+parameter was initially written as 0. */
+#define MLOG_FILE_FLAG_TEMP	1	/* identifies TEMPORARY TABLE in
+					MLOG_FILE_CREATE */
+
 /*******************************************************************
 Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller. */

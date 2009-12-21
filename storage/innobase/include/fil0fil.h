@@ -330,11 +330,11 @@ fil_op_log_parse_or_replay(
 				not fir completely between ptr and end_ptr */
 	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
-	ibool	do_replay,	/* in: TRUE if we want to replay the
-				operation, and not just parse the log record */
-	ulint	space_id);	/* in: if do_replay is TRUE, the space id of
-				the tablespace in question; otherwise
-				ignored */
+	ulint	space_id,	/* in: the space id of the tablespace in
+				question, or 0 if the log record should
+				only be parsed but not replayed */
+	ulint	log_flags);	/* in: redo log flags
+				(stored in the page number parameter) */
 /***********************************************************************
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. */

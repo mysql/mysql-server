@@ -939,8 +939,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
 	case MLOG_FILE_DELETE:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
-						 ULINT_UNDEFINED);
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
 		break;
 	default:
 		ptr = NULL;
@@ -1938,8 +1937,8 @@ loop:
 				point to the datadir we should use there */
 
 				if (NULL == fil_op_log_parse_or_replay(
-					    body, end_ptr, type, TRUE,
-					    space)) {
+					    body, end_ptr, type,
+					    space, page_no)) {
 					fprintf(stderr,
 						"InnoDB: Error: file op"
 						" log record of type %lu"
