@@ -9,6 +9,16 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+#
+#BUG#49591, Add proper version number to SHOW CREATE TABLE
+#
+create table t1 (a int)
+partition by range (a)
+subpartition by hash(to_seconds(a))
+(partition p0 values less than (1));
+show create table t1;
+drop table t1;
+
 --error ER_NULL_IN_VALUES_LESS_THAN
 create table t1 (a int)
 partition by range (a)
@@ -30,6 +40,7 @@ explain partitions select * from t1 where a < '2007-03-08 00:00:01';
 explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
 explain partitions select * from t1 where a <= '2007-03-07 23:59:59';
 explain partitions select * from t1 where a < '2007-03-07 23:59:59';
+show create table t1;
 drop table t1;
 #
 # New test cases for new function to_seconds
@@ -44,6 +55,7 @@ explain partitions select * from t1 where a <= '2003-12-31';
 select * from t1 where a <= '2003-12-31';
 explain partitions select * from t1 where a <= '2005-01-01';
 select * from t1 where a <= '2005-01-01';
+show create table t1;
 drop table t1;
 
 create table t1 (a datetime)
@@ -56,6 +68,7 @@ explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
 select * from t1 where a <= '2004-01-01 11:59:59';
 explain partitions select * from t1 where a <= '2005-01-01';
 select * from t1 where a <= '2005-01-01';
+show create table t1;
 drop table t1;
 
 #
