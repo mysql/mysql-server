@@ -45,24 +45,22 @@ class Arg_comparator: public Sql_alloc
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
   bool set_null;                   // TRUE <=> set owner->null_value
                                    //   when one of arguments is NULL.
-  bool year_as_datetime;           // TRUE <=> convert YEAR value to
-                                   // the YYYY-00-00 00:00:00 DATETIME
-                                   // format. See compare_year.
   enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
                             CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
   longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
                                Item *warn_item, bool *is_null);
   longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
                                Item *warn_item, bool *is_null);
+  bool try_year_cmp_func(Item_result type);
 public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(0),
-    year_as_datetime(0), get_value_a_func(0), get_value_b_func(0) {};
+  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+    get_value_a_func(0), get_value_b_func(0) {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
-    a_cache(0), b_cache(0), set_null(0), year_as_datetime(0),
+    a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
   int set_compare_func(Item_result_field *owner, Item_result type);
@@ -104,7 +102,6 @@ public:
   int compare_real_fixed();
   int compare_e_real_fixed();
   int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
-  int compare_year();
 
   static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
                                                       ulonglong *const_val_arg);
@@ -1586,7 +1583,9 @@ class Item_equal: public Item_bool_func
   List<Item_field> fields; /* list of equal field items                    */
   Item *const_item;        /* optional constant item equal to fields items */
   cmp_item *eval_item;
+  Arg_comparator cmp;
   bool cond_false;
+  bool compare_as_dates;
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
@@ -1595,6 +1594,8 @@ public:
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
   inline Item* get_const() { return const_item; }
+  void compare_const(Item *c);
+  void add(Item *c, Item_field *f);
   void add(Item *c);
   void add(Item_field *f);
   uint members();
