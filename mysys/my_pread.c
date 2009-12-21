@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,12 +60,12 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
   {
     errno= 0;    /* Linux, Windows don't reset this on EOF/success */
 #if !defined (HAVE_PREAD) && !defined (_WIN32)
-    pthread_mutex_lock(&my_file_info[Filedes].mutex);
+    mysql_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;
     error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
            (readbytes= read(Filedes, Buffer, Count)) != Count);
     save_errno= errno;
-    pthread_mutex_unlock(&my_file_info[Filedes].mutex);
+    mysql_mutex_unlock(&my_file_info[Filedes].mutex);
     if (error)
       errno= save_errno;
 #else
@@ -150,10 +150,10 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
 #if !defined (HAVE_PREAD) && !defined (_WIN32)
     int error;
     writtenbytes= (size_t) -1;
-    pthread_mutex_lock(&my_file_info[Filedes].mutex);
+    mysql_mutex_lock(&my_file_info[Filedes].mutex);
     error= (lseek(Filedes, offset, MY_SEEK_SET) != (my_off_t) -1 &&
             (writtenbytes= write(Filedes, Buffer, Count)) == Count);
-    pthread_mutex_unlock(&my_file_info[Filedes].mutex);
+    mysql_mutex_unlock(&my_file_info[Filedes].mutex);
     if (error)
       break;
 #elif defined (_WIN32)

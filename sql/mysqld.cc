@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -524,7 +524,8 @@ uint mysqld_port_timeout;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
-uint volatile thread_count, thread_running;
+uint volatile thread_count;
+int32 thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
@@ -540,6 +541,8 @@ ulonglong  max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
+my_atomic_rwlock_t global_query_id_lock;
+my_atomic_rwlock_t thread_running_lock;
 ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -647,14 +650,16 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-pthread_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_thread_count,
-		LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
+pthread_mutex_t LOCK_thread_count,
+                LOCK_mapped_file, LOCK_global_read_lock,
 		LOCK_error_log, LOCK_uuid_generator,
-		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
                 LOCK_connection_count, LOCK_error_messages;
+mysql_mutex_t LOCK_open, LOCK_mysql_create_db, LOCK_status, LOCK_delayed_status,
+              LOCK_delayed_insert, LOCK_delayed_create;
+
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -668,7 +673,8 @@ pthread_mutex_t LOCK_des_key_file;
 #endif
 rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 rw_lock_t	LOCK_system_variables_hash;
-pthread_cond_t COND_refresh, COND_thread_count, COND_global_read_lock;
+mysql_cond_t COND_refresh;
+pthread_cond_t COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 pthread_mutex_t  LOCK_server_started;
@@ -958,14 +964,14 @@ static void close_connections(void)
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
-      pthread_mutex_lock(&tmp->mysys_var->mutex);
+      mysql_mutex_lock(&tmp->mysys_var->mutex);
       if (tmp->mysys_var->current_cond)
       {
-	pthread_mutex_lock(tmp->mysys_var->current_mutex);
-	pthread_cond_broadcast(tmp->mysys_var->current_cond);
-	pthread_mutex_unlock(tmp->mysys_var->current_mutex);
+        mysql_mutex_lock(tmp->mysys_var->current_mutex);
+        mysql_cond_broadcast(tmp->mysys_var->current_cond);
+        mysql_mutex_unlock(tmp->mysys_var->current_mutex);
       }
-      pthread_mutex_unlock(&tmp->mysys_var->mutex);
+      mysql_mutex_unlock(&tmp->mysys_var->mutex);
     }
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
@@ -1301,7 +1307,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   item_create_cleanup();
   set_var_free();
-  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1369,6 +1374,8 @@ void clean_up(bool print_message)
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
+  my_atomic_rwlock_destroy(&global_query_id_lock);
+  my_atomic_rwlock_destroy(&thread_running_lock);
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
@@ -1410,17 +1417,17 @@ static void wait_for_signal_thread_to_end()
 
 static void clean_up_mutexes()
 {
-  (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
-  (void) pthread_mutex_destroy(&LOCK_lock_db);
+  mysql_mutex_destroy(&LOCK_mysql_create_db);
+  mysql_mutex_destroy(&LOCK_lock_db);
   (void) rwlock_destroy(&LOCK_grant);
-  (void) pthread_mutex_destroy(&LOCK_open);
+  mysql_mutex_destroy(&LOCK_open);
   (void) pthread_mutex_destroy(&LOCK_thread_count);
   (void) pthread_mutex_destroy(&LOCK_mapped_file);
-  (void) pthread_mutex_destroy(&LOCK_status);
+  mysql_mutex_destroy(&LOCK_status);
   (void) pthread_mutex_destroy(&LOCK_error_log);
-  (void) pthread_mutex_destroy(&LOCK_delayed_insert);
-  (void) pthread_mutex_destroy(&LOCK_delayed_status);
-  (void) pthread_mutex_destroy(&LOCK_delayed_create);
+  mysql_mutex_destroy(&LOCK_delayed_insert);
+  mysql_mutex_destroy(&LOCK_delayed_status);
+  mysql_mutex_destroy(&LOCK_delayed_create);
   (void) pthread_mutex_destroy(&LOCK_manager);
   (void) pthread_mutex_destroy(&LOCK_crypt);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
@@ -1448,7 +1455,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_mutex_destroy(&LOCK_error_messages);
   (void) pthread_cond_destroy(&COND_thread_count);
-  (void) pthread_cond_destroy(&COND_refresh);
+  mysql_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_global_read_lock);
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
@@ -3592,16 +3599,20 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
-  (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_mysql_create_db,
+                   &LOCK_mysql_create_db, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_error_log,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_LOCK_deleyed_insert,
+                   &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_delayed_status,
+                   &LOCK_delayed_status, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_delayed_create,
+                   &LOCK_delayed_create, MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
@@ -3631,7 +3642,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
-  (void) pthread_cond_init(&COND_refresh,NULL);
+  mysql_cond_init(key_COND_refresh, &COND_refresh, NULL);
   (void) pthread_cond_init(&COND_global_read_lock,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
@@ -3991,7 +4002,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln))
+    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(1);
     }
@@ -4155,7 +4166,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0))
+                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -5686,6 +5697,7 @@ enum options_mysqld
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
+  OPT_MYISAM_MMAP_SIZE,
   OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -5987,7 +5999,8 @@ Disable with --skip-super-large-pages.",
 #endif
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed by a slave server \
+each time the SQL thread starts.",
    (uchar**) &opt_init_slave, (uchar**) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"language", 'L',
@@ -6807,6 +6820,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.myisam_max_sort_file_size, 0,
    GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
    0, 1024*1024, 0},
+  {"myisam_mmap_size", OPT_MYISAM_MMAP_SIZE,
+   "Can be used to restrict the total memory used for memory mmaping of myisam files",
+   (uchar**) &myisam_mmap_size, (uchar**) &myisam_mmap_size, 0,
+   GET_ULL, REQUIRED_ARG, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 0, 1, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
    "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
    (uchar**) &global_system_variables.myisam_repair_threads,
@@ -7782,6 +7799,8 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;	/* Increments on each reload */
   global_query_id= thread_id= 1L;
+  my_atomic_rwlock_init(&global_query_id_lock);
+  my_atomic_rwlock_init(&thread_running_lock);
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
   myisam_stats_method_str= "nulls_unequal";
@@ -8924,7 +8943,7 @@ static void create_pid_file()
 /** Clear most status variables. */
 void refresh_status(THD *thd)
 {
-  pthread_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
 
   /* Add thread's status variabes to global status */
   add_to_status(&global_status_var, &thd->status_var);
@@ -8938,7 +8957,7 @@ void refresh_status(THD *thd)
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
   flush_status_time= time((time_t*) 0);
-  pthread_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   /*
     Set max_used_connections to the number of currently open
