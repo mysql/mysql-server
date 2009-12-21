@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 
-my_bool init_available_charsets(myf myflags);
+void init_available_charsets(void);
 
 /* this function is required so that global memory is allocated against this
 library nlm, and not against a paticular client */
@@ -31,7 +31,7 @@ int _NonAppStart(void *NLMHandle, void *errorScreen, const char *commandLine,
 {
   mysql_server_init(0, NULL, NULL);
   
-  init_available_charsets(MYF(0));
+  init_available_charsets();
 
   return 0;
 }
