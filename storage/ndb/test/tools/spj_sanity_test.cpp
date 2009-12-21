@@ -138,10 +138,6 @@ namespace SPJSanityTest{
       return m_tableSize; 
     }
 
-    const NdbRecord* getNdbRecord() const {
-      return m_ndbRecord;
-    }
-
     const NdbDictionary::Dictionary* getDictionary() const {
       return m_ndb.getDictionary();
     }
@@ -157,7 +153,6 @@ namespace SPJSanityTest{
     NdbQuery* m_query;
     Uint32 m_operationCount;
     int m_tableSize;
-    const NdbRecord* m_ndbRecord;
   };
 
   
@@ -264,8 +259,7 @@ namespace SPJSanityTest{
     m_queryDef(NULL),
     m_query(NULL),
     m_operationCount(0),
-    m_tableSize(-1),
-    m_ndbRecord(NULL)
+    m_tableSize(-1)
   {}
 
   template <typename Row>
@@ -273,13 +267,11 @@ namespace SPJSanityTest{
     m_tableSize = tableSize;
     m_root->build(m_builder, tab);
     m_queryDef = m_builder.prepare();
-    m_ndbRecord = tab.getDefaultRecord();
   }
 
   template <typename Row>
   void Query<Row>::submit(NdbTransaction& transaction){
-    const void* const params[] = {NULL};
-    m_query = transaction.createQuery(m_queryDef, params);
+    m_query = transaction.createQuery(m_queryDef);
     ASSERT_ALWAYS(m_query!=NULL);
     submitOperation(*m_root);
   }
@@ -402,9 +394,7 @@ namespace SPJSanityTest{
   void LookupOperation<Row, Key>::submit(){
     NdbQueryOperation* queryOp 
       = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+    queryOp->setResultRowRef(reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
                              NULL);
   }
 
@@ -493,9 +483,7 @@ namespace SPJSanityTest{
   void IndexLookupOperation<Row, Key>::submit(){
     NdbQueryOperation* queryOp 
       = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+    queryOp->setResultRowRef(reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
                              NULL);
   }
 
@@ -557,9 +545,7 @@ namespace SPJSanityTest{
   void TableScanOperation<Row>::submit(){
     NdbQueryOperation* queryOp 
       = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+    queryOp->setResultRowRef(reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
                              NULL);
     if(m_lessThanRow!=-1){
       NdbInterpretedCode* const code = queryOp->getCreateInterpretedCode();
@@ -661,9 +647,7 @@ namespace SPJSanityTest{
   void IndexScanOperation<Row, Key>::submit(){
     NdbQueryOperation* queryOp 
       = Operation<Row>::m_query.getOperation(Operation<Row>::m_operationId);
-    queryOp->setResultRowRef(Operation<Row>::m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
+    queryOp->setResultRowRef(reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
                              NULL);
   }
 

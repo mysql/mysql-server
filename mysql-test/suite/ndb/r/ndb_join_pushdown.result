@@ -889,7 +889,7 @@ commit;
 explain
 select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	
+1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Pushed 2 joins
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	const,test.x.b3	1	
 select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
@@ -1478,5 +1478,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
+drop table t3;
+create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
+primary key(a3,b3)) engine = ndb;
+insert into t3 values ('Ole', 0x1f, 1, 0x1f);
+insert into t3 values ('Dole', 0x2f, 2, 0x2f);
+insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
+explain
+select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	const	PRIMARY	PRIMARY	22	const,const	1	Pushed 2 joins; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Using where with pushed condition
+select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
+a3	b3	c3	d3	a3	b3	c3	d3
+Dole	47	2	47	Dole	47	2	47
+explain
+select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	10	Pushed 2 joins; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Using where with pushed condition
+select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
+a3	b3	c3	d3	a3	b3	c3	d3
+Dole	47	2	47	Dole	47	2	47
 drop table t3;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

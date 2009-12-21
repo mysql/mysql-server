@@ -253,7 +253,7 @@ void TestThread::doLinkedAPITest(){
           builder.constValue(0), //a
           NULL
         };
-        parentOpDef = builder.readTuple(m_tab, rootKey);
+        parentOpDef = builder.readTuple(m_keyRec, m_resultRec, rootKey);
       }else if(m_params->m_scanLength==1){ //Pruned scan
         const NdbQueryOperand* const key[] = {
           builder.constValue(m_params->m_scanLength),
@@ -261,7 +261,7 @@ void TestThread::doLinkedAPITest(){
         };
 
         const NdbQueryIndexBound eqBound(key);
-        parentOpDef = builder.scanIndex(m_index, m_tab, &eqBound);
+        parentOpDef = builder.scanIndex(m_indexRec, m_resultRec, &eqBound);
       }else{
         // Root is index scan with single bound.
         const NdbQueryOperand* const highKey[] = {
@@ -270,7 +270,7 @@ void TestThread::doLinkedAPITest(){
         };
 
         const NdbQueryIndexBound bound(NULL, false, highKey, false);
-        parentOpDef = builder.scanIndex(m_index, m_tab, &bound);
+        parentOpDef = builder.scanIndex(m_indexRec, m_resultRec, &bound);
       }
           
       // Add child lookup operations.
@@ -279,7 +279,7 @@ void TestThread::doLinkedAPITest(){
           builder.linkedValue(parentOpDef, "b"),
           NULL
         };
-        parentOpDef = builder.readTuple(m_tab, key);
+        parentOpDef = builder.readTuple(m_keyRec, m_resultRec, key);
       }
       queryDef = builder.prepare();
     }
@@ -291,7 +291,7 @@ void TestThread::doLinkedAPITest(){
     NdbQuery* const query = trans->createQuery(queryDef);
     for(int i = 0; i<m_params->m_depth+1; i++){
       query->getQueryOperation(i)
-        ->setResultRowRef(m_resultRec,
+        ->setResultRowRef(//m_resultRec,
                           reinterpret_cast<const char*&>(resultPtrs[i]),
                           NULL);
     }

@@ -42,9 +42,13 @@
 #define QRY_ILLEGAL_STATE 4818
 #define QRY_WRONG_OPERATION_TYPE 4819
 #define QRY_SCAN_ORDER_ALREADY_SET 4820
+#define QRY_PARAMETER_HAS_WRONG_TYPE 4821
+#define QRY_CHAR_PARAMETER_TRUNCATED 4822
+
 
 #ifdef __cplusplus
 #include <Vector.hpp>
+#include "NdbRecord.hpp"
 #include "NdbQueryBuilder.hpp"
 #include "NdbIndexScanOperation.hpp"
 #include "ndb_limits.h"
@@ -59,6 +63,7 @@ class NdbQueryOperationDefImpl;
 class NdbParamOperandImpl;
 class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
+class NdbQueryParamValue;
 
 // For debuggging.
 //#define TRACE_SERIALIZATION
@@ -245,9 +250,6 @@ private:
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
 
-/** For making complex declarations more readable.*/
-typedef const void* constVoidPtr;
-
 class NdbQueryOperationDefImpl
 {
   friend class NdbQueryOperationImpl;
@@ -264,6 +266,14 @@ public:
     OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
   };
 
+  struct IndexBound {     // Limiting 'bound ' definition for indexScan
+    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
+    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 lowKeys, highKeys;
+    bool lowIncl, highIncl;
+    bool eqBound;        // True if 'low == high'
+  };
+
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); }
 
@@ -276,8 +286,11 @@ public:
   const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
 
+  const NdbRecord& getTblRecord() const
+  { return m_tbl_record; }
+
   const NdbTableImpl& getTable() const
-  { return m_table; }
+  { return *m_tbl_record.table; }
 
   const char* getName() const
   { return m_ident; }
@@ -308,8 +321,17 @@ public:
   const NdbParamOperandImpl& getParameter(Uint32 ix) const
   { return *m_params[ix]; }
 
-  virtual const NdbIndexImpl* getIndex() const
+//virtual const NdbIndexImpl* getIndex() const
+//{ return NULL; }
+
+  virtual const NdbRecord* getKeyRecord() const
   { return NULL; }
+
+  virtual const NdbQueryOperandImpl* const* getKeyOperands() const
+  { return NULL; } 
+
+  virtual const IndexBound* getBounds() const
+  { return NULL; } 
 
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
@@ -329,18 +351,6 @@ public:
     return m_spjProjection;
   }
 
-  /**
-   * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param keyInfo Actuall KEYINFO section the key / bounds are 
-   *                put into
-   * @param actualParam Instance values for NdbParamOperands.
-   * @param isPruned 'true' for a scan of pruned to single partition.
-   * @param hashValue Valid only if 'isPruned'.
-   * Returns: 0 if OK, or possible an errorcode.
-   */
-  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[]) const = 0;
-
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                              bool&   isPruned,
                              Uint32& hashValue) const {
@@ -352,10 +362,11 @@ public:
 
 protected:
   explicit NdbQueryOperationDefImpl (
-                                     const NdbTableImpl& table,
-                                     const char* ident,
-                                     Uint32      ix)
-    :m_isPrepared(false), m_table(table), m_ident(ident), m_ix(ix), m_id(ix),
+                           const NdbRecord& tbl_record,
+                           const char* ident,
+                           Uint32      ix)
+    :m_tbl_record(tbl_record), m_isPrepared(false),
+     m_ident(ident), m_ix(ix), m_id(ix),
      m_parents(), m_children(), m_params(),
      m_spjProjection()
   {}
@@ -378,6 +389,8 @@ protected:
   void appendParentList(Uint32Buffer& serializedDef) const;
 
 protected:
+  const NdbRecord& m_tbl_record;
+
   /** True if enclosing query has been prepared.*/
   bool m_isPrepared;
 
@@ -391,7 +404,6 @@ private:
   void removeChild(const NdbQueryOperationDefImpl*);
 
 private:
-  const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array
   Uint32       m_id;         // Operation id when materialized into queryTree.
@@ -416,10 +428,10 @@ class NdbQueryScanOperationDefImpl :
 public:
   virtual ~NdbQueryScanOperationDefImpl()=0;
   explicit NdbQueryScanOperationDefImpl (
-                           const NdbTableImpl& table,
+                           const NdbRecord& tbl_record,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryOperationDefImpl(table,ident,ix)
+  : NdbQueryOperationDefImpl(tbl_record,ident,ix)
   {}
 
   virtual bool isScanOperation() const
@@ -427,7 +439,7 @@ public:
 
 protected:
   int serialize(Uint32Buffer& serializedDef,
-                const NdbTableImpl& tableOrIndex);
+                const NdbRecord& tableOrIndex);
 
 }; // class NdbQueryScanOperationDefImpl
 
@@ -437,8 +449,11 @@ class NdbQueryIndexScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbIndexImpl* getIndex() const
-  { return &m_index; }
+//virtual const NdbIndexImpl* getIndex() const;
+//{ return m_inx_record.table->m_index; }
+
+  virtual const NdbRecord* getKeyRecord() const
+  { return &m_inx_record; }
 
   virtual int serializeOperation(Uint32Buffer& serializedDef);
 
@@ -448,12 +463,12 @@ public:
   virtual Type getType() const
   { return OrderedIndexScan; }
 
-  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[]) const;
-
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                             bool&   isPruned,
                             Uint32& hashValue) const;
+
+  virtual const IndexBound* getBounds() const
+  { return &m_bound; } 
 
   /** Define result ordering. Alternatively, ordering may be set when the 
    * query definition has been instantiated, using 
@@ -471,23 +486,16 @@ public:
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   explicit NdbQueryIndexScanOperationDefImpl (
-                           const NdbIndexImpl& index,
-                           const NdbTableImpl& table,
+                           const NdbRecord& inx_record, 
+                           const NdbRecord& tbl_record,
                            const NdbQueryIndexBound* bound,
                            const char* ident,
                            Uint32      ix);
 
 private:
   NdbQueryIndexScanOperationDef m_interface;
-  const NdbIndexImpl& m_index;
-
-  struct bound {  // Limiting 'bound ' definition
-    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
-    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
-    Uint32 lowKeys, highKeys;
-    bool lowIncl, highIncl;
-    bool eqBound;  // True if 'low == high'
-  } m_bound;
+  const NdbRecord& m_inx_record;
+  IndexBound m_bound;
 
   /** Ordering of scan results.*/
   NdbScanOrdering m_ordering;
@@ -592,14 +600,11 @@ public:
   const NdbColumnImpl* getColumn() const
   { return m_column; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation)
-  { if (m_column  && m_column != &column)
-      // Already bounded to a different column
-      return QRY_OPERAND_ALREADY_BOUND;
-    m_column = &column;
-    return 0;
-  }
+  const NdbRecord::Attr* getRecordAttr() const
+  { return m_attr; }
+
+  virtual int bindOperand(const NdbRecord::Attr& attr,
+                          NdbQueryOperationDefImpl& operation);
 
   Kind getKind() const
   { return m_kind; }
@@ -611,12 +616,14 @@ protected:
   virtual ~NdbQueryOperandImpl()=0;
 
   NdbQueryOperandImpl(Kind kind)
-    : m_column(0),
+    : m_attr(0),
+      m_column(0),
       m_kind(kind)
   {}
 
 protected:
-  const NdbColumnImpl* m_column;       // Initial NULL, assigned w/ bindOperand()
+  const NdbRecord::Attr* m_attr;   // Initial NULL, assigned w/ bindOperand()
+  const NdbColumnImpl*   m_column;
 
   /** This is used to tell the type of an NdbQueryOperand. This allow safe
    * downcasting to a subclass.
@@ -644,7 +651,7 @@ public:
   virtual const NdbLinkedOperand& getInterface() const
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
+  virtual int bindOperand(const NdbRecord::Attr& attr,
                           NdbQueryOperationDefImpl& operation);
 
 private:
@@ -675,12 +682,10 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  size_t getSizeInBytes(const constVoidPtr paramValue) const;
-
   virtual const NdbParamOperand& getInterface() const
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
+  virtual int bindOperand(const NdbRecord::Attr& attr,
                           NdbQueryOperationDefImpl& operation);
 
 private:
@@ -702,7 +707,7 @@ class NdbConstOperandImpl : public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 public:
-  size_t getSizeInBytes()    const
+  size_t getSizeInBytes() const
   { return m_converted.len; }
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
@@ -710,7 +715,7 @@ public:
   virtual const NdbConstOperand& getInterface() const
   { return m_interface; }
 
-  virtual int bindOperand(const NdbColumnImpl& column,
+  virtual int bindOperand(const NdbRecord::Attr& attr,
                           NdbQueryOperationDefImpl& operation);
 
 protected:
@@ -724,6 +729,7 @@ protected:
   #define UNDEFINED_CONVERSION	\
   { return QRY_OPERAND_HAS_WRONG_TYPE; }
 
+private:
   virtual int convertUint8()  UNDEFINED_CONVERSION;
   virtual int convertInt8()   UNDEFINED_CONVERSION;
   virtual int convertUint16() UNDEFINED_CONVERSION;
@@ -756,12 +762,12 @@ protected:
 
   virtual int convert2ColumnType();
 
-  STATIC_CONST(maxShortChar = 32);
-
+protected:
   /** Values converted to datatype format as expected by bound column 
     * (available through ::getColumn())
     */
   class ConvertedValue {
+    STATIC_CONST(maxShortChar = 32);
   public:
     ConvertedValue()  : len(0), buffer(NULL) {};
     ~ConvertedValue() {

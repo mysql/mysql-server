@@ -37,6 +37,7 @@ class NdbTransaction;
 class NdbReceiver;
 class NdbOut;
 
+
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
  * programmer. @see NdbQuery.*/
@@ -116,10 +117,9 @@ public:
    *  Memory location used as source for parameter values don't have
    *  to be valid after this assignment.
    */
-  int assignParameters(const constVoidPtr paramValues[]);
+  int assignParameters(const NdbQueryParamValue paramValues[]);
 
-  int setBound(const NdbRecord *keyRecord,
-               const NdbIndexScanOperation::IndexBound *bound);
+  int setBound(const NdbIndexScanOperation::IndexBound *bound);
 
   /** Prepare for execution. 
    *  @return possible error code.
@@ -167,7 +167,6 @@ public:
            (!m_queryDef.isScanQuery() && m_state >= Executing); 
   }
   
-
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
    * matches those returned from PoolGuard::waitScan().
@@ -272,7 +271,8 @@ private:
      * @return 1 if s1>s2, 0 if s1==s2, -1 if s1<s2.*/
     int compare(const NdbResultStream& stream1,
                 const NdbResultStream& stream2) const;
-  };
+
+  }; // class OrderedStreamSet
 
   /** The interface that is visible to the application developer.*/
   NdbQuery m_interface;
@@ -403,6 +403,7 @@ private:
   /** Get the number of fragments to be read for the root operation.*/
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
+
 }; // class NdbQueryImpl
 
 
@@ -442,12 +443,10 @@ public:
   NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer);
   NdbRecAttr* getValue(const NdbColumnImpl&, char* resultBuffer);
 
-  int setResultRowBuf (const NdbRecord *rec,
-                       char* resBuffer,
+  int setResultRowBuf (char* resBuffer,
                        const unsigned char* result_mask);
 
-  int setResultRowRef (const NdbRecord* rec,
-                       const char* & bufRef,
+  int setResultRowRef (const char* & bufRef,
                        const unsigned char* result_mask);
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
@@ -566,7 +565,7 @@ private:
 
   /** Serialize parameter values.
    *  @return possible error code.*/
-  int serializeParams(const constVoidPtr paramValues[]);
+  int serializeParams(const NdbQueryParamValue paramValues[]);
 
   int serializeProject(Uint32Buffer& attrInfo) const;
 
@@ -576,6 +575,26 @@ private:
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
   int prepareAttrInfo(Uint32Buffer& attrInfo);
+
+  /**
+   * Expand keys and bounds for the root operation into the KEYINFO section.
+   * @param keyInfo Actuall KEYINFO section the key / bounds are 
+   *                put into
+   * @param actualParam Instance values for NdbParamOperands.
+   * Returns: 0 if OK, or possible an errorcode.
+   */
+  int prepareKeyInfo(Uint32Buffer& keyInfo,
+                     const NdbQueryParamValue* actualParam);
+
+  int prepareLookupKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperandImpl* const keys[],
+                     const NdbQueryParamValue* actualParam);
+
+  int prepareIndexKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperationDefImpl::IndexBound* bounds,
+                     const NdbQueryParamValue* actualParam);
 
   /** Return I-value (for putting in object map) for a receiver pointing back 
    * to this object. TCKEYCONF is processed by first looking up an 

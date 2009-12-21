@@ -985,4 +985,26 @@ drop table t1, t2;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   drop table t3;
 
+##
+## Testing of varchar datatype as part of lookup key and index bounds.
+## Need special attention due to the 'ShrinkVarchar' format used by mysqld.
+
+create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
+  primary key(a3,b3)) engine = ndb;
+insert into t3 values ('Ole', 0x1f, 1, 0x1f);
+insert into t3 values ('Dole', 0x2f, 2, 0x2f);
+insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
+
+# Varchar is lookup key
+explain
+select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
+select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
+
+# Varchar as hi/low bound
+explain
+select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
+select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
+drop table t3;
+
+
 set ndb_join_pushdown = @save_ndb_join_pushdown;
