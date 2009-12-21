@@ -36,7 +36,7 @@
 #include <drizzled/current_session.h>
 #include <drizzled/sql_lex.h>
 #include <drizzled/session.h>
-extern "C" struct charset_info_st *session_charset(Session *session);
+//extern "C" struct charset_info_st *session_charset(Session *session);
 extern pthread_key_t THR_Session;
 #else
 #include "mysql_priv.h"
@@ -171,7 +171,9 @@ xtPublic u_int myxt_create_key_from_key(XTIndexPtr ind, xtWord1 *key, xtWord1 *o
 
 	for (u_int i=0; i<ind->mi_seg_count && (int) k_length > 0; i++, old += keyseg->length, keyseg++)
 	{
+#ifndef DRIZZLED
 		enum ha_base_keytype	type = (enum ha_base_keytype) keyseg->type;
+#endif
 		u_int					length = keyseg->length < k_length ? keyseg->length : k_length;
 		u_int					char_length;
 		xtWord1					*pos;
@@ -192,14 +194,18 @@ xtPublic u_int myxt_create_key_from_key(XTIndexPtr ind, xtWord1 *key, xtWord1 *o
 		pos = old;
 		if (keyseg->flag & HA_SPACE_PACK) {
 			uchar *end = pos + length;
+#ifndef DRIZZLED
 			if (type != HA_KEYTYPE_NUM) {
+#endif
 				while (end > pos && end[-1] == ' ')
 					end--;
+#ifndef DRIZZLED
 			}
 			else {
 				while (pos < end && pos[0] == ' ')
 					pos++;
 			}
+#endif
 			k_length -= length;
 			length = (u_int) (end-pos);
 			FIX_LENGTH(cs, pos, length, char_length);
@@ -276,6 +282,7 @@ xtPublic u_int myxt_create_key_from_row(XTIndexPtr ind, xtWord1 *key, xtWord1 *r
 		char_length= ((cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length);
 
 		pos = record + keyseg->start;
+#ifndef DRIZZLED
 		if (type == HA_KEYTYPE_BIT)
 		{
 			if (keyseg->bit_length)
@@ -289,17 +296,22 @@ xtPublic u_int myxt_create_key_from_row(XTIndexPtr ind, xtWord1 *key, xtWord1 *r
 			key+= length;
 			continue;
 		}
+#endif
 		if (keyseg->flag & HA_SPACE_PACK)
 		{
 			end = pos + length;
+#ifndef DRIZZLED
 			if (type != HA_KEYTYPE_NUM) {
+#endif
 				while (end > pos && end[-1] == ' ')
 					end--;
+#ifndef DRIZZLED
 			}
 			else {
 				while (pos < end && pos[0] == ' ')
 					pos++;
 			}
+#endif
 			length = (u_int) (end-pos);
 			FIX_LENGTH(cs, pos, length, char_length);
 			store_key_length_inc(key,char_length);
@@ -333,6 +345,7 @@ xtPublic u_int myxt_create_key_from_row(XTIndexPtr ind, xtWord1 *key, xtWord1 *r
 		if (keyseg->flag & HA_SWAP_KEY)
 		{						/* Numerical column */
 #ifdef HAVE_ISNAN
+#ifndef DRIZZLED
 			if (type == HA_KEYTYPE_FLOAT)
 			{
 				float nr;
@@ -345,7 +358,9 @@ xtPublic u_int myxt_create_key_from_row(XTIndexPtr ind, xtWord1 *key, xtWord1 *r
 					continue;
 				}
 			}
-			else if (type == HA_KEYTYPE_DOUBLE) {
+			else 
+#endif			
+			if (type == HA_KEYTYPE_DOUBLE) {
 				double nr;
 
 				float8get(nr,pos);
@@ -414,6 +429,7 @@ xtPublic u_int myxt_create_foreign_key_from_row(XTIndexPtr ind, xtWord1 *key, xt
 		char_length= ((cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length);
 
 		pos = record + keyseg->start;
+#ifndef DRIZZLED
 		if (type == HA_KEYTYPE_BIT)
 		{
 			if (keyseg->bit_length)
@@ -427,17 +443,22 @@ xtPublic u_int myxt_create_foreign_key_from_row(XTIndexPtr ind, xtWord1 *key, xt
 			key+= length;
 			continue;
 		}
+#endif
 		if (keyseg->flag & HA_SPACE_PACK)
 		{
 			end = pos + length;
+#ifndef DRIZZLED
 			if (type != HA_KEYTYPE_NUM) {
+#endif
 				while (end > pos && end[-1] == ' ')
 					end--;
+#ifndef DRIZZLED
 			}
 			else {
 				while (pos < end && pos[0] == ' ')
 					pos++;
 			}
+#endif
 			length = (u_int) (end-pos);
 			FIX_LENGTH(cs, pos, length, char_length);
 			store_key_length_inc(key,char_length);
@@ -471,6 +492,7 @@ xtPublic u_int myxt_create_foreign_key_from_row(XTIndexPtr ind, xtWord1 *key, xt
 		if (keyseg->flag & HA_SWAP_KEY)
 		{						/* Numerical column */
 #ifdef HAVE_ISNAN
+#ifndef DRIZZLED
 			if (type == HA_KEYTYPE_FLOAT)
 			{
 				float nr;
@@ -483,7 +505,9 @@ xtPublic u_int myxt_create_foreign_key_from_row(XTIndexPtr ind, xtWord1 *key, xt
 					continue;
 				}
 			}
-			else if (type == HA_KEYTYPE_DOUBLE) {
+			else 
+#endif
+			if (type == HA_KEYTYPE_DOUBLE) {
 				double nr;
 
 				float8get(nr,pos);
@@ -622,7 +646,6 @@ static char *mx_get_length_and_data(Field *field, char *dest, xtWord4 *len)
 		case MYSQL_TYPE_SET:
 		case MYSQL_TYPE_GEOMETRY:
 #else
-		case DRIZZLE_TYPE_TINY:
 		case DRIZZLE_TYPE_LONG:
 		case DRIZZLE_TYPE_DOUBLE:
 		case DRIZZLE_TYPE_NULL:
@@ -740,7 +763,6 @@ static void mx_set_length_and_data(Field *field, char *dest, xtWord4 len, char *
 		case MYSQL_TYPE_SET:
 		case MYSQL_TYPE_GEOMETRY:
 #else
-		case DRIZZLE_TYPE_TINY:
 		case DRIZZLE_TYPE_LONG:
 		case DRIZZLE_TYPE_DOUBLE:
 		case DRIZZLE_TYPE_NULL:
@@ -825,6 +847,7 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 			}
 			record[keyseg->null_pos] &= ~keyseg->null_bit;
 		}
+#ifndef DRIZZLED
 		if (keyseg->type == HA_KEYTYPE_BIT)
 		{
 			uint length = keyseg->length;
@@ -845,6 +868,7 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 			key+= length;
 			continue;
 		}
+#endif
 		if (keyseg->flag & HA_SPACE_PACK)
 		{
 			uint length;
@@ -854,16 +878,20 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 				goto err;
 #endif
 			pos = record+keyseg->start;
+#ifndef DRIZZLED
 			if (keyseg->type != (int) HA_KEYTYPE_NUM)
 			{
+#endif
 				memcpy(pos,key,(size_t) length);
 				bfill(pos+length,keyseg->length-length,' ');
+#ifndef DRIZZLED
 			}
 			else
 			{
 				bfill(pos,keyseg->length-length,' ');
 				memcpy(pos+keyseg->length-length,key,(size_t) length);
 			}
+#endif
 			key+=length;
 			continue;
 		}
@@ -945,7 +973,7 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 static int my_compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 											 my_bool part_key, my_bool skip_end_space)
 {
-	uint length= min(a_length,b_length);
+	uint length= a_length < b_length ? a_length : b_length;
 	uchar *end= a+ length;
 	int flag;
 
@@ -1023,6 +1051,7 @@ xtPublic u_int myxt_get_key_length(XTIndexPtr ind, xtWord1 *key_buf)
 				get_key_pack_length(seg_len, pack_len, key_data);
 				key_data += seg_len;
 				break;
+#ifndef DRIZZLED
 			case HA_KEYTYPE_NUM: {
 				/* Numeric key */
 				if (keyseg->flag & HA_SPACE_PACK)
@@ -1035,15 +1064,16 @@ xtPublic u_int myxt_get_key_length(XTIndexPtr ind, xtWord1 *key_buf)
 			case HA_KEYTYPE_INT8:
 			case HA_KEYTYPE_SHORT_INT:
 			case HA_KEYTYPE_USHORT_INT:
+			case HA_KEYTYPE_INT24:
+			case HA_KEYTYPE_FLOAT:
+			case HA_KEYTYPE_BIT:
+#endif
 			case HA_KEYTYPE_LONG_INT:
 			case HA_KEYTYPE_ULONG_INT:
-			case HA_KEYTYPE_INT24:
 			case HA_KEYTYPE_UINT24:
-			case HA_KEYTYPE_FLOAT:
 			case HA_KEYTYPE_DOUBLE:
 			case HA_KEYTYPE_LONGLONG:
 			case HA_KEYTYPE_ULONGLONG:
-			case HA_KEYTYPE_BIT:
 				key_data += keyseg->length;
 				break;
 			case HA_KEYTYPE_END:
@@ -1190,6 +1220,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += b_length;
 				break;
 			}
+#ifndef DRIZZLED
 			case HA_KEYTYPE_INT8:
 			{
 				int i_1 = (int) *((signed char *) a);
@@ -1218,6 +1249,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#endif
 			case HA_KEYTYPE_LONG_INT: {
 				int32 l_1 = sint4korr(a);
 				int32 l_2 = sint4korr(b);
@@ -1236,6 +1268,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#ifndef DRIZZLED
 			case HA_KEYTYPE_INT24: {
 				int32 l_1 = sint3korr(a);
 				int32 l_2 = sint3korr(b);
@@ -1245,6 +1278,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#endif
 			case HA_KEYTYPE_UINT24: {
 				int32 l_1 = uint3korr(a);
 				int32 l_2 = uint3korr(b);
@@ -1254,6 +1288,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#ifndef DRIZZLED
 			case HA_KEYTYPE_FLOAT: {
 				float f_1, f_2;
 
@@ -1270,6 +1305,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#endif
 			case HA_KEYTYPE_DOUBLE: {
 				double d_1, d_2;
 
@@ -1286,6 +1322,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += keyseg->length;
 				break;
 			}
+#ifndef DRIZZLED
 			case HA_KEYTYPE_NUM: {
 				/* Numeric key */
 				if (keyseg->flag & HA_SPACE_PACK) {
@@ -1339,6 +1376,7 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				b += b_length;
 				break;
 			}
+#endif
 #ifdef HAVE_LONG_LONG
 			case HA_KEYTYPE_LONGLONG: {
 				longlong ll_a = sint8korr(a);
@@ -1359,9 +1397,11 @@ xtPublic int myxt_compare_key(XTIndexPtr ind, int search_flags, uint key_length,
 				break;
 			}
 #endif
+#ifndef DRIZZLED
 			case HA_KEYTYPE_BIT:
 				/* TODO: What here? */
 				break;
+#endif
 			case HA_KEYTYPE_END:												/* Ready */
 				goto end;
 		}
@@ -1410,16 +1450,19 @@ xtPublic u_int myxt_key_seg_length(XTIndexSegRec *keyseg, u_int key_offset, xtWo
 			key_length = has_null + a_length + pack_len;
 			break;
 		}
+#ifndef DRIZZLED
 		case HA_KEYTYPE_INT8:
 		case HA_KEYTYPE_SHORT_INT:
 		case HA_KEYTYPE_USHORT_INT:
+		case HA_KEYTYPE_INT24:
+		case HA_KEYTYPE_FLOAT:
+#endif		
 		case HA_KEYTYPE_LONG_INT:
 		case HA_KEYTYPE_ULONG_INT:
-		case HA_KEYTYPE_INT24:
 		case HA_KEYTYPE_UINT24:
-		case HA_KEYTYPE_FLOAT:
 		case HA_KEYTYPE_DOUBLE:
 			break;
+#ifndef DRIZZLED
 		case HA_KEYTYPE_NUM: {
 			/* Numeric key */
 			if (keyseg->flag & HA_SPACE_PACK) {
@@ -1428,14 +1471,17 @@ xtPublic u_int myxt_key_seg_length(XTIndexSegRec *keyseg, u_int key_offset, xtWo
 			}
 			break;
 		}
+#endif
 #ifdef HAVE_LONG_LONG
 		case HA_KEYTYPE_LONGLONG:
 		case HA_KEYTYPE_ULONGLONG:
 			break;
 #endif
+#ifndef DRIZZLED
 		case HA_KEYTYPE_BIT:
 			/* TODO: What here? */
 			break;
+#endif
 		case HA_KEYTYPE_END:												/* Ready */
 			break;
 	}
@@ -1486,7 +1532,7 @@ xtPublic xtWord4 myxt_store_row_length(XTOpenTablePtr ot, char *rec_buff)
 	return row_size;
 }
 
-static xtWord4 mx_store_row(XTOpenTablePtr ot, xtWord4 row_size, char *rec_buff)
+xtPublic xtWord4 myxt_store_row_data(XTOpenTablePtr ot, xtWord4 row_size, char *rec_buff)
 {
 	TABLE	*table = ot->ot_table->tab_dic.dic_my_table;
 	char	*sdata;
@@ -1614,8 +1660,9 @@ xtPublic size_t myxt_load_row_length(XTOpenTablePtr ot, size_t buffer_size, xtWo
 }
 
 /* Unload from PBXT variable length format to the MySQL row format. */
-xtPublic xtBool myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *dest_buff, u_int col_cnt)
+xtPublic xtWord4 myxt_load_row_data(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *dest_buff, u_int col_cnt)
 {
+	xtWord1 *input_buf = source_buf;
 	TABLE	*table;
 	xtWord4	len;
 	Field	*curr_field;
@@ -1624,7 +1671,7 @@ xtPublic xtBool myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *d
 
 	if (!(table = ot->ot_table->tab_dic.dic_my_table)) {
 		xt_register_taberr(XT_REG_CONTEXT, XT_ERR_NO_DICTIONARY, ot->ot_table->tab_name);
-		return FAILED;
+		return 0;
 	}
 
 	/* According to the InnoDB implementation:
@@ -1657,7 +1704,7 @@ xtPublic xtBool myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *d
 			default: // Length byte
 				if (*source_buf > 240) {
 					xt_register_xterr(XT_REG_CONTEXT, XT_ERR_BAD_RECORD_FORMAT);
-					return FAILED;
+					return 0;
 				}
 				len = *source_buf;
 				source_buf++;
@@ -1671,7 +1718,12 @@ xtPublic xtBool myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *d
 
 		source_buf += len;
  	}
-	return OK;
+	return (xtWord4) (source_buf - input_buf);
+}
+
+xtPublic xtBool myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *dest_buff, u_int col_cnt)
+{
+	return myxt_load_row_data(ot, source_buf, dest_buff, col_cnt) != 0;
 }
 
 xtPublic xtBool myxt_find_column(XTOpenTablePtr ot, u_int *col_idx, const char *col_name)
@@ -1784,7 +1836,7 @@ xtPublic xtBool myxt_store_row(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, char
 	else {
 		xtWord4 row_size;
 
-		if (!(row_size = mx_store_row(ot, XT_REC_EXT_HEADER_SIZE, rec_buff)))
+		if (!(row_size = myxt_store_row_data(ot, XT_REC_EXT_HEADER_SIZE, rec_buff)))
 			return FAILED;
 		if (row_size - XT_REC_FIX_EXT_HEADER_DIFF <= ot->ot_rec_size) {	
 			rec_info->ri_fix_rec_buf = (XTTabRecFixDPtr) &ot->ot_row_wbuffer[XT_REC_FIX_EXT_HEADER_DIFF];
@@ -1951,7 +2003,7 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 
 #ifdef DRIZZLED
 	share->init(db_name, 0, name, path);
-	if ((error = open_table_def(thd, share)) ||
+	if ((error = open_table_def(*thd, share)) ||
 		(error = open_table_from_share(thd, share, "", 0, (uint32_t) READ_ALL, 0, table, OTM_OPEN)))
 	{
 		xt_free(self, table);
@@ -1995,7 +2047,7 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 		return NULL;
 	}
 
-#if MYSQL_VERSION_ID >= 60003
+#if MYSQL_VERSION_ID >= 50404
 	if ((error = open_table_from_share(thd, share, "", 0, (uint) READ_ALL, 0, table, OTM_OPEN)))
 #else
 	if ((error = open_table_from_share(thd, share, "", 0, (uint) READ_ALL, 0, table, FALSE)))
@@ -2145,7 +2197,10 @@ static XTIndexPtr my_create_index(XTThreadPtr self, TABLE *table_arg, u_int idx,
 		if (options & HA_OPTION_PACK_KEYS ||
 			(index->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY | HA_SPACE_PACK_USED)))
 		{
-			if (key_part->length > 8 && (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_NUM ||
+			if (key_part->length > 8 && (type == HA_KEYTYPE_TEXT || 
+#ifndef DRIZZLED
+				type == HA_KEYTYPE_NUM ||
+#endif
 				(type == HA_KEYTYPE_BINARY && !field->zero_pack())))
 			{
 				/* No blobs here */
@@ -2213,8 +2268,12 @@ static XTIndexPtr my_create_index(XTThreadPtr self, TABLE *table_arg, u_int idx,
 		else if (field->type() == MYSQL_TYPE_ENUM) {
 			switch (seg->length) {
 				case 2: 
+#ifdef DRIZZLED
+					ASSERT_NS(FALSE);
+#else
 					seg->type = HA_KEYTYPE_USHORT_INT;
 					break;
+#endif
 				case 3:
 					seg->type = HA_KEYTYPE_UINT24;
 					break;
@@ -2675,7 +2734,11 @@ xtPublic xtBool myxt_load_dictionary(XTThreadPtr self, XTDictionaryPtr dic, XTDa
 	if (!(my_tab = my_open_table(self, db, tab_path)))
 		return FAILED;
 	dic->dic_my_table = my_tab;
+#ifdef DRIZZLED
+	dic->dic_def_ave_row_size = (xtWord8) my_tab->s->getAvgRowLength();
+#else
 	dic->dic_def_ave_row_size = (xtWord8) my_tab->s->avg_row_length;
+#endif
 	myxt_setup_dictionary(self, dic);
 	dic->dic_keys = (XTIndexPtr *) xt_calloc(self, sizeof(XTIndexPtr) * TS(my_tab)->keys);
 	for (uint i=0; i<TS(my_tab)->keys; i++)
@@ -2805,8 +2868,10 @@ static void ha_create_dd_index(XTThreadPtr self, XTDDIndex *ind, KEY *key)
 
 static char *my_type_to_string(XTThreadPtr self, Field *field, TABLE *XT_UNUSED(my_tab))
 {
-	char		buffer[MAX_FIELD_WIDTH + 400], *ptr;
+	char		buffer[MAX_FIELD_WIDTH + 400];
+	const char 	*ptr;
 	String		type((char *) buffer, sizeof(buffer), system_charset_info);
+	xtWord4		len;
 
 	/* GOTCHA:
 	 * - Above sets the string length to the same as the buffer,
@@ -2817,10 +2882,17 @@ static char *my_type_to_string(XTThreadPtr self, Field *field, TABLE *XT_UNUSED(
 	 */
 	type.length(0);
 	field->sql_type(type);
-	ptr = type.c_ptr();
-	if (ptr != buffer)
-		xt_strcpy(sizeof(buffer), buffer, ptr);			
+	ptr = type.ptr();
+	len = type.length();
 
+	if (len >= sizeof(buffer))
+		len = sizeof(buffer)-1;
+
+	if (ptr != buffer)
+		xt_strcpy(sizeof(buffer), buffer, ptr);
+
+	buffer[len] = 0;
+			
 	if (field->has_charset()) {
 		/* Always include the charset so that we can compare types
 		 * for FK/PK releations.
@@ -2877,6 +2949,10 @@ xtPublic XTDDTable *myxt_create_table_from_table(XTThreadPtr self, TABLE *my_tab
 
 xtPublic void myxt_static_convert_identifier(XTThreadPtr XT_UNUSED(self), MX_CHARSET_INFO *cs, char *from, char *to, size_t to_len)
 {
+#ifdef DRIZZLED
+	((void *)cs);
+	 xt_strcpy(to_len, to, from);
+#else
 	uint errors;
 
 	/*
@@ -2888,11 +2964,16 @@ xtPublic void myxt_static_convert_identifier(XTThreadPtr XT_UNUSED(self), MX_CHA
 		xt_strcpy(to_len, to, from);
 	else
 		strconvert(cs, from, &my_charset_utf8_general_ci, to, to_len, &errors);
+#endif
 }
 
 // cs == current_thd->charset()
 xtPublic char *myxt_convert_identifier(XTThreadPtr self, MX_CHARSET_INFO *cs, char *from)
 {
+#ifdef DRIZZLED
+	char *to = xt_dup_string(self, from);
+	((void *)cs);
+#else
 	uint	errors;
 	u_int	len;
 	char	*to;
@@ -2904,6 +2985,7 @@ xtPublic char *myxt_convert_identifier(XTThreadPtr self, MX_CHARSET_INFO *cs, ch
 		to = (char *) xt_malloc(self, len);
 		strconvert(cs, from, &my_charset_utf8_general_ci, to, len, &errors);
 	}
+#endif
 	return to;
 }
 
@@ -2954,9 +3036,9 @@ xtPublic MX_CHARSET_INFO *myxt_getcharset(bool convert)
 		THD *thd = current_thd;
 
 		if (thd)
-			return thd_charset(thd);
+			return (MX_CHARSET_INFO *)thd_charset(thd);
 	}
-	return &my_charset_utf8_general_ci;
+	return (MX_CHARSET_INFO *)&my_charset_utf8_general_ci;
 }
 
 xtPublic void *myxt_create_thread()
@@ -3011,11 +3093,25 @@ xtPublic void *myxt_create_thread()
 		return NULL;
 	}
 
-	if (!(new_thd = new THD())) {
+	if (!(new_thd = new THD)) {
 		my_thread_end();
 		xt_register_error(XT_REG_CONTEXT, XT_ERR_MYSQL_ERROR, 0, "Unable to create MySQL thread (THD)");
 		return NULL;
 	}
+
+	/*
+	 * If PBXT is the default storage engine, then creating any THD objects will add extra 
+	 * references to the PBXT plugin object. because the threads are created but PBXT
+	 * this creates a self reference, and the reference count does not go to zero
+	 * on shutdown.
+	 *
+	 * The server then issues a message that it is forcing shutdown of the plugin.
+	 *
+	 * However, the engine reference is not required by the THDs used by PBXT, so 
+	 * I just remove them here.
+	 */
+	plugin_unlock(NULL, new_thd->variables.table_plugin);
+	new_thd->variables.table_plugin = NULL;
 
 	new_thd->thread_stack = (char *) &new_thd;
 	new_thd->store_globals();
@@ -3051,7 +3147,7 @@ xtPublic void myxt_destroy_thread(void *thread, xtBool end_threads)
 #else
 	close_thread_tables(thd);
 #endif
-
+	
 	delete thd;
 
 	/* Remember that we don't have a THD */
@@ -3128,11 +3224,12 @@ xtPublic int myxt_statistics_fill_table(XTThreadPtr self, void *th, void *ta, vo
 	const char		*stat_name;
 	u_llong			stat_value;
 	XTStatisticsRec	statistics;
+	XTDatabaseHPtr	db = self->st_database;
 
 	xt_gather_statistics(&statistics);
 	for (u_int rec_id=0; !err && rec_id<XT_STAT_CURRENT_MAX; rec_id++) {
 		stat_name = xt_get_stat_meta_data(rec_id)->sm_name;
-		stat_value = xt_get_statistic(&statistics, self->st_database, rec_id);
+		stat_value = xt_get_statistic(&statistics, db, rec_id);
 
 		col=0;
 		mx_put_u_llong(table, col++, rec_id+1);
@@ -3213,19 +3310,31 @@ static void myxt_bitmap_init(XTThreadPtr self, MX_BITMAP *map, u_int n_bits)
 	my_bitmap_map	*buf;
     uint			size_in_bytes = (((n_bits) + 31) / 32) * 4;
 
-    buf = (my_bitmap_map *) xt_malloc(self, size_in_bytes);
+	buf = (my_bitmap_map *) xt_malloc(self, size_in_bytes);
+
+#ifdef DRIZZLED
+	map->init(buf, n_bits);
+#else
 	map->bitmap= buf;
 	map->n_bits= n_bits;
 	create_last_word_mask(map);
 	bitmap_clear_all(map);
+#endif
 }
 
 static void myxt_bitmap_free(XTThreadPtr self, MX_BITMAP *map)
 {
+#ifdef DRIZZLED
+	my_bitmap_map *buf = map->getBitmap();
+	if (buf)
+		xt_free(self, buf);
+	map->setBitmap(NULL);
+#else
 	if (map->bitmap) {
 		xt_free(self, map->bitmap);
 		map->bitmap = NULL;
 	}
+#endif
 }
 
 /*
@@ -3269,3 +3378,29 @@ XTDDColumn *XTDDColumnFactory::createFromMySQLField(XTThread *self, TABLE *my_ta
 	return col;
 }
 
+/*
+ * -----------------------------------------------------------------------
+ * utilities
+ */
+
+/*
+ * MySQL (not sure about Drizzle) first calls hton->init and then assigns the plugin a thread slot
+ * which is used by xt_get_self(). This is a problem as pbxt_init() starts a number of daemon threads
+ * which could try to use the slot before it is assigned. This code waits till slot is inited.
+ * We cannot directly check hton->slot as in some versions of MySQL it can be 0 before init which is a 
+ * valid value.
+ */
+extern ulong total_ha;
+
+xtPublic void myxt_wait_pbxt_plugin_slot_assigned(XTThread *self)
+{
+#ifdef DRIZZLED
+	static LEX_STRING plugin_name = { C_STRING_WITH_LEN("PBXT") };
+
+	while (!self->t_quit && !Registry::singleton().find(&plugin_name))
+		xt_sleep_milli_second(1);
+#else
+	while(!self->t_quit && (pbxt_hton->slot >= total_ha))
+		xt_sleep_milli_second(1);
+#endif
+}
