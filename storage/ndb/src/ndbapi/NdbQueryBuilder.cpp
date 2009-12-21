@@ -1366,7 +1366,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     // Aggregate prunable propert:
     // All hi/low keys values within 'distkey_min' must be equal
     int keyPos = 0;
-    Uint32 keyEnd = keyInfo.get(keyPos) >> 16;
+    int keyEnd = keyInfo.get(keyPos) >> 16;
 
     for (unsigned i = 0; i < distkey_min; i++)
     {
