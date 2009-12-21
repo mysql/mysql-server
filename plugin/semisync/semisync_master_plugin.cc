@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
+   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -334,9 +334,43 @@ static SHOW_VAR semi_sync_master_status_vars[]= {
   {NULL, NULL, SHOW_LONG},
 };
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key key_ss_mutex_LOCK_binlog_;
+
+static PSI_mutex_info all_semisync_mutexes[]=
+{
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0}
+};
+
+PSI_cond_key key_ss_cond_COND_binlog_send_;
+
+static PSI_cond_info all_semisync_conds[]=
+{
+  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0}
+};
+
+static void init_semisync_psi_keys(void)
+{
+  const char* category= "semisync";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_semisync_mutexes);
+  PSI_server->register_mutex(category, all_semisync_mutexes, count);
+
+  count= array_elements(all_semisync_conds);
+  PSI_server->register_cond(category, all_semisync_conds, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 static int semi_sync_master_plugin_init(void *p)
 {
+#ifdef HAVE_PSI_INTERFACE
+  init_semisync_psi_keys();
+#endif
+
   if (repl_semisync.initObject())
     return 1;
   if (register_trans_observer(&trans_observer, p))
