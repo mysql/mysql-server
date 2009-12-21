@@ -1309,7 +1309,7 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
   { "seed", 1024, "Random seed",
     (uchar **) &opt_seed, (uchar **) &opt_seed, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "testname", 'n', "Name of test to run",
     (uchar **) &opt_testname, (uchar **) &opt_testname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
