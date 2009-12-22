@@ -317,7 +317,7 @@ protected:
 public:
   uint mrr_flags; /* Flags to be used with MRR interface */
 protected:
-  uint mrr_buf_size; /* copy from thd->variables.read_rnd_buff_size */  
+  uint mrr_buf_size; /* copy from thd->variables.mrr_buff_size */  
   HANDLER_BUFFER *mrr_buf_desc; /* the handler buffer */
 
   /* Info about index we're scanning */

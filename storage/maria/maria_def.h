@@ -477,8 +477,7 @@ typedef struct st_maria_block_scan
   MARIA_RECORD_POS row_base_page;
 } MARIA_BLOCK_SCAN;
 
-/*psergey-todo: do really need to have copies of this all over the place?*/
-typedef my_bool (*index_cond_func_t)(void *param);
+typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_maria_handler
 {

@@ -29,7 +29,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   MI_KEYDEF *keyinfo;
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
-  int res= 0;
+  ICP_RESULT res= ICP_NO_MATCH;
   DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter", ("base: 0x%lx  buf: 0x%lx  inx: %d  search_flag: %d",
                        (long) info, (long) buf, inx, search_flag));
@@ -118,7 +118,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
               (search_flag != HA_READ_KEY_EXACT ||
               last_used_keyseg != keyinfo->seg + keyinfo->keysegs)) ||
              (info->index_cond_func && 
-              !(res= mi_check_index_cond(info, inx, buf))))
+              (res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
       {
         uint not_used[2];
         /*
@@ -146,7 +146,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
           break;
         }
       }
-      if (res == 2)
+      if (res == ICP_OUT_OF_RANGE)
       {
         info->lastpos= HA_OFFSET_ERROR;
         if (share->concurrent_insert)

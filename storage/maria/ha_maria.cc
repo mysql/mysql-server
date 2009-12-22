@@ -2022,16 +2022,15 @@ int ha_maria::delete_row(const uchar * buf)
 
 C_MODE_START
 
-my_bool index_cond_func_maria(void *arg)
+ICP_RESULT index_cond_func_maria(void *arg)
 {
   ha_maria *h= (ha_maria*)arg;
-  /*if (h->in_range_read)*/
   if (h->end_range)
   {
     if (h->compare_key2(h->end_range) > 0)
-      return 2; /* caller should return HA_ERR_END_OF_FILE already */
+      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return (my_bool)h->pushed_idx_cond->val_int();
+  return h->pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
 }
 
 C_MODE_END

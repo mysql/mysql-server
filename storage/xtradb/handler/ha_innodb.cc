@@ -114,7 +114,7 @@ static pthread_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
 C_MODE_START
-static uint index_cond_func_innodb(void *arg);
+static int index_cond_func_innodb(void *arg);
 C_MODE_END
 
 
@@ -10765,24 +10765,12 @@ ha_rows ha_innobase::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 {
   /* See comments in ha_myisam::multi_range_read_info_const */
   ds_mrr.init(this, table);
-  //psergey-mrr-fix:
+
   if (prebuilt->select_lock_type != LOCK_NONE)
     *flags |= HA_MRR_USE_DEFAULT_IMPL;
 
-  uint orig_flags= *flags;
-
   ha_rows res= ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param, n_ranges,
                                        bufsz, flags, cost);
-
-  bool disable_ds_mrr= true;
-  disable_ds_mrr= false;
-//  DBUG_EXECUTE_IF("optimizer_innodb_ds_mrr", disable_ds_mrr= false;);
-  if (!disable_ds_mrr)
-    return res;
-
-  /* Disable DS-MRR: enable MS-MRR only after critical bugs are fixed */
-  *bufsz= 0;
-  *flags = orig_flags | HA_MRR_USE_DEFAULT_IMPL;
   return res;
 }
 
@@ -10791,17 +10779,7 @@ ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges,
                                            uint *flags, COST_VECT *cost)
 {
   ds_mrr.init(this, table);
-  uint orig_flags= *flags;
-
   ha_rows res= ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
-  bool disable_ds_mrr= false;
- // DBUG_EXECUTE_IF("optimizer_innodb_ds_mrr", disable_ds_mrr= false;);
-  if (!disable_ds_mrr)
-    return res;
-
-  /* Disable DS-MRR: enable MS-MRR only after critical bugs are fixed */
-  *bufsz= 0;
-  *flags = orig_flags | HA_MRR_USE_DEFAULT_IMPL;
   return res;
 }
 
@@ -10818,15 +10796,15 @@ C_MODE_START
   See note on ICP_RESULT for return values description.
 */
 
-static uint index_cond_func_innodb(void *arg)
+static int index_cond_func_innodb(void *arg)
 {
   ha_innobase *h= (ha_innobase*)arg;
   if (h->end_range)
   {
     if (h->compare_key2(h->end_range) > 0)
-      return 2; /* caller should return HA_ERR_END_OF_FILE already */
+      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return test(h->pushed_idx_cond->val_int());
+  return h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH;
 }
 
 C_MODE_END
@@ -10834,8 +10812,7 @@ C_MODE_END
 
 Item *ha_innobase::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
 {
-  //                              V :psergey-mrrr-merge: V
-  if (keyno_arg != primary_key && (prebuilt->select_lock_type == LOCK_NONE))
+  if ((keyno_arg != primary_key) && (prebuilt->select_lock_type == LOCK_NONE))
   {
     pushed_idx_cond_keyno= keyno_arg;
     pushed_idx_cond= idx_cond_arg;

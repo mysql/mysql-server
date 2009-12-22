@@ -12,8 +12,8 @@ set storage_engine=InnoDB;
 set storage_engine= @save_storage_engine;
 
 # Try big rowid sizes
-set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
-set read_rnd_buffer_size=64;
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+set mrr_buffer_size=64;
 
 # By default InnoDB will fill values only for key parts used by the query,
 # which will cause DS-MRR to supply an invalid tuple on scan restoration. 
@@ -38,11 +38,12 @@ drop table t2;
 create table t2 (a char(100), b char(100), c char(100), d int, 
                  filler char(10), key(d), primary key (a,b,c)) engine= innodb;
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
+--replace_column 9 #
 explain select * from t2 force index (d) where d < 10;
 drop table t2;
 
 drop table t1;
-set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
 
 #
 # BUG#33033 "MySQL/InnoDB crashes with simple select range query"

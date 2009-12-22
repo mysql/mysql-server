@@ -528,6 +528,8 @@ static sys_var_bool_ptr	        sys_userstat(&vars, "userstat",
 
 static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
+static sys_var_thd_ulong	sys_mrr_buff_size(&vars, "mrr_buffer_size",
+					          &SV::mrr_buff_size);
 static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
                                               &SV::div_precincrement);
 static sys_var_long_ptr	sys_rpl_recovery_rank(&vars, "rpl_recovery_rank",

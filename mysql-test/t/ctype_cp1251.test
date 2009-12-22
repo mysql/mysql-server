@@ -44,6 +44,7 @@ insert into t1 (a) values ('air'),
   ('we_martin'),('vw_grado'),('vw_vasko'),('tn_vili'),('tn_kalina'),
   ('tn_fakira'),('vw_silvia'),('vw_starshi'),('vw_geo'),('vw_b0x1');
 
+--sorted_result
 select * from t1 where a like 'we_%';
 drop table t1;
 

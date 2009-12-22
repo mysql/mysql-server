@@ -47,7 +47,7 @@ mysqld_LDADD =		libndb.la \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
 
-noinst_HEADERS =	ds_mrr.h item.h item_func.h item_sum.h item_cmpfunc.h \
+noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h \
 			item_create.h item_subselect.h item_row.h \
@@ -77,9 +77,10 @@ noinst_HEADERS =	ds_mrr.h item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_plugin.h authors.h event_parse_data.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
-			contributors.h sql_servers.h
+			contributors.h sql_servers.h \
+                        multi_range_read.h
 
-mysqld_SOURCES =	ds_mrr.cc sql_lex.cc sql_handler.cc sql_partition.cc \
+mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
@@ -123,7 +124,9 @@ mysqld_SOURCES =	ds_mrr.cc sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc \
-                        opt_table_elimination.cc
+			opt_table_elimination.cc \
+			multi_range_read.cc \
+			opt_index_cond_pushdown.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 
@@ -151,7 +154,7 @@ BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h \
 			message.mc  message.h message.rc MSG00001.bin \
-			CMakeLists.txt
+			CMakeLists.txt opt_range_mrr.cc
 
 CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
 DISTCLEANFILES =        $(EXTRA_PROGRAMS)

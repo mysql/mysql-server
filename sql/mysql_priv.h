@@ -540,12 +540,13 @@ protected:
 #define OPTIMIZER_SWITCH_INDEX_MERGE_UNION 2
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION 4
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
+#define OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN 16
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST 16
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 16
 #  define OPTIMIZER_SWITCH_LAST 32
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 32
+#  define OPTIMIZER_SWITCH_LAST 64
 #endif
 
 #ifdef DBUG_OFF 
@@ -553,12 +554,14 @@ protected:
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN)
 #else 
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION)
 #endif
 

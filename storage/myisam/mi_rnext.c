@@ -28,7 +28,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
 {
   int error,changed;
   uint flag;
-  int res= 0;
+  ICP_RESULT res= 0;
   DBUG_ENTER("mi_rnext");
 
   if ((inx = _mi_check_index(info,inx)) < 0)
@@ -87,7 +87,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
     while ((info->s->concurrent_insert &&
             info->lastpos >= info->state->data_file_length) ||
            (info->index_cond_func &&
-           !(res= mi_check_index_cond(info, inx, buf))))
+           (res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
       /* 
          Skip rows that are either inserted by other threads since
@@ -100,7 +100,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
                                   info->s->state.key_root[inx])))
         break;
     }
-    if (!error && res == 2)
+    if (!error && res == ICP_OUT_OF_RANGE)
     {
       if (info->s->concurrent_insert)
         rw_unlock(&info->s->key_root_lock[inx]);
