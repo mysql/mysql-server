@@ -2878,16 +2878,13 @@ int get_partition_id_range(partition_info *part_info,
     part_func_value-= 0x8000000000000000ULL;
   while (max_part_id > min_part_id)
   {
-    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
+    loc_part_id= (max_part_id + min_part_id) / 2;
     if (range_array[loc_part_id] <= part_func_value)
       min_part_id= loc_part_id + 1;
     else
-      max_part_id= loc_part_id - 1;
+      max_part_id= loc_part_id;
   }
   loc_part_id= max_part_id;
-  if (part_func_value >= range_array[loc_part_id])
-    if (loc_part_id != max_partition)
-      loc_part_id++;
   *part_id= (uint32)loc_part_id;
   if (loc_part_id == max_partition &&
       part_func_value >= range_array[loc_part_id] &&
@@ -2961,6 +2958,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool include_endpoint)
 {
   longlong *range_array= part_info->range_int_array;
+  longlong part_end_val;
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
@@ -2994,46 +2992,45 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
     }
   }
 
-
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   if (left_endpoint && !include_endpoint)
     part_func_value++;
+
+  /*
+    Search for the partition containing part_func_value
+    (including the right endpoint).
+  */
   while (max_part_id > min_part_id)
   {
-    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-    if (range_array[loc_part_id] <= part_func_value)
+    loc_part_id= (max_part_id + min_part_id) / 2;
+    if (range_array[loc_part_id] < part_func_value)
       min_part_id= loc_part_id + 1;
     else
-      max_part_id= loc_part_id - 1;
+      max_part_id= loc_part_id;
   }
   loc_part_id= max_part_id;
-  if (loc_part_id < max_partition && 
-      part_func_value >= range_array[loc_part_id+1])
-  {
-   loc_part_id++;
-  }
+
+  /* Adjust for endpoints */
+  part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
-    longlong bound= range_array[loc_part_id];
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
       the maximum value is in the current partition.
     */
-    if (part_func_value > bound ||
-        (part_func_value == bound &&
-         (!part_info->defined_max_value || loc_part_id < max_partition)))
+    if (part_func_value == part_end_val &&
+        (loc_part_id < max_partition || !part_info->defined_max_value))
       loc_part_id++;
   }
   else 
   {
-    if (loc_part_id < max_partition)
-    {
-      if (part_func_value == range_array[loc_part_id])
-        loc_part_id += test(include_endpoint);
-      else if (part_func_value > range_array[loc_part_id])
-        loc_part_id++;
-    }
+    /* if 'WHERE <= X' and partition is LESS THAN (X) include next partition */
+    if (include_endpoint && loc_part_id < max_partition &&
+        part_func_value == part_end_val)
+      loc_part_id++;
+
+    /* Right endpoint, set end after correct partition */
     loc_part_id++;
   }
   DBUG_RETURN(loc_part_id);
