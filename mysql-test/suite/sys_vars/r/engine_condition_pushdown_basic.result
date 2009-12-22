@@ -57,22 +57,19 @@ SELECT @@global.engine_condition_pushdown;
 SET @@session.engine_condition_pushdown = -1;
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '-1'
 SET @@session.engine_condition_pushdown = 1.6;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '2'
+ERROR 42000: Incorrect argument type to variable 'engine_condition_pushdown'
 SET @@session.engine_condition_pushdown = "T";
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'T'
 SET @@session.engine_condition_pushdown = "Y";
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Y'
 SET @@session.engine_condition_pushdown = TRÜE;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÜE'
 SET @@session.engine_condition_pushdown = ÕN;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'ÕN'
 SET @@session.engine_condition_pushdown = OF;
-SELECT @@session.engine_condition_pushdown;
-@@session.engine_condition_pushdown
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'OF'
 SET @@session.engine_condition_pushdown = ÓFF;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'ÓFF'
 SET @@global.engine_condition_pushdown = -1;
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '-1'
 SET @@global.engine_condition_pushdown = 2;
@@ -82,16 +79,13 @@ ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '
 SET @@global.engine_condition_pushdown = "Y";
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Y'
 SET @@global.engine_condition_pushdown = TRÜE;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÜE'
 SET @@global.engine_condition_pushdown = ÕN;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'ÕN'
 SET @@global.engine_condition_pushdown = OF;
-SELECT @@global.engine_condition_pushdown;
-@@global.engine_condition_pushdown
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'OF'
 SET @@global.engine_condition_pushdown = ÓFF;
-ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_028_05----------------------------#'
 SET @@global.engine_condition_pushdown = 0;
 SET @@session.engine_condition_pushdown = 1;

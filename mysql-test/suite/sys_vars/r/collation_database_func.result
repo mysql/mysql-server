@@ -11,7 +11,6 @@ latin1_danish_ci
 SELECT @@session.collation_database;
 @@session.collation_database
 latin1_swedish_ci
-'Bug#35378: New session collation_database is not change by global collation_database'
 '#--------------------FN_DYNVARS_011_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1,t2;
@@ -31,7 +30,6 @@ USE db1;
 SHOW CREATE DATABASE db1;
 Database	Create Database
 db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 COLLATE utf8_roman_ci */
-'Bug#35380: collation_database does not effects CREATE DATABASE without characater set'
 CREATE TABLE t1(a CHAR(20));
 SHOW CREATE TABLE t1;
 Table	Create Table

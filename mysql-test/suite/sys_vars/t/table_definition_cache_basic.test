@@ -83,7 +83,6 @@ SET @@global.table_definition_cache = 524289;
 SELECT @@global.table_definition_cache;
 SET @@global.table_definition_cache = 42949672950;
 SELECT @@global.table_definition_cache;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.table_definition_cache = 21221204.10;

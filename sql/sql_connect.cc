@@ -121,8 +121,9 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
-  if (max_user_connections && !uc->user_resources.user_conn &&
-      max_user_connections < (uint) uc->connections)
+  if (global_system_variables.max_user_connections &&
+      !uc->user_resources.user_conn &&
+      global_system_variables.max_user_connections < (uint) uc->connections)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error=1;
@@ -443,7 +444,7 @@ check_user(THD *thd, enum enum_server_command command,
 
       /* Don't allow user to connect if he has done too many queries */
       if ((ur.questions || ur.updates || ur.conn_per_hour || ur.user_conn ||
-	   max_user_connections) &&
+	   global_system_variables.max_user_connections) &&
 	  get_or_create_user_conn(thd,
             (opt_old_style_user_limits ? thd->main_security_ctx.user :
              thd->main_security_ctx.priv_user),
@@ -457,7 +458,7 @@ check_user(THD *thd, enum enum_server_command command,
       if (thd->user_connect &&
 	  (thd->user_connect->user_resources.conn_per_hour ||
 	   thd->user_connect->user_resources.user_conn ||
-	   max_user_connections) &&
+	   global_system_variables.max_user_connections) &&
 	  check_for_max_user_connections(thd, thd->user_connect))
       {
         /* The error is set in check_for_max_user_connections(). */
@@ -1052,8 +1053,6 @@ static void prepare_new_connection_state(THD* thd)
   netware_reg_user(sctx->ip, sctx->user, "MySQL");
 #endif
 
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
@@ -1068,9 +1067,9 @@ static void prepare_new_connection_state(THD* thd)
   thd->set_time();
   thd->init_for_queries();
 
-  if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
+  if (opt_init_connect.length && !(sctx->master_access & SUPER_ACL))
   {
-    execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
+    execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
       thd->killed= THD::KILL_CONNECTION;

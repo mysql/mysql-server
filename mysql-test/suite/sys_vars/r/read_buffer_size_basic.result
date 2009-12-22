@@ -34,20 +34,22 @@ SELECT @@session.read_buffer_size = 131072;
 SET @@global.read_buffer_size = 8201;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8201'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 SET @@global.read_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8200'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 SET @@global.read_buffer_size = 2147479552;
 SELECT @@global.read_buffer_size;
 @@global.read_buffer_size
 2147479552
 SET @@global.read_buffer_size = 2147479551;
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '2147479551'
 SELECT @@global.read_buffer_size;
 @@global.read_buffer_size
 2147475456
@@ -55,20 +57,22 @@ SELECT @@global.read_buffer_size;
 SET @@session.read_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8200'
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
-@@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228
-1
+SELECT @@session.read_buffer_size;
+@@session.read_buffer_size
+8192
 SET @@session.read_buffer_size = 8201;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8201'
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
-@@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228
-1
+SELECT @@session.read_buffer_size;
+@@session.read_buffer_size
+8192
 SET @@session.read_buffer_size = 2147479552;
 SELECT @@session.read_buffer_size;
 @@session.read_buffer_size
 2147479552
 SET @@session.read_buffer_size = 2147479551;
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '2147479551'
 SELECT @@session.read_buffer_size;
 @@session.read_buffer_size
 2147475456
@@ -76,23 +80,23 @@ SELECT @@session.read_buffer_size;
 SET @@global.read_buffer_size = 8199;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8199'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 SET @@global.read_buffer_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '-1024'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 SET @@global.read_buffer_size = 2147479553;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '2147479553'
 SELECT @@global.read_buffer_size;
 @@global.read_buffer_size
 2147479552
-SET @@global.read_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.read_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'read_buffer_size'
 SELECT @@global.read_buffer_size;
 @@global.read_buffer_size
 2147479552
@@ -104,24 +108,23 @@ SELECT @@global.read_buffer_size;
 SET @@session.read_buffer_size = 8199;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '8199'
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
-@@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228
-1
+SELECT @@session.read_buffer_size;
+@@session.read_buffer_size
+8192
 SET @@session.read_buffer_size = -2;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '-2'
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
-@@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228
-1
-SET @@session.read_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SELECT @@session.read_buffer_size;
+@@session.read_buffer_size
+8192
+SET @@session.read_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'read_buffer_size'
 SET @@session.read_buffer_size = 2147479553;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '2147479553'
 SELECT @@session.read_buffer_size;
 @@session.read_buffer_size
 2147479552
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.read_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'read_buffer_size'
 SELECT @@session.read_buffer_size;
@@ -143,23 +146,26 @@ WHERE VARIABLE_NAME='read_buffer_size';
 SET @@global.read_buffer_size = TRUE;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '1'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 SET @@global.read_buffer_size = FALSE;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '0'
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-@@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228
-1
-'Bug: FN_DYNVARS_138_08- Errors are not coming on assigning TRUE/FALSE to variable'
+SELECT @@global.read_buffer_size;
+@@global.read_buffer_size
+8192
 '#---------------------FN_DYNVARS_138_09----------------------#'
 SET @@global.read_buffer_size = 9000;
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '9000'
 SELECT @@read_buffer_size = @@global.read_buffer_size;
 @@read_buffer_size = @@global.read_buffer_size
 0
 '#---------------------FN_DYNVARS_138_10----------------------#'
 SET @@read_buffer_size = 9000;
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '9000'
 SELECT @@read_buffer_size = @@local.read_buffer_size;
 @@read_buffer_size = @@local.read_buffer_size
 1
@@ -168,9 +174,11 @@ SELECT @@local.read_buffer_size = @@session.read_buffer_size;
 1
 '#---------------------FN_DYNVARS_138_11----------------------#'
 SET read_buffer_size = 9100;
-SELECT @@read_buffer_size= 8200 OR @@read_buffer_size= 8228 ;
-@@read_buffer_size= 8200 OR @@read_buffer_size= 8228
-1
+Warnings:
+Warning	1292	Truncated incorrect read_buffer_size value: '9100'
+SELECT @@read_buffer_size;
+@@read_buffer_size
+8192
 SELECT local.read_buffer_size;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.read_buffer_size;

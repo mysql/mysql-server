@@ -31,7 +31,7 @@ void test1(const char *res, const char *fmt, ...)
 
 int main(void)
 {
-  plan(47);
+  plan(50);
 
   test1("Constant string",
         "Constant string");
@@ -46,6 +46,8 @@ int main(void)
         "Format specifier d %d", 1);
   test1("Format specifier u 2",
         "Format specifier u %u", 2);
+  test1("Format specifier o 375",
+        "Format specifier o %o", 0375);
   test1("Format specifier x a",
         "Format specifier x %x", 10);
   test1("Format specifier X B",
@@ -71,6 +73,9 @@ int main(void)
   test1("Length modifiers work: 1 * -1 * 2 * 3",
         "Length modifiers work: %d * %ld * %lld * %zd", 1, -1L, 2LL, (size_t)3);
 
+  test1("long long X: 123456789abcdef0",
+        "long long X: %llx", 0x123456789abcdef0LL);
+
   test1("(null) pointer is fine",
         "%s pointer is fine", NULL);
 
@@ -92,6 +97,9 @@ int main(void)
 
   test1("Positional arguments and a width: <0000ab>",
         "Positional arguments and a width: <%1$06x>", 0xab);
+
+  test1("Positional arguments octal: <7777>",
+        "Positional arguments octal: <%1$o>", 07777);
 
   test1("Padding and %p <0x12> <0x034> <0x0000ab> <    0xcd>",
         "Padding and %%p <%04p> <%05p> <%08p> <%8p>", 0x12, 0x34, 0xab, 0xcd);
