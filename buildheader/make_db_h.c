@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <stdint.h>
 
 #define VISIBLE "__attribute__((__visibility__(\"default\")))"
 
@@ -28,6 +29,19 @@ void print_db_notices (void) {
 #endif
 
 #define dodefine(name) printf("#define %s %d\n", #name, name)
+#define dodefine_track(flags, name) do {assert((flags & name) != name); \
+                                        flags |= (name);                \
+                                        printf("#define %s %d\n", #name, name);} while (0)
+#define dodefine_from_track(flags, name) do {   \
+    uint32_t which;                             \
+    uint32_t bit;                               \
+    for (which = 0; which < 32; which++) {      \
+        bit = 1U << which;                      \
+        if (!(flags & bit)) break;              \
+    }                                           \
+    assert(which < 32);                         \
+    printf("#define %s %d\n", #name, bit);      \
+} while (0)
 
 enum {
 	TOKUDB_OUT_OF_LOCKS         = -100000,
@@ -86,9 +100,6 @@ void print_defines (void) {
     printf("#define DB_CLOSE_DONT_TRIM_LOG 1048576\n"); // tokudb
     dodefine(DB_INIT_TXN);
 
-#ifdef DB_READ_UNCOMMITTED
-    dodefine(DB_READ_UNCOMMITTED);
-#endif
     //dodefine(DB_KEYEMPTY);      /// KEYEMPTY is no longer used.  We just use DB_NOTFOUND
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
@@ -134,10 +145,18 @@ void print_defines (void) {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     dodefine(DB_LOG_AUTOREMOVE);
 #endif
-    dodefine(DB_TXN_WRITE_NOSYNC);
-    dodefine(DB_TXN_NOWAIT);
-    dodefine(DB_TXN_SYNC);
 
+    {
+    //Txn begin/commit flags
+        uint32_t txn_flags = 0;
+        dodefine_track(txn_flags, DB_TXN_WRITE_NOSYNC);
+        dodefine_track(txn_flags, DB_TXN_NOWAIT);
+        dodefine_track(txn_flags, DB_TXN_SYNC);
+#ifdef DB_READ_UNCOMMITTED
+        dodefine_track(txn_flags, DB_READ_UNCOMMITTED);
+#endif
+        dodefine_from_track(txn_flags, DB_INHERIT_ISOLATION);
+    }
     
     printf("#endif\n");
     
@@ -288,6 +307,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("#include <sys/types.h>\n");
     printf("/*stdio is needed for the FILE* in db->verify*/\n");
     printf("#include <stdio.h>\n");
+    printf("#include <stdint.h>\n");
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus)\nextern \"C\" {\n#endif\n");
 
