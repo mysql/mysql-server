@@ -22,31 +22,6 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0sys.h"
 
 
-/* 2 function prototypes copied from ha_innodb.cc: */
-
-/*****************************************************************
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex.
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-
-void
-innobase_mysql_prepare_print_arbitrary_thd(void);
-/*============================================*/
-
-/*****************************************************************
-Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-
-void
-innobase_mysql_end_print_arbitrary_thd(void);
-/*========================================*/
-
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
 #define LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK 1000000
@@ -4227,11 +4202,6 @@ lock_print_info_summary(
 	ibool	nowait)	/* in: whether to wait for the kernel
 			mutex */
 {
-	/* We must protect the MySQL thd->query field with a MySQL mutex, and
-	because the MySQL mutex must be reserved before the kernel_mutex of
-	InnoDB, we call innobase_mysql_prepare_print_arbitrary_thd() here. */
-
-	innobase_mysql_prepare_print_arbitrary_thd();
 
 	/* if nowait is FALSE, wait on the kernel mutex,
 	otherwise return immediately if fail to obtain the
@@ -4331,7 +4301,6 @@ loop:
 
 	if (trx == NULL) {
 		lock_mutex_exit_kernel();
-		innobase_mysql_end_print_arbitrary_thd();
 
 		ut_ad(lock_validate());
 
@@ -4403,7 +4372,6 @@ loop:
 
 		if (load_page_first) {
 			lock_mutex_exit_kernel();
-			innobase_mysql_end_print_arbitrary_thd();
 
 			mtr_start(&mtr);
 
@@ -4414,7 +4382,6 @@ loop:
 
 			load_page_first = FALSE;
 
-			innobase_mysql_prepare_print_arbitrary_thd();
 			lock_mutex_enter_kernel();
 
 			goto loop;
