@@ -894,6 +894,15 @@ public:
      (*traverser)(this, arg);
    }
 
+  /*
+    This is used to get the most recent version of any function in
+    an item tree. The version is the version where a MySQL function
+    was introduced in. So any function which is added should use
+    this function and set the int_arg to maximum of the input data
+    and their own version info.
+  */
+  virtual bool intro_version(uchar *int_arg) { return 0; }
+
   virtual bool remove_dependence_processor(uchar * arg) { return 0; }
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(uchar *arg);
@@ -965,6 +974,15 @@ public:
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
+  /*
+    Check if an expression value depends on the current timezone. Used by
+    partitioning code to reject timezone-dependent expressions in a
+    (sub)partitioning function.
+  */
+  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  {
+    return FALSE;
+  }
 
   /*
     For SP local variable returns pointer to Item representing its
