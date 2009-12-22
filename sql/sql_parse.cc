@@ -1180,8 +1180,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (trans_commit_implicit(thd))
       break;
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
@@ -1211,8 +1210,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (trans_commit_implicit(thd))
       break;
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     my_ok(thd);
     break;
   }
@@ -1967,8 +1965,7 @@ mysql_execute_command(THD *thd)
       goto error;
     /* Close tables and release metadata locks. */
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
   }
 
   /*
@@ -3302,7 +3299,7 @@ end_with_restore_list:
     if (thd->options & OPTION_TABLE_LOCK)
     {
       trans_commit_implicit(thd);
-      thd->mdl_context.release_all_locks();
+      thd->mdl_context.release_transactional_locks();
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
     if (thd->global_read_lock)
@@ -3311,11 +3308,19 @@ end_with_restore_list:
     break;
   case SQLCOM_LOCK_TABLES:
     thd->locked_tables_list.unlock_locked_tables(thd);
+    /*
+      As of 5.5, entering LOCK TABLES mode implicitly closes all
+      open HANDLERs. Both HANDLER code and LOCK TABLES mode use
+      the sentinel mechanism in MDL subsystem and thus could not be
+      used at the same time. All HANDLER operations are prohibited
+      under LOCK TABLES anyway.
+    */
+    mysql_ha_cleanup(thd);
     /* we must end the trasaction first, regardless of anything */
     if (trans_commit_implicit(thd))
       goto error;
     /* release transactional metadata locks. */
-    thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                            FALSE, UINT_MAX, FALSE))
       goto error;
@@ -3354,7 +3359,7 @@ end_with_restore_list:
       */
       close_thread_tables(thd);
       DBUG_ASSERT(!thd->locked_tables_mode);
-      thd->mdl_context.release_all_locks();
+      thd->mdl_context.release_transactional_locks();
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
     else
@@ -3845,8 +3850,7 @@ end_with_restore_list:
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
     if (trans_commit(thd))
       goto error;
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
     if (lex->tx_chain && trans_begin(thd))
       goto error;
@@ -3860,8 +3864,7 @@ end_with_restore_list:
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
     if (trans_rollback(thd))
       goto error;
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
     if (lex->tx_chain && trans_begin(thd))
       goto error;
@@ -4212,8 +4215,7 @@ create_sp_error:
 
         close_thread_tables(thd);
 
-        if (!thd->locked_tables_mode)
-          thd->mdl_context.release_all_locks();
+        thd->mdl_context.release_transactional_locks();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (sp_automatic_privileges && !opt_noacl &&
@@ -4394,15 +4396,13 @@ create_sp_error:
   case SQLCOM_XA_COMMIT:
     if (trans_xa_commit(thd))
       goto error;
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     my_ok(thd);
     break;
   case SQLCOM_XA_ROLLBACK:
     if (trans_xa_rollback(thd))
       goto error;
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
@@ -4555,11 +4555,10 @@ finish:
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
     trans_commit_implicit(thd);
+    thd->stmt_da->can_overwrite_status= FALSE;
     /* Close tables and release metadata locks. */
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
-    thd->stmt_da->can_overwrite_status= FALSE;
+    thd->mdl_context.release_transactional_locks();
   }
 
   DBUG_RETURN(res || thd->is_error());
@@ -6539,7 +6538,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
 #endif /*HAVE_QUERY_CACHE*/
 
-  DBUG_ASSERT(!thd || thd->locked_tables_mode || !thd->mdl_context.has_locks());
+  DBUG_ASSERT(!thd || thd->locked_tables_mode ||
+              !thd->mdl_context.has_locks() ||
+              thd->handler_tables_hash.records);
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too

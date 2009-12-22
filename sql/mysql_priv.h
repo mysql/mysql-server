@@ -1534,6 +1534,7 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
+void mark_tmp_table_for_reuse(TABLE *table);
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);

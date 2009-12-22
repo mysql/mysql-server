@@ -5321,8 +5321,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   if (!(res= trans_commit(thd)))
   {
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
   }
   return res;
 }
