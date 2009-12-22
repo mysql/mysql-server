@@ -18,10 +18,16 @@
 typedef struct st_mysql_plugin builtin_plugin[];
 
 extern builtin_plugin 
-  builtin_binlog_plugin@mysql_plugin_defs@;
+  @mysql_mandatory_plugins@ @mysql_optional_plugins@ builtin_binlog_plugin;
 
-struct st_mysql_plugin *mysqld_builtins[]=
+struct st_mysql_plugin *mysql_optional_plugins[]=
 {
-  builtin_binlog_plugin@mysql_plugin_defs@,(struct st_mysql_plugin *)0
+  @mysql_optional_plugins@ 0
 };
+
+struct st_mysql_plugin *mysql_mandatory_plugins[]=
+{
+  builtin_binlog_plugin, @mysql_mandatory_plugins@ 0
+};
+
 

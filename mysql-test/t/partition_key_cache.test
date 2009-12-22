@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS t1, t2, v, x;
 --echo # Verifing that reads/writes use the key cache correctly
 SELECT @org_key_cache_buffer_size:= @@global.default.key_buffer_size;
 --echo # Minimize default key cache (almost disabled).
-SET @@global.default.key_buffer_size = 1;
+SET @@global.default.key_buffer_size = 4096;
 CREATE TABLE t1 (
   a INT,
   b INT,

@@ -1,0 +1,12 @@
+create table t1 (test_name text);
+load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+select variable_name as `There should be *no* variables listed below:`
+                    from information_schema.global_variables
+left join t1 on variable_name=test_name where
+test_name is null
+union
+select variable_name from information_schema.session_variables
+left join t1 on variable_name=test_name where
+test_name is null;
+There should be *no* variables listed below:
+drop table t1;

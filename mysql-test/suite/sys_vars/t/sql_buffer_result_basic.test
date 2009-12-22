@@ -92,25 +92,15 @@ SET @@session.sql_buffer_result = 2;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = "TRU";
 
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.sql_buffer_result = 0.4;
-SELECT @@session.sql_buffer_result;
-
-SET @@session.sql_buffer_result = 1.4;
-SELECT @@session.sql_buffer_result;
-
---echo 'Bug: Decimal values are accepted and rounded to an integer before';
---echo 'assingment.';
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = OF;
-SELECT @@session.sql_buffer_result;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -124,10 +114,9 @@ SET @@session.sql_buffer_result = NO;
 #       Test if accessing global sql_buffer_result gives error            #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
-SET @@global.sql_buffer_result = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.sql_buffer_result = 1-@@global.sql_buffer_result;
+SELECT @@global.sql_buffer_result;
+SET @@global.sql_buffer_result = 1-@@global.sql_buffer_result;
 SELECT @@global.sql_buffer_result;
 
 --echo '#----------------------FN_DYNVARS_155_06------------------------#'

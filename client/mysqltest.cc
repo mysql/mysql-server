@@ -2227,7 +2227,7 @@ do_result_format_version(struct st_command *command)
   long version;
   static DYNAMIC_STRING ds_version;
   const struct command_arg result_format_args[] = {
-    "version", ARG_STRING, TRUE, &ds_version, "Version to use",
+    {"version", ARG_STRING, TRUE, &ds_version, "Version to use"}
   };
 
   DBUG_ENTER("do_result_format_version");
@@ -6154,6 +6154,8 @@ void init_win_path_patterns()
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
                           "$MASTER_MYSOCK",
+                          "$MYSQL_SHAREDIR",
+                          "$MYSQL_LIBDIR",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
@@ -7102,7 +7104,7 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+ DBUG_RETURN(mysql_query(mysql, query));
 }
 
 
@@ -7740,6 +7742,7 @@ int main(int argc, char **argv)
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
+  var_set_string("MYSQLTEST_FILE", cur_file->file_name);
   init_re();
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;

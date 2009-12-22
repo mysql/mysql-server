@@ -1,0 +1,21 @@
+select @@global.shared_memory;
+@@global.shared_memory
+0
+select @@session.shared_memory;
+ERROR HY000: Variable 'shared_memory' is a GLOBAL variable
+show global variables like 'shared_memory';
+Variable_name	Value
+shared_memory	OFF
+show session variables like 'shared_memory';
+Variable_name	Value
+shared_memory	OFF
+select * from information_schema.global_variables where variable_name='shared_memory';
+VARIABLE_NAME	VARIABLE_VALUE
+SHARED_MEMORY	OFF
+select * from information_schema.session_variables where variable_name='shared_memory';
+VARIABLE_NAME	VARIABLE_VALUE
+SHARED_MEMORY	OFF
+set global shared_memory=1;
+ERROR HY000: Variable 'shared_memory' is a read only variable
+set session shared_memory=1;
+ERROR HY000: Variable 'shared_memory' is a read only variable

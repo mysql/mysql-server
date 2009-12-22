@@ -8,6 +8,8 @@ CREATE TABLE t1(a CHAR(255));
 INSERT INTO t1 VALUES ('a');
 SET @@SESSION.sort_buffer_size=5*16*1000000;
 SET @@SESSION.max_heap_table_size=5*1000000;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '5000000'
 # Must not crash.
 SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY a;
 DROP TABLE t1;

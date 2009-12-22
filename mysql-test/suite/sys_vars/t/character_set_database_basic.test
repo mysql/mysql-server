@@ -182,8 +182,6 @@ SET @@global.character_set_database = 100;
 
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
---echo 'Bug # 34843: character sets are mapped in such a way that 100 and following';
---echo 'numbers gives error, and before 100 the 36 mapped wraps arround several times.';
 
 --echo '#--------------------FN_DYNVARS_012_10-------------------------#'
 ##############################################################################
