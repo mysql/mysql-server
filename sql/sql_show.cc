@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -641,7 +641,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     thd->push_internal_handler(&view_error_suppressor);
     bool error= open_normal_and_derived_tables(thd, table_list, 0);
     thd->pop_internal_handler();
-    if (error && thd->is_error())
+    if (error && (thd->killed || thd->is_error()))
       DBUG_RETURN(TRUE);
   }
 
@@ -1468,7 +1468,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   show_table_options,
                                                   NULL, NULL))))
     {
-       packet->append(STRING_WITH_LEN("\n/*!50100"));
+       table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
@@ -1759,11 +1759,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
         if ((mysys_var= tmp->mysys_var))
-          pthread_mutex_lock(&mysys_var->mutex);
+          mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
         thd_info->state_info= thread_state_info(tmp);
         if (mysys_var)
-          pthread_mutex_unlock(&mysys_var->mutex);
+          mysql_mutex_unlock(&mysys_var->mutex);
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
@@ -1862,7 +1862,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       }
 
       if ((mysys_var= tmp->mysys_var))
-        pthread_mutex_lock(&mysys_var->mutex);
+        mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
       if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
         table->field[4]->store(val, strlen(val), cs);
@@ -1880,7 +1880,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       }
 
       if (mysys_var)
-        pthread_mutex_unlock(&mysys_var->mutex);
+        mysql_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
       if (tmp->query())
@@ -1958,7 +1958,7 @@ int add_status_vars(SHOW_VAR *list)
 {
   int res= 0;
   if (status_vars_inited)
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
   if (!all_status_vars.buffer && // array is not allocated yet - do it now
       my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
   {
@@ -1973,7 +1973,7 @@ int add_status_vars(SHOW_VAR *list)
     sort_dynamic(&all_status_vars, show_var_cmp);
 err:
   if (status_vars_inited)
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   return res;
 }
 
@@ -2035,7 +2035,7 @@ void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
@@ -2056,7 +2056,7 @@ void remove_status_vars(SHOW_VAR *list)
         all[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
@@ -3102,7 +3102,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   }
 
   key_length= create_table_def_key(thd, key, &table_list, 0);
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
                          key_length, OPEN_VIEW, &error);
   if (!share)
@@ -3149,7 +3149,7 @@ err1:
   release_table_share(share, RELEASE_NORMAL);
 
 err:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   thd->clear_error();
   return res;
 }
@@ -5524,14 +5524,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp1= &thd->status_var;
   }
 
-  pthread_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  pthread_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
@@ -7218,7 +7218,7 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   /* Acquire LOCK_open (stop the server). */
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   /*
     Load base table name from the TRN-file and create TABLE_LIST object.
@@ -7228,7 +7228,7 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 
   /* Release LOCK_open (continue the server). */
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   /* That's it. */
 

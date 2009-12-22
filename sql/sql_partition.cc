@@ -1026,6 +1026,8 @@ end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
     table                The table object
     part_info            Reference to partitioning data structure
     is_sub_part          Is the table subpartitioned as well
+    is_create_table_ind  Indicator of whether openfrm was called as part of
+                         CREATE or ALTER TABLE
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -1049,7 +1051,7 @@ end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
 */
 
 static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
-                                 bool is_sub_part)
+                          bool is_sub_part, bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
   bool result= TRUE;
@@ -1105,10 +1107,31 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   }
   if (unlikely(func_expr->const_item()))
   {
-    my_error(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+    my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
     clear_field_flag(table);
     goto end;
   }
+
+  /*
+    We don't allow creating partitions with timezone-dependent expressions as
+    a (sub)partitioning function, but we want to allow such expressions when
+    opening existing tables for easier maintenance. This exception should be
+    deprecated at some point in future so that we always throw an error.
+  */
+  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+                      0, NULL))
+  {
+    if (is_create_table_ind)
+    {
+      my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+      goto end;
+    }
+    else
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
+                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+  }
+
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
     goto end;
   result= set_up_field_array(table, is_sub_part);
@@ -1719,7 +1742,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
-                                        table, TRUE)))
+                                        table, TRUE, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1747,7 +1770,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE)))
+                                        table, FALSE, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
@@ -1770,7 +1793,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE)))
+                                        table, FALSE, is_create_table_ind)))
         goto end;
     }
     part_info->fixed= TRUE;
@@ -6258,7 +6281,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
     */
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     lpt->thd->in_lock_tables= 1;
     err= reopen_tables(lpt->thd, 1, 1);
     lpt->thd->in_lock_tables= 0;
@@ -6272,7 +6295,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       unlink_open_table(lpt->thd, lpt->table, FALSE);
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
 }
 
@@ -6296,9 +6319,9 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
     We set lock to zero to ensure we don't do this twice
     and we set db_stat to zero to ensure we don't close twice.
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   close_data_files_and_morph_locks(thd, db, table_name);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 
