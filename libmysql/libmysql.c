@@ -3372,12 +3372,13 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     param   output buffer descriptor
     field   column metadata
     value   column data
-    width   default number of significant digits used when converting
-            float/double to string
+    type    either MY_GCVT_ARG_FLOAT or MY_GCVT_ARG_DOUBLE.
+            Affects the maximum number of significant digits
+            returned by my_gcvt().
 */
 
 static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
-                                        double value, int width)
+                                        double value, my_gcvt_arg_type type)
 {
   char *buffer= (char *)param->buffer;
   double val64 = (value < 0 ? -floor(-value) : floor(value));
@@ -3461,39 +3462,24 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       floating point -> string conversion nicely, honor all typecodes
       and param->offset possibly set in mysql_stmt_fetch_column
     */
-    char buff[MAX_DOUBLE_STRING_REP_LENGTH];
-    char *end;
+    char buff[FLOATING_POINT_BUFFER];
+    size_t len;
     if (field->decimals >= NOT_FIXED_DEC)
-    {
-      /*
-        DBL_DIG below is to ensure that the server and client has the same
-        precisions. This will ensure that on the same machine you get the
-        same value as a string independent of the protocol you use.
-      */
-      sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1,
-                                        param->buffer_length),
-              min(DBL_DIG, width), value);
-      end= strcend(buff, ' ');
-      *end= 0;
-    }
+      len= my_gcvt(value, type,
+                   (int) min(sizeof(buff)-1, param->buffer_length),
+                   buff, NULL);
     else
-    {
-      sprintf(buff, "%.*f", (int) field->decimals, value);
-      end= strend(buff);
-    }
+      len= my_fcvt(value, (int) field->decimals, buff, NULL);
 
+    if (field->flags & ZEROFILL_FLAG && len < field->length &&
+        field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
     {
-      size_t length= end - buff;
-      if (field->flags & ZEROFILL_FLAG && length < field->length &&
-          field->length < MAX_DOUBLE_STRING_REP_LENGTH - 1)
-      {
-        bmove_upp((uchar*) buff + field->length, (uchar*) buff + length,
-                  length);
-        bfill((char*) buff, field->length - length, '0');
-        length= field->length;
-      }
-      fetch_string_with_conversion(param, buff, length);
+      bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
+                len);
+      bfill((char*) buff, field->length - len, '0');
+      len= field->length;
     }
+    fetch_string_with_conversion(param, buff, len);
 
     break;
   }
@@ -3538,7 +3524,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
   {
     ulonglong value= TIME_to_ulonglong(my_time);
     fetch_float_with_conversion(param, field,
-                                ulonglong2double(value), DBL_DIG);
+                                ulonglong2double(value), MY_GCVT_ARG_DOUBLE);
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -3632,7 +3618,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   {
     float value;
     float4get(value,*row);
-    fetch_float_with_conversion(param, field, value, FLT_DIG);
+    fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_FLOAT);
     *row+= 4;
     break;
   }
@@ -3640,7 +3626,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   {
     double value;
     float8get(value,*row);
-    fetch_float_with_conversion(param, field, value, DBL_DIG);
+    fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_DOUBLE);
     *row+= 8;
     break;
   }

@@ -137,12 +137,6 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   900000000, 990000000, 999000000,
   999900000, 999990000, 999999000,
   999999900, 999999990 };
-static double scaler10[]= {
-  1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
-};
-static double scaler1[]= {
-  1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
-};
 
 #ifdef HAVE_purify
 #define sanity(d) DBUG_ASSERT((d)->len > 0)
@@ -947,33 +941,25 @@ fatal_error:
       to      - result will be stored there
 
   RETURN VALUE
-    E_DEC_OK
+    E_DEC_OK/E_DEC_OVERFLOW/E_DEC_TRUNCATED
 */
 
 int decimal2double(decimal_t *from, double *to)
 {
-  double result= 0.0;
-  int i, exp= 0;
-  dec1 *buf= from->buf;
+  char strbuf[FLOATING_POINT_BUFFER], *end;
+  int len= sizeof(strbuf);
+  int rc, error;
 
-  for (i= from->intg; i > 0;  i-= DIG_PER_DEC1)
-    result= result * DIG_BASE + *buf++;
+  rc = decimal2string(from, strbuf, &len, 0, 0, 0);
+  end= strbuf + len;
+  
+  DBUG_PRINT("info", ("interm.: %s", strbuf));
 
-  for (i= from->frac; i > 0; i-= DIG_PER_DEC1) {
-    result= result * DIG_BASE + *buf++;
-    exp+= DIG_PER_DEC1;
-  }
-
-  DBUG_PRINT("info", ("interm.: %f %d %f", result, exp,
-             scaler10[exp / 10] * scaler1[exp % 10]));
-
-  result/= scaler10[exp / 10] * scaler1[exp % 10];
-
-  *to= from->sign ? -result : result;
-
+  *to= my_strtod(strbuf, &end, &error);
+             
   DBUG_PRINT("info", ("result: %f (%lx)", *to, *(ulong *)to));
 
-  return E_DEC_OK;
+  return (rc != E_DEC_OK) ? rc : (error ? E_DEC_OVERFLOW : E_DEC_OK);
 }
 
 /*
@@ -990,13 +976,10 @@ int decimal2double(decimal_t *from, double *to)
 
 int double2decimal(double from, decimal_t *to)
 {
-  /* TODO: fix it, when we'll have dtoa */
-  char buff[400], *end;
-  int length, res;
+  char buff[FLOATING_POINT_BUFFER], *end;
+  int res;
   DBUG_ENTER("double2decimal");
-  length= my_sprintf(buff, (buff, "%.16G", from));
-  DBUG_PRINT("info",("from: %g  from_as_str: %s", from, buff));
-  end= buff+length;
+  end= buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE, sizeof(buff) - 1, buff, NULL);
   res= string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
   DBUG_RETURN(res);

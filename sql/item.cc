@@ -5259,9 +5259,7 @@ int Item_null::save_safe_in_field(Field *field)
 int Item::save_in_field(Field *field, bool no_conversions)
 {
   int error;
-  if (result_type() == STRING_RESULT ||
-      (result_type() == REAL_RESULT &&
-       field->result_type() == STRING_RESULT))
+  if (result_type() == STRING_RESULT)
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;
@@ -5279,6 +5277,15 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(result->ptr(),result->length(),cs);
     str_value.set_quick(0, 0, cs);
+  }
+  else if (result_type() == REAL_RESULT &&
+           field->result_type() == STRING_RESULT)
+  {
+    double nr= val_real();
+    if (null_value)
+      return set_field_to_null_with_conversions(field, no_conversions);
+    field->set_notnull();
+    error= field->store(nr);
   }
   else if (result_type() == REAL_RESULT)
   {
