@@ -217,8 +217,14 @@ my @mysqld_rules=
  { 'ssl-ca' => \&fix_ssl_ca },
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
- { 'loose-shared-memory-base-name' => \&fix_socket}
   );
+
+if (IS_WINDOWS)
+{
+  # For simplicity, we use the same names for shared memory and 
+  # named pipes.
+  push(@mysqld_rules, {'shared-memory-base-name' => \&fix_socket});
+}
  
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group)= @_;
@@ -336,7 +342,6 @@ sub post_check_client_group {
      host       => '#host',
      user       => '#user',
      password   => '#password',
-     'loose-shared-memory-base-name' => 'loose-shared-memory-base-name',
     );
 
   my $group_to_copy_from= $config->group($mysqld_group_name);
@@ -349,9 +354,18 @@ sub post_check_client_group {
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
-  
-}
 
+   if (IS_WINDOWS &&  
+       ! $self->{ARGS}->{embedded})
+   {
+     my $shm = $group_to_copy_from->option("shared-memory-base-name");
+     if (defined $shm)
+     {
+       $config->insert($client_group_name,"shared-memory-base-name",
+                       $shm->value());
+     }
+  }
+}
 
 sub post_check_client_groups {
  my ($self, $config)= @_;
@@ -396,6 +410,7 @@ sub post_check_embedded_group {
     (
      '#log-error', # Embedded server writes stderr to mysqltest's log file
      'slave-net-timeout', # Embedded server are not build with replication
+     'shared-memory-base-name', # No shared memory for embedded
     );
 
   foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {
