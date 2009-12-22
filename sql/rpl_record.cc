@@ -222,7 +222,7 @@ unpack_row(Relay_log_info const *rli,
       conv_table ? conv_table->field[field_ptr - begin_ptr] : NULL;
     Field *const f=
       conv_field ? conv_field : *field_ptr;
-    DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%d)",
+    DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%ld)",
                          conv_field ? "" : "not ",
                          (*field_ptr)->field_name, field_ptr - begin_ptr));
     DBUG_ASSERT(f != NULL);
@@ -313,7 +313,7 @@ unpack_row(Relay_log_info const *rli,
         conv_field->val_str(&value_string);
         DBUG_PRINT("debug", ("Copying field '%s' of type '%s' with value '%s'",
                              (*field_ptr)->field_name,
-                             source_type.c_ptr(), value_string.c_ptr()));
+                             source_type.c_ptr_safe(), value_string.c_ptr_safe()));
 #endif
         copy.set(*field_ptr, f, TRUE);
         (*copy.do_copy)(&copy);
@@ -324,7 +324,7 @@ unpack_row(Relay_log_info const *rli,
         (*field_ptr)->val_str(&value_string);
         DBUG_PRINT("debug", ("Value of field '%s' of type '%s' is now '%s'",
                              (*field_ptr)->field_name,
-                             target_type.c_ptr(), value_string.c_ptr()));
+                             target_type.c_ptr_safe(), value_string.c_ptr_safe()));
 #endif
       }
 
@@ -419,7 +419,6 @@ int prepare_record(TABLE *const table,
   */
   for (Field **field_ptr= table->field+skip; *field_ptr; ++field_ptr)
   {
-    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
     if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
         (f->real_type() != MYSQL_TYPE_ENUM))
