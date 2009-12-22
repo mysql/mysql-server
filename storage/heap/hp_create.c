@@ -85,8 +85,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           /* fall_through */
         case HA_KEYTYPE_VARTEXT1:
-          if (!my_binary_compare(keyinfo->seg[j].charset))
-            keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
           /* Save number of bytes used to store length */
@@ -96,8 +94,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           /* Case-insensitiveness is handled in coll->hash_sort */
           /* fall_through */
         case HA_KEYTYPE_VARTEXT2:
-          if (!my_binary_compare(keyinfo->seg[j].charset))
-            keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
           /* Save number of bytes used to store length */
@@ -111,8 +107,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	default:
 	  break;
 	}
-        if (keyinfo->seg[j].flag & HA_END_SPACE_ARE_EQUAL)
-          keyinfo->flag|= HA_END_SPACE_KEY;
       }
       keyinfo->length= length;
       length+= keyinfo->rb_tree.size_of_element + 

@@ -1406,12 +1406,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
           keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
-          /*
-            Mark that there may be many matching values for one key
-            combination ('a', 'a ', 'a  '...)
-          */
-          if (!(field->flags & BINARY_FLAG))
-            keyinfo->flags|= HA_END_SPACE_KEY;
         }
         if (field->type() == MYSQL_TYPE_BIT)
           key_part->key_part_flag|= HA_BIT_PART;

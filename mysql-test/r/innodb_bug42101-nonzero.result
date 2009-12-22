@@ -1,5 +1,5 @@
 set global innodb_commit_concurrency=0;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_commit_concurrency' can't be set to the value of '0'
 select @@innodb_commit_concurrency;
 @@innodb_commit_concurrency
 1
@@ -16,7 +16,7 @@ select @@innodb_commit_concurrency;
 @@innodb_commit_concurrency
 1
 set global innodb_commit_concurrency=0;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_commit_concurrency' can't be set to the value of '0'
 select @@innodb_commit_concurrency;
 @@innodb_commit_concurrency
 1

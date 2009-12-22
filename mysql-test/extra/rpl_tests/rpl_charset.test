@@ -114,9 +114,7 @@ set @@character_set_server=latin5;
 select @@character_set_server;
 select @@character_set_server;
 
-# ONE_SHOT on not charset/collation stuff is not allowed
--- error 1382
-set one_shot max_join_size=10;
+set one_shot max_join_size=1000000;
 
 # Test of wrong character set numbers;
 error 1115;

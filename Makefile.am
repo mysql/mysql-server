@@ -204,10 +204,6 @@ test-bt-debug:
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features $(EXP)
 
-test-bt-debug-fast:
-
-test-bt-debug-fast:
-
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
