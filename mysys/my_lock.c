@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -206,8 +206,8 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
     else
       timeout_sec= WIN_LOCK_INFINITE;
 
-    if(win_lock(fd, locktype, start, length, timeout_sec) == 0)
-         DBUG_RETURN(0);
+    if (win_lock(fd, locktype, start, length, timeout_sec) == 0)
+      DBUG_RETURN(0);
   }
 #else
 #if defined(HAVE_FCNTL)

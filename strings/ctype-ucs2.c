@@ -1602,16 +1602,6 @@ fill_max_and_min:
     *min_str++= *max_str++ = ptr[1];
   }
 
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp-1 > min_org && tmp[-1] == '\0' && tmp[-2]=='\0';)
-    {
-      *--tmp=' ';
-      *--tmp='\0';
-    }
-  }
-  
   *min_length= *max_length = (size_t) (min_str - min_org);
   while (min_str + 1 < min_end)
   {

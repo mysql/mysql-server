@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@
 void my_inet_ntoa(struct in_addr in, char *buf)
 {
   char *ptr;
-  pthread_mutex_lock(&THR_LOCK_net);
+  mysql_mutex_lock(&THR_LOCK_net);
   ptr=inet_ntoa(in);
   strmov(buf,ptr);
-  pthread_mutex_unlock(&THR_LOCK_net);
+  mysql_mutex_unlock(&THR_LOCK_net);
 }

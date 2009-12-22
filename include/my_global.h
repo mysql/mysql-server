@@ -876,6 +876,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
+#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
+#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
 #define INT_MIN32       (~0x7FFFFFFFL)
 #define INT_MAX32       0x7FFFFFFFL
 #define UINT_MAX32      0xFFFFFFFFL
@@ -899,7 +901,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 #ifndef SIZE_T_MAX
-#define SIZE_T_MAX ~((size_t) 0)
+#define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
 #ifndef isfinite

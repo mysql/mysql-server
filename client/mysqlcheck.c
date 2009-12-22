@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -643,8 +643,11 @@ static int process_one_db(char *database)
 
 static int use_db(char *database)
 {
-  if (mysql_get_server_version(sock) >= 50003 &&
-      !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
+  if (mysql_get_server_version(sock) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+      !my_strcasecmp(&my_charset_latin1, database, INFORMATION_SCHEMA_DB_NAME))
+    return 1;
+  if (mysql_get_server_version(sock) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+      !my_strcasecmp(&my_charset_latin1, database, PERFORMANCE_SCHEMA_DB_NAME))
     return 1;
   if (mysql_select_db(sock, database))
   {
