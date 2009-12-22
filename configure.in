@@ -31,12 +31,14 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # Remember that regexps needs to quote [ and ] since this is run through m4
 # We take some made up examples
 #
-#  VERSION                  5.1.40sp1-alpha     5.0.34a
-#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a
-#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34
-#  MYSQL_BASE_VERSION       5.1                 5.0
-#  MYSQL_VERSION_ID         50140               50034
+#  VERSION                  5.1.40sp1-alpha     5.0.34a  5.5.1-m2
+#  MYSQL_U_SCORE_VERSION    5.1.40sp1_alpha     5.0.34a  5.5.1_m2
+#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a  5.5.1
+#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34   5.5.1
+#  MYSQL_BASE_VERSION       5.1                 5.0      5.5
+#  MYSQL_VERSION_ID         50140               50034    50501
 #
+MYSQL_U_SCORE_VERSION=`echo $VERSION | sed -e "s|-|_|"`
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
 MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
@@ -74,6 +76,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 #####
 #####
 
+AC_SUBST(MYSQL_U_SCORE_VERSION)
 AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
