@@ -1,3 +1,4 @@
+# Copyright 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
 #
 # MySQL-shared-compat.spec
 #
@@ -6,8 +7,6 @@
 # distributions that ship older versions of MySQL and do not provide a
 # separate "MySQL-shared" package. This spec file simply repackages two
 # already existing MySQL-shared RPMs into a single package.
-# 
-# Copyright (C) 2003 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -28,27 +27,27 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version50 @MYSQL_NO_DASH_VERSION@
+%define version_cur @MYSQL_U_SCORE_VERSION@
 %define version41 4.1.17
 %define version40 4.0.26
 %define version3 3.23.58
 
 Name:         MySQL-shared-compat
-Packager:     MySQL Product Engineering team <build@mysql.com>
-Vendor:       MySQL AB
+Packager:     Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
+Vendor:       Sun Microsystems, Inc.
 License:      GPL
 Group:        Applications/Databases
 URL:          http://www.mysql.com/
 Autoreqprov:  on
-Version:      %{version50}
-Release:      0
+Version:      %{version_cur}
+Release:      1
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Obsoletes:    MySQL-shared, mysql-shared
 Provides:     MySQL-shared
 Summary:      MySQL shared client libraries for MySQL %{version}, %{version41}, %{version40} and %{version3}
 # We simply use the "MySQL-shared" subpackages as input sources instead of
 # rebuilding all from source
-Source0:      MySQL-shared-%{version50}-0.%{_arch}.rpm
+Source0:      MySQL-shared-%{version_cur}-1.%{_arch}.rpm
 Source1:      MySQL-shared-%{version41}-1.%{_arch}.rpm
 Source2:      MySQL-shared-%{version40}-0.%{_arch}.rpm
 Source3:      MySQL-shared-%{version3}-1.%{_arch}.rpm
@@ -62,7 +61,7 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 %description
 This package includes the shared libraries for MySQL %{version3},
-MySQL %{version40}, %{version41} as well as MySQL %{version50}.
+MySQL %{version40}, %{version41} as well as MySQL %{version_cur}.
 Install this package instead of "MySQL-shared", if you have applications
 installed that are dynamically linked against older versions of the MySQL
 client library but you want to upgrade to MySQL %{version} without breaking the
@@ -84,3 +83,14 @@ rpm2cpio %{SOURCE3} | cpio -iv --make-directories
 %files
 %defattr(-, root, root)
 %{_libdir}/libmysqlclient*
+
+# The spec file changelog only includes changes made to the spec file
+# itself - note that they must be ordered by date (important when
+# merging BK trees)
+%changelog
+* Tue Dec 22 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Change RPM file naming:
+  - Suffix like "-m2", "-rc" becomes part of version as "_m2", "_rc".
+  - Release counts from 1, not 0.
+
