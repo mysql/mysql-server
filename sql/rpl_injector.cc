@@ -86,8 +86,7 @@ int injector::transaction::commit()
    if (!trans_commit(m_thd))
    {
      close_thread_tables(m_thd);
-     if (!m_thd->locked_tables_mode)
-       m_thd->mdl_context.release_all_locks();
+     m_thd->mdl_context.release_transactional_locks();
    }
    DBUG_RETURN(0);
 }

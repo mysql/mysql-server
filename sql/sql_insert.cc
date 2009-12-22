@@ -3610,8 +3610,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   /*
     mysql_lock_tables() below should never fail with request to reopen table
     since it won't wait for the table lock (we have exclusive metadata lock on
-    the table) and thus can't get aborted and since it ignores other threads
-    setting THD::some_tables_deleted thanks to MYSQL_LOCK_IGNORE_FLUSH.
+    the table) and thus can't get aborted.
   */
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||

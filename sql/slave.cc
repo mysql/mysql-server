@@ -2432,8 +2432,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             trans_rollback(thd);
             close_thread_tables(thd);
-            if (!thd->locked_tables_mode)
-              thd->mdl_context.release_all_locks();
+            thd->mdl_context.release_transactional_locks();
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);

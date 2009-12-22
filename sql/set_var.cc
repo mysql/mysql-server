@@ -3196,8 +3196,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
       return TRUE;
 
     close_thread_tables(thd);
-    if (!thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
   }
 
   if (var->save_result.ulong_value != 0)

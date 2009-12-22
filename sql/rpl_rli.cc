@@ -1189,8 +1189,8 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
-  if (error && !thd->locked_tables_mode)
-    thd->mdl_context.release_all_locks();
+  if (error)
+    thd->mdl_context.release_transactional_locks();
   clear_flag(IN_STMT);
   /*
     Cleanup for the flags that have been set at do_apply_event.

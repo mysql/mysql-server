@@ -3193,8 +3193,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     Marker used to release metadata locks acquired while the prepared
     statement is being checked.
   */
-  if (thd->in_multi_stmt_transaction())
-    mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* 
    The only case where we should have items in the thd->free_list is
@@ -3220,13 +3219,11 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_end(lex);
   cleanup_stmt();
   /*
-    If not inside a multi-statement transaction, the metadata locks have
-    already been released and the rollback_to_savepoint is a nop.
-    Otherwise, release acquired locks -- a NULL mdl_savepoint means that
-    all locks are going to be released or that the transaction didn't
-    own any locks.
+    If not inside a multi-statement transaction, the metadata
+    locks have already been released and our savepoint points
+    to ticket which has been released as well.
   */
-  if (!thd->locked_tables_mode)
+  if (thd->in_multi_stmt_transaction())
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;

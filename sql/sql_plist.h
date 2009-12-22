@@ -71,6 +71,36 @@ public:
     first= a;
     *B::prev_ptr(a)= &first;
   }
+  inline void push_back(T *a)
+  {
+    insert_after(back(), a);
+  }
+  inline T *back()
+  {
+    T *t= front();
+    if (t)
+    {
+      while (*B::next_ptr(t))
+        t= *B::next_ptr(t);
+    }
+    return t;
+  }
+  inline void insert_after(T *pos, T *a)
+  {
+    if (pos == NULL)
+      push_front(a);
+    else
+    {
+      *B::next_ptr(a)= *B::next_ptr(pos);
+      *B::prev_ptr(a)= B::next_ptr(pos);
+      *B::next_ptr(pos)= a;
+      if (*B::next_ptr(a))
+      {
+        T *old_next= *B::next_ptr(a);
+        *B::prev_ptr(old_next)= B::next_ptr(a);
+      }
+    }
+  }
   inline void remove(T *a)
   {
     T *next= *B::next_ptr(a);
@@ -78,8 +108,8 @@ public:
       *B::prev_ptr(next)= *B::prev_ptr(a);
     **B::prev_ptr(a)= next;
   }
-  inline T* head() { return first; }
-  inline const T *head() const { return first; }
+  inline T* front() { return first; }
+  inline const T *front() const { return first; }
   void swap(I_P_List<T,B> &rhs)
   {
     swap_variables(T *, first, rhs.first);
@@ -106,6 +136,7 @@ class I_P_List_iterator
   T *current;
 public:
   I_P_List_iterator(I_P_List<T, B> &a) : list(&a), current(a.first) {}
+  I_P_List_iterator(I_P_List<T, B> &a, T* current_arg) : list(&a), current(current_arg) {}
   inline void init(I_P_List<T, B> &a)
   {
     list= &a;
@@ -117,6 +148,11 @@ public:
     if (result)
       current= *B::next_ptr(current);
     return result;
+  }
+  inline T* operator++()
+  {
+    current= *B::next_ptr(current);
+    return current;
   }
   inline void rewind()
   {

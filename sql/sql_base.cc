@@ -1169,37 +1169,51 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
   for (TABLE *table= thd->temporary_tables ; table ; table= table->next)
   {
     if ((table->query_id == thd->query_id) && ! table->open_by_handler)
-    {
-      table->query_id= 0;
-      table->file->ha_reset();
-
-      /* Detach temporary MERGE children from temporary parent. */
-      DBUG_ASSERT(table->file);
-      table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-
-      /*
-        Reset temporary table lock type to it's default value (TL_WRITE).
-
-        Statements such as INSERT INTO .. SELECT FROM tmp, CREATE TABLE
-        .. SELECT FROM tmp and UPDATE may under some circumstances modify
-        the lock type of the tables participating in the statement. This
-        isn't a problem for non-temporary tables since their lock type is
-        reset at every open, but the same does not occur for temporary
-        tables for historical reasons.
-
-        Furthermore, the lock type of temporary tables is not really that
-        important because they can only be used by one query at a time and
-        not even twice in a query -- a temporary table is represented by
-        only one TABLE object. Nonetheless, it's safer from a maintenance
-        point of view to reset the lock type of this singleton TABLE object
-        as to not cause problems when the table is reused.
-
-        Even under LOCK TABLES mode its okay to reset the lock type as
-        LOCK TABLES is allowed (but ignored) for a temporary table.
-      */
-      table->reginfo.lock_type= TL_WRITE;
-    }
+      mark_tmp_table_for_reuse(table);
   }
+}
+
+
+/**
+  Reset a single temporary table.
+  Effectively this "closes" one temporary table,
+  in a session.
+
+  @param table     Temporary table.
+*/
+
+void mark_tmp_table_for_reuse(TABLE *table)
+{
+  DBUG_ASSERT(table->s->tmp_table);
+
+  table->query_id= 0;
+  table->file->ha_reset();
+
+  /* Detach temporary MERGE children from temporary parent. */
+  DBUG_ASSERT(table->file);
+  table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+
+  /*
+    Reset temporary table lock type to it's default value (TL_WRITE).
+
+    Statements such as INSERT INTO .. SELECT FROM tmp, CREATE TABLE
+    .. SELECT FROM tmp and UPDATE may under some circumstances modify
+    the lock type of the tables participating in the statement. This
+    isn't a problem for non-temporary tables since their lock type is
+    reset at every open, but the same does not occur for temporary
+    tables for historical reasons.
+
+    Furthermore, the lock type of temporary tables is not really that
+    important because they can only be used by one query at a time and
+    not even twice in a query -- a temporary table is represented by
+    only one TABLE object. Nonetheless, it's safer from a maintenance
+    point of view to reset the lock type of this singleton TABLE object
+    as to not cause problems when the table is reused.
+
+    Even under LOCK TABLES mode its okay to reset the lock type as
+    LOCK TABLES is allowed (but ignored) for a temporary table.
+  */
+  table->reginfo.lock_type= TL_WRITE;
 }
 
 
@@ -1261,7 +1275,6 @@ static void close_open_tables(THD *thd)
 
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
-  thd->some_tables_deleted= 0;
 
   /* Free tables to hold down open files */
   while (table_cache_count > table_cache_size && unused_tables)
@@ -1475,7 +1488,7 @@ void close_thread_tables(THD *thd)
     if (thd->locked_tables_mode == LTM_LOCK_TABLES)
       DBUG_VOID_RETURN;
 
-    thd->locked_tables_mode= LTM_NONE;
+    thd->leave_locked_tables_mode();
 
     /* Fallthrough */
   }
@@ -1505,16 +1518,27 @@ void close_thread_tables(THD *thd)
   if (thd->open_tables)
     close_open_tables(thd);
 
-  /*
-    Defer the release of metadata locks until the current transaction
-    is either committed or rolled back. This prevents other statements
-    from modifying the table for the entire duration of this transaction.
-    This provides commitment ordering for guaranteeing serializability
-    across multiple transactions.
-  */
-  if (!thd->in_multi_stmt_transaction() ||
-      (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-    thd->mdl_context.release_all_locks();
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL)
+  {
+    /* We can't have an open HANDLER in the backup open tables state. */
+    DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
+    /*
+      Due to the above assert, this is guaranteed to release *all* locks
+      in the context.
+    */
+    thd->mdl_context.release_transactional_locks();
+  }
+  else if (! thd->in_multi_stmt_transaction())
+  {
+    /*
+      Defer the release of metadata locks until the current transaction
+      is either committed or rolled back. This prevents other statements
+      from modifying the table for the entire duration of this transaction.
+      This provides commitment ordering for guaranteeing serializability
+      across multiple transactions.
+    */
+    thd->mdl_context.release_transactional_locks();
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2337,7 +2361,8 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
       enforced by asserts in metadata locking subsystem.
     */
     mdl_request->set_type(MDL_EXCLUSIVE);
-    DBUG_ASSERT(! thd->mdl_context.has_locks());
+    DBUG_ASSERT(! thd->mdl_context.has_locks() ||
+                thd->handler_tables_hash.records);
 
     if (thd->mdl_context.acquire_exclusive_lock(mdl_request))
       return 1;
@@ -2791,7 +2816,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (!share->free_tables.is_empty())
   {
-    table= share->free_tables.head();
+    table= share->free_tables.front();
     table_def_use_table(thd, table);
     /* We need to release share as we have EXTRA reference to it in our hands. */
     release_table_share(share);
@@ -3082,7 +3107,7 @@ Locked_tables_list::init_locked_tables(THD *thd)
       return TRUE;
     }
   }
-  thd->locked_tables_mode= LTM_LOCK_TABLES;
+  thd->enter_locked_tables_mode(LTM_LOCK_TABLES);
 
   return FALSE;
 }
@@ -3121,7 +3146,7 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
       */
       table_list->table->pos_in_locked_tables= NULL;
     }
-    thd->locked_tables_mode= LTM_NONE;
+    thd->leave_locked_tables_mode();
 
     close_thread_tables(thd);
   }
@@ -3636,7 +3661,8 @@ end_with_lock_open:
 
 Open_table_context::Open_table_context(THD *thd)
   :m_action(OT_NO_ACTION),
-  m_can_deadlock(thd->in_multi_stmt_transaction() &&
+  m_can_deadlock((thd->in_multi_stmt_transaction() ||
+                 thd->mdl_context.lt_or_ha_sentinel())&&
                  thd->mdl_context.has_locks())
 {}
 
@@ -4136,7 +4162,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     even if they don't create problems for current thread (i.e. to avoid
     having DDL blocked by HANDLERs opened for long time).
   */
-  if (thd->handler_tables)
+  if (thd->handler_tables_hash.records)
     mysql_ha_flush(thd);
 
   /*
@@ -4642,13 +4668,14 @@ retry:
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, 0)) &&
          ot_ctx.can_recover_from_failed_open_table())
   {
+    /* We can't back off with an open HANDLER, we don't wait with locks. */
+    DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
     /*
       Even though we have failed to open table we still need to
-      call release_all_locks() to release metadata locks which
+      call release_transactional_locks() to release metadata locks which
       might have been acquired successfully.
     */
-    if (! thd->locked_tables_mode)
-      thd->mdl_context.release_all_locks();
+    thd->mdl_context.release_transactional_locks();
     table_list->mdl_request.ticket= 0;
     if (ot_ctx.recover_from_failed_open_table_attempt(thd, table_list))
       break;
@@ -4699,8 +4726,12 @@ retry:
               close_thread_tables(thd);
               table_list->table= NULL;
               table_list->mdl_request.ticket= NULL;
-              if (! thd->locked_tables_mode)
-                thd->mdl_context.release_all_locks();
+              /*
+                We can't back off with an open HANDLER,
+                we don't wait with locks.
+              */
+              DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
+              thd->mdl_context.release_transactional_locks();
               goto retry;
             }
           }
@@ -4769,7 +4800,8 @@ bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
       break;
     if (!need_reopen)
       DBUG_RETURN(TRUE);
-    if (thd->in_multi_stmt_transaction() && has_locks)
+    if ((thd->in_multi_stmt_transaction() ||
+         thd->mdl_context.lt_or_ha_sentinel()) && has_locks)
     {
       my_error(ER_LOCK_DEADLOCK, MYF(0));
       DBUG_RETURN(TRUE);
@@ -5124,7 +5156,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       */
       mark_real_tables_as_free_for_reuse(first_not_own);
       DBUG_PRINT("info",("locked_tables_mode= LTM_PRELOCKED"));
-      thd->locked_tables_mode= LTM_PRELOCKED;
+      thd->enter_locked_tables_mode(LTM_PRELOCKED);
     }
   }
   else
@@ -5226,8 +5258,13 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
   for (tmp= first_not_own_table; tmp; tmp= tmp->next_global)
     tmp->mdl_request.ticket= NULL;
   close_thread_tables(thd);
-  if (!thd->locked_tables_mode)
-    thd->mdl_context.release_all_locks();
+  /* We can't back off with an open HANDLERs, we must not wait with locks. */
+  DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
+  /*
+    Due to the above assert, this effectively releases *all* locks
+    of this session, so that we can safely wait on tables.
+  */
+  thd->mdl_context.release_transactional_locks();
 }
 
 
@@ -8202,6 +8239,15 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use)
     if (!thd_table->needs_reopen())
       signalled|= mysql_lock_abort_for_thread(thd, thd_table);
   }
+  /*
+    Wake up threads waiting in tdc_wait_for_old_versions().
+    Normally such threads would already get blocked
+    in MDL subsystem, when trying to acquire a shared lock.
+    But in case a thread has an open HANDLER statement,
+    (and thus already grabbed a metadata lock), it gets
+    blocked only too late -- at the table cache level.
+  */
+  broadcast_refresh();
   pthread_mutex_unlock(&LOCK_open);
   return signalled;
 }
@@ -8721,7 +8767,9 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
 
   pthread_mutex_unlock(&LOCK_open);
 
-  thd->mdl_context.release_all_locks();
+  /* We can't have an open HANDLER in the backup context. */
+  DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
+  thd->mdl_context.release_transactional_locks();
 
   thd->restore_backup_open_tables_state(backup);
 }

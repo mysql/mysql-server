@@ -730,8 +730,7 @@ my_bool acl_reload(THD *thd)
 end:
   trans_commit_implicit(thd);
   close_thread_tables(thd);
-  if (!thd->locked_tables_mode)
-    thd->mdl_context.release_all_locks();
+  thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(return_val);
 }
 
@@ -3895,8 +3894,7 @@ my_bool grant_reload(THD *thd)
   rw_unlock(&LOCK_grant);
   trans_commit_implicit(thd);
   close_thread_tables(thd);
-  if (!thd->locked_tables_mode)
-    thd->mdl_context.release_all_locks();
+  thd->mdl_context.release_transactional_locks();
 
   /*
     It is OK failing to load procs_priv table because we may be

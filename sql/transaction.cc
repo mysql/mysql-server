@@ -103,7 +103,7 @@ bool trans_begin(THD *thd, uint flags)
     Release transactional metadata locks only after the
     transaction has been committed.
   */
-  thd->mdl_context.release_all_locks();
+  thd->mdl_context.release_transactional_locks();
 
   thd->options|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -341,6 +341,10 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
     Remember the last acquired lock before the savepoint was set.
     This is used as a marker to only release locks acquired after
     the setting of this savepoint.
+    Note: this works just fine if we're under LOCK TABLES,
+    since mdl_savepoint() is guaranteed to be beyond
+    the last locked table. This allows to release some
+    locks acquired during LOCK TABLES.
   */
   newsv->mdl_savepoint = thd->mdl_context.mdl_savepoint();
 
@@ -388,8 +392,10 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 
   thd->transaction.savepoints= sv;
 
-  /* Release metadata locks that were acquired during this savepoint unit. */
-  if (!res && !thd->locked_tables_mode)
+  /*
+    Release metadata locks that were acquired during this savepoint unit.
+  */
+  if (!res)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(test(res));
