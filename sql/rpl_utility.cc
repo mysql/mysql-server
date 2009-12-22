@@ -582,7 +582,7 @@ can_convert_field_to(Field *field,
   String field_type(field_type_buf, sizeof(field_type_buf), field->charset());
   field->sql_type(field_type);
   DBUG_PRINT("enter", ("field_type: %s, target_type: %d, source_type: %d, source_metadata: 0x%x",
-                       field_type.c_ptr(), field->real_type(), source_type, metadata));
+                       field_type.c_ptr_safe(), field->real_type(), source_type, metadata));
 #endif
   /*
     If the real type is the same, we need to check the metadata to
@@ -836,7 +836,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
         DBUG_PRINT("debug", ("Field %s - conversion required."
                              " Source type: '%s', Target type: '%s'",
                              tmp_table->field[col]->field_name,
-                             source_type.c_ptr(), target_type.c_ptr()));
+                             source_type.c_ptr_safe(), target_type.c_ptr_safe()));
       }
   }
 #endif
