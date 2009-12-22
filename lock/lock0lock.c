@@ -4209,7 +4209,6 @@ lock_print_info_summary(
 	if (!nowait) {
 		lock_mutex_enter_kernel();
 	} else if (mutex_enter_nowait(&kernel_mutex)) {
-		innobase_mysql_end_print_arbitrary_thd();
 		fputs("FAIL TO OBTAIN KERNEL MUTEX, "
 		      "SKIP LOCK INFO PRINTING\n", file);
 		return(FALSE);
