@@ -247,8 +247,7 @@ bool servers_reload(THD *thd)
 end:
   trans_commit_implicit(thd);
   close_thread_tables(thd);
-  if (!thd->locked_tables_mode)
-    thd->mdl_context.release_all_locks();
+  thd->mdl_context.release_transactional_locks();
   DBUG_PRINT("info", ("unlocking servers_cache"));
   rw_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);

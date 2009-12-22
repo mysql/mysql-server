@@ -335,23 +335,12 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
         preserved.
       */
       reset_lock_data(sql_lock);
-      thd->some_tables_deleted=1;		// Try again
       sql_lock->lock_count= 0;                  // Locks are already freed
       // Fall through: unlock, reset lock data, free and retry
     }
-    else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
+    else
     {
-      /*
-        Success and nobody set thd->some_tables_deleted to force reopen
-        or we were called with MYSQL_LOCK_IGNORE_FLUSH so such attempts
-        should be ignored.
-      */
-      break;
-    }
-    else if (!thd->open_tables)
-    {
-      // Only using temporary tables, no need to unlock
-      thd->some_tables_deleted=0;
+      /* Success */
       break;
     }
     thd_proc_info(thd, 0);
@@ -986,7 +975,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 void unlock_table_names(THD *thd)
 {
   DBUG_ENTER("unlock_table_names");
-  thd->mdl_context.release_all_locks();
+  thd->mdl_context.release_transactional_locks();
   DBUG_VOID_RETURN;
 }
 

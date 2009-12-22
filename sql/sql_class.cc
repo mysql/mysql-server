@@ -482,7 +482,7 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  some_tables_deleted=no_errors=password= 0;
+  no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
@@ -997,6 +997,7 @@ void THD::cleanup(void)
   }
 
   locked_tables_list.unlock_locked_tables(this);
+  mysql_ha_cleanup(this);
 
   /*
     If the thread was in the middle of an ongoing transaction (rolled
@@ -1005,14 +1006,19 @@ void THD::cleanup(void)
     metadata locks. Release them.
   */
   DBUG_ASSERT(open_tables == NULL);
-  mdl_context.release_all_locks();
+  /* All HANDLERs must have been closed by now. */
+  DBUG_ASSERT(mdl_context.lt_or_ha_sentinel() == NULL);
+  /*
+    Due to the above assert, this is guaranteed to release *all* in
+    this session.
+  */
+  mdl_context.release_transactional_locks();
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   close_temporary_tables(this);
@@ -1061,8 +1067,6 @@ THD::~THD()
     cleanup();
 
   mdl_context.destroy();
-  handler_mdl_context.destroy();
-
   ha_close_connection(this);
   plugin_thdvar_cleanup(this);
 
@@ -3038,12 +3042,11 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
     to be sure that it was properly cleaned up.
   */
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
-              handler_tables == 0 && derived_tables == 0 &&
+              derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
               m_reprepare_observer == NULL);
   mdl_context.destroy();
-  handler_mdl_context.destroy();
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;

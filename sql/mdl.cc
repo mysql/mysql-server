@@ -187,6 +187,7 @@ void MDL_context::init(THD *thd_arg)
 {
   m_has_global_shared_lock= FALSE;
   m_thd= thd_arg;
+  m_lt_or_ha_sentinel= NULL;
   /*
     FIXME: In reset_n_backup_open_tables_state,
     we abuse "init" as a reset, i.e. call it on an already
@@ -214,76 +215,6 @@ void MDL_context::destroy()
 {
   DBUG_ASSERT(m_tickets.is_empty());
   DBUG_ASSERT(! m_has_global_shared_lock);
-}
-
-
-/**
-  Backup and reset state of meta-data locking context.
-
-  mdl_context_backup_and_reset(), mdl_context_restore() and
-  mdl_context_merge() are used by HANDLER implementation which
-  needs to open table for new HANDLER independently of already
-  open HANDLERs and add this table/metadata lock to the set of
-  tables open/metadata locks for HANDLERs afterwards.
-*/
-
-void MDL_context::backup_and_reset(MDL_context *backup)
-{
-  DBUG_ASSERT(backup->m_tickets.is_empty());
-
-  m_tickets.swap(backup->m_tickets);
-
-  backup->m_has_global_shared_lock= m_has_global_shared_lock;
-  /*
-    When the main context is swapped out, one can not take
-    the global shared lock, and one can not rely on it:
-    the functionality in this mode is reduced, since it exists as
-    a temporary hack to support ad-hoc opening of system tables.
-  */
-  m_has_global_shared_lock= FALSE;
-}
-
-
-/**
-  Restore state of meta-data locking context from backup.
-*/
-
-void MDL_context::restore_from_backup(MDL_context *backup)
-{
-  DBUG_ASSERT(m_tickets.is_empty());
-  DBUG_ASSERT(m_has_global_shared_lock == FALSE);
-
-  m_tickets.swap(backup->m_tickets);
-  m_has_global_shared_lock= backup->m_has_global_shared_lock;
-}
-
-
-/**
-  Merge meta-data locks from one context into another.
-*/
-
-void MDL_context::merge(MDL_context *src)
-{
-  MDL_ticket *ticket;
-
-  DBUG_ASSERT(m_thd == src->m_thd);
-
-  if (!src->m_tickets.is_empty())
-  {
-    Ticket_iterator it(src->m_tickets);
-    while ((ticket= it++))
-    {
-      DBUG_ASSERT(ticket->m_ctx);
-      ticket->m_ctx= this;
-      m_tickets.push_front(ticket);
-    }
-    src->m_tickets.empty();
-  }
-  /*
-    MDL_context::merge() is a hack used in one place only: to open
-    an SQL handler. We never acquire the global shared lock there.
-  */
-  DBUG_ASSERT(! src->m_has_global_shared_lock);
 }
 
 
@@ -606,7 +537,7 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
       if (waiting.is_empty() || type_arg == MDL_SHARED_HIGH_PRIO)
         can_grant= TRUE;
     }
-    else if (granted.head()->get_ctx() == requestor_ctx)
+    else if (granted.front()->get_ctx() == requestor_ctx)
     {
       /*
         When exclusive lock comes from the same context we can satisfy our
@@ -659,20 +590,31 @@ MDL_lock::can_grant_lock(const MDL_context *requestor_ctx, enum_mdl_type type_ar
 /**
   Check whether the context already holds a compatible lock ticket
   on an object.
+  Start searching the transactional locks. If not
+  found in the list of transactional locks, look at LOCK TABLES
+  and HANDLER locks.
 
   @param mdl_request  Lock request object for lock to be acquired
+  @param[out] is_lt_or_ha  Did we pass beyond m_lt_or_ha_sentinel while
+                            searching for ticket?
 
   @return A pointer to the lock ticket for the object or NULL otherwise.
 */
 
 MDL_ticket *
-MDL_context::find_ticket(MDL_request *mdl_request)
+MDL_context::find_ticket(MDL_request *mdl_request,
+                         bool *is_lt_or_ha)
 {
   MDL_ticket *ticket;
   Ticket_iterator it(m_tickets);
 
+  *is_lt_or_ha= FALSE;
+
   while ((ticket= it++))
   {
+    if (ticket == m_lt_or_ha_sentinel)
+      *is_lt_or_ha= TRUE;
+
     if (mdl_request->type == ticket->m_type &&
         mdl_request->key.is_equal(&ticket->m_lock->key))
       break;
@@ -709,6 +651,7 @@ MDL_context::try_acquire_shared_lock(MDL_request *mdl_request)
   MDL_lock *lock;
   MDL_key *key= &mdl_request->key;
   MDL_ticket *ticket;
+  bool is_lt_or_ha;
 
   DBUG_ASSERT(mdl_request->is_shared() && mdl_request->ticket == NULL);
 
@@ -727,12 +670,35 @@ MDL_context::try_acquire_shared_lock(MDL_request *mdl_request)
     Check whether the context already holds a shared lock on the object,
     and if so, grant the request.
   */
-  if ((ticket= find_ticket(mdl_request)))
+  if ((ticket= find_ticket(mdl_request, &is_lt_or_ha)))
   {
     DBUG_ASSERT(ticket->m_state == MDL_ACQUIRED);
     /* Only shared locks can be recursive. */
     DBUG_ASSERT(ticket->is_shared());
+    /*
+      If the request is for a transactional lock, and we found
+      a transactional lock, just reuse the found ticket.
+
+      It's possible that we found a transactional lock,
+      but the request is for a HANDLER lock. In that case HANDLER
+      code will clone the ticket (see below why it's needed).
+
+      If the request is for a transactional lock, and we found
+      a HANDLER lock, create a copy, to make sure that when user
+      does HANDLER CLOSE, the transactional lock is not released.
+
+      If the request is for a handler lock, and we found a
+      HANDLER lock, also do the clone. HANDLER CLOSE for one alias
+      should not release the lock on the table HANDLER opened through
+      a different alias.
+    */
     mdl_request->ticket= ticket;
+    if (is_lt_or_ha && clone_ticket(mdl_request))
+    {
+      /* Clone failed. */
+      mdl_request->ticket= NULL;
+      return TRUE;
+    }
     return FALSE;
   }
 
@@ -785,6 +751,46 @@ MDL_context::try_acquire_shared_lock(MDL_request *mdl_request)
   return FALSE;
 }
 
+
+/**
+  Create a copy of a granted ticket. 
+  This is used to make sure that HANDLER ticket
+  is never shared with a ticket that belongs to
+  a transaction, so that when we HANDLER CLOSE, 
+  we don't release a transactional ticket, and
+  vice versa -- when we COMMIT, we don't mistakenly
+  release a ticket for an open HANDLER.
+
+  @retval TRUE   Out of memory.
+  @retval FALSE  Success.
+*/
+
+bool
+MDL_context::clone_ticket(MDL_request *mdl_request)
+{
+  MDL_ticket *ticket;
+
+  safe_mutex_assert_not_owner(&LOCK_open);
+  /* Only used for HANDLER. */
+  DBUG_ASSERT(mdl_request->ticket && mdl_request->ticket->is_shared());
+
+  if (!(ticket= MDL_ticket::create(this, mdl_request->type)))
+    return TRUE;
+
+  ticket->m_state= MDL_ACQUIRED;
+  ticket->m_lock= mdl_request->ticket->m_lock;
+  mdl_request->ticket= ticket;
+
+  pthread_mutex_lock(&LOCK_mdl);
+  ticket->m_lock->granted.push_front(ticket);
+  if (mdl_request->type == MDL_SHARED_UPGRADABLE)
+    global_lock.active_intention_exclusive++;
+  pthread_mutex_unlock(&LOCK_mdl);
+
+  m_tickets.push_front(ticket);
+
+  return FALSE;
+}
 
 /**
   Notify a thread holding a shared metadata lock which
@@ -850,7 +856,9 @@ bool MDL_context::acquire_exclusive_locks(MDL_request_list *mdl_requests)
 
   safe_mutex_assert_not_owner(&LOCK_open);
   /* Exclusive locks must always be acquired first, all at once. */
-  DBUG_ASSERT(! has_locks());
+  DBUG_ASSERT(! has_locks() ||
+              (m_lt_or_ha_sentinel &&
+               m_tickets.front() == m_lt_or_ha_sentinel));
 
   if (m_has_global_shared_lock)
   {
@@ -923,6 +931,17 @@ bool MDL_context::acquire_exclusive_locks(MDL_request_list *mdl_requests)
     }
     if (!mdl_request)
       break;
+
+    if (m_lt_or_ha_sentinel)
+    {
+      /*
+        We're about to start waiting. Don't do it if we have
+        HANDLER locks (we can't have any other locks here).
+        Waiting with locks may lead to a deadlock.
+      */
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      goto err;
+    }
 
     /* There is a shared or exclusive lock on the object. */
     DEBUG_SYNC(m_thd, "mdl_acquire_exclusive_locks_wait");
@@ -1041,6 +1060,30 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
     if (m_lock->can_grant_lock(m_ctx, MDL_EXCLUSIVE, TRUE))
       break;
 
+    /*
+      If m_ctx->lt_or_ha_sentinel(), and this sentinel is for HANDLER,
+      we can deadlock. However, HANDLER is not allowed under
+      LOCK TABLES, and apart from LOCK TABLES there are only
+      two cases of lock upgrade: ALTER TABLE and CREATE/DROP
+      TRIGGER (*). This leaves us with the following scenario
+      for deadlock:
+
+      connection 1                          connection 2
+      handler t1 open;                      handler t2 open;
+      alter table t2 ...                    alter table t1 ...
+
+      This scenario is quite remote, since ALTER
+      (and CREATE/DROP TRIGGER) performs mysql_ha_flush() in
+      the beginning, and thus closes open HANDLERS against which
+      there is a pending lock upgrade. Still, two ALTER statements
+      can interleave and not notice each other's pending lock
+      (e.g. if both upgrade their locks at the same time).
+      This, however, is quite unlikely, so we do nothing to
+      address it.
+
+      (*) There is no requirement to upgrade lock in
+      CREATE/DROP TRIGGER, it's used there just for convenience.
+    */
     bool signalled= FALSE;
     MDL_ticket *conflicting_ticket;
     MDL_lock::Ticket_iterator it(m_lock->granted);
@@ -1280,6 +1323,9 @@ void MDL_context::release_ticket(MDL_ticket *ticket)
 
   safe_mutex_assert_owner(&LOCK_mdl);
 
+  if (ticket == m_lt_or_ha_sentinel)
+    m_lt_or_ha_sentinel= ++Ticket_list::Iterator(m_tickets, ticket);
+
   m_tickets.remove(ticket);
 
   switch (ticket->m_type)
@@ -1317,18 +1363,27 @@ void MDL_context::release_ticket(MDL_ticket *ticket)
 
 
 /**
-  Release all locks associated with the context.
+  Release all locks associated with the context. If the sentinel
+  is not NULL, do not release locks stored in the list after and
+  including the sentinel.
 
-  This function is used to back off in case of a lock conflict.
-  It is also used to release shared locks in the end of an SQL
-  statement.
+  Transactional locks are added to the beginning of the list, i.e.
+  stored in reverse temporal order. This allows to employ this
+  function to:
+  - back off in case of a lock conflict.
+  - release all locks in the end of a transaction
+  - rollback to a savepoint.
+
+  The sentinel semantics is used to support LOCK TABLES
+  mode and HANDLER statements: locks taken by these statements
+  survive COMMIT, ROLLBACK, ROLLBACK TO SAVEPOINT.
 */
 
-void MDL_context::release_all_locks()
+void MDL_context::release_locks_stored_before(MDL_ticket *sentinel)
 {
   MDL_ticket *ticket;
   Ticket_iterator it(m_tickets);
-  DBUG_ENTER("MDL_context::release_all_locks");
+  DBUG_ENTER("MDL_context::release_locks_stored_before");
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
@@ -1336,7 +1391,7 @@ void MDL_context::release_all_locks()
     DBUG_VOID_RETURN;
 
   pthread_mutex_lock(&LOCK_mdl);
-  while ((ticket= it++))
+  while ((ticket= it++) && ticket != sentinel)
   {
     DBUG_PRINT("info", ("found lock to release ticket=%p", ticket));
     release_ticket(ticket);
@@ -1344,8 +1399,6 @@ void MDL_context::release_all_locks()
   /* Inefficient but will do for a while */
   pthread_cond_broadcast(&COND_mdl);
   pthread_mutex_unlock(&LOCK_mdl);
-
-  m_tickets.empty();
 
   DBUG_VOID_RETURN;
 }
@@ -1452,8 +1505,9 @@ MDL_context::is_exclusive_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                                      const char *db, const char *name)
 {
   MDL_request mdl_request;
+  bool is_lt_or_ha_unused;
   mdl_request.init(mdl_namespace, db, name, MDL_EXCLUSIVE);
-  MDL_ticket *ticket= find_ticket(&mdl_request);
+  MDL_ticket *ticket= find_ticket(&mdl_request, &is_lt_or_ha_unused);
 
   DBUG_ASSERT(ticket == NULL || ticket->m_state == MDL_ACQUIRED);
 
@@ -1593,19 +1647,87 @@ void *MDL_ticket::get_cached_object()
 
 void MDL_context::rollback_to_savepoint(MDL_ticket *mdl_savepoint)
 {
-  MDL_ticket *ticket;
-  Ticket_iterator it(m_tickets);
   DBUG_ENTER("MDL_context::rollback_to_savepoint");
 
-  while ((ticket= it++))
-  {
-    /* Stop when lock was acquired before this savepoint. */
-    if (ticket == mdl_savepoint)
-      break;
-    release_lock(ticket);
-  }
+  /* If savepoint is NULL, it is from the start of the transaction. */
+  release_locks_stored_before(mdl_savepoint ?
+                              mdl_savepoint : m_lt_or_ha_sentinel);
 
   DBUG_VOID_RETURN;
 }
 
 
+/**
+  Release locks acquired by normal statements (SELECT, UPDATE,
+  DELETE, etc) in the course of a transaction. Do not release
+  HANDLER locks, if there are any.
+
+  This method is used at the end of a transaction, in
+  implementation of COMMIT (implicit or explicit) and ROLLBACK.
+*/
+
+void MDL_context::release_transactional_locks()
+{
+  DBUG_ENTER("MDL_context::release_transactional_locks");
+  release_locks_stored_before(m_lt_or_ha_sentinel);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Does this savepoint have this lock?
+  
+  @retval TRUE  The ticket is older than the savepoint and
+                is not LT or HA ticket. Thus it belongs to
+                the savepoint.
+  @retval FALSE The ticket is newer than the savepoint
+                or is an LT or HA ticket.
+*/
+
+bool MDL_context::has_lock(MDL_ticket *mdl_savepoint,
+                           MDL_ticket *mdl_ticket)
+{
+  MDL_ticket *ticket;
+  MDL_context::Ticket_iterator it(m_tickets);
+  bool found_savepoint= FALSE;
+
+  while ((ticket= it++) && ticket != m_lt_or_ha_sentinel)
+  {
+    /*
+      First met the savepoint. The ticket must be
+      somewhere after it.
+    */
+    if (ticket == mdl_savepoint)
+      found_savepoint= TRUE;
+    /*
+      Met the ticket. If we haven't yet met the savepoint,
+      the ticket is newer than the savepoint.
+    */
+    if (ticket == mdl_ticket)
+      return found_savepoint;
+  }
+  /* Reached m_lt_or_ha_sentinel. The ticket must be an LT or HA ticket. */
+  return FALSE;
+}
+
+
+/**
+  Rearrange the ticket to reside in the part of the list that's
+  beyond m_lt_or_ha_sentinel. This effectively changes the ticket
+  life cycle, from automatic to manual: i.e. the ticket is no
+  longer released by MDL_context::release_transactional_locks() or
+  MDL_context::rollback_to_savepoint(), it must be released manually.
+*/
+
+void MDL_context::move_ticket_after_lt_or_ha_sentinel(MDL_ticket *mdl_ticket)
+{
+  m_tickets.remove(mdl_ticket);
+  if (m_lt_or_ha_sentinel == NULL)
+  {
+    m_lt_or_ha_sentinel= mdl_ticket;
+    /* sic: linear from the number of transactional tickets acquired so-far! */
+    m_tickets.push_back(mdl_ticket);
+  }
+  else
+    m_tickets.insert_after(m_lt_or_ha_sentinel, mdl_ticket);
+}

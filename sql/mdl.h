@@ -327,19 +327,15 @@ public:
   void init(THD *thd);
   void destroy();
 
-  void backup_and_reset(MDL_context *backup);
-  void restore_from_backup(MDL_context *backup);
-  void merge(MDL_context *source);
-
   bool try_acquire_shared_lock(MDL_request *mdl_request);
   bool acquire_exclusive_lock(MDL_request *mdl_request);
   bool acquire_exclusive_locks(MDL_request_list *requests);
   bool try_acquire_exclusive_lock(MDL_request *mdl_request);
   bool acquire_global_shared_lock();
+  bool clone_ticket(MDL_request *mdl_request);
 
   bool wait_for_locks(MDL_request_list *requests);
 
-  void release_all_locks();
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
   void release_global_shared_lock();
@@ -350,26 +346,60 @@ public:
   bool is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                      const char *db, const char *name);
 
+
+  bool has_lock(MDL_ticket *mdl_savepoint, MDL_ticket *mdl_ticket);
+
   inline bool has_locks() const
   {
     return !m_tickets.is_empty();
   }
 
-  inline MDL_ticket *mdl_savepoint()
+  MDL_ticket *mdl_savepoint()
   {
-    return m_tickets.head();
+    /*
+      NULL savepoint represents the start of the transaction.
+      Checking for m_lt_or_ha_sentinel also makes sure we never
+      return a pointer to HANDLER ticket as a savepoint.
+    */
+    return m_tickets.front() == m_lt_or_ha_sentinel ? NULL : m_tickets.front();
   }
 
+  void set_lt_or_ha_sentinel()
+  {
+    DBUG_ASSERT(m_lt_or_ha_sentinel == NULL);
+    m_lt_or_ha_sentinel= mdl_savepoint();
+  }
+  MDL_ticket *lt_or_ha_sentinel() const { return m_lt_or_ha_sentinel; }
+
+  void clear_lt_or_ha_sentinel()
+  {
+    m_lt_or_ha_sentinel= NULL;
+  }
+  void move_ticket_after_lt_or_ha_sentinel(MDL_ticket *mdl_ticket);
+
+  void release_transactional_locks();
   void rollback_to_savepoint(MDL_ticket *mdl_savepoint);
 
   inline THD *get_thd() const { return m_thd; }
 private:
   Ticket_list m_tickets;
   bool m_has_global_shared_lock;
+  /**
+    This member has two uses:
+    1) When entering LOCK TABLES mode, remember the last taken
+    metadata lock. COMMIT/ROLLBACK must preserve these metadata
+    locks.
+    2) When we have an open HANDLER tables, store the position
+    in the list beyond which we keep locks for HANDLER tables.
+    COMMIT/ROLLBACK must, again, preserve HANDLER metadata locks.
+  */
+  MDL_ticket *m_lt_or_ha_sentinel;
   THD *m_thd;
 private:
   void release_ticket(MDL_ticket *ticket);
-  MDL_ticket *find_ticket(MDL_request *mdl_req);
+  MDL_ticket *find_ticket(MDL_request *mdl_req,
+                          bool *is_lt_or_ha);
+  void release_locks_stored_before(MDL_ticket *sentinel);
 };
 
 

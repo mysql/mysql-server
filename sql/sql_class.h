@@ -914,11 +914,6 @@ public:
     XXX Why are internal temporary tables added to this list?
   */
   TABLE *temporary_tables;
-  /**
-    List of tables that were opened with HANDLER OPEN and are
-    still in use by this thread.
-  */
-  TABLE *handler_tables;
   TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
@@ -985,7 +980,6 @@ public:
   uint state_flags;
 
   MDL_context mdl_context;
-  MDL_context handler_mdl_context;
 
   /**
      This constructor initializes Open_tables_state instance which can only
@@ -1011,13 +1005,23 @@ public:
 
   void reset_open_tables_state(THD *thd)
   {
-    open_tables= temporary_tables= handler_tables= derived_tables= 0;
+    open_tables= temporary_tables= derived_tables= 0;
     extra_lock= lock= 0;
     locked_tables_mode= LTM_NONE;
     state_flags= 0U;
     m_reprepare_observer= NULL;
     mdl_context.init(thd);
-    handler_mdl_context.init(thd);
+  }
+  void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
+  {
+    DBUG_ASSERT(locked_tables_mode == LTM_NONE);
+    mdl_context.set_lt_or_ha_sentinel();
+    locked_tables_mode= mode_arg;
+  }
+  void leave_locked_tables_mode()
+  {
+    locked_tables_mode= LTM_NONE;
+    mdl_context.clear_lt_or_ha_sentinel();
   }
 };
 
@@ -1902,7 +1906,6 @@ public:
   bool       slave_thread, one_shot_set;
   /* tells if current statement should binlog row-based(1) or stmt-based(0) */
   bool       current_stmt_binlog_row_based;
-  bool	     some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
   /**

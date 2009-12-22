@@ -4714,8 +4714,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
-      if (!thd->locked_tables_mode)
-        thd->mdl_context.release_all_locks();
+      thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -4766,8 +4765,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         trans_rollback_stmt(thd);
         trans_rollback(thd);
         close_thread_tables(thd);
-        if (!thd->locked_tables_mode)
-          thd->mdl_context.release_all_locks();
+        thd->mdl_context.release_transactional_locks();
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
         result_code= mysql_recreate_table(thd, table);
         reenable_binlog(thd);
@@ -4883,8 +4881,7 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
-      if (!thd->locked_tables_mode)
-        thd->mdl_context.release_all_locks();
+      thd->mdl_context.release_transactional_locks();
       DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       protocol->store(STRING_WITH_LEN(
@@ -4910,8 +4907,7 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
-      if (!thd->locked_tables_mode)
-        thd->mdl_context.release_all_locks();
+      thd->mdl_context.release_transactional_locks();
       if (!result_code) // recreation went ok
       {
         /* Clear the ticket released in close_thread_tables(). */
@@ -7429,7 +7425,6 @@ end_temporary:
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->warning_info->statement_warn_count());
   my_ok(thd, copied + deleted, 0L, tmp_name);
-  thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 
 err_new_table_cleanup:
