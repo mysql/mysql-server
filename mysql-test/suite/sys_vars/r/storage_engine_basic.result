@@ -61,13 +61,13 @@ ERROR 42000: Incorrect argument type to variable 'storage_engine'
 SET @@global.storage_engine = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'storage_engine'
 SET @@global.storage_engine = FILE;
-ERROR 42000: Unknown table engine 'FILE'
+ERROR 42000: Unknown storage engine 'FILE'
 SET @@session.storage_engine = 8199;
 ERROR 42000: Incorrect argument type to variable 'storage_engine'
 SET @@session.storage_engine = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'storage_engine'
 SET @@session.storage_engine = RECORD;
-ERROR 42000: Unknown table engine 'RECORD'
+ERROR 42000: Unknown storage engine 'RECORD'
 '#------------------FN_DYNVARS_005_05-----------------------#'
 SELECT @@global.storage_engine =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

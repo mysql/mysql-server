@@ -228,7 +228,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
-ERROR 42000: Unknown table engine 'gemini'
+ERROR 42000: Unknown storage engine 'gemini'
 SELECT @@storage_engine;
 @@storage_engine
 MEMORY
@@ -389,7 +389,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION storage_engine="gemini";
-ERROR 42000: Unknown table engine 'gemini'
+ERROR 42000: Unknown storage engine 'gemini'
 SELECT @@storage_engine;
 @@storage_engine
 MEMORY
