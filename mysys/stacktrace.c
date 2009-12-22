@@ -63,7 +63,26 @@ void my_safe_print_str(const char* name, const char* val, int max_len)
   fputc('\n', stderr);
 }
 
-#if HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
+#if defined(HAVE_PRINTSTACK)
+
+/* Use Solaris' symbolic stack trace routine. */
+#include <ucontext.h>
+
+void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)), 
+                         ulong thread_stack __attribute__((unused)))
+{
+  if (printstack(fileno(stderr)) == -1)
+    fprintf(stderr, "Error when traversing the stack, stack appears corrupt.\n");
+  else
+    fprintf(stderr,
+            "Please read "
+            "http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
+            "and follow instructions on how to resolve the stack trace.\n"
+            "Resolved stack trace is much more helpful in diagnosing the\n"
+            "problem, so please do resolve it\n");
+}
+
+#elif HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
 
 #if BACKTRACE_DEMANGLE
 
