@@ -295,6 +295,26 @@ SELECT @a, @b;
 SELECT a, b FROM t1 WHERE a=2 AND b=3 GROUP BY a, b;
 DROP TABLE t1;
 
+#
+# Bug#47371: reference by same column name
+#
+CREATE TABLE t1 (f1 int(11) default NULL, f2 int(11) default NULL);
+CREATE TABLE t2 (f1 int(11) default NULL, f2 int(11) default NULL, foo int(11));
+CREATE TABLE t3 (f1 int(11) default NULL, f2 int(11) default NULL);
+
+INSERT INTO t1 VALUES(10, 10);
+INSERT INTO t1 VALUES(10, 10);
+INSERT INTO t2 VALUES(10, 10, 10);
+INSERT INTO t2 VALUES(10, 10, 10);
+INSERT INTO t3 VALUES(10, 10);
+INSERT INTO t3 VALUES(10, 10);
+
+SELECT MIN(t2.f1),
+@bar:= (SELECT MIN(t3.f2) FROM t3 WHERE t3.f2 > foo)
+FROM t1,t2 WHERE t1.f1 = t2.f1 ORDER BY t2.f1;
+
+DROP TABLE t1, t2, t3;
+
 --echo End of 5.0 tests
 
 #
