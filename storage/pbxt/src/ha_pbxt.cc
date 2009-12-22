@@ -1175,8 +1175,12 @@ static int pbxt_init(void *p)
 		 * +1 Temporary thread (e.g. TempForClose, TempForEnd)
 		 */
 #ifndef DRIZZLED
+#ifdef EMBEDDED_LIBRARY
+                pbxt_max_threads = 100;
+#else
 		if (pbxt_max_threads == 0)
 			pbxt_max_threads = max_connections + 7;
+#endif
 #endif
 		self = xt_init_threading(pbxt_max_threads);				/* Create the main self: */
 		if (!self)

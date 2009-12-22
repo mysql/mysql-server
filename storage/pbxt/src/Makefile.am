@@ -46,7 +46,5 @@ libpbxt_la_CFLAGS =		$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
 EXTRA_LIBRARIES =		libpbxt.a
 noinst_LIBRARIES = 		libpbxt.a
 libpbxt_a_SOURCES =		$(libpbxt_la_SOURCES)
-libpbxt_a_CXXFLAGS =	$(AM_CXXFLAGS)
-libpbxt_a_CFLAGS =		$(AM_CFLAGS) -std=c99
 
 EXTRA_DIST =			pbms_enabled.cc win_inttypes.h
