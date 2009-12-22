@@ -91,6 +91,15 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+
+  bool intro_version(uchar *int_arg)
+  {
+    int *input_version= (int*)int_arg;
+    /* This function was introduced in 5.5 */
+    int output_version= (*input_version, 50500);
+    *input_version= output_version;
+    return 0;
+  }
 };
 
 
@@ -326,6 +335,16 @@ public:
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "unix_timestamp"; }
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  /*
+    UNIX_TIMESTAMP() depends on the current timezone
+    (and thus may not be used as a partitioning function)
+    when its argument is NOT of the TIMESTAMP type.
+  */
+  bool is_timezone_dependent_processor(uchar *int_arg)
+  {
+    return !has_timestamp_args();
+  }
   void fix_length_and_dec()
   {
     decimals=0;
