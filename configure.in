@@ -375,6 +375,21 @@ case "$target_os" in
     fi
   ;;
 esac
+
+# The following is required for portable results of floating point calculations
+# on PowerPC. The same must also be done for IA-64, but this options is missing
+# in the IA-64 gcc backend.
+
+if test "$GCC" = "yes"
+then
+  case "$host_cpu" in
+    *ppc* | *powerpc*)
+      CFLAGS="$CFLAGS -mno-fused-madd"
+      CXXFLAGS="$CXXFLAGS -mno-fused-madd"
+    ;;
+  esac
+fi
+
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
@@ -2236,7 +2251,7 @@ AC_FUNC_VPRINTF
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
-  fconvert fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
+  fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd index initgroups isnan \
   localtime_r gethrtime gmtime_r \
