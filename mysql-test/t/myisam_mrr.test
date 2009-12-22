@@ -6,12 +6,12 @@
 drop table if exists t1, t2, t3;
 --enable_warnings
 
-set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
-set read_rnd_buffer_size=79;
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+set mrr_buffer_size=79;
 
 -- source include/mrr_tests.inc
 
-set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
 
 #
 # BUG#30622: Incorrect query results for MRR + filesort
@@ -96,3 +96,31 @@ insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0
 explain select * from t1 where a < 20  order by a;
 drop table t0, t1;
 
+-- echo #
+-- echo # Part of MWL#67: DS-MRR backport: add an @@optimizer_switch flag for
+-- echo # index_condition pushdown: 
+-- echo #   - engine_condition_pushdown does not affect ICP
+
+
+# Check that optimizer_switch is present
+select @@optimizer_switch;
+
+# Check if it affects ICP 
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C; 
+
+-- echo A query that will use ICP: 
+explain select * from t1 where a < 20;
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1 where a < 20;
+
+set optimizer_switch='index_condition_pushdown=on';
+explain select * from t1 where a < 20;
+
+set optimizer_switch=@save_optimizer_switch;
+
+drop table t0, t1;

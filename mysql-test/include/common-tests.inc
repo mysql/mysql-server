@@ -1332,7 +1332,7 @@ explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 a
 # Search with a key with LIKE constant
 # If the like starts with a certain letter key will be used.
 #
-
+--sorted_result
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");

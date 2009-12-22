@@ -1,7 +1,6 @@
 /*
   This file contains declarations for 
    - Disk-Sweep MultiRangeRead (DS-MRR) implementation
-   - Index Condition Pushdown helper functions
 */
 
 /**

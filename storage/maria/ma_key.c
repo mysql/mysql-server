@@ -669,10 +669,10 @@ int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
               will look for column values there)
 
   RETURN
-    -1  Error 
-    0   Index condition is not satisfied, continue scanning
-    1   Index condition is satisfied
-    2   Index condition is not satisfied, end the scan. 
+    ICP_ERROR         Error 
+    ICP_NO_MATCH      Index condition is not satisfied, continue scanning
+    ICP_MATCH         Index condition is satisfied
+    ICP_OUT_OF_RANGE  Index condition is not satisfied, end the scan. 
 */
 
 int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record)

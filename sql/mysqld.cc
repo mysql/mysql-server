@@ -300,6 +300,7 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge","index_merge_union","index_merge_sort_union",
   "index_merge_intersection",
+  "index_condition_pushdown",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -313,6 +314,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_union") - 1,
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
+  sizeof("index_condition_pushdown") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -391,7 +393,8 @@ static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
-                                        "index_merge_intersection=on"
+                                        "index_merge_intersection=on,"
+                                        "index_condition_pushdown=on"
 #ifndef DBUG_OFF                                        
                                         ",table_elimination=on";
 #else
@@ -5767,7 +5770,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
+  OPT_MAX_ERROR_COUNT, OPT_MRR_BUFFER_SIZE, OPT_MYISAM_DATA_POINTER_SIZE,
 
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
@@ -6963,6 +6966,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.min_examined_row_limit,
    (uchar**) &max_system_variables.min_examined_row_limit, 0, GET_ULONG,
   REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1L, 0},
+  {"mrr_buffer_size", OPT_MRR_BUFFER_SIZE,
+   "Size of buffer to use when using MRR with range access",
+   (uchar**) &global_system_variables.mrr_buff_size,
+   (uchar**) &max_system_variables.mrr_buff_size, 0,
+   GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
+   INT_MAX32, MALLOC_OVERHEAD, 1 /* Small to be able to do tests */ , 0},
   {"myisam_block_size", OPT_MYISAM_BLOCK_SIZE,
    "Block size to be used for MyISAM index pages.",
    (uchar**) &opt_myisam_block_size,
@@ -7042,7 +7051,8 @@ The minimum value for this variable is 4096.",
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
-   "index_merge_union, index_merge_sort_union, index_merge_intersection"
+   "index_merge_union, index_merge_sort_union, index_merge_intersection, "
+   "index_condition_pushdown"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 
@@ -7126,7 +7136,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &global_system_variables.read_rnd_buff_size,
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   INT_MAX32, MALLOC_OVERHEAD, 1 /* Small overhead to be able to test MRR, was: IO_SIZE*/ , 0},
+   INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (uchar**) &global_system_variables.read_buff_size,

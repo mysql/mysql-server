@@ -504,10 +504,10 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
               will look for column values there)
 
   RETURN
-    -1  Error 
-    0   Index condition is not satisfied, continue scanning
-    1   Index condition is satisfied
-    2   Index condition is not satisfied, end the scan. 
+    ICP_ERROR         Error 
+    ICP_NO_MATCH      Index condition is not satisfied, continue scanning
+    ICP_MATCH         Index condition is satisfied
+    ICP_OUT_OF_RANGE  Index condition is not satisfied, end the scan. 
 */
 
 int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record)
@@ -516,7 +516,7 @@ int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record)
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
-    return -1;
+    return ICP_ERROR;
   }
   return info->index_cond_func(info->index_cond_func_arg);
 }

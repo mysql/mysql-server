@@ -3116,10 +3116,14 @@ row_sel_pop_cached_row_for_mysql(
 			/* Copy NULL bit of the current field from cached_rec
 			to buf */
 			if (templ->mysql_null_bit_mask) {
-				buf[templ->mysql_null_byte_offset]
+				/*buf[templ->mysql_null_byte_offset]
 					^= (buf[templ->mysql_null_byte_offset]
 					    ^ cached_rec[templ->mysql_null_byte_offset])
-					& (byte)templ->mysql_null_bit_mask;
+					& (byte)templ->mysql_null_bit_mask;*/
+                                byte *null_byte= buf + templ->mysql_null_byte_offset;
+                                (*null_byte)&= ~templ->mysql_null_bit_mask;
+                                (*null_byte)|= cached_rec[templ->mysql_null_byte_offset] & 
+                                               templ->mysql_null_bit_mask;
 			}
 		}
 	}
@@ -3354,10 +3358,8 @@ row_search_for_mysql(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
-        /*psergey-mrr:*/
 	ibool		some_fields_in_buffer;
 	ibool		get_clust_rec			= 0;
-        /*:psergey-mrr*/
 
 	rec_offs_init(offsets_);
 
@@ -4210,11 +4212,8 @@ no_gap_lock:
 			information via the clustered index record. */
 
 			ut_ad(index != clust_index);
-			/*psergey-mrr:*/
                         get_clust_rec = TRUE;
 			goto idx_cond_check;
-			/**goto requires_clust_rec;**/
-			/*:psergey-mrr*/
 		}
 	}
 
@@ -4260,22 +4259,20 @@ no_gap_lock:
 
 
 idx_cond_check:
-        if (prebuilt->idx_cond_func)
-        {
-          int res;
-          ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
-          offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-          row_sel_store_mysql_rec(buf, prebuilt, rec,
-                                  offsets, 0, prebuilt->n_index_fields);
-          res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
-          if (res == 0)
-            goto next_rec;
-          if (res == 2)
-          {
-            err = DB_RECORD_NOT_FOUND;
-            goto idx_cond_failed;
-          }
-        }
+	if (prebuilt->idx_cond_func) {
+		int res;
+		ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
+		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+		row_sel_store_mysql_rec(buf, prebuilt, rec,
+		                        offsets, 0, prebuilt->n_index_fields);
+		res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
+		if (res == 0)
+			goto next_rec;
+		if (res == 2) {
+			err = DB_RECORD_NOT_FOUND;
+			goto idx_cond_failed;
+		}
+	}
 
 	/* Get the clustered index record if needed, if we did not do the
 	search using the clustered index. */

@@ -2314,7 +2314,7 @@ private:
   friend class DsMrr_impl;
 };
 
-#include "ds_mrr.h"
+#include "multi_range_read.h"
 
 	/* Some extern variables used with handlers */
 

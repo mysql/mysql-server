@@ -29,7 +29,7 @@
 #define HA_RECOVER_QUICK        8       /* Don't check rows in data file */
 
 C_MODE_START
-my_bool index_cond_func_maria(void *arg);
+ICP_RESULT index_cond_func_maria(void *arg);
 C_MODE_END
 
 extern ulong maria_sort_buffer_size;
@@ -187,5 +187,5 @@ public:
   Item *idx_cond_push(uint keyno, Item* idx_cond);
 private:
   DsMrr_impl ds_mrr;
-  friend my_bool index_cond_func_maria(void *arg);
+  friend ICP_RESULT index_cond_func_maria(void *arg);
 };

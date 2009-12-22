@@ -45,7 +45,7 @@ libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
-sqlsources = ds_mrr.cc derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
+sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
@@ -76,7 +76,8 @@ sqlsources = ds_mrr.cc derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
 	sql_tablespace.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
-	sql_servers.cc event_parse_data.cc opt_table_elimination.cc
+	sql_servers.cc event_parse_data.cc opt_table_elimination.cc \
+	multi_range_read.cc opt_index_cond_pushdown.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)

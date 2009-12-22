@@ -138,10 +138,12 @@ extern void my_handler_error_unregister(void);
 */
 
 typedef enum icp_result {
-  ICP_NO_MATCH,
-  ICP_MATCH,
-  ICP_OUT_OF_RANGE
+  ICP_ERROR=-1,
+  ICP_NO_MATCH=0,
+  ICP_MATCH=1,
+  ICP_OUT_OF_RANGE=2
 } ICP_RESULT;
+
 
 #ifdef	__cplusplus
 }

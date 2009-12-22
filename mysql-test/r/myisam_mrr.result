@@ -1,8 +1,8 @@
 drop table if exists t1, t2, t3;
-set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
-set read_rnd_buffer_size=79;
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+set mrr_buffer_size=79;
 Warnings:
-Warning	1292	Truncated incorrect read_rnd_buffer_size value: '79'
+Warning	1292	Truncated incorrect mrr_buffer_size value: '79'
 create table t1(a int);
 show create table t1;
 Table	Create Table
@@ -293,7 +293,7 @@ NULL	7	0
 NULL	9	0
 NULL	9	0
 drop table t1, t2;
-set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
 CREATE TABLE t1 (
 ID int(10) unsigned NOT NULL AUTO_INCREMENT,
 col1 int(10) unsigned DEFAULT NULL,
@@ -387,4 +387,30 @@ This mustn't show "Using MRR":
 explain select * from t1 where a < 20  order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition
+drop table t0, t1;
+#
+# Part of MWL#67: DS-MRR backport: add an @@optimizer_switch flag for
+# index_condition pushdown: 
+#   - engine_condition_pushdown does not affect ICP
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,table_elimination=on
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C;
+A query that will use ICP: 
+explain select * from t1 where a < 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Using MRR
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1 where a < 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using where; Using MRR
+set optimizer_switch='index_condition_pushdown=on';
+explain select * from t1 where a < 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Using MRR
+set optimizer_switch=@save_optimizer_switch;
 drop table t0, t1;
