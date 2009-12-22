@@ -128,6 +128,7 @@ mysql_server_init
 mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
+mysql_stmt_next_result
 
 CACHE INTERNAL "Functions exported by client API"
 
