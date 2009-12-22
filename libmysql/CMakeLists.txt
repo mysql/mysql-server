@@ -69,7 +69,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/ctype-simple.c ../strings/ctype-sjis.c ../strings/ctype-tis620.c 
                      ../strings/ctype-uca.c ../strings/ctype-ucs2.c ../strings/ctype-ujis.c 
                      ../strings/ctype-utf8.c ../strings/ctype-win1250ch.c ../strings/ctype.c 
-                     ../mysys/default.c strings/dtoa.c errmsg.c ../mysys/errors.c
+                     ../mysys/default.c ../strings/dtoa.c errmsg.c ../mysys/errors.c
                      ../mysys/hash.c ../mysys/my_sleep.c ../mysys/default_modify.c
                      get_password.c ../strings/int2str.c ../strings/is_prefix.c 
                      libmysql.c ../mysys/list.c ../strings/llstr.c
