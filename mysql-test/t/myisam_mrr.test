@@ -103,6 +103,7 @@ drop table t0, t1;
 
 
 # Check that optimizer_switch is present
+--replace_regex /,table_elimination=o[nf]*//
 select @@optimizer_switch;
 
 # Check if it affects ICP 
