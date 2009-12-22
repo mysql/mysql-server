@@ -967,6 +967,23 @@ public:
     return FALSE;
   }
 
+  /**
+    Find a function of a given type
+
+    @param   arg     the function type to search (enum Item_func::Functype)
+    @return
+      @retval TRUE   the function type we're searching for is found
+      @retval FALSE  the function type wasn't found
+
+    @description
+      This function can be used (together with Item::walk()) to find functions
+      in an item tree fragment.
+  */
+  virtual bool find_function_processor (uchar *arg)
+  {
+    return FALSE;
+  }
+
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
