@@ -4317,14 +4317,26 @@ lock_get_n_rec_locks(void)
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 
 /*********************************************************************//**
-Prints info of locks for all transactions. */
+Prints info of locks for all transactions.
+@return FALSE if not able to obtain kernel mutex
+and exits without printing info */
 UNIV_INTERN
-void
+ibool
 lock_print_info_summary(
 /*====================*/
-	FILE*	file)	/*!< in: file where to print */
+	FILE*	file,	/*!< in: file where to print */
+	ibool   nowait)	/*!< in: whether to wait for the kernel mutex */
 {
-	lock_mutex_enter_kernel();
+	/* if nowait is FALSE, wait on the kernel mutex,
+	otherwise return immediately if fail to obtain the
+	mutex. */
+	if (!nowait) {
+		lock_mutex_enter_kernel();
+	} else if (mutex_enter_nowait(&kernel_mutex)) {
+		fputs("FAIL TO OBTAIN KERNEL MUTEX, "
+		      "SKIP LOCK INFO PRINTING\n", file);
+		return(FALSE);
+	}
 
 	if (lock_deadlock_found) {
 		fputs("------------------------\n"
@@ -4356,6 +4368,7 @@ lock_print_info_summary(
 		"Total number of lock structs in row lock hash table %lu\n",
 		(ulong) lock_get_n_rec_locks());
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
+	return(TRUE);
 }
 
 /*********************************************************************//**
