@@ -4602,4 +4602,17 @@ SELECT 1 FROM t1 GROUP BY
 1
 1
 DROP TABLE t1;
+#
+# Bug #49512 : subquery with aggregate function crash 
+#   subselect_single_select_engine::exec()
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES();
+# should not crash
+SELECT 1 FROM t1 WHERE a <> SOME
+(
+SELECT MAX((SELECT a FROM t1 LIMIT 1)) AS d
+FROM t1,t1 a
+);
+1
+DROP TABLE t1;
 End of 5.1 tests.
