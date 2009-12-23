@@ -673,7 +673,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
@@ -887,6 +887,8 @@ fi
 - The "semisync" plugin file name has lost its introductory "lib",
   adapt the file lists for the subpackages.
   This is a part missing from the fix for bug#48351.
+- Remove the "fix_privilege_tables" manual, it does not exist in 5.5
+  (and likely, the whole script will go, too).
 
 * Tue Dec 22 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
