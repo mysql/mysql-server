@@ -715,8 +715,8 @@ fi
 %attr(755, root, root) %{_bindir}/resolveip
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -849,10 +849,10 @@ fi
 %{_libdir}/mysql/libz.la
 %{_libdir}/mysql/plugin/ha_example.a
 %{_libdir}/mysql/plugin/ha_example.la
-%{_libdir}/mysql/plugin/libsemisync_master.a
-%{_libdir}/mysql/plugin/libsemisync_master.la
-%{_libdir}/mysql/plugin/libsemisync_slave.a
-%{_libdir}/mysql/plugin/libsemisync_slave.la
+%{_libdir}/mysql/plugin/semisync_master.a
+%{_libdir}/mysql/plugin/semisync_master.la
+%{_libdir}/mysql/plugin/semisync_slave.a
+%{_libdir}/mysql/plugin/semisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -882,6 +882,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Wed Dec 23 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- The "semisync" plugin file name has lost its introductory "lib",
+  adapt the file lists for the subpackages.
+  This is a part missing from the fix for bug#48351.
+
 * Tue Dec 22 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Change RPM file naming:
