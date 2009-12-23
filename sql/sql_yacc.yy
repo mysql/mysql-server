@@ -4297,8 +4297,8 @@ have_partitioning:
               MYSQL_YYABORT;
             }
 #else
-            my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                    "--skip-partition");
+            my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
+                    "--with-plugin-partition");
             MYSQL_YYABORT;
 #endif
           }
