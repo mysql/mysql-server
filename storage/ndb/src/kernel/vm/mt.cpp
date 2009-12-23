@@ -151,7 +151,7 @@ struct thr_wait
  */
 static inline
 bool
-yield(struct thr_wait* wait, const struct timespec *timeout,
+yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
@@ -174,7 +174,12 @@ yield(struct thr_wait* wait, const struct timespec *timeout,
    */
   bool waited = (*check_callback)(check_arg);
   if (waited)
-    futex_wait(val, thr_wait::FS_SLEEPING, timeout);
+  {
+    struct timespec timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = nsec;
+    futex_wait(val, thr_wait::FS_SLEEPING, &timeout);
+  }
   xcng(val, thr_wait::FS_RUNNING);
   return waited;
 }
@@ -214,14 +219,11 @@ struct thr_wait
 
 static inline
 bool
-yield(struct thr_wait* wait, const struct timespec *timeout,
+yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
 {
-  Uint32 msec = 
-    (1000 * timeout->tv_sec) + 
-    (timeout->tv_nsec / 1000000);
   struct timespec end;
-  NdbCondition_ComputeAbsTime(&end, msec);
+  NdbCondition_ComputeAbsTime(&end, nsec/1000000);
   NdbMutex_Lock(wait->m_mutex);
 
   Uint32 waits = 0;
@@ -2888,10 +2890,8 @@ loop:
       pending_send = do_send(selfptr, TRUE);
     }
 
-    struct timespec wait;
-    wait.tv_sec = 0;
-    wait.tv_nsec = 1 * 1000000;    /* 1 ms */
-    yield(&selfptr->m_waiter, &wait, check_job_buffer_full, selfptr);
+    const Uint32 wait = 1000000;    /* 1 ms */
+    yield(&selfptr->m_waiter, wait, check_job_buffer_full, selfptr);
     goto loop;
   }
 
@@ -2904,9 +2904,7 @@ mt_job_thread_main(void *thr_arg)
 {
   unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
-  struct timespec nowait;
-  nowait.tv_sec = 0;
-  nowait.tv_nsec = 10 * 1000000;    /* 10 ms */
+  const Uint32 nowait = 10 * 1000000;    /* 10 ms */
   Uint32 thrSignalId = 0;
 
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
@@ -2969,7 +2967,7 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        bool waited = yield(&selfptr->m_waiter, &nowait, check_queues_empty,
+        bool waited = yield(&selfptr->m_waiter, nowait, check_queues_empty,
                             selfptr);
         if (waited)
         {
