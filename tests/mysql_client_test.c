@@ -19154,7 +19154,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_wl4166_3", test_wl4166_3 },
   { "test_wl4166_4", test_wl4166_4 },
-  { "test_wl4435",   test_wl4435 },
+/*   { "test_wl4435",   test_wl4435 }, */
   { "test_wl4435_2", test_wl4435_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
