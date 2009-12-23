@@ -804,7 +804,7 @@ struct thr_data
   Bitmask<(MAX_NTRANSPORTERS+31)/32> m_pending_send_mask;
 
   /* pool for send buffers */
-  struct thread_local_pool<thr_send_page> m_send_buffer_pool;
+  class thread_local_pool<thr_send_page> m_send_buffer_pool;
 
   /* Send buffer for this thread, these are not touched by any other thread */
   struct thr_send_buffer m_send_buffers[MAX_NTRANSPORTERS];
@@ -1548,7 +1548,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = (bytes/count);
+  signal.theData[2] = (Uint32)(bytes/count);
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
   sendlocal(g_thr_repository.m_send_buffers[nodeId].m_send_thread,
