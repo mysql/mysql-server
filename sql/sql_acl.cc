@@ -1061,7 +1061,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     *mqh= acl_user->user_resource;
 
     if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
     else
       *sctx->priv_host= 0;
   }
@@ -1162,7 +1162,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
     sctx->priv_user= acl_user->user ? user : (char *) "";
 
     if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
     else
       *sctx->priv_host= 0;
   }
@@ -3768,11 +3768,11 @@ static my_bool grant_reload_procs_priv(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
+  rw_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
 
-  rw_wrlock(&LOCK_grant);
   if ((return_val= grant_load_procs_priv(table.table)))
   {
     /* Error; Reverting to old hash */

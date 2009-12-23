@@ -409,7 +409,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (!passwd)
     passwd="";
 
-  /* Store user into the buffer */
+  /*
+    Store user into the buffer.
+    Advance position as strmake returns a pointer to the closing NUL.
+  */
   end= strmake(end, user, USERNAME_LENGTH) + 1;
 
   /* write scrambled password according to server capabilities */
@@ -897,7 +900,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 {
   MYSQL_RES   *result;
   MYSQL_FIELD *fields;
-  char	     buff[257],*end;
+  char	     buff[258],*end;
   DBUG_ENTER("mysql_list_fields");
   DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
 
@@ -1903,7 +1906,7 @@ mysql_stmt_param_metadata(MYSQL_STMT *stmt)
 
 /* Store type of parameter in network buffer. */
 
-static void store_param_type(char **pos, MYSQL_BIND *param)
+static void store_param_type(unsigned char **pos, MYSQL_BIND *param)
 {
   uint typecode= param->buffer_type | (param->is_unsigned ? 32768 : 0);
   int2store(*pos, typecode);
@@ -2182,7 +2185,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 	that is sent to the server.
       */
       for (param= stmt->params;	param < param_end ; param++)
-        store_param_type((char**) &net->write_pos, param);
+        store_param_type(&net->write_pos, param);
     }
 
     for (param= stmt->params; param < param_end; param++)
