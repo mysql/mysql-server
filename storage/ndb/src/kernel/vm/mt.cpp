@@ -2688,7 +2688,7 @@ init_thread(thr_data *selfptr)
     Uint32 instance = blockToInstance(block);
     tmp.appfmt("%s(%u) ", getBlockName(main), instance);
   }
-  printf("$s\n", tmp.c_str());
+  printf("%s\n", tmp.c_str());
   fflush(stdout);
 }
 
