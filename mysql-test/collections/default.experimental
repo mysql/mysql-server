@@ -20,7 +20,6 @@ ndb.*                                    # joro : NDB tests marked as experiment
 
 rpl.rpl_get_master_version_and_clock*    # Bug #49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
-rpl.rpl_trigger*                         # Bug#47810 2009-10-04 joro rpl.rpl_trigger.test fails with valgrind errors with the innodb plugin
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
 rpl_ndb.rpl_ndb_log                      # Bug#38998

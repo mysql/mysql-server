@@ -5747,6 +5747,23 @@ const key_map *ha_partition::keys_to_use_for_scanning()
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
+#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10
+/*
+  Prepare start variables for estimating optimizer costs.
+
+  @param[out] num_used_parts  Number of partitions after pruning.
+  @param[out] check_min_num   Number of partitions to call.
+  @param[out] first           first used partition.
+*/
+void ha_partition::partitions_optimizer_call_preparations(uint *first,
+                                                          uint *num_used_parts,
+                                                          uint *check_min_num)
+{
+  *first= bitmap_get_first_set(&(m_part_info->used_partitions));
+  *num_used_parts= bitmap_bits_set(&(m_part_info->used_partitions));
+  *check_min_num= min(MAX_PARTS_FOR_OPTIMIZER_CALLS, *num_used_parts);
+}
+
 
 /*
   Return time for a scan of the table
@@ -5760,42 +5777,66 @@ const key_map *ha_partition::keys_to_use_for_scanning()
 
 double ha_partition::scan_time()
 {
-  double scan_time= 0;
-  handler **file;
+  double scan_time= 0.0;
+  uint first, part_id, num_used_parts, check_min_num, partitions_called= 0;
   DBUG_ENTER("ha_partition::scan_time");
 
-  for (file= m_file; *file; file++)
-    if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
-      scan_time+= (*file)->scan_time();
+  partitions_optimizer_call_preparations(&first, &num_used_parts, &check_min_num);
+  for (part_id= first; partitions_called < num_used_parts ; part_id++)
+  {
+    if (!bitmap_is_set(&(m_part_info->used_partitions), part_id))
+      continue;
+    scan_time+= m_file[part_id]->scan_time();
+    partitions_called++;
+    if (partitions_called >= check_min_num && scan_time != 0.0)
+    {
+      DBUG_RETURN(scan_time *
+                      (double) num_used_parts / (double) partitions_called);
+    }
+  }
   DBUG_RETURN(scan_time);
 }
 
 
 /*
-  Get time to read
+  Estimate rows for records_in_range or estimate_rows_upper_bound.
 
-  SYNOPSIS
-    read_time()
-    index                Index number used
-    ranges               Number of ranges
-    rows                 Number of rows
+  @param is_records_in_range  call records_in_range instead of
+                              estimate_rows_upper_bound.
+  @param inx                  (only for records_in_range) index to use.
+  @param min_key              (only for records_in_range) start of range.
+  @param max_key              (only for records_in_range) end of range.
 
-  RETURN VALUE
-    time for read
-
-  DESCRIPTION
-    This will be optimised later to include whether or not the index can
-    be used with partitioning. To achieve we need to add another parameter
-    that specifies how many of the index fields that are bound in the ranges.
-    Possibly added as a new call to handlers.
+  @return Number of rows or HA_POS_ERROR.
 */
-
-double ha_partition::read_time(uint index, uint ranges, ha_rows rows)
+ha_rows ha_partition::estimate_rows(bool is_records_in_range, uint inx,
+                                    key_range *min_key, key_range *max_key)
 {
-  DBUG_ENTER("ha_partition::read_time");
+  ha_rows rows, estimated_rows= 0;
+  uint first, part_id, num_used_parts, check_min_num, partitions_called= 0;
+  DBUG_ENTER("ha_partition::records_in_range");
 
-  DBUG_RETURN(m_file[0]->read_time(index, ranges, rows));
+  partitions_optimizer_call_preparations(&first, &num_used_parts, &check_min_num);
+  for (part_id= first; partitions_called < num_used_parts ; part_id++)
+  {
+    if (!bitmap_is_set(&(m_part_info->used_partitions), part_id))
+      continue;
+    if (is_records_in_range)
+      rows= m_file[part_id]->records_in_range(inx, min_key, max_key);
+    else
+      rows= m_file[part_id]->estimate_rows_upper_bound();
+    if (rows == HA_POS_ERROR)
+      DBUG_RETURN(HA_POS_ERROR);
+    estimated_rows+= rows;
+    partitions_called++;
+    if (partitions_called >= check_min_num && estimated_rows)
+    {
+      DBUG_RETURN(estimated_rows * num_used_parts / partitions_called);
+    }
+  }
+  DBUG_RETURN(estimated_rows);
 }
+
 
 /*
   Find number of records in a range
@@ -5824,22 +5865,9 @@ double ha_partition::read_time(uint index, uint ranges, ha_rows rows)
 ha_rows ha_partition::records_in_range(uint inx, key_range *min_key,
 				       key_range *max_key)
 {
-  handler **file;
-  ha_rows in_range= 0;
   DBUG_ENTER("ha_partition::records_in_range");
 
-  file= m_file;
-  do
-  {
-    if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
-    {
-      ha_rows tmp_in_range= (*file)->records_in_range(inx, min_key, max_key);
-      if (tmp_in_range == HA_POS_ERROR)
-        DBUG_RETURN(tmp_in_range);
-      in_range+= tmp_in_range;
-    }
-  } while (*(++file));
-  DBUG_RETURN(in_range);
+  DBUG_RETURN(estimate_rows(TRUE, inx, min_key, max_key));
 }
 
 
@@ -5855,22 +5883,36 @@ ha_rows ha_partition::records_in_range(uint inx, key_range *min_key,
 
 ha_rows ha_partition::estimate_rows_upper_bound()
 {
-  ha_rows rows, tot_rows= 0;
-  handler **file;
   DBUG_ENTER("ha_partition::estimate_rows_upper_bound");
 
-  file= m_file;
-  do
-  {
-    if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
-    {
-      rows= (*file)->estimate_rows_upper_bound();
-      if (rows == HA_POS_ERROR)
-        DBUG_RETURN(HA_POS_ERROR);
-      tot_rows+= rows;
-    }
-  } while (*(++file));
-  DBUG_RETURN(tot_rows);
+  DBUG_RETURN(estimate_rows(FALSE, 0, NULL, NULL));
+}
+
+
+/*
+  Get time to read
+
+  SYNOPSIS
+    read_time()
+    index                Index number used
+    ranges               Number of ranges
+    rows                 Number of rows
+
+  RETURN VALUE
+    time for read
+
+  DESCRIPTION
+    This will be optimised later to include whether or not the index can
+    be used with partitioning. To achieve we need to add another parameter
+    that specifies how many of the index fields that are bound in the ranges.
+    Possibly added as a new call to handlers.
+*/
+
+double ha_partition::read_time(uint index, uint ranges, ha_rows rows)
+{
+  DBUG_ENTER("ha_partition::read_time");
+
+  DBUG_RETURN(m_file[0]->read_time(index, ranges, rows));
 }
 
 
