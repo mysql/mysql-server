@@ -284,6 +284,13 @@ IF(UNIX)
   ENDIF()
   FIND_PACKAGE(Threads)
 
+  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    # CMake defined -lthread as thread flag 
+    # This crashes in dlopen when trying to load plugins 
+    # Workaround with -lpthread
+    SET(CMAKE_THREADS_LIBS_INIT -lpthread)
+  ENDIF()
+
   SET(CMAKE_REQUIRED_LIBRARIES 
     ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
 
