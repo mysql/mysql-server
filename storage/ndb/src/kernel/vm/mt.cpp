@@ -17,9 +17,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
+#endif
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -1618,7 +1620,14 @@ trp_callback::checkJobBuffer()
        *  a condition to free its execution resources.
        */
 //    usleep(a-few-usec);  /* A micro-sleep would likely have been better... */
+#if defined HAVE_SCHED_YIELD
       sched_yield();
+#elif defined _WIN32
+      SwitchToThread();
+#else
+      NdbSleep_MilliSleep(0);
+#endif
+
     } while (check_job_buffers(rep));
   }
 
