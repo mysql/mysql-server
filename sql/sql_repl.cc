@@ -748,6 +748,7 @@ impossible position";
 	case LOG_READ_EOF:
         {
           int ret;
+          ulong signal_cnt;
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
 	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
@@ -755,6 +756,7 @@ impossible position";
 	    goto end;
 	  }
 
+          signal_cnt= mysql_bin_log.signal_cnt;
 #ifndef DBUG_OFF
           ulong hb_info_counter= 0;
 #endif
@@ -788,12 +790,11 @@ impossible position";
             }
             else
             {
-              DBUG_ASSERT(ret == 0);
-              DBUG_PRINT("wait",("binary log received update"));
+              DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
-          } while (ret != 0 && coord != NULL && !thd->killed);
+          } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
           pthread_mutex_unlock(log_lock);
-        }    
+        }
         break;
             
         default:
