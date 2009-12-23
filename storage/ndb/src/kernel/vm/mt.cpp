@@ -3677,8 +3677,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   static const Uint32 max_wait_seconds = 2;
   NDB_TICKS start = NdbTick_CurrentMillisecond();
   struct timespec waittime;
-  waittime.tv_sec = 0;
-  waittime.tv_nsec = 10*1000*1000;
+  set_timespec_nsec(waittime, 10*1000*1000);
   while (g_thr_repository.stopped_threads < waitFor_count)
   {
     pthread_cond_timedwait(&g_thr_repository.stop_for_crash_cond,
