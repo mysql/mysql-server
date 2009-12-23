@@ -84,10 +84,7 @@ sleep 1;
 sleep 2;
 --enable_query_log
 
-connection addconroot;
---reap
 disconnect addconroot;
-connection default;
 
 #
 # Clean up
