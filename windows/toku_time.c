@@ -1,5 +1,5 @@
 #include <windows.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <toku_time.h>
 
 int 

@@ -11,7 +11,7 @@
 #endif
 
 #include <inttypes.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>

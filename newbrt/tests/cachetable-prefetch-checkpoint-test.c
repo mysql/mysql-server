@@ -4,7 +4,7 @@
 // the blocks in the reading state should be ignored.
 #include <stdio.h>
 #include <unistd.h>
-#include <toku_assert.h>
+
 
 #include "test.h"
 #include "checkpoint.h"

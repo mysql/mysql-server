@@ -6,7 +6,7 @@
 /* Test to see if we can do logging and recovery. */
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

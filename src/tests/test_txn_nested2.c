@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #include "test.h"
 #include <stdio.h>
-#include <assert.h>
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>

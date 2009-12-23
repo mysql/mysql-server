@@ -4,7 +4,7 @@
 #include <db.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <string.h>
 
 #define DIR "subcommit.dir"

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 int verbose=0;
 #include <db_id.h>

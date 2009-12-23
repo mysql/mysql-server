@@ -30,6 +30,7 @@ typedef struct toku_pthread_rwlock_struct {
 typedef struct toku_pthread_rwlockattr_struct {
 } toku_pthread_rwlockattr_t;
 #endif
+typedef pthread_key_t toku_pthread_key_t;
 //typedef struct timespec         toku_timespec_t; //Already defined in toku_time.h
 
 
@@ -56,6 +57,11 @@ typedef int (__cdecl *toku_pthread_win32_cond_wait_func) (pthread_cond_t *cond, 
 typedef int (__cdecl *toku_pthread_win32_cond_timedwait_func) (pthread_cond_t *cond, pthread_mutex_t *mutex, toku_timespec_t *wakeup_at);
 typedef int (__cdecl *toku_pthread_win32_cond_signal_func) (pthread_cond_t *cond);
 typedef int (__cdecl *toku_pthread_win32_cond_broadcast_func) (pthread_cond_t *cond);
+
+typedef int (__cdecl *toku_pthread_win32_key_create_func) (pthread_key_t *key, void (*destroyf)(void *));
+typedef int (__cdecl *toku_pthread_win32_key_delete_func) (pthread_key_t key);
+typedef void *(__cdecl *toku_pthread_win32_getspecific_func) (pthread_key_t key);
+typedef int (__cdecl *toku_pthread_win32_setspecific_func) (pthread_key_t key, void *data);
 
 typedef struct toku_pthread_win32_funcs_struct {
     toku_pthread_win32_attr_init_func         pthread_attr_init;
@@ -85,6 +91,11 @@ typedef struct toku_pthread_win32_funcs_struct {
     toku_pthread_win32_create_func            pthread_create;
     toku_pthread_win32_join_func              pthread_join;
     toku_pthread_win32_self_func              pthread_self;
+
+    toku_pthread_win32_key_create_func        pthread_key_create;
+    toku_pthread_win32_key_delete_func        pthread_key_delete;
+    toku_pthread_win32_getspecific_func       pthread_getspecific;
+    toku_pthread_win32_setspecific_func       pthread_setspecific;
 } toku_pthread_win32_funcs;
 
 extern toku_pthread_win32_funcs pthread_win32;
@@ -145,7 +156,10 @@ int toku_pthread_mutex_lock(toku_pthread_mutex_t *mutex) {
     return pthread_win32.pthread_mutex_lock(mutex);
 }
 
-int toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex);
+static inline int
+toku_pthread_mutex_trylock(toku_pthread_mutex_t *mutex) {
+    return pthread_win32.pthread_mutex_trylock(mutex);
+}
 
 static inline
 int toku_pthread_mutex_unlock(toku_pthread_mutex_t *mutex) {
@@ -180,6 +194,26 @@ int toku_pthread_cond_signal(toku_pthread_cond_t *cond) {
 static inline
 int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond) {
     return pthread_win32.pthread_cond_broadcast(cond);
+}
+
+static inline int
+toku_pthread_key_create(pthread_key_t *key, void (*destroyf)(void *)) {
+    return pthread_win32.pthread_key_create(key, destroyf);
+}
+
+static inline int
+toku_pthread_key_delete(pthread_key_t key) {
+    return pthread_win32.pthread_key_delete(key);
+}
+
+static inline void*
+toku_pthread_getspecific(pthread_key_t key) {
+    return pthread_win32.pthread_getspecific(key);
+}
+
+static inline int
+toku_pthread_setspecific(pthread_key_t key, void *data) {
+    return pthread_win32.pthread_setspecific(key, data);
 }
 
 #if USE_PTHREADS_WIN32_RWLOCKS

@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include "test.h"
 
+
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 char *namea="a.db";
@@ -51,7 +52,7 @@ static void run_test (void) {
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
     // abort the process
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 

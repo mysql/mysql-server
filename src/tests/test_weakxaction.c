@@ -6,7 +6,7 @@
  *  User B does somethign without a transaction, and it conflicts.
  */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <memory.h>

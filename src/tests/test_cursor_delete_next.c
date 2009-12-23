@@ -4,7 +4,7 @@
 
 #include <memory.h>
 #include <db.h>
-#include <assert.h>
+
 #include <errno.h>
 #include <sys/stat.h>
 

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <direct.h>
 #include <dirent.h>

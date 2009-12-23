@@ -9,7 +9,7 @@
 #include <tokudb.h>
 #define DIRSUF tokudb
 #endif
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

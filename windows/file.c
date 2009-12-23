@@ -1,6 +1,6 @@
 #include <toku_portability.h>
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <windows.h>
@@ -42,7 +42,8 @@ pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
     filehandle = (HANDLE)_get_osfhandle(fildes);
     int64_t r;
     if (filehandle==INVALID_HANDLE_VALUE) {
-        r = errno; assert(r!=0);
+        r = -1;
+        assert(errno!=0);
         goto cleanup;
     }
     win_offset.Offset     = offset % (1LL<<32LL);
@@ -54,14 +55,8 @@ pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset) {
         errno = GetLastError();
         if (errno == ERROR_HANDLE_DISK_FULL ||
             errno == ERROR_DISK_FULL) {
-            char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-            snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", nbyte, fildes);
-            perror(err_msg);
-            fflush(stdout);
-            int out_of_disk_space = 1;
-            assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
+            errno = ENOSPC;
         }
-
         r = -1;
     }
     else    r = bytes_written;
@@ -106,6 +101,14 @@ toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off)
 	r = t_pwrite(fd, buf, len, off);
     } else {
 	r = pwrite(fd, buf, len, off);
+    }
+    if (r==-1 && errno==ENOSPC) {
+        char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+        snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", len, fd);
+        perror(err_msg);
+        fflush(stderr);
+        int out_of_disk_space = 1;
+        assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
     }
     assert(r==len);
 }

@@ -1,7 +1,7 @@
 #include <toku_portability.h>
 #include <windows.h>
 #include <toku_stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 
 int
 setenv(const char *name, const char *value, int overwrite) {

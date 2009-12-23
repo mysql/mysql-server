@@ -12,7 +12,7 @@
  *   The Latex documentation.
  */
 #include <toku_portability.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>

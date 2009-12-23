@@ -4,7 +4,7 @@
 
 
 #include <stdio.h>
-#include <assert.h>
+
 #include <db.h>
 
 int

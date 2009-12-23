@@ -7,7 +7,7 @@
 #include <toku_portability.h>
 #include <windows.h>
 #include <dirent.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <direct.h>
 #include <errno.h>
 #include <io.h>
@@ -272,5 +272,40 @@ snprintf(char *str, size_t size, const char *format, ...) {
     int r = vsnprintf(str, size, format, ap);
     va_end(ap);
     return r;
+}
+
+#include <PowrProf.h>
+#define TOKU_MICROSOFT_DID_NOT_DEFINE_PROCESSOR_POWER_INFORMATION 1
+#if TOKU_MICROSOFT_DID_NOT_DEFINE_PROCESSOR_POWER_INFORMATION 
+//From MSDN: (As of Windows 2000)
+//  Note that this structure definition was accidentally omitted from WinNT.h.
+//  This error will be corrected in the future. In the meantime, to compile your
+//  application, include the structure definition contained in this topic in your
+//  source code.
+typedef struct _PROCESSOR_POWER_INFORMATION {
+    ULONG Number;
+    ULONG MaxMhz;
+    ULONG CurrentMhz;
+    ULONG MhzLimit;
+    ULONG MaxIdleState;
+    ULONG CurrentIdleState;
+}PROCESSOR_POWER_INFORMATION, *PPROCESSOR_POWER_INFORMATION;
+#endif
+
+int
+toku_os_get_processor_frequency(uint64_t *hzret) {
+
+    SYSTEM_INFO sys_info;
+    // find out how many processors we have in the system
+    GetSystemInfo(&sys_info);
+    PROCESSOR_POWER_INFORMATION infos[sys_info.dwNumberOfProcessors];
+    memset(infos, 0, sizeof(infos));
+
+    NTSTATUS r = CallNtPowerInformation(ProcessorInformation, NULL, 0, &infos[0], sizeof(infos));
+    assert(r==ERROR_SUCCESS);
+
+    uint64_t mhz = infos[0].MaxMhz;
+    *hzret = mhz * 1000000ULL;
+    return 0;
 }
 

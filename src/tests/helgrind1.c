@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 // The helgrind1.tdbrun test should fail.  This is merely a check to verify that helgrind actually notices a race.
-#include <assert.h>
+
 #include <pthread.h>
 int x;
 

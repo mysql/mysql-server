@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 
 long long parsell (char *s) {

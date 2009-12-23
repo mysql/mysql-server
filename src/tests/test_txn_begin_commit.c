@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 #include <stdio.h>
-#include <assert.h>
+
 #include <sys/stat.h>
 #include <db.h>
 

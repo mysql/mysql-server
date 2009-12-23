@@ -14,7 +14,7 @@
 
 #include <rangetree.h>
 #include <errno.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdlib.h>
 #include <string.h>
 struct __toku_range_tree_local {

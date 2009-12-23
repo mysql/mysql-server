@@ -2,6 +2,7 @@
 
 #include "test.h"
 
+
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 char *namea="a.db";
 
@@ -52,7 +53,7 @@ run_test (BOOL do_commit, BOOL do_abort) {
         r = txn->commit(txn, DB_TXN_SYNC);                                              CKERR(r);
     }
     //printf("shutdown\n");
-    abort();
+    toku_hard_crash_on_purpose();
 }
 
 static void

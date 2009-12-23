@@ -15,13 +15,17 @@ endif
 SRCDIRS = $(OS_CHOICE) newbrt src/range_tree src/lock_tree src utils db-benchmark-test $(SRCDIRS_CXX)
 BUILDDIRS = $(SRCDIRS) man/texi
 
+ifeq ($(OS_CHOICE),windows)
+.NOTPARALLEL:; #Windows/cygwin jobserver does not properly handle submakes.  Serialize
+endif
 newbrt.dir: $(OS_CHOICE).dir
+src/range_tree.dir: $(OS_CHOICE).dir 
 src/lock_tree.dir: src/range_tree.dir
 src.dir: newbrt.dir src/lock_tree.dir
-cxx.dir: src.dir
-db-benchmark-test.dir: src.dir
-db-benchmark-test-cxx.dir: cxx.dir
 utils.dir: src.dir
+db-benchmark-test.dir: src.dir
+cxx.dir: src.dir
+db-benchmark-test-cxx.dir: cxx.dir
 
 %.dir:
 	cd $(patsubst %.dir, %, $@) && $(MAKE) build

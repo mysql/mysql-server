@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <sys/time.h>
 #include <time.h>
 

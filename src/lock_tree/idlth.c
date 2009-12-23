@@ -11,7 +11,7 @@
 
 #include <toku_portability.h>
 #include <idlth.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <string.h>
 

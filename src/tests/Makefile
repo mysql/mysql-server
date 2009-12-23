@@ -182,23 +182,16 @@ TDB_TESTS_THAT_SHOULD_FAIL_LIT= \
 	test_log10.recover \
 	recover-missing-dbfile.abortrecover \
 	recover-missing-dbfile-2.abortrecover \
+	recover-missing-dbfile-2.abortrecover \
+	recover-dbopen-eclose.abortrecover \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
     #Tests that fail in windows but shouldn't.  TODO: Fix each one of these and remove from the list!
-    TDB_TESTS_THAT_SHOULD_FAIL += \
-	test-recover2 \
-	test-recover3 \
+    WIN_IGNORE_TDB_TESTS_THAT_SHOULD_FAIL += \
 #\ ends prev line
-    TDB_TESTS_THAT_SHOULD_FAIL_LIT += \
-	test_log4.recover \
-	test_log5.recover \
-	test_log7.recover \
-	test_log8.recover \
-	test_log9.recover \
-	test_log10.recover \
+    WIN_IGNORE_TDB_TESTS_THAT_SHOULD_FAIL_LIT += \
 #\ ends prev line
-    #NOTE:  test_log[89].recover is non-deterministic.  Sometimes passes/fails
 endif
 
 ALL_TESTS  = $(TDB_TESTS)
@@ -216,7 +209,16 @@ EXTRA_TDB_TESTS = \
 	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
 #\ ends prev line
 
+ifeq ($(OS_CHOICE),windows)
+EXTRA_TDB_TESTS = \
+	$(patsubst %,test_log%.recover,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(TLRECOVER))) \
+#\ ends prev line
+endif
+
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
+ifeq ($(OS_CHOICE),windows)
+RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(RECOVER_SRCS)))
+endif
 
 RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVER_TESTS)
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
@@ -329,10 +331,11 @@ endif
 %.recoverwc: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
+ABORTCODE=137
 %.abortrecover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 ifeq ($(VGRIND),)
 	./$< --test >$<.check.output 2>&1; \
-        if [ $$? -ne 134 ] ; then \
+        if [ $$? -ne $(ABORTCODE) ] ; then \
 		test 0 = 1; \
         else \
 		./$< --recover >>$<.check.output 2>&1; \
@@ -340,7 +343,7 @@ ifeq ($(VGRIND),)
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 else
 	./$< --test >$<.check.output 2>&1; \
-        if [ $$? -ne 134 ] ; then \
+        if [ $$? -ne $(ABORTCODE) ] ; then \
 		cat $<.check.output; test 0 = 1; \
         else \
 		valgrind --quiet --error-exitcode=1 --leak-check=full --log-file=$<.check.valgrind ./$< --recover >>$<.check.output 2>&1; \
@@ -489,6 +492,9 @@ checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
 		date; \
 		./$< -c -i $$i -n $(STRESS_SIZE) $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+                if [ $$? -ne $(ABORTCODE) ] ; then \
+                   exit 1 ; \
+                fi ; \
 		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
 	done && \
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
@@ -501,6 +507,9 @@ recover_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
 		date; \
 		./$< -c -i $$i -n $(STRESS_SIZE) -l $(VERBVERBOSE) 2> dir.checkpoint_stress.c.tdb/error.$$i ; \
+                if [ $$? -ne $(ABORTCODE) ] ; then \
+                   exit 1 ; \
+                fi ; \
 		if ! grep -q 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.$$i; then break; fi; \
 	done && \
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
@@ -548,7 +557,10 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
                                    for i in $$iset; do \
                                       errorfile=dir.$@.errors/crash.$$O.$$a.$$b.$$c.$$d.$$e.$$f.$$g.$$h.$$i; \
                                       combination="-O $$O -A $$a -B $$b -C $$c -D $$d -E $$e -F $$f -G $$g -H $$h -I $$i"; \
-                                      ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile && { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
+                                      ./$< $(VERBVERBOSE) -c $$combination 2> $$errorfile ; \
+                                      if [ $$? -ne $(ABORTCODE) ] ; then \
+                                         { cat dir.$@.errors/crash; echo Error: no crash in $$errorfile ; exit 1; }; \
+                                      fi ; \
                                       grep 'HAPPY CRASH' $$errorfile >/dev/null || { cat $$errorfile; echo Error: incorrect crash in $$errorfile ; exit 1; }; \
                                       ./$< $(VERBVERBOSE) -r $$combination 2>> $$errorfile || { cat $$errorfile ; echo Error: during recovery in $$errorfile ; exit 1; }; \
                                       count=$$(($$count + 1)); \

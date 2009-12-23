@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>

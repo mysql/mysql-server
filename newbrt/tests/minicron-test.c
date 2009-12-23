@@ -2,7 +2,7 @@
 #include "test.h"
 #include "minicron.h"
 #include <unistd.h>
-#include <assert.h>
+
 #include <string.h>
 #include <stdlib.h>
 

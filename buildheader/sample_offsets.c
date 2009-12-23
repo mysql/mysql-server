@@ -8,7 +8,7 @@
 #include <db.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 
 
 #define DECL_LIMIT 100

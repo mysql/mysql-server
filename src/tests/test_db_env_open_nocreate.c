@@ -10,7 +10,7 @@
 //   However, in BDB, after doing an DB_ENV->open and then a close, no state has changed
 //   One must actually create a DB I think...
 
-#include <assert.h>
+
 #include <db.h>
 #include <errno.h>
 #include <stdio.h>

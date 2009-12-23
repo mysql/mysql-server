@@ -4,7 +4,7 @@
 
 /* Do test_log1, except abort instead of commit. */
 
-#include <assert.h>
+
 #include <db.h>
 #include <errno.h>
 #include <stdio.h>
@@ -46,7 +46,7 @@ test_main (int UU(argc), char UU(*argv[])) {
     r=tid->abort(tid);    
     assert(r==0);
     r=env->close(env, 0);
-#if USE_BDB
+#ifdef USE_BDB
     assert(r==ENOENT);
 #else
     assert(r==0);

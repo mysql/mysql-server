@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>

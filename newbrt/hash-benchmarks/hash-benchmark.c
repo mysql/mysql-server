@@ -4,7 +4,7 @@
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <arpa/inet.h>
 
 #define N 200000000

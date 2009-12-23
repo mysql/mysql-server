@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <test.h>
 #include <toku_os.h>
 

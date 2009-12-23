@@ -1,9 +1,9 @@
+#include <toku_portability.h>
 #include "toku_assert.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include <toku_portability.h>
 #include "brt.h"
 #include "toku_htonl.h"
 

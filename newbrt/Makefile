@@ -112,7 +112,7 @@ log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 # So we do it this way
 log_code.c: logformat$(BINSUF)
 	./logformat
-log_header.h: log_code.c
+log_print.c log_header.h: log_code.c
 	test 1 = 1
 
 #Needs to be done manually since it does not include newbrt.
@@ -145,7 +145,7 @@ clean-tests:
 clean-local:
 	rm -rf $(NEWBRT)
 	rm -rf test_oexcl.c.tmp *.brt
-	rm -rf log_code.c log_header.h logformat
+	rm -rf log_code.c log_header.h log_print.c logformat
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)

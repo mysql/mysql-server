@@ -3,7 +3,7 @@
 #include "test.h"
 
 /* Simple test of logging.  Can I start a TokuDB with logging enabled? */
-#include <assert.h>
+
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>

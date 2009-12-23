@@ -2,7 +2,7 @@
 #include <db.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <assert.h>
+
 
 
 DB_TXN *null_txn=0;

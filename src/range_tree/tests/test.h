@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <rangetree.h>
 #include <errno.h>
 #include "memory.h"

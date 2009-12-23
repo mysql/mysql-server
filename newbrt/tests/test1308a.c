@@ -2,7 +2,7 @@
 
 
 #include "test.h"
-#include <assert.h>
+
 #include <string.h>
 
 #include <toku_portability.h>

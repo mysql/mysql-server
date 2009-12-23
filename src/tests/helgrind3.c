@@ -3,7 +3,7 @@
 #include "test.h"
 // The helgrind2 test performs a DB->get() in two different concurrent threads.
 #include <arpa/inet.h>
-#include <assert.h>
+
 #include <db.h>
 #include <pthread.h>
 #include <sys/stat.h>

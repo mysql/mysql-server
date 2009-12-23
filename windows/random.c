@@ -2,7 +2,7 @@
 #define _CRT_RAND_S
 
 #include <stdio.h>
-#include <assert.h>
+#include <toku_assert.h>
 #include <stdint.h>
 #include <toku_stdlib.h>
 #include <windows.h>

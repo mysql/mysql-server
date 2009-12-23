@@ -3,7 +3,7 @@
 #include "test.h"
 
 
-#include <assert.h>
+
 #include <db.h>
 #include <errno.h>
 #include <stdlib.h>

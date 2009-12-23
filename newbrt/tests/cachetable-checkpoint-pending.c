@@ -2,10 +2,11 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <toku_assert.h>
+
 
 #include "test.h"
 #include "checkpoint.h"
+#include "toku_atomic.h"
 
 static int N; // how many items in the table
 static CACHEFILE cf;
@@ -16,23 +17,14 @@ static const int item_size = sizeof(int);
 
 static volatile int n_flush, n_write_me, n_keep_me, n_fetch;
 
-#if TOKU_WINDOWS
-//This is NOT correct, but close enough for now.
-//Obviously has race conditions.
-static void
-__sync_fetch_and_add(volatile int *num, int incr) {
-    *num += incr;
-}
-#endif
-
 static void
 sleep_random (void)
 {
 #if TOKU_WINDOWS
-    sleep(1);
+    usleep(random() % 1000); //Will turn out to be almost always 1ms.
 #else
     toku_timespec_t req = {.tv_sec  = 0,
-			   .tv_nsec = random()%1000000};
+			   .tv_nsec = random()%1000000}; //Max just under 1ms
     nanosleep(&req, NULL);
 #endif
 }
@@ -47,9 +39,9 @@ flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs),
     int *v = value;
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
-    (void)__sync_fetch_and_add(&n_flush, 1);
-    if (write_me) (void)__sync_fetch_and_add(&n_write_me, 1);
-    if (keep_me)  (void)__sync_fetch_and_add(&n_keep_me,  1);
+    (void)toku_sync_fetch_and_add_int32(&n_flush, 1);
+    if (write_me) (void)toku_sync_fetch_and_add_int32(&n_write_me, 1);
+    if (keep_me)  (void)toku_sync_fetch_and_add_int32(&n_keep_me,  1);
     sleep_random();
 }
 
@@ -103,12 +95,12 @@ static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
 }
 
 static void checkpoint_pending(void) {
-    if (verbose) printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N);
+    if (verbose) { printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N); fflush(stdout); }
     const int test_limit = N;
     int r;
     r = toku_create_cachetable(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER); assert(r == 0);
     char fname1[] = __FILE__ "test1.dat";
-    unlink(fname1);
+    r = unlink(fname1); if (r!=0) CKERR2(errno, ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
     toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL,
                                 dummy_pin_unpin, dummy_pin_unpin);

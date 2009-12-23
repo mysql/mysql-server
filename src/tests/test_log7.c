@@ -7,7 +7,7 @@
 /* This is very specific to TokuDB.  It won't work with Berkeley DB. */
 /* This test_log7 is like test_log5 except maxcount is larger. */
 
-#include <assert.h>
+
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>
