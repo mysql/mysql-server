@@ -12,6 +12,13 @@ connection slave;
 let $if_is_lossy = `SELECT FIND_IN_SET('ALL_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
 let $if_is_non_lossy = `SELECT FIND_IN_SET('ALL_NON_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
 
+let $source_type  = GEOMETRY;
+let $target_type  = GEOMETRY;
+let $source_value = PointFromText('POINT(10 10)');
+let $target_value = PointFromText('POINT(10 10)');
+let $can_convert  = 1;
+source extra/rpl_tests/check_type.inc;
+
 let $source_type  = BIT(1);
 let $target_type  = BIT(1);
 let $source_value = b'1';
