@@ -191,6 +191,18 @@ typedef fp_except fp_except_t;
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
 #endif
+#if defined(__i386__) && !defined(HAVE_FPU_CONTROL_H)
+# define fpu_control_t unsigned int
+# define _FPU_EXTENDED 0x300
+# define _FPU_DOUBLE 0x200
+# ifdef __GNUC__
+#  define _FPU_GETCW(cw) __asm__ __volatile__("fnstcw %0" : "=m" (*&cw))
+#  define _FPU_SETCW(cw) __asm__ __volatile__("fldcw %0" : : "m" (*&cw))
+# else
+#  define _FPU_GETCW(cw) (cw= 0)
+#  define _FPU_SETCW(cw)
+# endif
+#endif
 
 inline void setup_fpu()
 {
@@ -214,27 +226,17 @@ inline void setup_fpu()
 #endif /* HAVE_FESETROUND */
 
   /*
-    x86 (32-bit) requires FPU precision to be explicitly set to 64 bit for
-    portable results of floating point operations
+    x86 (32-bit) requires FPU precision to be explicitly set to 64 bit
+    (double precision) for portable results of floating point operations.
+    However, there is no need to do so if compiler is using SSE2 for floating
+    point, double values will be stored and processed in 64 bits anyway.
   */
-#if defined(__i386__)
+#if defined(__i386__) && !defined(__SSE2_MATH__)
 #if defined(_WIN32)
 #if !defined(_WIN64)
   _control87(_PC_53, MCW_PC);
 #endif /* !_WIN64 */
 #else /* !_WIN32 */
-#if !defined(HAVE_FPU_CONTROL_H)
-#define fpu_control_t unsigned int
-#define _FPU_EXTENDED 0x300
-#define _FPU_DOUBLE 0x200
-#if defined(__GNUC__)
-#define _FPU_GETCW(cw) __asm__ __volatile__("fnstcw %0" : "=m" (*&cw))
-#define _FPU_SETCW(cw) __asm__ __volatile__("fldcw %0" : : "m" (*&cw))
-#else /* !__GNUC__ */
-#define _FPU_GETCW(cw) (cw= 0)
-#define _FPU_SETCW(cw)
-#endif /* __GNUC__ */
-#endif /* !HAVE_FPU_CONTROL_H */
   fpu_control_t cw;
   _FPU_GETCW(cw);
   cw= (cw & ~_FPU_EXTENDED) | _FPU_DOUBLE;
