@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,19 +91,20 @@ void my_large_free(uchar* ptr, myf my_flags __attribute__((unused)))
 
 uint my_get_large_page_size_int(void)
 {
-  FILE *f;
+  MYSQL_FILE *f;
   uint size = 0;
   char buf[256];
   DBUG_ENTER("my_get_large_page_size_int");
 
-  if (!(f = my_fopen("/proc/meminfo", O_RDONLY, MYF(MY_WME))))
+  if (!(f= mysql_file_fopen(key_file_proc_meminfo, "/proc/meminfo",
+                            O_RDONLY, MYF(MY_WME))))
     goto finish;
 
-  while (fgets(buf, sizeof(buf), f))
+  while (mysql_file_fgets(buf, sizeof(buf), f))
     if (sscanf(buf, "Hugepagesize: %u kB", &size))
       break;
 
-  my_fclose(f, MYF(MY_WME));
+  mysql_file_fclose(f, MYF(MY_WME));
   
 finish:
   DBUG_RETURN(size * 1024);

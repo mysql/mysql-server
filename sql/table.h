@@ -288,6 +288,36 @@ typedef enum enum_table_category TABLE_CATEGORY;
 TABLE_CATEGORY get_table_category(const LEX_STRING *db,
                                   const LEX_STRING *name);
 
+
+typedef struct st_table_field_type
+{
+  LEX_STRING name;
+  LEX_STRING type;
+  LEX_STRING cset;
+} TABLE_FIELD_TYPE;
+
+
+typedef struct st_table_field_def
+{
+  uint count;
+  const TABLE_FIELD_TYPE *field;
+} TABLE_FIELD_DEF;
+
+
+class Table_check_intact
+{
+protected:
+  virtual void report_error(uint code, const char *fmt, ...)= 0;
+
+public:
+  Table_check_intact() {}
+  virtual ~Table_check_intact() {}
+
+  /** Checks whether a table is intact. */
+  bool check(TABLE *table, const TABLE_FIELD_DEF *table_def);
+};
+
+
 /*
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -419,6 +449,18 @@ struct TABLE_SHARE
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif
+
+  /**
+    Cache the checked structure of this table.
+
+    The pointer data is used to describe the structure that
+    a instance of the table must have. Each element of the
+    array specifies a field that must exist on the table.
+
+    The pointer is cached in order to perform the check only
+    once -- when the table is loaded from the disk.
+  */
+  const TABLE_FIELD_DEF *table_field_def_cache;
 
   /** place to store storage engine specific data */
   void *ha_data;
@@ -877,47 +919,6 @@ typedef struct st_foreign_key_info
   List<LEX_STRING> foreign_fields;
   List<LEX_STRING> referenced_fields;
 } FOREIGN_KEY_INFO;
-
-/*
-  Make sure that the order of schema_tables and enum_schema_tables are the same.
-*/
-
-enum enum_schema_tables
-{
-  SCH_CHARSETS= 0,
-  SCH_COLLATIONS,
-  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
-  SCH_COLUMNS,
-  SCH_COLUMN_PRIVILEGES,
-  SCH_ENGINES,
-  SCH_EVENTS,
-  SCH_FILES,
-  SCH_GLOBAL_STATUS,
-  SCH_GLOBAL_VARIABLES,
-  SCH_KEY_COLUMN_USAGE,
-  SCH_OPEN_TABLES,
-  SCH_PARTITIONS,
-  SCH_PLUGINS,
-  SCH_PROCESSLIST,
-  SCH_PROFILES,
-  SCH_REFERENTIAL_CONSTRAINTS,
-  SCH_PROCEDURES,
-  SCH_SCHEMATA,
-  SCH_SCHEMA_PRIVILEGES,
-  SCH_SESSION_STATUS,
-  SCH_SESSION_VARIABLES,
-  SCH_STATISTICS,
-  SCH_STATUS,
-  SCH_TABLES,
-  SCH_TABLE_CONSTRAINTS,
-  SCH_TABLE_NAMES,
-  SCH_TABLE_PRIVILEGES,
-  SCH_TRIGGERS,
-  SCH_USER_PRIVILEGES,
-  SCH_VARIABLES,
-  SCH_VIEWS
-};
-
 
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED   2
@@ -1667,17 +1668,6 @@ typedef struct st_open_table_list{
   uint32 in_use,locked;
 } OPEN_TABLE_LIST;
 
-typedef struct st_table_field_w_type
-{
-  LEX_STRING name;
-  LEX_STRING type;
-  LEX_STRING cset;
-} TABLE_FIELD_W_TYPE;
-
-
-my_bool
-table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def);
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)

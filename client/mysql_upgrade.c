@@ -783,6 +783,10 @@ static int run_sql_fix_privilege_tables(void)
         found_real_errors++;
         print_line(line);
       }
+      else if (strncmp(line, "WARNING", 7) == 0)
+      {
+        print_line(line);
+      }
     } while ((line= get_line(line)) && *line);
   }
 
@@ -819,7 +823,8 @@ int main(int argc, char **argv)
       init_dynamic_string(&conn_args, "", 512, 256))
     die("Out of memory");
 
-  load_defaults("my", load_default_groups, &argc, &argv);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    die(NULL);
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))

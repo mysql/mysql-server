@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
+   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,29 +63,14 @@ static int gettimeofday(struct timeval *tv, void *tz)
  *
  ******************************************************************************/
 
-ActiveTranx::ActiveTranx(int max_connections,
-			 pthread_mutex_t *lock,
+ActiveTranx::ActiveTranx(mysql_mutex_t *lock,
 			 unsigned long trace_level)
-  : Trace(trace_level), num_transactions_(max_connections),
-    num_entries_(max_connections << 1),
+  : Trace(trace_level),
+    num_entries_(max_connections << 1), /* Transaction hash table size
+                                         * is set to double the size
+                                         * of max_connections */
     lock_(lock)
 {
-  /* Allocate the memory for the array */
-  node_array_ = new TranxNode[num_transactions_];
-  for (int idx = 0; idx < num_transactions_; ++idx)
-  {
-    node_array_[idx].log_pos_     = 0;
-    node_array_[idx].hash_next_   = NULL;
-    node_array_[idx].next_        = node_array_ + idx + 1;
-
-    node_array_[idx].log_name_    = new char[FN_REFLEN];
-    node_array_[idx].log_name_[0] = '\x0';
-  }
-  node_array_[num_transactions_-1].next_ = NULL;
-
-  /* All nodes in the array go to the pool initially. */
-  free_pool_ = node_array_;
-
   /* No transactions are in the list initially. */
   trx_front_ = NULL;
   trx_rear_  = NULL;
@@ -95,24 +80,13 @@ ActiveTranx::ActiveTranx(int max_connections,
   for (int idx = 0; idx < num_entries_; ++idx)
     trx_htb_[idx] = NULL;
 
-  sql_print_information("Semi-sync replication initialized for %d "
-                        "transactions.", num_transactions_);
+  sql_print_information("Semi-sync replication initialized for transactions.");
 }
 
 ActiveTranx::~ActiveTranx()
 {
-  for (int idx = 0; idx < num_transactions_; ++idx)
-  {
-    delete [] node_array_[idx].log_name_;
-    node_array_[idx].log_name_ = NULL;
-  }
-
-  delete [] node_array_;
   delete [] trx_htb_;
-
-  node_array_       = NULL;
   trx_htb_          = NULL;
-  num_transactions_ = 0;
   num_entries_      = 0;
 }
 
@@ -143,26 +117,21 @@ unsigned int ActiveTranx::get_hash_value(const char *log_file_name,
 
 ActiveTranx::TranxNode* ActiveTranx::alloc_tranx_node()
 {
-  TranxNode *ptr = free_pool_;
-
-  if (free_pool_)
+  MYSQL_THD thd= (MYSQL_THD)current_thd;
+  /* The memory allocated for TranxNode will be automatically freed at
+     the end of the command of current THD. And because
+     ha_autocommit_or_rollback() will always be called before that, so
+     we are sure that the node will be removed from the active list
+     before it get freed. */
+  TranxNode *trx_node = (TranxNode *)thd_alloc(thd, sizeof(TranxNode));
+  if (trx_node)
   {
-    free_pool_ = free_pool_->next_;
-    ptr->next_ = NULL;
-    ptr->hash_next_ = NULL;
+    trx_node->log_name_[0] = '\0';
+    trx_node->log_pos_= 0;
+    trx_node->next_= 0;
+    trx_node->hash_next_= 0;
   }
-  else
-  {
-    /*
-      free_pool should never be NULL here, because we have
-      max_connections number of pre-allocated nodes.
-    */
-    sql_print_error("You have encountered a semi-sync bug (free_pool == NULL), "
-                    "please report to http://bugs.mysql.com");
-    assert(free_pool_);
-  }
-
-  return ptr;
+  return trx_node;
 }
 
 int ActiveTranx::compare(const char *log_file_name1, my_off_t log_file_pos1,
@@ -306,14 +275,12 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     /* Clear the active transaction list. */
     if (trx_front_ != NULL)
     {
-      trx_rear_->next_ = free_pool_;
-      free_pool_ = trx_front_;
       trx_front_ = NULL;
       trx_rear_  = NULL;
     }
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: free all nodes back to free list", kWho);
+      sql_print_information("%s: cleared all nodes", kWho);
   }
   else if (new_front != trx_front_)
   {
@@ -325,10 +292,6 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     while (curr_node != new_front)
     {
       next_node = curr_node->next_;
-
-      /* Put the node in the memory pool. */
-      curr_node->next_ = free_pool_;
-      free_pool_       = curr_node;
       n_frees++;
 
       /* Remove the node from the hash table. */
@@ -350,7 +313,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     trx_front_ = new_front;
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: free %d nodes back until pos (%s, %lu)",
+      sql_print_information("%s: cleared %d nodes back until pos (%s, %lu)",
                             kWho, n_frees,
                             trx_front_->log_name_, (unsigned long)trx_front_->log_pos_);
   }
@@ -391,8 +354,7 @@ ReplSemiSyncMaster::ReplSemiSyncMaster()
     wait_file_pos_(0),
     master_enabled_(false),
     wait_timeout_(0L),
-    state_(0),
-    max_transactions_(0L)
+    state_(0)
 {
   strcpy(reply_file_name_, "");
   strcpy(wait_file_name_, "");
@@ -413,11 +375,12 @@ int ReplSemiSyncMaster::initObject()
   /* References to the parameter works after set_options(). */
   setWaitTimeout(rpl_semi_sync_master_timeout);
   setTraceLevel(rpl_semi_sync_master_trace_level);
-  max_transactions_ = (int)max_connections;
 
   /* Mutex initialization can only be done after MY_INIT(). */
-  pthread_mutex_init(&LOCK_binlog_, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_binlog_send_, NULL);
+  mysql_mutex_init(key_ss_mutex_LOCK_binlog_,
+                   &LOCK_binlog_, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_ss_cond_COND_binlog_send_,
+                  &COND_binlog_send_, NULL);
 
   if (rpl_semi_sync_master_enabled)
     result = enableMaster();
@@ -436,9 +399,7 @@ int ReplSemiSyncMaster::enableMaster()
 
   if (!getMasterEnabled())
   {
-    active_tranxs_ = new ActiveTranx(max_connections,
-				     &LOCK_binlog_,
-				     trace_level_);
+    active_tranxs_ = new ActiveTranx(&LOCK_binlog_, trace_level_);
     if (active_tranxs_ != NULL)
     {
       commit_file_name_inited_ = false;
@@ -494,8 +455,8 @@ ReplSemiSyncMaster::~ReplSemiSyncMaster()
 {
   if (init_done_)
   {
-    pthread_mutex_destroy(&LOCK_binlog_);
-    pthread_cond_destroy(&COND_binlog_send_);
+    mysql_mutex_destroy(&LOCK_binlog_);
+    mysql_cond_destroy(&COND_binlog_send_);
   }
 
   delete active_tranxs_;
@@ -503,17 +464,17 @@ ReplSemiSyncMaster::~ReplSemiSyncMaster()
 
 void ReplSemiSyncMaster::lock()
 {
-  pthread_mutex_lock(&LOCK_binlog_);
+  mysql_mutex_lock(&LOCK_binlog_);
 }
 
 void ReplSemiSyncMaster::unlock()
 {
-  pthread_mutex_unlock(&LOCK_binlog_);
+  mysql_mutex_unlock(&LOCK_binlog_);
 }
 
 void ReplSemiSyncMaster::cond_broadcast()
 {
-  pthread_cond_broadcast(&COND_binlog_send_);
+  mysql_cond_broadcast(&COND_binlog_send_);
 }
 
 int ReplSemiSyncMaster::cond_timewait(struct timespec *wait_time)
@@ -522,8 +483,8 @@ int ReplSemiSyncMaster::cond_timewait(struct timespec *wait_time)
   int wait_res;
 
   function_enter(kWho);
-  wait_res = pthread_cond_timedwait(&COND_binlog_send_,
-                                    &LOCK_binlog_, wait_time);
+  wait_res= mysql_cond_timedwait(&COND_binlog_send_,
+                                 &LOCK_binlog_, wait_time);
   return function_exit(kWho, wait_res);
 }
 

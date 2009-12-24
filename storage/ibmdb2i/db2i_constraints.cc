@@ -102,7 +102,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
       Foreign_key* fk = (Foreign_key*)curKey;
       
       char db2LibName[MAX_DB2_SCHEMANAME_LENGTH+1];
-      if (fk->name)
+      if (fk->name.str)
       {
         char db2FKName[MAX_DB2_FILENAME_LENGTH+1];
         appendHere.append(STRING_WITH_LEN("CONSTRAINT "));
@@ -120,7 +120,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         
         appendHere.append('.');
         
-        convertMySQLNameToDB2Name(fk->name, db2FKName, sizeof(db2FKName));
+        convertMySQLNameToDB2Name(fk->name.str, db2FKName, sizeof(db2FKName));
         appendHere.append(db2FKName);
       }
       
@@ -139,7 +139,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         }
         firstTime = false;
         
-        convertMySQLNameToDB2Name(curColumn->field_name, colName, sizeof(colName));
+        convertMySQLNameToDB2Name(curColumn->field_name.str, colName, sizeof(colName));
         appendHere.append(colName);
 
         // DB2 requires that the sort sequence on the child table match the parent table's
@@ -148,7 +148,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         Field** field = fields;
         do
         {
-          if (strcmp((*field)->field_name, curColumn->field_name) == 0)
+          if (strcmp((*field)->field_name, curColumn->field_name.str) == 0)
           {
             int rc = updateAssociatedSortSequence((*field)->charset(),
                                                   fileSortSequenceType,
@@ -199,7 +199,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
           }
           firstTime = false;
 
-          convertMySQLNameToDB2Name(curRef->field_name, colName, sizeof(colName));
+          convertMySQLNameToDB2Name(curRef->field_name.str, colName, sizeof(colName));
           appendHere.append(colName);
         }
 
@@ -329,7 +329,7 @@ char* ha_ibmdb2i::get_foreign_key_create_info(void)
 
        /* Process the constraint name.                                           */
 
-        info.strncat(STRING_WITH_LEN(" CONSTRAINT "));
+        info.strncat(STRING_WITH_LEN(",\n  CONSTRAINT "));
         convNameForCreateInfo(thd, info,
              FKCstDef->CstName.Name, FKCstDef->CstName.Len);
  
@@ -398,7 +398,6 @@ char* ha_ibmdb2i::get_foreign_key_create_info(void)
 
       if ((i+1) < cstCnt) 
       { 
-        info.strcat(',');
         tempPtr = (char*)cstHdr + cstHdr->CstLen;
         cstHdr = (constraint_hdr_t*)(tempPtr);
       }
@@ -670,29 +669,4 @@ uint ha_ibmdb2i::referenced_by_foreign_key(void)
     bridge()->deallocateFile(queryFile);
   }
   DBUG_RETURN(count);
-}
-
-
-bool ha_ibmdb2i::check_if_incompatible_data(HA_CREATE_INFO *info,
-                                         uint table_changes)
-{
-  DBUG_ENTER("ha_ibmdb2i::check_if_incompatible_data");
-  uint i;
-  /* Check that auto_increment value and field definitions were
-     not changed. */
-  if ((info->used_fields & HA_CREATE_USED_AUTO &&
-       info->auto_increment_value != 0) ||
-       table_changes != IS_EQUAL_YES)
-    DBUG_RETURN(COMPATIBLE_DATA_NO);
-  /* Check if any fields were renamed. */
-  for (i= 0; i < table->s->fields; i++)
-  {
-   Field *field= table->field[i];
-   if (field->flags & FIELD_IS_RENAMED)
-    {
-      DBUG_PRINT("info", ("Field has been renamed, copy table"));
-      DBUG_RETURN(COMPATIBLE_DATA_NO);
-    }
-  }
-  DBUG_RETURN(COMPATIBLE_DATA_YES);
 }

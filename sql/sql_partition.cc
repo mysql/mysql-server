@@ -238,26 +238,27 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 {
   DBUG_ENTER("partition_default_handling");
 
-  if (part_info->use_default_num_partitions)
+  if (!is_create_table_ind)
   {
-    if (!is_create_table_ind &&
-        table->file->get_no_parts(normalized_path, &part_info->num_parts))
+    if (part_info->use_default_num_partitions)
     {
-      DBUG_RETURN(TRUE);
+      if (table->file->get_no_parts(normalized_path, &part_info->num_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
     }
-  }
-  else if (part_info->is_sub_partitioned() &&
-           part_info->use_default_num_subpartitions)
-  {
-    uint num_parts;
-    if (!is_create_table_ind &&
-        (table->file->get_no_parts(normalized_path, &num_parts)))
+    else if (part_info->is_sub_partitioned() &&
+             part_info->use_default_num_subpartitions)
     {
-      DBUG_RETURN(TRUE);
+      uint num_parts;
+      if (table->file->get_no_parts(normalized_path, &num_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      DBUG_ASSERT(part_info->num_parts > 0);
+      DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
+      part_info->num_subparts= num_parts / part_info->num_parts;
     }
-    DBUG_ASSERT(part_info->num_parts > 0);
-    part_info->num_subparts= num_parts / part_info->num_parts;
-    DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
@@ -932,6 +933,85 @@ int check_signed_flag(partition_info *part_info)
   return error;
 }
 
+/**
+  Initialize lex object for use in fix_fields and parsing.
+
+  SYNOPSIS
+    init_lex_with_single_table()
+    @param thd                 The thread object
+    @param table               The table object
+  @return Operation status
+    @retval TRUE                An error occurred, memory allocation error
+    @retval FALSE               Ok
+
+  DESCRIPTION
+    This function is used to initialize a lex object on the
+    stack for use by fix_fields and for parsing. In order to
+    work properly it also needs to initialize the
+    Name_resolution_context object of the lexer.
+    Finally it needs to set a couple of variables to ensure
+    proper functioning of fix_fields.
+*/
+
+static int
+init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
+{
+  TABLE_LIST *table_list;
+  Table_ident *table_ident;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  Name_resolution_context *context= &select_lex->context;
+  /*
+    We will call the parser to create a part_info struct based on the
+    partition string stored in the frm file.
+    We will use a local lex object for this purpose. However we also
+    need to set the Name_resolution_object for this lex object. We
+    do this by using add_table_to_list where we add the table that
+    we're working with to the Name_resolution_context.
+  */
+  thd->lex= lex;
+  lex_start(thd);
+  context->init();
+  if ((!(table_ident= new Table_ident(thd,
+                                      table->s->table_name,
+                                      table->s->db, TRUE))) ||
+      (!(table_list= select_lex->add_table_to_list(thd,
+                                                   table_ident,
+                                                   NULL,
+                                                   0))))
+    return TRUE;
+  context->resolve_in_table_list_only(table_list);
+  lex->use_only_table_context= TRUE;
+  select_lex->cur_pos_in_select_list= UNDEF_POS;
+  table->map= 1; //To ensure correct calculation of const item
+  table->get_fields_in_item_tree= TRUE;
+  table_list->table= table;
+  return FALSE;
+}
+
+/**
+  End use of local lex with single table
+
+  SYNOPSIS
+    end_lex_with_single_table()
+    @param thd               The thread object
+    @param table             The table object
+    @param old_lex           The real lex object connected to THD
+
+  DESCRIPTION
+    This function restores the real lex object after calling
+    init_lex_with_single_table and also restores some table
+    variables temporarily set.
+*/
+
+static void
+end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
+{
+  LEX *lex= thd->lex;
+  table->map= 0;
+  table->get_fields_in_item_tree= FALSE;
+  lex_end(lex);
+  thd->lex= old_lex;
+}
 
 /*
   The function uses a new feature in fix_fields where the flag 
@@ -946,6 +1026,8 @@ int check_signed_flag(partition_info *part_info)
     table                The table object
     part_info            Reference to partitioning data structure
     is_sub_part          Is the table subpartitioned as well
+    is_create_table_ind  Indicator of whether openfrm was called as part of
+                         CREATE or ALTER TABLE
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -969,58 +1051,23 @@ int check_signed_flag(partition_info *part_info)
 */
 
 static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
-                                 bool is_sub_part)
+                          bool is_sub_part, bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
-  uint dir_length, home_dir_length;
   bool result= TRUE;
-  TABLE_LIST tables;
-  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
-  Name_resolution_context *context;
   const char *save_where;
-  char* db_name;
-  char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
+  LEX *old_lex= thd->lex;
+  LEX lex;
+  uint8 saved_full_group_by_flag;
+  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
-  /*
-    Set-up the TABLE_LIST object to be a list with a single table
-    Set the object to zero to create NULL pointers and set alias
-    and real name to table name and get database name from file name.
-    TODO: Consider generalizing or refactoring Lex::add_table_to_list() so
-    it can be used in all places where we create TABLE_LIST objects.
-    Also consider creating appropriate constructors for TABLE_LIST.
-  */
+  if (init_lex_with_single_table(thd, table, &lex))
+    goto end;
 
-  bzero((void*)&tables, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*) table->s->table_name.str;
-  tables.table= table;
-  tables.next_local= 0;
-  tables.next_name_resolution_table= 0;
-  /*
-    Cache the table in Item_fields. All the tables can be cached except
-    the trigger pseudo table.
-  */
-  tables.cacheable_table= TRUE;
-  context= thd->lex->current_context();
-  tables.select_lex= context->select_lex;
-  strmov(db_name_string, table->s->normalized_path.str);
-  dir_length= dirname_length(db_name_string);
-  db_name_string[dir_length - 1]= 0;
-  home_dir_length= dirname_length(db_name_string);
-  db_name= &db_name_string[home_dir_length];
-  tables.db= db_name;
-
-  table->map= 1; //To ensure correct calculation of const item
-  table->get_fields_in_item_tree= TRUE;
-  save_table_list= context->table_list;
-  save_first_table= context->first_name_resolution_table;
-  save_last_table= context->last_name_resolution_table;
-  context->table_list= &tables;
-  context->first_name_resolution_table= &tables;
-  context->last_name_resolution_table= NULL;
-  func_expr->walk(&Item::change_context_processor, 0, (uchar*) context);
+  func_expr->walk(&Item::change_context_processor, 0,
+                  (uchar*) &lex.select_lex.context);
   save_where= thd->where;
   thd->where= "partition function";
   /*
@@ -1035,42 +1082,65 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     that does this during val_int must be disallowed as partition
     function.
     SEE Bug #21658
-  */
-  /*
+
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
+  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
+  saved_allow_sum_func= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
 
-  save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
-  
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  thd->lex->use_only_table_context= save_use_only_table_context;
+  /*
+    Restore full_group_by_flag and allow_sum_func,
+    fix_fields should not affect mysql_select later, see Bug#46923.
+  */
+  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
+  thd->lex->allow_sum_func= saved_allow_sum_func;
 
-  context->table_list= save_table_list;
-  context->first_name_resolution_table= save_first_table;
-  context->last_name_resolution_table= save_last_table;
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
     clear_field_flag(table);
     goto end;
   }
-  thd->where= save_where;
   if (unlikely(func_expr->const_item()))
   {
-    my_error(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+    my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
     clear_field_flag(table);
     goto end;
   }
+
+  /*
+    We don't allow creating partitions with timezone-dependent expressions as
+    a (sub)partitioning function, but we want to allow such expressions when
+    opening existing tables for easier maintenance. This exception should be
+    deprecated at some point in future so that we always throw an error.
+  */
+  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+                      0, NULL))
+  {
+    if (is_create_table_ind)
+    {
+      my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+      goto end;
+    }
+    else
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
+                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+  }
+
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
     goto end;
   result= set_up_field_array(table, is_sub_part);
 end:
-  table->get_fields_in_item_tree= FALSE;
-  table->map= 0; //Restore old value
+  end_lex_with_single_table(thd, table, old_lex);
+#if !defined(DBUG_OFF)
+  func_expr->walk(&Item::change_context_processor, 0,
+                  (uchar*) 0);
+#endif
   DBUG_RETURN(result);
 }
 
@@ -1672,7 +1742,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
-                                        table, TRUE)))
+                                        table, TRUE, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1700,7 +1770,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE)))
+                                        table, FALSE, is_create_table_ind)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
@@ -1723,7 +1793,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE)))
+                                        table, FALSE, is_create_table_ind)))
         goto end;
     }
     part_info->fixed= TRUE;
@@ -1760,8 +1830,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
   if (((part_info->part_type != HASH_PARTITION ||
       part_info->list_of_part_fields == FALSE) &&
       (!part_info->column_list &&
-       check_part_func_fields(part_info->part_field_array, TRUE))) ||
-      (part_info->list_of_part_fields == FALSE &&
+      check_part_func_fields(part_info->part_field_array, TRUE))) ||
+      (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
@@ -4108,26 +4178,13 @@ bool mysql_unpack_partition(THD *thd,
   LEX lex;
   DBUG_ENTER("mysql_unpack_partition");
 
-  thd->lex= &lex;
   thd->variables.character_set_client= system_charset_info;
 
   Parser_state parser_state(thd, part_buf, part_info_len);
 
-  lex_start(thd);
-  *work_part_info_used= false;
-  /*
-    We need to use the current SELECT_LEX since I need to keep the
-    Name_resolution_context object which is referenced from the
-    Item_field objects.
-    This is not a nice solution since if the parser uses current_select
-    for anything else it will corrupt the current LEX object.
-    Also, we need to make sure there even is a select -- if the statement
-    was a "USE ...", current_select will be NULL, but we may still end up
-    here if we try to log to a partitioned table. This is currently
-    unsupported, but should still fail rather than crash!
-  */
-  if (!(thd->lex->current_select= old_lex->current_select))
+  if (init_lex_with_single_table(thd, table, &lex))
     goto end;
+
   /*
     All Items created is put into a free list on the THD object. This list
     is used to free all Item objects after completing a query. We don't
@@ -4137,6 +4194,7 @@ bool mysql_unpack_partition(THD *thd,
     Thus we move away the current list temporarily and start a new list that
     we then save in the partition info structure.
   */
+  *work_part_info_used= FALSE;
   lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
@@ -4250,8 +4308,7 @@ bool mysql_unpack_partition(THD *thd,
 
   result= FALSE;
 end:
-  lex_end(thd->lex);
-  thd->lex= old_lex;
+  end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
 }
@@ -4340,8 +4397,9 @@ static int fast_end_partition(THD *thd, ulonglong copied,
   }
 
   if ((!is_empty) && (!written_bin_log) &&
-      (!thd->lex->no_write_to_binlog))
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      (!thd->lex->no_write_to_binlog) &&
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+    DBUG_RETURN(TRUE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),
@@ -6223,7 +6281,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
     */
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     lpt->thd->in_lock_tables= 1;
     err= reopen_tables(lpt->thd, 1, 1);
     lpt->thd->in_lock_tables= 0;
@@ -6237,7 +6295,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
       unlink_open_table(lpt->thd, lpt->table, FALSE);
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
 }
 
@@ -6261,9 +6319,9 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
     We set lock to zero to ensure we don't do this twice
     and we set db_stat to zero to ensure we don't close twice.
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   close_data_files_and_morph_locks(thd, db, table_name);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 

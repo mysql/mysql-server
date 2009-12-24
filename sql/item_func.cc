@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -451,45 +451,8 @@ Field *Item_func::tmp_table_field(TABLE *table)
     return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-  {
-    uint8 dec= decimals;
-    uint8 intg= decimal_precision() - dec;
-    uint32 len= max_length;
-
-    /*
-      Trying to put too many digits overall in a DECIMAL(prec,dec)
-      will always throw a warning. We must limit dec to
-      DECIMAL_MAX_SCALE however to prevent an assert() later.
-    */
-
-    if (dec > 0)
-    {
-      int overflow;
-
-      dec= min(dec, DECIMAL_MAX_SCALE);
-
-      /*
-        If the value still overflows the field with the corrected dec,
-        we'll throw out decimals rather than integers. This is still
-        bad and of course throws a truncation warning.
-      */
-
-      const int required_length=
-        my_decimal_precision_to_length(intg + dec, dec,
-                                                     unsigned_flag);
-
-      overflow= required_length - len;
-
-      if (overflow > 0)
-        dec= max(0, dec - overflow);            // too long, discard fract
-      else
-        /* Corrected value fits. */
-        len= required_length;
-    }
-
-    field= new Field_new_decimal(len, maybe_null, name, dec, unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
     break;
-  }
   case ROW_RESULT:
   default:
     // This case should never be chosen
@@ -1384,6 +1347,38 @@ void Item_func_div::fix_length_and_dec()
 longlong Item_func_int_div::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
+  /*
+    Perform division using DECIMAL math if either of the operands has a
+    non-integer type
+  */
+  if (args[0]->result_type() != INT_RESULT ||
+      args[1]->result_type() != INT_RESULT)
+  {
+    my_decimal value0, value1, tmp;
+    my_decimal *val0, *val1;
+    longlong res;
+    int err;
+
+    val0= args[0]->val_decimal(&value0);
+    val1= args[1]->val_decimal(&value1);
+    if ((null_value= (args[0]->null_value || args[1]->null_value)))
+      return 0;
+
+    if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, &tmp,
+                             val0, val1, 0)) > 3)
+    {
+      if (err == E_DEC_DIV_ZERO)
+        signal_divide_by_null();
+      return 0;
+    }
+
+    if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
+        E_DEC_OVERFLOW)
+      my_error(ER_WARN_DATA_OUT_OF_RANGE, MYF(0), name, 1);
+    return res;
+  }
+  
   longlong value=args[0]->val_int();
   longlong val2=args[1]->val_int();
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
@@ -3095,7 +3090,7 @@ String *udf_handler::val_str(String *str,String *save_str)
   if (res == str->ptr())
   {
     str->length(res_length);
-    DBUG_PRINT("exit", ("str: %s", str->ptr()));
+    DBUG_PRINT("exit", ("str: %*.s", (int) str->length(), str->ptr()));
     DBUG_RETURN(str);
   }
   save_str->set(res, res_length, str->charset());
@@ -3287,7 +3282,7 @@ bool udf_handler::get_arguments() { return 0; }
 ** User level locks
 */
 
-pthread_mutex_t LOCK_user_locks;
+mysql_mutex_t LOCK_user_locks;
 static HASH hash_user_locks;
 
 class User_level_lock
@@ -3298,7 +3293,7 @@ class User_level_lock
 public:
   int count;
   bool locked;
-  pthread_cond_t cond;
+  mysql_cond_t cond;
   my_thread_id thread_id;
   void set_thread(THD *thd) { thread_id= thd->thread_id; }
 
@@ -3306,7 +3301,7 @@ public:
     :key_length(length),count(1),locked(1), thread_id(id)
   {
     key= (uchar*) my_memdup(key_arg,length,MYF(0));
-    pthread_cond_init(&cond,NULL);
+    mysql_cond_init(key_user_level_lock_cond, &cond, NULL);
     if (key)
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
@@ -3323,7 +3318,7 @@ public:
       my_hash_delete(&hash_user_locks,(uchar*) this);
       my_free(key, MYF(0));
     }
-    pthread_cond_destroy(&cond);
+    mysql_cond_destroy(&cond);
   }
   inline bool initialized() { return key != 0; }
   friend void item_user_lock_release(User_level_lock *ull);
@@ -3338,12 +3333,36 @@ uchar *ull_get_key(const User_level_lock *ull, size_t *length,
   return ull->key;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_user_locks;
+
+static PSI_mutex_info all_user_mutexes[]=
+{
+  { &key_LOCK_user_locks, "LOCK_user_locks", PSI_FLAG_GLOBAL}
+};
+
+static void init_user_lock_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_user_mutexes);
+  PSI_server->register_mutex(category, all_user_mutexes, count);
+}
+#endif
 
 static bool item_user_lock_inited= 0;
 
 void item_user_lock_init(void)
 {
-  pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
+#ifdef HAVE_PSI_INTERFACE
+  init_user_lock_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_user_locks, &LOCK_user_locks, MY_MUTEX_INIT_SLOW);
   my_hash_init(&hash_user_locks,system_charset_info,
 	    16,0,0,(my_hash_get_key) ull_get_key,NULL,0);
   item_user_lock_inited= 1;
@@ -3355,7 +3374,7 @@ void item_user_lock_free(void)
   {
     item_user_lock_inited= 0;
     my_hash_free(&hash_user_locks);
-    pthread_mutex_destroy(&LOCK_user_locks);
+    mysql_mutex_destroy(&LOCK_user_locks);
   }
 }
 
@@ -3364,7 +3383,7 @@ void item_user_lock_release(User_level_lock *ull)
   ull->locked=0;
   ull->thread_id= 0;
   if (--ull->count)
-    pthread_cond_signal(&ull->cond);
+    mysql_cond_signal(&ull->cond);
   else
     delete ull;
 }
@@ -3407,7 +3426,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   struct timespec abstime;
   size_t lock_name_len;
   lock_name_len= strlen(lock_name);
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_user_locks);
 
   if (thd->ull)
   {
@@ -3425,7 +3444,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
                                                 (uchar*) lock_name,
                                                 lock_name_len))))
   {
-    pthread_mutex_unlock(&LOCK_user_locks);
+    mysql_mutex_unlock(&LOCK_user_locks);
     return;
   }
   ull->count++;
@@ -3441,7 +3460,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   set_timespec(abstime,lock_timeout);
   while (ull->locked && !thd->killed)
   {
-    int error= pthread_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
+    int error= mysql_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
     if (error == ETIMEDOUT || error == ETIME)
       break;
   }
@@ -3457,19 +3476,19 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     ull->set_thread(thd);
     thd->ull=ull;
   }
-  pthread_mutex_unlock(&LOCK_user_locks);
-  pthread_mutex_lock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_lock(&thd->mysys_var->mutex);
   thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_unlock(&thd->mysys_var->mutex);
+  mysql_mutex_lock(&LOCK_user_locks);
   if (thd->ull)
   {
     item_user_lock_release(thd->ull);
     thd->ull=0;
   }
-  pthread_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_user_locks);
 }
 
 #endif
@@ -3487,8 +3506,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
 #define INTERRUPT_INTERVAL (5 * ULL(1000000000))
 
-static int interruptible_wait(THD *thd, pthread_cond_t *cond,
-                              pthread_mutex_t *lock, double time)
+static int interruptible_wait(THD *thd, mysql_cond_t *cond,
+                              mysql_mutex_t *lock, double time)
 {
   int error;
   struct timespec abstime;
@@ -3504,7 +3523,7 @@ static int interruptible_wait(THD *thd, pthread_cond_t *cond,
 
     timeout-= slice;
     set_timespec_nsec(abstime, slice);
-    error= pthread_cond_timedwait(cond, lock, &abstime);
+    error= mysql_cond_timedwait(cond, lock, &abstime);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
@@ -3547,11 +3566,11 @@ longlong Item_func_get_lock::val_int()
   if (thd->slave_thread)
     DBUG_RETURN(1);
 
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_user_locks);
 
   if (!res || !res->length())
   {
-    pthread_mutex_unlock(&LOCK_user_locks);
+    mysql_mutex_unlock(&LOCK_user_locks);
     null_value=1;
     DBUG_RETURN(0);
   }
@@ -3574,13 +3593,13 @@ longlong Item_func_get_lock::val_int()
     if (!ull || !ull->initialized())
     {
       delete ull;
-      pthread_mutex_unlock(&LOCK_user_locks);
+      mysql_mutex_unlock(&LOCK_user_locks);
       null_value=1;				// Probably out of memory
       DBUG_RETURN(0);
     }
     ull->set_thread(thd);
     thd->ull=ull;
-    pthread_mutex_unlock(&LOCK_user_locks);
+    mysql_mutex_unlock(&LOCK_user_locks);
     DBUG_PRINT("info", ("made new lock"));
     DBUG_RETURN(1);				// Got new lock
   }
@@ -3630,13 +3649,13 @@ longlong Item_func_get_lock::val_int()
     error=0;
     DBUG_PRINT("info", ("got the lock"));
   }
-  pthread_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_user_locks);
 
-  pthread_mutex_lock(&thd->mysys_var->mutex);
+  mysql_mutex_lock(&thd->mysys_var->mutex);
   thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(&thd->mysys_var->mutex);
 
   DBUG_RETURN(!error ? 1 : 0);
 }
@@ -3667,7 +3686,7 @@ longlong Item_func_release_lock::val_int()
   null_value=0;
 
   result=0;
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_user_locks);
   if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
                                                 (const uchar*) res->ptr(),
                                                 (size_t) res->length()))))
@@ -3688,7 +3707,7 @@ longlong Item_func_release_lock::val_int()
       thd->ull=0;
     }
   }
-  pthread_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_user_locks);
   DBUG_RETURN(result);
 }
 
@@ -3794,7 +3813,7 @@ void Item_func_benchmark::print(String *str, enum_query_type query_type)
 longlong Item_func_sleep::val_int()
 {
   THD *thd= current_thd;
-  pthread_cond_t cond;
+  mysql_cond_t cond;
   double timeout;
   int error;
 
@@ -3808,13 +3827,13 @@ longlong Item_func_sleep::val_int()
     When given a very short timeout (< 10 mcs) just return 
     immediately.
     We assume that the lines between this test and the call 
-    to pthread_cond_timedwait() will be executed in less than 0.00001 sec.
+    to mysql_cond_timedwait() will be executed in less than 0.00001 sec.
   */
   if (timeout < 0.00001)
     return 0;
 
-  pthread_cond_init(&cond, NULL);
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
+  mysql_mutex_lock(&LOCK_user_locks);
 
   thd_proc_info(thd, "User sleep");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
@@ -3829,13 +3848,13 @@ longlong Item_func_sleep::val_int()
     error= 0;
   }
   thd_proc_info(thd, 0);
-  pthread_mutex_unlock(&LOCK_user_locks);
-  pthread_mutex_lock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(&thd->mysys_var->mutex);
 
-  pthread_cond_destroy(&cond);
+  mysql_cond_destroy(&cond);
 
   return test(!error); 		// Return 1 killed
 }
@@ -5763,10 +5782,10 @@ longlong Item_func_is_free_lock::val_int()
     return 0;
   }
   
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_user_locks);
   ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
                                           (size_t) res->length());
-  pthread_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 1;
   return 0;
@@ -5782,10 +5801,10 @@ longlong Item_func_is_used_lock::val_int()
   if (!res || !res->length())
     return 0;
   
-  pthread_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_user_locks);
   ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
                                           (size_t) res->length());
-  pthread_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
     return 0;
 

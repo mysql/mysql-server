@@ -1,4 +1,4 @@
-/* Copyright (C) 2003, 2005 MySQL AB
+/* Copyright (C) 2003, 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,8 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     /* Read the next block of index file into the preload buffer */
     if ((my_off_t) length > (key_file_length-pos))
       length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile, (uchar*) buff, length, pos, MYF(MY_FAE|MY_FNABP)))
+    if (mysql_file_pread(share->kfile, (uchar*) buff, length, pos,
+                         MYF(MY_FAE|MY_FNABP)))
       goto err;
 
     if (ignore_leaves)

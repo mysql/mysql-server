@@ -386,7 +386,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	if (tmp - val > 6)
 	  tmp= (char*) val + 6;
 	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
-	frac_part= 6 - (uint) (tmp - val);
+	frac_part= 6 - (int) (tmp - val);
 	if (frac_part > 0)
 	  l_time->second_part*= (ulong) log_10_int[frac_part];
 	val= tmp;
@@ -2609,9 +2609,9 @@ void Item_char_typecast::fix_length_and_dec()
                        from_cs != &my_charset_bin &&
                        cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ?
-                 cast_length :
-                 args[0]->max_length / args[0]->collation.collation->mbmaxlen;
+  char_length= (cast_length >= 0) ? cast_length :
+                args[0]->max_length /
+                (cast_cs == &my_charset_bin ? 1 : args[0]->collation.collation->mbmaxlen);
   max_length= char_length * cast_cs->mbmaxlen;
 }
 

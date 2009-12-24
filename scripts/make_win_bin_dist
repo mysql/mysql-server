@@ -290,6 +290,11 @@ if [ -d storage/innodb_plugin ]; then
   cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.dll \
      $DESTDIR/lib/plugin/
 fi
+if [ -d plugin/semisync ]; then
+  cp plugin/semisync/$TARGET/semisync_master.dll \
+     plugin/semisync/$TARGET/semisync_slave.dll \
+     $DESTDIR/lib/plugin/
+fi
 
 if [ x"$TARGET" != x"release" ] ; then
   cp libmysql/$TARGET/libmysql.pdb \
@@ -300,6 +305,11 @@ if [ x"$TARGET" != x"release" ] ; then
      zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
   if [ -d storage/innodb_plugin ]; then
     cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.pdb \
+       $DESTDIR/lib/plugin/
+  fi
+  if [ -d plugin/semisync ]; then
+    cp plugin/semisync/$TARGET/semisync_master.pdb \
+       plugin/semisync/$TARGET/semisync_slave.pdb \
        $DESTDIR/lib/plugin/
   fi
 fi
@@ -328,6 +338,15 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
        storage/innodb_plugin/debug/ha_innodb_plugin.pdb \
        $DESTDIR/lib/plugin/debug/
   fi
+  if [ -d plugin/semisync ]; then
+    cp plugin/semisync/debug/semisync_master.dll \
+       plugin/semisync/debug/semisync_master.lib \
+       plugin/semisync/debug/semisync_master.pdb \
+       plugin/semisync/debug/semisync_slave.dll \
+       plugin/semisync/debug/semisync_slave.lib \
+       plugin/semisync/debug/semisync_slave.pdb \
+       $DESTDIR/lib/plugin/debug/
+  fi
 fi
 
 # ----------------------------------------------------------------------
@@ -338,7 +357,7 @@ mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/mysql-stress-test.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
-cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
+cp -R mysql-test/{t,r,include,suite,std_data,lib,collections} $DESTDIR/mysql-test/
 
 # Note that this will not copy "extra" if a soft link
 if [ -d mysql-test/extra ] ; then
