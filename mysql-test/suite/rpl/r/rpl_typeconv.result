@@ -69,6 +69,24 @@ RESET MASTER;
 include/start_slave.inc
 **** Result of conversions ****
 Source_Type	Target_Type	All_Type_Conversion_Flags	Value_On_Slave
+TINYBLOB       	TINYBLOB       	                         	<Correct value>
+TINYBLOB       	BLOB           	                         	<Correct error>
+TINYBLOB       	MEDIUMBLOB     	                         	<Correct error>
+TINYBLOB       	LONGBLOB       	                         	<Correct error>
+BLOB           	TINYBLOB       	                         	<Correct error>
+BLOB           	BLOB           	                         	<Correct value>
+BLOB           	MEDIUMBLOB     	                         	<Correct error>
+BLOB           	LONGBLOB       	                         	<Correct error>
+MEDIUMBLOB     	TINYBLOB       	                         	<Correct error>
+MEDIUMBLOB     	BLOB           	                         	<Correct error>
+MEDIUMBLOB     	MEDIUMBLOB     	                         	<Correct value>
+MEDIUMBLOB     	LONGBLOB       	                         	<Correct error>
+LONGBLOB       	TINYBLOB       	                         	<Correct error>
+LONGBLOB       	BLOB           	                         	<Correct error>
+LONGBLOB       	MEDIUMBLOB     	                         	<Correct error>
+LONGBLOB       	LONGBLOB       	                         	<Correct value>
+GEOMETRY       	BLOB           	                         	<Correct error>
+BLOB           	GEOMETRY       	                         	<Correct error>
 GEOMETRY       	GEOMETRY       	                         	<Correct value>
 BIT(1)         	BIT(1)         	                         	<Correct value>
 DATE           	DATE           	                         	<Correct value>
@@ -172,6 +190,24 @@ BIT(5)         	BIT(6)         	                         	<Correct error>
 BIT(6)         	BIT(5)         	                         	<Correct error>
 BIT(5)         	BIT(12)        	                         	<Correct error>
 BIT(12)        	BIT(5)         	                         	<Correct error>
+TINYBLOB       	TINYBLOB       	ALL_NON_LOSSY            	<Correct value>
+TINYBLOB       	BLOB           	ALL_NON_LOSSY            	<Correct value>
+TINYBLOB       	MEDIUMBLOB     	ALL_NON_LOSSY            	<Correct value>
+TINYBLOB       	LONGBLOB       	ALL_NON_LOSSY            	<Correct value>
+BLOB           	TINYBLOB       	ALL_NON_LOSSY            	<Correct error>
+BLOB           	BLOB           	ALL_NON_LOSSY            	<Correct value>
+BLOB           	MEDIUMBLOB     	ALL_NON_LOSSY            	<Correct value>
+BLOB           	LONGBLOB       	ALL_NON_LOSSY            	<Correct value>
+MEDIUMBLOB     	TINYBLOB       	ALL_NON_LOSSY            	<Correct error>
+MEDIUMBLOB     	BLOB           	ALL_NON_LOSSY            	<Correct error>
+MEDIUMBLOB     	MEDIUMBLOB     	ALL_NON_LOSSY            	<Correct value>
+MEDIUMBLOB     	LONGBLOB       	ALL_NON_LOSSY            	<Correct value>
+LONGBLOB       	TINYBLOB       	ALL_NON_LOSSY            	<Correct error>
+LONGBLOB       	BLOB           	ALL_NON_LOSSY            	<Correct error>
+LONGBLOB       	MEDIUMBLOB     	ALL_NON_LOSSY            	<Correct error>
+LONGBLOB       	LONGBLOB       	ALL_NON_LOSSY            	<Correct value>
+GEOMETRY       	BLOB           	ALL_NON_LOSSY            	<Correct error>
+BLOB           	GEOMETRY       	ALL_NON_LOSSY            	<Correct error>
 GEOMETRY       	GEOMETRY       	ALL_NON_LOSSY            	<Correct value>
 BIT(1)         	BIT(1)         	ALL_NON_LOSSY            	<Correct value>
 DATE           	DATE           	ALL_NON_LOSSY            	<Correct value>
@@ -275,6 +311,24 @@ BIT(5)         	BIT(6)         	ALL_NON_LOSSY            	<Correct value>
 BIT(6)         	BIT(5)         	ALL_NON_LOSSY            	<Correct error>
 BIT(5)         	BIT(12)        	ALL_NON_LOSSY            	<Correct value>
 BIT(12)        	BIT(5)         	ALL_NON_LOSSY            	<Correct error>
+TINYBLOB       	TINYBLOB       	ALL_LOSSY                	<Correct value>
+TINYBLOB       	BLOB           	ALL_LOSSY                	<Correct error>
+TINYBLOB       	MEDIUMBLOB     	ALL_LOSSY                	<Correct error>
+TINYBLOB       	LONGBLOB       	ALL_LOSSY                	<Correct error>
+BLOB           	TINYBLOB       	ALL_LOSSY                	<Correct value>
+BLOB           	BLOB           	ALL_LOSSY                	<Correct value>
+BLOB           	MEDIUMBLOB     	ALL_LOSSY                	<Correct error>
+BLOB           	LONGBLOB       	ALL_LOSSY                	<Correct error>
+MEDIUMBLOB     	TINYBLOB       	ALL_LOSSY                	<Correct value>
+MEDIUMBLOB     	BLOB           	ALL_LOSSY                	<Correct value>
+MEDIUMBLOB     	MEDIUMBLOB     	ALL_LOSSY                	<Correct value>
+MEDIUMBLOB     	LONGBLOB       	ALL_LOSSY                	<Correct error>
+LONGBLOB       	TINYBLOB       	ALL_LOSSY                	<Correct value>
+LONGBLOB       	BLOB           	ALL_LOSSY                	<Correct value>
+LONGBLOB       	MEDIUMBLOB     	ALL_LOSSY                	<Correct value>
+LONGBLOB       	LONGBLOB       	ALL_LOSSY                	<Correct value>
+GEOMETRY       	BLOB           	ALL_LOSSY                	<Correct error>
+BLOB           	GEOMETRY       	ALL_LOSSY                	<Correct error>
 GEOMETRY       	GEOMETRY       	ALL_LOSSY                	<Correct value>
 BIT(1)         	BIT(1)         	ALL_LOSSY                	<Correct value>
 DATE           	DATE           	ALL_LOSSY                	<Correct value>
@@ -378,6 +432,24 @@ BIT(5)         	BIT(6)         	ALL_LOSSY                	<Correct error>
 BIT(6)         	BIT(5)         	ALL_LOSSY                	<Correct value>
 BIT(5)         	BIT(12)        	ALL_LOSSY                	<Correct error>
 BIT(12)        	BIT(5)         	ALL_LOSSY                	<Correct value>
+TINYBLOB       	TINYBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+TINYBLOB       	BLOB           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+TINYBLOB       	MEDIUMBLOB     	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+TINYBLOB       	LONGBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+BLOB           	TINYBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+BLOB           	BLOB           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+BLOB           	MEDIUMBLOB     	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+BLOB           	LONGBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+MEDIUMBLOB     	TINYBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+MEDIUMBLOB     	BLOB           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+MEDIUMBLOB     	MEDIUMBLOB     	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+MEDIUMBLOB     	LONGBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+LONGBLOB       	TINYBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+LONGBLOB       	BLOB           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+LONGBLOB       	MEDIUMBLOB     	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+LONGBLOB       	LONGBLOB       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
+GEOMETRY       	BLOB           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct error>
+BLOB           	GEOMETRY       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct error>
 GEOMETRY       	GEOMETRY       	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 BIT(1)         	BIT(1)         	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 DATE           	DATE           	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
