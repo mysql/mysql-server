@@ -41,7 +41,7 @@ MACRO (DTRACE_HEADER provider header header_no_dtrace)
  ADD_CUSTOM_COMMAND(
    OUTPUT  ${header} ${header_no_dtrace}
    COMMAND ${DTRACE} -h -s ${provider} -o ${header}
-	 COMMAND perl ${CMAKE_SOURCE_DIR}/scripts/dheadgen.pl -f ${provider} > ${header_no_dtrace}
+   COMMAND perl ${CMAKE_SOURCE_DIR}/scripts/dheadgen.pl -f ${provider} > ${header_no_dtrace}
    DEPENDS ${provider}
  )
  ENDIF()
@@ -57,6 +57,13 @@ IF(ENABLE_DTRACE)
    ${CMAKE_BINARY_DIR}/include/probes_mysql_dtrace.h
    ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h
   )
+  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+   # Systemtap object
+   EXECUTE_PROCESS(
+     COMMAND ${DTRACE} -G -s ${CMAKE_SOURCE_DIR}/include/probes_mysql.d.base
+     -o ${CMAKE_BINARY_DIR}/probes_mysql.o
+   )
+  ENDIF()
   ADD_CUSTOM_TARGET(gen_dtrace_header
   DEPENDS  
   ${CMAKE_BINARY_DIR}/include/probes_mysql.d
@@ -66,12 +73,16 @@ IF(ENABLE_DTRACE)
 ENDIF()
 
 
-MACRO (DTRACE_INSTRUMENT target)
+MACRO(DTRACE_INSTRUMENT target)
   IF(ENABLE_DTRACE)
     ADD_DEPENDENCIES(${target} gen_dtrace_header)
 
-     # On Solaris, invoke dtrace -G to generate object file and
-     # link it together with target.
+    IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+      TARGET_LINK_LIBRARIES(${target}  ${CMAKE_BINARY_DIR}/probes_mysql.o)
+    ENDIF()
+
+    # On Solaris, invoke dtrace -G to generate object file and
+    # link it together with target.
     IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
       SET(objdir ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir)
       SET(outfile ${objdir}/${target}_dtrace.o)
