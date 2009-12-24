@@ -2609,7 +2609,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
 						    MY_CS_BINSORT,MYF(0))))
     {
-      char tmp[64];
+      char tmp[65];
       strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
               STRING_WITH_LEN("_bin"));
       my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);

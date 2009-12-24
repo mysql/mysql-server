@@ -2509,7 +2509,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN));
+    strmake(buff, log_name, min(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;
@@ -3768,7 +3768,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       if (stat_area.st_mtime < purge_time) 
         strmake(to_log, 
                 log_info.log_file_name, 
-                sizeof(log_info.log_file_name));
+                sizeof(log_info.log_file_name) - 1);
       else
         break;
     }
@@ -5173,11 +5173,11 @@ bool flush_error_log()
   if (opt_error_log)
   {
     char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
     strmov(end, "-old");
     pthread_mutex_lock(&LOCK_error_log);
 #ifdef __WIN__
-    char err_temp[FN_REFLEN+4];
+    char err_temp[FN_REFLEN+5];
     /*
      On Windows is necessary a temporary file for to rename
      the current error file.
