@@ -748,12 +748,14 @@ bulk-insert-buffer-size           8388608
 character-set-client-handshake    TRUE
 character-set-filesystem          binary
 character-set-server              latin1
+character-sets-dir                MYSQL_SHAREDIR/charsets/
 chroot                            (No default value)
 collation-server                  latin1_swedish_ci
 completion-type                   NO_CHAIN
 concurrent-insert                 AUTO
 connect-timeout                   10
 console                           FALSE
+datadir                           MYSQLTEST_VARDIR/install.db/
 date-format                       %Y-%m-%d
 datetime-format                   %Y-%m-%d %H:%i:%s
 default-character-set             latin1
@@ -797,7 +799,9 @@ key-buffer-size                   8388608
 key-cache-age-threshold           300
 key-cache-block-size              1024
 key-cache-division-limit          100
+language                          MYSQL_SHAREDIR/
 lc-messages                       en_US
+lc-messages-dir                   MYSQL_SHAREDIR/
 lc-time-names                     en_US
 local-infile                      TRUE
 log-bin                           (No default value)
@@ -865,6 +869,7 @@ optimizer-prune-level             1
 optimizer-search-depth            62
 optimizer-switch                  index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
 partition                         ON
+plugin-dir                        MYSQL_LIBDIR/plugin
 plugin-load                       (No default value)
 port                              3306
 port-open-timeout                 0
@@ -907,6 +912,7 @@ skip-show-database                FALSE
 skip-slave-start                  FALSE
 slave-compressed-protocol         FALSE
 slave-exec-mode                   STRICT
+slave-load-tmpdir                 MYSQLTEST_VARDIR/tmp/
 slave-net-timeout                 3600
 slave-skip-errors                 (No default value)
 slave-transaction-retries         10
@@ -940,6 +946,7 @@ thread-stack                      262144
 time-format                       %H:%i:%s
 timed-mutexes                     FALSE
 tmp-table-size                    16777216
+tmpdir                            MYSQLTEST_VARDIR/tmp/
 transaction-alloc-block-size      8192
 transaction-isolation             REPEATABLE-READ
 transaction-prealloc-size         4096
