@@ -15,13 +15,6 @@
 
 # This is the CMakeLists for InnoDB Plugin
 
-
-# TODO: remove the two FLAGS_DEBUG settings when merging into
-# 6.0-based trees, like is already the case for other engines in
-# those trees.
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
 # Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
 # CMakeLists.txt still needs to work with previous versions of MySQL.
 IF (MYSQL_VERSION_ID GREATER "50137")
@@ -93,5 +86,10 @@ IF (MYSQL_VERSION_ID GREATER "50137")
 		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
 	ENDIF(LIB_LOCATION)
 ELSE (MYSQL_VERSION_ID GREATER "50137")
-	MYSQL_STORAGE_ENGINE(INNODB_PLUGIN)
+	IF (NOT SOURCE_SUBLIBS)
+		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
+		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
+		# Require mysqld_error.h, which is built as part of the GenError
+		ADD_DEPENDENCIES(innobase GenError)
+	ENDIF (NOT SOURCE_SUBLIBS)
 ENDIF (MYSQL_VERSION_ID GREATER "50137")
