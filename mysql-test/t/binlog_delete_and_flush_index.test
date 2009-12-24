@@ -45,31 +45,10 @@ RESET MASTER;
 CREATE TABLE t1 (a int);
 
 -- echo ### assertion: index file contains regular entries
--- replace_regex /[\\\/].*master/MYSQLD_DATADIR\/master/
+-- replace_result $datadir MYSQLD_DATADIR
 -- eval SET @index=LOAD_FILE('$index')
-if (`SELECT convert(@@version_compile_os using latin1)
-                IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir\', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-
-}
-if (!`SELECT convert(@@version_compile_os using latin1)
-                 IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir/', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-}
+-- replace_result $datadir MYSQLD_DATADIR
+SELECT @index;
 
 --echo ### assertion: show original binlogs
 -- source include/show_binary_logs.inc
@@ -79,15 +58,21 @@ if (!`SELECT convert(@@version_compile_os using latin1)
 
 # action: copy binlogs to other names and change entries in index file
 -- copy_file $datadir/master-bin.000001 $datadir/master-bin-b34582.000001
--- let newbinfile=$datadir/master-bin-b34582.000001
-let INDEX_FILE=$index;
+-- let newbinfile= $datadir/master-bin-b34582.000001
+-- let INDEX_FILE= $index
 perl;
-$newbinfile= $ENV{'newbinfile'};
+use File::Spec;
+$newbinfile= File::Spec->rel2abs($ENV{'newbinfile'});
 $file= $ENV{'INDEX_FILE'};
 open(FILE, ">$file") || die "Unable to open $file.";
 truncate(FILE,0);
-print FILE $newbinfile . "\n";
+print FILE "$newbinfile";
 close ($file);
+EOF
+
+# append a new line (platform independent)
+-- append_file $index
+
 EOF
 
 # action: should cause rotation, and creation of new binlogs
@@ -97,31 +82,10 @@ FLUSH LOGS;
 -- remove_file $datadir/master-bin.000001
 
 -- echo ### assertion: index file contains renamed binlog and the new one
--- replace_regex /[\\\/].*master/MYSQLD_DATADIR\/master/
+-- replace_result $datadir MYSQLD_DATADIR
 -- eval SET @index=LOAD_FILE('$index')
-if (`SELECT convert(@@version_compile_os using latin1)
-                IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir\', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-
-}
-if (!`SELECT convert(@@version_compile_os using latin1)
-                 IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir/', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-}
+-- replace_result $datadir MYSQLD_DATADIR
+SELECT @index;
 
 -- echo ### assertion: original binlog content still exists, despite we
 -- echo ###            renamed and changed the index file 
@@ -147,30 +111,9 @@ DROP TABLE t1;
 -- file_exists $datadir/$current_binlog
 
 -- echo ### assertion: show index file contents and these should match show binary logs issued above
--- replace_regex /[\\\/].*master/MYSQLD_DATADIR\/master/
+-- replace_result $datadir MYSQLD_DATADIR
 -- eval SET @index=LOAD_FILE('$index')
-if (`SELECT convert(@@version_compile_os using latin1)
-                IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir\', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-
-}
-if (!`SELECT convert(@@version_compile_os using latin1)
-                 IN ('Win32','Win64','Windows')`)
-{
-  -- disable_query_log
-  -- disable_result_log
-  -- let $a= `SELECT REPLACE (@index, '$datadir/', '')`
-  -- enable_result_log
-  -- enable_query_log
-
-  -- echo $a
-}
+-- replace_result $datadir MYSQLD_DATADIR
+SELECT @index;
 
 RESET MASTER;
