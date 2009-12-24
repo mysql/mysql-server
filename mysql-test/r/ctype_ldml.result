@@ -369,3 +369,8 @@ s1
 a
 b
 DROP TABLE t1;
+SET NAMES utf8 COLLATE utf8_test_ci;
+SHOW COLLATION LIKE 'utf8_test_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf8_test_ci	utf8	353			8
+SET NAMES utf8;
