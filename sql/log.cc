@@ -1635,7 +1635,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   old_name=name;
   save_log_type=log_type;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
 
   /*
      Note that at this point, log_type != LOG_CLOSED (important for is_open()).
@@ -1649,9 +1649,11 @@ void MYSQL_LOG::new_file(bool need_lock)
      Format_description_log_event written at server startup, which should
      trigger temp tables deletion on slaves.
   */
-
-  open(old_name, save_log_type, new_name_ptr,
-       io_cache_type, no_auto_events, max_size, 1);
+  
+  /* reopen index binlog file, BUG#34582 */
+  if (!open_index_file(index_file_name, 0))
+    open(old_name, save_log_type, new_name_ptr, 
+         io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:
