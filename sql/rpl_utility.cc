@@ -816,7 +816,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
                   ER(ER_SLAVE_CONVERSION_FAILED),
                   col, db_name, tbl_name,
-                  source_type.c_ptr(), target_type.c_ptr());
+                  source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }
   }
