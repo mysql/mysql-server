@@ -1,5 +1,5 @@
 -- source include/have_innodb.inc
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 
 # You cannot use `KILL' with the Embedded MySQL Server library,
 # because the embedded server merely runs inside the threads of the host

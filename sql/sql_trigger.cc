@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2005 MySQL AB
+/* Copyright (C) 2004-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -387,7 +387,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     DBUG_RETURN(TRUE);
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   if (!create)
   {
@@ -507,10 +507,10 @@ end:
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (need_start_waiting)
     start_waiting_global_read_lock(thd);
@@ -1884,7 +1884,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
                     old_table)-(char*)&key[0])+1;
 
   if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
-    safe_mutex_assert_owner(&LOCK_open);
+    mysql_mutex_assert_owner(&LOCK_open);
 #endif
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||

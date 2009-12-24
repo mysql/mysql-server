@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -94,6 +94,11 @@ static bool ndbcluster_show_status(handlerton *hton, THD*,
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
                                        st_alter_tablespace *info);
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                    THD *thd, 
+                                    TABLE_LIST *tables, 
+                                    COND *cond,
+                                    enum enum_schema_tables);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -6904,7 +6909,7 @@ int ndbcluster_drop_database_impl(const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -6914,7 +6919,7 @@ int ndbcluster_drop_database_impl(const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
   DBUG_RETURN(ret);      
 }
@@ -6952,7 +6957,6 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
   newlex.current_select= NULL;
-  lex_start(thd);
   int res= ha_create_table_from_engine(thd, db, table_name);
   thd->lex= old_lex;
   return res;
@@ -7067,7 +7071,7 @@ int ndbcluster_find_all_files(THD *thd)
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
 
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       if (discover)
       {
         /* ToDo 4.1 database needs to be created if missing */
@@ -7085,7 +7089,7 @@ int ndbcluster_find_all_files(THD *thd)
                                        TRUE);
       }
 #endif
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
   while (unhandled && retries);
@@ -7178,19 +7182,19 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                            file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         DBUG_PRINT("info", ("Table %s listed and need discovery",
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
           push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
           continue;
         }
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
@@ -7247,10 +7251,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
         tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       ndbcluster_create_binlog_setup(ndb, name, end-name,
                                      db, file_name_str, TRUE);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
 #endif
@@ -7299,7 +7303,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   // Create new files
   List_iterator_fast<char> it2(create_list);
   while ((file_name_str=it2++))
@@ -7314,7 +7318,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
@@ -7403,7 +7407,7 @@ static int ndbcluster_init(void *p)
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
-    h->fill_files_table= ndbcluster_fill_files_table;
+    h->fill_is_table=    ndbcluster_fill_is_table;
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
 #endif
@@ -7538,6 +7542,34 @@ ndbcluster_init_error:
 
   DBUG_RETURN(TRUE);
 }
+
+/**
+   Used to fill in INFORMATION_SCHEMA* tables.
+   
+   @param hton handle to the handlerton structure
+   @param thd the thread/connection descriptor
+   @param[in,out] tables the information schema table that is filled up
+   @param cond used for conditional pushdown to storage engine
+   @param schema_table_idx the table id that distinguishes the type of table
+   
+   @return Operation status
+ */
+static int ndbcluster_fill_is_table(handlerton *hton,
+                                      THD *thd,
+                                      TABLE_LIST *tables,
+                                      COND *cond,
+                                      enum enum_schema_tables schema_table_idx)
+{
+  int ret= 0;
+  
+  if (schema_table_idx == SCH_FILES)
+  {
+    ret= ndbcluster_fill_files_table(hton, thd, tables, cond);
+  }
+  
+  return ret;
+}
+
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
@@ -8214,7 +8246,7 @@ int handle_trailing_share(NDB_SHARE *share)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
 
   pthread_mutex_lock(&ndbcluster_mutex);
@@ -9272,7 +9304,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
   if (thd->store_globals())
     goto ndb_util_thread_fail;
-  lex_start(thd);
   thd->init_for_queries();
   thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";

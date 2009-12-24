@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,8 +63,8 @@ static unsigned int __stdcall pthread_start(void *p)
 }
 
 
-int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
-     pthread_handler func, void *param)
+int pthread_create(pthread_t *thread_id, const pthread_attr_t *attr,
+                   pthread_handler func, void *param)
 {
   uintptr_t handle;
   struct thread_start_parameter *par;
@@ -127,6 +127,38 @@ error_return:
   if(handle)
     CloseHandle(handle);
   return -1;
+}
+
+
+/*
+ One time initialization. For simplicity, we assume initializer thread
+ does not exit within init_routine().
+*/
+int my_pthread_once(my_pthread_once_t *once_control, 
+    void (*init_routine)(void))
+{
+  LONG state= InterlockedCompareExchange(once_control, MY_PTHREAD_ONCE_INPROGRESS,
+                                          MY_PTHREAD_ONCE_INIT);
+  switch(state)
+  {
+  case MY_PTHREAD_ONCE_INIT:
+    /* This is initializer thread */
+    (*init_routine)();
+    *once_control= MY_PTHREAD_ONCE_DONE;
+    break;
+
+  case MY_PTHREAD_ONCE_INPROGRESS:
+    /* init_routine in progress. Wait for its completion */
+    while(*once_control == MY_PTHREAD_ONCE_INPROGRESS)
+    {
+      Sleep(1);
+    }
+    break;
+  case MY_PTHREAD_ONCE_DONE:
+    /* Nothing to do */
+    break;
+  }
+  return 0;
 }
 
 #endif

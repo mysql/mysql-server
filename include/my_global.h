@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,16 @@
 #undef inline				/* fix configure problem */
 #endif
 #endif /* _WIN32... */
+
+#ifdef EMBEDDED_LIBRARY
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#undef WITH_PERFSCHEMA_STORAGE_ENGINE
+#endif
+#endif /* EMBEDDED_LIBRARY */
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#define HAVE_PSI_INTERFACE
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 /* Make it easier to add conditionl code for windows */
 #ifdef __WIN__
@@ -866,6 +876,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
+#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
+#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
 #define INT_MIN32       (~0x7FFFFFFFL)
 #define INT_MAX32       0x7FFFFFFFL
 #define UINT_MAX32      0xFFFFFFFFL
@@ -889,7 +901,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 #ifndef SIZE_T_MAX
-#define SIZE_T_MAX ~((size_t) 0)
+#define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
 #ifndef isfinite

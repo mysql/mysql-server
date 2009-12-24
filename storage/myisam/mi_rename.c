@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2004 MySQL AB
+/* Copyright (C) 2000-2001, 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ int mi_rename(const char *old_name, const char *new_name)
 
   fn_format(from,old_name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_rename_with_symlink(from, to, MYF(MY_WME)))
+  if (mysql_file_rename_with_symlink(mi_key_file_kfile, from, to, MYF(MY_WME)))
     DBUG_RETURN(my_errno);
   fn_format(from,old_name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
@@ -56,5 +56,7 @@ int mi_rename(const char *old_name, const char *new_name)
     DBUG_RETURN(my_raid_rename(from, to, raid_chunks, MYF(MY_WME)) ? my_errno :
 		0);
 #endif
-  DBUG_RETURN(my_rename_with_symlink(from, to,MYF(MY_WME)) ? my_errno : 0);
+  DBUG_RETURN(mysql_file_rename_with_symlink(mi_key_file_dfile,
+                                             from, to,
+                                             MYF(MY_WME)) ? my_errno : 0);
 }

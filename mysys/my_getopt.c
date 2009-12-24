@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/* Copyright (C) 2002-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,16 +91,6 @@ static void default_reporter(enum loglevel level,
   fflush(stderr);
 }
 
-/* 
-  function: handle_options
-
-  Sort options; put options first, until special end of options (--), or
-  until end of argv. Parse options; check that the given option matches with
-  one of the options in struct 'my_option', return error in case of ambiguous
-  or unknown option. Check that option was given an argument if it requires
-  one. Call function 'get_one_option()' once for each option.
-*/
-
 static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
 
 void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
@@ -109,6 +99,22 @@ void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
   getopt_get_addr= func_addr;
 }
 
+/**
+  Handle command line options.
+  Sort options.
+  Put options first, until special end of options (--),
+  or until the end of argv. Parse options, check that the given option
+  matches with one of the options in struct 'my_option'.
+  Check that option was given an argument if it requires one
+  Call the optional 'get_one_option()' function once for each option.
+  @param [in, out] argc      command line options (count)
+  @param [in, out] argv      command line options (values)
+  @param [in] longopts       descriptor of all valid options
+  @param [in] get_one_option optional callback function to process each option,
+                            can be NULL.
+  @return error in case of ambiguous or unknown options,
+          0 on success.
+*/
 int handle_options(int *argc, char ***argv, 
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
@@ -427,9 +433,9 @@ invalid value '%s'",
 				       my_progname, optp->name, optend);
 	      continue;
 	    }
-	    if (get_one_option(optp->id, optp,
-                               *((my_bool*) value) ?
-                               (char*) "1" : disabled_my_option))
+            if (get_one_option && get_one_option(optp->id, optp,
+                                                 *((my_bool*) value) ?
+                                                 (char*) "1" : disabled_my_option))
               return EXIT_ARGUMENT_INVALID;
 	    continue;
 	  }
@@ -438,17 +444,17 @@ invalid value '%s'",
 	else if (optp->arg_type == OPT_ARG &&
 		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
                    (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
-	{
-	  if (optend == disabled_my_option)
-	    *((my_bool*) value)= (my_bool) 0;
-	  else
-	  {
-	    if (!optend) /* No argument -> enable option */
-	      *((my_bool*) value)= (my_bool) 1;
-            else
-              argument= optend;
-	  }
-	}
+  {
+    if (optend == disabled_my_option)
+      init_one_value(optp, value, 0);
+    else
+    {
+      if (!optend) /* No argument -> enable option */
+        init_one_value(optp, value, 1);
+      else
+        argument= optend;
+    }
+  }
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one,
@@ -493,7 +499,7 @@ invalid value '%s'",
 		  optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		if (get_one_option(optp->id, optp, argument))
+                if (get_one_option && get_one_option(optp->id, optp, argument))
                   return EXIT_UNSPECIFIED_ERROR;
 		continue;
 	      }
@@ -513,7 +519,7 @@ invalid value '%s'",
                   {
                     if (optp->var_type == GET_BOOL)
                       *((my_bool*) optp->value)= (my_bool) 1;
-                    if (get_one_option(optp->id, optp, argument))
+                    if (get_one_option && get_one_option(optp->id, optp, argument))
                       return EXIT_UNSPECIFIED_ERROR;
                     continue;
                   }
@@ -539,7 +545,7 @@ invalid value '%s'",
                                          my_progname, argument, optp->name);
 		return error;
 	      }
-	      if (get_one_option(optp->id, optp, argument))
+              if (get_one_option && get_one_option(optp->id, optp, argument))
                 return EXIT_UNSPECIFIED_ERROR;
 	      break;
 	    }
@@ -563,7 +569,7 @@ invalid value '%s'",
                                  my_progname, argument, optp->name);
 	return error;
       }
-      if (get_one_option(optp->id, optp, argument))
+      if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
 
       (*argc)--; /* option handled (short or long), decrease argument count */
