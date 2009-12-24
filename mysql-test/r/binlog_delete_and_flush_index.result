@@ -2,7 +2,9 @@ RESET MASTER;
 CREATE TABLE t1 (a int);
 ### assertion: index file contains regular entries
 SET @index=LOAD_FILE('MYSQLD_DATADIR/master-bin.index');
-master-bin.000001
+SELECT @index;
+@index
+MYSQLD_DATADIR/master-bin.000001
 
 ### assertion: show original binlogs
 show binary logs;
@@ -15,8 +17,10 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a int)
 FLUSH LOGS;
 ### assertion: index file contains renamed binlog and the new one
 SET @index=LOAD_FILE('MYSQLD_DATADIR/master-bin.index');
-master-bin-b34582.000001
-master-bin.000002
+SELECT @index;
+@index
+MYSQLD_DATADIR/master-bin-b34582.000001
+MYSQLD_DATADIR/master-bin.000002
 
 ### assertion: original binlog content still exists, despite we
 ###            renamed and changed the index file 
@@ -39,6 +43,8 @@ master-bin.000002	#
 ### assertion: assert that not purged binlog file exists
 ### assertion: show index file contents and these should match show binary logs issued above
 SET @index=LOAD_FILE('MYSQLD_DATADIR/master-bin.index');
-master-bin.000002
+SELECT @index;
+@index
+MYSQLD_DATADIR/master-bin.000002
 
 RESET MASTER;
