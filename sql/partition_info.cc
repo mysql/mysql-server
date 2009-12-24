@@ -116,6 +116,42 @@ char *partition_info::create_default_partition_names(uint part_no,
 
 
 /*
+  Generate a version string for partition expression
+  This function must be updated every time there is a possibility for
+  a new function of a higher version number than 5.5.0.
+
+  SYNOPSIS
+    set_show_version_string()
+  RETURN VALUES
+    None
+*/
+void partition_info::set_show_version_string(String *packet)
+{
+  int version= 0;
+  if (column_list)
+    packet->append(STRING_WITH_LEN("\n/*!50500"));
+  else
+  {
+    if (part_expr)
+      part_expr->walk(&Item::intro_version, 0, (uchar*)&version);
+    if (subpart_expr)
+      subpart_expr->walk(&Item::intro_version, 0, (uchar*)&version);
+    if (version == 0)
+    {
+      /* No new functions in partition function */
+      packet->append(STRING_WITH_LEN("\n/*!50100"));
+    }
+    else
+    {
+      char buf[65];
+      char *buf_ptr= longlong10_to_str((longlong)version, buf, 10);
+      packet->append(STRING_WITH_LEN("\n/*!"));
+      packet->append(buf, (size_t)(buf_ptr - buf));
+    }
+  }
+}
+
+/*
   Create a unique name for the subpartition as part_name'sp''subpart_no'
   SYNOPSIS
     create_subpartition_name()
