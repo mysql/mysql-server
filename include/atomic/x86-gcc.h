@@ -108,7 +108,7 @@
   int32 ebx=(set & 0xFFFFFFFF), ecx=(set >> 32);                \
   asm volatile ("push %%ebx; movl %3, %%ebx;"                   \
                 LOCK_prefix "; cmpxchg8b %0; setz %2; pop %%ebx"\
-               : "+m" (*a), "+A" (*cmp), "=q" (ret)             \
+               : "+m" (*a), "+A" (*cmp), "=c" (ret)             \
                :"m" (ebx), "c" (ecx))
 #endif
 
