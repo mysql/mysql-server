@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 {
   bool error= 1;
+  bool binlog_error= 0;
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
@@ -133,10 +134,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   if (lock_table_names_exclusively(thd, table_list))
   {
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     goto err;
   }
 
@@ -172,25 +173,25 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     higher concurrency - query_cache_invalidate can take minutes to
     complete.
   */
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
-  /* Lets hope this doesn't fail as the result will be messy */ 
   if (!silent && !error)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    my_ok(thd);
+    binlog_error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (!binlog_error)
+      my_ok(thd);
   }
 
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
 err:
   start_waiting_global_read_lock(thd);
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || binlog_error);
 }
 
 

@@ -1359,7 +1359,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
-  lex_start(new_thd);
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
   bzero((uchar*)&tables, sizeof(tables));
@@ -1372,10 +1371,10 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     When building an embedded library, if the mysql.plugin table
     does not exist, we silently ignore the missing table
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   if (check_if_table_exists(new_thd, &tables, &table_exists))
     table_exists= FALSE;
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   if (!table_exists)
     goto end;
 #endif /* EMBEDDED_LIBRARY */

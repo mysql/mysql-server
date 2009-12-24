@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,11 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include <my_atomic.h>
+#include <mysql/psi/mysql_file.h>
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 class Parser_state;
 
@@ -85,11 +90,60 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 typedef ulonglong nested_join_map;
 
 /* query_id */
-typedef ulonglong query_id_t;
+typedef int64 query_id_t;
 extern query_id_t global_query_id;
+extern int32 thread_running;
+extern my_atomic_rwlock_t global_query_id_lock;
+extern my_atomic_rwlock_t thread_running_lock;
 
 /* increment query_id and return it.  */
-inline query_id_t next_query_id() { return global_query_id++; }
+inline query_id_t next_query_id()
+{
+  query_id_t id;
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  id= my_atomic_add64(&global_query_id, 1);
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
+  return (id+1);
+}
+
+inline query_id_t get_query_id()
+{
+  query_id_t id;
+  my_atomic_rwlock_wrlock(&global_query_id_lock);
+  id= my_atomic_load64(&global_query_id);
+  my_atomic_rwlock_wrunlock(&global_query_id_lock);
+  return id;
+}
+
+inline int32
+inc_thread_running()
+{
+  int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
+  num_thread_running= my_atomic_add32(&thread_running, 1);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
+  return (num_thread_running+1);
+}
+
+inline int32
+dec_thread_running()
+{
+  int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
+  num_thread_running= my_atomic_add32(&thread_running, -1);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
+  return (num_thread_running-1);
+}
+
+inline int32
+get_thread_running()
+{
+  int32 num_thread_running;
+  my_atomic_rwlock_wrlock(&thread_running_lock);
+  num_thread_running= my_atomic_load32(&thread_running);
+  my_atomic_rwlock_wrunlock(&thread_running_lock);
+  return num_thread_running;
+}
 
 /* useful constants */
 extern MYSQL_PLUGIN_IMPORT const key_map key_map_empty;
@@ -876,6 +930,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               bool no_error);
 bool check_host_name(LEX_STRING *str);
 
+CHARSET_INFO *merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
@@ -984,8 +1040,8 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1492,8 +1548,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
-void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
-                        pthread_cond_t *cond);
+void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
+                        mysql_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 /* open_and_lock_tables with optional derived handling */
 int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
@@ -1949,7 +2005,7 @@ extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern bool in_bootstrap;
-extern uint volatile thread_count, thread_running, global_read_lock;
+extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -1982,13 +2038,15 @@ extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
-       LOCK_mapped_file,LOCK_user_locks, LOCK_status,
-       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
-       LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
+extern pthread_mutex_t LOCK_mapped_file,
+       LOCK_error_log, LOCK_uuid_generator,
+       LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
+extern mysql_mutex_t LOCK_mysql_create_db, LOCK_lock_db, LOCK_open,
+       LOCK_user_locks, LOCK_status, LOCK_delayed_status, LOCK_delayed_insert,
+       LOCK_delayed_create;
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
@@ -1998,7 +2056,8 @@ extern pthread_cond_t COND_server_started;
 extern int mysqld_server_started;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern rw_lock_t LOCK_system_variables_hash;
-extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
+extern mysql_cond_t COND_refresh;
+extern pthread_cond_t COND_thread_count, COND_manager;
 extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
@@ -2254,10 +2313,11 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
-struct in_addr;
-char * ip_to_hostname(struct in_addr *in,uint *errors);
-void inc_host_errors(struct in_addr *in);
-void reset_host_errors(struct in_addr *in);
+bool ip_to_hostname(struct sockaddr_storage *ip_storage,
+                    const char *ip_string,
+                    char **hostname, uint *connect_errors);
+void inc_host_errors(const char *ip_string);
+void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
@@ -2467,6 +2527,17 @@ inline void kill_delayed_threads(void) {}
 #define IS_FILES_CHECKSUM            35
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
+
+#define IS_TABLESPACES_TABLESPACE_NAME    0
+#define IS_TABLESPACES_ENGINE             1
+#define IS_TABLESPACES_TABLESPACE_TYPE    2
+#define IS_TABLESPACES_LOGFILE_GROUP_NAME 3
+#define IS_TABLESPACES_EXTENT_SIZE        4
+#define IS_TABLESPACES_AUTOEXTEND_SIZE    5
+#define IS_TABLESPACES_MAXIMUM_SIZE       6
+#define IS_TABLESPACES_NODEGROUP_ID       7
+#define IS_TABLESPACES_TABLESPACE_COMMENT 8
+
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 

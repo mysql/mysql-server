@@ -581,6 +581,8 @@ public:
   { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { return (int)state <= (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
@@ -1238,7 +1240,6 @@ public:
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
-  struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
@@ -1875,15 +1876,21 @@ public:
     enter_cond(); this mutex is then released by exit_cond().
     Usage must be: lock mutex; enter_cond(); your code; exit_cond().
   */
-  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
-			  const char* msg)
+  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+                                const char* msg)
   {
     const char* old_msg = proc_info;
-    safe_mutex_assert_owner(mutex);
+    mysql_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
     return old_msg;
+  }
+  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t *mutex,
+                                const char *msg)
+  {
+    /* TO BE REMOVED: temporary helper, to help with merges */
+    return enter_cond((mysql_cond_t*) cond, (mysql_mutex_t*) mutex, msg);
   }
   inline void exit_cond(const char* old_msg)
   {
@@ -1893,12 +1900,12 @@ public:
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    pthread_mutex_unlock(mysys_var->current_mutex);
-    pthread_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_unlock(mysys_var->current_mutex);
+    mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
     proc_info = old_msg;
-    pthread_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
   inline time_t query_start() { query_start_used=1; return start_time; }
@@ -2314,10 +2321,13 @@ public:
   virtual void set_statement(Statement *stmt);
 
   /**
-    Assign a new value to thd->query.
+    Assign a new value to thd->query and thd->query_id.
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+  void set_query_and_id(char *query_arg, uint32 query_length_arg,
+                        query_id_t new_query_id);
+  void set_query_id(query_id_t new_query_id);
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2400,7 +2410,6 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2437,12 +2446,6 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
-  /**
-     The nest level, if supported. 
-     @return
-     -1 if nest level is undefined, otherwise a positive integer.
-   */
-  int get_nest_level() { return nest_level; }
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -2537,14 +2540,6 @@ class select_export :public select_to_file {
   CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO OUTFILE <filename> with a
-     defined level of subquery nesting.
-   */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -2554,15 +2549,6 @@ public:
 class select_dump :public select_to_file {
 public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
-  /**
-     Creates a select_export to represent INTO DUMPFILE <filename> with a
-     defined level of subquery nesting.
-   */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
-    select_to_file(ex) 
-  {
-    nest_level= nest_level_arg;
-  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -2620,7 +2606,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -3033,16 +3019,6 @@ class select_dumpvar :public select_result_interceptor {
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
-  /**
-     Creates a select_dumpvar to represent INTO <variable> with a defined 
-     level of subquery nesting.
-   */
-  select_dumpvar(uint nest_level_arg)
-  {
-    var_list.empty();
-    row_count= 0;
-    nest_level= nest_level_arg;
-  }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

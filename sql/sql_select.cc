@@ -986,14 +986,20 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  if (select_lex->olap == ROLLUP_TYPE && rollup_process_const_fields())
+  if (rollup.state != ROLLUP::STATE_NONE)
   {
-    DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
-    DBUG_RETURN(1);
+    if (rollup_process_const_fields())
+    {
+      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    /* Remove distinct if only const tables */
+    select_distinct= select_distinct && (const_tables != tables);
   }
 
-  /* Remove distinct if only const tables */
-  select_distinct= select_distinct && (const_tables != tables);
   thd_proc_info(thd, "preparing");
   if (result->initialize_tables(this))
   {
@@ -1076,6 +1082,10 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /* Cache constant expressions in WHERE, HAVING, ON clauses. */
+  cache_const_exprs();
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -1296,11 +1306,14 @@ JOIN::optimize()
     - We are using an ORDER BY or GROUP BY on fields not in the first table
     - We are using different ORDER BY and GROUP BY orders
     - The user wants us to buffer the result.
+    When the WITH ROLLUP modifier is present, we cannot skip temporary table
+    creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= (const_tables != tables &&
+  need_tmp= ((const_tables != tables &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT)));
+	      test(select_options & OPTION_BUFFER_RESULT))) ||
+             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   // No cache for MATCH
   make_join_readinfo(this,
@@ -1630,6 +1643,11 @@ JOIN::reinit()
 
   if (join_tab_save)
     memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+
+  /* need to reset ref access state (see join_read_key) */
+  if (join_tab)
+    for (uint i= 0; i < tables; i++)
+      join_tab[i].ref.key_err= TRUE;
 
   if (tmp_join)
     restore_tmp();
@@ -2146,17 +2164,13 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
-	else					// This should never happen
+	else
 	{
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond,
 				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	  /*
-	    Item_cond_and do not need fix_fields for execution, its parameters
-	    are fixed or do not need fix_fields, too
-	  */
-	  curr_table->select->cond->quick_fix_field();
+	  curr_table->select->cond->fix_fields(thd, 0);
 	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
@@ -5962,6 +5976,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     {
       *e1= res;
       res->quick_fix_field();
+      res->update_used_tables();
     }
   }
   else
@@ -6586,6 +6601,56 @@ void rr_unlock_row(st_join_table *tab)
 
 
 
+/**
+  Pick the appropriate access method functions
+
+  Sets the functions for the selected table access method
+
+  @param      tab               Table reference to put access method
+*/
+
+static void
+pick_table_access_method(JOIN_TAB *tab)
+{
+  switch (tab->type) 
+  {
+  case JT_REF:
+    tab->read_first_record= join_read_always_key;
+    tab->read_record.read_record= join_read_next_same;
+    break;
+
+  case JT_REF_OR_NULL:
+    tab->read_first_record= join_read_always_key_or_null;
+    tab->read_record.read_record= join_read_next_same_or_null;
+    break;
+
+  case JT_CONST:
+    tab->read_first_record= join_read_const;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  case JT_EQ_REF:
+    tab->read_first_record= join_read_key;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  case JT_FT:
+    tab->read_first_record= join_ft_read_first;
+    tab->read_record.read_record= join_ft_read_next;
+    break;
+
+  case JT_SYSTEM:
+    tab->read_first_record= join_read_system;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  /* keep gcc happy */  
+  default:
+    break;  
+  }
+}
+
+
 static void
 make_join_readinfo(JOIN *join, ulonglong options)
 {
@@ -6620,45 +6685,15 @@ make_join_readinfo(JOIN *join, ulonglong options)
 
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
+    table->status=STATUS_NO_RECORD;
+    pick_table_access_method (tab);
+
     switch (tab->type) {
-    case JT_SYSTEM:				// Only happens with left join
-      table->status=STATUS_NO_RECORD;
-      tab->read_first_record= join_read_system;
-      tab->read_record.read_record= join_no_more_records;
-      break;
-    case JT_CONST:				// Only happens with left join
-      table->status=STATUS_NO_RECORD;
-      tab->read_first_record= join_read_const;
-      tab->read_record.read_record= join_no_more_records;
-      if (table->covering_keys.is_set(tab->ref.key) &&
-          !table->no_keyread)
-      {
-        table->key_read=1;
-        table->file->extra(HA_EXTRA_KEYREAD);
-      }
-      break;
     case JT_EQ_REF:
-      table->status=STATUS_NO_RECORD;
-      if (tab->select)
-      {
-	delete tab->select->quick;
-	tab->select->quick=0;
-      }
-      delete tab->quick;
-      tab->quick=0;
-      tab->read_first_record= join_read_key;
       tab->read_record.unlock_row= join_read_key_unlock_row;
-      tab->read_record.read_record= join_no_more_records;
-      if (table->covering_keys.is_set(tab->ref.key) &&
-	  !table->no_keyread)
-      {
-	table->key_read=1;
-	table->file->extra(HA_EXTRA_KEYREAD);
-      }
-      break;
+      /* fall through */
     case JT_REF_OR_NULL:
     case JT_REF:
-      table->status=STATUS_NO_RECORD;
       if (tab->select)
       {
 	delete tab->select->quick;
@@ -6666,34 +6701,20 @@ make_join_readinfo(JOIN *join, ulonglong options)
       }
       delete tab->quick;
       tab->quick=0;
+      /* fall through */
+    case JT_CONST:				// Only happens with left join
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
-      if (tab->type == JT_REF)
-      {
-	tab->read_first_record= join_read_always_key;
-	tab->read_record.read_record= join_read_next_same;
-      }
-      else
-      {
-	tab->read_first_record= join_read_always_key_or_null;
-	tab->read_record.read_record= join_read_next_same_or_null;
-      }
-      break;
-    case JT_FT:
-      table->status=STATUS_NO_RECORD;
-      tab->read_first_record= join_ft_read_first;
-      tab->read_record.read_record= join_ft_read_next;
       break;
     case JT_ALL:
       /*
 	If previous table use cache
         If the incoming data set is already sorted don't use cache.
       */
-      table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
           tab->use_quick != 2 && !tab->first_inner && !ordered_set)
       {
@@ -6772,6 +6793,9 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  }
 	}
       }
+      break;
+    case JT_FT:
+    case JT_SYSTEM: 
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
@@ -7211,7 +7235,19 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   for (order=first_order; order ; order=order->next)
   {
     table_map order_tables=order->item[0]->used_tables();
-    if (order->item[0]->with_sum_func)
+    if (order->item[0]->with_sum_func ||
+        /*
+          If the outer table of an outer join is const (either by itself or
+          after applying WHERE condition), grouping on a field from such a
+          table will be optimized away and filesort without temporary table
+          will be used unless we prevent that now. Filesort is not fit to
+          handle joins and the join condition is not applied. We can't detect
+          the case without an expensive test, however, so we force temporary
+          table for all queries containing more than one table, ROLLUP, and an
+          outer join.
+         */
+        (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
+        join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
@@ -7619,7 +7655,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item);
+        item_equal->add(const_item, field_item);
       }
       else
       {
@@ -7923,12 +7959,12 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
+          set_if_bigger(thd->lex->current_select->max_equal_elems,
+                        item_equal->members());  
+          return item_equal;
 	}
-        else
-          item_equal= (Item_equal *) eq_list.pop();
-        set_if_bigger(thd->lex->current_select->max_equal_elems,
-                      item_equal->members());  
-        return item_equal;
+
+        return eq_list.pop();
       }
       else
       {
@@ -9159,18 +9195,26 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
 
 
 /**
-  Remove const and eq items.
+  Handles the reqursive job for remove_eq_conds()
 
-  @return
-    Return new item, or NULL if no condition @n
-    cond_value is set to according:
-    - COND_OK     : query is possible (field = constant)
-    - COND_TRUE   : always true	( 1 = 1 )
-    - COND_FALSE  : always false	( 1 = 2 )
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  RETURN
+    *COND with the simplified condition
 */
 
-COND *
-remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+static COND *
+internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -9184,7 +9228,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=remove_eq_conds(thd, item, &tmp_cond_value);
+      Item *new_item=internal_remove_eq_conds(thd, item, &tmp_cond_value);
       if (!new_item)
 	li.remove();
       else if (item != new_item)
@@ -9233,6 +9277,86 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   else if (cond->type() == Item::FUNC_ITEM &&
 	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
   {
+    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item **args= func->arguments();
+    if (args[0]->type() == Item::FIELD_ITEM)
+    {
+      Field *field=((Item_field*) args[0])->field;
+      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
+      /*
+        datetime_field IS NULL has to be modified to
+        datetime_field == 0
+      */
+      if (((field->type() == MYSQL_TYPE_DATE) ||
+           (field->type() == MYSQL_TYPE_DATETIME)) &&
+          (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
+      {
+	COND *new_cond;
+	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
+	{
+	  cond=new_cond;
+          /*
+            Item_func_eq can't be fixed after creation so we do not check
+            cond->fixed, also it do not need tables so we use 0 as second
+            argument.
+          */
+	  cond->fix_fields(thd, &cond);
+	}
+      }
+    }
+    if (cond->const_item())
+    {
+      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+      return (COND*) 0;
+    }
+  }
+  else if (cond->const_item())
+  {
+    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
+    return (COND*) 0;
+  }
+  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
+  {						// boolan compare function
+    Item *left_item=	((Item_func*) cond)->arguments()[0];
+    Item *right_item= ((Item_func*) cond)->arguments()[1];
+    if (left_item->eq(right_item,1))
+    {
+      if (!left_item->maybe_null ||
+	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
+	return (COND*) 0;			// Compare of identical items
+    }
+  }
+  *cond_value=Item::COND_OK;
+  return cond;					// Point at next and level
+}
+
+
+/**
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  NOTES
+    calls the inner_remove_eq_conds to check all the tree reqursively
+
+  RETURN
+    *COND with the simplified condition
+*/
+
+COND *
+remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+{
+  if (cond->type() == Item::FUNC_ITEM &&
+      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+  {
     /*
       Handles this special case for some ODBC applications:
       The are requesting the row that was just updated with a auto_increment
@@ -9275,51 +9399,15 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           clear for next row
         */
         thd->substitute_null_with_insert_id= FALSE;
-      }
-      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      else if (((field->type() == MYSQL_TYPE_DATE) ||
-		(field->type() == MYSQL_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG) &&
-	       !field->table->maybe_null)
-      {
-	COND *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+
+        *cond_value= Item::COND_OK;
+        return cond;
       }
     }
-    if (cond->const_item())
-    {
-      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-      return (COND*) 0;
-    }
   }
-  else if (cond->const_item())
-  {
-    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-    return (COND*) 0;
-  }
-  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
-  {						// boolan compare function
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(right_item,1))
-    {
-      if (!left_item->maybe_null ||
-	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
-	return (COND*) 0;			// Compare of identical items
-    }
-  }
-  *cond_value=Item::COND_OK;
-  return cond;					// Point at next and level
+  return internal_remove_eq_conds(thd, cond, cond_value); // Scan all the condition
 }
+
 
 /* 
   Check if equality can be used in removing components of GROUP BY/DISTINCT
@@ -9559,47 +9647,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-  {
-    uint8 dec= item->decimals;
-    uint8 intg= ((Item_decimal *) item)->decimal_precision() - dec;
-    uint32 len= item->max_length;
-
-    /*
-      Trying to put too many digits overall in a DECIMAL(prec,dec)
-      will always throw a warning. We must limit dec to
-      DECIMAL_MAX_SCALE however to prevent an assert() later.
-    */
-
-    if (dec > 0)
-    {
-      signed int overflow;
-
-      dec= min(dec, DECIMAL_MAX_SCALE);
-
-      /*
-        If the value still overflows the field with the corrected dec,
-        we'll throw out decimals rather than integers. This is still
-        bad and of course throws a truncation warning.
-        +1: for decimal point
-      */
-
-      const int required_length=
-        my_decimal_precision_to_length(intg + dec, dec,
-                                                     item->unsigned_flag);
-
-      overflow= required_length - len;
-
-      if (overflow > 0)
-        dec= max(0, dec - overflow);            // too long, discard fract
-      else
-        /* Corrected value fits. */
-        len= required_length;
-    }
-
-    new_field= new Field_new_decimal(len, maybe_null, item->name,
-                                     dec, item->unsigned_flag);
+    new_field= Field_new_decimal::create_from_item(item);
     break;
-  }
   case ROW_RESULT:
   default:
     // This case should never be choosen
@@ -13299,6 +13348,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           if (create_ref_for_key(tab->join, tab, keyuse, 
                                  tab->join->const_table_map))
             DBUG_RETURN(0);
+
+          pick_table_access_method(tab);
 	}
 	else
 	{
@@ -13622,7 +13673,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->type != JT_NEXT && 
+    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
              tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
@@ -14104,7 +14155,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, org_key_pos);
+    {
+      if (my_hash_insert(&hash, org_key_pos))
+        goto err;
+    }
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
@@ -17088,6 +17142,41 @@ bool JOIN::change_result(select_result *res)
   }
   DBUG_RETURN(FALSE);
 }
+
+/**
+  Cache constant expressions in WHERE, HAVING, ON conditions.
+*/
+
+void JOIN::cache_const_exprs()
+{
+  bool cache_flag= FALSE;
+  bool *analyzer_arg= &cache_flag;
+
+  /* No need in cache if all tables are constant. */
+  if (const_tables == tables)
+    return;
+
+  if (conds)
+    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
+  cache_flag= FALSE;
+  if (having)
+    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
+
+  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  {
+    if (*tab->on_expr_ref)
+    {
+      cache_flag= FALSE;
+      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
+                                 (uchar **)&analyzer_arg,
+                                 &Item::cache_const_expr_transformer,
+                                 (uchar *)&cache_flag);
+    }
+  }
+}
+
 
 /**
   @} (end of group Query_Optimizer)

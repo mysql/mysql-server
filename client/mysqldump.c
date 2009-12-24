@@ -890,7 +890,8 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
-  load_defaults("my",load_default_groups,argc,argv);
+  if (load_defaults("my",load_default_groups,argc,argv))
+    return 1;
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
@@ -3836,8 +3837,12 @@ static int dump_all_databases()
     return 1;
   while ((row= mysql_fetch_row(tableres)))
   {
-    if (mysql_get_server_version(mysql) >= 50003 &&
-        !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+    if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, row[0], INFORMATION_SCHEMA_DB_NAME))
+      continue;
+
+    if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
       continue;
 
     if (dump_all_tables_in_db(row[0]))
@@ -3854,8 +3859,12 @@ static int dump_all_databases()
     }
     while ((row= mysql_fetch_row(tableres)))
     {
-      if (mysql_get_server_version(mysql) >= 50003 &&
-          !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+      if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+          !my_strcasecmp(&my_charset_latin1, row[0], INFORMATION_SCHEMA_DB_NAME))
+        continue;
+
+      if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+          !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
         continue;
 
       if (dump_all_views_in_db(row[0]))
@@ -4256,10 +4265,12 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   end= pos;
 
-  /* Can't LOCK TABLES in INFORMATION_SCHEMA, so don't try. */
+  /* Can't LOCK TABLES in I_S / P_S, so don't try. */
   if (lock_tables &&
-      !(mysql_get_server_version(mysql) >= 50003 &&
-        !my_strcasecmp(&my_charset_latin1, db, "information_schema")))
+      !(mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, db, INFORMATION_SCHEMA_DB_NAME)) &&
+      !(mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, db, PERFORMANCE_SCHEMA_DB_NAME)))
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))

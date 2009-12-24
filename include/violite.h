@@ -81,12 +81,18 @@ int	vio_errno(Vio*vio);
 /* Get socket number */
 my_socket vio_fd(Vio*vio);
 /* Remote peer's address and name in text form */
-my_bool	vio_peer_addr(Vio* vio, char *buf, uint16 *port);
-/* Remotes in_addr */
-void	vio_in_addr(Vio *vio, struct in_addr *in);
+my_bool vio_peer_addr(Vio *vio, char *buf, uint16 *port, size_t buflen);
 my_bool vio_poll_read(Vio *vio, uint timeout);
 my_bool vio_is_connected(Vio *vio);
 ssize_t vio_pending(Vio *vio);
+
+my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, int addr_length,
+                                     char *ip_string, size_t ip_string_size);
+
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -154,8 +160,7 @@ void vio_end(void);
 #define vio_should_retry(vio) 			(vio)->should_retry(vio)
 #define vio_was_interrupted(vio) 		(vio)->was_interrupted(vio)
 #define vio_close(vio)				((vio)->vioclose)(vio)
-#define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
-#define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
+#define vio_peer_addr(vio, buf, prt, buflen)	(vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
 #define vio_poll_read(vio, timeout)             (vio)->poll_read(vio, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
@@ -180,8 +185,9 @@ struct st_vio
   HANDLE hPipe;
   my_bool		localhost;	/* Are we from localhost? */
   int			fcntl_mode;	/* Buffered fcntl(sd,F_GETFL) */
-  struct sockaddr_in	local;		/* Local internet address */
-  struct sockaddr_in	remote;		/* Remote internet address */
+  struct sockaddr_storage	local;		/* Local internet address */
+  struct sockaddr_storage	remote;		/* Remote internet address */
+  int addrLen;                          /* Length of remote address */
   enum enum_vio_type	type;		/* Type of connection */
   char			desc[30];	/* String description */
   char                  *read_buffer;   /* buffer for vio_read_buff */
@@ -197,8 +203,8 @@ struct st_vio
   my_bool (*is_blocking)(Vio*);
   int     (*viokeepalive)(Vio*, my_bool);
   int     (*fastsend)(Vio*);
-  my_bool (*peer_addr)(Vio*, char *, uint16*);
-  void    (*in_addr)(Vio*, struct in_addr*);
+  my_bool (*peer_addr)(Vio*, char *, uint16*, size_t);
+  void    (*in_addr)(Vio*, struct sockaddr_storage*);
   my_bool (*should_retry)(Vio*);
   my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
@@ -221,8 +227,8 @@ struct st_vio
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
   OVERLAPPED pipe_overlapped;
-  DWORD read_timeout_millis;
-  DWORD write_timeout_millis;
+  DWORD read_timeout_ms;
+  DWORD write_timeout_ms;
 #endif
 };
 #endif /* vio_violite_h_ */

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -641,7 +641,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     thd->push_internal_handler(&view_error_suppressor);
     bool error= open_normal_and_derived_tables(thd, table_list, 0);
     thd->pop_internal_handler();
-    if (error && thd->is_error())
+    if (error && (thd->killed || thd->is_error()))
       DBUG_RETURN(TRUE);
   }
 
@@ -1468,7 +1468,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   show_table_options,
                                                   NULL, NULL))))
     {
-       packet->append(STRING_WITH_LEN("\n/*!50100"));
+       table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
@@ -1759,11 +1759,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
         if ((mysys_var= tmp->mysys_var))
-          pthread_mutex_lock(&mysys_var->mutex);
+          mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
         thd_info->state_info= thread_state_info(tmp);
         if (mysys_var)
-          pthread_mutex_unlock(&mysys_var->mutex);
+          mysql_mutex_unlock(&mysys_var->mutex);
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
@@ -1862,7 +1862,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       }
 
       if ((mysys_var= tmp->mysys_var))
-        pthread_mutex_lock(&mysys_var->mutex);
+        mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
       if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
         table->field[4]->store(val, strlen(val), cs);
@@ -1880,7 +1880,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       }
 
       if (mysys_var)
-        pthread_mutex_unlock(&mysys_var->mutex);
+        mysql_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
       if (tmp->query())
@@ -1958,7 +1958,7 @@ int add_status_vars(SHOW_VAR *list)
 {
   int res= 0;
   if (status_vars_inited)
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
   if (!all_status_vars.buffer && // array is not allocated yet - do it now
       my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
   {
@@ -1973,7 +1973,7 @@ int add_status_vars(SHOW_VAR *list)
     sort_dynamic(&all_status_vars, show_var_cmp);
 err:
   if (status_vars_inited)
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   return res;
 }
 
@@ -2035,7 +2035,7 @@ void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
-    pthread_mutex_lock(&LOCK_status);
+    mysql_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
@@ -2056,7 +2056,7 @@ void remove_status_vars(SHOW_VAR *list)
         all[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
-    pthread_mutex_unlock(&LOCK_status);
+    mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
@@ -3102,7 +3102,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   }
 
   key_length= create_table_def_key(thd, key, &table_list, 0);
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
                          key_length, OPEN_VIEW, &error);
   if (!share)
@@ -3149,7 +3149,7 @@ err1:
   release_table_share(share, RELEASE_NORMAL);
 
 err:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   thd->clear_error();
   return res;
 }
@@ -5524,14 +5524,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp1= &thd->status_var;
   }
 
-  pthread_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  pthread_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
@@ -6221,32 +6221,33 @@ bool get_schema_tables_result(JOIN *join,
   DBUG_RETURN(result);
 }
 
-struct run_hton_fill_schema_files_args
+struct run_hton_fill_schema_table_args
 {
   TABLE_LIST *tables;
   COND *cond;
 };
 
-static my_bool run_hton_fill_schema_files(THD *thd, plugin_ref plugin,
+static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
                                           void *arg)
 {
-  struct run_hton_fill_schema_files_args *args=
-    (run_hton_fill_schema_files_args *) arg;
+  struct run_hton_fill_schema_table_args *args=
+    (run_hton_fill_schema_table_args *) arg;
   handlerton *hton= plugin_data(plugin, handlerton *);
-  if(hton->fill_files_table && hton->state == SHOW_OPTION_YES)
-    hton->fill_files_table(hton, thd, args->tables, args->cond);
+  if (hton->fill_is_table && hton->state == SHOW_OPTION_YES)
+      hton->fill_is_table(hton, thd, args->tables, args->cond,
+            get_schema_table_idx(args->tables->schema_table));
   return false;
 }
 
-int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
+int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  DBUG_ENTER("fill_schema_files");
+  DBUG_ENTER("hton_fill_schema_table");
 
-  struct run_hton_fill_schema_files_args args;
+  struct run_hton_fill_schema_table_args args;
   args.tables= tables;
   args.cond= cond;
 
-  plugin_foreach(thd, run_hton_fill_schema_files,
+  plugin_foreach(thd, run_hton_fill_schema_table,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);
 
   DBUG_RETURN(0);
@@ -6828,6 +6829,29 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
 };
 
 
+ST_FIELD_INFO tablespaces_fields_info[]=
+{
+  {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
+   SKIP_OPEN_TABLE},
+  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"TABLESPACE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL,
+   0, SKIP_OPEN_TABLE},
+  {"LOGFILE_GROUP_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL,
+   0, SKIP_OPEN_TABLE},
+  {"EXTENT_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
+   MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, 0, SKIP_OPEN_TABLE},
+  {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
+   MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, 0, SKIP_OPEN_TABLE},
+  {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
+   MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, 0, SKIP_OPEN_TABLE},
+  {"NODEGROUP_ID", 21, MYSQL_TYPE_LONGLONG, 0,
+   MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED, 0, SKIP_OPEN_TABLE},
+  {"TABLESPACE_COMMENT", 2048, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, 0,
+   SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -6858,7 +6882,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    0, make_old_format, 0, -1, -1, 0, 0},
 #endif
   {"FILES", files_fields_info, create_schema_table,
-   fill_schema_files, 0, 0, -1, -1, 0, 0},
+   hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
    fill_status, make_old_format, 0, 0, -1, 0, 0},
   {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
@@ -6899,6 +6923,8 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"TABLES", tables_fields_info, create_schema_table, 
    get_all_tables, make_old_format, get_schema_tables_record, 1, 2, 0,
    OPTIMIZE_I_S_TABLE},
+  {"TABLESPACES", tablespaces_fields_info, create_schema_table,
+   hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_constraints_record, 3, 4, 0,
    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
@@ -7192,7 +7218,7 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   /* Acquire LOCK_open (stop the server). */
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   /*
     Load base table name from the TRN-file and create TABLE_LIST object.
@@ -7202,7 +7228,7 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 
   /* Release LOCK_open (continue the server). */
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   /* That's it. */
 

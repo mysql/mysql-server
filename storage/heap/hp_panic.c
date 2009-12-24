@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (C) 2000-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ int hp_panic(enum ha_panic_function flag)
   LIST *element,*next_open;
   DBUG_ENTER("hp_panic");
 
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   for (element=heap_open_list ; element ; element=next_open)
   {
     HP_INFO *info=(HP_INFO*) element->data;
@@ -51,6 +51,6 @@ int hp_panic(enum ha_panic_function flag)
       break;
     }
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(0);
 } /* hp_panic */

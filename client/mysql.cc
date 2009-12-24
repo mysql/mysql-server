@@ -1122,7 +1122,11 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+  {
+    my_end(0);
+    exit(1);
+  }
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
@@ -4425,7 +4429,7 @@ com_status(String *buffer __attribute__((unused)),
     Don't remove "limit 1",
     it is protection againts SQL_SELECT_LIMIT=0
   */
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4469,7 +4473,7 @@ com_status(String *buffer __attribute__((unused)),
     if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
       return 0;
   }
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4564,9 +4568,7 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-    {
-      server_version= strdup(mysql_get_server_info(con));
-    }
+      server_version= my_strdup(mysql_get_server_info(con), MYF(MY_WME));
   }
 
   return server_version ? server_version : "";

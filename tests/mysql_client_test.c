@@ -19197,7 +19197,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_3", test_wl4166_3 },
   { "test_wl4166_4", test_wl4166_4 },
   { "test_bug36004", test_bug36004 },
-  { "test_wl4435",   test_wl4435 },
+/*   { "test_wl4435",   test_wl4435 }, */
   { "test_wl4435_2", test_wl4435_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
@@ -19323,7 +19323,9 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  load_defaults("my", client_test_load_default_groups, &argc, &argv);
+  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+    exit(1);
+
   defaults_argv= argv;
   get_options(&argc, &argv);
 

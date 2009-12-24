@@ -211,7 +211,6 @@ void STDCALL mysql_server_end()
   }
   else
   {
-    free_charsets();
     mysql_thread_end();
   }
 
@@ -1256,20 +1255,6 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
   if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
     return (uint) escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
   return (uint) escape_string_for_mysql(mysql->charset, to, 0, from, length);
-}
-
-
-char * STDCALL
-mysql_odbc_escape_string(MYSQL *mysql __attribute__((unused)),
-                         char *to __attribute__((unused)),
-                         ulong to_length __attribute__((unused)),
-                         const char *from __attribute__((unused)),
-                         ulong from_length __attribute__((unused)),
-                         void *param __attribute__((unused)),
-                         char * (*extend_buffer)(void *, char *, ulong *)
-                         __attribute__((unused)))
-{
-  return NULL;
 }
 
 void STDCALL

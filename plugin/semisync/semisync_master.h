@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
    Copyright (C) 2008 MySQL AB
+   Copyright (C) 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,36 +21,36 @@
 
 #include "semisync.h"
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
+extern PSI_cond_key key_ss_cond_COND_binlog_send_;
+#endif
+
 /**
    This class manages memory for active transaction list.
 
-   We record each active transaction with a TranxNode.  Because each
-   session can only have only one open transaction, the total active
-   transaction nodes can not exceed the maximum sessions.  Currently
-   in MySQL, sessions are the same as connections.
+   We record each active transaction with a TranxNode, each session
+   can have only one open transaction. Because of EVENT, the total
+   active transaction nodes can exceed the maximum allowed
+   connections.
 */
 class ActiveTranx
   :public Trace {
 private:
   struct TranxNode {
-    char             *log_name_;
+    char             log_name_[FN_REFLEN];
     my_off_t          log_pos_;
     struct TranxNode *next_;            /* the next node in the sorted list */
     struct TranxNode *hash_next_;    /* the next node during hash collision */
   };
-
-  /* The following data structure maintains an active transaction list. */
-  TranxNode       *node_array_;
-  TranxNode       *free_pool_;
 
   /* These two record the active transaction list in sort order. */
   TranxNode       *trx_front_, *trx_rear_;
 
   TranxNode      **trx_htb_;        /* A hash table on active transactions. */
 
-  int              num_transactions_;               /* maximum transactions */
   int              num_entries_;              /* maximum hash table entries */
-  pthread_mutex_t *lock_;                                     /* mutex lock */
+  mysql_mutex_t *lock_;                                     /* mutex lock */
 
   inline void assert_lock_owner();
 
@@ -74,8 +75,7 @@ private:
   }
 
 public:
-  ActiveTranx(int max_connections, pthread_mutex_t *lock,
-	      unsigned long trace_level);
+  ActiveTranx(mysql_mutex_t *lock, unsigned long trace_level);
   ~ActiveTranx();
 
   /* Insert an active transaction node with the specified position.
@@ -124,14 +124,14 @@ class ReplSemiSyncMaster
   /* This cond variable is signaled when enough binlog has been sent to slave,
    * so that a waiting trx can return the 'ok' to the client for a commit.
    */
-  pthread_cond_t  COND_binlog_send_;
+  mysql_cond_t  COND_binlog_send_;
 
   /* Mutex that protects the following state variables and the active
    * transaction list.
    * Under no cirumstances we can acquire mysql_bin_log.LOCK_log if we are
    * already holding LOCK_binlog_ because it can cause deadlocks.
    */
-  pthread_mutex_t LOCK_binlog_;
+  mysql_mutex_t LOCK_binlog_;
 
   /* This is set to true when reply_file_name_ contains meaningful data. */
   bool            reply_file_name_inited_;
@@ -176,11 +176,6 @@ class ReplSemiSyncMaster
   unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
 
   bool            state_;                    /* whether semi-sync is switched */
-
-  /* The number of maximum active transactions.  This should be the same as
-   * maximum connections because MySQL does not do connection sharing now.
-   */
-  int             max_transactions_;
 
   void lock();
   void unlock();

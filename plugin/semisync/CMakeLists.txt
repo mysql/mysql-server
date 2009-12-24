@@ -15,9 +15,6 @@
 
 # This is CMakeLists.txt for semi-sync replication plugins
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
 # Add common include directories
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/sql
@@ -29,7 +26,7 @@ SET(SEMISYNC_SLAVE_SOURCES semisync.cc semisync_slave.cc semisync_slave_plugin.c
 
 ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
 ADD_LIBRARY(semisync_master SHARED ${SEMISYNC_MASTER_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_master  mysqld)
+TARGET_LINK_LIBRARIES(semisync_master  mysqlservices mysqld)
 ADD_LIBRARY(semisync_slave SHARED ${SEMISYNC_SLAVE_SOURCES})
 TARGET_LINK_LIBRARIES(semisync_slave  mysqld)
 MESSAGE("build SEMISYNC as DLL")

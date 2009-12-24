@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1009,7 +1009,10 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
+  MYRG_TABLE *tmp;
   DBUG_ASSERT(this->file->children_attached);
+  for (tmp= file->open_tables; tmp != file->end_table; tmp++)
+    tmp->table->in_use.data= thd;
   return myrg_lock_database(file,lock_type);
 }
 
@@ -1040,7 +1043,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
     pointers to the children. Use of a mutex here and in
     myrg_attach_children() forces consistent data.
   */
-  pthread_mutex_lock(&this->file->mutex);
+  mysql_mutex_lock(&this->file->mutex);
 
   /*
     When MERGE table is open, but not yet attached, other threads
@@ -1061,7 +1064,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
   }
 
  end:
-  pthread_mutex_unlock(&this->file->mutex);
+  mysql_mutex_unlock(&this->file->mutex);
   return to;
 }
 
@@ -1281,6 +1284,10 @@ static int myisammrg_init(void *p)
   handlerton *myisammrg_hton;
 
   myisammrg_hton= (handlerton *)p;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_myisammrg_psi_keys();
+#endif
 
   myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
   myisammrg_hton->create= myisammrg_create_handler;
