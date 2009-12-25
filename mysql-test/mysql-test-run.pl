@@ -68,8 +68,8 @@ use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Find;
-use File::Temp qw /tempdir/;
-use File::Spec::Functions qw / splitdir /;
+use File::Temp qw/tempdir/;
+use File::Spec::Functions qw/splitdir/;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -119,6 +119,8 @@ END {
   }
 }
 
+sub env_or_val($$) { defined $ENV{$_[0]} ? $ENV{$_[0]} : $_[1] }
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -127,7 +129,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -214,7 +216,7 @@ my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
-my $opt_retry_failure= 2;
+my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 
 my $opt_strace_client;
 
@@ -243,9 +245,9 @@ our %mysqld_variables;
 
 my $source_dist= 0;
 
-my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
-my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
-my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
+my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
+my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
+my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
@@ -784,11 +786,12 @@ sub set_vardir {
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
+  my $opt_list_options;
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
   Getopt::Long::Configure("pass_through");
-  GetOptions(
+  my %options=(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
@@ -906,9 +909,13 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+             'list-options'             => \$opt_list_options,
+           );
+
+  GetOptions(%options) or usage("Can't read options");
 
   usage("") if $opt_usage;
+  list_options(\%options) if $opt_list_options;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
@@ -1948,7 +1955,6 @@ sub environment_setup {
                         split(':', $ENV{'LIBPATH'}) : ());
   mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
-  $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -1966,9 +1972,12 @@ sub environment_setup {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= using_extern();
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
-  $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
+  $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_LIBDIR'}=       "$bindir/lib";
+  $ENV{'MYSQL_SHAREDIR'}=     $path_language;
+  $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
 
   # ----------------------------------------------------
   # Setup env for NDB
@@ -3804,7 +3813,7 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
   mtr_add_arg($args, "--verbose");
 
@@ -4228,7 +4237,7 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--skip-safemalloc");
+    mtr_add_arg($args, "--loose-skip-safemalloc");
 
     if ( $mysql_version_id < 50100 )
     {
@@ -5018,7 +5027,7 @@ sub gdb_arguments {
   my $type= shift;
 
   # Write $args to gdb init file
-  my $str= join(" ", @$$args);
+  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
@@ -5082,7 +5091,7 @@ sub ddd_arguments {
   my $type= shift;
 
   # Write $args to ddd init file
-  my $str= join(" ", @$$args);
+  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
@@ -5147,8 +5156,8 @@ sub debugger_arguments {
     # vc[express] /debugexe exe arg1 .. argn
 
     # Add /debugexe and name of the exe before args
-    unshift(@$$args, "/debugexe");
     unshift(@$$args, "$$exe");
+    unshift(@$$args, "/debugexe");
 
     # Set exe to debuggername
     $$exe= $debugger;
@@ -5415,5 +5424,17 @@ Misc options
 HERE
   exit(1);
 
+}
+
+sub list_options ($) {
+  my $hash= shift;
+
+  for (keys %$hash) {
+    s/([:=].*|[+!])$//;
+    s/\|/\n--/g;
+    print "--$_\n" unless /list-options/;
+  }
+
+  exit(1);
 }
 

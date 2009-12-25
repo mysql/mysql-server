@@ -77,7 +77,6 @@ SET @@global.delayed_queue_size = -1024;
 SELECT @@global.delayed_queue_size;
 SET @@global.delayed_queue_size = 42949672950;
 SELECT @@global.delayed_queue_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.delayed_queue_size = 429496729.5;

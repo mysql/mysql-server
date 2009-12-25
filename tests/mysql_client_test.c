@@ -17692,9 +17692,9 @@ static void test_bug20023()
     SQL_BIG_SELECTS will be 1.
   ***********************************************************************/
 
-  /* Set MAX_JOIN_SIZE to the default value (-1). */
+  /* Set MAX_JOIN_SIZE to the default value (2^64-1). */
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = cast(-1 as unsigned int)"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -17725,7 +17725,7 @@ static void test_bug20023()
 
   DIE_IF(mysql_query(&con, query_buffer));
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = cast(-1 as unsigned int)"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */

@@ -113,11 +113,20 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} CACHE INTERNAL "")
 
-    SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${target}_plugin" 
-      PARENT_SCOPE)
+  
     IF(ARG_STORAGE_ENGINE)
       SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
         FORCE)
+    ENDIF()
+
+    IF(ARG_MANDATORY)
+      SET (mysql_mandatory_plugins  
+        "${mysql_mandatory_plugins} builtin_${target}_plugin," 
+      PARENT_SCOPE)
+    ELSE()
+      SET (mysql_optional_plugins  
+        "${mysql_optional_plugins} builtin_${target}_plugin,"
+      PARENT_SCOPE)
     ENDIF()
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
     IF(NOT ARG_MODULE_OUTPUT_NAME)

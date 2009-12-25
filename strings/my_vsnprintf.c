@@ -221,6 +221,27 @@ static char *process_bin_arg(char *to, char *end, size_t width, char *par)
 
 
 /**
+  Prints double or float argument
+*/
+
+static char *process_dbl_arg(char *to, char *end, size_t width,
+                             double par, char arg_type)
+{
+  if (width == SIZE_T_MAX)
+    width= FLT_DIG; /* width not set, use default */
+  else if (width >= NOT_FIXED_DEC)
+    width= NOT_FIXED_DEC - 1; /* max.precision for my_fcvt() */
+  width= min(width, (size_t)(end-to) - 1);
+  
+  if (arg_type == 'f')
+    to+= my_fcvt(par, (int)width , to, NULL);
+  else
+    to+= my_gcvt(par, MY_GCVT_ARG_DOUBLE, (int) width , to, NULL);
+  return to;
+}
+
+
+/**
   Prints integer argument
 */
 
@@ -235,19 +256,23 @@ static char *process_int_arg(char *to, char *end, size_t length,
     store_start= buff;
 
   if (arg_type == 'd')
-    store_end= int10_to_str(par, store_start, -10);
+    store_end= longlong10_to_str(par, store_start, -10);
   else if (arg_type == 'u')
-    store_end= int10_to_str(par, store_start, 10);
+    store_end= longlong10_to_str(par, store_start, 10);
   else if (arg_type == 'p')
   {
     store_start[0]= '0';
     store_start[1]= 'x';
-    store_end= int2str(par, store_start + 2, 16, 0);
+    store_end= ll2str(par, store_start + 2, 16, 0);
+  }
+  else if (arg_type == 'o')
+  {
+    store_end= ll2str(par, store_start, 8, 0);
   }
   else
   {
     DBUG_ASSERT(arg_type == 'X' || arg_type =='x');
-    store_end= int2str(par, store_start, 16, (arg_type == 'X'));
+    store_end= ll2str(par, store_start, 16, (arg_type == 'X'));
   }
 
   if ((res_length= (size_t) (store_end - store_start)) > to_length)
@@ -377,6 +402,7 @@ start:
       case 'u':
       case 'x':
       case 'X':
+      case 'o':
       case 'p':
         if (args_arr[i].have_longlong)
           args_arr[i].longlong_arg= va_arg(ap,longlong);
@@ -395,21 +421,23 @@ start:
     /* Print result string */
     for (i= 0; i <= idx; i++)
     {
-      uint width= 0, length= 0;
+      size_t width= 0, length= 0;
       switch (print_arr[i].arg_type) {
       case 's':
       {
         char *par= args_arr[print_arr[i].arg_idx].str_arg;
-        width= (print_arr[i].flags & WIDTH_ARG) ?
-          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        width= (print_arr[i].flags & WIDTH_ARG)
+          ? (size_t)args_arr[print_arr[i].width].longlong_arg
+          : print_arr[i].width;
         to= process_str_arg(cs, to, end, width, par, print_arr[i].flags);
         break;
       }
       case 'b':
       {
         char *par = args_arr[print_arr[i].arg_idx].str_arg;
-        width= (print_arr[i].flags & WIDTH_ARG) ?
-          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        width= (print_arr[i].flags & WIDTH_ARG)
+          ? (size_t)args_arr[print_arr[i].width].longlong_arg
+          : print_arr[i].width;
         to= process_bin_arg(to, end, width, par);
         break;
       }
@@ -420,16 +448,27 @@ start:
         *to++= (char) args_arr[print_arr[i].arg_idx].longlong_arg;
         break;
       }
+      case 'f':
+      case 'g':
+      {
+        double d= args_arr[print_arr[i].arg_idx].double_arg;
+        width= (print_arr[i].flags & WIDTH_ARG) ?
+          (uint)args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        to= process_dbl_arg(to, end, width, d, print_arr[i].arg_type);
+        break;
+      }
       case 'd':
       case 'u':
       case 'x':
       case 'X':
+      case 'o':
       case 'p':
       {
         /* Integer parameter */
         longlong larg;
-        length= (print_arr[i].flags & LENGTH_ARG) ?
-          args_arr[print_arr[i].length].longlong_arg : print_arr[i].length;
+        length= (print_arr[i].flags & LENGTH_ARG)
+          ? (size_t)args_arr[print_arr[i].length].longlong_arg
+          : print_arr[i].length;
 
         if (args_arr[print_arr[i].arg_idx].have_longlong)
           larg = args_arr[print_arr[i].arg_idx].longlong_arg;
@@ -570,8 +609,14 @@ size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
       to= process_bin_arg(to, end, width, par);
       continue;
     }
+    else if (*fmt == 'f' || *fmt == 'g')
+    {
+      double d= va_arg(ap, double);
+      to= process_dbl_arg(to, end, width, d, *fmt);
+      continue;
+    }
     else if (*fmt == 'd' || *fmt == 'u' || *fmt == 'x' || *fmt == 'X' ||
-             *fmt == 'p')
+             *fmt == 'p' || *fmt == 'o')
     {
       /* Integer parameter */
       longlong larg;

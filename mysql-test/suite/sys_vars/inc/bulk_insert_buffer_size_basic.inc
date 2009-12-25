@@ -115,7 +115,6 @@ SET @@session.bulk_insert_buffer_size = 42949672950;
 SELECT @@session.bulk_insert_buffer_size;
 SET @@session.bulk_insert_buffer_size = -2;
 SELECT @@session.bulk_insert_buffer_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.bulk_insert_buffer_size = test;

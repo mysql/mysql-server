@@ -117,7 +117,6 @@ SET @@session.auto_increment_offset = -2;
 SELECT @@session.auto_increment_offset;
 SET @@session.auto_increment_offset = 65550;
 SELECT @@session.auto_increment_offset;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.auto_increment_offset = ON;

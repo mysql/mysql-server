@@ -70,12 +70,10 @@ SET @@global.query_cache_min_res_unit = 0;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 1;
 SELECT @@global.query_cache_min_res_unit;
---echo 'Bug#34842: FN_DYNVARS_132_03 - Minimum value according to documentation is 0, and here it is 512';
 SET @@global.query_cache_min_res_unit = 512;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 513;
 SELECT @@global.query_cache_min_res_unit;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.query_cache_min_res_unit = 1048576;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 1048575;
@@ -100,7 +98,6 @@ SET @@global.query_cache_min_res_unit = -1024;
 SELECT @@global.query_cache_min_res_unit;
 SET @@global.query_cache_min_res_unit = 42949672950;
 SELECT @@global.query_cache_min_res_unit;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_min_res_unit = ON;
