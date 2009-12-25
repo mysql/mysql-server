@@ -55,7 +55,7 @@ SET (SQL_SOURCE
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc 
+               mysqld.cc net_serv.cc keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -78,7 +78,7 @@ SET (SQL_SOURCE
                rpl_rli.cc rpl_mi.cc sql_servers.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
-               sql_signal.cc rpl_handler.cc
+               sql_signal.cc rpl_handler.cc sys_vars.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 

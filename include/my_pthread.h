@@ -156,7 +156,6 @@ int pthread_cancel(pthread_t thread);
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
-
 #define pthread_yield() SwitchToThread()
 #define my_sigset(A,B) signal(A,B)
 

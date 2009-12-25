@@ -27,8 +27,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define IS_TMP_PREFIX(A) (is_prefix(A, tmp_file_prefix))
 
-extern ulong ndb_extra_logging;
-
 #define INJECTOR_EVENT_LEN 200
 
 #define NDB_INVALID_SCHEMA_OBJECT 241

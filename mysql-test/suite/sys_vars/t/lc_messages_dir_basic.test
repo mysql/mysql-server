@@ -1,0 +1,23 @@
+#
+# only global
+#
+--replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
+select @@global.lc_messages_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lc_messages_dir;
+--replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
+show global variables like 'lc_messages_dir';
+--replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
+show session variables like 'lc_messages_dir';
+--replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
+select * from information_schema.global_variables where variable_name='lc_messages_dir';
+--replace_result $MYSQL_SHAREDIR MYSQL_SHAREDIR
+select * from information_schema.session_variables where variable_name='lc_messages_dir';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lc_messages_dir=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lc_messages_dir=1;

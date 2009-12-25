@@ -4,11 +4,12 @@ SELECT @start_global_value;
 2146435072
 '#--------------------FN_DYNVARS_094_01-------------------------#'
 SET @@global.myisam_max_sort_file_size = 500000;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '500000'
 SET @@global.myisam_max_sort_file_size = DEFAULT;
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 2146435072
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#--------------------FN_DYNVARS_094_02-------------------------#'
 SET @@global.myisam_max_sort_file_size = DEFAULT;
 SELECT @@global.myisam_max_sort_file_size = 2147483648;
@@ -20,10 +21,14 @@ SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
 SET @@global.myisam_max_sort_file_size = 1024;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '1024'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
 SET @@global.myisam_max_sort_file_size = 123456789;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '123456789'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 122683392
@@ -65,8 +70,8 @@ Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '-2147483649'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
-SET @@global.myisam_max_sort_file_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.myisam_max_sort_file_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_max_sort_file_size'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
@@ -77,9 +82,10 @@ SELECT @@global.myisam_max_sort_file_size;
 0
 SET @@global.myisam_max_sort_file_size = 1G;
 ERROR 42000: Incorrect argument type to variable 'myisam_max_sort_file_size'
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 '#------------------FN_DYNVARS_094_06-----------------------#'
 SET @@global.myisam_max_sort_file_size = 3000;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '3000'
 SELECT @@global.myisam_max_sort_file_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
@@ -93,6 +99,8 @@ count(VARIABLE_VALUE)
 1
 '#------------------FN_DYNVARS_094_08-----------------------#'
 SET @@global.myisam_max_sort_file_size = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '1'
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 0
@@ -102,6 +110,8 @@ SELECT @@global.myisam_max_sort_file_size;
 0
 '#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.myisam_max_sort_file_size = 512;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '512'
 SELECT @@myisam_max_sort_file_size = @@global.myisam_max_sort_file_size;
 @@myisam_max_sort_file_size = @@global.myisam_max_sort_file_size
 1
@@ -114,6 +124,8 @@ SELECT @@myisam_max_sort_file_size;
 @@myisam_max_sort_file_size
 0
 SET global myisam_max_sort_file_size = 64;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '64'
 SET @@global.myisam_max_sort_file_size = @start_global_value;
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size

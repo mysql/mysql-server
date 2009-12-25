@@ -31,5 +31,6 @@ CREATE TABLE mysql.ndb_apply_status
 
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
 
+set @@global.slave_exec_mode= DEFAULT;
 --connection slave
 drop table mysql.ndb_apply_status;
