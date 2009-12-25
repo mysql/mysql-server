@@ -1654,31 +1654,37 @@ static Sys_var_set Sys_sql_mode(
        sql_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
+#ifdef HAVE_OPENSSL
+#define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
+#else
+#define SSL_OPT(X) NO_CMD_LINE
+#endif
+
 static Sys_var_charptr Sys_ssl_ca(
        "ssl_ca",
        "CA file in PEM format (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_ca), CMD_LINE(REQUIRED_ARG, OPT_SSL_CA),
+       READ_ONLY GLOBAL_VAR(opt_ssl_ca), SSL_OPT(OPT_SSL_CA),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_capath(
        "ssl_capath",
        "CA directory (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_capath),
-       CMD_LINE(REQUIRED_ARG, OPT_SSL_CAPATH), IN_FS_CHARSET, DEFAULT(0));
+       READ_ONLY GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
+       IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_cert), CMD_LINE(REQUIRED_ARG, OPT_SSL_CERT),
+       READ_ONLY GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_cipher(
        "ssl_cipher", "SSL cipher to use (implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_cipher),
-       CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(0));
+       READ_ONLY GLOBAL_VAR(opt_ssl_cipher), SSL_OPT(OPT_SSL_CIPHER),
+       IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_key(
        "ssl_key", "X509 key in PEM format (implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_key), CMD_LINE(REQUIRED_ARG, OPT_SSL_KEY),
+       READ_ONLY GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
        IN_FS_CHARSET, DEFAULT(0));
 
 // why ENUM and not BOOL ?

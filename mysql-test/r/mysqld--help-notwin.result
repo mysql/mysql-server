@@ -124,8 +124,6 @@ The following options may be given as the first argument:
                       handling INSERT DELAYED. If the queue becomes full, any
                       client that does INSERT DELAYED will wait until there is
                       room in the queue again
-  --des-key-file=name Load keys for des_encrypt() and des_encrypt from given
-                      file.
   --disconnect-slave-event-count=# 
                       Option used by mysql-test for debugging and testing of
                       replication.
@@ -646,13 +644,6 @@ The following options may be given as the first argument:
                       anymore.
   --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
                       for the complete list of valid sql modes
-  --ssl               Enable SSL for connection (automatically enabled with
-                      other flags).
-  --ssl-ca=name       CA file in PEM format (check OpenSSL docs, implies --ssl)
-  --ssl-capath=name   CA directory (check OpenSSL docs, implies --ssl)
-  --ssl-cert=name     X509 cert in PEM format (implies --ssl)
-  --ssl-cipher=name   SSL cipher to use (implies --ssl)
-  --ssl-key=name      X509 key in PEM format (implies --ssl)
   -s, --symbolic-links 
                       Enable symbolic link support.
   --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -763,7 +754,6 @@ delay-key-write                     ON
 delayed-insert-limit                100
 delayed-insert-timeout              300
 delayed-queue-size                  1000
-des-key-file                        (No default value)
 disconnect-slave-event-count        0
 div-precision-increment             4
 enable-locking                      FALSE
@@ -916,12 +906,6 @@ socket                              /tmp/mysql.sock
 sort-buffer-size                    2097152
 sporadic-binlog-dump-fail           FALSE
 sql-mode                            
-ssl                                 FALSE
-ssl-ca                              (No default value)
-ssl-capath                          (No default value)
-ssl-cert                            (No default value)
-ssl-cipher                          (No default value)
-ssl-key                             (No default value)
 symbolic-links                      FALSE
 sync-binlog                         0
 sync-frm                            TRUE
