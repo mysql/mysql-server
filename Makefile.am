@@ -129,14 +129,14 @@ smoke:
 test-full:	test test-nr test-ps
 
 test-force:
-	$(MAKE) force=--force test
+	$(MAKE) -k force=--force test
 
 test-force-full:
-	$(MAKE) force=--force test-full
+	$(MAKE) -k force=--force test-full
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) force=--force mem=--mem test
+	$(MAKE) -k force=--force mem=--mem test
 
 EXP = --experimental=collections/default.experimental
 

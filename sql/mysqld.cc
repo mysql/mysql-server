@@ -5743,10 +5743,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    "The update log is deprecated since version 5.0, is replaced by the "
    "binary log and this option does nothing anymore.",
    0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_OPENSSL
   {"ssl", 0,
    "Enable SSL for connection (automatically enabled with other flags).",
    (uchar **) &opt_use_ssl, (uchar **) &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0,
    0, 0, 0},
+#endif
 #ifdef __WIN__
   {"standalone", 0,
   "Dummy option to start as a standalone program (NT).", 0, 0, 0, GET_NO_ARG,
