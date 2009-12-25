@@ -1468,7 +1468,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   show_table_options,
                                                   NULL, NULL))))
     {
-       packet->append(STRING_WITH_LEN("\n/*!50100"));
+       table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
