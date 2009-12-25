@@ -30,8 +30,10 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   #Remove -fno-implicit-templates 
   #(yassl sources cannot  be compiled with  it)
   SET(SAVE_CXX_FLAGS ${CXX_FLAGS})
+  IF(CMAKE_CXX_FLAGS)
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS 
     ${CMAKE_CXX_FLAGS})
+  ENDIF()
   ADD_SUBDIRECTORY(extra/yassl)
   ADD_SUBDIRECTORY(extra/yassl/taocrypt)
   SET(CXX_FLAGS ${SAVE_CXX_FLAGS})
