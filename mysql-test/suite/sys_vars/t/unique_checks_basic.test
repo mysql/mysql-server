@@ -46,16 +46,6 @@ SET @@session.unique_checks= 1;
 SET @@session.unique_checks= DEFAULT;
 SELECT @@session.unique_checks;
 
---echo '#--------------------FN_DYNVARS_005_02-------------------------#'
-#############################################################
-#     Check the DEFAULT value of unique_checks              #
-#############################################################
-
-
-SET @@session.unique_checks = DEFAULT;
-SELECT @@session.unique_checks =1;
-
-
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ########################################################################
 # Change the value of unique_checks to a valid value for SESSION Scope #

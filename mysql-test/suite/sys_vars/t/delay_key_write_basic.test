@@ -44,10 +44,7 @@ SELECT @start_value;
 ######################################################################## 
 
 SET @@global.delay_key_write = OFF;
---Error ER_NO_DEFAULT
 SET @@global.delay_key_write = DEFAULT;
---echo 'Bug # 34878: Documentation specifies a DEFAULT value of ON for variable but';
---echo 'its not supported';
 SELECT @@global.delay_key_write;
 
 
@@ -92,10 +89,8 @@ SET @@global.delay_key_write = ERROR;
 SET @@global.delay_key_write = FALSE0;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.delay_key_write = ONN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.delay_key_write = OF;
-SELECT @@global.delay_key_write;
---echo 'Bug# 34828: Variable is incorrectly accepting OF as a value'
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.delay_key_write = ' ';

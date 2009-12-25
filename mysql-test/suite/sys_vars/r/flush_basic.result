@@ -5,11 +5,9 @@ SELECT @start_value;
 '#--------------------FN_DYNVARS_030_01------------------------#'
 SET @@global.flush = ON;
 SET @@global.flush = DEFAULT;
-ERROR 42000: Variable 'flush' doesn't have a default value
-'Bug# 34878: FN_DYNVARS_002_01 - Default value is off according to Documentation of MySQL';
 SELECT @@global.flush;
 @@global.flush
-1
+0
 '#---------------------FN_DYNVARS_030_02-------------------------#'
 SET @@global.flush = @start_value;
 SELECT @@global.flush;

@@ -7,7 +7,7 @@ SET @@session.sql_notes = 0;
 SET @@session.sql_notes = DEFAULT;
 SELECT @@session.sql_notes;
 @@session.sql_notes
-0
+1
 SET @@session.sql_notes = 1;
 SET @@session.sql_notes = DEFAULT;
 SELECT @@session.sql_notes;
@@ -45,25 +45,26 @@ ERROR 42000: Variable 'sql_notes' can't be set to the value of 'T'
 SET @@session.sql_notes = "Y";
 ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Y'
 SET @@session.sql_notes = TRÜE;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'TRÜE'
 SET @@session.sql_notes = ÕN;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'ÕN'
 SET @@session.sql_notes = OF;
-SELECT @@session.sql_notes;
-@@session.sql_notes
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
 SET @@session.sql_notes = ÓFF;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'ÓFF'
 SET @@session.sql_notes = '¹';
 ERROR 42000: Variable 'sql_notes' can't be set to the value of '¹'
 SET @@session.sql_notes = NO;
 ERROR 42000: Variable 'sql_notes' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_161_05----------------------------#'
-SET @@global.sql_notes = 0;
-ERROR HY000: Variable 'sql_notes' is a SESSION variable and can't be used with SET GLOBAL
+SET @@global.sql_notes = 1-@@global.sql_notes;
 SELECT @@global.sql_notes;
-ERROR HY000: Variable 'sql_notes' is a SESSION variable
+@@global.sql_notes
+0
+SET @@global.sql_notes = 1-@@global.sql_notes;
+SELECT @@global.sql_notes;
+@@global.sql_notes
+1
 '#----------------------FN_DYNVARS_161_06------------------------#'
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_notes';
 count(VARIABLE_VALUE)
@@ -76,12 +77,12 @@ IF(@@session.sql_notes, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_notes;
 @@session.sql_notes
-0
+1
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_notes';
 VARIABLE_VALUE
-OFF
+ON
 '#---------------------FN_DYNVARS_161_08-------------------------#'
 SET @@session.sql_notes = OFF;
 SELECT @@session.sql_notes;

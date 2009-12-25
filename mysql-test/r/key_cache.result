@@ -274,8 +274,26 @@ Key_blocks_used	4
 show status like 'key_blocks_unused';
 Variable_name	Value
 Key_blocks_unused	KEY_BLOCKS_UNUSED
+create table t1 (a int primary key);
+cache index t1 in keycache2;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+insert t1 values (1),(2),(3),(4),(5),(6),(7),(8);
 set global keycache2.key_buffer_size=0;
+select * from t1;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+drop table t1;
 set global keycache3.key_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect key_buffer_size value: '100'
 set global keycache3.key_buffer_size=0;
 create table t1 (mytext text, FULLTEXT (mytext));
 insert t1 values ('aaabbb');
@@ -334,8 +352,7 @@ test.t1	check	status	OK
 DROP TABLE t1,t2;
 set global key_cache_block_size= @my_key_cache_block_size;
 set @@global.key_buffer_size=0;
-Warnings:
-Warning	1438	Cannot drop default keycache
+ERROR HY000: Cannot drop default keycache
 select @@global.key_buffer_size;
 @@global.key_buffer_size
 2097152

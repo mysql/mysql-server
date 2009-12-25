@@ -1,0 +1,21 @@
+select @@global.named_pipe;
+@@global.named_pipe
+0
+select @@session.named_pipe;
+ERROR HY000: Variable 'named_pipe' is a GLOBAL variable
+show global variables like 'named_pipe';
+Variable_name	Value
+named_pipe	OFF
+show session variables like 'named_pipe';
+Variable_name	Value
+named_pipe	OFF
+select * from information_schema.global_variables where variable_name='named_pipe';
+VARIABLE_NAME	VARIABLE_VALUE
+NAMED_PIPE	OFF
+select * from information_schema.session_variables where variable_name='named_pipe';
+VARIABLE_NAME	VARIABLE_VALUE
+NAMED_PIPE	OFF
+set global named_pipe=1;
+ERROR HY000: Variable 'named_pipe' is a read only variable
+set session named_pipe=1;
+ERROR HY000: Variable 'named_pipe' is a read only variable

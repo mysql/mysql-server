@@ -102,8 +102,11 @@ drop table t1;
 drop table t2;
 drop function f1;
 drop function f2;
+
 #
-# testing the value encoding in the error messages of set_var
+# testing the value encoding in the error messages
+#
+# should be TR\xC3\x9CE, TRÜE, TRÜE
 #
 SET NAMES utf8;
 --error ER_WRONG_VALUE_FOR_VAR
@@ -125,9 +128,9 @@ SET sql_quote_show_create= _utf8 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
 --error ER_WRONG_VALUE_FOR_VAR
-SET sql_quote_show_create='TR.E';
+SET sql_quote_show_create='TRÜE';
 --error ER_WRONG_VALUE_FOR_VAR
-SET sql_quote_show_create=TR.E;
+SET sql_quote_show_create=TRÜE;
 
 SET NAMES binary;
 --error ER_WRONG_VALUE_FOR_VAR
@@ -136,3 +139,4 @@ SET sql_quote_show_create= _binary x'5452C39C45';
 SET sql_quote_show_create= _utf8 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
+
