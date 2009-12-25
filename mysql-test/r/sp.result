@@ -6907,6 +6907,22 @@ CALL p1();
 CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
+CREATE TABLE t1 ( f1 integer, primary key (f1));
+CREATE TABLE t2 LIKE t1;
+CREATE TEMPORARY TABLE t3 LIKE t1;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t3 AS A WHERE A.f1 IN ( SELECT f1 FROM t3 ) ;
+END|
+CALL p1;
+ERROR HY000: Can't reopen table: 'A'
+CREATE VIEW t3 AS SELECT f1 FROM t2 A WHERE A.f1 IN ( SELECT f1 FROM t2 );
+DROP TABLE t3;
+CALL p1;
+f1
+CALL p1;
+f1
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+DROP VIEW t3;
 #
 # Bug #46629: Item_in_subselect::val_int(): Assertion `0' 
 # on subquery inside a SP
