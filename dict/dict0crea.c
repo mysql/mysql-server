@@ -94,13 +94,13 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
-	if (table->flags & ~DICT_TF_COMPACT) {
+	if (table->flags & (~DICT_TF_COMPACT & ~(~0 << DICT_TF_BITS))) {
 		ut_a(table->flags & DICT_TF_COMPACT);
 		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
 		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & (~0 << DICT_TF_BITS)));
-		mach_write_to_4(ptr, table->flags);
+		ut_a(!(table->flags & (~0 << DICT_TF2_BITS)));
+		mach_write_to_4(ptr, table->flags & ~(~0 << DICT_TF_BITS));
 	} else {
 		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 	}
@@ -112,11 +112,12 @@ dict_create_sys_tables_tuple(
 	ptr = mem_heap_zalloc(heap, 8);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 7: MIX_LEN (obsolete) --------------------------*/
+	/* 7: MIX_LEN (additional flags) --------------------------*/
 
 	dfield = dtuple_get_nth_field(entry, 5);
 
-	ptr = mem_heap_zalloc(heap, 4);
+	ptr = mem_heap_alloc(heap, 4);
+	mach_write_to_4(ptr, table->flags >> DICT_TF2_SHIFT);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
@@ -230,6 +231,7 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	ulint		error;
+	ulint		flags;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -268,9 +270,10 @@ dict_build_table_def_step(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 
+		flags = table->flags & ~(~0 << DICT_TF_BITS);
 		error = fil_create_new_single_table_tablespace(
 			&space, path_or_name, is_path,
-			table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+			flags == DICT_TF_COMPACT ? 0 : flags,
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 
@@ -286,7 +289,7 @@ dict_build_table_def_step(
 		mtr_commit(&mtr);
 	} else {
 		/* Create in the system tablespace: disallow new features */
-		table->flags &= DICT_TF_COMPACT;
+		table->flags &= (~0 << DICT_TF_BITS) | DICT_TF_COMPACT;
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);

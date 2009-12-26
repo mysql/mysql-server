@@ -258,12 +258,14 @@ void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Reset the state of the recovery system variables. */
 UNIV_INTERN
 void
 recv_sys_var_init(void);
 /*===================*/
+#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */

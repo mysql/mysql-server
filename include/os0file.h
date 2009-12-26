@@ -153,6 +153,7 @@ log. */
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
 #define	OS_FILE_INSUFFICIENT_RESOURCE	78
 #define	OS_FILE_AIO_INTERRUPTED		79
+#define	OS_FILE_OPERATION_ABORTED	80
 /* @} */
 
 /** Types for aio operations @{ */

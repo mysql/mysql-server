@@ -386,11 +386,11 @@ UNIV_INLINE
 ibool
 xdes_get_bit(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint	offset,	/*!< in: page offset within extent:
-			0 ... FSP_EXTENT_SIZE - 1 */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+	ulint		offset,	/*!< in: page offset within extent:
+				0 ... FSP_EXTENT_SIZE - 1 */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	index;
 	ulint	byte_index;
@@ -527,8 +527,8 @@ UNIV_INLINE
 ulint
 xdes_get_n_used(
 /*============*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	i;
 	ulint	count	= 0;
@@ -551,8 +551,8 @@ UNIV_INLINE
 ibool
 xdes_is_free(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (0 == xdes_get_n_used(descr, mtr)) {
 
@@ -569,8 +569,8 @@ UNIV_INLINE
 ibool
 xdes_is_full(
 /*=========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (FSP_EXTENT_SIZE == xdes_get_n_used(descr, mtr)) {
 
@@ -586,7 +586,7 @@ UNIV_INLINE
 void
 xdes_set_state(
 /*===========*/
-	xdes_t*	descr,	/*!< in: descriptor */
+	xdes_t*	descr,	/*!< in/out: descriptor */
 	ulint	state,	/*!< in: state to set */
 	mtr_t*	mtr)	/*!< in: mtr handle */
 {
@@ -605,8 +605,8 @@ UNIV_INLINE
 ulint
 xdes_get_state(
 /*===========*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	mtr_t*	mtr)	/*!< in: mtr handle */
+	const xdes_t*	descr,	/*!< in: descriptor */
+	mtr_t*		mtr)	/*!< in: mtr handle */
 {
 	ulint	state;
 
@@ -705,7 +705,7 @@ UNIV_INLINE
 xdes_t*
 xdes_get_descriptor_with_space_hdr(
 /*===============================*/
-	fsp_header_t*	sp_header,/*!< in: space header, x-latched */
+	fsp_header_t*	sp_header,/*!< in/out: space header, x-latched */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: page offset;
 				if equal to the free limit,
@@ -1342,7 +1342,7 @@ fsp_fill_free_list(
 					descriptor page and ibuf bitmap page;
 					then we do not allocate more extents */
 	ulint		space,		/*!< in: space */
-	fsp_header_t*	header,		/*!< in: space header */
+	fsp_header_t*	header,		/*!< in/out: space header */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint	limit;

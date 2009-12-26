@@ -4317,19 +4317,26 @@ lock_get_n_rec_locks(void)
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
 
 /*********************************************************************//**
-Prints info of locks for all transactions. */
+Prints info of locks for all transactions.
+@return FALSE if not able to obtain kernel mutex
+and exits without printing info */
 UNIV_INTERN
-void
+ibool
 lock_print_info_summary(
 /*====================*/
-	FILE*	file)	/*!< in: file where to print */
+	FILE*	file,	/*!< in: file where to print */
+	ibool   nowait)	/*!< in: whether to wait for the kernel mutex */
 {
-	/* We must protect the MySQL thd->query field with a MySQL mutex, and
-	because the MySQL mutex must be reserved before the kernel_mutex of
-	InnoDB, we call innobase_mysql_prepare_print_arbitrary_thd() here. */
-
-	innobase_mysql_prepare_print_arbitrary_thd();
-	lock_mutex_enter_kernel();
+	/* if nowait is FALSE, wait on the kernel mutex,
+	otherwise return immediately if fail to obtain the
+	mutex. */
+	if (!nowait) {
+		lock_mutex_enter_kernel();
+	} else if (mutex_enter_nowait(&kernel_mutex)) {
+		fputs("FAIL TO OBTAIN KERNEL MUTEX, "
+		      "SKIP LOCK INFO PRINTING\n", file);
+		return(FALSE);
+	}
 
 	if (lock_deadlock_found) {
 		fputs("------------------------\n"
@@ -4361,6 +4368,7 @@ lock_print_info_summary(
 		"Total number of lock structs in row lock hash table %lu\n",
 		(ulong) lock_get_n_rec_locks());
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
+	return(TRUE);
 }
 
 /*********************************************************************//**
@@ -4411,7 +4419,6 @@ loop:
 
 	if (trx == NULL) {
 		lock_mutex_exit_kernel();
-		innobase_mysql_end_print_arbitrary_thd();
 
 		ut_ad(lock_validate());
 
@@ -4495,7 +4502,6 @@ loop:
 			}
 
 			lock_mutex_exit_kernel();
-			innobase_mysql_end_print_arbitrary_thd();
 
 			mtr_start(&mtr);
 
@@ -4506,7 +4512,6 @@ loop:
 
 			load_page_first = FALSE;
 
-			innobase_mysql_prepare_print_arbitrary_thd();
 			lock_mutex_enter_kernel();
 
 			goto loop;
@@ -4926,7 +4931,7 @@ lock_rec_insert_check_and_lock(
 	}
 
 	trx = thr_get_trx(thr);
-	next_rec = page_rec_get_next((rec_t*) rec);
+	next_rec = page_rec_get_next_const(rec);
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter_kernel();

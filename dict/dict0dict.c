@@ -1200,7 +1200,7 @@ dict_index_too_big_for_undo(
 		= TRX_UNDO_PAGE_HDR - TRX_UNDO_PAGE_HDR_SIZE
 		+ 2 /* next record pointer */
 		+ 1 /* type_cmpl */
-		+ 11 /* trx->undo_no */ - 11 /* table->id */
+		+ 11 /* trx->undo_no */ + 11 /* table->id */
 		+ 1 /* rec_get_info_bits() */
 		+ 11 /* DB_TRX_ID */
 		+ 11 /* DB_ROLL_PTR */
@@ -4774,6 +4774,8 @@ dict_table_check_for_dup_indexes(
 
 	const dict_index_t*	index1;
 	const dict_index_t*	index2;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* The primary index _must_ exist */
 	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
