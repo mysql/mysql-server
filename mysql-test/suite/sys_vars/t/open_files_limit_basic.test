@@ -1,17 +1,17 @@
 #
 # show the global and session values;
 #
---replace_result 3072 1024 16384 1024
+--replace_column 1 #
 select @@global.open_files_limit;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.open_files_limit;
---replace_result 3072 1024 16384 1024
+--replace_column 2 #
 show global variables like 'open_files_limit';
---replace_result 3072 1024 16384 1024
+--replace_column 2 #
 show session variables like 'open_files_limit';
---replace_result 3072 1024 16384 1024
+--replace_column 2 #
 select * from information_schema.global_variables where variable_name='open_files_limit';
---replace_result 3072 1024 16384 1024
+--replace_column 2 #
 select * from information_schema.session_variables where variable_name='open_files_limit';
 
 #
