@@ -1,4 +1,91 @@
-2009-01-01	The InnoDB Team
+2009-12-02	The InnoDB Team
+
+	* srv/srv0start.c: Display the zlib version number at startup.
+	InnoDB compressed tables use zlib, and the implementation depends
+	on the zlib function compressBound(), whose definition was slightly
+	changed in zlib version 1.2.3.1 in 2006.  MySQL bundles zlib 1.2.3
+	from 2005, but some installations use a more recent zlib.
+
+2009-11-30	The InnoDB Team
+
+	* dict/dict0crea.c, dict/dict0mem.c, dict/dict0load.c,
+	dict/dict0boot.c, fil/fil0fil.c, handler/ha_innodb.cc,
+	include/dict0mem.h, row/row0mysql.c:
+	Fix the bogus warning messages for non-existing temporary
+	tables that were reported in
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+	The actual crash recovery bug was corrected on 2009-04-29.
+
+2009-11-27	The InnoDB Team
+
+	InnoDB Plugin 1.0.6 released
+
+2009-11-20	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Add a workaround to prevent a crash due to Bug#45961 DDL on
+	partitioned innodb tables leaves data dictionary in an inconsistent
+	state
+
+2009-11-19	The InnoDB Team
+
+	* btr/btr0btr.c:
+	Fix Bug#48469 when innodb tablespace is configured too small, crash
+	and corruption!
+
+2009-11-19	The InnoDB Team
+
+	* data/data0type.c:
+	Fix Bug#48526 Data type for float and double is incorrectly reported
+	in InnoDB table monitor
+
+2009-11-19	The InnoDB Team
+
+	* CMakeLists.txt:
+	Fix Bug#48317 cannot build innodb as static library
+
+2009-11-18	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix Bug#48782 On lock wait timeout, CREATE INDEX (creating primary key)
+	attempts DROP TABLE
+
+2009-11-17	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test, mysql-test/innodb_bug44369.result,
+	mysql-test/innodb_bug44369.test, mysql-test/patches/innodb-index.diff,
+	row/row0mysql.c:
+	Report duplicate table names to the client connection, not to the
+	error log.
+
+2009-11-12	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/db0err.h, row/row0merge.c,
+	row/row0mysql.c:
+	Allow CREATE INDEX to be interrupted.
+	Also, when CHECK TABLE is interrupted, report ER_QUERY_INTERRUPTED.
+
+2009-11-11	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug47167.result,
+	mysql-test/innodb_bug47167.test, mysql-test/innodb_file_format.result:
+	Fix Bug#47167 "set global innodb_file_format_check" cannot set value
+	by User-Defined Variable
+
+2009-11-11	The InnoDB Team
+
+	* include/os0file.h, os/os0file.c:
+	Fix Bug#3139 Mysql crashes: 'windows error 995' after several selects
+	on a large DB
+
+2009-11-04	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#32430 'show innodb status' causes errors
+	Invalid (old?) table or database name in logs
+
+2009-11-02	The InnoDB Team
 
 	* btr/btr0sea.c, buf/buf0buf.c, dict/dict0dict.c, fil/fil0fil.c,
 	ibuf/ibuf0ibuf.c, include/btr0sea.h, include/dict0dict.h,
@@ -84,6 +171,12 @@
 	* include/page0page.ic:
 	Fix Bug#47058 Failure to compile innodb_plugin on solaris 10u7 + spro
 	cc/CC 5.10
+
+2009-10-13	The InnoDB Team
+
+	* buf/buf0flu.c:
+	Call fsync() on datafiles after a batch of pages is written to disk
+	even when skip_innodb_doublewrite is set.
 
 2009-10-05	The InnoDB Team
 
@@ -463,6 +556,12 @@
 	* dict/dict0dict.c:
 	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
 	output
+
+2009-04-29	The InnoDB Team
+
+	* fil/fil0fil.c, include/fil0fil.h, include/mtr0mtr.h,
+	log/log0recv.c:
+	Fix Bug#41609 Crash recovery does not work for InnoDB temporary tables
 
 2009-04-23	The InnoDB Team
 

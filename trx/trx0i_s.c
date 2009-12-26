@@ -60,7 +60,7 @@ Created July 17, 2007 Vasil Dimov
 /** @brief The maximum number of chunks to allocate for a table cache.
 
 The rows of a table cache are stored in a set of chunks. When a new
-row is added a new chunk is allocated if necessary.  Assuming that the
+row is added a new chunk is allocated if necessary. Assuming that the
 first one is 1024 rows (TABLE_CACHE_INITIAL_ROWSNUM) and each
 subsequent is N/2 where N is the number of rows we have allocated till
 now, then 39th chunk would accommodate 1677416425 rows and all chunks
@@ -1205,17 +1205,12 @@ trx_i_s_possibly_fetch_data_into_cache(
 		return(1);
 	}
 
-	/* We are going to access trx->query in all transactions */
-	innobase_mysql_prepare_print_arbitrary_thd();
-
 	/* We need to read trx_sys and record/table lock queues */
 	mutex_enter(&kernel_mutex);
 
 	fetch_data_into_cache(cache);
 
 	mutex_exit(&kernel_mutex);
-
-	innobase_mysql_end_print_arbitrary_thd();
 
 	return(0);
 }

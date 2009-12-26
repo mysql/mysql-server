@@ -2264,7 +2264,7 @@ disconnect j;
 drop table t1, t2, t3, t5, t6, t8, t9;
 
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
---error 1005
+--error ER_WRONG_COLUMN_NAME
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
 #
