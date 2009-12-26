@@ -241,6 +241,7 @@ recv_sys_mem_free(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Reset the state of the recovery system variables. */
 UNIV_INTERN
@@ -280,6 +281,7 @@ recv_sys_var_init(void)
 
 	recv_max_page_lsn = 0;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Inits the recovery system for a recovery operation. */
@@ -2575,7 +2577,7 @@ recv_scan_log_recs(
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(len > 0);
+	ut_ad(len >= OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(store_to_hash <= TRUE);
 
 	finished = FALSE;

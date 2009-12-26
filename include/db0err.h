@@ -32,6 +32,7 @@ enum db_err {
 
 	/* The following are error codes */
 	DB_ERROR,
+	DB_INTERRUPTED,
 	DB_OUT_OF_MEMORY,
 	DB_OUT_OF_FILE_SPACE,
 	DB_LOCK_WAIT,

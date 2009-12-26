@@ -1344,9 +1344,6 @@ row_upd_copy_columns(
 		data = rec_get_nth_field(rec, offsets,
 					 column->field_nos[SYM_CLUST_FIELD_NO],
 					 &len);
-		if (len == UNIV_SQL_NULL) {
-			len = UNIV_SQL_NULL;
-		}
 		eval_node_copy_and_alloc_val(column, data, len);
 
 		column = UT_LIST_GET_NEXT(col_var_list, column);
