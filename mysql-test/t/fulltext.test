@@ -2,6 +2,9 @@
 # Test of fulltext index
 #
 
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
