@@ -1498,6 +1498,14 @@ void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   }
 }
 
+
+static inline my_wc_t
+ucs2_to_wc(const uchar *ptr)
+{
+  return (((uint) ptr[0]) << 8) + ptr[1];
+}
+
+
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
 ** Arguments:
@@ -1531,6 +1539,7 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
         ; ptr+=2, charlen--)
   {
+    my_wc_t wc;
     if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
     {
       ptr+=2;					/* Skip escape */
@@ -1567,9 +1576,9 @@ fill_max_and_min:
     }
 
     if (have_contractions && ptr + 3 < end &&
-        ptr[0] == '\0' &&
-        my_uca_can_be_contraction_head(cs, (uchar) ptr[1]))
+        my_uca_can_be_contraction_head(cs, (wc= ucs2_to_wc((uchar*) ptr))))
     {
+      my_wc_t wc2;
       /* Contraction head found */
       if (ptr[2] == '\0' && (ptr[3] == w_one || ptr[3] == w_many))
       {
@@ -1581,9 +1590,8 @@ fill_max_and_min:
         Check if the second letter can be contraction part,
         and if two letters really produce a contraction.
       */
-      if (ptr[2] == '\0' &&
-          my_uca_can_be_contraction_tail(cs, (uchar) ptr[3]) &&
-          my_uca_contraction2_weight(cs,(uchar) ptr[1], (uchar) ptr[3]))
+      if (my_uca_can_be_contraction_tail(cs, (wc2= ucs2_to_wc((uchar*) ptr + 2))) &&
+          my_uca_contraction2_weight(cs, wc , wc2))
       {
         /* Contraction found */
         if (charlen == 1 || min_str + 2 >= min_end)

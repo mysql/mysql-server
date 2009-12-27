@@ -2618,7 +2618,7 @@ bool Delayed_insert::handle_inserts(void)
       or if another thread is removing the current table definition
       from the table cache.
     */
-    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK, MYF(ME_FATALERROR | ME_NOREFRESH),
              table->s->table_name.str);
     goto err;
   }
@@ -2791,10 +2791,11 @@ bool Delayed_insert::handle_inserts(void)
 	query_cache_invalidate3(&thd, table, 1);
 	if (thr_reschedule_write_lock(*thd.lock->locks))
 	{
-    /* This is not known to happen. */
-    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
-             table->s->table_name.str);
-    goto err;
+          /* This is not known to happen. */
+          my_error(ER_DELAYED_CANT_CHANGE_LOCK,
+                   MYF(ME_FATALERROR | ME_NOREFRESH),
+                   table->s->table_name.str);
+          goto err;
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);

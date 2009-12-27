@@ -3208,7 +3208,7 @@ const char * STDCALL mysql_error(MYSQL *mysql)
     mysql		Connection
 
   EXAMPLE
-    4.1.0-alfa ->  40100
+    MariaDB-4.1.0-alfa ->  40100
   
   NOTES
     We will ensure that a newer server always has a bigger number.
@@ -3221,7 +3221,11 @@ ulong STDCALL
 mysql_get_server_version(MYSQL *mysql)
 {
   uint major, minor, version;
-  char *pos= mysql->server_version, *end_pos;
+  const char *pos= mysql->server_version;
+  char *end_pos;
+  /* Skip possible prefix */
+  while (*pos && !my_isdigit(&my_charset_latin1, *pos))
+    pos++;
   major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
   minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
   version= (uint) strtoul(pos, &end_pos, 10);

@@ -857,7 +857,8 @@ int main(int argc, char **argv)
 
   if (!opt_write_binlog)
   {
-    if (disable_binlog()) {
+    if (disable_binlog())
+    {
       first_error= 1;
       goto end;
     }

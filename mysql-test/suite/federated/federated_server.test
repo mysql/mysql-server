@@ -239,6 +239,7 @@ alter server s1 options (database 'db_bogus');
 
 connection master;
 flush tables;
+--error ER_QUERY_ON_FOREIGN_DATA_SOURCE
 select * from federated.t1;
 
 connection conn_select;
@@ -249,8 +250,8 @@ drop server if exists 's1';
 eval create server 's1' foreign data wrapper 'mysql' options
   (HOST '127.0.0.1',
   DATABASE 'db_legitimate',
-  USER 'root',
-  PASSWORD '',
+  USER 'test_fed',
+  PASSWORD 'foo',
   PORT $SLAVE_MYPORT,
   SOCKET '',
   OWNER 'root');
@@ -261,8 +262,8 @@ drop server 's1';
 eval create server 's1' foreign data wrapper 'mysql' options
   (HOST '127.0.0.1',
   DATABASE 'db_legitimate',
-  USER 'root',
-  PASSWORD '',
+  USER 'test_fed',
+  PASSWORD 'foo',
   PORT $SLAVE_MYPORT,
   SOCKET '',
   OWNER 'root');
@@ -273,6 +274,7 @@ select * from federated.t1;
 
 # clean up test
 connection slave;
+drop user test_fed@localhost;
 drop database db_legitimate;
 drop database db_bogus;
 

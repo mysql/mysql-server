@@ -101,7 +101,6 @@ sub init_pattern {
 
 sub collect_test_cases ($$) {
   my $suites= shift; # Semicolon separated list of test suites
-  my %found_suites;
   my $opt_cases= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
@@ -115,7 +114,6 @@ sub collect_test_cases ($$) {
 		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
 		  "ha_innodb_plugin.sl"],
 		 NOT_REQUIRED);
-
   $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
 		      !(IS_WINDOWS && $::opt_embedded_server) &&
 		      $lib_innodb_plugin);
@@ -123,7 +121,6 @@ sub collect_test_cases ($$) {
   foreach my $suite (split(",", $suites))
   {
     push(@$cases, collect_one_suite($suite, $opt_cases));
-    $found_suites{$suite}= 1;
     last if $some_test_found;
   }
 
@@ -136,12 +133,6 @@ sub collect_test_cases ($$) {
     {
       my $found= 0;
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
-      if (defined($sname) && !defined($found_suites{$sname}))
-      {
-	$found_suites{$sname}= 1;
-	push(@$cases, collect_one_suite($sname));
-      }
-
       foreach my $test ( @$cases )
       {
 	# test->{name} is always in suite.name format
@@ -247,7 +238,7 @@ sub split_testname {
 }
 
 
-sub collect_one_suite($)
+sub collect_one_suite
 {
   my $suite= shift;  # Test suite name
   my $opt_cases= shift;
@@ -766,7 +757,6 @@ sub process_opts_file {
     }
   }
 }
-
 
 ##############################################################################
 #

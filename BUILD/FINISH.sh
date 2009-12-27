@@ -1,6 +1,6 @@
-cflags="$c_warnings $extra_flags"
-cxxflags="$cxx_warnings $base_cxxflags $extra_flags"
-extra_configs="$extra_configs $local_infile_configs"
+cflags="$c_warnings $extra_flags $EXTRA_FLAGS $EXTRA_CFLAGS"
+cxxflags="$cxx_warnings $base_cxxflags $extra_flags $EXTRA_FLAGS $EXTRA_CXXFLAGS"
+extra_configs="$extra_configs $local_infile_configs $EXTRA_CONFIGS"
 configure="./configure $base_configs $extra_configs"
 
 commands="\

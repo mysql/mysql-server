@@ -4169,8 +4169,10 @@ server.");
         Need to unlock as global_system_variables.table_plugin
         was acquired during plugin_init()
       */
+      pthread_mutex_lock(&LOCK_global_system_variables);
       plugin_unlock(0, global_system_variables.table_plugin);
       global_system_variables.table_plugin= plugin;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
     }
   }
 #if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
