@@ -481,13 +481,14 @@ public:
   { return m_ordering; }
 
   /**
-   * Get the NdbInterpretedCode object needed for defining a scan filter for 
-   * this operation. Create one if needed.
+   * Set the NdbInterpretedCode needed for defining a scan filter for 
+   * this operation. 
    * It is an error to call this method on a lookup operation.
-   * @return The interpreted code object, NULL if an error occured 
-   * (call getNdbError() for details).
+   * @param code The interpreted code. This object is copied internally, 
+   * meaning that 'code' may be destroyed as soon as this method returns.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  NdbInterpretedCode* getCreateInterpretedCode();
+  int setInterpretedCode(NdbInterpretedCode& code);
 
 private:
   STATIC_CONST (MAGIC = 0xfade1234);

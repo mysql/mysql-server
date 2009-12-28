@@ -548,12 +548,12 @@ namespace SPJSanityTest{
     queryOp->setResultRowRef(reinterpret_cast<const char*&>(Operation<Row>::m_resultPtr),
                              NULL);
     if(m_lessThanRow!=-1){
-      NdbInterpretedCode* const code = queryOp->getCreateInterpretedCode();
-      ASSERT_ALWAYS(code!=NULL);
-      NdbScanFilter filter(code);
+      NdbInterpretedCode code(queryOp->getQueryOperationDef().getTable());
+      NdbScanFilter filter(&code);
       ASSERT_ALWAYS(filter.begin()==0);
       Row(m_lessThanRow).makeLessThanCond(filter);
       ASSERT_ALWAYS(filter.end()==0);
+      ASSERT_ALWAYS(queryOp->setInterpretedCode(code)==0);
     }
   }
 
