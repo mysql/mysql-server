@@ -57,7 +57,7 @@ SELECT @@global.net_buffer_length;
 
 --Error ER_VARIABLE_IS_READONLY
 SET @@session.net_buffer_length = 20000;
---Error ER_NO_DEFAULT
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.net_buffer_length = DEFAULT;
 SELECT @@session.net_buffer_length;
 
@@ -86,15 +86,13 @@ SET @@global.net_buffer_length = 1048575;
 SELECT @@global.net_buffer_length;
 SET @@global.net_buffer_length = 65535;
 SELECT @@global.net_buffer_length;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
 
 --echo '#--------------------FN_DYNVARS_109_04-------------------------#'
 ############################################################################
 # Change the value of net_buffer_length to a valid value for SESSION Scope #
 ############################################################################
  
-# Bug#22891: SESSION net_buffer_length is now read-only; assignments skipped
+# SESSION net_buffer_length is now read-only; assignments skipped
 
 
 --echo '#------------------FN_DYNVARS_109_05-----------------------#'
@@ -112,16 +110,14 @@ SET @@global.net_buffer_length = 1048577;
 SELECT @@global.net_buffer_length;
 SET @@global.net_buffer_length = 104857633;
 SELECT @@global.net_buffer_length;
---Error ER_PARSE_ERROR
-SET @@global.net_buffer_length = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_buffer_length = 65530.34;
 SELECT @@global.net_buffer_length;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.net_buffer_length = test;
 SELECT @@global.net_buffer_length;
 
-# Bug#22891: SESSION net_buffer_length is now read-only; assignments skipped
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+# SESSION net_buffer_length is now read-only; assignments skipped
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.net_buffer_length = test;
@@ -173,7 +169,7 @@ SELECT @@net_buffer_length = @@global.net_buffer_length;
 #    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
 ########################################################################################################
 
-# Bug#22891: SESSION net_buffer_length is now read-only; assignments skipped
+# SESSION net_buffer_length is now read-only; assignments skipped
 
 
 --echo '#---------------------FN_DYNVARS_109_11----------------------#'
@@ -181,7 +177,7 @@ SELECT @@net_buffer_length = @@global.net_buffer_length;
 #   Check if net_buffer_length can be accessed with and without @@ sign    #
 ############################################################################
 
-# Bug#22891: SESSION net_buffer_length is now read-only; assignments skipped
+# SESSION net_buffer_length is now read-only; assignments skipped
 SELECT @@net_buffer_length;
 --Error ER_UNKNOWN_TABLE
 SELECT local.net_buffer_length;

@@ -14,7 +14,7 @@ SELECT @@global.max_allowed_packet;
 SET @@session.max_allowed_packet = 20000;
 ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
 SET @@session.max_allowed_packet = DEFAULT;
-ERROR 42000: Variable 'max_allowed_packet' doesn't have a default value
+ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
 1048576
@@ -29,15 +29,18 @@ SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 SET @@global.max_allowed_packet = 1025;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '1025'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
-: 'Bug# 34841:  "Invalid values are coming in variable on assigning valid value';
 SET @@global.max_allowed_packet = 1073741824;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
 SET @@global.max_allowed_packet = 1073741823;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '1073741823'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073740800
@@ -92,8 +95,8 @@ Warning	1292	Truncated incorrect max_allowed_packet value: '10737418241'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
-SET @@global.max_allowed_packet = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_allowed_packet = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
@@ -117,14 +120,13 @@ ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL 
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
 1048576
-SET @@session.max_allowed_packet = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.max_allowed_packet = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SET @@session.max_allowed_packet = 10737418241;
 ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
 1048576
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.max_allowed_packet = test;
 ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@session.max_allowed_packet;

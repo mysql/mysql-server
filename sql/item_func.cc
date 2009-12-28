@@ -37,6 +37,7 @@
 #include "sp_head.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "set_var.h"
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -4984,7 +4985,7 @@ void Item_func_get_system_var::fix_length_and_dec()
     if (var_type != OPT_DEFAULT)
     {
       my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
-               var->name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+               var->name.str, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
       return;
     }
     /* As there was no local variable, return the global value */
@@ -5001,21 +5002,37 @@ void Item_func_get_system_var::fix_length_and_dec()
       decimals=0;
       break;
     case SHOW_LONGLONG:
-      unsigned_flag= FALSE;
+      unsigned_flag= TRUE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
       pthread_mutex_lock(&LOCK_global_system_variables);
-      cptr= var->show_type() == SHOW_CHAR_PTR ? 
-        *(char**) var->value_ptr(current_thd, var_type, &component) :
-        (char*) var->value_ptr(current_thd, var_type, &component);
+      cptr= var->show_type() == SHOW_CHAR ? 
+        (char*) var->value_ptr(current_thd, var_type, &component) :
+        *(char**) var->value_ptr(current_thd, var_type, &component);
       if (cptr)
-        max_length= strlen(cptr) * system_charset_info->mbmaxlen;
+        max_length= system_charset_info->cset->numchars(system_charset_info,
+                                                        cptr,
+                                                        cptr + strlen(cptr));
       pthread_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
+      max_length*= system_charset_info->mbmaxlen;
       decimals=NOT_FIXED_DEC;
+      break;
+    case SHOW_LEX_STRING:
+      {
+        pthread_mutex_lock(&LOCK_global_system_variables);
+        LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(current_thd, var_type, &component));
+        max_length= system_charset_info->cset->numchars(system_charset_info,
+                                                        ls->str,
+                                                        ls->str + ls->length);
+        pthread_mutex_unlock(&LOCK_global_system_variables);
+        collation.set(system_charset_info, DERIVATION_SYSCONST);
+        max_length*= system_charset_info->mbmaxlen;
+        decimals=NOT_FIXED_DEC;
+      }
       break;
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
@@ -5029,7 +5046,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       max_length= DBL_DIG + 6;
       break;
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
       break;
   }
 }
@@ -5054,11 +5071,12 @@ enum Item_result Item_func_get_system_var::result_type() const
       return INT_RESULT;
     case SHOW_CHAR: 
     case SHOW_CHAR_PTR: 
+    case SHOW_LEX_STRING:
       return STRING_RESULT;
     case SHOW_DOUBLE:
       return REAL_RESULT;
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
       return STRING_RESULT;                   // keep the compiler happy
   }
 }
@@ -5077,11 +5095,12 @@ enum_field_types Item_func_get_system_var::field_type() const
       return MYSQL_TYPE_LONGLONG;
     case SHOW_CHAR: 
     case SHOW_CHAR_PTR: 
+    case SHOW_LEX_STRING:
       return MYSQL_TYPE_VARCHAR;
     case SHOW_DOUBLE:
       return MYSQL_TYPE_DOUBLE;
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
       return MYSQL_TYPE_VARCHAR;              // keep the compiler happy
   }
 }
@@ -5142,7 +5161,7 @@ longlong Item_func_get_system_var::val_int()
   {
     case SHOW_INT:      get_sys_var_safe (uint);
     case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_LONGLONG: get_sys_var_safe (longlong);
+    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -5157,6 +5176,7 @@ longlong Item_func_get_system_var::val_int()
       }
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
+    case SHOW_LEX_STRING:
       {
         String *str_val= val_str(NULL);
 
@@ -5176,7 +5196,7 @@ longlong Item_func_get_system_var::val_int()
       }
 
     default:            
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name); 
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
       return 0;                               // keep the compiler happy
   }
 }
@@ -5216,14 +5236,18 @@ String* Item_func_get_system_var::val_str(String* str)
   {
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
+    case SHOW_LEX_STRING:
     {
       pthread_mutex_lock(&LOCK_global_system_variables);
-      char *cptr= var->show_type() == SHOW_CHAR_PTR ? 
-        *(char**) var->value_ptr(thd, var_type, &component) :
-        (char*) var->value_ptr(thd, var_type, &component);
+      char *cptr= var->show_type() == SHOW_CHAR ? 
+        (char*) var->value_ptr(thd, var_type, &component) :
+        *(char**) var->value_ptr(thd, var_type, &component);
       if (cptr)
       {
-        if (str->copy(cptr, strlen(cptr), collation.collation))
+        size_t len= var->show_type() == SHOW_LEX_STRING ?
+          ((LEX_STRING*)(var->value_ptr(thd, var_type, &component)))->length :
+          strlen(cptr);
+        if (str->copy(cptr, len, collation.collation))
         {
           null_value= TRUE;
           str= NULL;
@@ -5251,7 +5275,7 @@ String* Item_func_get_system_var::val_str(String* str)
       break;
 
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
       str= NULL;
       break;
   }
@@ -5309,12 +5333,11 @@ double Item_func_get_system_var::val_real()
       cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
       return cached_dval;
     case SHOW_CHAR:
+    case SHOW_LEX_STRING:
     case SHOW_CHAR_PTR:
       {
-        char *cptr;
-
         pthread_mutex_lock(&LOCK_global_system_variables);
-        cptr= var->show_type() == SHOW_CHAR ? 
+        char *cptr= var->show_type() == SHOW_CHAR ? 
           (char*) var->value_ptr(thd, var_type, &component) :
           *(char**) var->value_ptr(thd, var_type, &component);
         if (cptr)
@@ -5343,7 +5366,7 @@ double Item_func_get_system_var::val_real()
         cached_null_value= null_value;
         return cached_dval;
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
       return 0;
   }
 }

@@ -92,14 +92,10 @@ SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('"faster than"' IN BOOLEAN MODE);
 
 SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('+run ~line' IN BOOLEAN MODE);
-
---Echo 'Bug#35359: ~ is not working correctly. Its behaving like -'
+AGAINST ('+tutorial ~line' IN BOOLEAN MODE);
 
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('10*' IN BOOLEAN MODE);
-
---Echo 'Bug#35360: * is not working correctly. Not all rows are returned'
 
 SELECT id,title,body, (MATCH (title,body) 
 AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)) AS relevance
@@ -113,8 +109,6 @@ ORDER BY relevance DESC;
 SET @@global.ft_boolean_syntax='~ /!@#$%^&*()-';
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('~mySQL /yourSQL' IN BOOLEAN MODE);
-
---echo 'Bug#35361: Different syntax does not produce result as default operators'
 
 #restore default
 SET @@global.ft_boolean_syntax=DEFAULT;

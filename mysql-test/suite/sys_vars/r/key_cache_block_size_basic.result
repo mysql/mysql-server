@@ -1,0 +1,141 @@
+SET @start_value = @@global.key_cache_block_size;
+SELECT @start_value;
+@start_value
+1024
+'#--------------------FN_DYNVARS_057_01------------------------#'
+SET @@global.key_cache_block_size = DEFAULT;
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+1024
+'#---------------------FN_DYNVARS_057_02-------------------------#'
+SET @@global.key_cache_block_size = @start_value;
+SELECT @@global.key_cache_block_size = 1024;
+@@global.key_cache_block_size = 1024
+1
+'#--------------------FN_DYNVARS_057_03------------------------#'
+SET @@global.key_cache_block_size = 1024;
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+1024
+SET @@global.key_cache_block_size = 16384;
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+SET @@global.key_cache_block_size = 1800;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '1800'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+1536
+SET @@global.key_cache_block_size = 16383;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '16383'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+15872
+'#--------------------FN_DYNVARS_057_04-------------------------#'
+SET @@global.key_cache_block_size = -1;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '-1'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+SET @@global.key_cache_block_size = 42949672951;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '42949672951'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+SET @@global.key_cache_block_size = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'key_cache_block_size'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+SET @@global.key_cache_block_size = -1024;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '-1024'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+SET @@global.key_cache_block_size = 256;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '256'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+SET @@global.key_cache_block_size = 511;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '511'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+SET @@global.key_cache_block_size = 16385;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '16385'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+SET @@global.key_cache_block_size = ON;
+ERROR 42000: Incorrect argument type to variable 'key_cache_block_size'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+SET @@global.key_cache_block_size = 'test';
+ERROR 42000: Incorrect argument type to variable 'key_cache_block_size'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
+'#-------------------FN_DYNVARS_057_05----------------------------#'
+SET @@session.key_cache_block_size = 0;
+ERROR HY000: Variable 'key_cache_block_size' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.key_cache_block_size;
+ERROR HY000: Variable 'key_cache_block_size' is a GLOBAL variable
+'#----------------------FN_DYNVARS_057_06------------------------#'
+SELECT @@global.key_cache_block_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_block_size';
+@@global.key_cache_block_size = VARIABLE_VALUE
+1
+SELECT @@key_cache_block_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_block_size';
+@@key_cache_block_size = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_057_07----------------------#'
+SET @@global.key_cache_block_size = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '1'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+SET @@global.key_cache_block_size = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '0'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+512
+'#---------------------FN_DYNVARS_057_08----------------------#'
+SET @@global.key_cache_block_size = 1024;
+SELECT @@key_cache_block_size = @@global.key_cache_block_size;
+@@key_cache_block_size = @@global.key_cache_block_size
+1
+'#---------------------FN_DYNVARS_057_09----------------------#'
+SET key_cache_block_size = 8000;
+ERROR HY000: Variable 'key_cache_block_size' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@key_cache_block_size;
+@@key_cache_block_size
+1024
+SET local.key_cache_block_size = 10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_cache_block_size = 10' at line 1
+SELECT local.key_cache_block_size;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.key_cache_block_size = 10;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_cache_block_size = 10' at line 1
+SELECT global.key_cache_block_size;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT key_cache_block_size = @@session.key_cache_block_size;
+ERROR 42S22: Unknown column 'key_cache_block_size' in 'field list'
+SET @@global.key_cache_block_size = @start_value;
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+1024
