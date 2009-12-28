@@ -105,7 +105,7 @@ SELECT @@global.query_cache_wlock_invalidate;
 # for session
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = -1;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = 1.6;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = "T";
@@ -115,12 +115,8 @@ SET @@session.query_cache_wlock_invalidate = "Y";
 SET @@session.query_cache_wlock_invalidate = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = OF;
-SELECT @@session.query_cache_wlock_invalidate;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.query_cache_wlock_invalidate = ÓFF;
 
@@ -138,12 +134,8 @@ SET @@global.query_cache_wlock_invalidate = "Y";
 SET @@global.query_cache_wlock_invalidate = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_wlock_invalidate = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_wlock_invalidate = OF;
-SELECT @@global.query_cache_wlock_invalidate;
-
---echo 'Bug 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_wlock_invalidate = ÓFF;
 

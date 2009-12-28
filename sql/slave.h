@@ -115,6 +115,7 @@ extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
+extern char *opt_slave_skip_errors;
 extern ulonglong relay_log_space_limit;
 
 /*

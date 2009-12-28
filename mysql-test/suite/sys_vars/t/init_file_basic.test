@@ -1,0 +1,19 @@
+#
+# only global
+#
+select @@global.init_file;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.init_file;
+show global variables like 'init_file';
+show session variables like 'init_file';
+select * from information_schema.global_variables where variable_name='init_file';
+select * from information_schema.session_variables where variable_name='init_file';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global init_file=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session init_file=1;
+

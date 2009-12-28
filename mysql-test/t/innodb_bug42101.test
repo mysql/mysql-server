@@ -7,10 +7,10 @@
 
 set global innodb_commit_concurrency=0;
 select @@innodb_commit_concurrency;
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_commit_concurrency=1;
 select @@innodb_commit_concurrency;
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_commit_concurrency=42;
 select @@innodb_commit_concurrency;
 set global innodb_commit_concurrency=0;

@@ -246,7 +246,7 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define longlong2str(A,B,C) int2str((A),(B),(C),1)
+#define ll2str(A,B,C,D) int2str((A),(B),(C),(D))
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
@@ -259,7 +259,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #endif
 #else
 #ifdef HAVE_LONG_LONG
-extern char *longlong2str(longlong val,char *dst,int radix);
+extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
 #if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
 extern longlong strtoll(const char *str, char **ptr, int base);
@@ -267,6 +267,7 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 #endif
+#define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 
 /* my_vsnprintf.c */
 
@@ -290,6 +291,13 @@ typedef struct st_mysql_lex_string LEX_STRING;
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((size_t) (sizeof(X) - 1))
+
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  size_t length;
+};
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 /* SPACE_INT is a word that contains only spaces */
 #if SIZEOF_INT == 4

@@ -33,15 +33,23 @@ class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
 class Event_parse_data;
+class set_var_base;
+class sys_var;
+
+/**
+  used by the parser to store internal variable name
+*/
+struct sys_var_with_base
+{
+  sys_var *var;
+  LEX_STRING base_name;
+};
 
 #ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
   YYSTYPE before including this file
 */
-
-#include "set_var.h"
-
 #ifdef MYSQL_YACC
 #define LEX_YYSTYPE void *
 #else

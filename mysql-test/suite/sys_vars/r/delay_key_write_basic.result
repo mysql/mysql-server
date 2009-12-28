@@ -5,12 +5,9 @@ ON
 '#--------------------FN_DYNVARS_023_01------------------------#'
 SET @@global.delay_key_write = OFF;
 SET @@global.delay_key_write = DEFAULT;
-ERROR 42000: Variable 'delay_key_write' doesn't have a default value
-'Bug # 34878: Documentation specifies a DEFAULT value of ON for variable but';
-'its not supported';
 SELECT @@global.delay_key_write;
 @@global.delay_key_write
-OFF
+ON
 '#---------------------FN_DYNVARS_023_02-------------------------#'
 SET @@global.delay_key_write = NULL;
 ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'NULL'
@@ -41,10 +38,7 @@ ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'FALSE0'
 SET @@global.delay_key_write = ONN;
 ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'ONN'
 SET @@global.delay_key_write = OF;
-SELECT @@global.delay_key_write;
-@@global.delay_key_write
-OFF
-'Bug# 34828: Variable is incorrectly accepting OF as a value'
+ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'OF'
 SET @@global.delay_key_write = ' ';
 ERROR 42000: Variable 'delay_key_write' can't be set to the value of ' '
 SET @@global.delay_key_write = "";
