@@ -73,8 +73,8 @@ SET @@global.group_concat_max_len = 65536;
 SELECT @@global.group_concat_max_len;
 @@global.group_concat_max_len
 65536
-SET @@global.group_concat_max_len = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.group_concat_max_len = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'group_concat_max_len'
 SELECT @@global.group_concat_max_len;
 @@global.group_concat_max_len
 65536
@@ -95,13 +95,12 @@ Warning	1292	Truncated incorrect group_concat_max_len value: '-2'
 SELECT @@session.group_concat_max_len;
 @@session.group_concat_max_len
 4
-SET @@session.group_concat_max_len = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.group_concat_max_len = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'group_concat_max_len'
 SET @@session.group_concat_max_len = 65550;
 SELECT @@session.group_concat_max_len;
 @@session.group_concat_max_len
 65550
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@session.group_concat_max_len = test;
 ERROR 42000: Incorrect argument type to variable 'group_concat_max_len'
 SELECT @@session.group_concat_max_len;

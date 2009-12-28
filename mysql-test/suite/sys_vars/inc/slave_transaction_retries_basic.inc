@@ -105,10 +105,8 @@ SELECT @@global.slave_transaction_retries;
 SET @@global.slave_transaction_retries = 2147483649*2147483649;
 SELECT @@global.slave_transaction_retries;
 
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
---Error ER_PARSE_ERROR
-SET @@global.slave_transaction_retries = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slave_transaction_retries = 65530.34;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slave_transaction_retries = '100';
 --Error ER_WRONG_TYPE_FOR_VAR

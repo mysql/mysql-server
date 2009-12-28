@@ -74,29 +74,25 @@ SELECT @@global.innodb_commit_concurrency;
 SET @@global.innodb_commit_concurrency = 0;
 SELECT @@global.innodb_commit_concurrency;
 
-SET @@global.innodb_commit_concurrency = 1;
-SELECT @@global.innodb_commit_concurrency;
-SET @@global.innodb_commit_concurrency = 1000;
-SELECT @@global.innodb_commit_concurrency;
-
 --echo '#--------------------FN_DYNVARS_046_04-------------------------#'
 ########################################################################### 
 #    Change the value of innodb_commit_concurrency to invalid value       #
 ########################################################################### 
 
+#
+# InnoDB doesn't allow innodb_commit_concurrency to change from
+# zero to non-zero or vice versa
+#
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_commit_concurrency = 1;
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_commit_concurrency = -1;
-SELECT @@global.innodb_commit_concurrency;
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "T";
-SELECT @@global.innodb_commit_concurrency;
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "Y";
-SELECT @@global.innodb_commit_concurrency;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_commit_concurrency = 1001;
-SELECT @@global.innodb_commit_concurrency;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 ######################################################################### 
@@ -121,17 +117,6 @@ SELECT @@global.innodb_commit_concurrency;
 
 --ERROR ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = ON;
-SELECT @@global.innodb_commit_concurrency;
-
---echo '#---------------------FN_DYNVARS_046_07----------------------#'
-################################################################### 
-#      Check if TRUE and FALSE values can be used on variable     #
-################################################################### 
-
-
-SET @@global.innodb_commit_concurrency = TRUE;
-SELECT @@global.innodb_commit_concurrency;
-SET @@global.innodb_commit_concurrency = FALSE;
 SELECT @@global.innodb_commit_concurrency;
 
 ##############################  

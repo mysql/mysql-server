@@ -122,8 +122,6 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 #
 --error 1064
 set session @honk=99;
---error 1382
-set one_shot @honk=99;
 
 #
 # Bug #10724  @@local not preserved in column name of select

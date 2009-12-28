@@ -70,8 +70,8 @@ Warning	1292	Truncated incorrect myisam_data_pointer_size value: '4294967296'
 SELECT @@global.myisam_data_pointer_size;
 @@global.myisam_data_pointer_size
 7
-SET @@global.myisam_data_pointer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.myisam_data_pointer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_data_pointer_size'
 SELECT @@global.myisam_data_pointer_size;
 @@global.myisam_data_pointer_size
 7
@@ -80,7 +80,6 @@ ERROR 42000: Incorrect argument type to variable 'myisam_data_pointer_size'
 SELECT @@global.myisam_data_pointer_size;
 @@global.myisam_data_pointer_size
 7
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 '#------------------FN_DYNVARS_093_06-----------------------#'
 SET @@global.myisam_data_pointer_size = 3;
 SELECT @@global.myisam_data_pointer_size = VARIABLE_VALUE 

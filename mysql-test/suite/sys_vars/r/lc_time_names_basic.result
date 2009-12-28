@@ -459,13 +459,19 @@ SELECT @@session.lc_time_names;
 @@session.lc_time_names
 sq_AL
 SET @@session.lc_time_names=sr_YU;
+Warnings:
+Warning	1287	'sr_YU' is deprecated; use 'sr_RS' instead
 SELECT @@session.lc_time_names;
 @@session.lc_time_names
-sr_YU
+sr_RS
 SET @@session.lc_time_names=sv_FI;
 SELECT @@session.lc_time_names;
 @@session.lc_time_names
 sv_FI
+SET @@session.lc_time_names=sr_RS;
+SELECT @@session.lc_time_names;
+@@session.lc_time_names
+sr_RS
 SET @@session.lc_time_names=sv_SE;
 SELECT @@session.lc_time_names;
 @@session.lc_time_names
@@ -900,13 +906,19 @@ SELECT @@global.lc_time_names;
 @@global.lc_time_names
 sq_AL
 SET @@global.lc_time_names=sr_YU;
+Warnings:
+Warning	1287	'sr_YU' is deprecated; use 'sr_RS' instead
 SELECT @@global.lc_time_names;
 @@global.lc_time_names
-sr_YU
+sr_RS
 SET @@global.lc_time_names=sv_FI;
 SELECT @@global.lc_time_names;
 @@global.lc_time_names
 sv_FI
+SET @@global.lc_time_names=sr_RS;
+SELECT @@global.lc_time_names;
+@@global.lc_time_names
+sr_RS
 SET @@global.lc_time_names=sv_SE;
 SELECT @@global.lc_time_names;
 @@global.lc_time_names
@@ -1006,7 +1018,11 @@ SELECT @@lc_time_names;
 @@lc_time_names
 zh_HK
 SET @@lc_time_names = 109;
-ERROR HY000: Unknown locale: '109'
+SELECT @@lc_time_names;
+@@lc_time_names
+el_GR
+SET @@lc_time_names = 110;
+ERROR HY000: Unknown locale: '110'
 '#--------------------FN_DYNVARS_060_10-------------------------#'
 SET @@lc_time_names = en_EN;
 ERROR HY000: Unknown locale: 'en_EN'

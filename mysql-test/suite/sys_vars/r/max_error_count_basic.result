@@ -35,7 +35,6 @@ SET @@global.max_error_count = 0;
 SELECT @@global.max_error_count;
 @@global.max_error_count
 0
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.max_error_count = 65535;
 SELECT @@global.max_error_count;
 @@global.max_error_count
@@ -86,8 +85,8 @@ Warning	1292	Truncated incorrect max_error_count value: '10737418241'
 SELECT @@global.max_error_count;
 @@global.max_error_count
 65535
-SET @@global.max_error_count = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_error_count = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_error_count'
 SELECT @@global.max_error_count;
 @@global.max_error_count
 65535
@@ -113,14 +112,13 @@ Warning	1292	Truncated incorrect max_error_count value: '-2'
 SELECT @@session.max_error_count;
 @@session.max_error_count
 0
-SET @@session.max_error_count = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.max_error_count = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_error_count'
 SET @@session.max_error_count = 10737418241;
 Warnings:
 SELECT @@session.max_error_count;
 @@session.max_error_count
 65535
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.max_error_count = test;
 ERROR 42000: Incorrect argument type to variable 'max_error_count'
 SELECT @@session.max_error_count;
