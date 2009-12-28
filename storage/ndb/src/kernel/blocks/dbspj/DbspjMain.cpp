@@ -3269,7 +3269,8 @@ Dbspj::parseDA(Build_context& ctx,
           DEBUG_CRASH();
           break;
         }
-        ndbout_c("Dbspj::parseDA() adding program of %d words.", len);
+        DEBUG("Dbspj::parseDA() adding interpreter program of " 
+              << len << " words.");
         
         param.ptr += len;
         /**

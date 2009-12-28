@@ -3808,6 +3808,21 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (pbound  && query->setBound(pbound)!=0)
       ERR_RETURN(query->getNdbError());
 
+    if (m_cond)
+    {
+      NdbInterpretedCode code(m_table);
+
+      if (m_cond->generate_scan_filter(&code, NULL) != 0)
+      {
+        ERR_RETURN(code.getNdbError());
+      }
+
+      if (query->getQueryOperation(0U)->setInterpretedCode(code) != 0)
+      {
+        ERR_RETURN(query->getNdbError());
+      }
+    }
+
     for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
       TABLE* tab= m_pushed_join->m_tabs[i].table;
@@ -3993,6 +4008,53 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
+
+    if (!key_info)
+    {
+      if (m_cond)
+      {
+        NdbInterpretedCode code(m_table);
+
+        if (m_cond->generate_scan_filter(&code, NULL) != 0)
+        {
+          ERR_RETURN(code.getNdbError());
+        }
+
+        if (query->getQueryOperation(0U)->setInterpretedCode(code) != 0)
+        {
+          ERR_RETURN(query->getNdbError());
+        }
+      }
+    }
+    else
+    {
+      /* Unique index scan in NDB (full table scan with scan filter) */
+      DBUG_PRINT("info", ("Starting unique index scan"));
+      if (!m_cond)
+        m_cond= new ha_ndbcluster_cond;
+      if (!m_cond)
+      {
+        my_errno= HA_ERR_OUT_OF_MEM;
+        DBUG_RETURN(my_errno);
+      }
+
+      NdbInterpretedCode code(m_table);
+      
+      if (m_cond->generate_scan_filter_from_key(&code, 
+                                                NULL, 
+                                                key_info, 
+                                                key, 
+                                                key_len, 
+                                                buf))
+      {
+        ERR_RETURN(code.getNdbError());
+      }
+      
+      if (query->getQueryOperation(0U)->setInterpretedCode(code) != 0)
+      {
+        ERR_RETURN(query->getNdbError());
+      }
+    }
 
     for (uint i = 0; i<m_pushed_join->m_count; i++)
     {
@@ -12039,6 +12101,21 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
           if (sorted && query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending))
             ERR_RETURN(query->getNdbError());
+
+          if (m_cond)
+          {
+            NdbInterpretedCode code(m_table);
+            
+            if (m_cond->generate_scan_filter(&code, NULL) != 0)
+            {
+              ERR_RETURN(code.getNdbError());
+            }
+
+            if (query->getQueryOperation(0U)->setInterpretedCode(code) != 0)
+            {
+              ERR_RETURN(query->getNdbError());
+            }
+          }
 
           for (uint i = 0; i<m_pushed_join->m_count; i++)
           {

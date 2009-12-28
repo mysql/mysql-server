@@ -958,6 +958,52 @@ NdbInterpretedCode::getWordsUsed() const
 
 }
 
+
+int 
+NdbInterpretedCode::copy(const NdbInterpretedCode& src)
+{
+  m_table_impl = src.m_table_impl;
+  m_buffer_length = src.m_buffer_length;
+
+  /**
+   * Each NdbInterpretedCode manages life cycle of m_internal_buffer.
+   */
+  if (m_internal_buffer!=NULL)
+  {
+    delete[] m_internal_buffer;
+    m_internal_buffer = NULL;
+  }
+
+  if (src.m_internal_buffer==NULL)
+  {
+    // External buffer with externaly managed life cycle.
+    m_buffer = src.m_buffer;
+  }
+  else
+  {
+    m_buffer = m_internal_buffer = new Uint32[m_buffer_length];
+    if (unlikely(m_internal_buffer==NULL))
+    {
+      return 4000; // Alllocation failed.
+    }
+    bcopy(src.m_internal_buffer, 
+          m_internal_buffer, 
+          m_buffer_length*sizeof(Uint32));
+  }
+
+  m_number_of_labels = src.m_number_of_labels;
+  m_number_of_subs = src.m_number_of_subs;
+  m_number_of_calls = src.m_number_of_calls;
+  m_last_meta_pos = src.m_last_meta_pos;
+  m_instructions_length = src.m_instructions_length;
+  m_first_sub_instruction_pos = src.m_first_sub_instruction_pos;
+  m_available_length = src.m_available_length;
+  m_flags = src.m_flags;
+  m_error = src.m_error;
+  return 0;
+}
+
+
 /* CodeMetaInfo comparator for qsort 
  * Sort order is highest numbered sub to lowest,
  * then highest numbered label to lowest

@@ -51,6 +51,7 @@ STATIC_CONST(Err_NodeFailCausedAbort = 4028);
 STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
 STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 STATIC_CONST(Err_FinaliseNotCalled = 4519);
+STATIC_CONST(Err_InterpretedCodeWrongTab = 4524);
 
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 STATIC_CONST(tupleNotFound = 0xffffffff);
@@ -490,9 +491,9 @@ NdbQueryOperation::getOrdering() const
   return m_impl.getOrdering();
 }
 
-NdbInterpretedCode* NdbQueryOperation::getCreateInterpretedCode() const
+int NdbQueryOperation::setInterpretedCode(NdbInterpretedCode& code) const
 {
-  return m_impl.getCreateInterpretedCode();
+  return m_impl.setInterpretedCode(code);
 }
 
 /////////////////////////////////////////////////
@@ -2784,7 +2785,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     attrInfo.append(m_params);    
   }
 
-  if (m_interpretedCode!=NULL)
+  if(m_interpretedCode!=NULL && m_interpretedCode->m_instructions_length>0)
   {
     requestInfo |= DABits::PI_ATTR_INTERPRET;
     const int error = getRoot().prepareScanFilter(attrInfo);
@@ -3306,19 +3307,42 @@ NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
   return 0;
 } // NdbQueryOperationImpl::setOrdering()
 
-NdbInterpretedCode* 
-NdbQueryOperationImpl::getCreateInterpretedCode()
+int NdbQueryOperationImpl::setInterpretedCode(NdbInterpretedCode& code)
 {
-  if (getQueryOperationDef().isScanOperation())
+  const NdbTableImpl& table = getQueryOperationDef().getTable();
+  // Check if operation and interpreter code use the same table
+  if (unlikely(table.getTableId() != code.getTable()->getTableId()
+               || table_version_major(table.getObjectVersion()) != 
+               table_version_major(code.getTable()->getObjectVersion())))
   {
-    if (m_interpretedCode==NULL)
+    getQuery().setErrorCodeAbort(Err_InterpretedCodeWrongTab);
+    return -1;
+  }
+
+  if (likely(getQueryOperationDef().isScanOperation()))
+  {
+    // Allocate an interpreted code object if we do not have one already.
+    if (likely(m_interpretedCode == NULL))
     {
-      m_interpretedCode = 
-        new NdbInterpretedCode(&getQueryOperationDef().getTable());
-      if (m_interpretedCode==NULL)
+      m_interpretedCode = new NdbInterpretedCode();
+
+      if (unlikely(m_interpretedCode==NULL))
       {
         getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+        return -1;
       }
+    }
+
+    /* 
+     * Make a deep copy, such that 'code' can be destroyed when this method 
+     * returns.
+     */
+    const int retVal = m_interpretedCode->copy(code);
+
+    if (unlikely(retVal!=0))
+    {
+      getQuery().setErrorCodeAbort(retVal);
+      return -1;
     }
   }
   else
@@ -3326,8 +3350,9 @@ NdbQueryOperationImpl::getCreateInterpretedCode()
     // Lookup operation
     assert(m_interpretedCode==NULL);
     getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+    return -1;
   }
-  return m_interpretedCode;
+  return 0;
 } // NdbQueryOperationImpl::getCreateInterpretedCode()
 
 int

@@ -534,6 +534,12 @@ public:
    */
   Uint32 getWordsUsed() const;
 
+  /**
+   * Makes a deep copy of 'src'
+   * @return possible error code.
+   */
+  int copy(const NdbInterpretedCode& src);
+
 private:
   friend class NdbOperation;
   friend class NdbScanOperation;
