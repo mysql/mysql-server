@@ -281,3 +281,14 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
         r = toku_get_processor_frequency_cpuinfo(hzret);
     return r;
 }
+
+#if __GNUC__ && __i386__
+
+// workaround for a gcc 4.1.2 bug on 32 bit platforms.
+uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) __attribute__((noinline));
+
+uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
+    return __sync_fetch_and_add(a, b);
+}
+
+#endif
