@@ -363,7 +363,7 @@ end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
 call p_verify_reprepare_count(0);

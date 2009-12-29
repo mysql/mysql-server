@@ -175,7 +175,34 @@ public:
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
 
+  /**
+    Is this routine being executed?
+  */
+  bool is_invoked() const { return m_flags & IS_INVOKED; }
+
+  /**
+    Get the value of the SP cache version, as remembered
+    when the routine was inserted into the cache.
+  */
+  ulong sp_cache_version() const { return m_sp_cache_version; }
+
+  /** Set the value of the SP cache version.  */
+  void set_sp_cache_version(ulong version_arg)
+  {
+    m_sp_cache_version= version_arg;
+  }
 private:
+  /**
+    Version of the stored routine cache at the moment when the
+    routine was added to it. Is used only for functions and
+    procedures, not used for triggers or events.  When sp_head is
+    created, its version is 0. When it's added to the cache, the
+    version is assigned the global value 'Cversion'.
+    If later on Cversion is incremented, we know that the routine
+    is obsolete and should not be used --
+    sp_cache_flush_obsolete() will purge it.
+  */
+  ulong m_sp_cache_version;
   Stored_program_creation_ctx *m_creation_ctx;
 
 public:
@@ -262,9 +289,6 @@ public:
   /** Set the statement-definition (body-definition) end position. */
   void
   set_stmt_end(THD *thd);
-
-  int
-  create(THD *thd);
 
   virtual ~sp_head();
 

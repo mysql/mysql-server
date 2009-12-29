@@ -980,6 +980,57 @@ void unlock_table_names(THD *thd)
 }
 
 
+/**
+  Obtain an exclusive metadata lock on the stored routine name.
+
+  @param thd         Thread handle.
+  @param is_function Stored routine type (only functions or procedures
+                     are name-locked.
+  @param db          The schema the routine belongs to.
+  @param name        Routine name.
+
+  This function assumes that no metadata locks were acquired
+  before calling it. Additionally, it cannot be called while
+  holding LOCK_open mutex. Both these invariants are enforced by
+  asserts in MDL_context::acquire_exclusive_locks().
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+                 or this connection was killed.
+*/
+
+bool lock_routine_name(THD *thd, bool is_function,
+                       const char *db, const char *name)
+{
+  MDL_key::enum_mdl_namespace mdl_type= (is_function ?
+                                         MDL_key::FUNCTION :
+                                         MDL_key::PROCEDURE);
+  MDL_request mdl_request;
+
+  if (thd->locked_tables_mode)
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    return TRUE;
+  }
+
+  DBUG_ASSERT(name);
+  DEBUG_SYNC(thd, "before_wait_locked_pname");
+
+  mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
+
+  if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+    return TRUE;
+
+  DEBUG_SYNC(thd, "after_wait_locked_pname");
+  return FALSE;
+}
+
+
 static void print_lock_error(int error, const char *table)
 {
   int textno;

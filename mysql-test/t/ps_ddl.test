@@ -278,8 +278,6 @@ deallocate prepare stmt;
 
 --echo # Test 7-a: dependent PROCEDURE has changed
 --echo #
---echo # Note, this scenario is not supported, subject of Bug#12093
---echo #
 
 create table t1 (a int);
 create trigger t1_ai after insert on t1 for each row
@@ -291,11 +289,10 @@ execute stmt using @var;
 drop procedure p1;
 create procedure p1 (a int) begin end;
 set @var= 2;
---error ER_SP_DOES_NOT_EXIST
 execute stmt using @var;
 --echo # Cleanup
 drop procedure p1;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 
 --echo # Test 7-b: dependent FUNCTION has changed
 --echo #
@@ -355,11 +352,13 @@ set @var=8;
 --echo # XXX: bug, the SQL statement in the trigger is still
 --echo # pointing at table 't3', since the view was expanded
 --echo # at first statement execution.
+--echo # Since the view definition is inlined in the statement
+--echo # at prepare, changing the view definition does not cause 
+--echo # repreparation.
 --echo # Repreparation of the main statement doesn't cause repreparation
 --echo # of trigger statements.
---error ER_NO_SUCH_TABLE
 execute stmt using @var;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 --echo #
 --echo # Sic: the insert went into t3, even though the view now
 --echo # points at t2. This is because neither the merged view

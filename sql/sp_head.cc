@@ -511,7 +511,10 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_recursion_level(0), m_next_cached_sp(0),
+   m_flags(0),
+   m_sp_cache_version(0),
+   m_recursion_level(0),
+   m_next_cached_sp(0),
    m_cont_level(0)
 {
   const LEX_STRING str_reset= { NULL, 0 };
@@ -726,16 +729,6 @@ create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
   DBUG_RETURN(result);
 }
 
-
-int
-sp_head::create(THD *thd)
-{
-  DBUG_ENTER("sp_head::create");
-  DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
-		      m_type, m_name.str, m_params.str, m_body.str));
-
-  DBUG_RETURN(sp_create_routine(thd, m_type, this));
-}
 
 sp_head::~sp_head()
 {

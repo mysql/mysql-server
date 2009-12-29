@@ -1271,7 +1271,7 @@ private:
 
 /**
   A context of open_tables() function, used to recover
-  from a failed open_table() attempt.
+  from a failed open_table() or open_routine() attempt.
 
   Implemented in sql_base.cc.
 */
@@ -1288,13 +1288,14 @@ public:
   };
   Open_table_context(THD *thd);
 
-  bool recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *tables);
+  bool recover_from_failed_open(THD *thd, MDL_request *mdl_request,
+                                TABLE_LIST *table);
   bool request_backoff_action(enum_open_table_action action_arg);
 
   void add_request(MDL_request *request)
   { m_mdl_requests.push_front(request); }
 
-  bool can_recover_from_failed_open_table() const
+  bool can_recover_from_failed_open() const
   { return m_action != OT_NO_ACTION; }
   bool can_deadlock() const { return m_can_deadlock; }
 private:
