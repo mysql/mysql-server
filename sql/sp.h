@@ -43,7 +43,13 @@ sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
 int
-sp_cache_routine(THD *thd, int type, sp_name *name, sp_head **sp);
+sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                 bool lookup_only, sp_head **sp);
+
+
+int
+sp_cache_routine(THD *thd, int type, sp_name *name,
+                 bool lookup_only, sp_head **sp);
 
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
@@ -88,6 +94,16 @@ public:
     statement uses routine both via view and directly.
   */
   TABLE_LIST *belong_to_view;
+  /**
+    This is for prepared statement validation purposes.
+    A statement looks up and pre-loads all its stored functions
+    at prepare. Later on, if a function is gone from the cache,
+    execute may fail.
+    Remember the version of sp_head at prepare to be able to
+    invalidate the prepared statement at execute if it
+    changes.
+  */
+  ulong m_sp_cache_version;
 };
 
 

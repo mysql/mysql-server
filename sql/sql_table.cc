@@ -21,6 +21,7 @@
 #include <myisam.h>
 #include <my_dir.h>
 #include "sp_head.h"
+#include "sp.h"
 #include "sql_trigger.h"
 #include "sql_show.h"
 #include "transaction.h"
@@ -5010,6 +5011,23 @@ send_result_message:
     trans_commit_implicit(thd);
     close_thread_tables(thd);
     table->table=0;				// For query cache
+
+    /*
+      If it is CHECK TABLE v1, v2, v3, and v1, v2, v3 are views, we will run
+      separate open_tables() for each CHECK TABLE argument.
+      Right now we do not have a separate method to reset the prelocking
+      state in the lex to the state after parsing, so each open will pollute
+      this state: add elements to lex->srotuines_list, TABLE_LISTs to
+      lex->query_tables. Below is a lame attempt to recover from this
+      pollution.
+      @todo: have a method to reset a prelocking context, or use separate
+      contexts for each open.
+    */
+    for (Sroutine_hash_entry *rt=
+           (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+         rt; rt= rt->next)
+      rt->mdl_request.ticket= NULL;
+
     if (protocol->write())
       goto err;
   }

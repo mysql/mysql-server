@@ -753,6 +753,11 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   */
   thd->clear_current_stmt_binlog_row_based();
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        sp->m_db.str, sp->m_name.str))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   saved_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
 
@@ -919,7 +924,10 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     ret= SP_OK;
     if (table->file->ha_write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
-    else if (mysql_bin_log.is_open())
+    if (ret == SP_OK)
+      sp_cache_invalidate();
+
+    if (ret == SP_OK && mysql_bin_log.is_open())
     {
       thd->clear_error();
 
@@ -948,7 +956,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
                         FALSE, FALSE, 0);
       thd->variables.sql_mode= 0;
     }
-
   }
 
 done:
@@ -994,6 +1001,11 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   */
   thd->clear_current_stmt_binlog_row_based();
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        name->m_db.str, name->m_name.str))
+    DBUG_RETURN(SP_DELETE_ROW_FAILED);
+
   if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
@@ -1006,6 +1018,20 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   {
     write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
+
+    /*
+      A lame workaround for lack of cache flush:
+      make sure the routine is at least gone from the
+      local cache.
+    */
+    {
+      sp_head *sp;
+      sp_cache **spc= (type  == TYPE_ENUM_FUNCTION ?
+                       &thd->sp_func_cache : &thd->sp_proc_cache);
+      sp= sp_cache_lookup(spc, name);
+      if (sp)
+        sp_cache_flush_obsolete(spc, &sp);
+    }
   }
 
   close_thread_tables(thd);
@@ -1041,6 +1067,12 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
+
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        name->m_db.str, name->m_name.str))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The flag will be reset at the end of the
@@ -1052,6 +1084,30 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
+    if (type == TYPE_ENUM_FUNCTION && ! trust_function_creators &&
+        mysql_bin_log.is_open() &&
+        (chistics->daccess == SP_CONTAINS_SQL ||
+         chistics->daccess == SP_MODIFIES_SQL_DATA))
+    {
+      char *ptr;
+      bool is_deterministic;
+      ptr= get_field(thd->mem_root,
+                     table->field[MYSQL_PROC_FIELD_DETERMINISTIC]);
+      if (ptr == NULL)
+      {
+        ret= SP_INTERNAL_ERROR;
+        goto err;
+      }
+      is_deterministic= ptr[0] == 'N' ? FALSE : TRUE;
+      if (!is_deterministic)
+      {
+        my_message(ER_BINLOG_UNSAFE_ROUTINE,
+                   ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
+        ret= SP_INTERNAL_ERROR;
+        goto err;
+      }
+    }
+
     store_record(table,record[1]);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
@@ -1077,7 +1133,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     sp_cache_invalidate();
   }
-
+err:
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -1161,10 +1217,7 @@ err:
 bool
 sp_show_create_routine(THD *thd, int type, sp_name *name)
 {
-  bool err_status= TRUE;
   sp_head *sp;
-  sp_cache **cache = type == TYPE_ENUM_PROCEDURE ?
-                     &thd->sp_proc_cache : &thd->sp_func_cache;
 
   DBUG_ENTER("sp_show_create_routine");
   DBUG_PRINT("enter", ("name: %.*s",
@@ -1174,28 +1227,29 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
 
-  if (type == TYPE_ENUM_PROCEDURE)
+  /*
+    @todo: Consider using prelocking for this code as well. Currently
+    SHOW CREATE PROCEDURE/FUNCTION is a dirty read of the data
+    dictionary, i.e. takes no metadata locks.
+    It is "safe" to do as long as it doesn't affect the results
+    of the binary log or the query cache, which currently it does not.
+  */
+  if (sp_cache_routine(thd, type, name, FALSE, &sp))
+    DBUG_RETURN(TRUE);
+
+  if (sp == NULL || sp->show_create_routine(thd, type))
   {
     /*
-       SHOW CREATE PROCEDURE may require two instances of one sp_head
-       object when SHOW CREATE PROCEDURE is called for the procedure that
-       is being executed. Basically, there is no actual recursion, so we
-       increase the recursion limit for this statement (kind of hack).
-
-       SHOW CREATE FUNCTION does not require this because SHOW CREATE
-       statements are prohibitted within stored functions.
-     */
-
-    thd->variables.max_sp_recursion_depth++;
+      If we have insufficient privileges, pretend the routine
+      does not exist.
+    */
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+             type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE",
+             name->m_name.str);
+    DBUG_RETURN(TRUE);
   }
 
-  if ((sp= sp_find_routine(thd, type, name, cache, FALSE)))
-    err_status= sp->show_create_routine(thd, type);
-
-  if (type == TYPE_ENUM_PROCEDURE)
-    thd->variables.max_sp_recursion_depth--;
-
-  DBUG_RETURN(err_status);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1451,6 +1505,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn);
     prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
+    rn->m_sp_cache_version= 0;
     return TRUE;
   }
   return FALSE;
@@ -1597,40 +1652,80 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 
 
 /**
+  A helper wrapper around sp_cache_routine() to use from
+  prelocking until 'sp_name' is eradicated as a class.
+*/
+
+int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                     bool lookup_only, sp_head **sp)
+{
+  char qname_buff[NAME_LEN*2+1+1];
+  sp_name name(&rt->mdl_request.key, qname_buff);
+  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
+  int type= ((mdl_type == MDL_key::FUNCTION) ?
+             TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE);
+
+  /*
+    Check that we have an MDL lock on this routine, unless it's a top-level
+    CALL. The assert below should be unambiguous: the first element
+    in sroutines_list has an MDL lock unless it's a top-level call, or a
+    trigger, but triggers can't occur here (see the preceding assert).
+  */
+  DBUG_ASSERT(rt->mdl_request.ticket ||
+              rt == (Sroutine_hash_entry*) thd->lex->sroutines_list.first);
+
+  return sp_cache_routine(thd, type, &name, lookup_only, sp);
+}
+
+
+/**
   Ensure that routine is present in cache by loading it from the mysql.proc
-  table if needed. Emit an appropriate error if there was a problem during
+  table if needed. If the routine is present but old, reload it.
+  Emit an appropriate error if there was a problem during
   loading.
 
   @param[in]  thd   Thread context.
   @param[in]  type  Type of object (TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE).
   @param[in]  name  Name of routine.
+  @param[in]  lookup_only Only check that the routine is in the cache.
+                    If it's not, don't try to load. If it is present,
+                    but old, don't try to reload.
   @param[out] sp    Pointer to sp_head object for routine, NULL if routine was
-                    not found,
+                    not found.
 
   @retval 0      Either routine is found and was succesfully loaded into cache
                  or it does not exist.
   @retval non-0  Error while loading routine from mysql,proc table.
 */
 
-int sp_cache_routine(THD *thd, int type, sp_name *name, sp_head **sp)
+int sp_cache_routine(THD *thd, int type, sp_name *name,
+                     bool lookup_only, sp_head **sp)
 {
   int ret= 0;
+  sp_cache **spc= (type == TYPE_ENUM_FUNCTION ?
+                   &thd->sp_func_cache : &thd->sp_proc_cache);
 
   DBUG_ENTER("sp_cache_routine");
 
   DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
 
-  if (!(*sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
-                              &thd->sp_func_cache : &thd->sp_proc_cache),
-                             name)))
+
+  *sp= sp_cache_lookup(spc, name);
+
+  if (lookup_only)
+    DBUG_RETURN(SP_OK);
+
+  if (*sp)
   {
-    switch ((ret= db_find_routine(thd, type, name, sp)))
-    {
+    sp_cache_flush_obsolete(spc, sp);
+    if (*sp)
+      DBUG_RETURN(SP_OK);
+  }
+
+  switch ((ret= db_find_routine(thd, type, name, sp)))
+  {
     case SP_OK:
-      if (type == TYPE_ENUM_FUNCTION)
-        sp_cache_insert(&thd->sp_func_cache, *sp);
-      else
-        sp_cache_insert(&thd->sp_proc_cache, *sp);
+      sp_cache_insert(spc, *sp);
       break;
     case SP_KEY_NOT_FOUND:
       ret= SP_OK;
@@ -1669,7 +1764,6 @@ int sp_cache_routine(THD *thd, int type, sp_name *name, sp_head **sp)
         my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), n, ret);
       }
       break;
-    }
   }
   DBUG_RETURN(ret);
 }
