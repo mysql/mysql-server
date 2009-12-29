@@ -1447,7 +1447,7 @@ static int pbxt_commit(handlerton *hton, THD *thd, bool all)
 	XTThreadPtr	self;
 
 	if ((self = (XTThreadPtr) *thd_ha_data(thd, hton))) {
-		XT_PRINT1(self, "pbxt_commit all=%d\n", all);
+		XT_PRINT2(self, "%s pbxt_commit all=%d\n", all ? "END CONN XACT" : "END STAT", all);
 
 		if (self->st_xact_data) {
 			/* There are no table locks, commit immediately in all cases
@@ -1479,7 +1479,7 @@ static int pbxt_rollback(handlerton *hton, THD *thd, bool all)
 	XTThreadPtr	self;
 
 	if ((self = (XTThreadPtr) *thd_ha_data(thd, hton))) {
-		XT_PRINT1(self, "pbxt_rollback all=%d in pbxt_commit\n", all);
+		XT_PRINT2(self, "%s pbxt_rollback all=%d\n", all ? "CONN END XACT" : "STAT END", all);
 
 		if (self->st_xact_data) {
 			/* There are no table locks, rollback immediately in all cases
@@ -1543,7 +1543,7 @@ static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
 			 * except when this is a statement commit with an explicit
 			 * transaction (!all && !self->st_auto_commit).
 			 */
-			if (all) {
+			if (all || self->st_auto_commit) {
 				XID xid;
 
 				XT_PRINT0(self, "xt_xn_prepare in pbxt_prepare\n");
@@ -2625,26 +2625,7 @@ int ha_pbxt::write_row(byte *buf)
 	}
 #endif
 
-	/* GOTCHA: I have a huge problem with the transaction statement.
-	 * It is not ALWAYS committed (I mean ha_commit_trans() is
-	 * not always called - for example in SELECT).
-	 *
-	 * If I call trans_register_ha() but ha_commit_trans() is not called
-	 * then MySQL thinks a transaction is still running (while
-	 * I have committed the auto-transaction in ha_pbxt::external_lock()).
-	 *
-	 * This causes all kinds of problems, like transactions
-	 * are killed when they should not be.
-	 *
-	 * To prevent this, I only inform MySQL that a transaction
-	 * has beens started when an update is performed. I have determined that
-	 * ha_commit_trans() is only guarenteed to be called if an update is done. 
-	 */
-	if (!pb_open_tab->ot_thread->st_stat_trans) {
-		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
-		XT_PRINT0(pb_open_tab->ot_thread, "ha_pbxt::write_row trans_register_ha all=FALSE\n");
-		pb_open_tab->ot_thread->st_stat_trans = TRUE;
-	}
+	/* {START-STAT-HACK} previously position of start statement hack. */
 
 	xt_xlog_check_long_writer(pb_open_tab->ot_thread);
 
@@ -2735,11 +2716,7 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 	XT_DISABLED_TRACE(("UPDATE tx=%d val=%d\n", (int) self->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(&new_data[1])));
 	//statistic_increment(ha_update_count,&LOCK_status);
 
-	if (!self->st_stat_trans) {
-		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
-		XT_PRINT0(self, "ha_pbxt::update_row trans_register_ha all=FALSE\n");
-		self->st_stat_trans = TRUE;
-	}
+	/* {START-STAT-HACK} previously position of start statement hack. */
 
 	xt_xlog_check_long_writer(self);
 
@@ -2826,11 +2803,7 @@ int ha_pbxt::delete_row(const byte * buf)
 	}
 #endif
 
-	if (!pb_open_tab->ot_thread->st_stat_trans) {
-		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
-		XT_PRINT0(pb_open_tab->ot_thread, "ha_pbxt::delete_row trans_register_ha all=FALSE\n");
-		pb_open_tab->ot_thread->st_stat_trans = TRUE;
-	}
+	/* {START-STAT-HACK} previously position of start statement hack. */
 
 	xt_xlog_check_long_writer(pb_open_tab->ot_thread);
 
@@ -3160,15 +3133,12 @@ int ha_pbxt::index_init(uint idx, bool XT_UNUSED(sorted))
 
 		printf("index_init %s index %d cols req=%d/%d read_bits=%X write_bits=%X index_bits=%X\n", pb_open_tab->ot_table->tab_name->ps_path, (int) idx, pb_open_tab->ot_cols_req, pb_open_tab->ot_cols_req, (int) *table->read_set->bitmap, (int) *table->write_set->bitmap, (int) *ind->mi_col_map.bitmap);
 #endif
+		/* {START-STAT-HACK} previously position of start statement hack,
+		 * previous comment to code below: */
 		/* Start a statement based transaction as soon
 		 * as a read is done for a modify type statement!
 		 * Previously, this was done too late!
 		 */
-		if (!thread->st_stat_trans) {
-			trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
-			XT_PRINT0(thread, "ha_pbxt::update_row trans_register_ha all=FALSE\n");
-			thread->st_stat_trans = TRUE;
-		}
 	}
 	else {
 		pb_open_tab->ot_cols_req = ha_get_max_bit(table->read_set);
@@ -3617,15 +3587,12 @@ int ha_pbxt::rnd_init(bool scan)
 	/* The number of columns required: */
 	if (pb_open_tab->ot_is_modify) {
 		pb_open_tab->ot_cols_req = table->read_set->MX_BIT_SIZE();
+		/* {START-STAT-HACK} previously position of start statement hack,
+		 * previous comment to code below: */
 		/* Start a statement based transaction as soon
 		 * as a read is done for a modify type statement!
 		 * Previously, this was done too late!
 		 */
-		if (!thread->st_stat_trans) {
-			trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
-			XT_PRINT0(thread, "ha_pbxt::update_row trans_register_ha all=FALSE\n");
-			thread->st_stat_trans = TRUE;
-		}
 	}
 	else {
 		pb_open_tab->ot_cols_req = ha_get_max_bit(table->read_set);
@@ -4636,7 +4603,7 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			cont_(b);
 		}
 
-		/* See (***) */
+		/* See {IS-UPDATE-STAT} */
 		self->st_is_update = FALSE;
 
 		/* Auto begin a transaction (if one is not already running): */
@@ -4665,7 +4632,7 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			}
 
 			/*
-			 * (**) GOTCHA: trans_register_ha() is not mentioned in the documentation.
+			 * {START-TRANS} GOTCHA: trans_register_ha() is not mentioned in the documentation.
 			 * It must be called to inform MySQL that we have a transaction (see start_stmt).
 			 *
 			 * Here are some tests that confirm whether things are done correctly:
@@ -4703,8 +4670,44 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			 */
 			if (!self->st_auto_commit) {
 				trans_register_ha(thd, TRUE, pbxt_hton);
-				XT_PRINT0(self, "ha_pbxt::external_lock trans_register_ha all=TRUE\n");
+				XT_PRINT0(self, "CONN START XACT - ha_pbxt::external_lock --> trans_register_ha\n");
 			}
+		}
+
+		/* Start a statment transaction: */
+		/* {START-STAT-HACK} The problem that ha_commit_trans() is not
+		 * called by MySQL seems to be fixed (tests confirm this).
+		 * Here is the previous comment when this code was execute 
+		 * here {START-STAT-HACK}
+		 *
+		 * GOTCHA: I have a huge problem with the transaction statement.
+		 * It is not ALWAYS committed (I mean ha_commit_trans() is
+		 * not always called - for example in SELECT).
+		 *
+		 * If I call trans_register_ha() but ha_commit_trans() is not called
+		 * then MySQL thinks a transaction is still running (while
+		 * I have committed the auto-transaction in ha_pbxt::external_lock()).
+		 *
+		 * This causes all kinds of problems, like transactions
+		 * are killed when they should not be.
+		 *
+		 * To prevent this, I only inform MySQL that a transaction
+		 * has beens started when an update is performed. I have determined that
+		 * ha_commit_trans() is only guarenteed to be called if an update is done.
+		 * --------
+		 *
+		 * So, this is the correct place to start a statement transaction.
+		 *
+		 * Note: if trans_register_ha() is not called before ha_write_row(), then 
+		 * PBXT is not registered correctly as a modification transaction.
+		 * (mark_trx_read_write call in ha_write_row).
+		 * This leads to 2-phase commit not being called as it should when
+		 * binary logging is enabled.
+		 */
+		if (!pb_open_tab->ot_thread->st_stat_trans) {
+			trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
+			XT_PRINT0(pb_open_tab->ot_thread, "STAT START - ha_pbxt::external_lock --> trans_register_ha\n");
+			pb_open_tab->ot_thread->st_stat_trans = TRUE;
 		}
 
 		if (lock_type == F_WRLCK || self->st_xact_mode < XT_XACT_REPEATABLE_READ)
@@ -4831,7 +4834,7 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
 		}
 	}
 
-	/* (***) This is required at this level!
+	/* {IS-UPDATE-STAT} This is required at this level!
 	 * No matter how often it is called, it is still the start of a
 	 * statement. We need to make sure statements that are NOT mistaken
 	 * for different type of statement.
@@ -4846,7 +4849,7 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
 	 */
 	self->st_is_update = FALSE;
 
-	/* See comment (**) */
+	/* See comment {START-TRANS} */
 	if (!self->st_xact_data) {
 		self->st_xact_mode = thd_tx_isolation(thd) <= ISO_READ_COMMITTED ? XT_XACT_COMMITTED_READ : XT_XACT_REPEATABLE_READ;
 		self->st_ignore_fkeys = (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) != 0;
@@ -4863,8 +4866,15 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
 		}
 		if (!self->st_auto_commit) {
 			trans_register_ha(thd, TRUE, pbxt_hton);
-			XT_PRINT0(self, "ha_pbxt::start_stmt trans_register_ha all=TRUE\n");
+			XT_PRINT0(self, "START CONN XACT - ha_pbxt::start_stmt --> trans_register_ha\n");
 		}
+	}
+
+	/* Start a statment (see {START-STAT-HACK}): */
+	if (!pb_open_tab->ot_thread->st_stat_trans) {
+		trans_register_ha(pb_mysql_thd, FALSE, pbxt_hton);
+		XT_PRINT0(pb_open_tab->ot_thread, "START STAT - ha_pbxt::start_stmt --> trans_register_ha\n");
+		pb_open_tab->ot_thread->st_stat_trans = TRUE;
 	}
 
 	if (pb_open_tab->ot_for_update || self->st_xact_mode < XT_XACT_REPEATABLE_READ)
