@@ -975,7 +975,7 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   THD *thd= table->in_use;
   enum_check_fields tmp= thd->count_cuted_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
-  ulong sql_mode= thd->variables.sql_mode;
+  ulonglong sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
@@ -5259,9 +5259,7 @@ int Item_null::save_safe_in_field(Field *field)
 int Item::save_in_field(Field *field, bool no_conversions)
 {
   int error;
-  if (result_type() == STRING_RESULT ||
-      (result_type() == REAL_RESULT &&
-       field->result_type() == STRING_RESULT))
+  if (result_type() == STRING_RESULT)
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;
@@ -5279,6 +5277,15 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(result->ptr(),result->length(),cs);
     str_value.set_quick(0, 0, cs);
+  }
+  else if (result_type() == REAL_RESULT &&
+           field->result_type() == STRING_RESULT)
+  {
+    double nr= val_real();
+    if (null_value)
+      return set_field_to_null_with_conversions(field, no_conversions);
+    field->set_notnull();
+    error= field->store(nr);
   }
   else if (result_type() == REAL_RESULT)
   {

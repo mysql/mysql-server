@@ -68,12 +68,11 @@
 #include "atomic/nolock.h"
 #endif
 
-#ifndef MY_ATOMIC_NOLOCK
+#ifndef make_atomic_cas_body
 /* nolock.h was not able to generate even a CAS function, fall back */
 #include "atomic/rwlock.h"
 #endif
 
-#ifndef MY_ATOMICS_MADE
 /* define missing functions by using the already generated ones */
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)                                 \
@@ -287,7 +286,6 @@ make_atomic_store(ptr)
 #undef make_atomic_load_body
 #undef make_atomic_store_body
 #undef make_atomic_fas_body
-#endif
 #undef intptr
 
 /*

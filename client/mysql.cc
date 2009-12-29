@@ -100,7 +100,7 @@ extern "C" {
 #define vidattr(A) {}			// Can't get this to work
 #endif
 
-#ifdef FN_NO_CASE_SENCE
+#ifdef FN_NO_CASE_SENSE
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
 #else
 #define cmp_database(cs,A,B) strcmp((A),(B))
@@ -3652,7 +3652,7 @@ static void print_warnings()
   mysql_store_result_for_lazy(&result);
 
   /* Bail out when no warnings */
-  if (!(num_rows= mysql_num_rows(result)))
+  if (!result || !(num_rows= mysql_num_rows(result)))
     goto end;
 
   cur= mysql_fetch_row(result);

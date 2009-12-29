@@ -1,0 +1,19 @@
+#
+# show the global and session values;
+#
+select @@global.large_pages;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.large_pages;
+show global variables like 'large_pages';
+show session variables like 'large_pages';
+select * from information_schema.global_variables where variable_name='large_pages';
+select * from information_schema.session_variables where variable_name='large_pages';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global large_pages=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session large_pages=1;
+

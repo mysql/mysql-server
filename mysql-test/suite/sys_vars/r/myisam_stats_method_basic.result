@@ -91,35 +91,7 @@ SELECT @@global.myisam_stats_method;
 @@global.myisam_stats_method
 nulls_ignored
 SET @@global.myisam_stats_method = 0.4;
-SELECT @@global.myisam_stats_method;
-@@global.myisam_stats_method
-nulls_unequal
-SET @@global.myisam_stats_method = 1.0;
-SELECT @@global.myisam_stats_method;
-@@global.myisam_stats_method
-nulls_equal
-SET @@global.myisam_stats_method = 1.1;
-SELECT @@global.myisam_stats_method;
-@@global.myisam_stats_method
-nulls_equal
-SET @@global.myisam_stats_method = 1.5;
-SELECT @@global.myisam_stats_method;
-@@global.myisam_stats_method
-nulls_ignored
-SET @@global.myisam_stats_method = 2.49;
-SELECT @@global.myisam_stats_method;
-@@global.myisam_stats_method
-nulls_ignored
-SET @@session.myisam_stats_method = 0.5;
-SELECT @@session.myisam_stats_method;
-@@session.myisam_stats_method
-nulls_equal
-SET @@session.myisam_stats_method = 1.6;
-SELECT @@session.myisam_stats_method;
-@@session.myisam_stats_method
-nulls_ignored
-'Bug# 34877: Decimal values can be used within the range [0.0-2.5). Values';
-'are rounded to 0,1,2 as evident from outcome.';
+ERROR 42000: Incorrect argument type to variable 'myisam_stats_method'
 SET @@global.myisam_stats_method = 3;
 ERROR 42000: Variable 'myisam_stats_method' can't be set to the value of '3'
 '#---------------------FN_DYNVARS_097_08----------------------#'

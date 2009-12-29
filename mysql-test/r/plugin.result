@@ -1,6 +1,6 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 Warnings:
-Warning	1286	Unknown table engine 'EXAMPLE'
+Warning	1286	Unknown storage engine 'EXAMPLE'
 Warning	1266	Using storage engine MyISAM for table 't1'
 DROP TABLE t1;
 INSTALL PLUGIN example SONAME 'ha_example.so';
@@ -34,7 +34,7 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
 SET GLOBAL example_enum_var= impossible;
-ERROR 42000: Variable 'enum_var' can't be set to the value of 'impossible'
+ERROR 42000: Variable 'example_enum_var' can't be set to the value of 'impossible'
 UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 select @@session.sql_mode into @old_sql_mode;
@@ -45,7 +45,7 @@ select @@global.example_ulong_var;
 500
 set global example_ulong_var=1111;
 Warnings:
-Warning	1292	Truncated incorrect ulong_var value: '1111'
+Warning	1292	Truncated incorrect example_ulong_var value: '1111'
 select @@global.example_ulong_var;
 @@global.example_ulong_var
 1000
@@ -55,7 +55,7 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 500
 set global example_ulong_var=1111;
-ERROR 42000: Variable 'ulong_var' can't be set to the value of '1111'
+ERROR 42000: Variable 'example_ulong_var' can't be set to the value of '1111'
 select @@global.example_ulong_var;
 @@global.example_ulong_var
 500

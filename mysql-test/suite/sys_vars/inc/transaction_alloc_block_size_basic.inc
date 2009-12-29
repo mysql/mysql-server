@@ -82,7 +82,6 @@ SELECT @@global.transaction_alloc_block_size;
 
 SET @@global.transaction_alloc_block_size = 4294967295;
 SELECT @@global.transaction_alloc_block_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ###################################################################
@@ -97,7 +96,6 @@ SELECT @@session.transaction_alloc_block_size;
 
 SET @@session.transaction_alloc_block_size = 65535;
 SELECT @@session.transaction_alloc_block_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
@@ -114,8 +112,6 @@ SELECT @@global.transaction_alloc_block_size;
 
 SET @@global.transaction_alloc_block_size = 123456789201;
 SELECT @@global.transaction_alloc_block_size;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.transaction_alloc_block_size = ON;
@@ -142,8 +138,6 @@ SELECT @@global.transaction_alloc_block_size;
 
 SET @@session.transaction_alloc_block_size = 12345678901;
 SELECT @@session.transaction_alloc_block_size;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.transaction_alloc_block_size = ON;
