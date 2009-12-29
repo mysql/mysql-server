@@ -2111,6 +2111,9 @@ void broadcast_refresh(void);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd);
 
+/* Lock based on stored routine name */
+bool lock_routine_name(THD *thd, bool is_function, const char *db,
+                       const char *name);
 
 /* old unireg functions */
 

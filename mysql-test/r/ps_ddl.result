@@ -269,8 +269,6 @@ Part 7: TABLE -> TABLE (TRIGGER dependencies) transitions
 =====================================================================
 # Test 7-a: dependent PROCEDURE has changed
 #
-# Note, this scenario is not supported, subject of Bug#12093
-#
 create table t1 (a int);
 create trigger t1_ai after insert on t1 for each row
 call p1(new.a);
@@ -282,10 +280,9 @@ drop procedure p1;
 create procedure p1 (a int) begin end;
 set @var= 2;
 execute stmt using @var;
-ERROR 42000: PROCEDURE test.p1 does not exist
 # Cleanup
 drop procedure p1;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 # Test 7-b: dependent FUNCTION has changed
@@ -361,11 +358,13 @@ set @var=8;
 # XXX: bug, the SQL statement in the trigger is still
 # pointing at table 't3', since the view was expanded
 # at first statement execution.
+# Since the view definition is inlined in the statement
+# at prepare, changing the view definition does not cause 
+# repreparation.
 # Repreparation of the main statement doesn't cause repreparation
 # of trigger statements.
 execute stmt using @var;
-ERROR 42S02: Table 'test.t3' doesn't exist
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 #
@@ -382,6 +381,7 @@ select * from t3;
 a
 6
 7
+8
 flush table t1;
 set @var=9;
 execute stmt using @var;
@@ -396,6 +396,7 @@ select * from t3;
 a
 6
 7
+8
 drop view v1;
 drop table t1,t2,t3;
 # Test 7-d: dependent TABLE has changed

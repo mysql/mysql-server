@@ -21,6 +21,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #include "sql_trigger.h"
 #include "transaction.h"
 #include "sql_prepare.h"
@@ -3480,6 +3481,66 @@ check_and_update_table_version(THD *thd,
 
 
 /**
+  Compares versions of a stored routine obtained from the sp cache
+  and the version used at prepare.
+
+  @details If the new and the old values mismatch, invoke
+  Metadata_version_observer.
+  At prepared statement prepare, all Sroutine_hash_entry version values
+  are NULL and we always have a mismatch. But there is no observer set
+  in THD, and therefore no error is reported. Instead, we update
+  the value in Sroutine_hash_entry, effectively recording the original
+  version.
+  At prepared statement execute, an observer may be installed.  If
+  there is a version mismatch, we push an error and return TRUE.
+
+  For conventional execution (no prepared statements), the
+  observer is never installed.
+
+  @param[in]      thd         used to report errors
+  @param[in/out]  rt          pointer to stored routine entry in the
+                              parse tree
+  @param[in]      sp          pointer to stored routine cache entry.
+                              Can be NULL if there is no such routine.
+  @retval  TRUE  an error, which has been reported
+  @retval  FALSE success, version in Sroutine_hash_entry has been updated
+*/
+
+static bool
+check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
+                                 sp_head *sp)
+{
+  ulong spc_version= sp_cache_version();
+  /* sp is NULL if there is no such routine. */
+  ulong version= sp ? sp->sp_cache_version() : spc_version;
+  /*
+    If the version in the parse tree is stale,
+    or the version in the cache is stale and sp is not used,
+    we need to reprepare.
+    Sic: version != spc_version <--> sp is not NULL.
+  */
+  if (rt->m_sp_cache_version != version ||
+      (version != spc_version && !sp->is_invoked()))
+  {
+    if (thd->m_reprepare_observer &&
+        thd->m_reprepare_observer->report_error(thd))
+    {
+      /*
+        Version of the sp cache is different from the
+        previous execution of the prepared statement, and it is
+        unacceptable for this SQLCOM. Error has been reported.
+      */
+      DBUG_ASSERT(thd->is_error());
+      return TRUE;
+    }
+    /* Always maintain the latest cache version. */
+    rt->m_sp_cache_version= version;
+  }
+  return FALSE;
+}
+
+
+/**
    Open view by getting its definition from disk (and table cache in future).
 
    @param thd               Thread handle
@@ -3696,13 +3757,16 @@ request_backoff_action(enum_open_table_action action_arg)
 
 
 /**
-   Recover from failed attempt ot open table by performing requested action.
+   Recover from failed attempt of open table by performing requested action.
 
    @param  thd     Thread context
-   @param  table   Table list element for table that caused problem
-   @param  action  Type of action requested by failed open_table() call
+   @param  mdl_request MDL_request of the object that caused the problem.
+   @param  table   Optional (can be NULL). Used only if action is OT_REPAIR.
+                   In that case a TABLE_LIST for the table to be repaired.
+                   @todo: It's unnecessary and should be removed.
 
-   @pre This function should be called only with "action" != OT_NO_ACTION.
+   @pre This function should be called only with "action" != OT_NO_ACTION
+        and after having called @sa close_tables_for_reopen().
 
    @retval FALSE - Success. One should try to open tables once again.
    @retval TRUE  - Error
@@ -3710,7 +3774,8 @@ request_backoff_action(enum_open_table_action action_arg)
 
 bool
 Open_table_context::
-recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table)
+recover_from_failed_open(THD *thd, MDL_request *mdl_request,
+                         TABLE_LIST *table)
 {
   bool result= FALSE;
   /* Execute the action. */
@@ -3723,14 +3788,20 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table)
       break;
     case OT_DISCOVER:
       {
-        MDL_request mdl_xlock_request(&table->mdl_request);
+        MDL_request mdl_xlock_request(mdl_request);
         mdl_xlock_request.set_type(MDL_EXCLUSIVE);
         if ((result=
              thd->mdl_context.acquire_exclusive_lock(&mdl_xlock_request)))
           break;
+
+        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         pthread_mutex_lock(&LOCK_open);
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
-        ha_create_table_from_engine(thd, table->db, table->table_name);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                         mdl_request->key.db_name(),
+                         mdl_request->key.name());
+        ha_create_table_from_engine(thd,
+                                    mdl_request->key.db_name(),
+                                    mdl_request->key.name());
         pthread_mutex_unlock(&LOCK_open);
 
         thd->warning_info->clear_warning_info(thd->query_id);
@@ -3740,14 +3811,17 @@ recover_from_failed_open_table_attempt(THD *thd, TABLE_LIST *table)
       }
     case OT_REPAIR:
       {
-        MDL_request mdl_xlock_request(&table->mdl_request);
+        MDL_request mdl_xlock_request(mdl_request);
         mdl_xlock_request.set_type(MDL_EXCLUSIVE);
         if ((result=
              thd->mdl_context.acquire_exclusive_lock(&mdl_xlock_request)))
           break;
 
+        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         pthread_mutex_lock(&LOCK_open);
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                         mdl_request->key.db_name(),
+                         mdl_request->key.name());
         pthread_mutex_unlock(&LOCK_open);
 
         result= auto_repair_table(thd, table);
@@ -3808,7 +3882,11 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
   @param[in]  prelocking_strategy  Strategy which specifies how the
                                    prelocking set should be extended when
                                    one of its elements is processed.
-  @param[out] need_prelocking      Set to TRUE  if it was detected that this
+  @param[in]  has_prelocking_list  Indicates that prelocking set/list for
+                                   this statement has already been built.
+  @param[in]  ot_ctx               Context of open_table used to recover from
+                                   locking failures.
+  @param[out] need_prelocking      Set to TRUE if it was detected that this
                                    statement will require prelocked mode for
                                    its execution, not touched otherwise.
 
@@ -3820,32 +3898,99 @@ static bool
 open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                          Sroutine_hash_entry *rt,
                          Prelocking_strategy *prelocking_strategy,
+                         bool has_prelocking_list,
+                         Open_table_context *ot_ctx,
                          bool *need_prelocking)
 {
+  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
   DBUG_ENTER("open_and_process_routine");
 
-  switch (rt->mdl_request.key.mdl_namespace())
+  switch (mdl_type)
   {
   case MDL_key::FUNCTION:
   case MDL_key::PROCEDURE:
     {
-      char qname_buff[NAME_LEN*2+1+1];
-      sp_name name(&rt->mdl_request.key, qname_buff);
       sp_head *sp;
-      int type= (rt->mdl_request.key.mdl_namespace() == MDL_key::FUNCTION) ?
-                TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE;
-
-      if (sp_cache_routine(thd, type, &name, &sp))
-        DBUG_RETURN(TRUE);
-
-      if (sp)
+      /*
+        Try to get MDL lock on the routine.
+        Note that we do not take locks on top-level CALLs as this can
+        lead to a deadlock. Not locking top-level CALLs does not break
+        the binlog as only the statements in the called procedure show
+        up there, not the CALL itself.
+      */
+      if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+          mdl_type != MDL_key::PROCEDURE)
       {
-        prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
-                                            need_prelocking);
+        ot_ctx->add_request(&rt->mdl_request);
+        if (thd->mdl_context.try_acquire_shared_lock(&rt->mdl_request))
+          DBUG_RETURN(TRUE);
+
+        if (rt->mdl_request.ticket == NULL)
+        {
+          /* A lock conflict. Someone's trying to modify SP metadata. */
+          ot_ctx->request_backoff_action(Open_table_context::OT_WAIT);
+          DBUG_RETURN(TRUE);
+        }
+        DEBUG_SYNC(thd, "after_shared_lock_pname");
+
+        /* Ensures the routine is up-to-date and cached, if exists. */
+        if (sp_cache_routine(thd, rt, has_prelocking_list, &sp))
+          DBUG_RETURN(TRUE);
+
+        /* Remember the version of the routine in the parse tree. */
+        if (check_and_update_routine_version(thd, rt, sp))
+          DBUG_RETURN(TRUE);
+
+        /* 'sp' is NULL when there is no such routine. */
+        if (sp && !has_prelocking_list)
+        {
+          prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
+                                              need_prelocking);
+        }
+      }
+      else
+      {
+        /*
+          If it's a top level call, just make sure we have a recent
+          version of the routine, if it exists.
+          Validating routine version is unnecessary, since CALL
+          does not affect the prepared statement prelocked list.
+        */
+        sp_cache_routine(thd, rt, FALSE, &sp);
       }
     }
     break;
   case MDL_key::TRIGGER:
+    /**
+      We add trigger entries to lex->sroutines_list, but we don't
+      load them here. The trigger entry is only used when building
+      a transitive closure of objects used in a statement, to avoid
+      adding to this closure objects that are used in the trigger more
+      than once.
+      E.g. if a trigger trg refers to table t2, and the trigger table t1
+      is used multiple times in the statement (say, because it's used in
+      function f1() twice), we will only add t2 once to the list of
+      tables to prelock.
+
+      We don't take metadata locks on triggers either: they are protected
+      by a respective lock on the table, on which the trigger is defined.
+
+      The only two cases which give "trouble" are SHOW CREATE TRIGGER
+      and DROP TRIGGER statements. For these, statement syntax doesn't
+      specify the table on which this trigger is defined, so we have
+      to make a "dirty" read in the data dictionary to find out the
+      table name. Once we discover the table name, we take a metadata
+      lock on it, and this protects all trigger operations.
+      Of course the table, in theory, may disappear between the dirty
+      read and metadata lock acquisition, but in that case we just return
+      a run-time error.
+
+      Grammar of other trigger DDL statements (CREATE, DROP) requires
+      the table to be specified explicitly, so we use the table metadata
+      lock to protect trigger metadata in these statements. Similarly, in
+      DML we always use triggers together with their tables, and thus don't
+      need to take separate metadata locks on them.
+    */
     break;
   default:
     /* Impossible type value. */
@@ -3965,7 +4110,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
 
   if (error)
   {
-    if (! ot_ctx->can_recover_from_failed_open_table() && safe_to_ignore_table)
+    if (! ot_ctx->can_recover_from_failed_open() && safe_to_ignore_table)
     {
       DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
                           tables->db, tables->alias));
@@ -4150,7 +4295,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   Open_table_context ot_ctx(thd);
   bool error= FALSE;
   MEM_ROOT new_frm_mem;
-  bool has_prelocking_list= thd->lex->requires_prelocking();
+  bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
   /*
@@ -4172,7 +4317,8 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
- restart:
+restart:
+  has_prelocking_list= thd->lex->requires_prelocking();
   table_to_open= start;
   sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
   *counter= 0;
@@ -4184,7 +4330,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   */
   while (*table_to_open  ||
          (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-          ! has_prelocking_list &&
           *sroutine_to_open))
   {
     /*
@@ -4201,7 +4346,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
 
       if (error)
       {
-        if (ot_ctx.can_recover_from_failed_open_table())
+        if (ot_ctx.can_recover_from_failed_open())
         {
           /*
             We have met exclusive metadata lock or old version of table.
@@ -4220,12 +4365,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
           */
           TABLE_LIST *failed_table= *table_to_open;
           close_tables_for_reopen(thd, start);
+
           /*
             Here we rely on the fact that 'tables' still points to the valid
             TABLE_LIST element. Altough currently this assumption is valid
             it may change in future.
           */
-          if (ot_ctx.recover_from_failed_open_table_attempt(thd, failed_table))
+          if (ot_ctx.recover_from_failed_open(thd, &failed_table->mdl_request,
+                                              failed_table))
             goto err;
 
           error= FALSE;
@@ -4239,8 +4386,11 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
       If we are not already in prelocked mode and extended table list is
       not yet built for our statement we need to cache routines it uses
       and build the prelocking list for it.
+      If we are not in prelocked mode but have built the extended table
+      list, we still need to call open_and_process_routine() to take
+      MDL locks on the routines.
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES && ! has_prelocking_list)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
       bool need_prelocking= FALSE;
       TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
@@ -4256,12 +4406,21 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
       for (Sroutine_hash_entry *rt= *sroutine_to_open; rt;
            sroutine_to_open= &rt->next, rt= rt->next)
       {
-        error= open_and_process_routine(thd, thd->lex, rt,
-                                        prelocking_strategy,
+        error= open_and_process_routine(thd, thd->lex, rt, prelocking_strategy,
+                                        has_prelocking_list, &ot_ctx,
                                         &need_prelocking);
 
         if (error)
         {
+          if (ot_ctx.can_recover_from_failed_open())
+          {
+            close_tables_for_reopen(thd, start);
+            if (ot_ctx.recover_from_failed_open(thd, &rt->mdl_request, NULL))
+              goto err;
+
+            error= FALSE;
+            goto restart;
+          }
           /*
             Serious error during reading stored routines from mysql.proc table.
             Something is wrong with the table or its contents, and an error has
@@ -4666,7 +4825,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
 retry:
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, 0)) &&
-         ot_ctx.can_recover_from_failed_open_table())
+         ot_ctx.can_recover_from_failed_open())
   {
     /* We can't back off with an open HANDLER, we don't wait with locks. */
     DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
@@ -4677,7 +4836,8 @@ retry:
     */
     thd->mdl_context.release_transactional_locks();
     table_list->mdl_request.ticket= 0;
-    if (ot_ctx.recover_from_failed_open_table_attempt(thd, table_list))
+    if (ot_ctx.recover_from_failed_open(thd, &table_list->mdl_request,
+                                        table_list))
       break;
   }
 
@@ -5242,11 +5402,18 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
   if (first_not_own_table == *tables)
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
+  /* Reset MDL tickets for procedures/functions */
+  for (Sroutine_hash_entry *rt=
+         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+       rt; rt= rt->next)
+    rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
   for (tmp= *tables; tmp; tmp= tmp->next_global)
   {
     tmp->table= 0;
     tmp->mdl_request.ticket= NULL;
+    /* We have to cleanup translation tables of views. */
+    tmp->cleanup_items();
   }
   /*
     Metadata lock requests for tables from extended part of prelocking set
@@ -8363,6 +8530,10 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     MDL_request_list::Iterator it(*mdl_requests);
     while ((mdl_request= it++))
     {
+      /* Skip requests on non-TDC objects. */
+      if (mdl_request->key.mdl_namespace() != MDL_key::TABLE)
+        continue;
+
       if ((share= get_cached_table_share(mdl_request->key.db_name(),
                                          mdl_request->key.name())) &&
           share->version != refresh_version)

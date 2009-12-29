@@ -723,7 +723,7 @@ lock table t1 read|
 # This should fail since we forgot to lock mysql.proc for writing
 # explicitly, and we can't open mysql.proc for _writing_ if there
 # are locked tables.
---error 1100
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 alter procedure bug9566 comment 'Some comment'|
 unlock tables|
 # This should succeed

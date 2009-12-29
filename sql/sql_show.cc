@@ -3237,7 +3237,6 @@ end_share:
 end_unlock:
   pthread_mutex_unlock(&LOCK_open);
 
-end:
   thd->mdl_context.release_lock(table_list.mdl_request.ticket);
   thd->clear_error();
   return res;

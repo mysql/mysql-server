@@ -1117,10 +1117,6 @@ reopen_tables:
     while ((item= it++))
       item->cleanup();
 
-    /* We have to cleanup translation tables of views. */
-    for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
-      tbl->cleanup_items();
-
     /*
       To not to hog memory (as a result of the 
       unit->reinit_exec_mechanism() call below):

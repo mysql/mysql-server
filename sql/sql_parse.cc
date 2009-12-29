@@ -284,14 +284,14 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
@@ -319,10 +319,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
 
@@ -1988,9 +1984,10 @@ mysql_execute_command(THD *thd)
 #endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
+    if ((res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                                   UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables);
+      goto error;
+    res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_SHOW_STATUS:
   {
@@ -3939,7 +3936,7 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto create_sp_error;
 
-    res= (sp_result= lex->sphead->create(thd));
+    res= (sp_result= sp_create_routine(thd, lex->sphead->m_type, lex->sphead));
     switch (sp_result) {
     case SP_OK: {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3949,6 +3946,16 @@ end_with_restore_list:
       bool restore_backup_context= false;
       Security_context *backup= NULL;
       LEX_USER *definer= thd->lex->definer;
+      /*
+        We're going to issue an implicit GRANT statement.
+        It takes metadata locks and updates system tables.
+        Make sure that sp_create_routine() did not leave any
+        locks in the MDL context, so there is no risk to
+        deadlock.
+      */
+      trans_commit_implicit(thd);
+      close_thread_tables(thd);
+      thd->mdl_context.release_transactional_locks();
       /*
         Check if the definer exists on slave, 
         then use definer privilege to insert routine privileges to mysql.procs_priv.
@@ -4021,7 +4028,6 @@ create_sp_error:
   case SQLCOM_CALL:
     {
       sp_head *sp;
-
       /*
         This will cache all SP and SF and open and lock all tables
         required for execution.
@@ -4117,65 +4123,22 @@ create_sp_error:
   case SQLCOM_ALTER_FUNCTION:
     {
       int sp_result;
-      sp_head *sp;
-      st_sp_chistics chistics;
+      int type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
-      memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
-      if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
-                            &thd->sp_proc_cache, FALSE);
-      else
-        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                            &thd->sp_func_cache, FALSE);
-      thd->warning_info->opt_clear_warning_info(thd->query_id);
-      if (! sp)
-      {
-	if (lex->spname->m_db.str)
-	  sp_result= SP_KEY_NOT_FOUND;
-	else
-	{
-	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-	  goto error;
-	}
-      }
-      else
-      {
-        if (check_routine_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
-				 sp->m_name.str,
-                                 lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
-	  goto error;
+      if (check_routine_access(thd, ALTER_PROC_ACL, lex->spname->m_db.str,
+                               lex->spname->m_name.str,
+                               lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
+        goto error;
 
-	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
-        if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
-            !trust_function_creators &&  mysql_bin_log.is_open() &&
-            !sp->m_chistics->detistic &&
-            (chistics.daccess == SP_CONTAINS_SQL ||
-             chistics.daccess == SP_MODIFIES_SQL_DATA))
-        {
-          my_message(ER_BINLOG_UNSAFE_ROUTINE,
-		     ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
-          sp_result= SP_INTERNAL_ERROR;
-        }
-        else
-        {
-          /*
-            Note that if you implement the capability of ALTER FUNCTION to
-            alter the body of the function, this command should be made to
-            follow the restrictions that log-bin-trust-function-creators=0
-            already puts on CREATE FUNCTION.
-          */
-          /* Conditionally writes to binlog */
-
-          int type= lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
-                    TYPE_ENUM_PROCEDURE :
-                    TYPE_ENUM_FUNCTION;
-
-          sp_result= sp_update_routine(thd,
-                                       type,
-                                       lex->spname,
-                                       &lex->sp_chistics);
-        }
-      }
+      /*
+        Note that if you implement the capability of ALTER FUNCTION to
+        alter the body of the function, this command should be made to
+        follow the restrictions that log-bin-trust-function-creators=0
+        already puts on CREATE FUNCTION.
+      */
+      /* Conditionally writes to binlog */
+      sp_result= sp_update_routine(thd, type, lex->spname, &lex->sp_chistics);
       switch (sp_result)
       {
       case SP_OK:
@@ -4199,6 +4162,12 @@ create_sp_error:
       int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
+      /*
+        @todo: here we break the metadata locking protocol by
+        looking up the information about the routine without
+        a metadata lock. Rewrite this piece to make sp_drop_routine
+        return whether the routine existed or not.
+      */
       sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
       thd->warning_info->opt_clear_warning_info(thd->query_id);
       if (sp_result == SP_OK)
@@ -4210,30 +4179,30 @@ create_sp_error:
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
 
-        if (trans_commit_implicit(thd))
-          goto error;
-
-        close_thread_tables(thd);
-
-        thd->mdl_context.release_transactional_locks();
+        /* Conditionally writes to binlog */
+        sp_result= sp_drop_routine(thd, type, lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+        /*
+          We're going to issue an implicit REVOKE statement.
+          It takes metadata locks and updates system tables.
+          Make sure that sp_create_routine() did not leave any
+          locks in the MDL context, so there is no risk to
+          deadlock.
+        */
+        trans_commit_implicit(thd);
+        close_thread_tables(thd);
+        thd->mdl_context.release_transactional_locks();
+
 	if (sp_automatic_privileges && !opt_noacl &&
-	    sp_revoke_privileges(thd, db, name, 
+	    sp_revoke_privileges(thd, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
 	{
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		       ER_PROC_AUTO_REVOKE_FAIL,
 		       ER(ER_PROC_AUTO_REVOKE_FAIL));
 	}
 #endif
-        /* Conditionally writes to binlog */
-
-        int type= lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                  TYPE_ENUM_PROCEDURE :
-                  TYPE_ENUM_FUNCTION;
-
-        sp_result= sp_drop_routine(thd, type, lex->spname);
       }
       else
       {
@@ -4292,21 +4261,13 @@ create_sp_error:
   case SQLCOM_SHOW_CREATE_PROC:
     {
       if (sp_show_create_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname))
-      {
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-                 SP_COM_STRING(lex), lex->spname->m_name.str);
-	goto error;
-      }
+        goto error;
       break;
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
       if (sp_show_create_routine(thd, TYPE_ENUM_FUNCTION, lex->spname))
-      {
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-                 SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
-      }
       break;
     }
   case SQLCOM_SHOW_PROC_CODE:
@@ -4314,13 +4275,11 @@ create_sp_error:
     {
 #ifndef DBUG_OFF
       sp_head *sp;
+      int type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE ?
+                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
-      if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
-        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
-                            &thd->sp_proc_cache, FALSE);
-      else
-        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                            &thd->sp_func_cache, FALSE);
+      if (sp_cache_routine(thd, type, lex->spname, FALSE, &sp))
+        goto error;
       if (!sp || sp->show_routine_code(thd))
       {
         /* We don't distinguish between errors for now */
@@ -5578,9 +5537,6 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
-
-    sp_cache_flush_obsolete(&thd->sp_proc_cache);
-    sp_cache_flush_obsolete(&thd->sp_func_cache);
 
     Parser_state parser_state(thd, inBuf, length);
 

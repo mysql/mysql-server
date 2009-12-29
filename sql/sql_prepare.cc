@@ -173,8 +173,6 @@ private:
     SELECT_LEX and other classes).
   */
   MEM_ROOT main_mem_root;
-  /* Version of the stored functions cache at the time of prepare. */
-  ulong m_sp_cache_version;
 private:
   bool set_db(const char *db, uint db_length);
   bool set_parameters(String *expanded_query,
@@ -2138,9 +2136,6 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
-
   thd->protocol= &thd->protocol_binary;
 
   if (stmt->prepare(packet, packet_length))
@@ -2419,6 +2414,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     tables->reinit_before_use(thd);
   }
+
+  /* Reset MDL tickets for procedures/functions */
+  for (Sroutine_hash_entry *rt=
+         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+       rt; rt= rt->next)
+    rt->mdl_request.ticket= NULL;
+
   /*
     Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
     (multi-delete).  We do a full clean up, although at the moment all we
@@ -2511,9 +2513,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 #endif
   DBUG_PRINT("exec_query", ("%s", stmt->query()));
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
-
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
 
   open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
@@ -2964,8 +2963,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_array(0),
   param_count(0),
   last_errno(0),
-  flags((uint) IS_IN_USE),
-  m_sp_cache_version(0)
+  flags((uint) IS_IN_USE)
 {
   init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
                   thd_arg->variables.query_prealloc_size);
@@ -3234,20 +3232,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     init_stmt_after_parse(lex);
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
-    /*
-      This is for prepared statement validation purposes.
-      A statement looks up and pre-loads all its stored functions
-      at prepare. Later on, if a function is gone from the cache,
-      execute may fail.
-      Remember the cache version to be able to invalidate the prepared
-      statement at execute if it changes.
-      We only need to care about version of the stored functions cache:
-      if a prepared statement uses a stored procedure, it's indirect,
-      via a stored function. The only exception is SQLCOM_CALL,
-      but the latter one looks up the stored procedure each time
-      it's invoked, rather than once at prepare.
-    */
-    m_sp_cache_version= sp_cache_version(&thd->sp_func_cache);
 
     /* 
       Log COM_EXECUTE to the general log. Note, that in case of SQL
@@ -3588,13 +3572,12 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
     is allocated in the old arena.
   */
   swap_variables(Item_param **, param_array, copy->param_array);
-  /* Swap flags: this is perhaps unnecessary */
-  swap_variables(uint, flags, copy->flags);
+  /* Don't swap flags: the copy has IS_SQL_PREPARE always set. */
+  /* swap_variables(uint, flags, copy->flags); */
   /* Swap names, the old name is allocated in the wrong memory root */
   swap_variables(LEX_STRING, name, copy->name);
   /* Ditto */
   swap_variables(char *, db, copy->db);
-  swap_variables(ulong, m_sp_cache_version, copy->m_sp_cache_version);
 
   DBUG_ASSERT(db_length == copy->db_length);
   DBUG_ASSERT(param_count == copy->param_count);
@@ -3652,19 +3635,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return TRUE;
   }
-
-  /*
-    Reprepare the statement if we're using stored functions
-    and the version of the stored routines cache has changed.
-  */
-  if (lex->uses_stored_routines() &&
-      m_sp_cache_version != sp_cache_version(&thd->sp_func_cache) &&
-      thd->m_reprepare_observer &&
-      thd->m_reprepare_observer->report_error(thd))
-  {
-    return TRUE;
-  }
-
 
   /*
     For SHOW VARIABLES lex->result is NULL, as it's a non-SELECT

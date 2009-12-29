@@ -512,7 +512,7 @@ select * from t1;
 end|
 lock table t1 read|
 alter procedure bug9566 comment 'Some comment'|
-ERROR HY000: Table 'proc' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables|
 drop procedure bug9566|
 drop procedure if exists bug7299|
