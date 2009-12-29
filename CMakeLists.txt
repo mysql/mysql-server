@@ -107,6 +107,14 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
     MESSAGE("Warning: Building MySQL with Visual Studio 2003.NET is no more supported.")
     MESSAGE("Please use a newer version of Visual Studio.")
     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
+
+    # VS2003 needs the /Op compiler option to disable floating point optimizations
+    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Op")
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Op")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Op")
+    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Op")
+    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Op")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Op")
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
 
 # Settings for Visual Studio 7 and above.  
@@ -255,7 +263,11 @@ FOREACH(SUBDIR ${STORAGE_SUBDIRS})
           SET(ENGINE_BUILD_TYPE "NONE")
         ENDIF(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
         IF (ENGINE_BUILD_TYPE STREQUAL "STATIC") 
-          SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${ENGINE_LOWER}_plugin")
+          IF(MYSQL_PLUGIN_MANDATORY)
+            SET (mysql_mandatory_plugins "${mysql_mandatory_plugins}builtin_${ENGINE_LOWER}_plugin,")
+          ELSE(MYSQL_PLUGIN_MANDATORY)
+            SET (mysql_optional_plugins "${mysql_optional_plugins}builtin_${ENGINE_LOWER}_plugin,")
+          ENDIF(MYSQL_PLUGIN_MANDATORY)
           SET (MYSQLD_STATIC_ENGINE_LIBS ${MYSQLD_STATIC_ENGINE_LIBS} ${ENGINE_LOWER})
           SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_${ENGINE}_STORAGE_ENGINE")
           SET (WITH_${ENGINE}_STORAGE_ENGINE TRUE)
@@ -274,12 +286,12 @@ ENDFOREACH(SUBDIR ${STORAGE_SUBDIRS})
 # Special handling for partition(not really pluggable)
 IF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
   SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_PARTITION_STORAGE_ENGINE")
-  SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_partition_plugin")
+  SET (mysql_optional_plugins "${mysql_optional_plugins}builtin_partition_plugin,")
 ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
 
 ADD_DEFINITIONS(${STORAGE_ENGINE_DEFS}) 
 
-# Now write out our mysql_plugin_defs struct
+# Now write out our mysql_mandatory_plugins/mysql_optional_plugins structs
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
                ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
 

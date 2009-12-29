@@ -41,13 +41,9 @@ SELECT @@global.log AS INIT_VALUE;
 
 SELECT @@log AS INIT_VALUE;
 
-SET @@global.general_log = ON;
+SET @@global.log = ON;
 
-SET global general_log = 0;
-
---echo 'Bug# 34832: log is a system but it is not accessible using SET @@global.log;'
---echo 'SET GLOBAL log; and SELECT @@global.log. SHOW VARIABLES shows the value of log.'
-
+SET global log = 0;
 
 --echo '#--------------------FN_DYNVARS_062_02-------------------------#'
 ################################################################################

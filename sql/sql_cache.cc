@@ -407,13 +407,6 @@ static void debug_wait_for_kill(const char *info)
 #define DUMP(C)
 #endif
 
-const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
-TYPELIB query_cache_type_typelib=
-{
-  array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
-};
-
-
 /**
   Serialize access to the query cache.
   If the lock cannot be granted the thread hangs in a conditional wait which
@@ -1074,12 +1067,12 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
   :query_cache_size(0),
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
-   total_blocks(0), lowmem_prunes(0),
+   total_blocks(0), lowmem_prunes(0), m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
-   initialized(0), m_query_cache_is_disabled(FALSE)
+   initialized(0)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
 		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
@@ -1548,7 +1541,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
 
-  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+  if ((thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
       (query->tables_type() & HA_CACHE_TBL_TRANSACT))
   {
     DBUG_PRINT("qcache",
@@ -1706,7 +1699,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
     DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   for (; tables_used; tables_used= tables_used->next_local)
   {
     DBUG_ASSERT(!using_transactions || tables_used->table!=0);
@@ -1791,7 +1784,7 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
     DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   if (using_transactions && 
       (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
     thd->add_changed_table(table);
@@ -1810,7 +1803,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
    DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   if (using_transactions) // used for innodb => has_transactions() is TRUE
     thd->add_changed_table(key, key_length);
   else
@@ -2159,7 +2152,7 @@ ulong Query_cache::init_cache()
 
   (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
                       query_cache_query_get_key, 0, 0);
-#ifndef FN_NO_CASE_SENCE
+#ifndef FN_NO_CASE_SENSE
   /*
     If lower_case_table_names!=0 then db and table names are already 
     converted to lower case and we can use binary collation for their 
@@ -3580,7 +3573,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
                                                 tables_type)))
       DBUG_RETURN(0);
 
-    if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+    if ((thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	((*tables_type)&HA_CACHE_TBL_TRANSACT))
     {
       DBUG_PRINT("qcache", ("not in autocommin mode"));
