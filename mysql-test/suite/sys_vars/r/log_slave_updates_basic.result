@@ -1,0 +1,21 @@
+select @@global.log_slave_updates;
+@@global.log_slave_updates
+0
+select @@session.log_slave_updates;
+ERROR HY000: Variable 'log_slave_updates' is a GLOBAL variable
+show global variables like 'log_slave_updates';
+Variable_name	Value
+log_slave_updates	OFF
+show session variables like 'log_slave_updates';
+Variable_name	Value
+log_slave_updates	OFF
+select * from information_schema.global_variables where variable_name='log_slave_updates';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLAVE_UPDATES	OFF
+select * from information_schema.session_variables where variable_name='log_slave_updates';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLAVE_UPDATES	OFF
+set global log_slave_updates=1;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable
+set session log_slave_updates=1;
+ERROR HY000: Variable 'log_slave_updates' is a read only variable

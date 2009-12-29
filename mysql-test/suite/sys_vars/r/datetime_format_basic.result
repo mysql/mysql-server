@@ -1,0 +1,21 @@
+select @@global.datetime_format;
+@@global.datetime_format
+%Y-%m-%d %H:%i:%s
+select @@session.datetime_format;
+ERROR HY000: Variable 'datetime_format' is a GLOBAL variable
+show global variables like 'datetime_format';
+Variable_name	Value
+datetime_format	%Y-%m-%d %H:%i:%s
+show session variables like 'datetime_format';
+Variable_name	Value
+datetime_format	%Y-%m-%d %H:%i:%s
+select * from information_schema.global_variables where variable_name='datetime_format';
+VARIABLE_NAME	VARIABLE_VALUE
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+select * from information_schema.session_variables where variable_name='datetime_format';
+VARIABLE_NAME	VARIABLE_VALUE
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+set global datetime_format="foo";
+ERROR HY000: Variable 'datetime_format' is a read only variable
+set session datetime_format="foo";
+ERROR HY000: Variable 'datetime_format' is a read only variable

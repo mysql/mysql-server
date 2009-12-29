@@ -109,8 +109,8 @@ SET @@global.log_warnings = 100000000000;
 SELECT @@global.log_warnings;
 SET @@global.log_warnings = -1024;
 SELECT @@global.log_warnings;
---Error ER_PARSE_ERROR
-SET @@global.log_warnings = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_warnings = 65530.34;
 SELECT @@global.log_warnings;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.log_warnings = test;
@@ -120,9 +120,8 @@ SET @@session.log_warnings = 100000000000;
 SELECT @@session.log_warnings;
 SET @@session.log_warnings = -2;
 SELECT @@session.log_warnings;
---Error ER_PARSE_ERROR
-SET @@session.log_warnings = 65530.34.;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.log_warnings = 65530.34;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.log_warnings = test;

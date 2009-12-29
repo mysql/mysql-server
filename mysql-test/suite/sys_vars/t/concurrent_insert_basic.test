@@ -67,35 +67,41 @@ SELECT @@global.concurrent_insert;
 SET @@global.concurrent_insert = 2;
 SELECT @@global.concurrent_insert;
 
+SET @@global.concurrent_insert = NEVER;
+SELECT @@global.concurrent_insert;
+SET @@global.concurrent_insert = AUTO;
+SELECT @@global.concurrent_insert;
+SET @@global.concurrent_insert = ALWAYS;
+SELECT @@global.concurrent_insert;
+
 --echo '#--------------------FN_DYNVARS_018_04-------------------------#'
 ###########################################################################
 #        Change the value of concurrent_insert to invalid value           #
 ###########################################################################
 
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = -1;
-Select @@global.concurrent_insert;
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = 100;
-Select @@global.concurrent_insert;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = TRUEF;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = TRUE_F;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = FALSE0;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = OON;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = ONN;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = OOFF;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = 0FF;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = ' ';
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = " ";
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = '';
 
 
@@ -125,9 +131,9 @@ WHERE VARIABLE_NAME='concurrent_insert';
 #        Check if ON and OFF values can be used on variable       #
 ################################################################### 
 
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = OFF;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.concurrent_insert = ON;
 
 

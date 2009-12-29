@@ -100,7 +100,7 @@ extern "C" {
 #define USE_OLD_FUNCTIONS 1
 
 /* no case sensitivity */
-#define FN_NO_CASE_SENCE 1
+#define FN_NO_CASE_SENSE 1
 
 /* the thread alarm is not used */
 #define DONT_USE_THR_ALARM 1
