@@ -206,6 +206,7 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
+  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
   for ( ; ; )
@@ -226,7 +227,7 @@ int mysql_update(THD *thd,
       break;
     if (!need_reopen)
       DBUG_RETURN(1);
-    close_tables_for_reopen(thd, &table_list);
+    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
   }
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -981,6 +982,7 @@ int mysql_multi_update_prepare(THD *thd)
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   bool need_reopen= FALSE;
+  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
@@ -1145,7 +1147,7 @@ reopen_tables:
     */
     cleanup_items(thd->free_list);
 
-    close_tables_for_reopen(thd, &table_list);
+    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
     goto reopen_tables;
   }
 

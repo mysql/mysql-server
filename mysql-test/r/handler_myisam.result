@@ -743,12 +743,13 @@ drop table t1;
 handler t1 read a next;
 ERROR 42S02: Unknown table 't1' in HANDLER
 drop table if exists t1;
-create table t1 (a int);
+create table t1 (a int, key a (a));
 insert into t1 values (1);
 handler t1 open;
 alter table t1 engine=memory;
 handler t1 read a next;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+a
+1
 handler t1 close;
 drop table t1;
 USE information_schema;
@@ -999,9 +1000,9 @@ a
 lock table t2 read;
 # --> connection con2 
 # Sending:
-drop table t2;
+rename table t2 to t3, t1 to t2, t3 to t1;
 # --> connection con1 
-# Waiting for 'drop table t2' to get blocked...
+# Waiting for 'rename table ...' to get blocked...
 # --> connection default
 handler t2 open;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
@@ -1009,23 +1010,24 @@ select * from t2;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 handler t1 open;
 commit;
-handler t2 open;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 handler t1 close;
 # --> connection con1
 unlock tables;
 # --> connection con2
-# Reaping 'drop table t2'...
+# Reaping 'rename table ...'...
 # --> connection default
 handler t1 open;
 handler t1 read a prev;
 a
 5
 handler t1 close;
+drop table t2;
 #
-# Likewise, this doesn't require a multi-statement transaction.
-# ER_LOCK_DEADLOCK is also produced when we have an open
-# HANDLER and try to acquire locks for a single statement.
+# Originally there was a deadlock error in this test.
+# With implementation of deadlock detector
+# we no longer deadlock, but block and wait on a lock.
+# The HANDLER is auto-closed as soon as the connection
+# sees a pending conflicting lock against it.
 #
 create table t2 (a int, key a (a));
 handler t1 open;
@@ -1037,13 +1039,16 @@ drop table t2;
 # --> connection con1
 # Waiting for 'drop table t2' to get blocked...
 # --> connection default
+# Sending 'select * from t2'
 select * from t2;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 # --> connection con1
+# Waiting for 'select * from t2' to get blocked...
 unlock tables;
 # --> connection con2
 # Reaping 'drop table t2'...
 # --> connection default
+# Reaping 'select * from t2'
+ERROR 42S02: Table 'test.t2' doesn't exist
 handler t1 close;
 #
 # ROLLBACK TO SAVEPOINT releases transactional locks,

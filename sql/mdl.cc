@@ -196,6 +196,7 @@ void MDL_context::init(THD *thd_arg)
     to empty the list.
   */
   m_tickets.empty();
+  m_is_waiting_in_mdl= FALSE;
 }
 
 
@@ -803,14 +804,28 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   @retval FALSE  Lock is not a shared one or no thread was woken up
 */
 
-static bool notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
+bool notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
 {
   bool woke= FALSE;
   if (conflicting_ticket->is_shared())
   {
     THD *conflicting_thd= conflicting_ticket->get_ctx()->get_thd();
     DBUG_ASSERT(thd != conflicting_thd); /* Self-deadlock */
-    woke= mysql_notify_thread_having_shared_lock(thd, conflicting_thd);
+
+    /*
+      If the thread that holds the conflicting lock is waiting
+      on an MDL lock, wake it up by broadcasting on COND_mdl.
+      Otherwise it must be waiting on a table-level lock
+      or some other non-MDL resource, so delegate its waking up
+      to an external call.
+    */
+    if (conflicting_ticket->get_ctx()->is_waiting_in_mdl())
+    {
+      pthread_cond_broadcast(&COND_mdl);
+      woke= TRUE;
+    }
+    else
+      woke= mysql_notify_thread_having_shared_lock(thd, conflicting_thd);
   }
   return woke;
 }
@@ -957,7 +972,7 @@ bool MDL_context::acquire_exclusive_locks(MDL_request_list *mdl_requests)
         to abort this thread once again.
       */
       struct timespec abstime;
-      set_timespec(abstime, 10);
+      set_timespec(abstime, 1);
       pthread_cond_timedwait(&COND_mdl, &LOCK_mdl, &abstime);
     }
     if (mysys_var->abort)
@@ -1032,6 +1047,7 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   const char *old_msg;
   st_my_thread_var *mysys_var= my_thread_var;
   THD *thd= m_ctx->get_thd();
+  MDL_ticket *pending_ticket;
 
   DBUG_ENTER("MDL_ticket::upgrade_shared_lock_to_exclusive");
   DEBUG_SYNC(thd, "mdl_upgrade_shared_lock_to_exclusive");
@@ -1045,7 +1061,21 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   /* Only allow upgrades from MDL_SHARED_UPGRADABLE */
   DBUG_ASSERT(m_type == MDL_SHARED_UPGRADABLE);
 
+  /*
+    Create an auxiliary ticket to represent a pending exclusive
+    lock and add it to the 'waiting' queue for the duration
+    of upgrade. During upgrade we abort waits of connections
+    that own conflicting locks. A pending request is used
+    to signal such connections that upon waking up they
+    must back off, rather than fall into sleep again.
+  */
+  if (! (pending_ticket= MDL_ticket::create(m_ctx, MDL_EXCLUSIVE)))
+    DBUG_RETURN(TRUE);
+
   pthread_mutex_lock(&LOCK_mdl);
+
+  pending_ticket->m_lock= m_lock;
+  m_lock->waiting.push_front(pending_ticket);
 
   old_msg= MDL_ENTER_COND(thd, mysys_var);
 
@@ -1088,6 +1118,30 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
     MDL_ticket *conflicting_ticket;
     MDL_lock::Ticket_iterator it(m_lock->granted);
 
+    /*
+      A temporary work-around to avoid deadlocks/livelocks in
+      a situation when in one connection ALTER TABLE tries to
+      upgrade its metadata lock and in another connection
+      the active transaction already got this lock in some
+      of its earlier statements.
+      In such case this transaction always succeeds with getting
+      a metadata lock on the table -- it already has one.
+      But later on it may block on the table level lock, since ALTER
+      got TL_WRITE_ALLOW_READ, and subsequently get aborted
+      by notify_shared_lock().
+      An abort will lead to a back off, and a second attempt to
+      get an MDL lock (successful), and a table lock (-> livelock).
+
+      The call below breaks this loop by forcing transactions to call
+      tdc_wait_for_old_versions() (even if the transaction doesn't need
+      any new metadata locks), which in turn will check if someone
+      is waiting on the owned MDL lock, and produce ER_LOCK_DEADLOCK.
+
+      TODO: Long-term such deadlocks/livelock will be resolved within
+            MDL subsystem and thus this call will become unnecessary.
+    */
+    mysql_abort_transactions_with_shared_lock(&m_lock->key);
+
     while ((conflicting_ticket= it++))
     {
       if (conflicting_ticket->m_ctx != m_ctx)
@@ -1108,12 +1162,15 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
         to abort this thread once again.
       */
       struct timespec abstime;
-      set_timespec(abstime, 10);
+      set_timespec(abstime, 1);
       DBUG_PRINT("info", ("Failed to wake-up from table-level lock ... sleeping"));
       pthread_cond_timedwait(&COND_mdl, &LOCK_mdl, &abstime);
     }
     if (mysys_var->abort)
     {
+      /* Remove and destroy the auxiliary pending ticket. */
+      m_lock->waiting.remove(pending_ticket);
+      MDL_ticket::destroy(pending_ticket);
       /* Pending requests for shared locks can be satisfied now. */
       pthread_cond_broadcast(&COND_mdl);
       MDL_EXIT_COND(thd, mysys_var, old_msg);
@@ -1124,6 +1181,11 @@ MDL_ticket::upgrade_shared_lock_to_exclusive()
   m_lock->type= MDL_lock::MDL_LOCK_EXCLUSIVE;
   /* Set the new type of lock in the ticket. */
   m_type= MDL_EXCLUSIVE;
+
+  /* Remove and destroy the auxiliary pending ticket. */
+  m_lock->waiting.remove(pending_ticket);
+  MDL_ticket::destroy(pending_ticket);
+
   if (m_lock->cached_object)
     (*m_lock->cached_object_release_hook)(m_lock->cached_object);
   m_lock->cached_object= 0;
@@ -1240,6 +1302,59 @@ bool MDL_context::acquire_global_shared_lock()
 
 
 /**
+  Check if there are any pending exclusive locks which conflict
+  with shared locks held by this thread.
+
+  @pre The caller already has acquired LOCK_mdl.
+
+  @return TRUE   If there are any pending conflicting locks.
+          FALSE  Otherwise.
+*/
+
+bool MDL_context::can_wait_lead_to_deadlock_impl() const
+{
+  Ticket_iterator ticket_it(m_tickets);
+  MDL_ticket *ticket;
+
+  while ((ticket= ticket_it++))
+  {
+    /*
+      In MySQL we never call this method while holding exclusive or
+      upgradeable shared metadata locks.
+      Otherwise we would also have to check for the presence of pending
+      requests for conflicting types of global lock.
+      In addition MDL_ticket::has_pending_conflicting_lock_impl()
+      won't work properly for exclusive type of lock.
+    */
+    DBUG_ASSERT(! ticket->is_upgradable_or_exclusive());
+
+    if (ticket->has_pending_conflicting_lock_impl())
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
+  Implement a simple deadlock detection heuristic: check if there
+  are any pending exclusive locks which conflict with shared locks
+  held by this thread. In that case waiting can be circular,
+  i.e. lead to a deadlock.
+
+  @return TRUE if there are any conflicting locks, FALSE otherwise.
+*/
+
+bool MDL_context::can_wait_lead_to_deadlock() const
+{
+  bool result;
+  pthread_mutex_lock(&LOCK_mdl);
+  result= can_wait_lead_to_deadlock_impl();
+  pthread_mutex_unlock(&LOCK_mdl);
+  return result;
+}
+
+
+/**
   Wait until there will be no locks that conflict with lock requests
   in the given list.
 
@@ -1249,7 +1364,7 @@ bool MDL_context::acquire_global_shared_lock()
   Does not acquire the locks!
 
   @retval FALSE  Success. One can try to obtain metadata locks.
-  @retval TRUE   Failure (thread was killed)
+  @retval TRUE   Failure (thread was killed or deadlock is possible).
 */
 
 bool
@@ -1278,6 +1393,26 @@ MDL_context::wait_for_locks(MDL_request_list *mdl_requests)
     mysql_ha_flush(m_thd);
     pthread_mutex_lock(&LOCK_mdl);
     old_msg= MDL_ENTER_COND(m_thd, mysys_var);
+
+    /*
+      In cases when we wait while still holding some metadata
+      locks deadlocks are possible.
+      To avoid them we use the following simple empiric - don't
+      wait for new lock request to be satisfied if for one of the
+      locks which are already held by this connection there is
+      a conflicting request (i.e. this connection should not wait
+      if someone waits for it).
+      This empiric should work well (e.g. give low number of false
+      negatives) in situations when conflicts are rare (in our
+      case this is true since DDL statements should be rare).
+    */
+    if (can_wait_lead_to_deadlock_impl())
+    {
+      MDL_EXIT_COND(m_thd, mysys_var, old_msg);
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      return TRUE;
+    }
+
     it.rewind();
     while ((mdl_request= it++))
     {
@@ -1301,7 +1436,9 @@ MDL_context::wait_for_locks(MDL_request_list *mdl_requests)
       MDL_EXIT_COND(m_thd, mysys_var, old_msg);
       break;
     }
+    m_is_waiting_in_mdl= TRUE;
     pthread_cond_wait(&COND_mdl, &LOCK_mdl);
+    m_is_waiting_in_mdl= FALSE;
     /* As a side-effect MDL_EXIT_COND() unlocks LOCK_mdl. */
     MDL_EXIT_COND(m_thd, mysys_var, old_msg);
   }
@@ -1550,21 +1687,38 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
   existing shared lock.
 
   @pre The ticket must match an acquired lock.
+  @pre The caller already has acquired LOCK_mdl.
 
-  @param ticket Shared lock against which check should be performed.
+  @return TRUE if there is a conflicting lock request, FALSE otherwise.
+*/
 
-  @return TRUE if there are any conflicting locks, FALSE otherwise.
+bool MDL_ticket::has_pending_conflicting_lock_impl() const
+{
+  DBUG_ASSERT(is_shared());
+  safe_mutex_assert_owner(&LOCK_mdl);
+
+  return !m_lock->waiting.is_empty();
+}
+
+
+/**
+  Check if we have any pending exclusive locks which conflict with
+  existing shared lock.
+
+  @pre The ticket must match an acquired lock.
+
+  @return TRUE if there is a pending conflicting lock request,
+          FALSE otherwise.
 */
 
 bool MDL_ticket::has_pending_conflicting_lock() const
 {
   bool result;
 
-  DBUG_ASSERT(is_shared());
   safe_mutex_assert_not_owner(&LOCK_open);
 
   pthread_mutex_lock(&LOCK_mdl);
-  result= !m_lock->waiting.is_empty();
+  result= has_pending_conflicting_lock_impl();
   pthread_mutex_unlock(&LOCK_mdl);
   return result;
 }

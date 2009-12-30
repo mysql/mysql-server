@@ -132,11 +132,11 @@ public:
 template <typename T, typename B>
 class I_P_List_iterator
 {
-  I_P_List<T, B> *list;
+  const I_P_List<T, B> *list;
   T *current;
 public:
-  I_P_List_iterator(I_P_List<T, B> &a) : list(&a), current(a.first) {}
-  I_P_List_iterator(I_P_List<T, B> &a, T* current_arg) : list(&a), current(current_arg) {}
+  I_P_List_iterator(const I_P_List<T, B> &a) : list(&a), current(a.first) {}
+  I_P_List_iterator(const I_P_List<T, B> &a, T* current_arg) : list(&a), current(current_arg) {}
   inline void init(I_P_List<T, B> &a)
   {
     list= &a;

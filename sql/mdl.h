@@ -300,6 +300,8 @@ private:
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
+
+  bool has_pending_conflicting_lock_impl() const;
 };
 
 
@@ -380,10 +382,19 @@ public:
   void release_transactional_locks();
   void rollback_to_savepoint(MDL_ticket *mdl_savepoint);
 
+  bool can_wait_lead_to_deadlock() const;
+
   inline THD *get_thd() const { return m_thd; }
+  
+  bool is_waiting_in_mdl() const { return m_is_waiting_in_mdl; }
 private:
   Ticket_list m_tickets;
   bool m_has_global_shared_lock;
+  /**
+    Indicates that the owner of this context is waiting in
+    wait_for_locks() method.
+  */
+  bool m_is_waiting_in_mdl;
   /**
     This member has two uses:
     1) When entering LOCK TABLES mode, remember the last taken
@@ -397,6 +408,7 @@ private:
   THD *m_thd;
 private:
   void release_ticket(MDL_ticket *ticket);
+  bool can_wait_lead_to_deadlock_impl() const;
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_lt_or_ha);
   void release_locks_stored_before(MDL_ticket *sentinel);
@@ -413,6 +425,7 @@ void mdl_destroy();
 
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use);
 extern void mysql_ha_flush(THD *thd);
+extern void mysql_abort_transactions_with_shared_lock(const MDL_key *mdl_key);
 extern "C" const char *set_thd_proc_info(THD *thd, const char *info,
                                          const char *calling_function,
                                          const char *calling_file,
