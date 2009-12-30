@@ -2941,7 +2941,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                            table, res, db_name,
                                            table_name));
    thd->temporary_tables= 0;
-   close_tables_for_reopen(thd, &show_table_list);
+   close_tables_for_reopen(thd, &show_table_list, NULL);
    DBUG_RETURN(error);
 }
 
@@ -3500,7 +3500,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               res= schema_table->process_table(thd, show_table_list, table,
                                                res, &orig_db_name,
                                                &tmp_lex_string);
-              close_tables_for_reopen(thd, &show_table_list);
+              close_tables_for_reopen(thd, &show_table_list, NULL);
             }
             DBUG_ASSERT(!lex->query_tables_own_last);
             if (res)

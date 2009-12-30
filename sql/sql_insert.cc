@@ -2530,7 +2530,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
               aborted. Try to reopen table and if it fails die.
             */
             TABLE_LIST *tl_ptr = &di->table_list;
-            close_tables_for_reopen(thd, &tl_ptr);
+            close_tables_for_reopen(thd, &tl_ptr, NULL);
             di->table= 0;
             if (di->open_and_lock_table())
             {

@@ -125,16 +125,15 @@ drop temporary table t1;
 #
 # For that, start a transaction, use a routine. In a concurrent
 # connection, try to drop or alter the routine. It should place
-# a pending or exlusive lock and block. In a concurrnet
-# connection, try to use the routine under LOCK TABLES. 
-# That should yield ER_LOCK_DEADLOCK.
+# a pending or exclusive lock and block. In another concurrnet
+# connection, try to use the routine.
+# That should block on the pending exclusive lock.
 #
 # Establish helper connections.
 #
 # Test DROP PROCEDURE.
 #
 # --> connection default
-create table t1 (a int);
 create procedure p1() begin end;
 create function f1() returns int 
 begin
@@ -151,14 +150,17 @@ drop procedure p1;
 # --> connection con2 
 # Waitng for 'drop procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'drop procedure p1'...
+# --> connection con2
+# Reaping 'select f1()'
+ERROR 42000: PROCEDURE test.p1 does not exist
 # --> connection default
 #
 # Test CREATE PROCEDURE.
@@ -174,17 +176,22 @@ create procedure p1() begin end;
 # --> connection con2 
 # Waitng for 'create procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'create procedure p1'...
 ERROR 42000: PROCEDURE p1 already exists
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
 # 
 # Test ALTER PROCEDURE.
+#
 begin;
 select f1();
 f1()
@@ -195,14 +202,18 @@ alter procedure p1 contains sql;
 # --> connection con2 
 # Waitng for 'alter procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'alter procedure p1'...
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
 # --> connection default
 #
 # Test DROP FUNCTION.
@@ -217,14 +228,17 @@ drop function f1;
 # --> connection con2 
 # Waitng for 'drop function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'drop function f1'...
+# --> connection con2
+# Reaping 'select f1()'
+ERROR 42000: FUNCTION test.f1 does not exist
 # --> connection default
 #
 # Test CREATE FUNCTION.
@@ -240,18 +254,23 @@ create function f1() returns int return 2;
 # --> connection con2 
 # Waitng for 'create function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'create function f1'...
 ERROR 42000: FUNCTION f1 already exists
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
 # --> connection default
 # 
 # Test ALTER FUNCTION.
+# 
 begin;
 select f1();
 f1()
@@ -262,14 +281,18 @@ alter function f1 contains sql;
 # --> connection con2 
 # Waitng for 'alter function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
+# Sending 'select f1()'...
 select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-unlock tables;
+# --> connection con3
+# Waitng for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
 # Reaping 'alter function f1'...
+# --> connection con2
+# Reaping 'select f1()'
+f1()
+1
 # --> connection default
 drop function f1;
 drop procedure p1;
@@ -283,6 +306,7 @@ drop procedure p1;
 #
 create procedure p1() begin end;
 create procedure p2() begin end;
+create table t1 (a int);
 create procedure p3()
 begin
 call p1();
@@ -415,36 +439,11 @@ drop table t1, t2;
 # acquisition of a shared lock fails during a transaction or
 # we need to back off to flush the sp cache.
 #
-# a) A back off due to a lock conflict.
-#
-create table t1 (a int);
-create function f1() returns int return 6;
-begin;
-select f1();
-f1()
-6
-# --> connection con1
-# Sending 'drop function f1'...
-drop function f1;
-# --> connection con2
-# Waitng for 'drop function f1' to get blocked on MDL lock...
-begin;
-select * from t1;
-a
-select f1();
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-commit;
-# --> connection default
-commit;
-# --> connection con1
-# Reaping 'drop function f1'...
-# --> connection default
-#
-# b) A back off to flush the cache.
 # Sic: now this situation does not require a back off since we
 # flush the cache on the fly.
 #
 create function f1() returns int return 7;
+create table t1 (a int);
 begin;
 select * from t1;
 a
@@ -691,6 +690,7 @@ drop function f1;
 set @@session.max_sp_recursion_depth=default;
 # --> connection con1
 # --> connection con2
+# --> connection con3
 # --> connection default
 #
 # End of 5.5 tests

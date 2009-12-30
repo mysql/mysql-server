@@ -1297,18 +1297,29 @@ public:
 
   bool can_recover_from_failed_open() const
   { return m_action != OT_NO_ACTION; }
-  bool can_deadlock() const { return m_can_deadlock; }
+
+  /**
+    When doing a back-off, we close all tables acquired by this
+    statement.  Return an MDL savepoint taken at the beginning of
+    the statement, so that we can rollback to it before waiting on
+    locks.
+  */
+  MDL_ticket *start_of_statement_svp() const
+  {
+    return m_start_of_statement_svp;
+  }
 private:
   /** List of requests for all locks taken so far. Used for waiting on locks. */
   MDL_request_list m_mdl_requests;
   /** Back off action. */
   enum enum_open_table_action m_action;
+  MDL_ticket *m_start_of_statement_svp;
   /**
     Whether we had any locks when this context was created.
     If we did, they are from the previous statement of a transaction,
     and we can't safely do back-off (and release them).
   */
-  bool m_can_deadlock;
+  bool m_has_locks;
 };
 
 

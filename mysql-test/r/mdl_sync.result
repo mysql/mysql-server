@@ -20,6 +20,220 @@ ERROR 42S02: Unknown table 't1'
 drop table t3;
 SET DEBUG_SYNC= 'RESET';
 #
+# Test coverage for basic deadlock detection in metadata
+# locking subsystem.
+#
+drop tables if exists t1, t2, t3, t4;
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+create table t4 (k int);
+#
+# Test for the case in which no deadlock occurs.
+#
+#
+# Switching to connection 'deadlock_con1'.
+begin;
+insert into t1 values (1);
+#
+# Switching to connection 'deadlock_con2'.
+begin;
+insert into t2 values (1);
+#
+# Switching to connection 'default'.
+# Send:
+rename table t2 to t0, t3 to t2, t0 to t3;;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait until the above RENAME TABLE is blocked because it has to wait
+# for 'deadlock_con2' which holds shared metadata lock on 't2'.
+# The below statement should wait for exclusive metadata lock
+# on 't2' to go away and should not produce ER_LOCK_DEADLOCK
+# as no deadlock is possible in this situation.
+# Send:
+select * from t2;;
+#
+# Switching to connection 'deadlock_con2'.
+# Wait until the above SELECT * FROM t2 is starts waiting
+# for an exclusive metadata lock to go away.
+#
+# Unblock RENAME TABLE by releasing shared metadata lock on t2.
+commit;
+#
+# Switching to connection 'default'.
+# Reap RENAME TABLE.
+#
+# Switching to connection 'deadlock_con1'.
+# Reap SELECT.
+k
+#
+# Switching to connection 'default'.
+#
+# Let us check that in the process of waiting for conflicting lock
+# on table 't2' to go away transaction in connection 'deadlock_con1'
+# has not released metadata lock on table 't1'.
+# Send:
+rename table t1 to t0, t3 to t1, t0 to t3;;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait until the above RENAME TABLE is blocked because it has to wait
+# for 'deadlock_con1' which should still hold shared metadata lock on
+# table 't1'.
+# Commit transaction to unblock RENAME TABLE.
+commit;
+#
+# Switching to connection 'default'.
+# Reap RENAME TABLE.
+#
+# Test for case when deadlock occurs and should be detected immediately.
+#
+#
+# Switching to connection 'deadlock_con1'.
+begin;
+insert into t1 values (2);
+#
+# Switching to connection 'default'.
+# Send:
+rename table t2 to t0, t1 to t2, t0 to t1;;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait until the above RENAME TABLE is blocked because it has to wait
+# for 'deadlock_con1' which holds shared metadata lock on 't1'.
+# 
+# The below statement should not wait as doing so will cause deadlock.
+# Instead it should fail and emit ER_LOCK_DEADLOCK statement.
+select * from t2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+#
+# Let us check that failure of the above statement has not released
+# metadata lock on table 't1', i.e. that RENAME TABLE is still blocked.
+# Commit transaction to unblock RENAME TABLE.
+commit;
+#
+# Switching to connection 'default'.
+# Reap RENAME TABLE.
+#
+# Test for the case in which deadlock also occurs but not immediately.
+#
+#
+# Switching to connection 'deadlock_con1'.
+begin;
+insert into t1 values (1);
+#
+# Switching to connection 'deadlock_con2'.
+begin;
+insert into t3 values (1);
+#
+# Switching to connection 'default'.
+# Send:
+rename table t2 to t0, t3 to t2, t0 to t3;;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait until the above RENAME TABLE is blocked because it has to wait
+# for 'deadlock_con2' which holds shared metadata lock on 't3'.
+# The below SELECT statement should wait for metadata lock
+# on table 't2' and should not produce ER_LOCK_DEADLOCK
+# immediately as no deadlock is possible at the moment.
+select * from t2;;
+#
+# Switching to connection 'deadlock_con3'.
+# Wait until the above SELECT * FROM t2 is starts waiting
+# for an exclusive metadata lock to go away.
+# Send RENAME TABLE statement that will deadlock with the
+# SELECT statement and thus should abort the latter.
+rename table t1 to t0, t2 to t1, t0 to t2;;
+#
+# Switching to connection 'deadlock_con1'.
+# Since the latest RENAME TABLE entered in deadlock with SELECT
+# statement the latter should be aborted and emit ER_LOCK_DEADLOCK
+# error.
+# Reap SELECT * FROM t2.
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+#
+# Again let us check that failure of the SELECT statement has not
+# released metadata lock on table 't1', i.e. that the latest RENAME
+# is blocked.
+# Commit transaction to unblock this RENAME TABLE.
+commit;
+#
+# Switching to connection 'deadlock_con3'.
+# Reap RENAME TABLE t1 TO t0 ... .
+#
+# Switching to connection 'deadlock_con2'.
+# Commit transaction to unblock the first RENAME TABLE.
+commit;
+#
+# Switching to connection 'default'.
+# Reap RENAME TABLE t2 TO t0 ... .
+drop tables t1, t2, t3, t4;
+#
+# Now, test case which shows that deadlock detection empiric
+# also takes into account requests for metadata lock upgrade.
+#
+create table t1 (i int);
+#
+# Switching to connection 'deadlock_con1'.
+begin;
+insert into t1 values (1);
+#
+# Switching to connection 'default'.
+# Send:
+alter table t1 add column j int, rename to t2;;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait until the above ALTER TABLE ... RENAME acquires exclusive
+# metadata lock on 't2' and starts waiting for connection
+# 'deadlock_con1' which holds shared lock on 't1'.
+# The below statement should not wait as it will cause deadlock.
+# An appropriate error should be reported instead.
+select * from t2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Again let us check that failure of the above statement has not
+# released all metadata locks in connection 'deadlock_con1' and
+# so ALTER TABLE ... RENAME is still blocked.
+# Commit transaction to unblock ALTER TABLE ... RENAME.
+commit;
+#
+# Switching to connection 'default'.
+# Reap ALTER TABLE ... RENAME.
+drop table t2;
+#
+# Finally, test case in which deadlock (or potentially livelock) occurs
+# between metadata locking subsystem and table definition cache/table
+# locks, but which should still be detected by our empiric.
+#
+create table t1 (i int);
+#
+# Switching to connection 'deadlock_con1'.
+begin;
+insert into t1 values (1);
+#
+# Switching to connection 'default'.
+lock tables t1 write;
+#
+# Switching to connection 'deadlock_con1'.
+# Send:
+insert into t1 values (2);;
+#
+# Switching to connection 'default'.
+# Wait until INSERT in connection 'deadlock_con1' is blocked on
+# table-level lock.
+# Send:
+alter table t1 add column j int;;
+#
+# Switching to connection 'deadlock_con1'.
+# The above ALTER TABLE statement should cause INSERT statement in
+# this connection to be aborted and emit ER_LOCK_DEADLOCK error.
+# Reap INSERT
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Commit transaction to unblock ALTER TABLE.
+commit;
+#
+# Switching to connection 'default'.
+# Reap ALTER TABLE.
+unlock tables;
+drop table t1;
+#
 # Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
 # on INSERT + CREATE TRIGGER".
 #
@@ -233,6 +447,43 @@ drop table t2;
 # Switching to connection 'default'.
 # Clean-up.
 drop table t1;
+#
+# Test for bug #46273 "MySQL 5.4.4 new MDL: Bug#989 is not fully fixed
+#                      in case of ALTER".
+#
+drop table if exists t1;
+set debug_sync= 'RESET';
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+update t1 set c3=c3+1 where c2=3;
+#
+# Switching to connection 'con46273'.
+set debug_sync='after_lock_tables_takes_lock SIGNAL alter_table_locked WAIT_FOR alter_go';
+alter table t1 add column e int, rename to t2;;
+#
+# Switching to connection 'default'.
+set debug_sync='now WAIT_FOR alter_table_locked';
+set debug_sync='wait_for_lock SIGNAL alter_go';
+# The below statement should get ER_LOCK_DEADLOCK error
+# (i.e. it should not allow ALTER to proceed, and then
+# fail due to 't1' changing its name to 't2').
+update t1 set c3=c3+1 where c2=4;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+#
+# Let us check that failure of the above statement has not released
+# metadata lock on table 't1', i.e. that ALTER TABLE is still blocked.
+# Unblock ALTER TABLE by commiting transaction and thus releasing
+# metadata lock on 't1'.
+commit;
+#
+# Switching to connection 'con46273'.
+# Reap ALTER TABLE.
+#
+# Switching to connection 'default'.
+# Clean-up.
+set debug_sync= 'RESET';
+drop table t2;
 #
 # Test for bug #46673 "Deadlock between FLUSH TABLES WITH READ LOCK
 #                      and DML".
