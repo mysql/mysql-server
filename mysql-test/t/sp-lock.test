@@ -153,20 +153,20 @@ drop temporary table t1;
 --echo #
 --echo # For that, start a transaction, use a routine. In a concurrent
 --echo # connection, try to drop or alter the routine. It should place
---echo # a pending or exlusive lock and block. In a concurrnet
---echo # connection, try to use the routine under LOCK TABLES. 
---echo # That should yield ER_LOCK_DEADLOCK.
+--echo # a pending or exclusive lock and block. In another concurrnet
+--echo # connection, try to use the routine.
+--echo # That should block on the pending exclusive lock.
 --echo #
 --echo # Establish helper connections.
 connect(con1, localhost, root,,);
 connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
 
 --echo #
 --echo # Test DROP PROCEDURE.
 --echo #
 --echo # --> connection default
 connection default;
-create table t1 (a int);
 create procedure p1() begin end;
 delimiter |;
 create function f1() returns int 
@@ -180,7 +180,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop procedure p1'...
---send drop procedure p1
+send drop procedure p1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop procedure t1' to get blocked on MDL lock...
@@ -188,17 +188,25 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='drop procedure p1';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop procedure p1'...
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+--error ER_SP_DOES_NOT_EXIST
+reap;
 --echo # --> connection default
 connection default;
 
@@ -211,7 +219,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'create procedure p1'...
---send create procedure p1() begin end
+send create procedure p1() begin end;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'create procedure t1' to get blocked on MDL lock...
@@ -219,10 +227,13 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='create procedure p1() begin end';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -230,16 +241,22 @@ commit;
 connection con1;
 --echo # Reaping 'create procedure p1'...
 --error ER_SP_ALREADY_EXISTS
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+reap;
 connection default;
+
 --echo # 
 --echo # Test ALTER PROCEDURE.
+--echo #
 begin;
 select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'alter procedure p1'...
---send alter procedure p1 contains sql
+send alter procedure p1 contains sql;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'alter procedure t1' to get blocked on MDL lock...
@@ -247,17 +264,24 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='alter procedure p1 contains sql';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'alter procedure p1'...
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+reap;
 --echo # --> connection default
 connection default;
 
@@ -269,7 +293,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop function f1'...
---send drop function f1
+send drop function f1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop function f1' to get blocked on MDL lock...
@@ -277,17 +301,25 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='drop function f1';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop function f1'...
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+--error ER_SP_DOES_NOT_EXIST
+reap;
 --echo # --> connection default
 connection default;
 
@@ -300,7 +332,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'create function f1'...
---send create function f1() returns int return 2
+send create function f1() returns int return 2;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'create function f1' to get blocked on MDL lock...
@@ -308,10 +340,13 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='create function f1() returns int return 2';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
@@ -319,17 +354,23 @@ commit;
 connection con1;
 --echo # Reaping 'create function f1'...
 --error ER_SP_ALREADY_EXISTS
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+reap;
 --echo # --> connection default
 connection default;
+
 --echo # 
 --echo # Test ALTER FUNCTION.
+--echo # 
 begin;
 select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'alter function f1'...
---send alter function f1 contains sql
+send alter function f1 contains sql;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'alter function f1' to get blocked on MDL lock...
@@ -337,17 +378,24 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='alter function f1 contains sql';
 --source include/wait_condition.inc
 --echo # Demonstrate that there is a pending exclusive lock.
-lock table t1 read;
---error ER_LOCK_DEADLOCK
-select f1();
-unlock tables;
+--echo # Sending 'select f1()'...
+send select f1();
+--echo # --> connection con3
+connection con3;
+--echo # Waitng for 'select f1()' to get blocked by a pending MDL lock...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='select f1()';
 --echo # --> connection default
 connection default;
 commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'alter function f1'...
---reap
+reap;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'select f1()'
+reap;
 --echo # --> connection default
 connection default;
 drop function f1;
@@ -363,6 +411,7 @@ drop procedure p1;
 --echo #
 create procedure p1() begin end;
 create procedure p2() begin end;
+create table t1 (a int);
 delimiter |;
 create procedure p3()
 begin
@@ -419,7 +468,7 @@ insert into t1 (a) values (1);
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop function f1'
---send drop function f1
+send drop function f1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop function f1' to get blocked on MDL lock...
@@ -432,7 +481,7 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop function f1'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 --echo #
@@ -445,7 +494,7 @@ select * from v1;
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop function f1'
---send drop function f1
+send drop function f1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop function f1' to get blocked on MDL lock...
@@ -458,7 +507,7 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop function f1'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 --echo #
@@ -478,7 +527,7 @@ select * from v1;
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop procedure p1'
---send drop procedure p1
+send drop procedure p1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop procedure p1' to get blocked on MDL lock...
@@ -491,7 +540,7 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop procedure p1'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 
@@ -509,7 +558,7 @@ insert into t1 (a) values (3);
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop function f2'
---send drop function f2
+send drop function f2;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop function f2' to get blocked on MDL lock...
@@ -522,7 +571,7 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop function f2'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 
@@ -536,42 +585,11 @@ drop table t1, t2;
 --echo # acquisition of a shared lock fails during a transaction or
 --echo # we need to back off to flush the sp cache.
 --echo #
---echo # a) A back off due to a lock conflict.
---echo #
-create table t1 (a int);
-create function f1() returns int return 6;
-begin;
-select f1();
---echo # --> connection con1
-connection con1;
---echo # Sending 'drop function f1'...
---send drop function f1
---echo # --> connection con2
-connection con2;
---echo # Waitng for 'drop function f1' to get blocked on MDL lock...
-let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='drop function f1';
---source include/wait_condition.inc
-begin;
-select * from t1;
---error ER_LOCK_DEADLOCK
-select f1();
-commit;
---echo # --> connection default
-connection default;
-commit;
---echo # --> connection con1
-connection  con1; 
---echo # Reaping 'drop function f1'...
---reap
---echo # --> connection default
-connection default;
---echo #
---echo # b) A back off to flush the cache.
 --echo # Sic: now this situation does not require a back off since we
 --echo # flush the cache on the fly.
 --echo #
 create function f1() returns int return 7;
+create table t1 (a int);
 begin;
 select * from t1;
 # Used to have a back-off here, with optional ER_LOCK_DEADLOCK
@@ -602,7 +620,7 @@ select f2();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'drop function f1'...
---send drop function f1
+send drop function f1;
 --echo # --> connection con2
 connection con2;
 --echo # Waitng for 'drop function f1' to get blocked on MDL lock...
@@ -610,7 +628,7 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='drop function f1';
 --source include/wait_condition.inc
 --echo # Sending 'drop function f2'...
---send drop function f2
+send drop function f2;
 --echo # --> connection default
 connection default;
 --echo # Waitng for 'drop function f2' to get blocked on MDL lock...
@@ -621,14 +639,14 @@ rollback to savepoint sv;
 --echo # --> connection con2
 connection con2;
 --echo # Reaping 'drop function f2'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 unlock tables;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'drop function f1'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 --error ER_SP_DOES_NOT_EXIST
@@ -678,7 +696,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'alter function f1 ...'...
---send alter function f1 comment "comment"
+send alter function f1 comment "comment";
 --echo # --> connection con2
 connection con2;
 --echo # Waitng for 'alter function f1 ...' to get blocked on MDL lock...
@@ -686,7 +704,7 @@ let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info like 'alter function f1 comment%';
 --source include/wait_condition.inc
 --echo # Sending 'call p1()'...
---send call p1()
+send call p1();
 connection default;
 --echo # Waitng for 'call p1()' to get blocked on MDL lock on f1...
 let $wait_condition=select count(*)=1 from information_schema.processlist
@@ -697,11 +715,11 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'alter function f1 ...'
---reap
+reap;
 --echo # --> connection con2
 connection con2;
 --echo # Reaping 'call p1()'...
---reap
+reap;
 deallocate prepare stmt;
 --echo # --> connection default
 connection default;
@@ -725,7 +743,7 @@ select f1();
 --echo # --> connection con1
 connection con1;
 --echo # Sending 'alter function f1 ...'...
---send alter function f1 comment "comment"
+send alter function f1 comment "comment";
 --echo # --> connection con2
 connection con2;
 --echo # Waitng for 'alter function f1 ...' to get blocked on MDL lock...
@@ -754,7 +772,7 @@ begin
 end|
 delimiter ;|
 --echo # Sending 'call p1()'...
---send call p1()
+send call p1();
 connection default;
 --echo # Waitng for 'call p1()' to get blocked on MDL lock on f1...
 let $wait_condition=select count(*)=1 from information_schema.processlist
@@ -765,11 +783,11 @@ commit;
 --echo # --> connection con1
 connection con1;
 --echo # Reaping 'alter function f1 ...'
---reap
+reap;
 --echo # --> connection con2
 connection con2;
 --echo # Reaping 'call p1()'...
---reap
+reap;
 --echo # --> connection default
 connection default;
 drop function f1;
@@ -804,7 +822,7 @@ select get_lock("30977", 0);
 --echo # --> connection default
 connection default;
 --echo # Sending 'select f3()'...
---send select f3()
+send select f3();
 --echo # --> connection con1 
 connection con1;
 --echo # Waitng for 'select f3()' to get blocked on the user level lock...
@@ -819,7 +837,7 @@ select release_lock("30977");
 connection default;
 --echo # Reaping 'select f3()'...
 --echo # Routine 'f2()' should exist and get executed successfully.
---reap
+reap;
 select @var;
 drop function f1;
 drop function f2;
@@ -868,6 +886,10 @@ disconnect con1;
 --echo # --> connection con2
 connection con2;
 disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # --> connection con3
+connection con3;
+disconnect con3;
 --source include/wait_until_disconnected.inc
 --echo # --> connection default
 connection default;

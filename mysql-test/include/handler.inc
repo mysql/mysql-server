@@ -732,7 +732,7 @@ connection default;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (a int);
+create table t1 (a int, key a (a));
 insert into t1 values (1);
 handler t1 open;
 connection con1;
@@ -743,7 +743,6 @@ let $wait_condition=
   where state = "Waiting for table" and info = "alter table t1 engine=memory";
 --source include/wait_condition.inc
 connection default;
---error ER_ILLEGAL_HA
 handler t1 read a next;
 handler t1 close;
 connection con1;
@@ -983,11 +982,12 @@ lock table t2 read;
 --echo # --> connection con2 
 connection con2;
 --echo # Sending:
---send drop table t2
+send rename table t2 to t3, t1 to t2, t3 to t1;
 --echo # --> connection con1 
 connection con1;
---echo # Waiting for 'drop table t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+--echo # Waiting for 'rename table ...' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='rename table t2 to t3, t1 to t2, t3 to t1';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
@@ -997,25 +997,26 @@ handler t2 open;
 select * from t2;
 handler t1 open;
 commit;
---error ER_LOCK_DEADLOCK
-handler t2 open;
 handler t1 close;
 --echo # --> connection con1
 connection con1;
 unlock tables;
 --echo # --> connection con2
 connection con2;
---echo # Reaping 'drop table t2'...
+--echo # Reaping 'rename table ...'...
 --reap
 --echo # --> connection default
 connection default;
 handler t1 open;
 handler t1 read a prev;
 handler t1 close;
+drop table t2;
 --echo #
---echo # Likewise, this doesn't require a multi-statement transaction.
---echo # ER_LOCK_DEADLOCK is also produced when we have an open
---echo # HANDLER and try to acquire locks for a single statement.
+--echo # Originally there was a deadlock error in this test.
+--echo # With implementation of deadlock detector
+--echo # we no longer deadlock, but block and wait on a lock.
+--echo # The HANDLER is auto-closed as soon as the connection
+--echo # sees a pending conflicting lock against it.
 --echo #
 create table t2 (a int, key a (a));
 handler t1 open;
@@ -1033,10 +1034,12 @@ let $wait_condition=select count(*)=1 from information_schema.processlist where 
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
---error ER_LOCK_DEADLOCK
-select * from t2;
+--echo # Sending 'select * from t2'
+send select * from t2;
 --echo # --> connection con1
 connection con1;
+--echo # Waiting for 'select * from t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='select * from t2';
 unlock tables;
 --echo # --> connection con2
 connection con2;
@@ -1044,6 +1047,9 @@ connection con2;
 --reap
 --echo # --> connection default
 connection default;
+--echo # Reaping 'select * from t2'
+--error ER_NO_SUCH_TABLE
+reap;
 handler t1 close;
 
 --echo #

@@ -74,6 +74,366 @@ SET DEBUG_SYNC= 'RESET';
 
 
 --echo #
+--echo # Test coverage for basic deadlock detection in metadata
+--echo # locking subsystem.
+--echo #
+--disable_warnings
+drop tables if exists t1, t2, t3, t4;
+--enable_warnings
+
+connect(deadlock_con1,localhost,root,,);
+connect(deadlock_con2,localhost,root,,);
+connect(deadlock_con3,localhost,root,,);
+connection default;
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+create table t4 (k int);
+
+--echo #
+--echo # Test for the case in which no deadlock occurs.
+--echo #
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+begin;
+insert into t1 values (1);
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+begin;
+insert into t2 values (1);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send rename table t2 to t0, t3 to t2, t0 to t3;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait until the above RENAME TABLE is blocked because it has to wait
+--echo # for 'deadlock_con2' which holds shared metadata lock on 't2'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t2 to t0, t3 to t2, t0 to t3";
+--source include/wait_condition.inc
+--echo # The below statement should wait for exclusive metadata lock
+--echo # on 't2' to go away and should not produce ER_LOCK_DEADLOCK
+--echo # as no deadlock is possible in this situation.
+--echo # Send:
+--send select * from t2;
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait until the above SELECT * FROM t2 is starts waiting
+--echo # for an exclusive metadata lock to go away.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "select * from t2";
+--source include/wait_condition.inc
+--echo #
+--echo # Unblock RENAME TABLE by releasing shared metadata lock on t2.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap RENAME TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo #
+--echo # Let us check that in the process of waiting for conflicting lock
+--echo # on table 't2' to go away transaction in connection 'deadlock_con1'
+--echo # has not released metadata lock on table 't1'.
+--echo # Send:
+--send rename table t1 to t0, t3 to t1, t0 to t3;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait until the above RENAME TABLE is blocked because it has to wait
+--echo # for 'deadlock_con1' which should still hold shared metadata lock on
+--echo # table 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t1 to t0, t3 to t1, t0 to t3";
+--source include/wait_condition.inc
+--echo # Commit transaction to unblock RENAME TABLE.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap RENAME TABLE.
+--reap
+
+--echo #
+--echo # Test for case when deadlock occurs and should be detected immediately.
+--echo #
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+begin;
+insert into t1 values (2);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send rename table t2 to t0, t1 to t2, t0 to t1;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait until the above RENAME TABLE is blocked because it has to wait
+--echo # for 'deadlock_con1' which holds shared metadata lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t2 to t0, t1 to t2, t0 to t1";
+--source include/wait_condition.inc
+--echo # 
+--echo # The below statement should not wait as doing so will cause deadlock.
+--echo # Instead it should fail and emit ER_LOCK_DEADLOCK statement.
+--error ER_LOCK_DEADLOCK
+select * from t2;
+
+--echo #
+--echo # Let us check that failure of the above statement has not released
+--echo # metadata lock on table 't1', i.e. that RENAME TABLE is still blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t2 to t0, t1 to t2, t0 to t1";
+--source include/wait_condition.inc
+--echo # Commit transaction to unblock RENAME TABLE.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap RENAME TABLE.
+--reap
+
+--echo #
+--echo # Test for the case in which deadlock also occurs but not immediately.
+--echo #
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+begin;
+insert into t1 values (1);
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+begin;
+insert into t3 values (1);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send rename table t2 to t0, t3 to t2, t0 to t3;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait until the above RENAME TABLE is blocked because it has to wait
+--echo # for 'deadlock_con2' which holds shared metadata lock on 't3'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t2 to t0, t3 to t2, t0 to t3";
+--source include/wait_condition.inc
+--echo # The below SELECT statement should wait for metadata lock
+--echo # on table 't2' and should not produce ER_LOCK_DEADLOCK
+--echo # immediately as no deadlock is possible at the moment.
+--send select * from t2;
+
+--echo #
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait until the above SELECT * FROM t2 is starts waiting
+--echo # for an exclusive metadata lock to go away.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "select * from t2";
+--source include/wait_condition.inc
+
+--echo # Send RENAME TABLE statement that will deadlock with the
+--echo # SELECT statement and thus should abort the latter.
+--send rename table t1 to t0, t2 to t1, t0 to t2;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Since the latest RENAME TABLE entered in deadlock with SELECT
+--echo # statement the latter should be aborted and emit ER_LOCK_DEADLOCK
+--echo # error.
+--echo # Reap SELECT * FROM t2.
+--error ER_LOCK_DEADLOCK
+--reap
+
+--echo #
+--echo # Again let us check that failure of the SELECT statement has not
+--echo # released metadata lock on table 't1', i.e. that the latest RENAME
+--echo # is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename table t1 to t0, t2 to t1, t0 to t2";
+--source include/wait_condition.inc
+--echo # Commit transaction to unblock this RENAME TABLE.
+commit;
+
+--echo #
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Reap RENAME TABLE t1 TO t0 ... .
+--reap;
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Commit transaction to unblock the first RENAME TABLE.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap RENAME TABLE t2 TO t0 ... .
+--reap
+
+drop tables t1, t2, t3, t4;
+
+--echo #
+--echo # Now, test case which shows that deadlock detection empiric
+--echo # also takes into account requests for metadata lock upgrade.
+--echo #
+create table t1 (i int);
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+begin;
+insert into t1 values (1);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send alter table t1 add column j int, rename to t2;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait until the above ALTER TABLE ... RENAME acquires exclusive
+--echo # metadata lock on 't2' and starts waiting for connection
+--echo # 'deadlock_con1' which holds shared lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column j int, rename to t2";
+--source include/wait_condition.inc
+
+--echo # The below statement should not wait as it will cause deadlock.
+--echo # An appropriate error should be reported instead.
+--error ER_LOCK_DEADLOCK
+select * from t2;
+
+--echo # Again let us check that failure of the above statement has not
+--echo # released all metadata locks in connection 'deadlock_con1' and
+--echo # so ALTER TABLE ... RENAME is still blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column j int, rename to t2";
+--source include/wait_condition.inc
+
+--echo # Commit transaction to unblock ALTER TABLE ... RENAME.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ALTER TABLE ... RENAME.
+--reap
+
+drop table t2;
+
+--echo #
+--echo # Finally, test case in which deadlock (or potentially livelock) occurs
+--echo # between metadata locking subsystem and table definition cache/table
+--echo # locks, but which should still be detected by our empiric.
+--echo #
+create table t1 (i int);
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+begin;
+insert into t1 values (1);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+lock tables t1 write;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Send:
+--send insert into t1 values (2);
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until INSERT in connection 'deadlock_con1' is blocked on
+--echo # table-level lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Table lock" and info = "insert into t1 values (2)";
+--source include/wait_condition.inc
+
+--echo # Send:
+--send alter table t1 add column j int;
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # The above ALTER TABLE statement should cause INSERT statement in
+--echo # this connection to be aborted and emit ER_LOCK_DEADLOCK error.
+--echo # Reap INSERT
+--error ER_LOCK_DEADLOCK
+--reap
+--echo # Commit transaction to unblock ALTER TABLE.
+commit;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ALTER TABLE.
+--reap
+unlock tables;
+
+drop table t1;
+disconnect deadlock_con1;
+disconnect deadlock_con2;
+disconnect deadlock_con3;
+
+
+--echo #
 --echo # Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
 --echo # on INSERT + CREATE TRIGGER".
 --echo #
@@ -437,6 +797,66 @@ connection default;
 disconnect con46044;
 disconnect con46044_2;
 drop table t1;
+
+
+--echo #
+--echo # Test for bug #46273 "MySQL 5.4.4 new MDL: Bug#989 is not fully fixed
+--echo #                      in case of ALTER".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+set debug_sync= 'RESET';
+connect (con46273,localhost,root,,test,,);
+connection default;
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+
+begin;
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con46273'.
+connection con46273;
+set debug_sync='after_lock_tables_takes_lock SIGNAL alter_table_locked WAIT_FOR alter_go';
+--send alter table t1 add column e int, rename to t2;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+set debug_sync='now WAIT_FOR alter_table_locked';
+set debug_sync='wait_for_lock SIGNAL alter_go';
+--echo # The below statement should get ER_LOCK_DEADLOCK error
+--echo # (i.e. it should not allow ALTER to proceed, and then
+--echo # fail due to 't1' changing its name to 't2').
+--error ER_LOCK_DEADLOCK
+update t1 set c3=c3+1 where c2=4;
+
+--echo #
+--echo # Let us check that failure of the above statement has not released
+--echo # metadata lock on table 't1', i.e. that ALTER TABLE is still blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column e int, rename to t2";
+--source include/wait_condition.inc
+
+--echo # Unblock ALTER TABLE by commiting transaction and thus releasing
+--echo # metadata lock on 't1'.
+commit;
+
+--echo #
+--echo # Switching to connection 'con46273'.
+connection con46273;
+--echo # Reap ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con46273;
+--echo # Clean-up.
+set debug_sync= 'RESET';
+drop table t2;
 
 
 --echo #

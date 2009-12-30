@@ -1506,7 +1506,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
        */
       thd->binlog_flush_pending_rows_event(false);
       TABLE_LIST *tables= rli->tables_to_lock;
-      close_tables_for_reopen(thd, &tables);
+      close_tables_for_reopen(thd, &tables, NULL);
 
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
