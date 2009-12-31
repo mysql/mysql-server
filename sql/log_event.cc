@@ -3171,7 +3171,17 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
 
 compare_errors:
 
-     /*
+    /*
+      In the slave thread, we may sometimes execute some DROP / * 40005
+      TEMPORARY * / TABLE that come from parts of binlogs (likely if we
+      use RESET SLAVE or CHANGE MASTER TO), while the temporary table
+      has already been dropped. To ignore such irrelevant "table does
+      not exist errors", we silently clear the error if TEMPORARY was used.
+    */
+    if (thd->lex->drop_temporary && thd->is_error() &&
+        thd->main_da.sql_errno() == ER_BAD_TABLE_ERROR && !expected_error)
+      thd->main_da.reset_diagnostics_area();
+    /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
