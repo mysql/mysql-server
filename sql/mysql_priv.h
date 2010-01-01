@@ -359,6 +359,12 @@ protected:
 */
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
+/*
+  Subquery materialization-related constants
+*/
+#define HEAP_TEMPTABLE_LOOKUP_COST 0.05
+#define DISK_TEMPTABLE_LOOKUP_COST 1.0
+
 /** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
 #define KEY_DEFAULT_PACK_LENGTH 8
 
@@ -542,11 +548,16 @@ protected:
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
 #define OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN 16
 
+#define OPTIMIZER_SWITCH_FIRSTMATCH 32
+#define OPTIMIZER_SWITCH_LOOSE_SCAN 64
+#define OPTIMIZER_SWITCH_MATERIALIZATION 128
+#define OPTIMIZER_SWITCH_SEMIJOIN 256
+
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST 32
+#  define OPTIMIZER_SWITCH_LAST 512
 #else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 32
-#  define OPTIMIZER_SWITCH_LAST 64
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 512
+#  define OPTIMIZER_SWITCH_LAST 1024
 #endif
 
 #ifdef DBUG_OFF 
@@ -555,14 +566,22 @@ protected:
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN)
+                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN)
 #else 
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
-                                    OPTIMIZER_SWITCH_TABLE_ELIMINATION)
+                                    OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN)
 #endif
 
 /*
@@ -1848,6 +1867,8 @@ void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
+void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array);
+void print_sjm(SJ_MATERIALIZATION_INFO *sjm);
 #endif
 void mysql_print_status();
 /* key.cc */

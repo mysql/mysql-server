@@ -686,7 +686,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), optimizer(0), transformed(0),
-  pushed_cond_guards(NULL), upper_item(0)
+  pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1599,6 +1599,12 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   if (result)
     goto err;
 
+  /*
+    If we didn't choose an execution method up to this point, we choose
+    the IN=>EXISTS transformation.
+  */
+  if (exec_method == NOT_TRANSFORMED)
+    exec_method= IN_TO_EXISTS;
   transformed= 1;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
@@ -1659,6 +1665,7 @@ Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   transformed= 1;
+  exec_method= IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
   return select_in_like_transformer(join, func);

@@ -2316,6 +2316,8 @@ private:
 
 #include "multi_range_read.h"
 
+bool key_uses_partial_cols(TABLE *table, uint keyno);
+
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
