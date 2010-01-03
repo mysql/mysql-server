@@ -71,8 +71,7 @@ LINK_LIBRARIES(ndbcmvmi
                dbug
                mysys
                strings
-               ndbconf
-               ${NDB_SCI_LIBS})
+               ndbconf)
 ADD_EXECUTABLE(ndbd
                main.cpp
                ndbd.cpp
