@@ -794,3 +794,50 @@ SHOW STATUS LIKE '%Handler_read_rnd_next';
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
+--echo #            in the select list
+--echo #
+
+--echo 
+CREATE TABLE t1 (
+  i int(11) DEFAULT NULL,
+  v varchar(1) DEFAULT NULL
+);
+
+--echo 
+INSERT INTO t1 VALUES (8,'v');
+INSERT INTO t1 VALUES (9,'r');
+INSERT INTO t1 VALUES (NULL,'y');
+
+--echo 
+CREATE TABLE t2 (
+  i int(11) DEFAULT NULL,
+  v varchar(1) DEFAULT NULL,
+  KEY i_key (i)
+);
+
+--echo 
+INSERT INTO t2 VALUES (NULL,'r');
+INSERT INTO t2 VALUES (0,'c');
+INSERT INTO t2 VALUES (0,'o');
+INSERT INTO t2 VALUES (2,'v');
+INSERT INTO t2 VALUES (7,'c');
+
+--echo 
+SELECT i, v, (SELECT COUNT(DISTINCT i)
+              FROM t1
+              WHERE v  = t2.v) as subsel
+FROM t2;
+
+--echo 
+EXPLAIN EXTENDED
+SELECT i, v, (SELECT COUNT(DISTINCT i)
+              FROM t1
+              WHERE v  = t2.v) as subsel
+FROM t2;
+
+DROP TABLE t1,t2;
+
+--echo End of 5.6 tests
