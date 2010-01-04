@@ -52,8 +52,8 @@
 #include <ndbapi/NdbDictionary.hpp>
 
 #include <DebuggerNames.hpp>
-#include <../dbtup/Dbtup.hpp>
-#include <../dbdih/Dbdih.hpp>
+#include "../dbtup/Dbtup.hpp"
+#include "../dbdih/Dbdih.hpp"
 
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>

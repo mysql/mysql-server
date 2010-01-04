@@ -85,24 +85,12 @@ include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
 EXTRA_DIST = CMakeLists.txt    \
 	backup/CMakeLists.txt  \
-	cmvmi/CMakeLists.txt   \
-	dbacc/CMakeLists.txt   \
 	dbdict/CMakeLists.txt  \
 	dbdih/CMakeLists.txt   \
 	dblqh/CMakeLists.txt   \
-	dbtc/CMakeLists.txt    \
 	dbtup/CMakeLists.txt   \
-	dbtux/CMakeLists.txt   \
-	dbutil/CMakeLists.txt  \
-	ndbcntr/CMakeLists.txt \
-	ndbfs/CMakeLists.txt   \
-	qmgr/CMakeLists.txt    \
-	suma/CMakeLists.txt    \
-	trix/CMakeLists.txt    \
 	ndbfs/Win32AsyncFile.cpp \
-	ndbfs/Win32AsyncFile.hpp \
-	dbinfo/CMakeLists.txt
-
+	ndbfs/Win32AsyncFile.hpp
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

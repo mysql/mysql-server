@@ -16,9 +16,6 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbdbdict STATIC
-            Dbdict.cpp)
-
 ADD_EXECUTABLE(ndb_print_schema_file
                printSchemaFile.cpp)
 TARGET_LINK_LIBRARIES(ndb_print_schema_file

@@ -13,40 +13,63 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
-ADD_SUBDIRECTORY(cmvmi)
-ADD_SUBDIRECTORY(dbacc)
+ADD_SUBDIRECTORY(backup)
 ADD_SUBDIRECTORY(dbdict)
 ADD_SUBDIRECTORY(dbdih)
 ADD_SUBDIRECTORY(dblqh)
-ADD_SUBDIRECTORY(dbtc)
 ADD_SUBDIRECTORY(dbtup)
-ADD_SUBDIRECTORY(ndbfs)
-ADD_SUBDIRECTORY(ndbcntr)
-ADD_SUBDIRECTORY(qmgr)
-ADD_SUBDIRECTORY(trix)
-ADD_SUBDIRECTORY(backup)
-ADD_SUBDIRECTORY(dbutil)
-ADD_SUBDIRECTORY(suma)
-ADD_SUBDIRECTORY(dbtux)
-ADD_SUBDIRECTORY(dbinfo)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbblocks  STATIC
-            diskpage.cpp
-            lgman.cpp
-            pgman.cpp
-	    RestoreProxy.cpp
-            restore.cpp
-            tsman.cpp
-	    LocalProxy.cpp
-	    PgmanProxy.cpp
-           )
+ADD_LIBRARY(ndbblocks STATIC
+    tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp
+    cmvmi/Cmvmi.cpp
+    dbacc/DbaccInit.cpp dbacc/DbaccMain.cpp
+    dbdict/Dbdict.cpp
+    dbdih/DbdihInit.cpp dbdih/DbdihMain.cpp
+    dblqh/DblqhInit.cpp dblqh/DblqhMain.cpp
+    dbtc/DbtcInit.cpp dbtc/DbtcMain.cpp
+    dbtup/DbtupExecQuery.cpp dbtup/DbtupBuffer.cpp
+    dbtup/DbtupRoutines.cpp dbtup/DbtupCommit.cpp
+    dbtup/DbtupFixAlloc.cpp dbtup/DbtupTrigger.cpp
+    dbtup/DbtupAbort.cpp dbtup/DbtupPageMap.cpp
+    dbtup/DbtupPagMan.cpp dbtup/DbtupStoredProcDef.cpp
+    dbtup/DbtupMeta.cpp dbtup/DbtupTabDesMan.cpp
+    dbtup/DbtupGen.cpp dbtup/DbtupIndex.cpp
+    dbtup/DbtupDebug.cpp dbtup/DbtupScan.cpp
+    dbtup/DbtupDiskAlloc.cpp dbtup/DbtupVarAlloc.cpp
+    dbtup/tuppage.cpp dbtup/Undo_buffer.cpp
+    ndbfs/AsyncIoThread.cpp
+    ndbfs/Win32AsyncFile.cpp ndbfs/AsyncFile.cpp
+    ndbfs/Ndbfs.cpp
+    ndbfs/VoidFs.cpp
+    ndbfs/Filename.cpp ndbfs/CircularIndex.cpp
+    ndbcntr/NdbcntrInit.cpp ndbcntr/NdbcntrSysTable.cpp ndbcntr/NdbcntrMain.cpp
+    qmgr/QmgrInit.cpp qmgr/QmgrMain.cpp
+    trix/Trix.cpp
+    backup/Backup.cpp backup/BackupInit.cpp
+    dbutil/DbUtil.cpp
+    suma/Suma.cpp suma/SumaInit.cpp
+    dbtux/DbtuxGen.cpp dbtux/DbtuxMeta.cpp dbtux/DbtuxMaint.cpp
+    dbtux/DbtuxNode.cpp dbtux/DbtuxTree.cpp dbtux/DbtuxScan.cpp
+    dbtux/DbtuxSearch.cpp dbtux/DbtuxCmp.cpp dbtux/DbtuxStat.cpp
+    dbtux/DbtuxDebug.cpp dbtux/DbtuxBuild.cpp
+    LocalProxy.cpp
+    dblqh/DblqhProxy.cpp
+    dbacc/DbaccProxy.cpp
+    dbtup/DbtupProxy.cpp
+    dbtux/DbtuxProxy.cpp
+    backup/BackupProxy.cpp
+    RestoreProxy.cpp
+    dbinfo/Dbinfo.cpp
+    dblqh/DblqhCommon.cpp
+    PgmanProxy.cpp
+    dbtup/DbtupClient.cpp
+)
 
 ADD_EXECUTABLE(ndb_print_file
-	       print_file.cpp
-	       diskpage.cpp
-	       dbtup/tuppage.cpp
-	      )
+    print_file.cpp
+    diskpage.cpp
+    dbtup/tuppage.cpp
+)
 TARGET_LINK_LIBRARIES(ndb_print_file ndbclient dbug mysys strings)

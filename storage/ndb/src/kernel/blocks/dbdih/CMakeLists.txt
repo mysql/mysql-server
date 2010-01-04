@@ -16,11 +16,6 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbdbdih STATIC
-    DbdihInit.cpp
-    DbdihMain.cpp)
-
-ADD_EXECUTABLE(ndb_sysfile_reader
-    printSysfile.cpp)
-TARGET_LINK_LIBRARIES(ndb_sysfile_reader
+ADD_EXECUTABLE(ndb_print_sys_file printSysfile.cpp)
+TARGET_LINK_LIBRARIES(ndb_print_sys_file
     ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
