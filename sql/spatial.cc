@@ -17,28 +17,7 @@
 
 #ifdef HAVE_SPATIAL
 
-/* 
-  exponential notation :
-  1   sign
-  1   number before the decimal point
-  1   decimal point
-  14  number of significant digits (see String::qs_append(double))
-  1   'e' sign
-  1   exponent sign
-  3   exponent digits
-  ==
-  22
-
-  "f" notation :
-  1   optional 0
-  1   sign
-  14  number significant digits (see String::qs_append(double) )
-  1   decimal point
-  ==
-  17
-*/
-
-#define MAX_DIGITS_IN_DOUBLE 22
+#define MAX_DIGITS_IN_DOUBLE MY_GCVT_MAX_FIELD_WIDTH
 
 /***************************** Gis_class_info *******************************/
 

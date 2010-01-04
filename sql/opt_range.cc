@@ -5834,7 +5834,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulong orig_sql_mode;
+  ulonglong orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 
@@ -7574,7 +7574,6 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
 
 #endif
 
-
 /*
   Calculate estimate of number records that will be retrieved by a range
   scan on given index using given SEL_ARG intervals tree.
@@ -7811,8 +7810,8 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
       (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
-      (param->table->key_info[keynr].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-      HA_NOSAME && min_key_length == max_key_length &&
+      param->table->key_info[keynr].flags & HA_NOSAME &&
+      min_key_length == max_key_length &&
       !memcmp(param->min_key, param->max_key, min_key_length) &&
       !param->first_null_comp)
   {
@@ -8105,8 +8104,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     {
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
-      if ((table_key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
-	  key->part == table_key->key_parts-1)
+      if ((table_key->flags & HA_NOSAME) && key->part == table_key->key_parts-1)
       {
 	if (!(table_key->flags & HA_NULL_PART_KEY) ||
 	    !null_part_in_key(key,
@@ -8155,8 +8153,7 @@ bool QUICK_RANGE_SELECT::unique_key_range()
     if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
-      return ((key->flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME &&
-	      key->key_length == tmp->min_length);
+      return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
     }
   }
   return 0;
@@ -8274,8 +8271,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->min_length= range->max_length= ref->key_length;
   range->min_keypart_map= range->max_keypart_map=
     make_prev_keypart_map(ref->key_parts);
-  range->flag= ((ref->key_length == key_info->key_length &&
-		 (key_info->flags & HA_END_SPACE_KEY) == 0) ? EQ_RANGE : 0);
+  range->flag= (ref->key_length == key_info->key_length ? EQ_RANGE : 0);
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))

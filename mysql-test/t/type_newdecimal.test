@@ -1054,10 +1054,8 @@ while ($max_power)
 }
 SELECT my_float, my_double, my_varchar FROM t1;
 
-# Expected result   0.000000000011754943372854760000
-# On windows we get 0.000000000011754943372854770000
-# use replace_result to correct it
---replace_result 0.000000000011754943372854770000 0.000000000011754943372854760000
+# The following statement produces results with garbage past
+# the significant digits. Improving it is a part of the WL#3977.
 SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
 SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
 SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;

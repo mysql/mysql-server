@@ -94,7 +94,7 @@ ERROR 42000: Variable 'new' can't be set to the value of '-1024'
 SET @@global.new = 65536;
 ERROR 42000: Variable 'new' can't be set to the value of '65536'
 SET @@global.new = 65530.34;
-ERROR 42000: Variable 'new' can't be set to the value of '65530'
+ERROR 42000: Incorrect argument type to variable 'new'
 SET @@global.new = test;
 ERROR 42000: Variable 'new' can't be set to the value of 'test'
 SET @@session.new = ONN;
@@ -102,16 +102,13 @@ ERROR 42000: Variable 'new' can't be set to the value of 'ONN'
 SET @@session.new = ONF;
 ERROR 42000: Variable 'new' can't be set to the value of 'ONF'
 SET @@session.new = OF;
-SELECT @@session.new;
-@@session.new
-0
-'Bug# 34828: FN_DYNVARS_113_05 - OF is also working as OFF and no error is coming';
+ERROR 42000: Variable 'new' can't be set to the value of 'OF'
 SET @@session.new = 'OFN';
 ERROR 42000: Variable 'new' can't be set to the value of 'OFN'
 SET @@session.new = -2;
 ERROR 42000: Variable 'new' can't be set to the value of '-2'
-SET @@session.new = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.new = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'new'
 SET @@session.new = 65550;
 ERROR 42000: Variable 'new' can't be set to the value of '65550'
 SET @@session.new = test;

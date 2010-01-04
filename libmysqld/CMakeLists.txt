@@ -117,7 +117,8 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_class.cc ../sql/sql_crypt.cc ../sql/sql_cursor.cc 
            ../sql/sql_db.cc ../sql/sql_delete.cc ../sql/sql_derived.cc 
            ../sql/sql_do.cc ../sql/sql_error.cc ../sql/sql_handler.cc 
-           ../sql/sql_help.cc ../sql/sql_insert.cc ../sql/sql_lex.cc 
+           ../sql/sql_help.cc ../sql/sql_insert.cc
+           ../sql/sql_lex.cc ../sql/keycaches.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
            ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
            ../sql/sql_parse.cc ../sql/sql_partition.cc ../sql/sql_plugin.cc 

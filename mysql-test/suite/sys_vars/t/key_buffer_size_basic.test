@@ -1,0 +1,151 @@
+############## mysql-test\t\key_buffer_size_basic.test ########################
+#                                                                             #
+# Variable Name: key_buffer_size                                              #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 131072                                                       #
+# Range:8-4294967295                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable key_buffer_size          #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+# Modified:    Horst Hunger 2008-11-27                                        #
+#              Due to OS depending values the check has been changed          #
+#              from concrete values to ranges.                                #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF key_buffer_size TESTS                    #
+########################################################################
+
+########################################################################
+# Saving initial value of key_buffer_size in a temporary variable      #
+########################################################################
+
+SET @start_value = @@global.key_buffer_size;
+
+--echo '#--------------------FN_DYNVARS_055_01------------------------#'
+########################################################################
+#              Display the DEFAULT value of key_buffer_size            #
+########################################################################
+
+SET @@global.key_buffer_size = DEFAULT;
+SELECT @@global.key_buffer_size;
+
+--echo '#---------------------FN_DYNVARS_055_02-------------------------#'
+###############################################
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.key_buffer_size = @start_value;
+SELECT @@global.key_buffer_size = @start_value;
+
+--echo '#--------------------FN_DYNVARS_055_03------------------------#'
+########################################################################
+#        Change the value of key_buffer_size to a valid value          #
+########################################################################
+
+SET @@global.key_buffer_size = 65535;
+SELECT @@global.key_buffer_size;
+
+--echo '#--------------------FN_DYNVARS_055_04-------------------------#'
+###########################################################################
+#         Change the value of key_buffer_size to invalid value            #
+###########################################################################
+
+--Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size = -1;
+--Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size = 4;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = 10000.01;
+SELECT @@global.key_buffer_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = ON;
+SELECT @@global.key_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = 'test';
+SELECT @@global.key_buffer_size;
+
+--echo '#-------------------FN_DYNVARS_055_05----------------------------#'
+###########################################################################
+#       Test if accessing session key_buffer_size gives error             #
+###########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.key_buffer_size = 0;
+
+--echo '#----------------------FN_DYNVARS_055_06------------------------#'
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+SELECT @@global.key_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='key_buffer_size';
+
+SELECT @@key_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='key_buffer_size';
+
+--echo '#---------------------FN_DYNVARS_055_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+--Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size = TRUE;
+--Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size = FALSE;
+
+--echo '#---------------------FN_DYNVARS_055_08----------------------#'
+#####################################################################
+#  Check if accessing variable with SESSION,LOCAL and without SCOPE #
+#  points to same session variable                                  #
+#####################################################################
+
+SELECT @@key_buffer_size = @@global.key_buffer_size;
+
+--echo '#---------------------FN_DYNVARS_055_09----------------------#'
+##########################################################################
+#   Check if key_buffer_size can be accessed with and without @@ sign    #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET key_buffer_size = 8 ;
+--Error ER_PARSE_ERROR
+SET local.key_buffer_size = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT local.key_buffer_size;
+--Error ER_PARSE_ERROR
+SET global.key_buffer_size = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT global.key_buffer_size;
+--Error ER_BAD_FIELD_ERROR
+SELECT key_buffer_size = @@session.key_buffer_size;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.key_buffer_size = @start_value;
+
+#######################################################################
+#              END OF key_buffer_size TESTS                           #
+#######################################################################
+

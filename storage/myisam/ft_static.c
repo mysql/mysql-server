@@ -17,12 +17,12 @@
 
 #include "ftdefs.h"
 
-ulong ft_min_word_len=4;
-ulong ft_max_word_len=HA_FT_MAXCHARLEN;
-ulong ft_query_expansion_limit=5;
-char ft_boolean_syntax[]="+ -><()~*:\"\"&|";
+ulong ft_min_word_len= 4;
+ulong ft_max_word_len= HA_FT_MAXCHARLEN;
+ulong ft_query_expansion_limit= 5;
+const char *ft_boolean_syntax= DEFAULT_FTB_SYNTAX;
 
-const HA_KEYSEG ft_keysegs[FT_SEGS]={
+const HA_KEYSEG ft_keysegs[FT_SEGS]= {
 {
   0,                                            /* charset  */
   HA_FT_WLEN,                                   /* start */
@@ -45,11 +45,11 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
 }
 };
 
-const struct _ft_vft _ft_vft_nlq = {
+const struct _ft_vft _ft_vft_nlq= {
   ft_nlq_read_next, ft_nlq_find_relevance, ft_nlq_close_search,
   ft_nlq_get_relevance,  ft_nlq_reinit_search
 };
-const struct _ft_vft _ft_vft_boolean = {
+const struct _ft_vft _ft_vft_boolean= {
   ft_boolean_read_next, ft_boolean_find_relevance, ft_boolean_close_search,
   ft_boolean_get_relevance,  ft_boolean_reinit_search
 };
@@ -68,8 +68,8 @@ FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
   return res;
 }
 
-const char *ft_stopword_file = 0;
-const char *ft_precompiled_stopwords[] = {
+const char *ft_stopword_file= 0;
+const char *ft_precompiled_stopwords[]= {
 
 #ifdef COMPILE_STOPWORDS_IN
 

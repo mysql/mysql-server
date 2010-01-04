@@ -154,30 +154,8 @@ SELECT @@global.myisam_stats_method;
 
 # use of decimal values
 
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_stats_method = 0.4;
-SELECT @@global.myisam_stats_method;
-
-SET @@global.myisam_stats_method = 1.0;
-SELECT @@global.myisam_stats_method;
-
-SET @@global.myisam_stats_method = 1.1;
-SELECT @@global.myisam_stats_method;
-
-SET @@global.myisam_stats_method = 1.5;
-SELECT @@global.myisam_stats_method;
-
-SET @@global.myisam_stats_method = 2.49;
-SELECT @@global.myisam_stats_method;
-
-SET @@session.myisam_stats_method = 0.5;
-SELECT @@session.myisam_stats_method;
-
-SET @@session.myisam_stats_method = 1.6;
-SELECT @@session.myisam_stats_method;
-
-
---echo 'Bug# 34877: Decimal values can be used within the range [0.0-2.5). Values';
---echo 'are rounded to 0,1,2 as evident from outcome.';
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.myisam_stats_method = 3;

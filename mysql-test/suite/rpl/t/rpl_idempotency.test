@@ -165,7 +165,7 @@ set global slave_exec_mode='IDEMPOTENT';
 set global slave_exec_mode='STRICT';
 
 # checking mutual exclusion for the options
---error ER_SLAVE_AMBIGOUS_EXEC_MODE
+--error ER_WRONG_VALUE_FOR_VAR
 set global slave_exec_mode='IDEMPOTENT,STRICT';
 
 select @@global.slave_exec_mode /* must be STRICT */;

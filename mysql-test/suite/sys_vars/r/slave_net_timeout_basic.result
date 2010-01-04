@@ -74,15 +74,14 @@ Warning	1292	Truncated incorrect slave_net_timeout value: '4294967298'
 SELECT @@global.slave_net_timeout;
 @@global.slave_net_timeout
 31536000
-SET @@global.slave_net_timeout = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.slave_net_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'slave_net_timeout'
 SET @@global.slave_net_timeout = 100s;
 ERROR 42000: Incorrect argument type to variable 'slave_net_timeout'
 SET @@global.slave_net_timeout = 7483649.56;
 ERROR 42000: Incorrect argument type to variable 'slave_net_timeout'
 SET @@global.slave_net_timeout = 0.6;
 ERROR 42000: Incorrect argument type to variable 'slave_net_timeout'
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#------------------FN_DYNVARS_146_06-----------------------#'
 SET @@global.slave_net_timeout = 3000;
 SELECT @@global.slave_net_timeout = VARIABLE_VALUE 
