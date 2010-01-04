@@ -178,6 +178,7 @@ our @opt_extra_mysqltest_opt;
 
 our $opt_compress;
 our $opt_ssl;
+our $opt_skip_ssl;
 our $opt_ssl_supported;
 our $opt_ps_protocol;
 our $opt_sp_protocol;

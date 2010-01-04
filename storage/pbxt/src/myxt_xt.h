@@ -52,8 +52,10 @@ void		myxt_set_default_row_from_key(XTOpenTablePtr ot, XTIndexPtr ind, xtWord1 *
 void		myxt_print_key(XTIndexPtr ind, xtWord1 *key_value);
 
 xtWord4		myxt_store_row_length(XTOpenTablePtr ot, char *rec_buff);
+xtWord4		myxt_store_row_data(XTOpenTablePtr ot, xtWord4 row_size, char *rec_buff);
 xtBool		myxt_store_row(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, char *rec_buff);
 size_t		myxt_load_row_length(XTOpenTablePtr ot, size_t buffer_size, xtWord1 *source_buf, u_int *ret_col_cnt);
+xtWord4		myxt_load_row_data(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *dest_buff, u_int col_cnt);
 xtBool		myxt_load_row(XTOpenTablePtr ot, xtWord1 *source_buf, xtWord1 *dest_buff, u_int col_cnt);
 xtBool		myxt_find_column(XTOpenTablePtr ot, u_int *col_idx, const char *col_name);
 void		myxt_get_column_name(XTOpenTablePtr ot, u_int col_idx, u_int len, char *col_name);
@@ -92,5 +94,7 @@ class XTDDColumnFactory
 public:
 	static XTDDColumn *createFromMySQLField(XTThread *self, STRUCT_TABLE *, Field *);
 };
+
+void myxt_wait_pbxt_plugin_slot_assigned(XTThread *self);
 
 #endif

@@ -1,4 +1,6 @@
 source include/master-slave.inc;
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
 
 #
 # BUG#16487

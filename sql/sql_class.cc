@@ -2170,7 +2170,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, row_count);
+                            item->name, (ulong) row_count);
       }
       cvt_str.length(bytes);
       res= &cvt_str;

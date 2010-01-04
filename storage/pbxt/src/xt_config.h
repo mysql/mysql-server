@@ -50,7 +50,9 @@ const int max_connections = 500;
 /*
  * Make sure we use the thread safe version of the library.
  */
+#ifndef _THREAD_SAFE // Seems to be defined by some Drizzle header
 #define _THREAD_SAFE
+#endif
 
 /*
  * This causes things to be defined like stuff in inttypes.h
@@ -72,12 +74,12 @@ const int max_connections = 500;
 #define XT_MAC
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(MSDOS) || defined(__WIN__) || defined(_WIN64)
 #define XT_WIN
 #endif
 
 #ifdef XT_WIN
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(DEBUG)
 #define DEBUG
 #endif // _DEBUG
 #else
@@ -101,8 +103,13 @@ const int max_connections = 500;
  * Definition of which atomic operations to use:
  */
 #ifdef XT_WIN
+#ifdef _WIN64
+/* 64-bit Windows atomic ops are not yet supported: */
+#define XT_NO_ATOMICS
+#else
 /* MS Studio style embedded assembler for x86 */
 #define XT_ATOMIC_WIN32_X86
+#endif
 #elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 /* Use GNU style embedded assembler for x86 */
 #define XT_ATOMIC_GNUC_X86
@@ -113,6 +120,12 @@ const int max_connections = 500;
 #define XT_ATOMIC_SOLARIS_LIB
 #else
 #define XT_NO_ATOMICS
+#endif
+
+#ifndef DRIZZLED
+#if MYSQL_VERSION_ID >= 50404
+#define MYSQL_SUPPORTS_BACKUP
+#endif
 #endif
 
 #endif

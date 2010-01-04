@@ -1924,3 +1924,7 @@ libmysqld/opt_table_elimination.cc
 libmysqld/ha_federatedx.cc
 tmp
 libmysqld/debug_sync.cc
+client/rpl_filter.cc
+client/rpl_filter.h
+client/sql_list.cc
+client/sql_list.h

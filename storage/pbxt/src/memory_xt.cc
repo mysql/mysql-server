@@ -34,7 +34,7 @@
 #include "trace_xt.h"
 
 #ifdef DEBUG
-//#define RECORD_MM
+#define RECORD_MM
 #endif
 
 #ifdef DEBUG
@@ -367,9 +367,8 @@ static long mm_find_pointer(void *ptr)
 	return(-1);
 }
 
-static long mm_add_pointer(void *ptr, u_int id)
+static long mm_add_pointer(void *ptr, u_int XT_UNUSED(id))
 {
-#pragma unused(id)
 	register int	i, n, guess;
 
 	if (mm_nr_in_use == mm_total_allocated) {

@@ -1108,6 +1108,9 @@ xtBool XTDatabaseLog::xlog_append(XTThreadPtr thread, size_t size1, xtWord1 *dat
 		if ((part_size = xl_write_buf_pos % 512)) {
 			part_size = 512 - part_size;
 			xl_write_buffer[xl_write_buf_pos] = XT_LOG_ENT_END_OF_LOG;
+#ifdef HAVE_valgrind
+			memset(xl_write_buffer + xl_write_buf_pos + 1, 0x66, part_size);
+#endif
 			if (!xt_pwrite_file(xl_log_file, xl_write_log_offset, xl_write_buf_pos+part_size, xl_write_buffer, &thread->st_statistics.st_xlog, thread))
 				goto write_failed;			
 		}
@@ -1477,9 +1480,9 @@ void XTDatabaseLog::xlog_name(size_t size, char *path, xtLogID log_id)
  * T H R E A D   T R A N S A C T I O N   B U F F E R
  */
 
-xtPublic xtBool xt_xlog_flush_log(XTThreadPtr thread)
+xtPublic xtBool xt_xlog_flush_log(struct XTDatabase *db, XTThreadPtr thread)
 {
-	return thread->st_database->db_xlog.xlog_flush(thread);
+	return db->db_xlog.xlog_flush(thread);
 }
 
 xtPublic xtBool xt_xlog_log_data(XTThreadPtr thread, size_t size, XTXactLogBufferDPtr log_entry, xtBool commit)
@@ -1488,15 +1491,14 @@ xtPublic xtBool xt_xlog_log_data(XTThreadPtr thread, size_t size, XTXactLogBuffe
 }
 
 /* Allocate a record from the free list. */
-xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpSeqNo op_seq, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *data)
+xtPublic xtBool xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo op_seq, xtRecordID free_rec_id, xtRecordID rec_id, size_t size, xtWord1 *data, XTThreadPtr thread)
 {
 	XTXactLogBufferDRec	log_entry;
-	XTThreadPtr			thread = ot->ot_thread;
-	XTTableHPtr			tab = ot->ot_table;
 	size_t				len;
 	xtWord4				sum = 0;
 	int					check_size = 1;
 	XTXactDataPtr		xact = NULL;
+	xtBool				commit = FALSE;
 
 	switch (status) {
 		case XT_LOG_ENT_REC_MODIFIED:
@@ -1505,7 +1507,7 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 		case XT_LOG_ENT_DELETE:
 			check_size = 2;
 			XT_SET_DISK_4(log_entry.xu.xu_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xu.xu_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xu.xu_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xu.xu_rec_id_4, rec_id);
 			XT_SET_DISK_2(log_entry.xu.xu_size_2, size);
 			len = offsetof(XTactUpdateEntryDRec, xu_rec_type_1);
@@ -1521,7 +1523,7 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 		case XT_LOG_ENT_DELETE_FL:
 			check_size = 2;
 			XT_SET_DISK_4(log_entry.xf.xf_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xf.xf_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xf.xf_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xf.xf_rec_id_4, rec_id);
 			XT_SET_DISK_2(log_entry.xf.xf_size_2, size);
 			XT_SET_DISK_4(log_entry.xf.xf_free_rec_id_4, free_rec_id);
@@ -1539,14 +1541,14 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 		case XT_LOG_ENT_REC_REMOVED_EXT:
 			ASSERT_NS(size == 1 + XT_XACT_ID_SIZE + sizeof(XTTabRecFreeDRec));
 			XT_SET_DISK_4(log_entry.fr.fr_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.fr.fr_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.fr.fr_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.fr.fr_rec_id_4, rec_id);
 			len = offsetof(XTactFreeRecEntryDRec, fr_stat_id_1);
 			break;
 		case XT_LOG_ENT_REC_REMOVED_BI:
 			check_size = 2;
 			XT_SET_DISK_4(log_entry.rb.rb_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.rb.rb_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.rb.rb_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.rb.rb_rec_id_4, rec_id);
 			XT_SET_DISK_2(log_entry.rb.rb_size_2, size);
 			log_entry.rb.rb_new_rec_type_1 = (xtWord1) free_rec_id;
@@ -1556,42 +1558,42 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 		case XT_LOG_ENT_REC_MOVED:
 			ASSERT_NS(size == 8);
 			XT_SET_DISK_4(log_entry.xw.xw_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xw.xw_rec_id_4, rec_id);
 			len = offsetof(XTactWriteRecEntryDRec, xw_rec_type_1);
 			break;
 		case XT_LOG_ENT_REC_CLEANED:
 			ASSERT_NS(size == offsetof(XTTabRecHeadDRec, tr_prev_rec_id_4) + XT_RECORD_ID_SIZE);
 			XT_SET_DISK_4(log_entry.xw.xw_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xw.xw_rec_id_4, rec_id);
 			len = offsetof(XTactWriteRecEntryDRec, xw_rec_type_1);
 			break;
 		case XT_LOG_ENT_REC_CLEANED_1:
 			ASSERT_NS(size == 1);
 			XT_SET_DISK_4(log_entry.xw.xw_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xw.xw_rec_id_4, rec_id);
 			len = offsetof(XTactWriteRecEntryDRec, xw_rec_type_1);
 			break;
 		case XT_LOG_ENT_REC_UNLINKED:
 			ASSERT_NS(size == offsetof(XTTabRecHeadDRec, tr_prev_rec_id_4) + XT_RECORD_ID_SIZE);
 			XT_SET_DISK_4(log_entry.xw.xw_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xw.xw_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xw.xw_rec_id_4, rec_id);
 			len = offsetof(XTactWriteRecEntryDRec, xw_rec_type_1);
 			break;
 		case XT_LOG_ENT_ROW_NEW:
 			ASSERT_NS(size == 0);
 			XT_SET_DISK_4(log_entry.xa.xa_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xa.xa_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xa.xa_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xa.xa_row_id_4, rec_id);
 			len = offsetof(XTactRowAddedEntryDRec, xa_row_id_4) + XT_ROW_ID_SIZE;
 			break;
 		case XT_LOG_ENT_ROW_NEW_FL:
 			ASSERT_NS(size == 0);
 			XT_SET_DISK_4(log_entry.xa.xa_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.xa.xa_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.xa.xa_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.xa.xa_row_id_4, rec_id);
 			XT_SET_DISK_4(log_entry.xa.xa_free_list_4, free_rec_id);
 			sum ^= XT_CHECKSUM4_REC(free_rec_id);
@@ -1602,9 +1604,16 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 		case XT_LOG_ENT_ROW_FREED:
 			ASSERT_NS(size == sizeof(XTTabRowRefDRec));
 			XT_SET_DISK_4(log_entry.wr.wr_op_seq_4, op_seq);
-			XT_SET_DISK_4(log_entry.wr.wr_tab_id_4, tab->tab_id);
+			XT_SET_DISK_4(log_entry.wr.wr_tab_id_4, tab_id);
 			XT_SET_DISK_4(log_entry.wr.wr_row_id_4, rec_id);
 			len = offsetof(XTactWriteRowEntryDRec, wr_ref_id_4);
+			break;
+		case XT_LOG_ENT_PREPARE:
+			check_size = 2;
+			XT_SET_DISK_4(log_entry.xp.xp_xact_id_4, op_seq);
+			log_entry.xp.xp_xa_len_1 = (xtWord1) size;
+			len = offsetof(XTXactPrepareEntryDRec, xp_xa_data);
+			commit = TRUE;
 			break;
 		default:
 			ASSERT_NS(FALSE);
@@ -1615,7 +1624,7 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 	xtWord1	*dptr = data;
 	xtWord4	g;
 
-	sum ^= op_seq ^ (tab->tab_id << 8) ^ XT_CHECKSUM4_REC(rec_id);
+	sum ^= op_seq ^ (tab_id << 8) ^ XT_CHECKSUM4_REC(rec_id);
 	if ((g = sum & 0xF0000000)) {
 		sum = sum ^ (g >> 24);
 		sum = sum ^ g;
@@ -1643,9 +1652,9 @@ xtPublic xtBool xt_xlog_modify_table(struct XTOpenTable *ot, u_int status, xtOpS
 	xt_print_log_record(0, 0, &log_entry);
 #endif
 	if (xact)
-		return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, FALSE, &xact->xd_begin_log, &xact->xd_begin_offset);
+		return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, commit, &xact->xd_begin_log, &xact->xd_begin_offset);
 
-	return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, FALSE, NULL, NULL);
+	return thread->st_database->db_xlog.xlog_append(thread, len, (xtWord1 *) &log_entry, size, data, commit, NULL, NULL);
 }
 
 /*
@@ -1905,6 +1914,7 @@ xtBool XTDatabaseLog::xlog_verify(XTXactLogBufferDPtr record, size_t rec_size, x
 	xtRecordID	rec_id, free_rec_id;
 	int			check_size = 1;
 	xtWord1		*dptr;
+	xtWord4		g;
 
 	switch (record->xh.xh_status_1) {
 		case XT_LOG_ENT_HEADER:
@@ -2019,12 +2029,18 @@ xtBool XTDatabaseLog::xlog_verify(XTXactLogBufferDPtr record, size_t rec_size, x
 			return record->xe.xe_checksum_1 == (XT_CHECKSUM_1(sum) ^ XT_CHECKSUM_1(log_id));
 		case XT_LOG_ENT_END_OF_LOG:
 			return FALSE;
+		case XT_LOG_ENT_PREPARE:
+			check_size = 2;
+			op_seq = XT_GET_DISK_4(record->xp.xp_xact_id_4);
+			tab_id = 0;
+			rec_id = 0;
+			dptr = record->xp.xp_xa_data;
+			rec_size -= offsetof(XTXactPrepareEntryDRec, xp_xa_data);
+			break;
 		default:
 			ASSERT_NS(FALSE);
 			return FALSE;
 	}
-
-	xtWord4	g;
 
 	sum ^= (xtWord4) op_seq ^ ((xtWord4) tab_id << 8) ^ XT_CHECKSUM4_REC(rec_id);
 
@@ -2193,6 +2209,14 @@ xtBool XTDatabaseLog::xlog_seq_next(XTXactSeqReadPtr seq, XTXactLogBufferDPtr *r
 			}
 			goto return_empty;
 		}
+		case XT_LOG_ENT_PREPARE:
+			check_size = 2;
+			len = offsetof(XTXactPrepareEntryDRec, xp_xa_data);
+			if (len > max_rec_len)
+				/* The size is not in the buffer: */
+				goto read_more;
+			len += (size_t) record->xp.xp_xa_len_1;
+			break;
 		default:
 			/* It is possible to land here after a crash, if the
 			 * log was not completely written.
@@ -2231,7 +2255,7 @@ xtBool XTDatabaseLog::xlog_seq_next(XTXactSeqReadPtr seq, XTXactLogBufferDPtr *r
 		goto return_empty;
 	}
 
-	/* The record is not completely in the buffer: */
+	/* The record is now completely in the buffer: */
 	seq->xseq_record_len = len;
 	*ret_entry = (XTXactLogBufferDPtr) seq->xseq_buffer;
 	return OK;
@@ -2428,7 +2452,7 @@ static void xlog_wr_wait_for_log_flush(XTThreadPtr self, XTDatabaseHPtr db)
 	if (reason == XT_LOG_CACHE_FULL || reason == XT_TIME_TO_WRITE || reason == XT_CHECKPOINT_REQ) {
 		/* Make sure that we have something to write: */
 		if (db->db_xlog.xlog_bytes_to_write() < 2 * 1204 * 1024)
-			xt_xlog_flush_log(self);
+			xt_xlog_flush_log(db, self);
 	}
 
 #ifdef TRACE_WRITER_ACTIVITY
@@ -2529,6 +2553,7 @@ static void xlog_wr_main(XTThreadPtr self)
 					case XT_LOG_ENT_ABORT:
 					case XT_LOG_ENT_CLEANUP:
 					case XT_LOG_ENT_OP_SYNC:
+					case XT_LOG_ENT_PREPARE:
 						break;
 					case XT_LOG_ENT_DEL_LOG:
 						xtLogID log_id;

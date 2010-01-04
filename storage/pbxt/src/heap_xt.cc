@@ -73,7 +73,7 @@ xtPublic void xt_check_heap(XTThreadPtr XT_NDEBUG_UNUSED(self), XTHeapPtr XT_NDE
 }
 
 #ifdef DEBUG_MEMORY
-xtPublic void xt_mm_heap_reference(XTThreadPtr self, XTHeapPtr hp, u_int line, c_char *file)
+xtPublic void xt_mm_heap_reference(XTThreadPtr XT_UNUSED(self), XTHeapPtr hp, u_int line, c_char *file)
 #else
 xtPublic void xt_heap_reference(XTThreadPtr, XTHeapPtr hp)
 #endif

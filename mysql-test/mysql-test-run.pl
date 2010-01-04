@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,innodb,maria,parts";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   300; # minutes
-my $opt_shutdown_timeout=    10; # seconds
-my $opt_start_timeout   =   180; # seconds
+my $opt_testcase_timeout=     15; # 15 minutes
+my $opt_suite_timeout   =    360; # 6 hours
+my $opt_shutdown_timeout=     10; # 10 seconds
+my $opt_start_timeout   =    180; # 180 seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -1319,6 +1319,8 @@ sub command_line_setup {
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
+    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
+    $opt_suite_timeout= $opt_testcase_timeout;
     $opt_retry= 1;
     $opt_retry_failure= 1;
 
@@ -2151,7 +2153,6 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
-
 }
 
 
@@ -2908,8 +2909,8 @@ sub mysql_install_db {
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
-			      "share/mariadb", "share", "scripts"],
+			     ["mysql", "sql/share", "share/mariadb",
+			      "share/mysql", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
@@ -3861,7 +3862,7 @@ sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
 
   # Open the servers .err log file and read all lines
-  # belonging to current tets into @lines
+  # belonging to current test into @lines
   my $Ferr = IO::File->new($error_log)
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
@@ -5682,12 +5683,15 @@ Misc options
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
-  parallel=N            Run tests in N parallel threads (default=1)
+  parallel=N            Run tests in N parallel threads (default 1)
                         Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
-  retry=N               Retry tests that fail N times, limit number of failures
-                        to $opt_retry_failure
-  retry-failure=N       Limit number of retries for a failed test
+  retry=N               Retry tests that fail up to N times (default $opt_retry).
+                        Retries are also limited by the maximum number of
+                        failures before stopping, set with the --retry-failure
+                        option
+  retry-failure=N       When using the --retry option to retry failed tests,
+                        stop when N failures have occured (default $opt_retry_failure)
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
 

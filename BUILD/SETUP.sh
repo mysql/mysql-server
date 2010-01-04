@@ -34,6 +34,14 @@ parse_options()
       full_debug="=full";;
     --warning-mode=*)
       warning_mode=`get_key_value "$1"`;;
+    --extra-flags=*)
+      EXTRA_FLAGS=`get_key_value "$1"`;;
+    --extra-cflags=*)
+      EXTRA_CFLAGS=`get_key_value "$1"`;;
+    --extra-cxxflags=*)
+      EXTRA_CXXFLAGS=`get_key_value "$1"`;;
+    --extra-configs=*)
+      EXTRA_CONFIGS=`get_key_value "$1"`;;
     -c | --just-configure)
       just_configure=1;;
     -n | --just-print | --print)

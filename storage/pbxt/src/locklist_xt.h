@@ -24,11 +24,16 @@
 #ifndef __xt_locklist_h__
 #define __xt_locklist_h__
 
+/*
+ * XT_THREAD_LOCK_INFO and DEBUG_LOCKING code must be updated to avoid calls to xt_get_self() as it can be called before hton->slot is
+ * assigned by MySQL which is used by xt_get_self()
+ */
+
 #ifdef DEBUG
-#define XT_THREAD_LOCK_INFO
+//#define XT_THREAD_LOCK_INFO
 #ifndef XT_WIN
 /* We need DEBUG_LOCKING in order to enable pthread function wrappers */
-#define DEBUG_LOCKING
+//#define DEBUG_LOCKING
 #endif
 #endif
 

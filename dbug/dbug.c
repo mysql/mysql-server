@@ -497,12 +497,18 @@ int DbugParse(CODE_STATE *cs, const char *control)
   const char *end;
   int rel, f_used=0;
   struct settings *stack;
+  int org_cs_locked;
 
   stack= cs->stack;
 
+  if (!(org_cs_locked= cs->locked))
+  {
+    cs->locked= 1;
+    pthread_mutex_lock(&THR_LOCK_dbug);
+  }
+
   if (control[0] == '-' && control[1] == '#')
     control+=2;
-
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
@@ -550,9 +556,11 @@ int DbugParse(CODE_STATE *cs, const char *control)
   while (control < end)
   {
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
-    if (sign) control++;
+    if (sign)
+      control++;
     c= *control++;
-    if (*control == ',') control++;
+    if (*control == ',')
+      control++;
     /* XXX when adding new cases here, don't forget _db_explain_ ! */
     switch (c) {
     case 'd':
@@ -570,7 +578,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
       {
         if (DEBUGGING)
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+        break;
       }
       stack->keywords= ListAdd(stack->keywords, control, end);
       stack->flags |= DEBUG_ON;
@@ -718,8 +726,13 @@ int DbugParse(CODE_STATE *cs, const char *control)
     control=end+1;
     end= DbugStrTok(control);
   }
-  return !rel || f_used;
-}
+  if (!org_cs_locked)
+  {
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+    cs->locked= 0;
+  }
+  return !rel || f_used;}
+  
 
 #define framep_trace_flag(cs, frp) (frp ?                                    \
                                      frp->level & TRACE_ON :                 \
@@ -1340,11 +1353,11 @@ void _db_doprnt_(const char *format,...)
 
   va_start(args,format);
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, cs->u_keyword, 0))
   {
     int save_errno=errno;
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, cs->u_line);
     if (TRACING)
       Indent(cs, cs->level + 1);
@@ -1356,6 +1369,9 @@ void _db_doprnt_(const char *format,...)
     DbugFlush(cs);
     errno=save_errno;
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+
   va_end(args);
 }
 
@@ -1386,10 +1402,10 @@ void _db_dump_(uint _line_, const char *keyword,
   CODE_STATE *cs;
   get_code_state_or_return;
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, keyword, 0))
   {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, _line_);
     if (TRACING)
     {
@@ -1420,6 +1436,8 @@ void _db_dump_(uint _line_, const char *keyword,
     (void) fputc('\n',cs->stack->out_file);
     DbugFlush(cs);
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
 
@@ -2105,7 +2123,8 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
   if (fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
-    pthread_mutex_lock(&THR_LOCK_dbug);
+    if (!cs->locked)
+      pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
     DbugFlush(cs);

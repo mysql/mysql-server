@@ -1267,6 +1267,7 @@ void abort_not_supported_test(const char *fmt, ...)
   DBUG_ENTER("abort_not_supported_test");
 
   /* Print include filestack */
+  fflush(stdout);
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
@@ -3497,9 +3498,10 @@ void do_diff_files(struct st_command *command)
   if ((error= compare_files(ds_filename.str, ds_filename2.str)) &&
       match_expected_error(command, error, NULL) < 0)
   {
-    /* Compare of the two files failed, append them to output
-       so the failure can be analyzed, but only if it was not
-       expected to fail.
+    /*
+      Compare of the two files failed, append them to output
+      so the failure can be analyzed, but only if it was not
+      expected to fail.
     */
     show_diff(&ds_res, ds_filename.str, ds_filename2.str);
     log_file.write(&ds_res);
@@ -5013,7 +5015,8 @@ void do_connect(struct st_command *command)
   con_options= ds_options.str;
   while (*con_options)
   {
-    char* end;
+    size_t length;
+    char *end;
     /* Step past any spaces in beginning of option*/
     while (*con_options && my_isspace(charset_info, *con_options))
      con_options++;
@@ -5021,13 +5024,14 @@ void do_connect(struct st_command *command)
     end= con_options;
     while (*end && !my_isspace(charset_info, *end))
       end++;
-    if (!strncmp(con_options, "SSL", 3))
+    length= (size_t) (end - con_options);
+    if (length == 3 && !strncmp(con_options, "SSL", 3))
       con_ssl= 1;
-    else if (!strncmp(con_options, "COMPRESS", 8))
+    else if (length == 8 && !strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
-    else if (!strncmp(con_options, "PIPE", 4))
+    else if (length == 4 && !strncmp(con_options, "PIPE", 4))
       con_pipe= 1;
-    else if (!strncmp(con_options, "SHM", 3))
+    else if (length == 3 && !strncmp(con_options, "SHM", 3))
       con_shm= 1;
     else
       die("Illegal option to connect: %.*s", 
@@ -5096,13 +5100,12 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
   }
-  else if(shared_memory_base_name)
+  else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
-      shared_memory_base_name);
+                  shared_memory_base_name);
   }
 #endif
-
 
   /* Use default db name */
   if (ds_database.length == 0)
@@ -6879,10 +6882,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
-  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6981,6 +6982,9 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   handle_no_error(command);
   if (!disable_result_log)
   {
+    ulonglong affected_rows;
+    LINT_INIT(affected_rows);
+
     /*
       Not all statements creates a result set. If there is one we can
       now create another normal result set that contains the meta
@@ -7026,39 +7030,33 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       Need to grab affected rows information before getting
       warnings here
     */
+    if (!disable_info)
+      affected_rows= mysql_affected_rows(mysql);
+
+    if (!disable_warnings)
     {
-      ulonglong affected_rows;
-      LINT_INIT(affected_rows);
+      /* Get the warnings from execute */
 
-      if (!disable_info)
-	affected_rows= mysql_affected_rows(mysql);
-
-      if (!disable_warnings)
+      /* Append warnings to ds - if there are any */
+      if (append_warnings(&ds_execute_warnings, mysql) ||
+          ds_execute_warnings.length ||
+          ds_prepare_warnings.length ||
+          ds_warnings->length)
       {
-	/* Get the warnings from execute */
-
-	/* Append warnings to ds - if there are any */
-	if (append_warnings(&ds_execute_warnings, mysql) ||
-	    ds_execute_warnings.length ||
-	    ds_prepare_warnings.length ||
-	    ds_warnings->length)
-	{
-	  dynstr_append_mem(ds, "Warnings:\n", 10);
-	  if (ds_warnings->length)
-	    dynstr_append_mem(ds, ds_warnings->str,
-			      ds_warnings->length);
-	  if (ds_prepare_warnings.length)
-	    dynstr_append_mem(ds, ds_prepare_warnings.str,
-			      ds_prepare_warnings.length);
-	  if (ds_execute_warnings.length)
-	    dynstr_append_mem(ds, ds_execute_warnings.str,
-			      ds_execute_warnings.length);
-	}
+        dynstr_append_mem(ds, "Warnings:\n", 10);
+        if (ds_warnings->length)
+          dynstr_append_mem(ds, ds_warnings->str,
+                            ds_warnings->length);
+        if (ds_prepare_warnings.length)
+          dynstr_append_mem(ds, ds_prepare_warnings.str,
+                            ds_prepare_warnings.length);
+        if (ds_execute_warnings.length)
+          dynstr_append_mem(ds, ds_execute_warnings.str,
+                            ds_execute_warnings.length);
       }
-
-      if (!disable_info)
-	append_info(ds, affected_rows, mysql_info(mysql));
     }
+    if (!disable_info)
+      append_info(ds, affected_rows, mysql_info(mysql));
   }
 
 end:
@@ -7235,7 +7233,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     }
 
     dynstr_free(&query_str);
-
   }
 
   if (sp_protocol_enabled &&
@@ -7662,6 +7659,7 @@ int main(int argc, char **argv)
   my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
+  bool empty_result= FALSE;
   MY_INIT(argv[0]);
 
   save_file[0]= 0;
@@ -7819,6 +7817,7 @@ int main(int argc, char **argv)
   verbose_msg("Start processing test commands from '%s' ...", cur_file->file_name);
   while (!read_command(&command) && !abort_flag)
   {
+    my_bool ok_to_do;
     int current_line_inc = 1, processed = 0;
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
@@ -7831,7 +7830,7 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    my_bool ok_to_do= cur_block->ok;
+    ok_to_do= cur_block->ok;
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
@@ -8100,7 +8099,10 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        abort_not_supported_test("%s", command->first_argument);
+        /* Eval the query, thus replacing all environment variables */
+        dynstr_set(&ds_res, 0);
+        do_eval(&ds_res, command->first_argument, command->end, FALSE);
+        abort_not_supported_test("%s",ds_res.str);
         break;
 
       case Q_RESULT:
@@ -8167,8 +8169,6 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
-  my_bool empty_result= FALSE;
-  
   /*
     The whole test has been executed _sucessfully_.
     Time to compare result or save it to record file.

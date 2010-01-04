@@ -1075,6 +1075,7 @@ xtPublic void xt_xn_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 #endif
 	xt_spinlock_init_with_autoname(self, &db->db_xn_id_lock);
 	xt_spinlock_init_with_autoname(self, &db->db_xn_wait_spinlock);
+	xt_init_mutex_with_autoname(self, &db->db_xn_xa_lock);
 	//xt_init_mutex_with_autoname(self, &db->db_xn_wait_lock);
 	//xt_init_cond(self, &db->db_xn_wait_cond);
 	xt_init_mutex_with_autoname(self, &db->db_sw_lock);
@@ -1095,6 +1096,9 @@ xtPublic void xt_xn_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 			xact++;
 		}
 	}
+
+	/* Create a sorted list for XA transactions recovered: */
+	db->db_xn_xa_list = xt_new_sortedlist(self, sizeof(XTXactXARec), 100, 50, xt_xn_xa_compare, db, NULL, FALSE, FALSE);
 
 	/* Initialize the data logs: */
 	db->db_datalogs.dlc_init(self, db); 
@@ -1146,6 +1150,7 @@ xtPublic void xt_xn_exit_db(XTThreadPtr self, XTDatabaseHPtr db)
 	printf("=========> MAX TXs NOT CLEAN: %lu\n", not_clean_max);
 	printf("=========> MAX TXs IN RAM: %lu\n", in_ram_max);
 #endif
+	XTXactPreparePtr xap, xap_next;
 
 	xt_stop_sweeper(self, db);	// Should be done already!
 	xt_stop_writer(self, db);	// Should be done already!
@@ -1187,6 +1192,19 @@ xtPublic void xt_xn_exit_db(XTThreadPtr self, XTDatabaseHPtr db)
 	xt_free_mutex(&db->db_sw_lock);
 	//xt_free_cond(&db->db_xn_wait_cond);
 	//xt_free_mutex(&db->db_xn_wait_lock);
+	xt_free_mutex(&db->db_xn_xa_lock);
+	for (u_int i=0; i<XT_XA_HASH_TAB_SIZE; i++) {
+		xap = db->db_xn_xa_table[i];
+		while (xap) {
+			xap_next = xap->xp_next;
+			xt_free(self, xap);
+			xap = xap_next;
+		}
+	}
+	if (db->db_xn_xa_list) {
+		xt_free_sortedlist(self, db->db_xn_xa_list);
+		db->db_xn_xa_list = NULL;
+	}
 	xt_spinlock_free(self, &db->db_xn_wait_spinlock);
 	xt_spinlock_free(self, &db->db_xn_id_lock);
 #ifdef DEBUG_RAM_LIST
@@ -1428,7 +1446,7 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 			wait_xn_id = thread->st_prev_xact[thread->st_last_xact];
 			thread->st_prev_xact[thread->st_last_xact] = xn_id;
 			/* This works because XT_MAX_XACT_BEHIND == 2! */
-			ASSERT_NS((thread->st_last_xact + 1) % XT_MAX_XACT_BEHIND == thread->st_last_xact ^ 1);
+			ASSERT_NS((thread->st_last_xact + 1) % XT_MAX_XACT_BEHIND == (thread->st_last_xact ^ 1));
 			thread->st_last_xact ^= 1;
 			while (xt_xn_is_before(db->db_xn_to_clean_id, wait_xn_id) && (db->db_sw_faster & XT_SW_TOO_FAR_BEHIND)) {
 				xt_critical_wait();
@@ -1547,6 +1565,149 @@ xtPublic int xt_xn_status(XTOpenTablePtr ot, xtXactID xn_id, xtRecordID XT_UNUSE
 	}
 	return XT_XN_ABORTED;
 }
+
+/* ----------------------------------------------------------------------
+ * XA Functionality
+ */
+ 
+xtPublic int xt_xn_xa_compare(XTThreadPtr XT_UNUSED(self), register const void *XT_UNUSED(thunk), register const void *a, register const void *b)
+{
+	xtXactID	*x = (xtXactID *) a;
+	XTXactXAPtr	y = (XTXactXAPtr) b;
+
+	if (*x == y->xx_xact_id)
+		return 0;
+	if (xt_xn_is_before(*x, y->xx_xact_id))
+		return -1;
+	return 1;
+}
+
+xtPublic xtBool xt_xn_prepare(int len, xtWord1 *xa_data, XTThreadPtr thread)
+{
+	XTXactDataPtr xact;
+
+	ASSERT_NS(thread->st_xact_data);
+	if ((xact = thread->st_xact_data)) {
+		xtXactID xn_id = xact->xd_start_xn_id;
+
+		/* Only makes sense if the transaction has already been logged: */
+		if ((thread->st_xact_data->xd_flags & XT_XN_XAC_LOGGED)) {
+			if (!xt_xlog_modify_table(0, XT_LOG_ENT_PREPARE, xn_id, 0, 0, len, xa_data, thread))
+				return FAILED;
+		}
+	}
+	return OK;
+}
+
+xtPublic xtBool xt_xn_store_xa_data(XTDatabaseHPtr db, xtXactID xact_id, int len, xtWord1 *xa_data, XTThreadPtr XT_UNUSED(thread))
+{
+	XTXactPreparePtr	xap;
+	u_int				idx;
+	XTXactXARec			xx;
+
+	if (!(xap = (XTXactPreparePtr) xt_malloc_ns(offsetof(XTXactPrepareRec, xp_xa_data) + len)))
+		return FAILED;
+	xap->xp_xact_id = xact_id;
+	xap->xp_hash = xt_get_checksum4(xa_data, len);
+	xap->xp_data_len = len;
+	memcpy(xap->xp_xa_data, xa_data, len);
+	xx.xx_xact_id = xact_id;
+	xx.xx_xa_ptr = xap;
+
+	idx = xap->xp_hash % XT_XA_HASH_TAB_SIZE;
+	xt_lock_mutex_ns(&db->db_xn_xa_lock);
+	if (!xt_sl_insert(NULL, db->db_xn_xa_list, &xact_id, &xx)) {
+		xt_unlock_mutex_ns(&db->db_xn_xa_lock);
+		xt_free_ns(xap);
+	}
+	xap->xp_next = db->db_xn_xa_table[idx];
+	db->db_xn_xa_table[idx] = xap;
+	xt_unlock_mutex_ns(&db->db_xn_xa_lock);
+	return OK;
+}
+
+xtPublic void xt_xn_delete_xa_data_by_xact(XTDatabaseHPtr db, xtXactID xact_id, XTThreadPtr thread)
+{
+	XTXactXAPtr xx;
+
+	xt_lock_mutex_ns(&db->db_xn_xa_lock);
+	if (!(xx = (XTXactXAPtr) xt_sl_find(NULL, db->db_xn_xa_list, &xact_id)))
+		return;
+	xt_xn_delete_xa_data(db, xx->xx_xa_ptr, TRUE, thread);
+}
+
+xtPublic void xt_xn_delete_xa_data(XTDatabaseHPtr db, XTXactPreparePtr xap, xtBool unlock, XTThreadPtr XT_UNUSED(thread))
+{
+	u_int				idx;
+	XTXactPreparePtr	xap_ptr, xap_pptr = NULL;
+
+	xt_sl_delete(NULL, db->db_xn_xa_list, &xap->xp_xact_id);
+	idx = xap->xp_hash % XT_XA_HASH_TAB_SIZE;
+	xap_ptr = db->db_xn_xa_table[idx];
+	while (xap_ptr) {
+		if (xap_ptr == xap)
+			break;
+		xap_pptr = xap_ptr;
+		xap_ptr = xap_ptr->xp_next;
+	}
+	if (xap_ptr) {
+		if (xap_pptr)
+			xap_pptr->xp_next = xap_ptr->xp_next;
+		else
+			db->db_xn_xa_table[idx] = xap_ptr->xp_next;
+		xt_free_ns(xap);
+	}
+	if (unlock)
+		xt_unlock_mutex_ns(&db->db_xn_xa_lock);
+}
+
+xtPublic XTXactPreparePtr xt_xn_find_xa_data(XTDatabaseHPtr db, int len, xtWord1 *xa_data, xtBool lock, XTThreadPtr XT_UNUSED(thread))
+{
+	xtWord4				hash;
+	XTXactPreparePtr	xap;
+	u_int				idx;
+
+	if (lock)
+		xt_lock_mutex_ns(&db->db_xn_xa_lock);
+	hash = xt_get_checksum4(xa_data, len);
+	idx = hash % XT_XA_HASH_TAB_SIZE;
+	xap = db->db_xn_xa_table[idx];
+	while (xap) {
+		if (xap->xp_hash == hash &&
+			xap->xp_data_len == len &&
+			memcmp(xap->xp_xa_data, xa_data, len) == 0) {
+			break;
+		}
+		xap = xap->xp_next;
+	}
+	
+	return xap;
+}
+
+xtPublic XTXactPreparePtr xt_xn_enum_xa_data(XTDatabaseHPtr db, XTXactEnumXAPtr exa)
+{
+	XTXactXAPtr xx;
+
+	if (!exa->exa_locked) {
+		xt_lock_mutex_ns(&db->db_xn_xa_lock);
+		exa->exa_locked = TRUE;
+	}
+
+	if ((xx = (XTXactXAPtr) xt_sl_item_at(db->db_xn_xa_list, exa->exa_index))) {
+		exa->exa_index++;
+		return xx->xx_xa_ptr;
+	}
+
+	if (exa->exa_locked) {
+		exa->exa_locked = FALSE;
+		xt_unlock_mutex_ns(&db->db_xn_xa_lock);
+	}
+	return NULL;
+}
+
+/* ----------------------------------------------------------------------
+ * S W E E P E R    F U N C T I O N S
+ */
 
 xtPublic xtWord8 xt_xn_bytes_to_sweep(XTDatabaseHPtr db, XTThreadPtr thread)
 {
@@ -2047,7 +2208,7 @@ static xtBool xn_sw_cleanup_variation(XTThreadPtr self, XNSweeperStatePtr ss, XT
 				if(!tab->tab_recs.xt_tc_write_cond(self, ot->ot_rec_file, rec_id, rec_head.tr_rec_type_1, &op_seq, xn_id, row_id, stat_id, rec_type))
 					/* this means record was not updated by xt_tc_write_bor and doesn't need to */
 					break;
-				if (!xt_xlog_modify_table(ot, XT_LOG_ENT_REC_CLEANED_1, op_seq, 0, rec_id, 1, &rec_head.tr_rec_type_1))
+				if (!xt_xlog_modify_table(tab->tab_id, XT_LOG_ENT_REC_CLEANED_1, op_seq, 0, rec_id, 1, &rec_head.tr_rec_type_1, self))
 					throw_();
 				xn_sw_clean_indices(self, ot, rec_id, row_id, rec_buf, ss->ss_databuf.db_data);
 				break;
@@ -2397,8 +2558,10 @@ static void xn_sw_main(XTThreadPtr self)
 			if ((xact = xt_xn_get_xact(db, db->db_xn_to_clean_id, self))) {
 				xtXactID xn_id;
 
-				if (!(xact->xd_flags & XT_XN_XAC_SWEEP))
-					/* Transaction has not yet ending, and ready to sweep. */
+				/* The sweep flag is set when the transaction is ready for sweeping.
+				 * Prepared transactions may not be swept!
+				 */
+				if (!(xact->xd_flags & XT_XN_XAC_SWEEP) || (xact->xd_flags & XT_XN_XAC_PREPARED))
 					goto sleep;
 
 				/* Check if we can cleanup the transaction.
@@ -2493,7 +2656,7 @@ static void xn_sw_main(XTThreadPtr self)
 				 * we flush the log.
 				 */
 				if (now >= idle_start + 2) {
-					if (!xt_xlog_flush_log(self))
+					if (!xt_xlog_flush_log(db, self))
 						xt_throw(self);
 					ss->ss_flush_pending = FALSE;
 				}
@@ -2516,7 +2679,7 @@ static void xn_sw_main(XTThreadPtr self)
 	}
 
 	if (ss->ss_flush_pending) {
-		xt_xlog_flush_log(self);
+		xt_xlog_flush_log(db, self);
 		ss->ss_flush_pending = FALSE;
 	}
 
