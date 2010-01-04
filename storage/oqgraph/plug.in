@@ -1,0 +1,32 @@
+MYSQL_STORAGE_ENGINE(oqgraph,,[Graph Storage Engine],
+        [Open Query Graph Computation Engine], [])
+MYSQL_PLUGIN_DYNAMIC(oqgraph,   [oqgraph_engine.la])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(oqgraph, [ha_oqgraph.cc])
+AM_CONDITIONAL([BUILD_OQGRAPH_FOR_MYSQL], true)
+AM_CONDITIONAL([BUILD_OQGRAPH_STANDALONE], false)
+AM_CONDITIONAL([HAVE_DTRACE], false)
+
+AC_LANG_PUSH([C++])
+AC_CHECK_HEADER([boost/graph/properties.hpp],[:],[
+  mysql_plugin_oqgraph=no
+  with_plugin_oqgraph=no
+])
+
+save_CXXFLAGS="${CXXFLAGS}"
+CXXFLAGS="-fexceptions -fimplicit-templates -O3 -fstrict-aliasing -falign-loops -fvisibility-inlines-hidden -funroll-loops -fno-trapping-math"
+
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+  #include <boost/graph/graph_traits.hpp>
+  #include <boost/graph/adjacency_list.hpp>
+  #include <boost/graph/dijkstra_shortest_paths.hpp>
+
+  using namespace boost;
+]],[[
+  typedef adjacency_list<vecS, vecS, bidirectionalS> Graph;
+  Graph g(10);
+]])],[],[
+  mysql_plugin_oqgraph=no
+  with_plugin_oqgraph=no
+])
+CXXFLAGS="${save_CXXFLAGS}"
+AC_LANG_POP()
