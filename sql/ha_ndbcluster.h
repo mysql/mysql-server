@@ -866,7 +866,8 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  class ha_pushed_join *m_pushed_join;
+  class ha_pushed_join *m_pushed_join;  // Pushed join definition
+  bool m_disable_pushed_join;           // Execution allowed?
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
