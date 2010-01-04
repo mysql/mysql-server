@@ -40,45 +40,15 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/blocks/cmvmi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
 )
 
-LINK_LIBRARIES(ndbcmvmi
-               ndbdbacc
-               ndbdbdict
-               ndbdbdih
-               ndbdblqh
-               ndbdbtc
-               ndbdbtup
-               ndbndbfs
-               ndbndbcntr
-               ndbqmgr
-               ndbtrix
-               ndbbackup
-               ndbdbutil
-               ndbsuma
-               ndbdbtux
-	       ndbdbinfo
-               ndbkernel
-               ndberror
-               ndbtransport
-               ndbtrace
-               ndbsignaldata
-               ndblogger
-               ndbmgmsrv
-               ndbmgmapi
-               ndbportlib
-               ndbgeneral
-               ndbblocks
-               ndbsched
-               dbug
-               mysys
-               strings
-               ndbconf)
-ADD_EXECUTABLE(ndbd
-               main.cpp
-               ndbd.cpp
-               angel.cpp
-               SimBlockList.cpp
-              ../mgmsrv/ConfigInfo.cpp
-              ../mgmsrv/Config.cpp
-              ../mgmsrv/InitConfigFileParser.cpp
+SET(NDBD_LIBS ndbblocks ndbkernel ndberror ndbtransport
+    ndbtrace ndbsignaldata ndblogger ndbmgmsrv ndbmgmapi
+    ndbportlib ndbgeneral dbug mysys strings
 )
+
+ADD_EXECUTABLE(ndbd main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
+TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched)
 INSTALL(TARGETS ndbd DESTINATION libexec)
+
+ADD_EXECUTABLE(ndbmtd main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
+TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt)
+INSTALL(TARGETS ndbmtd DESTINATION libexec)
