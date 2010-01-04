@@ -533,20 +533,16 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
   // TODO: Incomplete testing of 'late quick-optimized' range scan, will be liftet soon
   if (join_root.type == JT_ALL && join_root.use_quick == 2)
   {
-    DBUG_RETURN(0);
-  }
-
-  // 'index_merge' access plan is not implemented
-  if (join_root.select && join_root.select->quick &&
-      join_root.select->quick->index >= MAX_KEY)
-  {
+    DBUG_PRINT("info", ("'use_quick == 2' -> not pushable"));
     DBUG_RETURN(0);
   }
 
   // 'pk' in (x,y,z) is not correctly handled in MRR result handling yet.
   if (join_root.select && join_root.select->quick &&
-      m_index[join_root.select->quick->index].index == NULL)
+      join_root.select->quick->index < MAX_KEY &&
+      m_index[join_root.select->quick->index].ndb_record_key == NULL)
   {
+    DBUG_PRINT("info", ("'m_index[quick->index].ndb_record_key == NULL' -> not pushable"));
     DBUG_RETURN(0);
   }
 
@@ -570,6 +566,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_PRINT("info", ("Tables has user defined partioning -> not pushable"));
     DBUG_RETURN(0);
   }
+
+  DBUG_PRINT("info", ("Probably pushable"));
 
   /**
    * Past this point we know we can push at least a 2 table join.
@@ -633,12 +631,11 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       if (error < 0)
         DBUG_RETURN(0);
     
-      QUICK_SELECT_I *quick = join_root.select->quick;
+      const QUICK_SELECT_I *quick = join_root.select->quick;
       if (quick)
       {
         DBUG_PRINT("info", ("Returned from test_quick_select, quick->index:%d", quick->index));
       }
-
 /****
       int idx= quick->index;
       DBUG_ASSERT (m_index[quick->index].ndb_record_key);
@@ -650,20 +647,29 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 ****/
     }
 
-    if (join_root.select && join_root.select->quick)  // This is an index range scan 
+    else if (join_root.select && join_root.select->quick)  // This is an index range scan 
     {
-      QUICK_SELECT_I *quick = join_root.select->quick;
-      DBUG_PRINT("info", ("Root operation scan index:%d w/ upper/lower bounds", quick->index));
+      const QUICK_SELECT_I *quick = join_root.select->quick;
+      DBUG_EXECUTE("info", join_root.select->quick->dbug_dump(0, true););
 
-      DBUG_EXECUTE("info", quick->dbug_dump(0, true););
-
-      if (!m_index[quick->index].index) // Use PK, typically 'pk in (X,Y,Z)'
+      if (quick->index < MAX_KEY && m_index[quick->index].ndb_record_key != NULL)
       {
-        // This case has been temporarily disabled further above as it
-        // need massive changes in the MRR handling of multiple PK reads.
-        DBUG_ASSERT(quick->index == join_root.table->s->primary_key);
+        DBUG_PRINT("info", ("Root operation is scan index:%d w/ upper/lower bounds", quick->index));
 
-        const NdbRecord *key_rec= m_index[quick->index].ndb_unique_record_key;
+        // Bounds will be generated and supplied during execute
+        const NdbRecord *inx_record= m_index[quick->index].ndb_record_key;
+        operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
+      }
+      else // No scanable indexes; use PK, typically 'pk in (X,Y,Z)'
+      {
+        DBUG_PRINT("info", ("Root operation is PK-MRR"));
+
+        DBUG_ASSERT (quick->index == join_root.table->s->primary_key ||  // MRR w/ set op PK's,: 'pk in (X,Y,Z)'
+                     quick->index == MAX_KEY);                           // 'Index merge' calculate set of PK's
+
+        const NdbRecord *key_rec= m_index[join_root.table->s->primary_key].ndb_unique_record_key;
+        DBUG_ASSERT (key_rec!=NULL);
+
         const NdbQueryOperand* rootKey[10] = {NULL};
         for (uint i = 0; i < key_rec->key_index_length; i++)
         {
@@ -673,13 +679,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         }
         rootKey[key_rec->key_index_length]= NULL;
         operationDefs[0]= builder.readTuple(key_rec, m_ndb_record, rootKey);
-      }
-      else
-      {
-        // Bounds will be generated and supplied during execute
-        //DBUG_ASSERT (m_index[quick->index].index);
-        const NdbRecord *inx_record= m_index[quick->index].ndb_record_key;
-        operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
       }
     }
     else
@@ -2878,7 +2877,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
   
-  if (m_pushed_join)
+  if (m_pushed_join && !m_disable_pushed_join)
   {
     NdbQuery *query;
     if (!(query= pk_unique_index_read_key_pushed(table->s->primary_key, key, lm,
@@ -3276,7 +3275,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (m_pushed_join)
+  if (m_pushed_join && !m_disable_pushed_join)
   {
     NdbQuery *query;
     if (!(query= pk_unique_index_read_key_pushed(active_index, key, lm, NULL)))
@@ -3785,7 +3784,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
-  if (m_pushed_join)
+  if (m_pushed_join && !m_disable_pushed_join)
   {
     DBUG_PRINT("info", ("executing chain of a index scan + %d primary key joins."
                         " First table is %s.", 
@@ -3996,7 +3995,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
-  if (m_pushed_join)
+  if (m_pushed_join && !m_disable_pushed_join)
   {
     DBUG_PRINT("info", ("executing chain of a table scan + %d primary key joins."
                         " First table is %s.", 
@@ -6219,6 +6218,16 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_UPDATE_CANNOT_BATCH"));
     m_update_cannot_batch= TRUE;
     break;
+  // We don't implement 'KEYREAD' itself:
+  // However, we should not execute entire pushed-join chain if only 'KEYREAD' was requested.
+  case HA_EXTRA_KEYREAD:
+    DBUG_PRINT("info", ("HA_EXTRA_KEYREAD"));
+    m_disable_pushed_join= TRUE;
+    break;
+  case HA_EXTRA_NO_KEYREAD:
+    DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
+    m_disable_pushed_join= FALSE;
+    break;
   default:
     break;
   }
@@ -6282,6 +6291,7 @@ int ha_ndbcluster::reset()
     delete m_pushed_join;
     m_pushed_join= NULL;
   }
+  m_disable_pushed_join= FALSE;
 
   /*
     Regular partition pruning will set the bitmap appropriately.
@@ -9086,6 +9096,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_dupkey((uint) -1),
   m_autoincrement_prefetch(DEFAULT_AUTO_PREFETCH),
   m_pushed_join(NULL),
+  m_disable_pushed_join(FALSE),
   m_cond(NULL),
   m_multi_cursor(NULL)
 {
@@ -12085,7 +12096,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       /* Create the scan operation for the first scan range. */
-      if (m_pushed_join)
+      if (m_pushed_join && !m_disable_pushed_join)
       {
         if (!m_active_query)
         {
@@ -12277,7 +12288,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u", i));
-      if (m_pushed_join)
+      if (m_pushed_join && !m_disable_pushed_join)
       {
         const NdbQuery* query;
         if (!(query= pk_unique_index_read_key_pushed(active_index,
@@ -12302,7 +12313,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   buffer->end_of_used_area= row_buf;
 
-  if (m_pushed_join && m_pushed_join->m_queryDef->isScanQuery())
+  if (m_pushed_join && !m_disable_pushed_join &&
+      m_pushed_join->m_queryDef->isScanQuery())
   {
 //  DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
 //                      m_active_query->getPruned()));
