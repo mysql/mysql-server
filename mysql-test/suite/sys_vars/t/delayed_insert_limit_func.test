@@ -109,7 +109,8 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 let $wait_condition=
-   SELECT variable_value > 0 FROM information_schema.global_status
+   SELECT variable_value > @@global.delayed_insert_limit
+   FROM information_schema.global_status
    WHERE variable_name like 'Not_flushed_delayed_rows';
 --source include/wait_condition.inc
 let $my_select= SELECT COUNT(*) FROM t1;
