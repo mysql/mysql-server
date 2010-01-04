@@ -1305,6 +1305,8 @@ SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 1048576
 SET @@global.max_allowed_packet=25000000;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '25000000'
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
 INSERT INTO t1 VALUES ('a');

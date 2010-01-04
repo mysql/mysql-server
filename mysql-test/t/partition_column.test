@@ -24,6 +24,23 @@ partition by range columns (a,b,c)
   partition p1 values less than (1, maxvalue, maxvalue));
 
 #
+# BUG#48737, Search fails with ucs2
+#
+create table t1 (a varchar(5) character set ucs2 collate ucs2_bin)
+partition by range columns (a)
+(partition p0 values less than (0x0041));
+insert into t1 values (0x00410000);
+select hex(a) from t1 where a like 'A_';
+explain partitions select hex(a) from t1 where a like 'A_';
+alter table t1 remove partitioning;
+select hex(a) from t1 where a like 'A_';
+create index a on t1 (a);
+select hex(a) from t1 where a like 'A_';
+insert into t1 values ('A_');
+select hex(a) from t1;
+drop table t1;
+
+#
 # BUG#48161, Delivering too few records using collate syntax with partitions
 #
 # Test case from BUG#48447 with some extension

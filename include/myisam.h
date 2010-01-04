@@ -251,7 +251,7 @@ typedef struct st_columndef		/* column information */
 
 extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
-extern ulong myisam_concurrent_insert;
+extern uint myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
 extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
@@ -260,7 +260,7 @@ extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 /* which is normally forbidden                                        */
 extern int (*myisam_test_invalid_symlink)(const char *filename);
 extern ulonglong myisam_mmap_size, myisam_mmap_used;
-extern pthread_mutex_t THR_LOCK_myisam_mmap;
+extern mysql_mutex_t THR_LOCK_myisam_mmap;
 
 	/* Prototypes for myisam-functions */
 

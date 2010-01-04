@@ -4,9 +4,10 @@ SELECT @start_value;
 test.log
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.general_log_file = DEFAULT;
-SELECT RIGHT(@@global.general_log_file,10) AS log_file;
-log_file
-mysqld.log
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '.log');
+SELECT RIGHT(@@global.general_log_file, length(@a)) = @a;
+RIGHT(@@global.general_log_file, length(@a)) = @a
+1
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.general_log_file = mytest.log;
 SET @@global.general_log_file = 12;

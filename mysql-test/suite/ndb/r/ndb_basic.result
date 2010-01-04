@@ -18,11 +18,15 @@ Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_cache_check_time	#
 ndb_connectstring	#
+ndb_distribution	#
 ndb_extra_logging	#
 ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_mgmd_host	#
+ndb_nodeid	#
+ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_use_copying_alter_table	#

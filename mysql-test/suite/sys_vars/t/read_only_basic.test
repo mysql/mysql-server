@@ -90,7 +90,7 @@ SELECT @@global.read_only;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.read_only = 10240022115;
 SELECT @@global.read_only;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.read_only = 10000.01;
 SELECT @@global.read_only;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -99,7 +99,6 @@ SELECT @@global.read_only;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.read_only = 42949672950;
 SELECT @@global.read_only;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.read_only = 'test';

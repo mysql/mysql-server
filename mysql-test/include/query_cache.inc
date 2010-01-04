@@ -114,7 +114,7 @@ connection default;
 # This should be 'YES'.
 SHOW VARIABLES LIKE 'have_query_cache';
 
-SET GLOBAL query_cache_size = 200000;
+SET GLOBAL query_cache_size = 204800;
 flush status;
 SET @@autocommit=1;
 eval SET SESSION STORAGE_ENGINE = $engine_type;

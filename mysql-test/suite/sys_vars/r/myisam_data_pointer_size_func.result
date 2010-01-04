@@ -1,3 +1,4 @@
+call mtr.add_suppression("The table 't1' is full");
 '#--------------------FN_DYNVARS_093_01-------------------------#'
 SET @start_value= @@global.myisam_data_pointer_size;
 SET @@global.myisam_data_pointer_size = 2;

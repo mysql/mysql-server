@@ -1,0 +1,21 @@
+select @@global.have_profiling="1";
+@@global.have_profiling="1"
+0
+select @@session.have_profiling;
+ERROR HY000: Variable 'have_profiling' is a GLOBAL variable
+show global variables like 'have_profiling';
+Variable_name	Value
+have_profiling	#
+show session variables like 'have_profiling';
+Variable_name	Value
+have_profiling	#
+select * from information_schema.global_variables where variable_name='have_profiling';
+VARIABLE_NAME	VARIABLE_VALUE
+HAVE_PROFILING	#
+select * from information_schema.session_variables where variable_name='have_profiling';
+VARIABLE_NAME	VARIABLE_VALUE
+HAVE_PROFILING	#
+set global have_profiling=1;
+ERROR HY000: Variable 'have_profiling' is a read only variable
+set session have_profiling=1;
+ERROR HY000: Variable 'have_profiling' is a read only variable

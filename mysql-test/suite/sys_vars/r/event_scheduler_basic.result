@@ -4,8 +4,9 @@ SELECT @start_value;
 OFF
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.event_scheduler = DEFAULT;
-ERROR 42000: Variable 'event_scheduler' doesn't have a default value
-'Bug# 34878: According to documentation the default value of variable is OFF';
+SELECT @@global.event_scheduler;
+@@global.event_scheduler
+OFF
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.event_scheduler = ON;
 SELECT @@global.event_scheduler;

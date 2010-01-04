@@ -71,8 +71,8 @@ Warning	1292	Truncated incorrect auto_increment_increment value: '65536'
 SELECT @@global.auto_increment_increment;
 @@global.auto_increment_increment
 65535
-SET @@global.auto_increment_increment = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.auto_increment_increment = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
 SELECT @@global.auto_increment_increment;
 @@global.auto_increment_increment
 65535
@@ -93,15 +93,14 @@ Warning	1292	Truncated incorrect auto_increment_increment value: '-2'
 SELECT @@session.auto_increment_increment;
 @@session.auto_increment_increment
 1
-SET @@session.auto_increment_increment = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.auto_increment_increment = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
 SET @@session.auto_increment_increment = 65550;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_increment value: '65550'
 SELECT @@session.auto_increment_increment;
 @@session.auto_increment_increment
 65535
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.auto_increment_increment = test;
 ERROR 42000: Incorrect argument type to variable 'auto_increment_increment'
 SELECT @@session.auto_increment_increment;

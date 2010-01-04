@@ -89,7 +89,6 @@ SET @@session.identity = -1024;
 SELECT @@session.identity;
 SET @@session.identity = 42949672950;
 SELECT @@session.identity;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.identity = ON;
