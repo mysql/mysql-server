@@ -1851,17 +1851,19 @@ sub environment_setup {
     }
     else
     {
-       $semisync_master_filename = "libsemisync_master.so";
-       $semisync_slave_filename = "libsemisync_slave.so";
+       $semisync_master_filename = "semisync_master.so";
+       $semisync_slave_filename = "semisync_slave.so";
     }
     my $lib_semisync_master_plugin=
       mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_master_filename),
 		      "$basedir/plugin/semisync/.libs/" . $semisync_master_filename,
-                      "$basedir/lib/mysql/plugin/" . $semisync_master_filename);
+                      "$basedir/lib/mysql/plugin/" . $semisync_master_filename,
+                      "$basedir/lib/plugin/" . $semisync_master_filename);
     my $lib_semisync_slave_plugin=
       mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_slave_filename),
 		      "$basedir/plugin/semisync/.libs/" . $semisync_slave_filename,
-                      "$basedir/lib/mysql/plugin/" . $semisync_slave_filename);
+                      "$basedir/lib/mysql/plugin/" . $semisync_slave_filename,
+                      "$basedir/lib/plugin/" . $semisync_slave_filename);
     if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
     {
       $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
