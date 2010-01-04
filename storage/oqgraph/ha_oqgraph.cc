@@ -139,7 +139,7 @@ static bool oqgraph_init()
   }
 #if MYSQL_VERSION_ID >= 50100
   hton->state= SHOW_OPTION_YES;
-  hton->db_type= DB_TYPE_DEFAULT;
+  hton->db_type= DB_TYPE_AUTOASSIGN;
   hton->create= oqgraph_create_handler;
   hton->flags= HTON_NO_FLAGS;
 #endif
