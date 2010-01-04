@@ -103,8 +103,8 @@ SET @@global.group_concat_max_len = -1024;
 SELECT @@global.group_concat_max_len;
 SET @@global.group_concat_max_len = 65536;
 SELECT @@global.group_concat_max_len;
---Error ER_PARSE_ERROR
-SET @@global.group_concat_max_len = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.group_concat_max_len = 65530.34;
 SELECT @@global.group_concat_max_len;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.group_concat_max_len = test;
@@ -114,11 +114,10 @@ SET @@session.group_concat_max_len = 0;
 SELECT @@session.group_concat_max_len;
 SET @@session.group_concat_max_len = -2;
 SELECT @@session.group_concat_max_len;
---Error ER_PARSE_ERROR
-SET @@session.group_concat_max_len = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.group_concat_max_len = 65530.34;
 SET @@session.group_concat_max_len = 65550;
 SELECT @@session.group_concat_max_len;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.group_concat_max_len = test;

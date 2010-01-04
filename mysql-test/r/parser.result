@@ -522,7 +522,7 @@ select conv(255 AS p1, 10 AS p2, 16 AS p3);
 ERROR 42000: Incorrect parameters in the call to native function 'conv'
 select atan(10);
 atan(10)
-1.47112767430373
+1.4711276743037347
 select atan(10 AS p1);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10 p1);
@@ -533,7 +533,7 @@ select atan(10 "p1");
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10, 20);
 atan(10, 20)
-0.463647609000806
+0.4636476090008061
 select atan(10 AS p1, 20);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 select atan(10 p1, 20);

@@ -111,8 +111,8 @@ SET @@global.net_retry_count = 4294967296;
 SELECT @@global.net_retry_count;
 SET @@global.net_retry_count = 429496729500;
 SELECT @@global.net_retry_count;
---Error ER_PARSE_ERROR
-SET @@global.net_retry_count = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_retry_count = 65530.34;
 SELECT @@global.net_retry_count;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.net_retry_count = test;
@@ -122,14 +122,12 @@ SET @@session.net_retry_count = 0;
 SELECT @@session.net_retry_count;
 SET @@session.net_retry_count = -2;
 SELECT @@session.net_retry_count;
---Error ER_PARSE_ERROR
-SET @@session.net_retry_count = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.net_retry_count = 65530.34;
 SET @@session.net_retry_count = 6555015425;
 SELECT @@session.net_retry_count;
 SET @@session.net_retry_count = 4294967296;
 SELECT @@session.net_retry_count;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.net_retry_count = test;

@@ -82,7 +82,7 @@ Record_6
 Record_5
 SELECT @@concurrent_insert;
 @@concurrent_insert
-2
+ALWAYS
 connection default;
 ## Unlocking table ##
 UNLOCK TABLES;

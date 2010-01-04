@@ -84,6 +84,7 @@ When one supplies long data for a placeholder:
 */
 
 #include "mysql_priv.h"
+#include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_select.h" // for JOIN
 #include "sql_cursor.h"

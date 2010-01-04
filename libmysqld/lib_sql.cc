@@ -506,6 +506,9 @@ int init_embedded_server(int argc, char **argv, char **groups)
     mysql_server_end();
     return 1;
   }
+
+  mysql_data_home= mysql_real_data_home;
+  mysql_data_home_len= mysql_real_data_home_len;
     
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
@@ -614,7 +617,7 @@ void *create_embedded_thd(int client_flag)
   /* TODO - add init_connect command execution */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
+    thd->variables.option_bits |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;

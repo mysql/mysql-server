@@ -82,9 +82,6 @@ SELECT @@global.query_alloc_block_size;
 SET @@global.query_alloc_block_size = 65536;
 SELECT @@global.query_alloc_block_size;
 
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
-
 --echo '#--------------------FN_DYNVARS_130_04-------------------------#'
 #################################################################################
 # Change the value of query_alloc_block_size to a valid value for SESSION Scope #
@@ -114,8 +111,8 @@ SET @@global.query_alloc_block_size = 1023;
 SELECT @@global.query_alloc_block_size;
 SET @@global.query_alloc_block_size = 4294967296;
 SELECT @@global.query_alloc_block_size;
---Error ER_PARSE_ERROR
-SET @@global.query_alloc_block_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.query_alloc_block_size = 65530.34;
 SELECT @@global.query_alloc_block_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_alloc_block_size = test;
@@ -125,13 +122,12 @@ SET @@session.query_alloc_block_size = 64;
 SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = -2;
 SELECT @@session.query_alloc_block_size;
---Error ER_PARSE_ERROR
-SET @@session.query_alloc_block_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.query_alloc_block_size = 65530.34;
 SET @@session.query_alloc_block_size = 1023;
 SELECT @@session.query_alloc_block_size;
-SET @@session.query_alloc_block_size = 4294967296;
-SELECT @@session.query_alloc_block_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+#SET @@session.query_alloc_block_size = 4294967296;
+#SELECT @@session.query_alloc_block_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.query_alloc_block_size = test;
@@ -144,7 +140,6 @@ SELECT @@session.query_alloc_block_size;
 
 #SET @@global.query_alloc_block_size = 1;
 #SET @@session.query_alloc_block_size = 12;
---echo 'Bug# 34877: OutOFMemeory errors are coming if we dont assign these values to variable before comparision statement';
 
 SET @@global.query_alloc_block_size = 1;
 SET @@session.query_alloc_block_size = 12;

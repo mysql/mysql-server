@@ -1,0 +1,24 @@
+--source include/not_embedded.inc
+#
+# only global
+#
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select @@global.slave_load_tmpdir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.slave_load_tmpdir;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show global variables like 'slave_load_tmpdir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show session variables like 'slave_load_tmpdir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from information_schema.global_variables where variable_name='slave_load_tmpdir';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from information_schema.session_variables where variable_name='slave_load_tmpdir';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global slave_load_tmpdir=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session slave_load_tmpdir=1;
