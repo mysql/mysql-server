@@ -9,7 +9,7 @@ drop table if exists t1;
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	1
+Binlog_cache_use	2
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -18,7 +18,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	2
+Binlog_cache_use	4
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
