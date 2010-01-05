@@ -1249,6 +1249,7 @@ retry:
     }
   }
   abort();
+  return NULL;
 }
 
 void
