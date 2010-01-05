@@ -14,8 +14,6 @@ The following options may be given as the first argument:
                       library, for example exit() from libc.so
   -a, --ansi          Use ANSI SQL syntax instead of MySQL syntax. This mode
                       will also set transaction isolation level 'serializable'.
-  --archive[=name]    Enable or disable ARCHIVE plugin. Possible values are ON,
-                      OFF, FORCE (don't start if the plugin fails to load).
   --auto-increment-increment[=#] 
                       Auto-increment columns are incremented by this
   --auto-increment-offset[=#] 
@@ -59,8 +57,6 @@ The following options may be given as the first argument:
                       The maximum size of a row-based binary log event in
                       bytes. Rows will be grouped into events smaller than this
                       size if possible. The value has to be a multiple of 256.
-  --blackhole[=name]  Enable or disable BLACKHOLE plugin. Possible values are
-                      ON, OFF, FORCE (don't start if the plugin fails to load).
   --bootstrap         Used by mysql installation scripts.
   --bulk-insert-buffer-size=# 
                       Size of tree cache used in bulk insert optimisation. Note
@@ -147,8 +143,6 @@ The following options may be given as the first argument:
                       With this option enabled you can run myisamchk to test
                       (not repair) tables while the MySQL server is running.
                       Disable with --skip-external-locking.
-  --federated[=name]  Enable or disable FEDERATED plugin. Possible values are
-                      ON, OFF, FORCE (don't start if the plugin fails to load).
   --flush             Flush MyISAM tables to disk between SQL commands
   --flush-time=#      A dedicated thread is created to flush all tables at the
                       given interval
@@ -415,8 +409,6 @@ The following options may be given as the first argument:
                       is one of {index_merge, index_merge_union,
                       index_merge_sort_union, index_merge_intersection} and val
                       is one of {on, off, default}
-  --partition[=name]  Enable or disable partition plugin. Possible values are
-                      ON, OFF, FORCE (don't start if the plugin fails to load).
   --pid-file=name     Pid file used by safe_mysqld
   --plugin-dir=name   Directory for plugins
   --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -724,7 +716,6 @@ and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 abort-slave-event-count           0
 allow-suspicious-udfs             FALSE
-archive                           ON
 auto-increment-increment          1
 auto-increment-offset             1
 automatic-sp-privileges           TRUE
@@ -734,7 +725,6 @@ bind-address                      (No default value)
 binlog-cache-size                 32768
 binlog-format                     STATEMENT
 binlog-row-event-max-size         1024
-blackhole                         ON
 bulk-insert-buffer-size           8388608
 character-set-client-handshake    TRUE
 character-set-filesystem          binary
@@ -765,7 +755,6 @@ engine-condition-pushdown         TRUE
 event-scheduler                   OFF
 expire-logs-days                  0
 external-locking                  FALSE
-federated                         ON
 flush                             FALSE
 flush-time                        1800
 ft-boolean-syntax                 + -><()~*:""&|
@@ -858,8 +847,6 @@ old-style-user-limits             FALSE
 optimizer-prune-level             1
 optimizer-search-depth            62
 optimizer-switch                  index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
-partition                         ON
-plugin-dir                        MYSQL_LIBDIR/plugin
 plugin-load                       (No default value)
 port                              3306
 port-open-timeout                 0
