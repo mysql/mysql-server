@@ -41,7 +41,6 @@
 #include <ndbapi/NdbInterpretedCode.hpp>
 #include <ndbapi/NdbQueryBuilder.hpp>
 #include <ndbapi/NdbQueryOperation.hpp>
-#include <NdbRecord.hpp>
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
@@ -583,15 +582,17 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_PRINT("info", ("Root operation is 'equal-lookup' on key:%d",
                 join_root.ref.key));
 
-    const NdbRecord *key_record= m_index[join_root.ref.key].ndb_unique_record_key;
+    const KEY *key= &table->key_info[join_root.ref.key];
     const NdbQueryOperand* rootKey[10] = {NULL};
-    for (uint i = 0; i < key_record->key_index_length; i++)
+    for (uint i = 0; i < key->key_parts; i++)
     {
       rootKey[i]= builder.paramValue();
       if (!rootKey[i])
         DBUG_RETURN(0);
     }
-    rootKey[key_record->key_index_length]= NULL;
+    rootKey[key->key_parts]= NULL;
+
+    const NdbRecord *key_record= m_index[join_root.ref.key].ndb_unique_record_key;
     operationDefs[0]= builder.readTuple(key_record, m_ndb_record, rootKey);
   }
   else if (join_root.type == JT_REF)  // || JT_REF_OR_NULL?
@@ -667,17 +668,17 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         DBUG_ASSERT (quick->index == join_root.table->s->primary_key ||  // MRR w/ set op PK's,: 'pk in (X,Y,Z)'
                      quick->index == MAX_KEY);                           // 'Index merge' calculate set of PK's
 
-        const NdbRecord *key_rec= m_index[join_root.table->s->primary_key].ndb_unique_record_key;
-        DBUG_ASSERT (key_rec!=NULL);
-
+        const KEY *key= &table->key_info[join_root.table->s->primary_key];
         const NdbQueryOperand* rootKey[10] = {NULL};
-        for (uint i = 0; i < key_rec->key_index_length; i++)
+        for (uint i = 0; i < key->key_parts; i++)
         {
           rootKey[i]= builder.paramValue();
           if (!rootKey[i])
             DBUG_RETURN(0);
         }
-        rootKey[key_rec->key_index_length]= NULL;
+        rootKey[key->key_parts]= NULL;
+
+        const NdbRecord *key_rec= m_index[join_root.table->s->primary_key].ndb_unique_record_key;
         operationDefs[0]= builder.readTuple(key_rec, m_ndb_record, rootKey);
       }
     }
@@ -735,32 +736,37 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       }
     }
 
-    const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
+    KEY *key= &handler->table->key_info[join_tab.ref.key];
+    KEY_PART_INFO *key_part;
+    DBUG_ASSERT (join_tab.ref.key_parts==key->key_parts);
+
     const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
-    for(uint keyPartNo = 0; 
-        keyPartNo < join_tab.ref.key_parts;
-        keyPartNo++)
+    Uint32 i, offset= 0;
+    for (i = 0, key_part= key->key_part; 
+        i < key->key_parts;
+        i++, key_part++)
     {
-      Item* const item = join_items[keyPartNo];
-      linkedKey[keyPartNo]= NULL;
+      Item* const item = join_items[i];
+      linkedKey[i]= NULL;
       if (item->const_item())
       {
         const uchar* const_key = join_tab.ref.key_buff;
-        DBUG_ASSERT (keyPartNo==key_record->key_indexes[keyPartNo]);
-        const NdbRecord::Attr& key_attr = key_record->columns[key_record->key_indexes[keyPartNo]];
-        linkedKey[keyPartNo]= builder.constValue(const_key+key_attr.offset);
+        linkedKey[i]= builder.constValue(const_key+offset);
       }
       else if (item->type()==Item::FIELD_ITEM)
       {
         DBUG_ASSERT(parent != NULL);
         Item_field* const keyItem= static_cast<Item_field*>(item);
-        linkedKey[keyPartNo]= builder.linkedValue(parent, keyItem->field->field_name);
+        linkedKey[i]= builder.linkedValue(parent, keyItem->field->field_name);
         // TODO use field_index ??
       }
-      if (unlikely(!linkedKey[keyPartNo]))
+      if (unlikely(!linkedKey[i]))
         DBUG_RETURN(0);
+
+      offset+= key_part->store_length;
     }
 
+    const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
     operationDefs[join_cnt]= builder.readTuple(key_record, 
                                      handler->m_ndb_record, linkedKey);
 
@@ -3599,18 +3605,13 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
                         m_pushed_join->m_count,
                         m_pushed_join->m_tabs[0].table->alias)
                         );
-  const NdbRecord *key_rec;
   NdbOperation::OperationOptions options;
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent= 0;
   NdbOperation::GetValueSpec gets[2];
 
   DBUG_ASSERT(m_thd_ndb->trans);
-
-  if (idx != MAX_KEY)
-    key_rec= m_index[idx].ndb_unique_record_key;
-  else
-    key_rec= m_ndb_hidden_key_record;
+  DBUG_ASSERT(idx < MAX_KEY);
 
   if (table_share->primary_key == MAX_KEY)
   {
@@ -3626,11 +3627,15 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     poptions= &options;
   }
 
+  KEY *key_def= &table->key_info[idx];
+  KEY_PART_INFO *key_part;
+
+  Uint32 i, offset= 0;
   NdbQueryParamValue paramValues[10]= {NdbQueryParamValue()};
-  for (unsigned i = 0; i < key_rec->key_index_length; i++)
+  for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
-    const NdbRecord::Attr& key_attr = key_rec->columns[key_rec->key_indexes[i]];
-    paramValues[i]= NdbQueryParamValue(key+key_attr.offset);
+    paramValues[i]= NdbQueryParamValue(key+offset);
+    offset+= key_part->store_length;
   }
 
   NdbQuery* const query= m_thd_ndb->trans->createQuery(m_pushed_join->m_queryDef, paramValues);
