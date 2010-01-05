@@ -36,7 +36,7 @@ class NdbParamOperand;
 class NdbTransaction;
 class NdbReceiver;
 class NdbOut;
-
+class NdbRootFragment;
 
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
@@ -180,12 +180,12 @@ private:
     FetchResult_scanComplete = 1
   };
 
-  /** A stack of NdbResultStream pointers. */
-  class StreamStack{
+  /** A stack of NdbRootFragment pointers. */
+  class FragStack{
   public:
-    explicit StreamStack();
+    explicit FragStack();
 
-    ~StreamStack() {
+    ~FragStack() {
       delete[] m_array;
     }
 
@@ -193,16 +193,16 @@ private:
     // Return 0 if ok, else errorcode
     int prepare(int capacity);
 
-    NdbResultStream* top() const { 
+    NdbRootFragment* top() const { 
       return m_current>=0 ? m_array[m_current] : NULL; 
     }
 
-    NdbResultStream* pop() { 
+    NdbRootFragment* pop() { 
       assert(m_current>=0);
       return m_array[m_current--];
     }
     
-    void push(NdbResultStream& stream);
+    void push(NdbRootFragment& frag);
 
     void clear() {
       m_current = -1;
@@ -213,17 +213,17 @@ private:
     int m_capacity;
     /** Index of current top of stack.*/
     int m_current;
-    NdbResultStream** m_array;
+    NdbRootFragment** m_array;
     // No copying.
-    StreamStack(const StreamStack&);
-    StreamStack& operator=(const StreamStack&);
-  }; // class StreamStack
+    FragStack(const FragStack&);
+    FragStack& operator=(const FragStack&);
+  }; // class FragStack
 
-  class OrderedStreamSet{
+  class OrderedFragSet{
   public:
-    explicit OrderedStreamSet();
+    explicit OrderedFragSet();
 
-    ~OrderedStreamSet() 
+    ~OrderedFragSet() 
     { delete[] m_array; }
 
     // Prepare internal datastructures.
@@ -233,46 +233,46 @@ private:
                 const NdbRecord* keyRecord,
                 const NdbRecord* resultRecord);
 
-    NdbResultStream* getCurrent();
+    NdbRootFragment* getCurrent();
 
     void reorder();
 
-    void add(NdbResultStream& stream);
+    void add(NdbRootFragment& frag);
 
     void clear() 
     { m_size = 0; }
 
 
-    /** When doing an ordered scan, get the stream that needs a new batch.*/
-    NdbResultStream* getEmpty() const;
+    /** When doing an ordered scan, get the fragment that needs a new batch.*/
+    NdbRootFragment* getEmpty() const;
 
     bool verifySortOrder() const;
 
   private:
-    /** Max no of streams.*/
+    /** Max no of fragments.*/
     int m_capacity;
-    /** Current number of streams.*/
+    /** Current number of fragments.*/
     int m_size;
-    /** Current number of completed stream (where all data have been receoved
+    /** Current number of completed fragments (where all data have been received
      * and processed).*/
-    int m_completedStreams;
+    int m_completedFrags;
     /** Ordering of index scan result.*/
     NdbScanOrdering m_ordering;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
-    NdbResultStream** m_array;
+    NdbRootFragment** m_array;
     // No copying.
-    OrderedStreamSet(const OrderedStreamSet&);
-    OrderedStreamSet& operator=(const OrderedStreamSet&);
-    /** For sorting streams according to index value of first record. Also
-     * s1<s2 if s2 has reached end of data and s1 has not.
-     * @return 1 if s1>s2, 0 if s1==s2, -1 if s1<s2.*/
-    int compare(const NdbResultStream& stream1,
-                const NdbResultStream& stream2) const;
+    OrderedFragSet(const OrderedFragSet&);
+    OrderedFragSet& operator=(const OrderedFragSet&);
+    /** For sorting fragment reads according to index value of first record. 
+     * Also f1<f2 if f2 has reached end of data and f1 has not.
+     * @return 1 if f1>f2, 0 if f1==f2, -1 if f1<f2.*/
+    int compare(const NdbRootFragment& frag1,
+                const NdbRootFragment& frag2) const;
 
-  }; // class OrderedStreamSet
+  }; // class OrderedFragSet
 
   /** The interface that is visible to the application developer.*/
   NdbQuery m_interface;
@@ -313,30 +313,38 @@ private:
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   size_t m_countOperations;             // #elements in above array
 
-  /** Number of streams not yet completed within the current batch.*/
-  Uint32 m_pendingStreams;
+  /** Number of root fragments not yet completed within the current batch.*/
+  Uint32 m_pendingFrags;
 
   /** Number of fragments to be read by the root operation. (1 if root 
    * operation is a lookup)*/
   Uint32 m_rootFragCount;
 
+  /**
+   * This is an array with one element for each fragment that the root
+   * operation accesses (i.e. one for a lookup, all for a table scan).
+   * It keeps the state of the read operation on that fragment, and on
+   * any child operation instance derived from it.
+   */
+  NdbRootFragment* m_rootFrags;
+
   /** Max rows (per resultStream) in a scan batch.*/
   Uint32 m_maxBatchRows;
 
-  /** Streams that the application is currently iterating over. Only accessed
-   *  by application thread.
+  /** Root fragments that the application is currently iterating over. Only 
+   * accessed by application thread.
    */
-  OrderedStreamSet m_applStreams;
+  OrderedFragSet m_applFrags;
 
-  /** Streams that have received a complete batch. Shared between 
+  /** Root frgaments that have received a complete batch. Shared between 
    *  application thread and receiving thread. Access should be mutex protected.
    */
-  StreamStack m_fullStreams;
+  FragStack m_fullFrags;
 
-  /** Number of streams for which the final batch (with tcPtrI=RNIL)
+  /** Number of root fragments for which the final batch (with tcPtrI=RNIL)
    * has been received.
    */
-  Uint32 m_finalBatchStreams;
+  Uint32 m_finalBatchFrags;
 
   /* Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
@@ -383,9 +391,9 @@ private:
   void closeSingletonScans();
 
   /** Fix parent-child references when a complete batch has been received
-   * for a given stream.
+   * for a given root fragment.
    */
-  void buildChildTupleLinks(Uint32 streamNo);
+  void buildChildTupleLinks(Uint32 rootFragNo);
 
   const NdbQuery& getInterface() const
   { return m_interface; }
@@ -393,12 +401,11 @@ private:
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U); }
 
-  /** Count number of completed streams within this batch. (There should be 
-   *  'parallelism' number of streams for each operation.)
-   *  @param increment Change in count of completed operations.
+  /** Count number of completed root fragments within this batch. 
+   *  @param increment Change in count of completed root frgaments.
    *  @return True if batch is complete.
    */
-  bool countPendingStreams(int increment);
+  bool incrementPendingFrags(int increment);
 
   /** Get the number of fragments to be read for the root operation.*/
   Uint32 getRootFragCount() const
@@ -490,6 +497,10 @@ public:
    */
   int setInterpretedCode(NdbInterpretedCode& code);
 
+  NdbResultStream& getResultStream(Uint32 rootFragNo) const;
+
+  const NdbReceiver& getReceiver(Uint32 rootFragNo) const;
+
 private:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -551,18 +562,13 @@ private:
   void postFetchRelease();
 
   /** Fetch result for non-root operation.*/
-  void updateChildResult(Uint32 resultStreamNo, Uint32 rowNo);
-
-  /** Fix parent-child references when a complete batch has been received
-   * for a given stream.
-   */
-  void buildChildTupleLinks(Uint32 streamNo);
+  void updateChildResult(Uint32 rootFragNo, Uint32 rowNo);
 
   /** Count number of child operations, excluding the operation itself */
   Uint32 countAllChildOperations() const;
 
   /** Copy any NdbRecAttr results into application buffers.*/
-  void fetchRecAttrResults(Uint32 streamNo);
+  void fetchRecAttrResults(Uint32 rootFragNo);
 
   /** Serialize parameter values.
    *  @return possible error code.*/
@@ -609,8 +615,6 @@ private:
 
   /** Check if batch is complete for this operation.*/
   bool isBatchComplete() const;
-
-  const NdbReceiver& getReceiver(Uint32 recNo) const;
 
   /** 
    * If the operation has a scan filter, append the corresponding
