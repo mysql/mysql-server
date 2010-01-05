@@ -150,7 +150,7 @@ public:
           delete[] m_array;
         }
         m_array = newBuf;
-        m_avail = newSize;
+        m_avail = static_cast<Uint32>(newSize);
       } else {
         m_size = m_avail;
         m_memoryExhausted = true;
@@ -158,7 +158,7 @@ public:
       }
     }
     Uint32* extend = &m_array[m_size];
-    m_size += count;
+    m_size += static_cast<Uint32>(count);
     return extend;
   }
 

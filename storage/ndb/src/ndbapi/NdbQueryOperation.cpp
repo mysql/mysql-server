@@ -1602,7 +1602,7 @@ NdbQueryImpl::execTCKEYCONF()
 
   // Result rows counted on root operation only.
   // Initially we assume all child results to be returned.
-  m_rootFrags[0].incrOutstandingResults(1+getRoot().countAllChildOperations());
+  m_rootFrags[0].incrOutstandingResults(1+getRoot().getNoOfDescendantOperations());
 
   bool ret = false;
   if (m_rootFrags[0].isFragBatchComplete()) { 
@@ -2675,12 +2675,12 @@ NdbQueryOperationImpl::getChildOperation(Uint32 i) const
   return *m_children[i];
 }
 
-Uint32 NdbQueryOperationImpl::countAllChildOperations() const
+Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
 {
-  Uint32 children = 0;
+  Int32 children = 0;
 
   for (unsigned i = 0; i < getNoOfChildOperations(); i++)
-    children += 1 + getChildOperation(i).countAllChildOperations();
+    children += 1 + getChildOperation(i).getNoOfDescendantOperations();
 
   return children;
 }
@@ -3517,7 +3517,7 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
   // Compensate for children results not produced.
   // (TCKEYCONF assumed all child results to be materialized)
   getQuery().m_rootFrags[0]
-    .incrOutstandingResults(-countAllChildOperations()-1);
+    .incrOutstandingResults(-getNoOfDescendantOperations()-1);
 
   bool ret = false;
   if (getQuery().m_rootFrags[0].isFragBatchComplete()) { 

@@ -81,7 +81,7 @@ public:
   const NdbParamOperand* getParameter(const char* name) const;
   const NdbParamOperand* getParameter(Uint32 num) const;
 
-  int setBound(const class NdbIndexScanOperation::IndexBound *bound);
+  int setBound(const NdbIndexScanOperation::IndexBound *bound);
 
   /**
    * Get the next tuple(s) from the global cursor on the query.
