@@ -564,8 +564,8 @@ private:
   /** Fetch result for non-root operation.*/
   void updateChildResult(Uint32 rootFragNo, Uint32 rowNo);
 
-  /** Count number of child operations, excluding the operation itself */
-  Uint32 countAllChildOperations() const;
+  /** Count number of descendant operations (excluding the operation itself) */
+  Int32 getNoOfDescendantOperations() const;
 
   /** Copy any NdbRecAttr results into application buffers.*/
   void fetchRecAttrResults(Uint32 rootFragNo);
