@@ -10,9 +10,9 @@
 exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>&1;
 
 perl;
-  @skipvars=qw/basedir open-files-limit general-log-file log
+  @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
                log-slow-queries pid-file slow-query-log-file/;
-  @plugins=qw/innodb ndb ndbcluster safemalloc debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster safemalloc debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector/;
   @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR /;
   $re1=join('|', @skipvars, @plugins);
