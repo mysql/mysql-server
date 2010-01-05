@@ -1267,6 +1267,7 @@ void abort_not_supported_test(const char *fmt, ...)
   DBUG_ENTER("abort_not_supported_test");
 
   /* Print include filestack */
+  fflush(stdout);
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
@@ -8098,7 +8099,10 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        abort_not_supported_test("%s", command->first_argument);
+        /* Eval the query, thus replacing all environment variables */
+        dynstr_set(&ds_res, 0);
+        do_eval(&ds_res, command->first_argument, command->end, FALSE);
+        abort_not_supported_test("%s",ds_res.str);
         break;
 
       case Q_RESULT:
