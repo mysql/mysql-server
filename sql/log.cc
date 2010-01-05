@@ -5955,7 +5955,8 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
    */
-  DBUG_RETURN(!binlog_flush_trx_cache(thd, cache_mngr, &xle));
+  DBUG_RETURN(!binlog_flush_stmt_cache(thd, cache_mngr) &&
+              !binlog_flush_trx_cache(thd, cache_mngr, &xle));
 }
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
