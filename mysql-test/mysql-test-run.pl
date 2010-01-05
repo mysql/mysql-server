@@ -1975,7 +1975,7 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MYSQL_LIBDIR'}=       "$bindir/lib";
+  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
 
