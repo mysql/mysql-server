@@ -37,6 +37,9 @@ typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
 typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
 #include <tdb-internal.h>
+#ifndef __BIGGEST_ALIGNMENT__
+  #define __BIGGEST_ALIGNMENT__ 16
+#endif
 typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */
   u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
@@ -343,11 +346,9 @@ struct txn_stat {
 struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   DB_TXN *parent; /* 32-bit offset=4 size=4, 64=bit offset=8 size=8 */
-  struct __toku_db_txn_internal *i;
-#define db_txn_struct_i(x) ((x)->i)
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   struct { void *next, *prev; } open_txns;
-  void* __toku_dummy0[14];
+  void* __toku_dummy0[15];
   char __toku_dummy1[8];
   void *api_internal; /* 32-bit offset=84 size=4, 64=bit offset=160 size=8 */
   void* __toku_dummy2[2];
@@ -356,6 +357,8 @@ struct __toku_db_txn {
   void* __toku_dummy3[2];
   u_int32_t (*id) (DB_TXN *); /* 32-bit offset=112 size=4, 64=bit offset=216 size=8 */
   void* __toku_dummy4[5]; /* Padding at the end */ 
+  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+#define db_txn_struct_i(x) ((struct __toku_db_txn_internal *)(&(x)->iic))
 };
 struct __toku_db_txn_stat {
   void* __toku_dummy0[1];
@@ -368,8 +371,6 @@ struct __toku_db_txn_stat {
 };
 struct __toku_dbc {
   DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
-  struct __toku_dbc_internal *i;
-#define dbc_struct_i(x) ((x)->i)
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
@@ -387,7 +388,7 @@ struct __toku_dbc {
   int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  void* __toku_dummy0[6];
+  void* __toku_dummy0[7];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=204 size=4, 64=bit offset=304 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=208 size=4, 64=bit offset=312 size=8 */
@@ -395,6 +396,8 @@ struct __toku_dbc {
   void* __toku_dummy2[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=220 size=4, 64=bit offset=336 size=8 */
   void* __toku_dummy3[10]; /* Padding at the end */ 
+  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+#define dbc_struct_i(x) ((struct __toku_dbc_internal *)(&(x)->iic))
 };
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb

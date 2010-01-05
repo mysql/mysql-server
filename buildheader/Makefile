@@ -15,7 +15,11 @@ BDB = 4_6
 BDBDIR = ../../../berkeleydb
 MYSQL_H = -I$(BDBDIR)/db-4.1.25/build_unix/
 OPTFLAGS = -O2
-CFLAGS = -Wall -W -Werror -g $(OPTFLAGS)
+ifeq ($(GCCVERSION),4.4.2)
+ GCC_VERSION_SPECIFIC_WARNINGS = -Wno-strict-aliasing -Wno-deprecated 
+endif
+CFLAGS = $(GCC_VERSION_SPECIFIC_WARNINGS) -Wall -W -Werror -g $(OPTFLAGS)
+CPPFLAGS = -I. -I../toku_include
 
 runs: runs_mysql runs_installed
 samples: sample_offsets_4_6 sample_offsets_4_5 sample_offsets_4_4 sample_offsets_4_3 sample_offsets_4_1
@@ -25,60 +29,60 @@ runs_mysql: ./sample_offsets_mysql
 	./sample_offsets_mysql
 runs_installed: sample_offsets
 	./sample_offsets
-sample_offsets_mysql: CPPFLAGS=$(MYSQL_H)
+sample_offsets_mysql: CPPFLAGS+=$(MYSQL_H)
 sample_offsets_mysql: sample_offsets.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 make_db_h_4_1.o: make_db_h.c sample_offsets_32_4_1.h sample_offsets_64_4_1.h
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.1.25/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=1 -DTDB_NATIVE=0
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.1.25/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=1 -DTDB_NATIVE=0
 db.h_4_1: make_db_h_4_1
 	./make_db_h_4_1 > $@
 sample_offsets_4_1: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.1.25/build_unix $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.1.25/build_unix $< -o $@
 	./sample_offsets_4_1
 
 make_db_h_4_3.o: make_db_h.c sample_offsets_32_4_3.h sample_offsets_64_4_3.h
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.3.29/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=3 -DTDB_NATIVE=0
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.3.29/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=3 -DTDB_NATIVE=0
 db.h_4_3: make_db_h_4_3
 	./make_db_h_4_3 > $@
 sample_offsets_4_3: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.3.29/build_unix $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.3.29/build_unix $< -o $@
 	./sample_offsets_4_3
 
 make_db_h_4_4.o: make_db_h.c sample_offsets_32_4_4.h sample_offsets_64_4_4.h
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.4.20/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=4 -DTDB_NATIVE=0
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.4.20/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=4 -DTDB_NATIVE=0
 db.h_4_4: make_db_h_4_4
 	./make_db_h_4_4 > $@
 sample_offsets_4_4: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.4.20/build_unix $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.4.20/build_unix $< -o $@
 	./sample_offsets_4_4
 
 make_db_h_4_5.o: make_db_h.c sample_offsets_32_4_5.h sample_offsets_64_4_5.h
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.5.20/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=5 -DTDB_NATIVE=0
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.5.20/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=5 -DTDB_NATIVE=0
 db.h_4_5: make_db_h_4_5
 	./make_db_h_4_5 > $@
 sample_offsets_4_5: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.5.20/build_unix $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.5.20/build_unix $< -o $@
 	./sample_offsets_4_5
 
 make_db_h_4_6.o: make_db_h.c sample_offsets_32_4_6.h sample_offsets_64_4_6.h
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.6.19/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=6 -DTDB_NATIVE=0
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.6.19/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=6 -DTDB_NATIVE=0
 db.h_4_6: make_db_h_4_6
 	./make_db_h_4_6 > $@
 sample_offsets_4_6: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.6.19/build_unix $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.6.19/build_unix $< -o $@
 	./sample_offsets_4_6
 
 make_tdb_h.o: make_db_h.c
-	$(CC) $(CFLAGS) -I. -I$(BDBDIR)/db-4.6.19/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=6 -DTDB_NATIVE=1
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BDBDIR)/db-4.6.19/build_unix $< -c -o $@ -DUSE_MAJOR=4 -DUSE_MINOR=6 -DTDB_NATIVE=1
 tdb.h: make_tdb_h
 	./make_tdb_h > $@
 
 sample_offsets:
 sample_offsets_local: ./db.h
 sample_offsets_local: sample_offsets.c
-	$(CC) $(CFLAGS) -I. -DLOCAL $< -o $@
- 
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DLOCAL $< -o $@
+
 hfiles: db.h_4_1 db.h_4_3 db.h_4_4 db.h_4_5 db.h_4_6 tdb.h
 
 check32: sample_offsets_local

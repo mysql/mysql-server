@@ -37,6 +37,9 @@ typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);
 typedef int(*YDB_HEAVISIDE_CALLBACK_FUNCTION)(DBT const *key, DBT const *value, void *extra_f, int r_h);
 typedef int(*YDB_HEAVISIDE_FUNCTION)(const DBT *key, const DBT *value, void *extra_h);
 #include <tdb-internal.h>
+#ifndef __BIGGEST_ALIGNMENT__
+  #define __BIGGEST_ALIGNMENT__ 16
+#endif
 typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_nkeys; /* how many unique keys (guaranteed only to be an estimate, even when flattened)          */
   u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */
@@ -293,14 +296,14 @@ struct txn_stat {
 struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/;
   DB_TXN *parent;
-  struct __toku_db_txn_internal ii;
-#define db_txn_struct_i(x) (&(x)->ii)
   int (*txn_stat)(DB_TXN *, struct txn_stat **);
   struct { void *next, *prev; } open_txns;
   void *api_internal;
   int (*abort) (DB_TXN *);
   int (*commit) (DB_TXN*, u_int32_t);
   u_int32_t (*id) (DB_TXN *);
+  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+#define db_txn_struct_i(x) ((struct __toku_db_txn_internal *)(&(x)->iic))
 };
 struct __toku_db_txn_stat {
   u_int32_t st_nactive;
@@ -308,8 +311,6 @@ struct __toku_db_txn_stat {
 };
 struct __toku_dbc {
   DB *dbp;
-  struct __toku_dbc_internal ii;
-#define dbc_struct_i(x) (&(x)->ii)
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
@@ -331,6 +332,8 @@ struct __toku_dbc {
   int (*c_count) (DBC *, db_recno_t *, u_int32_t);
   int (*c_del) (DBC *, u_int32_t);
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t);
+  char iic[0] __attribute__((aligned(__BIGGEST_ALIGNMENT__)));
+#define dbc_struct_i(x) ((struct __toku_dbc_internal *)(&(x)->iic))
 };
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb

@@ -20,7 +20,7 @@ include $(TOKUROOT)toku_include/Makefile.include
 BENCHDBS = bench.bdb/ bench.tokudb
 
 OPTFLAGS = -O2
-CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
+CXXFLAGS = $(GCC_VERSION_SPECIFIC) -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
 # CFLAGS += -pg
 
 ifdef BDBDIR

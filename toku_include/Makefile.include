@@ -100,7 +100,7 @@ endif
 # -Wno-deprecated is needed on gcc 4.4.2 to make the #ident complaints go away.
 # -Wno-strict-aliasing is needed on gcc 4.4.2 to make certain gratuitous warnings go away.
 ifeq ($(GCCVERSION),4.4.2)
- GCC_VERSION_SPECIFIC = -Wno-strict-aliasing -Wno-deprecated 
+ GCC_VERSION_SPECIFIC = -Wno-deprecated 
 endif
 WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 
@@ -116,6 +116,9 @@ SYMBOLS   = -g3 -ggdb3
 PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
+ifeq ($(GCCVERSION),4.4.2)
+ COMBINE_C += -Wno-strict-aliasing 
+endif
 LIBPORTABILITY        = $(TOKUROOT)lib/libtokuportability.$(AEXT)
 LIBPORTABILITY_BUNDLE = $(TOKUROOT)lib/libtokuportability.bundle
 
