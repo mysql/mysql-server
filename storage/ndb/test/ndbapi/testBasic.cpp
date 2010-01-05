@@ -1705,7 +1705,7 @@ runBug34348delete(NDBT_Context* ctx, NDBT_Step* step,
 int
 runBug34348(NDBT_Context* ctx, NDBT_Step* step)
 {
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   NdbRestarter restarter;
