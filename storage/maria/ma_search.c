@@ -389,7 +389,7 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   uint  length_pack;
   MARIA_KEYDEF *keyinfo= key->keyinfo;
   MARIA_SHARE *share= keyinfo->share;
-  uchar *sort_order= keyinfo->seg->charset->sort_order;
+  const uchar *sort_order= keyinfo->seg->charset->sort_order;
   DBUG_ENTER("_ma_prefix_search");
 
   LINT_INIT(length);
@@ -1883,7 +1883,7 @@ _ma_calc_var_pack_key_length(const MARIA_KEY *int_key, uint nod_flag,
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
   const uchar *key, *start, *end, *key_end;
-  uchar *sort_order;
+  const uchar *sort_order;
   my_bool same_length;
   MARIA_KEYDEF *keyinfo= int_key->keyinfo;
 

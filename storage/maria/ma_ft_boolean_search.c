@@ -592,7 +592,7 @@ FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
   my_qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
-            (qsort2_cmp)FTB_WORD_cmp_list, ftb->charset);
+            (qsort2_cmp)FTB_WORD_cmp_list, (void*) ftb->charset);
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
   ftb->state=READY;
   return ftb;

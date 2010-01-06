@@ -3302,8 +3302,9 @@ btr_estimate_number_of_different_key_vals(
 				n_recs++;
 				for (j = 0; j <= n_cols; j++) {
 					ulint	f_len;
-					rec_get_nth_field(rec, offsets_rec,
-							  j, &f_len);
+					(void) rec_get_nth_field(rec,
+                                                                 offsets_rec,
+                                                                 j, &f_len);
 					if (f_len == UNIV_SQL_NULL)
 						break;
 

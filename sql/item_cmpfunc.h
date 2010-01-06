@@ -756,7 +756,7 @@ public:
   virtual uchar *get_value(Item *item)=0;
   void sort()
   {
-    my_qsort2(base,used_count,size,compare,collation);
+    my_qsort2(base,used_count,size,compare,(void*)collation);
   }
   int find(Item *item);
   

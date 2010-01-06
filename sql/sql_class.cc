@@ -3187,7 +3187,7 @@ extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
-extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
+extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 {
   return(thd->charset());
 }

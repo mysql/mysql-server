@@ -32,7 +32,7 @@
 #endif
 
 
-static uchar ctype_ucs2[] = {
+static const uchar ctype_ucs2[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -52,7 +52,7 @@ static uchar ctype_ucs2[] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-static uchar to_lower_ucs2[] = {
+static const uchar to_lower_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -71,7 +71,7 @@ static uchar to_lower_ucs2[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-static uchar to_upper_ucs2[] = {
+static const uchar to_upper_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -120,7 +120,7 @@ static size_t my_caseup_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   
   while ((src < srcend) &&
@@ -142,7 +142,7 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while (e > s+1 && e[-1] == ' ' && e[-2] == '\0')
     e-= 2;
@@ -174,7 +174,7 @@ static size_t my_casedn_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
@@ -206,7 +206,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -270,7 +270,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 {
   const uchar *se, *te;
   size_t minlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   /* extra safety to make sure the lengths are even numbers */
   slen&= ~1;
@@ -320,7 +320,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),t_wc;
   const char *se=s+len;
   const char *te=t+len;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -369,7 +369,7 @@ static size_t my_strnxfrm_ucs2(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while( src < se && dst < de )
   {
@@ -1360,7 +1360,7 @@ int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
                             escape,w_one,w_many,uni_plane); 
 }
@@ -1718,7 +1718,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
 };
 
 
-CHARSET_INFO my_charset_ucs2_general_ci=
+struct charset_info_st my_charset_ucs2_general_ci=
 {
     35,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -1750,7 +1750,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     &my_collation_ucs2_general_ci_handler
 };
 
-CHARSET_INFO my_charset_ucs2_bin=
+struct charset_info_st my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,

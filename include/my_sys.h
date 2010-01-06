@@ -242,7 +242,7 @@ extern uint    my_large_page_size;
 /* charsets */
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[256];
-extern CHARSET_INFO compiled_charsets[];
+extern struct charset_info_st compiled_charsets[];
 
 /* statistics */
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
@@ -1003,7 +1003,7 @@ extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
-extern void add_compiled_collation(CHARSET_INFO *cs);
+extern void add_compiled_collation(struct charset_info_st *cs);
 extern size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);

@@ -774,7 +774,7 @@ extern xtBool				pbxt_crash_debug;
 #define MX_ULONG_T							uint32_t
 #define MX_ULONGLONG_T						uint64_t
 #define MX_LONGLONG_T						uint64_t
-#define MX_CHARSET_INFO						struct charset_info_st
+#define MX_CHARSET_INFO						const struct charset_info_st
 #define MX_CONST_CHARSET_INFO				const struct charset_info_st			
 #define MX_CONST							const
 #define MX_BITMAP							MyBitmap
@@ -865,7 +865,7 @@ extern "C" void session_mark_transaction_to_rollback(Session *session, bool all)
 #define MX_ULONGLONG_T						ulonglong
 #define MX_LONGLONG_T						longlong
 #define MX_CHARSET_INFO						CHARSET_INFO
-#define MX_CONST_CHARSET_INFO				struct charset_info_st			
+#define MX_CONST_CHARSET_INFO				const struct charset_info_st			
 #define MX_CONST							
 #define MX_BITMAP							MY_BITMAP
 #define MX_BIT_SIZE()						n_bits

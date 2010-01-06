@@ -89,8 +89,8 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 #endif
 
 /* Declared in int2str() */
-extern char NEAR _dig_vec_upper[];
-extern char NEAR _dig_vec_lower[];
+extern const char NEAR _dig_vec_upper[];
+extern const char NEAR _dig_vec_lower[];
 
 /* Defined in strtod.c */
 extern const double log_10[309];

@@ -790,9 +790,9 @@ int MYSQLlex(void *arg, void *yythd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  CHARSET_INFO *const cs= thd->charset();
+  const uchar *const state_map= cs->state_map;
+  const uchar *const ident_map= cs->ident_map;
 
   LINT_INIT(c);
   lip->yylval=yylval;			// The global state

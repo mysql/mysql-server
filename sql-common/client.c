@@ -3241,7 +3241,7 @@ mysql_get_server_version(MYSQL *mysql)
 */
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
-  struct charset_info_st *cs;
+  CHARSET_INFO *cs;
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)
