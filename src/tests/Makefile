@@ -168,8 +168,7 @@ TDB_TESTS_THAT_SHOULD_FAIL= \
 	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
-	test_db_no_env \
-	diskfull \
+	test_db_no_env
 #\ ends prev line
 #ifneq ($(OS_CHOICE),windows)
 #    TDB_TESTS_THAT_SHOULD_FAIL+= \
@@ -433,6 +432,8 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 #	$(HGRIND) ./$< $(VERBVERBOSE)
 
 
+# Don't run valgrind on the diskfull test (since it aborts)
+diskfull.tdbrun: VGRIND=
 
 libs:
 	cd ..;$(MAKE)
