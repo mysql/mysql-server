@@ -87,6 +87,7 @@ use IO::Select;
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
+require "lib/mtr_gprof.pl";
 require "lib/mtr_misc.pl";
 
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
@@ -168,6 +169,9 @@ our $opt_gcov;
 our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.msg";
 our $opt_gcov_msg= "mysql-test-gcov.err";
+
+our $opt_gprof;
+our %gprof_dirs;
 
 our $glob_debugger= 0;
 our $opt_gdb;
@@ -747,6 +751,9 @@ sub run_worker ($) {
       if ($opt_valgrind_mysqld) {
         valgrind_exit_reports();
       }
+      if ( $opt_gprof ) {
+	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
+      }
       exit(0);
     }
     else {
@@ -861,6 +868,7 @@ sub command_line_setup {
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gprof'                    => \$opt_gprof,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
@@ -1257,7 +1265,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $source_dist )
+  if ( ($opt_gcov or $opt_gprof) and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -3558,7 +3566,7 @@ sub run_testcase ($) {
       {
 	# mysqltest failed, probably crashed
 	$tinfo->{comment}=
-	  "mysqltest failed with unexpected return code $res";
+	  "mysqltest failed with unexpected return code $res\n";
 	report_failure_and_restart($tinfo);
       }
 
@@ -4149,6 +4157,20 @@ sub report_failure_and_restart ($) {
 	# about what failed has been saved to file. Save the report
 	# in tinfo
 	$tinfo->{logfile}= mtr_fromfile($logfile);
+	# If no newlines in the test log:
+	# (it will contain the CURRENT_TEST written by mtr, so is not empty)
+	if ($tinfo->{logfile} !~ /\n/)
+	{
+	  # Show how far it got before suddenly failing
+	  $tinfo->{comment}.= "mysqltest failed but provided no output\n";
+	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	  if (-e $log_file_name) {
+	    $tinfo->{comment}.=
+	      "The result from queries just before the failure was:".
+	      "\n< snip >\n".
+	      mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	  }
+	}
       }
       else
       {
@@ -4360,6 +4382,8 @@ sub mysqld_start ($$) {
   }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
+  # Remember data dir for gmon.out files if using gprof
+  $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
   if ( defined $exe )
   {
