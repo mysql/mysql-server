@@ -11,10 +11,26 @@
 // Purpose of test is to verify that callbacks are called correctly
 // without breaking a simple checkpoint (copied from tests/checkpoint_1.c).
 
+static char * string_1 = "extra1";
+static char * string_2 = "extra2";
+static int callback_1_count = 0;
+static int callback_2_count = 0;
+
+static void checkpoint_callback_1(void * extra) {
+    if (verbose) printf("checkpoint callback 1 called with extra = %s\n", *((char**) extra));
+    assert(extra == &string_1);
+    callback_1_count++;
+}
+
+static void checkpoint_callback_2(void * extra) {
+    if (verbose) printf("checkpoint callback 2 called with extra = %s\n", *((char**) extra));
+    assert(extra == &string_2);
+    callback_2_count++;
+}
 
 static void
 checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
-    if (verbose) { 
+    if (verbose>1) { 
         printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
                __FILE__, __FUNCTION__, __LINE__, 
                n, snap_all, flags); 
@@ -37,6 +53,8 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, db_control.db, NULL);
         snapshot(&db_test, snap_all);
+	assert(callback_1_count == run+1);
+	assert(callback_2_count == run+1);
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, NULL, NULL);
         db_replace(&db_test, NULL);
@@ -47,18 +65,6 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     db_shutdown(&db_control);
     env_shutdown();
 }
-
-static void checkpoint_callback_1(void * extra) {
-    printf("checkpoint callback 1 called with extra = %s\n", *((char**) extra));
-}
-
-static void checkpoint_callback_2(void * extra) {
-    printf("checkpoint callback 2 called with extra = %s\n", *((char**) extra));
-}
-
-
-static char * string_1 = "extra1";
-static char * string_2 = "extra2";
 
 int
 test_main (int argc, char *argv[]) {
