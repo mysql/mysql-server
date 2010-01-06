@@ -281,10 +281,11 @@ public:
   NdbConstOperand* constValue(double value); 
   NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar C-type string
 
-  // Raw data assumed conform to the::Attr spec of the NdbRecord value it
-  // provides the value for.
-  // (Note: Typcally used by mysqld. )
-  NdbConstOperand* constValue(const void* value);
+  // Raw data with specified length, with src type as specified by 'record.column[attrId]'.
+  // Provide very basic type check to match destination column it is
+  // used against.
+  NdbConstOperand* constValue(const void* value,
+                              const NdbRecord* record, Uint32 attrId);
 
   // ::paramValue()
   NdbParamOperand* paramValue(const char* name = 0);  // Parameterized
@@ -300,24 +301,6 @@ public:
   // Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
   // as an alternative way of locating the NdbQueryOperation.
   
-
-  NdbQueryLookupOperationDef* readTuple(
-                                const NdbRecord* key_record,          // Key NdbRecord, PK or unique index
-                                const NdbRecord* tbl_record,
-                                const NdbQueryOperand* const keys[],  // Terminated by NULL element 
-                                const char* ident = 0);
-
-  NdbQueryTableScanOperationDef* scanTable(
-                                const NdbRecord* tbl_record,
-                                const char* ident = 0);
-
-  NdbQueryIndexScanOperationDef* scanIndex(
-                                const NdbRecord* inx_record, 
-                                const NdbRecord* tbl_record,
-                                const NdbQueryIndexBound* bound = 0,
-                                const char* ident = 0);
-
-  // Deprecated part of API, use NdbRecord equivalents (above) whenever possible:
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
@@ -338,7 +321,6 @@ public:
 	                        const NdbDictionary::Table*,
                                 const NdbQueryIndexBound* bound = 0,
                                 const char* ident = 0);
-  // ==== End, deprecated =====
 
 
   /** 

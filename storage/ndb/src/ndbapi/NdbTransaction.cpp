@@ -2897,7 +2897,7 @@ NdbTransaction::report_node_failure(Uint32 id){
 
 NdbQuery*
 NdbTransaction::createQuery(const NdbQueryDef* def,
-			    const NdbQueryParamValue paramValues[],
+			    const void* const paramValues[],
 			    NdbOperation::LockMode lock_mode)
 {
   NdbQueryImpl* query = NdbQueryImpl::buildQuery(*this, def->getImpl());

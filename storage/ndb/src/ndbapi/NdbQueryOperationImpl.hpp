@@ -117,9 +117,10 @@ public:
    *  Memory location used as source for parameter values don't have
    *  to be valid after this assignment.
    */
-  int assignParameters(const NdbQueryParamValue paramValues[]);
+  int assignParameters(const constVoidPtr paramValues[]);
 
-  int setBound(const NdbIndexScanOperation::IndexBound *bound);
+  int setBound(const NdbRecord *keyRecord,
+               const NdbIndexScanOperation::IndexBound *bound);
 
   /** Prepare for execution. 
    *  @return possible error code.
@@ -450,10 +451,12 @@ public:
   NdbRecAttr* getValue(Uint32 anAttrId, char* resultBuffer);
   NdbRecAttr* getValue(const NdbColumnImpl&, char* resultBuffer);
 
-  int setResultRowBuf (char* resBuffer,
+  int setResultRowBuf (const NdbRecord *rec,
+                       char* resBuffer,
                        const unsigned char* result_mask);
 
-  int setResultRowRef (const char* & bufRef,
+  int setResultRowRef (const NdbRecord* rec,
+                       const char* & bufRef,
                        const unsigned char* result_mask);
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
@@ -572,7 +575,7 @@ private:
 
   /** Serialize parameter values.
    *  @return possible error code.*/
-  int serializeParams(const NdbQueryParamValue paramValues[]);
+  int serializeParams(const constVoidPtr paramValues[]);
 
   int serializeProject(Uint32Buffer& attrInfo) const;
 
@@ -582,26 +585,6 @@ private:
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
   int prepareAttrInfo(Uint32Buffer& attrInfo);
-
-  /**
-   * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param keyInfo Actuall KEYINFO section the key / bounds are 
-   *                put into
-   * @param actualParam Instance values for NdbParamOperands.
-   * Returns: 0 if OK, or possible an errorcode.
-   */
-  int prepareKeyInfo(Uint32Buffer& keyInfo,
-                     const NdbQueryParamValue* actualParam);
-
-  int prepareLookupKeyInfo(
-                     Uint32Buffer& keyInfo,
-                     const NdbQueryOperandImpl* const keys[],
-                     const NdbQueryParamValue* actualParam);
-
-  int prepareIndexKeyInfo(
-                     Uint32Buffer& keyInfo,
-                     const NdbQueryOperationDefImpl::IndexBound* bounds,
-                     const NdbQueryParamValue* actualParam);
 
   /** Return I-value (for putting in object map) for a receiver pointing back 
    * to this object. TCKEYCONF is processed by first looking up an 

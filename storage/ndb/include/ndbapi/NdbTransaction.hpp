@@ -37,7 +37,6 @@ class NdbInterpretedCode;
 class NdbQueryImpl;
 class NdbQueryDef;
 class NdbQuery;
-class NdbQueryParamValue;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 // to be documented later
@@ -836,9 +835,10 @@ public:
    * Should be supplied in the same order as the related paramValue's
    * was defined.
    */
+
   NdbQuery*
   createQuery(const NdbQueryDef* query,
-              const NdbQueryParamValue paramValue[]= 0,
+              const void* const paramValue[]= 0,
               NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
 
