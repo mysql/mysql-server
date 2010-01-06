@@ -97,7 +97,7 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
-static my_bool display_result_vertically= FALSE,
+static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_warnings= 0;
@@ -230,6 +230,8 @@ struct st_connection
   char *name;
   size_t name_len;
   MYSQL_STMT* stmt;
+  /* Set after send to disallow other queries before reap */
+  my_bool pending;
 
 #ifdef EMBEDDED_LIBRARY
   const char *cur_query;
@@ -273,6 +275,7 @@ enum enum_commands {
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
   Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULT,
+  Q_LOWERCASE,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
@@ -344,6 +347,7 @@ const char *command_names[]=
   "query_vertical",
   "query_horizontal",
   "sorted_result",
+  "lowercase_result",
   "start_timer",
   "end_timer",
   "character_set",
@@ -4651,7 +4655,8 @@ void do_close_connection(struct st_command *command)
   if (con->util_mysql)
     mysql_close(con->util_mysql);
   con->util_mysql= 0;
-
+  con->pending= FALSE;
+  
   my_free(con->name, MYF(0));
 
   /*
@@ -6483,6 +6488,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   if (flags & QUERY_SEND_FLAG)
   {
+    if (cn->pending)
+      die ("Cannot run query on connection between send and reap");
+    
     /*
       Send the query
     */
@@ -6502,8 +6510,11 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     wait_query_thread_end(cn);
 #endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
+  {
+    cn->pending= TRUE;
     DBUG_VOID_RETURN;
-
+  }
+  
   do
   {
     /*
@@ -6587,6 +6598,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
 end:
 
+  cn->pending= FALSE;
   /*
     We save the return code (mysql_errno(mysql)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -7841,6 +7853,13 @@ int main(int argc, char **argv)
         */
 	display_result_sorted= TRUE;
         break;
+      case Q_LOWERCASE:
+        /*
+          Turn on lowercasing of result, will be reset after next
+          command
+        */
+        display_result_lower= TRUE;
+        break;
       case Q_LET: do_let(command); break;
       case Q_EVAL_RESULT:
         die("'eval_result' command  is deprecated");
@@ -8056,8 +8075,9 @@ int main(int argc, char **argv)
       */
       free_all_replace();
 
-      /* Also reset "sorted_result" */
+      /* Also reset "sorted_result" and "lowercase"*/
       display_result_sorted= FALSE;
+      display_result_lower= FALSE;
     }
     last_command_executed= command_executed;
 
@@ -9461,6 +9481,18 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   fix_win_paths(val, len);
 #endif
 
+  if (display_result_lower) 
+  {
+    /* Convert to lower case, and do this first */
+    char lower[512];
+    char *c= lower;
+    for (const char *v= val;  *v;  v++)
+      *c++= my_tolower(charset_info, *v);
+    *c= '\0';
+    /* Copy from this buffer instead */
+    val= lower;
+  }
+  
   if (glob_replace_regex)
   {
     /* Regex replace */
