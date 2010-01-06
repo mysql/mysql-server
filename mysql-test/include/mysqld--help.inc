@@ -21,12 +21,16 @@ perl;
   open(F, '<', "$ENV{MYSQL_TMP_DIR}/mysqld--help.txt") or die;
   while (<F>) {
     next if 1../The following groups are read/;
+    # formatting, skip line consisting entirely of dashes and blanks
+    next if /^[\- ]+$/;
+    next if /Value \(after reading options\)/; # skip table header
     next if /^($re1) /;
     next if /^($re2)-/;
     $skip=0 if /^  -/;
     $skip=1 if / --($re2)\b/;
-    # fixes for 32-bit
     y!\\!/!;
+    s/[ ]+/ /; # squeeze spaces to remove table formatting
+    # fixes for 32-bit
     s/\b4294967295\b/18446744073709551615/;
     s/\b2146435072\b/9223372036853727232/;
     s/\b196608\b/262144/;
