@@ -4010,6 +4010,7 @@ sub extract_warning_lines ($) {
      qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
      qr/Error reading packet/,
      qr/Slave: Can't drop database.* database doesn't exist/,
+     qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
     );
 
   my $matched_lines= [];

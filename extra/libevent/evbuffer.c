@@ -25,11 +25,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <sys/types.h>
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -75,7 +75,8 @@ bufferevent_add(struct event *ev, int timeout)
  */
 
 void
-bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
+bufferevent_read_pressure_cb(struct evbuffer *buf,
+                             size_t old __attribute__((unused)), size_t now,
     void *arg) {
 	struct bufferevent *bufev = arg;
 	/* 

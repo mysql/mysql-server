@@ -185,7 +185,9 @@ devpoll_init(struct event_base *base)
 }
 
 static int
-devpoll_recalc(struct event_base *base, void *arg, int max)
+devpoll_recalc(struct event_base *base __attribute__((unused)),
+               void *arg __attribute__((unused)),
+               int max)
 {
 	struct devpollop *devpollop = arg;
 
