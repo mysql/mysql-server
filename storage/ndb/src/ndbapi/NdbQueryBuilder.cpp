@@ -51,7 +51,6 @@
 
 /* Various error codes that are not specific to NdbQuery. */
 STATIC_CONST(Err_MemoryAlloc = 4000);
-STATIC_CONST(Err_NotKeyRecord = 4292);
 
 static void
 setErrorCode(NdbQueryBuilderImpl* qb, int aErrorCode)
@@ -96,7 +95,6 @@ public:
     NdbConstOperandImpl(), 
     m_value(value) {}
 
-private:
   int convertInt8();
   int convertUint8();
   int convertInt16();
@@ -107,7 +105,7 @@ private:
   int convertUint32();
   int convertInt64();
   int convertUint64();
-
+private:
   const Int64 m_value;
 };
 
@@ -118,10 +116,9 @@ public:
     NdbConstOperandImpl(), 
     m_value(value) {}
 
-private:
   int convertDouble();
   int convertFloat();
-
+private:
   const double m_value;
 };
 
@@ -134,22 +131,25 @@ public:
   int convertChar();
   int convertVChar();
 //int convertLVChar();
-
+private:
   const char* const m_value;
 };
 
 class NdbGenericConstOperandImpl : public NdbConstOperandImpl
 {
 public:
-  explicit NdbGenericConstOperandImpl (const void* value)
+  explicit NdbGenericConstOperandImpl (const void* value,
+                                       const NdbRecord::Attr& attr)
   : NdbConstOperandImpl(),
-    m_value(value)
+    m_value(value),
+    m_attr(attr)
   {}
 
-private:
   int convert2ColumnType();
 
+private:
   const void* const m_value;
+  const NdbRecord::Attr& m_attr;
 };
 
 ////////////////////////////////////////////////
@@ -166,18 +166,15 @@ class NdbQueryLookupOperationDefImpl : public NdbQueryOperationDefImpl
 public:
   virtual int serializeOperation(Uint32Buffer& serializedDef);
 
-  virtual const NdbQueryOperandImpl* const* getKeyOperands() const
-  { return m_keys; }
+  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
+                             const constVoidPtr actualParam[]) const;
 
-  virtual const NdbRecord* getKeyRecord() const
-  { return &m_key_record; }
 
 protected:
   virtual ~NdbQueryLookupOperationDefImpl() {}
 
   explicit NdbQueryLookupOperationDefImpl (
-                           const NdbRecord& key_record,          // Key NdbRecord, PK or unique index
-                           const NdbRecord& tbl_record,
+                           const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
                            Uint32      ix);
@@ -195,8 +192,6 @@ protected:
   NdbQueryLookupOperationDef m_interface;
   NdbQueryOperandImpl* m_keys[MAX_ATTRIBUTES_IN_INDEX+1];
 
-  const NdbRecord& m_key_record;
-
 }; // class NdbQueryLookupOperationDefImpl
 
 
@@ -205,21 +200,28 @@ class NdbQueryIndexOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
+  virtual const NdbIndexImpl* getIndex() const
+  { return &m_index; }
+
   virtual int serializeOperation(Uint32Buffer& serializedDef);
 
 private:
   virtual ~NdbQueryIndexOperationDefImpl() {}
   explicit NdbQueryIndexOperationDefImpl (
-                           const NdbRecord& key_record,          // Unique index
-                           const NdbRecord& tbl_record,
+                           const NdbIndexImpl& index,
+                           const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(key_record,tbl_record,keys,ident,ix)
+  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix),
+    m_index(index)
   {}
 
   virtual Type getType() const
   { return UniqueIndexAccess; }
+
+private:
+  const NdbIndexImpl& m_index;
 
 }; // class NdbQueryIndexOperationDefImpl
 
@@ -237,19 +239,26 @@ public:
   virtual Type getType() const
   { return TableScan; }
 
+  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
+                             const constVoidPtr actualParam[]) const {
+    return 0;
+  }
+
 private:
   virtual ~NdbQueryTableScanOperationDefImpl() {}
   explicit NdbQueryTableScanOperationDefImpl (
-                           const NdbRecord& tbl_record,
+                           const NdbTableImpl& table,
                            const char* ident,
                            Uint32      ix)
-    : NdbQueryScanOperationDefImpl(tbl_record,ident,ix),
+    : NdbQueryScanOperationDefImpl(table,ident,ix),
       m_interface(*this) 
   {}
 
   NdbQueryTableScanOperationDef m_interface;
 
 }; // class NdbQueryTableScanOperationDefImpl
+
+
 
 
 ///////////////////////////////////////////////////
@@ -452,17 +461,13 @@ NdbQueryOperationDef::getChildOperation(Uint32 i) const
 const NdbDictionary::Table*
 NdbQueryOperationDef::getTable() const
 {
-  return ::getImpl(*this).getTblRecord().table;
+  return &::getImpl(*this).getTable();
 }
 
 const NdbDictionary::Index*
 NdbQueryLookupOperationDef::getIndex() const
 {
-  const NdbRecord* inxRecord = ::getImpl(*this).getKeyRecord();
-  if (inxRecord)
-    return inxRecord->table->m_index;
-  else
-    return NULL;
+  return ::getImpl(*this).getIndex();
 }
 
 int 
@@ -515,10 +520,12 @@ NdbQueryBuilder::constValue(const char* value)
   return &constOp->m_interface;
 }
 NdbConstOperand* 
-NdbQueryBuilder::constValue(const void* value)
+NdbQueryBuilder::constValue(const void* value,
+                            const NdbRecord* record, Uint32 attrId)
 {
-  returnErrIf(value==0,QRY_REQ_ARG_IS_NULL);
-  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value);
+  returnErrIf(record==0,QRY_REQ_ARG_IS_NULL);
+  const NdbRecord::Attr& attr = record->columns[attrId];
+  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,attr);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
@@ -610,9 +617,55 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
-  return readTuple(table->getDefaultRecord(),
-                   table->getDefaultRecord(),
-                   keys, ident);
+  int i;
+  if (m_pimpl->hasError())
+    return NULL;
+
+  returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+
+  const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
+
+  // All column values being part of primary key should be specified:
+  int keyfields = table->getNoOfPrimaryKeys();
+  int colcount = table->getNoOfColumns();
+
+  // Check: keys[] are specified for all fields in PK
+  for (i=0; i<keyfields; ++i)
+  {
+    // A 'Key' value is undefined
+    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
+  }
+  // Check for propper NULL termination of keys[] spec
+  returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
+
+  NdbQueryLookupOperationDefImpl* op =
+    new NdbQueryLookupOperationDefImpl(tableImpl,
+                                       keys,ident,
+                                       m_pimpl->m_operations.size());
+  returnErrIf(op==0, Err_MemoryAlloc);
+
+  Uint32 keyindex = 0;
+  for (i=0; i<colcount; ++i)
+  {
+    const NdbColumnImpl *col = tableImpl.getColumn(i);
+    if (col->getPrimaryKey())
+    {
+      assert (keyindex==col->m_keyInfoPos);
+      int error = op->m_keys[col->m_keyInfoPos]->bindOperand(*col,*op);
+      if (unlikely(error))
+      { m_pimpl->setErrorCode(error);
+        delete op;
+        return NULL;
+      }
+
+      keyindex++;
+      if (keyindex >= static_cast<Uint32>(keyfields))
+        break;  // Seen all PK fields
+    }
+  }
+  
+  m_pimpl->m_operations.push_back(op);
+  return &op->m_interface;
 }
 
 
@@ -622,9 +675,58 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const char* ident)
 {
-  return readTuple(index->getDefaultRecord(),
-                   table->getDefaultRecord(),
-                   keys, ident);
+  int i;
+
+  if (m_pimpl->hasError())
+    return NULL;
+  returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+
+  const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
+  const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
+
+  // TODO: Restrict to only table_version_major() mismatch?
+  returnErrIf(indexImpl.m_table_id 
+              != static_cast<Uint32>(table->getObjectId()) ||
+              indexImpl.m_table_version 
+              != static_cast<Uint32>(table->getObjectVersion()), 
+              QRY_UNRELATED_INDEX);
+
+  // Only 'UNIQUE' indexes may be used for lookup operations:
+  returnErrIf(index->getType()!=NdbDictionary::Index::UniqueHashIndex,
+              QRY_WRONG_INDEX_TYPE);
+
+  // Check: keys[] are specified for all fields in 'index'
+  int inxfields = index->getNoOfColumns();
+  for (i=0; i<inxfields; ++i)
+  {
+    // A 'Key' value is undefined
+    returnErrIf(keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
+  }
+  // Check for propper NULL termination of keys[] spec
+  returnErrIf(keys[inxfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
+
+  NdbQueryIndexOperationDefImpl* op = 
+    new NdbQueryIndexOperationDefImpl(indexImpl, tableImpl,
+                                       keys,ident,
+                                       m_pimpl->m_operations.size());
+  returnErrIf(op==0, Err_MemoryAlloc);
+
+  // Bind to Column and check type compatibility
+  for (i=0; i<inxfields; ++i)
+  {
+    const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
+    assert (col.getColumnNo() == i);
+
+    int error = keys[i]->getImpl().bindOperand(col,*op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
+    }
+  }
+
+  m_pimpl->m_operations.push_back(op);
+  return &op->m_interface;
 }
 
 
@@ -632,7 +734,17 @@ NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const char* ident)
 {
-  return scanTable(table->getDefaultRecord(), ident);
+  if (m_pimpl->hasError())
+    return NULL;
+  returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
+
+  NdbQueryTableScanOperationDefImpl* op =
+    new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),ident,
+                                          m_pimpl->m_operations.size());
+  returnErrIf(op==0, Err_MemoryAlloc);
+
+  m_pimpl->m_operations.push_back(op);
+  return &op->m_interface;
 }
 
 
@@ -642,124 +754,33 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                            const NdbQueryIndexBound* bound,
                            const char* ident)
 {
-  return scanIndex(index->getDefaultRecord(),
-                   table->getDefaultRecord(),
-                   bound, ident);
-}
-
-
-
-NdbQueryLookupOperationDef*
-NdbQueryBuilder::readTuple(const NdbRecord* key_record,          // key NdbRecord, PK or unique index
-                           const NdbRecord* tbl_record,
-                           const NdbQueryOperand* const keys[],  // Terminated by NULL element 
-                           const char* ident)
-{
-  NdbQueryLookupOperationDefImpl* op = NULL;
-
-  if (unlikely(m_pimpl->hasError()))
-    return NULL;
-  returnErrIf(key_record==0 || tbl_record==0 || keys==0, QRY_REQ_ARG_IS_NULL);
-  returnErrIf(!(key_record->flags & NdbRecord::RecHasAllKeys), Err_NotKeyRecord);
-
-  if (key_record->flags & NdbRecord::RecIsIndex)
-  {
-    const NdbIndexImpl* indexImpl = key_record->table->m_index;
-
-    returnErrIf(indexImpl->m_table_id  != 
-                (Uint32)(tbl_record->tableId) ||
-                table_version_major(indexImpl->m_table_version) != 
-                table_version_major(tbl_record->tableVersion), 
-                QRY_UNRELATED_INDEX);
-
-    // Only 'UNIQUE' indexes may be used for lookup operations:
-    returnErrIf(indexImpl->getType()!=NdbDictionary::Index::UniqueHashIndex,
-                QRY_WRONG_INDEX_TYPE);
-
-    op = new NdbQueryIndexOperationDefImpl(*key_record, *tbl_record,
-                                           keys,ident,
-                                           m_pimpl->m_operations.size());
-  }
-  else
-  {
-    returnErrIf(key_record->tableId != tbl_record->tableId,
-                QRY_WRONG_INDEX_TYPE);
-
-    op = new NdbQueryLookupOperationDefImpl(*key_record, *tbl_record,
-                                            keys,ident,
-                                            m_pimpl->m_operations.size());
-  }
-  returnErrIf(op==0, Err_MemoryAlloc);
-  m_pimpl->m_operations.push_back(op);
-
-  int keyfields = key_record->key_index_length;
-  for (int i=0; i<keyfields; ++i)
-  {
-    // Check: keys[] are specified for all fields in 'key_record'
-    returnErrIf(op->m_keys[i]==NULL, QRY_TOO_FEW_KEY_VALUES);
-
-    const NdbRecord::Attr& attr = key_record->columns[key_record->key_indexes[i]];
-    assert (attr.flags & NdbRecord::IsKey);
-
-    const int error = op->m_keys[i]->bindOperand(attr,*op);
-    returnErrIf(error!=0, error);
-  }
-  // Check for propper NULL termination of keys[] spec
-  returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
-
-  return &op->m_interface;
-}
-
-
-NdbQueryTableScanOperationDef*
-NdbQueryBuilder::scanTable(const NdbRecord* tbl_record,
-                           const char* ident)
-{
-  if (m_pimpl->hasError())
-    return NULL;
-  returnErrIf(tbl_record==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
-
-  NdbQueryTableScanOperationDefImpl* op =
-    new NdbQueryTableScanOperationDefImpl(*tbl_record,ident,
-                                          m_pimpl->m_operations.size());
-  returnErrIf(op==0, Err_MemoryAlloc);
-
-  m_pimpl->m_operations.push_back(op);
-  return &op->m_interface;
-}
-
-
-NdbQueryIndexScanOperationDef*
-NdbQueryBuilder::scanIndex(const NdbRecord* inx_record, 
-                           const NdbRecord* tbl_record,
-                           const NdbQueryIndexBound* bound,
-                           const char* ident)
-{
   if (m_pimpl->hasError())
     return NULL;
   // Required non-NULL arguments
-  returnErrIf(inx_record==0 || inx_record==0, QRY_REQ_ARG_IS_NULL);
+  returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
 
-  const NdbIndexImpl* indexImpl = inx_record->table->m_index;
+  const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
+  const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
 
-  returnErrIf(indexImpl->m_table_id  != 
-              (Uint32)(tbl_record->tableId) ||
-              table_version_major(indexImpl->m_table_version) != 
-              table_version_major(tbl_record->tableVersion), 
+  // TODO: Restrict to only table_version_major() mismatch?
+  returnErrIf(indexImpl.m_table_id 
+              != static_cast<Uint32>(table->getObjectId()) ||
+              indexImpl.m_table_version 
+              != static_cast<Uint32>(table->getObjectVersion()), 
               QRY_UNRELATED_INDEX);
 
   // Only ordered indexes may be used in scan operations:
-  returnErrIf(indexImpl->getType()!=NdbDictionary::Index::OrderedIndex,
+  returnErrIf(index->getType()!=NdbDictionary::Index::OrderedIndex,
               QRY_WRONG_INDEX_TYPE);
 
   NdbQueryIndexScanOperationDefImpl* op =
-    new NdbQueryIndexScanOperationDefImpl(*inx_record, *tbl_record,
+    new NdbQueryIndexScanOperationDefImpl(indexImpl, tableImpl,
                                           bound, ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
-  if (unlikely(op->m_bound.lowKeys  > inx_record->key_index_length ||
-               op->m_bound.highKeys > inx_record->key_index_length))
+  if (unlikely(op->m_bound.lowKeys  > indexImpl.getNoOfColumns() ||
+               op->m_bound.highKeys > indexImpl.getNoOfColumns()))
   { m_pimpl->setErrorCode(QRY_TOO_MANY_KEY_VALUES);
     delete op;
     return NULL;
@@ -768,10 +789,9 @@ NdbQueryBuilder::scanIndex(const NdbRecord* inx_record,
   Uint32 i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {
-    const NdbRecord::Attr& attr = inx_record->columns[inx_record->key_indexes[i]];
-
+    const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
     assert (op->m_bound.low[i]);
-    int error = op->m_bound.low[i]->bindOperand(attr,*op);
+    int error = op->m_bound.low[i]->bindOperand(col,*op);
     if (unlikely(error))
     { m_pimpl->setErrorCode(error);
       delete op;
@@ -782,10 +802,9 @@ NdbQueryBuilder::scanIndex(const NdbRecord* inx_record,
   {
     for (i=0; i<op->m_bound.highKeys; ++i)
     {
-      const NdbRecord::Attr& attr = inx_record->columns[inx_record->key_indexes[i]];
-
+      const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
       assert (op->m_bound.high[i]);
-      int error = op->m_bound.high[i]->bindOperand(attr,*op);
+      int error = op->m_bound.high[i]->bindOperand(col,*op);
       if (unlikely(error))
       { m_pimpl->setErrorCode(error);
         delete op;
@@ -797,7 +816,6 @@ NdbQueryBuilder::scanIndex(const NdbRecord* inx_record,
   m_pimpl->m_operations.push_back(op);
   return &op->m_interface;
 }
-
 
 const NdbQueryDef*
 NdbQueryBuilder::prepare()
@@ -996,7 +1014,7 @@ int NdbInt64ConstOperandImpl::convertUint32()
 }
 int NdbInt64ConstOperandImpl::convertInt32()
 {
-  if (unlikely(m_value < -((Int64)0x80000000L) || m_value > 0x7FFFFFFF))
+  if (unlikely(m_value < -0x80000000L || m_value > 0x7FFFFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int32 = (Int32)m_value;
   m_converted.len = sizeof(m_converted.val.int32);
@@ -1078,13 +1096,13 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   size_t len;
   const unsigned char* const src= (unsigned char*)m_value;
 
-  if (m_attr->flags & NdbRecord::IsMysqldShrinkVarchar)
+  if (m_attr.flags & NdbRecord::IsMysqldShrinkVarchar)
   {
-    assert (m_attr->flags & NdbRecord::IsVar1ByteLen);
-    assert (m_attr->maxSize-1 <= 0xFF); // maxSize incl length in first byte
+    assert (m_attr.flags & NdbRecord::IsVar1ByteLen);
+    assert (m_attr.maxSize-1 <= 0xFF); // maxSize incl length in first byte
     len = uint2korr(src);
 
-    if (unlikely(len > m_attr->maxSize-1))
+    if (unlikely(len > m_attr.maxSize-1))
       return QRY_CHAR_OPERAND_TRUNCATED;
 
     char* dst = m_converted.getCharBuffer(len+1);
@@ -1096,26 +1114,26 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   }
   else
   {
-    if (m_attr->flags & NdbRecord::IsVar1ByteLen)
+    if (m_attr.flags & NdbRecord::IsVar1ByteLen)
     {
       len = 1 + *src;
-      if (unlikely(len > m_attr->maxSize-1)) {
+      if (unlikely(len > m_attr.maxSize-1)) {
         return QRY_CHAR_OPERAND_TRUNCATED;
       }
     }
-    else if (m_attr->flags & NdbRecord::IsVar2ByteLen)
+    else if (m_attr.flags & NdbRecord::IsVar2ByteLen)
     {
       len = 2 + uint2korr(src);
-      if (unlikely(len > m_attr->maxSize-2)) {
+      if (unlikely(len > m_attr.maxSize-2)) {
         return QRY_CHAR_OPERAND_TRUNCATED;
       }
     }
     else
     {
-      len = m_attr->maxSize;
+      len = m_attr.maxSize;
     }
 
-    if (unlikely(m_attr->maxSize != (size_t)m_column->getSizeInBytes())) {
+    if (unlikely(m_attr.maxSize != (size_t)m_column->getSizeInBytes())) {
       return QRY_OPERAND_HAS_WRONG_TYPE;
     }
 
@@ -1178,27 +1196,12 @@ NdbConstOperandImpl::convert2ColumnType()
   return 0;
 } //NdbConstOperandImpl::convert2ColumnType
 
-
-int
-NdbQueryOperandImpl::bindOperand(
-                           const NdbRecord::Attr& attr,
-                           NdbQueryOperationDefImpl& operation)
-{
-  if (m_attr  && m_attr != &attr)
-    // Already bounded to a different ::Attr
-    return QRY_OPERAND_ALREADY_BOUND;
-
-  m_attr   = &attr;
-  m_column = operation.getTblRecord().table->getColumn(attr.column_no);
-  return 0;
-}
-
 int
 NdbConstOperandImpl::bindOperand(
-                           const NdbRecord::Attr& attr,
+                           const NdbColumnImpl& column,
                            NdbQueryOperationDefImpl& operation)
 {
-  const int error = NdbQueryOperandImpl::bindOperand(attr,operation);
+  const int error = NdbQueryOperandImpl::bindOperand(column,operation);
   if (unlikely(error))
     return error;
 
@@ -1206,51 +1209,82 @@ NdbConstOperandImpl::bindOperand(
 }
 
 
+
 int
 NdbLinkedOperandImpl::bindOperand(
-                           const NdbRecord::Attr& attr,
+                           const NdbColumnImpl& column,
                            NdbQueryOperationDefImpl& operation)
 {
-  const int error = NdbQueryOperandImpl::bindOperand(attr,operation);
-  if (unlikely(error))
-    return error;
-
   const NdbColumnImpl& parentColumn = getParentColumn();
-
-  if (unlikely(m_column->m_type      != parentColumn.m_type ||
-               m_column->m_precision != parentColumn.m_precision ||
-               m_column->m_scale     != parentColumn.m_scale ||
-               m_column->m_length    != parentColumn.m_length ||
-               m_column->m_cs        != parentColumn.m_cs))
+  
+  if (unlikely(column.m_type      != parentColumn.m_type ||
+               column.m_precision != parentColumn.m_precision ||
+               column.m_scale     != parentColumn.m_scale ||
+               column.m_length    != parentColumn.m_length ||
+               column.m_cs        != parentColumn.m_cs))
     return QRY_OPERAND_HAS_WRONG_TYPE;  // Incompatible datatypes
 
-  if (unlikely(m_column->m_type == NdbDictionary::Column::Blob ||
-               m_column->m_type == NdbDictionary::Column::Text))
+  if (unlikely(column.m_type == NdbDictionary::Column::Blob ||
+               column.m_type == NdbDictionary::Column::Text))
     return QRY_OPERAND_HAS_WRONG_TYPE;  // BLOB/CLOB datatypes intentionally not supported
 
   // TODO: Allow and autoconvert compatible datatypes
 
   // Register parent/child operation relations
-  return operation.linkWithParent(&this->m_parentOperation);
-}
-
-
-int
-NdbParamOperandImpl::bindOperand(
-                           const NdbRecord::Attr& attr,
-                           NdbQueryOperationDefImpl& operation)
-{
-  const int error = NdbQueryOperandImpl::bindOperand(attr,operation);
+  const int error = operation.linkWithParent(&this->m_parentOperation);
   if (unlikely(error))
     return error;
 
-  if (unlikely(m_column->m_type == NdbDictionary::Column::Blob ||
-               m_column->m_type == NdbDictionary::Column::Text))
+  return NdbQueryOperandImpl::bindOperand(column,operation);
+}
+
+
+size_t
+NdbParamOperandImpl::getSizeInBytes(const constVoidPtr paramValue) const
+{
+  switch(m_column->getType()) {
+
+    case NdbDictionary::Column::Bit: 
+    case NdbDictionary::Column::Blob:
+    case NdbDictionary::Column::Text: 
+    case NdbDictionary::Column::Varbinary:
+    case NdbDictionary::Column::Longvarbinary:
+      // TODO, how to handle varsize binary: 
+      //   - These are not char strings so strlen() is unusable.
+      //   - Neither are they fixed size: m_column.getLength() does not make sense.
+      assert(false);
+
+    case NdbDictionary::Column::Varchar:
+    case NdbDictionary::Column::Longvarchar:
+    { size_t len = strlen((char*)paramValue);
+      assert (len <= (size_t)m_column->getLength());
+      return len;
+    }
+
+    // Fixed size assumed and required to match column maxsize
+    case NdbDictionary::Column::Char:
+      assert (strlen((char*)paramValue) == (size_t)m_column->getLength());
+      // Fall through:
+
+    default:
+      assert (m_column->getArrayType()==NdbDictionary::Column::ArrayTypeFixed );
+      return m_column->getSizeInBytes();
+  }
+}
+
+int
+NdbParamOperandImpl::bindOperand(
+                           const NdbColumnImpl& column,
+                           NdbQueryOperationDefImpl& operation)
+{
+  if (unlikely(column.m_type == NdbDictionary::Column::Blob ||
+               column.m_type == NdbDictionary::Column::Text))
     return QRY_OPERAND_HAS_WRONG_TYPE;  // BLOB/CLOB datatypes intentionally not supported
 
   operation.addParamRef(this);
-  return 0;
+  return NdbQueryOperandImpl::bindOperand(column,operation);
 }
+
 
 
 /////////////////////////////////////////////////////////////////
@@ -1258,14 +1292,12 @@ NdbParamOperandImpl::bindOperand(
 ///////////////////////>/////////////////////////////////////////
 
 NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
-                           const NdbRecord& key_record,          // Key NdbRecord, PK or unique index
-                           const NdbRecord& tbl_record,
+                           const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
                            const char* ident,
                            Uint32      ix)
- : NdbQueryOperationDefImpl(tbl_record,ident,ix),
-   m_interface(*this),
-   m_key_record(key_record)
+ : NdbQueryOperationDefImpl(table,ident,ix),
+   m_interface(*this)
 {
   int i;
   for (i=0; i<MAX_ATTRIBUTES_IN_INDEX; ++i)
@@ -1277,16 +1309,15 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
   m_keys[i] = NULL;
 }
 
-
 NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
-                           const NdbRecord& inx_record, 
-                           const NdbRecord& tbl_record,
+                           const NdbIndexImpl& index,
+                           const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
                            const char* ident,
                            Uint32      ix)
-: NdbQueryScanOperationDefImpl(tbl_record,ident,ix),
+: NdbQueryScanOperationDefImpl(table,ident,ix),
   m_interface(*this), 
-  m_inx_record(inx_record), 
+  m_index(index), 
   m_bound(),
   m_ordering(NdbScanOrdering_void)
 {
@@ -1325,11 +1356,241 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
   }
 }
 
-/***
-const NdbIndexImpl*
-NdbQueryIndexScanOperationDefImpl::getIndex() const
-{ return m_inx_record.table->m_index; }
-****/
+
+
+static int
+formatAttr(const NdbColumnImpl* column,
+           constVoidPtr& value, size_t& len,
+           char* buffer, size_t buflen)
+{
+  // Check that column->shrink_varchar() not specified, only used by mySQL
+  // assert (!(column->flags & NdbDictionary::RecMysqldShrinkVarchar));
+
+  switch (column->getArrayType()) {
+    case NdbDictionary::Column::ArrayTypeFixed:
+      break;
+    case NdbDictionary::Column::ArrayTypeShortVar:
+      if (unlikely(len > 0xFF || len+1 > buflen))
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      buffer[0] = (unsigned char)len;
+      memcpy(buffer+1, value, len);
+      len+=1;
+      value = buffer;
+      break;
+    case NdbDictionary::Column::ArrayTypeMediumVar:
+      if (unlikely(len > 0xFFFF || len+2 > buflen))
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      buffer[0] = (unsigned char)(len & 0xFF);
+      buffer[1] = (unsigned char)(len >> 8);
+      memcpy(buffer+2, value, len);
+      len+=2;
+      value = buffer;
+      break;
+    default:
+      assert(false);
+  }
+  return 0;
+} // static formatAttr
+
+static int
+appendBound(Uint32Buffer& keyInfo,
+            NdbIndexScanOperation::BoundType type, const NdbQueryOperandImpl* bound,
+            const constVoidPtr actualParam[]) 
+{
+  size_t len = 0;
+  constVoidPtr boundValue = NULL;
+
+  assert (bound);
+  switch(bound->getKind()){
+  case NdbQueryOperandImpl::Const:
+  {
+    const NdbConstOperandImpl* constOp = static_cast<const NdbConstOperandImpl*>(bound);
+    boundValue = constOp->getAddr();
+    len = constOp->getSizeInBytes();
+    break;
+  }
+  case NdbQueryOperandImpl::Param:
+  {
+    const NdbParamOperandImpl* const paramOp 
+      = static_cast<const NdbParamOperandImpl*>(bound);
+    int paramNo = paramOp->getParamIx();
+    assert(actualParam != NULL);
+    if (unlikely(actualParam[paramNo] == NULL))
+      return 4316;  // Error: 'Key attributes are not allowed to be NULL attributes'
+    boundValue = actualParam[paramNo];
+    len = paramOp->getSizeInBytes(boundValue);
+    break;
+  }
+  case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
+  default:
+    assert(false);
+  }
+    
+  char tmp[NDB_MAX_KEY_SIZE];
+  const NdbColumnImpl* column = bound->getColumn();
+
+  int error = formatAttr(column, boundValue, len, tmp, sizeof(tmp));
+  if (unlikely(error))
+    return error;
+
+  AttributeHeader ah(column->m_attrId, len);
+
+  keyInfo.append(type);
+  keyInfo.append(ah.m_value);
+  keyInfo.append(boundValue,len);
+
+  return 0;
+} // static appendBound()
+
+
+int
+NdbQueryLookupOperationDefImpl::prepareKeyInfo(
+                              Uint32Buffer& keyInfo,
+                              const constVoidPtr actualParam[]) const
+{ 
+  assert(getQueryOperationIx()==0); // Should only be called for root operation.
+#ifdef TRACE_SERIALIZATION
+  int startPos = keyInfo.getSize();
+#endif
+
+  const int keyCount = getIndex()==NULL ? 
+    getTable().getNoOfPrimaryKeys() :
+    static_cast<int>(getIndex()->getNoOfColumns());
+
+  for (int keyNo = 0; keyNo<keyCount; keyNo++)
+  {
+    size_t len = 0;
+    constVoidPtr boundValue = NULL;
+
+    switch(m_keys[keyNo]->getKind()){
+    case NdbQueryOperandImpl::Const:
+    {
+      const NdbConstOperandImpl* const constOp 
+        = static_cast<const NdbConstOperandImpl*>(m_keys[keyNo]);
+      boundValue = constOp->getAddr();
+      len = constOp->getSizeInBytes();
+      break;
+    }
+    case NdbQueryOperandImpl::Param:
+    {
+      const NdbParamOperandImpl* const paramOp 
+        = static_cast<const NdbParamOperandImpl*>(m_keys[keyNo]);
+      int paramNo = paramOp->getParamIx();
+      assert(actualParam != NULL);
+      if (unlikely(actualParam[paramNo] == NULL))
+        return 4316;  // Error: 'Key attributes are not allowed to be NULL attributes'
+      boundValue = actualParam[paramNo];
+      len = paramOp->getSizeInBytes(boundValue);
+      break;
+    }
+    case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
+    default:
+      assert(false);
+    }
+
+    char tmp[NDB_MAX_KEY_SIZE];
+    const NdbColumnImpl* column = m_keys[keyNo]->getColumn();
+
+    int error = formatAttr(column, boundValue, len, tmp, sizeof(tmp));
+    if (unlikely(error))
+      return error;
+
+    keyInfo.append(boundValue,len);
+  }
+
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  }
+
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized KEYINFO w/ key for lookup root : ";
+  for (Uint32 i = startPos; i < keyInfo.getSize(); i++) {
+    char buf[12];
+    sprintf(buf, "%.8x", keyInfo.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+
+  return 0;
+} // NdbQueryLookupOperationDefImpl::prepareKeyInfo
+
+int
+NdbQueryIndexScanOperationDefImpl::prepareKeyInfo(
+                              Uint32Buffer& keyInfo,
+                              const constVoidPtr actualParam[]) const
+{ 
+  assert(getQueryOperationIx()==0); // Should only be called for root operation.
+  int startPos = keyInfo.getSize();
+  assert (startPos == 0);  // Assumed by ::checkPrunable
+
+  const unsigned key_count = 
+     (m_bound.lowKeys >= m_bound.highKeys) ? m_bound.lowKeys : m_bound.highKeys;
+
+  for (unsigned keyNo = 0; keyNo < key_count; keyNo++)
+  {
+    NdbIndexScanOperation::BoundType bound_type;
+
+    /* If upper and lower limit is equal, a single BoundEQ is sufficient */
+    if (m_bound.low[keyNo] == m_bound.high[keyNo])
+    {
+      /* Inclusive if defined, or matching rows can include this value */
+      bound_type= NdbIndexScanOperation::BoundEQ;
+      int error = appendBound(keyInfo, bound_type, m_bound.low[keyNo], actualParam);
+      if (unlikely(error))
+        return error;
+
+    } else {
+
+      /* If key is part of lower bound */
+      if (keyNo < m_bound.lowKeys)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= m_bound.lowIncl  || keyNo+1 < m_bound.lowKeys ?
+            NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
+
+        int error = appendBound(keyInfo, bound_type, m_bound.low[keyNo], actualParam);
+        if (unlikely(error))
+          return error;
+      }
+
+      /* If key is part of upper bound */
+      if (keyNo < m_bound.highKeys)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= m_bound.highIncl  || keyNo+1 < m_bound.highKeys ?
+            NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
+
+        int error = appendBound(keyInfo, bound_type, m_bound.high[keyNo], actualParam);
+        if (unlikely(error))
+          return error;
+      }
+    }
+  }
+
+  size_t length = keyInfo.getSize()-startPos;
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  } else if (unlikely(length > 0xFFFF)) {
+    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+  } else if (likely(length > 0)) {
+    keyInfo.put(startPos, keyInfo.get(startPos) | (length << 16));
+  }
+
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized KEYINFO w/ bounds for scan root : ";
+  for (Uint32 i = startPos; i < keyInfo.getSize(); i++) {
+    char buf[12];
+    sprintf(buf, "%.8x", keyInfo.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+
+  return 0;
+
+} // NdbQueryIndexScanOperationDefImpl::prepareKeyInfo
+
 
 int
 NdbQueryIndexScanOperationDefImpl::checkPrunable(
@@ -1337,12 +1598,15 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
                               bool&   isPruned,
                               Uint32& hashValue) const  // 'hashValue' only defined if 'isPruned'
 { 
+
   /**
    * Determine if scan may be pruned to a single partition:
    */
-  const Uint32 index_distkeys = m_inx_record.m_no_of_distribution_keys;
-  const Uint32 distkey_min    = m_inx_record.m_min_distkey_prefix_length;
-  const Uint32 table_distkeys = m_tbl_record.m_no_of_distribution_keys;
+  const NdbRecord* key_record = m_index.getDefaultRecord();
+
+  const Uint32 index_distkeys = key_record->m_no_of_distribution_keys;
+  const Uint32 distkey_min = key_record->m_min_distkey_prefix_length;
+  const Uint32 table_distkeys = getTable().getDefaultRecord()->m_no_of_distribution_keys;
 
   bool isPrunable = (                             // Initial prunable propert:
             index_distkeys == table_distkeys &&   // Index has all base table d-keys
@@ -1350,54 +1614,38 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
             m_bound.highKeys >= distkey_min);     // High bounds have all d-keys
 
   isPruned = false;
-  if (isPrunable)
-  {
+  if (isPrunable) {
     Ndb::Key_part_ptr lowKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
     Ndb::Key_part_ptr highKey;
-
-#if !defined(NDEBUG)
-    for (unsigned keyNo = 0; keyNo < NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; keyNo++)
-    {
-      lowKey[keyNo].len  = 0;
-      lowKey[keyNo].ptr  = NULL;
-    }
-#endif
 
     // Aggregate prunable propert:
     // All hi/low keys values within 'distkey_min' must be equal
     int keyPos = 0;
-    int keyEnd = keyInfo.get(keyPos) >> 16;
-
-    for (unsigned i = 0; i < distkey_min; i++)
+    for (unsigned keyNo = 0; keyNo < distkey_min; keyNo++)
     {
-      /* Bounds have been serialized in key_indexs[] order,
-       * Retreive values directly from serialized bounds
-       * and temp. store lowKey[] in columns[] order:
-       */
-      Uint32 keyIx  = m_inx_record.key_indexes[i];
-
-      Uint32 type         = keyInfo.get(keyPos) & 0xFFFF;
-      AttributeHeader ah1 = keyInfo.get(keyPos+1);
-      lowKey[keyIx].len   = ah1.getByteSize();
-      lowKey[keyIx].ptr   = keyInfo.addr(keyPos+2);
-
-      keyPos += 1+1+ah1.getDataSize();  // Skip data read above.
+      Uint32 type        = keyInfo.get(keyPos) & 0xFFFF;
+      AttributeHeader ah = keyInfo.get(keyPos+1);
+      lowKey[keyNo].len = ah.getByteSize();
+      lowKey[keyNo].ptr = keyInfo.addr(keyPos+2);
+  
+      keyPos += 1+1+ah.getDataSize();  // Skip data read above.
 
       // Only has to compare values if not known to be 'BoundEQ'
       if (type != NdbIndexScanOperation::BoundEQ)
       {
         assert ((keyInfo.get(keyPos) & 0xFFFF) != NdbIndexScanOperation::BoundEQ);
-        AttributeHeader ah2 = keyInfo.get(keyPos+1);
-        highKey.len = ah2.getByteSize();
+        AttributeHeader ah = keyInfo.get(keyPos+1);
+        highKey.len = ah.getByteSize();
         highKey.ptr = keyInfo.addr(keyPos+2);
 
-        keyPos += 1+1+ah2.getDataSize();  // Skip data read above.
+        keyPos += 1+1+ah.getDataSize();  // Skip data read above.
 
         // Compare high and low bound value:
-        const NdbRecord::Attr& recAttr = m_inx_record.columns[keyIx];
+        const NdbColumnImpl& column = NdbColumnImpl::getImpl(*m_index.getColumn(keyNo));
+        const NdbRecord::Attr& recAttr = key_record->columns[column.m_keyInfoPos];
         const int res=
           (*recAttr.compare_function)(recAttr.charset_info,
-                                       lowKey[keyIx].ptr, lowKey[keyIx].len,
+                                       lowKey[keyNo].ptr, lowKey[keyNo].len,
                                        highKey.ptr, highKey.len, true);
         if (res!=0) {  // Not equal
           assert(res != NdbSqlUtil::CmpUnknown);
@@ -1407,27 +1655,23 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
       } // != BoundEQ
     } // for()
 
+
     // Scan is now known to be prunable, calculate hashValue
     assert (isPrunable);
-
-    // FIXME: Don't handle multiple bounds yet, assumed non-prunable
-    if (keyPos < keyEnd)
-      return 0;
 
     isPruned = true;
     Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
 
-    // hi/low is equal and known to be a prunable bound.
-    // Use prev. retrieved bounds in distkey_indexes[] order 
-    // and build the distKey for hashValue calculation.
-    for (unsigned i = 0; i<m_inx_record.distkey_index_length; i++)
-    {
-      Uint32 keyIx  = m_inx_record.distkey_indexes[i];
-      distKey[i] = lowKey[keyIx];
+    // hi/low is equal and prunable bounds, remember key for later 
+    // hashValue calculation.
+    for (unsigned i = 0; i<key_record->distkey_index_length; i++)  {
+      // Revers lookup the index column with the value of this distrubution key.
+      Uint32 keyPos = NdbColumnImpl::getImpl(*m_index.getColumn(key_record->distkey_indexes[i])).m_keyInfoPos;
+      distKey[i] = lowKey[keyPos];
     }
-    distKey[m_inx_record.distkey_index_length].ptr = NULL;
+    distKey[key_record->distkey_index_length].ptr = NULL;
 
-    int error = Ndb::computeHash(&hashValue, m_tbl_record.table, distKey, NULL, 0);
+    int error = Ndb::computeHash(&hashValue, &getTable(), distKey, NULL, 0);
     if (unlikely(error))
       return error;
   } // if 'isPrunable'
@@ -1677,7 +1921,6 @@ appendKeyPattern(Uint32Buffer& serializedDef,
   return appendedPattern;
 } // appendKeyPattern
 
-
 int
 NdbQueryLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef)
@@ -1727,9 +1970,8 @@ NdbQueryLookupOperationDefImpl
   if (unlikely(node==NULL)) {
     return Err_MemoryAlloc;
   }
-  assert (m_tbl_record.tableId == m_key_record.tableId);
-  node->tableId = m_tbl_record.tableId;
-  node->tableVersion = m_tbl_record.tableVersion;
+  node->tableId = getTable().getObjectId();
+  node->tableVersion = getTable().getObjectVersion();
   node->requestInfo = requestInfo;
   const size_t length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
@@ -1789,7 +2031,7 @@ NdbQueryIndexOperationDefImpl
     {
       requestInfo |= DABits::NI_LINKED_ATTR;
       Uint16Sequence spjProjSeq(serializedDef,1);
-      spjProjSeq.append(m_key_record.key_index_length);
+      spjProjSeq.append(getIndex()->getNoOfColumns());
       spjProjSeq.finish();
     }
 
@@ -1798,8 +2040,8 @@ NdbQueryIndexOperationDefImpl
     if (unlikely(node==NULL)) {
       return Err_MemoryAlloc;
     }
-    node->tableId = m_key_record.tableId;
-    node->tableVersion = m_key_record.tableVersion;
+    node->tableId = getIndex()->getObjectId();
+    node->tableVersion = getIndex()->getObjectVersion();
     node->requestInfo = requestInfo;
     const size_t length = serializedDef.getSize() - startPos;
     if (unlikely(length > 0xFFFF)) {
@@ -1862,8 +2104,8 @@ NdbQueryIndexOperationDefImpl
   if (unlikely(node==NULL)) {
     return Err_MemoryAlloc;
   }
-  node->tableId = m_tbl_record.tableId;
-  node->tableVersion = m_tbl_record.tableVersion;
+  node->tableId = getTable().getObjectId();
+  node->tableVersion = getTable().getObjectVersion();
   node->requestInfo = requestInfo;
   const size_t length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
@@ -1888,7 +2130,7 @@ NdbQueryIndexOperationDefImpl
 
 int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
-                                        const NdbRecord& tableOrIndex)
+                                        const NdbTableImpl& tableOrIndex)
 {
   // This method should only be invoked once.
   assert (!m_isPrepared);
@@ -1923,8 +2165,8 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   if (unlikely(node==NULL)) {
     return Err_MemoryAlloc;
   }
-  node->tableId = tableOrIndex.tableId;
-  node->tableVersion = tableOrIndex.tableVersion;
+  node->tableId = tableOrIndex.getObjectId();
+  node->tableVersion = tableOrIndex.getObjectVersion();
   node->requestInfo = requestInfo;
 
   const size_t length = serializedDef.getSize() - startPos;
@@ -1951,7 +2193,7 @@ int
 NdbQueryTableScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef)
 {
-  return NdbQueryScanOperationDefImpl::serialize(serializedDef, m_tbl_record);
+  return NdbQueryScanOperationDefImpl::serialize(serializedDef, getTable());
 } // NdbQueryTableScanOperationDefImpl::serializeOperation
 
 
@@ -1959,7 +2201,7 @@ int
 NdbQueryIndexScanOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef)
 {
-  return NdbQueryScanOperationDefImpl::serialize(serializedDef, m_inx_record);
+  return NdbQueryScanOperationDefImpl::serialize(serializedDef, *m_index.getIndexTable());
 } // NdbQueryIndexScanOperationDefImpl::serializeOperation
 
 

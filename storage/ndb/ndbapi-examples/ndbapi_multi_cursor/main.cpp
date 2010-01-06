@@ -410,10 +410,7 @@ int testQueryBuilder(Ndb &myNdb)
        qb->constValue(110567),             // emp_no  = 110567
        0
     };
-    const NdbQueryLookupOperationDef *readManager 
-         = qb->readTuple(manager->getDefaultRecord(),
-                         manager->getDefaultRecord(),
-                         managerKey);
+    const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, managerKey);
     if (readManager == NULL) APIERROR(qb->getNdbError());
 
     q1 = qb->prepare();
@@ -514,11 +511,11 @@ int testQueryBuilder(Ndb &myNdb)
   // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
+  void* paramList[] = {dept_no, &emp_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbQueryParamValue paramList[] = {dept_no, emp_no};
   myQuery = myTransaction->createQuery(q4,paramList);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
@@ -536,12 +533,22 @@ int testQueryBuilder(Ndb &myNdb)
   }
 
 #else
+{
   memset (&managerRow,  0, sizeof(managerRow));
   memset (&employeeRow, 0, sizeof(employeeRow));
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
+
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
 
   assert(myQuery->getNoOfOperations()==2);
-  myQuery->getQueryOperation(0U)->setResultRowBuf((char*)&managerRow);
-  myQuery->getQueryOperation(1U)->setResultRowBuf((char*)&employeeRow);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+
+  op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+  op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+}
 #endif
 
   printf("Start execute\n");
@@ -614,8 +621,8 @@ int testQueryBuilder(Ndb &myNdb)
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
 
-  NdbQueryParamValue paramList_q4[] = {emp_no, dept_no};
-//NdbQueryParamValue paramList_q4[] = {dept_no};
+  void* paramList_q4[] = {&emp_no, dept_no};
+//void* paramList_q4[] = {dept_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
@@ -636,12 +643,22 @@ int testQueryBuilder(Ndb &myNdb)
     value_q4[i][1] =  op->getValue(table->getColumn(1));
   }
 #else
+{
   memset (&managerRow,  0, sizeof(managerRow));
   memset (&employeeRow, 0, sizeof(employeeRow));
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   assert(myQuery->getNoOfOperations()==2);
-  myQuery->getQueryOperation(0U)->setResultRowBuf((char*)&employeeRow);
-  myQuery->getQueryOperation(1U)->setResultRowBuf((char*)&managerRow);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+
+  op0->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
+  op1->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+}
 #endif
 
   printf("Start execute\n");
@@ -705,7 +722,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbQueryParamValue paramList_q5[] = {emp_no};
+  void* paramList_q5[] = {&emp_no};
   myQuery = myTransaction->createQuery(q5,paramList_q5);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
@@ -719,10 +736,16 @@ int testQueryBuilder(Ndb &myNdb)
   value_q5[0] = op->getValue(table->getColumn(0));
   value_q5[1] = op->getValue(table->getColumn(1));
 #else
+{
   memset (&managerRow, 0, sizeof(managerRow));
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   // Specify result handling NdbRecord style - need the (single) NdbQueryOperation:
-  myQuery->getQueryOperation(0U)->setResultRowBuf((char*)&managerRow);
+  NdbQueryOperation* op = myQuery->getQueryOperation(0U);
+
+  op->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
+}
 #endif
 
   printf("Start execute\n");
@@ -798,7 +821,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  myQuery = myTransaction->createQuery(q6, (NdbQueryParamValue*)0);
+  myQuery = myTransaction->createQuery(q6, 0);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
@@ -816,13 +839,20 @@ int testQueryBuilder(Ndb &myNdb)
 #else
 {
   int err;
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   assert(myQuery->getNoOfOperations()==2);
-  err = myQuery->getQueryOperation(0U)->setResultRowBuf((char*)&managerRow);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow);
   assert (err==0);
 //if (err == NULL) APIERROR(op0->getNdbError());
 
-  err = myQuery->getQueryOperation(1U)->setResultRowBuf((char*)&employeeRow);
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow);
   assert (err==0);
 //if (err == NULL) APIERROR(op1->getNdbError());
 }
@@ -886,8 +916,8 @@ int testQueryBuilder(Ndb &myNdb)
 
     const NdbQueryOperand* low[] =  // Manager PK index is {"emp_no","dept_no", }
     {
-//     qb->paramValue(),
-       qb->constValue(110567),      // emp_no  = 110567
+       qb->paramValue(),
+//     qb->constValue(110567),      // emp_no  = 110567
        qb->constValue("d005"),      // dept_no = "d005"
        0
     };
@@ -922,7 +952,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  NdbQueryParamValue paramList_q6_1[] = {emp_no};
+  void* paramList_q6_1[] = {&emp_no};
   myQuery = myTransaction->createQuery(q6_1, paramList_q6_1);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
@@ -942,13 +972,20 @@ int testQueryBuilder(Ndb &myNdb)
 {
   int err;
 //int mask = 0x03;
+  const NdbRecord* rowManagerRecord = manager->getDefaultRecord();
+  if (rowManagerRecord == NULL) APIERROR(myDict->getNdbError());
 
   assert(myQuery->getNoOfOperations()==2);
-  err = myQuery->getQueryOperation(0U)->setResultRowBuf((char*)&managerRow /*, (const unsigned char*)&mask*/);
+  NdbQueryOperation* op0 = myQuery->getQueryOperation(0U);
+  err = op0->setResultRowBuf(rowManagerRecord, (char*)&managerRow /*, (const unsigned char*)&mask*/);
   assert (err==0);
   if (err) APIERROR(myQuery->getNdbError());
 
-  err = myQuery->getQueryOperation(1U)->setResultRowBuf((char*)&employeeRow  /*, (const unsigned char*)&mask*/);
+  const NdbRecord* rowEmployeeRecord = employee->getDefaultRecord();
+  if (rowEmployeeRecord == NULL) APIERROR(myDict->getNdbError());
+
+  NdbQueryOperation* op1 = myQuery->getQueryOperation(1U);
+  err = op1->setResultRowBuf(rowEmployeeRecord, (char*)&employeeRow  /*, (const unsigned char*)&mask*/);
   assert (err==0);
   if (err) APIERROR(myQuery->getNdbError());
 }

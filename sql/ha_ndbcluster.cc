@@ -288,7 +288,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
   table_map current_linked_parents= 0;
   table_map field_linked_parents= 0;
-  table_map all_linked_parents= parents_in_scope;
+  table_map all_linked_parents= 0;
   bool multiple_parents= false;
 
   parent= NULL;
@@ -317,7 +317,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
                 keyPartNo, keyItemField->field->table->alias, keyItemField->field->field_name));
 
     // 2) Calculate current parent referrences
-    field_linked_parents= keyItemField->field->table->map;
+    field_linked_parents= (keyItemField->field->table->map & parents_in_scope);
     current_linked_parents |= field_linked_parents;
     multiple_parents= (current_linked_parents != field_linked_parents);
     parent= keyItemField->field->table;    // Assumed until further
@@ -336,22 +336,26 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
         while ((item_field= it++))
         {
+          if (item_field                    == keyItemField ||       // Current ref
+              !(item_field->field->table->map & parents_in_scope))   // Outside linked scope
+            continue;
+
           field_linked_parents |= item_field->field->table->map;
 
-          if (item_field                    != keyItemField &&     // Not Current ref
-              item_field->field->table->map & parents_in_scope )   // Inside linked scope
-          {
-            DBUG_PRINT("info", (" join_items[%d] %s.%s can be replaced with %s.%s",
-                      keyPartNo,
-                      keyItemField->field->table->alias, keyItemField->field->field_name,
-                      item_field->field->table->alias, item_field->field->field_name));
-          }
+          DBUG_PRINT("info", (" join_items[%d] %s.%s can be replaced with %s.%s",
+                    keyPartNo,
+                    keyItemField->field->table->alias, keyItemField->field->field_name,
+                    item_field->field->table->alias, item_field->field->field_name));
         }
       }
     } // if cond_equal
 
     // 4) Aggregate set of possible single parent candidates serving all child refs
-    all_linked_parents &= field_linked_parents;
+    if (keyPartNo > 0)
+      all_linked_parents &= field_linked_parents;
+    else
+      all_linked_parents = field_linked_parents;
+
     if (all_linked_parents == 0)
     {
       DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",inx+1));
@@ -592,8 +596,17 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     }
     rootKey[key->key_parts]= NULL;
 
-    const NdbRecord *key_record= m_index[join_root.ref.key].ndb_unique_record_key;
-    operationDefs[0]= builder.readTuple(key_record, m_ndb_record, rootKey);
+    // Primary key access assumed
+    if (join_root.ref.key == (int)join_root.table->s->primary_key)
+    {
+      operationDefs[0]= builder.readTuple(m_table, rootKey);
+    }
+    else
+    {
+      const NdbDictionary::Index* index = m_index[join_root.ref.key].unique_index;
+      DBUG_ASSERT(index);
+      operationDefs[0]= builder.readTuple(index, m_table, rootKey);
+    }
   }
   else if (join_root.type == JT_REF)  // || JT_REF_OR_NULL?
   {
@@ -603,9 +616,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
     // Bounds will be generated and supplied during execute
     DBUG_ASSERT (join_root.ref.key>=0);
-    DBUG_ASSERT (m_index[join_root.ref.key].ndb_record_key);
-    const NdbRecord *inx_record= m_index[join_root.ref.key].ndb_record_key;
-    operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
+    DBUG_ASSERT (m_index[join_root.ref.key].index);
+    operationDefs[0]= builder.scanIndex(m_index[join_root.ref.key].index, m_table);
   }
   else if (join_root.type == JT_NEXT)  // Ordered index scan
   {
@@ -615,9 +627,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
 
     // Bounds could be generated and supplied during execute
     DBUG_ASSERT (join_root.index>=0);
-    DBUG_ASSERT (m_index[join_root.index].ndb_record_key);
-    const NdbRecord *inx_record= m_index[join_root.index].ndb_record_key;
-    operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
+    DBUG_ASSERT (m_index[join_root.index].index);
+    operationDefs[0]= builder.scanIndex(m_index[join_root.index].index, m_table);
   }
   else
   {
@@ -639,9 +650,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       }
 /****
       int idx= quick->index;
-      DBUG_ASSERT (m_index[quick->index].ndb_record_key);
-      const NdbRecord *inx_record= m_index[quick->index].ndb_record_key;
-      operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
+      DBUG_ASSERT (m_index[quick->index].index);
+      operationDefs[0]= builder.scanIndex(m_index[idx].index, m_table);
 
       delete join_root.select->quick;
       join_root.select->quick=0;
@@ -658,8 +668,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         DBUG_PRINT("info", ("Root operation is scan index:%d w/ upper/lower bounds", quick->index));
 
         // Bounds will be generated and supplied during execute
-        const NdbRecord *inx_record= m_index[quick->index].ndb_record_key;
-        operationDefs[0]= builder.scanIndex(inx_record, m_ndb_record);
+        DBUG_ASSERT (m_index[quick->index].index);
+        operationDefs[0]= builder.scanIndex(m_index[quick->index].index, m_table);
       }
       else // No scanable indexes; use PK, typically 'pk in (X,Y,Z)'
       {
@@ -678,15 +688,14 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         }
         rootKey[key->key_parts]= NULL;
 
-        const NdbRecord *key_rec= m_index[join_root.table->s->primary_key].ndb_unique_record_key;
-        operationDefs[0]= builder.readTuple(key_rec, m_ndb_record, rootKey);
+        operationDefs[0]= builder.readTuple(m_table, rootKey);
       }
     }
     else
     {
       DBUG_PRINT("info", ("Root operation is 'table scan'"));
       DBUG_ASSERT (!join_root.use_quick);
-      operationDefs[0]= builder.scanTable(m_ndb_record);
+      operationDefs[0]= builder.scanTable(m_table);
     }
   }
 //DBUG_ASSERT(operationDefs[0]);
@@ -740,6 +749,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     KEY_PART_INFO *key_part;
     DBUG_ASSERT (join_tab.ref.key_parts==key->key_parts);
 
+    const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
     const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
     Uint32 offset= 0;
     uint i;
@@ -752,7 +762,7 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       if (item->const_item())
       {
         const uchar* const_key = join_tab.ref.key_buff;
-        linkedKey[i]= builder.constValue(const_key+offset);
+        linkedKey[i]= builder.constValue(const_key+offset, key_record, i);
       }
       else if (item->type()==Item::FIELD_ITEM)
       {
@@ -767,9 +777,19 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       offset+= key_part->store_length;
     }
 
-    const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
-    operationDefs[join_cnt]= builder.readTuple(key_record, 
-                                     handler->m_ndb_record, linkedKey);
+    const NdbDictionary::Table* const table= handler->m_table;
+ 
+    // Link on primary key or an unique index
+    if (join_tab.ref.key == (int)join_tab.table->s->primary_key)
+    {
+      operationDefs[join_cnt]= builder.readTuple(table, linkedKey);
+    }
+    else
+    {
+      const NdbDictionary::Index* index= handler->m_index[join_tab.ref.key].unique_index;
+      DBUG_ASSERT(index);
+      operationDefs[join_cnt]= builder.readTuple(index, table, linkedKey);
+    }
 
 //  DBUG_ASSERT(operationDefs[join_cnt]);
     if (unlikely(!operationDefs[join_cnt]))
@@ -3633,10 +3653,10 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
 
   uint i;
   Uint32 offset= 0;
-  NdbQueryParamValue paramValues[10]= {NdbQueryParamValue()};
+  const void* paramValues[10]= {NULL};
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
-    paramValues[i]= NdbQueryParamValue(key+offset);
+    paramValues[i]= (key+offset);
     offset+= key_part->store_length;
   }
 
@@ -3650,8 +3670,10 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     DBUG_ASSERT(tab->file->ht == ht);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
+    const NdbRecord* const resultRec= handler->m_ndb_record;
     const int error= query->getQueryOperation(i)
-      ->setResultRowRef(handler->_m_next_row,
+      ->setResultRowRef(resultRec,
+                        handler->_m_next_row,
                         (uchar *)(tab->read_set->bitmap));
     if (unlikely(error))
       DBUG_RETURN(NULL);
@@ -3811,7 +3833,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ERR_RETURN(query->getNdbError());
     }
 
-    if (pbound  && query->setBound(pbound)!=0)
+    if (pbound  && query->setBound(key_rec, pbound)!=0)
       ERR_RETURN(query->getNdbError());
 
     if (m_cond)
@@ -3835,8 +3857,10 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
+      const NdbRecord* const resultRec= handler->m_ndb_record;
       const int error= query->getQueryOperation(i)
-        ->setResultRowRef(handler->_m_next_row,
+        ->setResultRowRef(resultRec,
+                          handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
       if (unlikely(error))
         ERR_RETURN(query->getNdbError());
@@ -4068,8 +4092,10 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
+      const NdbRecord* const resultRec= handler->m_ndb_record;
       const int error= query->getQueryOperation(i)
-        ->setResultRowRef(handler->_m_next_row,
+        ->setResultRowRef(resultRec,
+                          handler->_m_next_row,
                           (uchar *)(tab->read_set->bitmap));
       if (unlikely(error))
         ERR_RETURN(query->getNdbError());
@@ -12141,8 +12167,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             DBUG_ASSERT(tab->file->ht == ht);
             ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
+            const NdbRecord* const resultRec= handler->m_ndb_record;
             const int error= query->getQueryOperation(i)
-              ->setResultRowRef(handler->_m_next_row,
+              ->setResultRowRef(resultRec,
+                                handler->_m_next_row,
                                 (uchar *)(tab->read_set->bitmap));
             if (unlikely(error))
               ERR_RETURN(query->getNdbError());
@@ -12233,7 +12261,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       if (m_active_query)
       {
         DBUG_PRINT("info", ("setBound:%d, for pushed join", bound.range_no));
-        if (m_active_query->setBound(&bound))
+        if (m_active_query->setBound(key_rec, &bound))
         {
           ERR_RETURN(trans->getNdbError());
         }
