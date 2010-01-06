@@ -1606,6 +1606,57 @@ select * from t1;
 drop table t1;
 
 # ----------------------------------------------------------------------------
+# Tests of send
+# ----------------------------------------------------------------------------
+
+create table t1 ( f1 char(10));
+insert into t1 values ("Abcd");
+
+# 1. Basic test
+
+send select * from t1;
+reap;
+
+# 2. Test with error
+
+--send select * from t2;
+--error ER_NO_SUCH_TABLE
+--reap
+
+# 3. test send of next stmt
+
+--send
+select * from t1;
+--reap
+
+# 4. Non-query stmt betwen send and reap allowed
+
+--send select * from t1;
+--sleep 0.05
+--echo Result coming up
+--reap
+
+# 5. Test of send_eval
+
+--let $my_stmt= select * from t1;
+--send_eval $my_stmt
+--reap
+
+# 6. Test that mysqltest does not allow query stmt between send and reap
+# Untestable directly as it causes mysqltest to fail
+
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.in
+--send select * from t1;
+select 1;
+--reap
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.in;
+
+drop table t1;
+
+# ----------------------------------------------------------------------------
 # test for remove_file
 # ----------------------------------------------------------------------------
 
