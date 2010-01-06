@@ -87,6 +87,7 @@ use IO::Select;
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
+require "lib/mtr_gprof.pl";
 require "lib/mtr_misc.pl";
 
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
@@ -166,6 +167,9 @@ our $opt_gcov;
 our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.msg";
 our $opt_gcov_msg= "mysql-test-gcov.err";
+
+our $opt_gprof;
+our %gprof_dirs;
 
 our $glob_debugger= 0;
 our $opt_gdb;
@@ -745,6 +749,9 @@ sub run_worker ($) {
       if ($opt_valgrind_mysqld) {
         valgrind_exit_reports();
       }
+      if ( $opt_gprof ) {
+	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
+      }
       exit(0);
     }
     else {
@@ -858,6 +865,7 @@ sub command_line_setup {
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gprof'                    => \$opt_gprof,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
@@ -1250,7 +1258,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $source_dist )
+  if ( ($opt_gcov or $opt_gprof) and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -4318,6 +4326,8 @@ sub mysqld_start ($$) {
   }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
+  # Remember data dir for gmon.out files if using gprof
+  $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
   if ( defined $exe )
   {
