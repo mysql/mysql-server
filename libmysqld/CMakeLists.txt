@@ -79,7 +79,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/event_parse_data.cc
-           ../sql/sql_signal.cc ../sql/rpl_handler.cc ../sql/keycaches.cc 
+           ../sql/sql_signal.cc ../sql/rpl_handler.cc 
            ../sql/sys_vars.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ${GEN_SOURCES}
