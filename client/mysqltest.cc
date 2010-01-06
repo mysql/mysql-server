@@ -4641,6 +4641,7 @@ void select_connection_name(const char *name)
   if (!con)
     die("connection '%s' not found in connection pool", name);
 
+  con->pending= FALSE;
   set_current_connection(con);
 
   DBUG_VOID_RETURN;
