@@ -1620,7 +1620,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
 
     // Aggregate prunable propert:
     // All hi/low keys values within 'distkey_min' must be equal
-    int keyPos = 0;
+    Uint32 keyPos = 0;
     Uint32 keyEnd = keyInfo.get(keyPos) >> 16;
 
     for (unsigned keyNo = 0; keyNo < distkey_min; keyNo++)
@@ -1657,7 +1657,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
       } // != BoundEQ
     } // for()
 
-
     // Scan is now known to be prunable, calculate hashValue
     assert (isPrunable);
 
@@ -1672,8 +1671,8 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     // hashValue calculation.
     for (unsigned i = 0; i<key_record->distkey_index_length; i++)  {
       // Revers lookup the index column with the value of this distrubution key.
-      Uint32 keyPos = NdbColumnImpl::getImpl(*m_index.getColumn(key_record->distkey_indexes[i])).m_keyInfoPos;
-      distKey[i] = lowKey[keyPos];
+      Uint32 pos = NdbColumnImpl::getImpl(*m_index.getColumn(key_record->distkey_indexes[i])).m_keyInfoPos;
+      distKey[i] = lowKey[pos];
     }
     distKey[key_record->distkey_index_length].ptr = NULL;
 
