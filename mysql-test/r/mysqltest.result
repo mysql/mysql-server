@@ -682,6 +682,29 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+select "500g blåbærsyltetøy" as "will be lower cased";
+will be lower cased
+500g blåbærsyltetøy
+SELECT "UPPER" AS "WILL NOT BE lower cased";
+WILL NOT BE lower cased
+UPPER
+UP
+SELECT 0 as "UP AGAIN";
+UP AGAIN
+0
+select "abcdef" as "uvwxyz";
+uvwxyz
+abcdef
+select "xyz" as name union select "abc" as name order by name desc;
+name
+abc
+xyz
+select 1 as "some new text";
+some new text
+1
+select 0 as "will not lower case ÄËÐ";
+will not lower case ÄËÐ
+0
 CREATE TABLE t1(
 a int, b varchar(255), c datetime
 );
