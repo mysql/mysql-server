@@ -1640,9 +1640,6 @@ Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` union select `test`.`t1
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
-a
-1
-2
 # Should not crash
 SELECT * FROM t2 UNION SELECT * FROM t2
 ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
