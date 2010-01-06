@@ -168,6 +168,46 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
+#
+# Test scans with filter. These should be pushed as linked operations
+# where the root operation is a scan *with* a (pushed) filter and a 
+# primary key lookup child operation.
+#
+
+set ndb_join_pushdown=on;
+
+# Table scan
+explain select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.d = 3;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.d = 3;
+
+# Ordered index scan
+explain select * 
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
+where t1.a > 2 and t1.d = 3;
+--sorted_result
+select * 
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
+where t1.a > 2 and t1.d = 3;
+
+# Sorted scan of ordered index.
+explain select * 
+from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
+where t1.d = 3 
+order by t1.a;
+--sorted_result
+select * 
+from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
+where t1.d = 3 
+order by t1.a;
 
 #
 # Test index scan w/ equal-bounds (low == high)
