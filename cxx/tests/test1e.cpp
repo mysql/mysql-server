@@ -33,7 +33,6 @@ void test_db_env(void) {
     int r;
     
     r = dbenv.set_data_dir(".");    assert(r == 0);
-    r = dbenv.set_data_dir("..");   assert(r == 0);
     try {
 	r = dbenv.set_data_dir(NULL);
 	abort();

@@ -90,8 +90,8 @@ check_test_error_stream: test_error_stream
 	$(VGRIND) ./test_error_stream 2> $@.out $(SUMMARIZE_CMD)
 
 check_test1e: test1e
-	$(VGRIND) ./test1e > test1eactual.out && \
-	 (echo "Prefix: Hello Name!";echo -n ": Success") > test1expect.out && \
+	$(VGRIND) ./test1e > test1eactual.out 
+	 (echo "Prefix: Hello Name!";echo -n ": Success") > test1expect.out 
 	 diff test1eactual.out test1expect.out \
 	  $(SUMMARIZE_CMD)
 
@@ -151,8 +151,8 @@ check_db_create_4: db_create
 	$(VGRIND) ./db_create -s &> $@.out ; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
-	rm -f permissions.tdb 
-	./db_create permissions.tdb 1 1 && \
-	 chmod -w permissions.tdb && \
-	 (./db_create permissions.tdb 2 2 &> check_permissions.out; test $$? -ne 0) \
-	 $(SUMMARIZE_CMD)
+	rm -f permissions.tdb  & \
+	./db_create permissions.tdb 1 1 & \
+	chmod -w permissions_tdb_0_b.tokudb & \
+	(./db_create permissions.tdb 2 2 &> check_permissions.out; test $$? -ne 0) \
+	$(SUMMARIZE_CMD)
