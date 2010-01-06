@@ -239,6 +239,18 @@ UNIV_INTERN
 void
 recv_sys_create(void);
 /*=================*/
+/**********************************************************//**
+Release recovery system mutexes. */
+UNIV_INTERN
+void
+recv_sys_close(void);
+/*================*/
+/********************************************************//**
+Frees the recovery system memory. */
+UNIV_INTERN
+void
+recv_sys_mem_free(void);
+/*===================*/
 /********************************************************//**
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
@@ -246,6 +258,12 @@ void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
+/********************************************************//**
+Reset the state of the recovery system variables. */
+UNIV_INTERN
+void
+recv_sys_var_init(void);
+/*===================*/
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
@@ -412,6 +430,39 @@ struct recv_sys_struct{
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
 	ulint		n_addrs;/*!< number of not processed hashed file
 				addresses in the hash table */
+
+/* If you modified the following defines at original file,
+   You should also modify them. */
+/* defined in os0file.c */
+#define OS_AIO_MERGE_N_CONSECUTIVE	64
+/* defined in log0recv.c */
+#define RECV_READ_AHEAD_AREA	32
+	time_t		stats_recv_start_time;
+	ulint		stats_recv_turns;
+
+	ulint		stats_read_requested_pages;
+	ulint		stats_read_in_area[RECV_READ_AHEAD_AREA];
+
+	ulint		stats_read_io_pages;
+	ulint		stats_read_io_consecutive[OS_AIO_MERGE_N_CONSECUTIVE];
+	ulint		stats_write_io_pages;
+	ulint		stats_write_io_consecutive[OS_AIO_MERGE_N_CONSECUTIVE];
+
+	ulint		stats_doublewrite_check_pages;
+	ulint		stats_doublewrite_overwrite_pages;
+
+	ulint		stats_recover_pages_with_read;
+	ulint		stats_recover_pages_without_read;
+
+	ulint		stats_log_recs;
+	ulint		stats_log_len_sum;
+
+	ulint		stats_applied_log_recs;
+	ulint		stats_applied_log_len_sum;
+	ulint		stats_pages_already_new;
+
+	ib_uint64_t	stats_oldest_modified_lsn;
+	ib_uint64_t	stats_newest_modified_lsn;
 };
 
 /** The recovery system */
@@ -433,6 +484,11 @@ are allowed yet: the variable name is misleading. */
 extern ibool		recv_no_ibuf_operations;
 /** TRUE when recv_init_crash_recovery() has been called. */
 extern ibool		recv_needed_recovery;
+#ifdef UNIV_DEBUG
+/** TRUE if writing to the redo log (mtr_commit) is forbidden.
+Protected by log_sys->mutex. */
+extern ibool		recv_no_log_write;
+#endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by

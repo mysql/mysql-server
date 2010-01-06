@@ -136,6 +136,7 @@ extern ulint*	srv_data_file_is_raw_partition;
 extern ibool	srv_extra_undoslots;
 
 extern ibool	srv_fast_recovery;
+extern ibool	srv_recovery_stats;
 
 extern ulint	srv_use_purge_thread;
 
@@ -238,12 +239,14 @@ extern ulong	srv_replication_delay;
 extern long long	srv_ibuf_max_size;
 extern ulint	srv_ibuf_active_contract;
 extern ulint	srv_ibuf_accel_rate;
+extern ulint	srv_checkpoint_age_target;
 extern ulint	srv_flush_neighbor_pages;
 extern ulint	srv_enable_unsafe_group_commit;
 extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_checkpoint;
 
 extern ulint	srv_expand_import;
+extern ulint	srv_relax_table_creation;
 
 extern ulint	srv_extra_rsegments;
 extern ulint	srv_dict_size_limit;
@@ -348,10 +351,6 @@ extern ulint srv_buf_pool_flushed;
 /** Number of buffer pool reads that led to the
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
-/** Number of sequential read-aheads */
-extern ulint srv_read_ahead_seq;
-/** Number of random read-aheads */
-extern ulint srv_read_ahead_rnd;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -450,7 +449,7 @@ void
 srv_init(void);
 /*==========*/
 /*********************************************************************//**
-Frees the OS fast mutex created in srv_boot(). */
+Frees the data structures created in srv_init(). */
 UNIV_INTERN
 void
 srv_free(void);
@@ -656,13 +655,13 @@ struct export_var_struct{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
-	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->n_page_gets */
+	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
-	ulint innodb_buffer_pool_read_ahead_seq;/*!< srv_read_ahead_seq */
-	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
+	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
+	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
@@ -674,9 +673,9 @@ struct export_var_struct{
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
 	ulint innodb_os_log_pending_fsyncs;	/*!< fil_n_pending_log_flushes */
 	ulint innodb_page_size;			/*!< UNIV_PAGE_SIZE */
-	ulint innodb_pages_created;		/*!< buf_pool->n_pages_created */
-	ulint innodb_pages_read;		/*!< buf_pool->n_pages_read */
-	ulint innodb_pages_written;		/*!< buf_pool->n_pages_written */
+	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
+	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
+	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time

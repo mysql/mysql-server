@@ -82,9 +82,10 @@ static char	dict_ibfk[] = "_ibfk_";
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
-index. */
+index.
+@return TRUE if the column names were found */
 static
-void
+ibool
 dict_index_find_cols(
 /*=================*/
 	dict_table_t*	table,	/*!< in: table */
@@ -1261,7 +1262,7 @@ dict_index_too_big_for_undo(
 		= TRX_UNDO_PAGE_HDR - TRX_UNDO_PAGE_HDR_SIZE
 		+ 2 /* next record pointer */
 		+ 1 /* type_cmpl */
-		+ 11 /* trx->undo_no */ - 11 /* table->id */
+		+ 11 /* trx->undo_no */ + 11 /* table->id */
 		+ 1 /* rec_get_info_bits() */
 		+ 11 /* DB_TRX_ID */
 		+ 11 /* DB_ROLL_PTR */
@@ -1440,7 +1441,11 @@ dict_index_too_big_for_tree(
 			goto add_field_size;
 		}
 
+		if (srv_relax_table_creation) {
+			field_max_size = dict_col_get_min_size(col);
+		} else {
 		field_max_size = dict_col_get_max_size(col);
+		}
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len) {
@@ -1493,7 +1498,7 @@ add_field_size:
 
 /**********************************************************************//**
 Adds an index to the dictionary cache.
-@return	DB_SUCCESS or DB_TOO_BIG_RECORD */
+@return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
 ulint
 dict_index_add_to_cache(
@@ -1519,7 +1524,10 @@ dict_index_add_to_cache(
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
-	dict_index_find_cols(table, index);
+	if (!dict_index_find_cols(table, index)) {
+
+		return(DB_CORRUPTION);
+	}
 
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
@@ -1732,9 +1740,10 @@ dict_index_remove_from_cache(
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
-index. */
+index.
+@return TRUE if the column names were found */
 static
-void
+ibool
 dict_index_find_cols(
 /*=================*/
 	dict_table_t*	table,	/*!< in: table */
@@ -1759,17 +1768,21 @@ dict_index_find_cols(
 			}
 		}
 
+#ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
 		fputs("InnoDB: Error: no matching column for ", stderr);
 		ut_print_name(stderr, NULL, FALSE, field->name);
 		fputs(" in ", stderr);
 		dict_index_name_print(stderr, NULL, index);
 		fputs("!\n", stderr);
-		ut_error;
+#endif /* UNIV_DEBUG */
+		return(FALSE);
 
 found:
 		;
 	}
+
+	return(TRUE);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4711,6 +4724,26 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
+/**********************************************************************//**
+Frees dict_ind_redundant and dict_ind_compact. */
+static
+void
+dict_ind_free(void)
+/*===============*/
+{
+	dict_table_t*	table;
+
+	table = dict_ind_compact->table;
+	dict_mem_index_free(dict_ind_compact);
+	dict_ind_compact = NULL;
+	dict_mem_table_free(table);
+
+	table = dict_ind_redundant->table;
+	dict_mem_index_free(dict_ind_redundant);
+	dict_ind_redundant = NULL;
+	dict_mem_table_free(table);
+}
+
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Get index by name
@@ -4836,4 +4869,55 @@ dict_table_check_for_dup_indexes(
 	}
 }
 #endif /* UNIV_DEBUG */
+
+/**************************************************************************
+Closes the data dictionary module. */
+UNIV_INTERN
+void
+dict_close(void)
+/*============*/
+{
+	ulint	i;
+
+	/* Free the hash elements. We don't remove them from the table
+	because we are going to destroy the table anyway. */
+	for (i = 0; i < hash_get_n_cells(dict_sys->table_hash); i++) {
+		dict_table_t*	table;
+
+		table = HASH_GET_FIRST(dict_sys->table_hash, i);
+
+		while (table) {
+			dict_table_t*	prev_table = table;
+
+			table = HASH_GET_NEXT(name_hash, prev_table);
+#ifdef UNIV_DEBUG
+			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
+#endif
+			/* Acquire only because it's a pre-condition. */
+			mutex_enter(&dict_sys->mutex);
+
+			dict_table_remove_from_cache(prev_table);
+
+			mutex_exit(&dict_sys->mutex);
+		}
+	}
+
+	hash_table_free(dict_sys->table_hash);
+
+	/* The elements are the same instance as in dict_sys->table_hash,
+	therefore we don't delete the individual elements. */
+	hash_table_free(dict_sys->table_id_hash);
+
+	dict_ind_free();
+
+	mutex_free(&dict_sys->mutex);
+
+	rw_lock_free(&dict_operation_lock);
+	memset(&dict_operation_lock, 0x0, sizeof(dict_operation_lock));
+
+	mutex_free(&dict_foreign_err_mutex);
+
+	mem_free(dict_sys);
+	dict_sys = NULL;
+}
 #endif /* !UNIV_HOTBACKUP */

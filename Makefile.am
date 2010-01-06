@@ -22,7 +22,7 @@ MYSQLLIBdir=		$(pkglibdir)
 pkgplugindir=		$(pkglibdir)/plugin
 INCLUDES=		-I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
-			-I$(top_srcdir)/storage/innobase/include \
+			-I$(srcdir)/include \
 			-I$(top_srcdir)/sql \
 			-I$(srcdir) @ZLIB_INCLUDES@
 
@@ -31,7 +31,6 @@ DEFS=			@DEFS@
 
 noinst_HEADERS=		\
 			handler/ha_innodb.h	\
-			handler/handler0vars.h	\
 			handler/i_s.h		\
 			include/btr0btr.h	\
 			include/btr0btr.ic	\
@@ -78,6 +77,7 @@ noinst_HEADERS=		\
 			include/fil0fil.h	\
 			include/fsp0fsp.h	\
 			include/fsp0fsp.ic	\
+			include/fsp0types.h	\
 			include/fut0fut.h	\
 			include/fut0fut.ic	\
 			include/fut0lst.h	\

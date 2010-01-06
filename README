@@ -1,4 +1,4 @@
-This is the source of the InnoDB Plugin 1.0.4 for MySQL 5.1
+This is the source of the InnoDB Plugin 1.0.6 for MySQL 5.1
 ===========================================================
 
 Instructions for compiling the plugin:
@@ -14,6 +14,9 @@ Instructions for compiling the plugin:
    mysql-test suite): cd into the innobase directory and run ./setup.sh
 
 4. Compile MySQL as usual.
+   If compiling MySQL 5.1.38 or newer, disable the InnoDB Plugin that comes
+   with MySQL in storage/innodb_plugin with the configure option
+   --without-plugin-innodb_plugin
 
 5. Enjoy!
 

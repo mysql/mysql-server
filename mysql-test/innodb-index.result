@@ -46,6 +46,13 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#1' already exists
+rename table `t1#1` to `t1#2`;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#2' already exists
+drop table `t1#2`;
 alter table t1 add unique index (c), add index (d);
 show create table t1;
 Table	Create Table
@@ -620,7 +627,7 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry 'ac' for key 'c'
 alter table t1 add unique index (c), add unique index (b), add index (d);
 ERROR 23000: Duplicate entry 'ac' for key 'c'
 show create table t1;
@@ -961,6 +968,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
+set global innodb_file_format_check=Antelope;
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 CREATE TABLE t1(
@@ -1125,7 +1133,6 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
-call mtr.add_suppression("InnoDB: insufficient history for index");
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 BEGIN;
@@ -1162,4 +1169,3 @@ a	b
 3	a
 3	b
 DROP TABLE t1;
-set global innodb_file_format_check=Antelope;

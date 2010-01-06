@@ -513,7 +513,7 @@ struct mutex_struct {
 		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
 				when atomic operations are not enabled */
 #endif
-	ulint	waiters;	/*!< This ulint is set to 1 if there are (or
+	volatile ulint	waiters;	/*!< This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
 				Otherwise, this is 0. */

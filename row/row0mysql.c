@@ -510,7 +510,7 @@ handle_new_error:
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
 		if (row_rollback_on_timeout) {
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			break;
 		}
 		/* fall through */
@@ -526,7 +526,7 @@ handle_new_error:
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
 
-			trx_general_rollback_for_mysql(trx, TRUE, savept);
+			trx_general_rollback_for_mysql(trx, savept);
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
@@ -548,7 +548,7 @@ handle_new_error:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		break;
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
@@ -869,18 +869,22 @@ row_update_statistics_if_needed(
 }
 
 /*********************************************************************//**
-Unlocks AUTO_INC type locks that were possibly reserved by a trx. */
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
 UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	mutex_enter(&kernel_mutex);
+	if (lock_trx_holds_autoinc_locks(trx)) {
+		mutex_enter(&kernel_mutex);
 
-	lock_release_autoinc_locks(trx);
+		lock_release_autoinc_locks(trx);
 
-	mutex_exit(&kernel_mutex);
+		mutex_exit(&kernel_mutex);
+	}
 }
 
 /*********************************************************************//**
@@ -1878,7 +1882,9 @@ err_exit:
 
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
+		/* TO DO: free table?  The code below will dereference
+		table->name, though. */
 	}
 
 	switch (err) {
@@ -1897,31 +1903,6 @@ err_exit:
 		break;
 
 	case DB_DUPLICATE_KEY:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(" already exists in InnoDB internal\n"
-		      "InnoDB: data dictionary. Have you deleted"
-		      " the .frm file\n"
-		      "InnoDB: and not used DROP TABLE?"
-		      " Have you used DROP DATABASE\n"
-		      "InnoDB: for InnoDB tables in"
-		      " MySQL version <= 3.23.43?\n"
-		      "InnoDB: See the Restrictions section"
-		      " of the InnoDB manual.\n"
-		      "InnoDB: You can drop the orphaned table"
-		      " inside InnoDB by\n"
-		      "InnoDB: creating an InnoDB table with"
-		      " the same name in another\n"
-		      "InnoDB: database and copying the .frm file"
-		      " to the current database.\n"
-		      "InnoDB: Then MySQL thinks the table exists,"
-		      " and DROP TABLE will\n"
-		      "InnoDB: succeed.\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
-
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
 
@@ -2046,7 +2027,7 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
@@ -2067,7 +2048,7 @@ Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
-bot participating tables. The indexes are allowed to contain more
+both participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint. Check also that foreign key
 constraints which reference this table are ok.
 @return	error code or DB_SUCCESS */
@@ -2114,7 +2095,7 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 
 		row_drop_table_for_mysql(name, trx, FALSE);
 
@@ -2481,7 +2462,7 @@ row_discard_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		dict_table_change_id_in_cache(table, new_id);
@@ -2490,7 +2471,7 @@ row_discard_tablespace_for_mysql(
 
 		if (!success) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 
 			err = DB_ERROR;
@@ -2942,7 +2923,7 @@ next_rec:
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
@@ -3583,7 +3564,7 @@ row_delete_constraint(
 
 	if ((err == DB_SUCCESS) && !strchr(id, '/')) {
 		/* Old format < 4.0.18 constraints have constraint ids
-		<number>_<number>. We only try deleting them if the
+		NUMBER_NUMBER. We only try deleting them if the
 		constraint name does not contain a '/' character, otherwise
 		deleting a new format constraint named 'foo/bar' from
 		database 'baz' would remove constraint 'bar' from database
@@ -3847,7 +3828,7 @@ end:
 			      "InnoDB: succeed.\n", stderr);
 		}
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		/* The following call will also rename the .ibd data file if
@@ -3856,7 +3837,7 @@ end:
 		if (!dict_table_rename_in_cache(table, new_name,
 						!new_is_tmp)) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
@@ -3896,7 +3877,7 @@ end:
 			ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 		}
 	}
@@ -4156,6 +4137,7 @@ row_check_table_for_mysql(
 			}
 
 			if (trx_is_interrupted(prebuilt->trx)) {
+				ret = DB_INTERRUPTED;
 				break;
 			}
 

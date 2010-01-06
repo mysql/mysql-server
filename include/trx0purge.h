@@ -71,6 +71,12 @@ void
 trx_purge_sys_create(void);
 /*======================*/
 /********************************************************************//**
+Frees the global purge system control structure. */
+UNIV_INTERN
+void
+trx_purge_sys_close(void);
+/*======================*/
+/************************************************************************
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
 UNIV_INTERN

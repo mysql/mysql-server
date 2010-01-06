@@ -1,4 +1,7 @@
 -- source include/have_innodb.inc
+
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -15,6 +18,16 @@ alter table t1 add unique index (b);
 show create table t1;
 alter table t1 add index (b);
 show create table t1;
+
+# Check how existing tables interfere with temporary tables.
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--error 156
+alter table t1 add unique index (c), add index (d);
+rename table `t1#1` to `t1#2`;
+--error 156
+alter table t1 add unique index (c), add index (d);
+drop table `t1#2`;
 
 alter table t1 add unique index (c), add index (d);
 show create table t1;
@@ -387,6 +400,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
+eval set global innodb_file_format_check=$format;
 
 #
 # Test to check whether CREATE INDEX handles implicit foreign key
@@ -499,8 +513,6 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
-call mtr.add_suppression("InnoDB: insufficient history for index");
-
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;
@@ -523,4 +535,10 @@ disconnect a;
 disconnect b;
 
 DROP TABLE t1;
-set global innodb_file_format_check=Antelope;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;

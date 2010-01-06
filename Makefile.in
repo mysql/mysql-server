@@ -296,15 +296,14 @@ DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
 DOXYGEN = @DOXYGEN@
 DSYMUTIL = @DSYMUTIL@
+DUMPBIN = @DUMPBIN@
 DVIS = @DVIS@
-ECHO = @ECHO@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
-F77 = @F77@
-FFLAGS = @FFLAGS@
+FGREP = @FGREP@
 FIND_PROC = @FIND_PROC@
 GETCONF = @GETCONF@
 GREP = @GREP@
@@ -326,6 +325,7 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIB_EXTRA_CCFLAGS = @LIB_EXTRA_CCFLAGS@
+LIPO = @LIPO@
 LM_CFLAGS = @LM_CFLAGS@
 LN = @LN@
 LN_CP_F = @LN_CP_F@
@@ -371,7 +371,10 @@ NM = @NM@
 NMEDIT = @NMEDIT@
 NOINST_LDFLAGS = @NOINST_LDFLAGS@
 NON_THREADED_LIBS = @NON_THREADED_LIBS@
+OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
+OTOOL = @OTOOL@
+OTOOL64 = @OTOOL64@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
@@ -419,7 +422,7 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
-ac_ct_F77 = @ac_ct_F77@
+ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -457,6 +460,7 @@ libexecdir = @libexecdir@
 libmysqld_dirs = @libmysqld_dirs@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 man1_files = @man1_files@
 man8_files = @man8_files@
 man_dirs = @man_dirs@
@@ -501,6 +505,8 @@ plugin_ibmdb2i_shared_target = @plugin_ibmdb2i_shared_target@
 plugin_ibmdb2i_static_target = @plugin_ibmdb2i_static_target@
 plugin_innobase_shared_target = @plugin_innobase_shared_target@
 plugin_innobase_static_target = @plugin_innobase_static_target@
+plugin_innodb_plugin_shared_target = @plugin_innodb_plugin_shared_target@
+plugin_innodb_plugin_static_target = @plugin_innodb_plugin_static_target@
 plugin_myisam_shared_target = @plugin_myisam_shared_target@
 plugin_myisam_static_target = @plugin_myisam_static_target@
 plugin_myisammrg_shared_target = @plugin_myisammrg_shared_target@
@@ -550,13 +556,12 @@ MYSQLLIBdir = $(pkglibdir)
 pkgplugindir = $(pkglibdir)/plugin
 INCLUDES = -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
-			-I$(top_srcdir)/storage/innobase/include \
+			-I$(srcdir)/include \
 			-I$(top_srcdir)/sql \
 			-I$(srcdir) @ZLIB_INCLUDES@
 
 noinst_HEADERS = \
 			handler/ha_innodb.h	\
-			handler/handler0vars.h	\
 			handler/i_s.h		\
 			include/btr0btr.h	\
 			include/btr0btr.ic	\
@@ -603,6 +608,7 @@ noinst_HEADERS = \
 			include/fil0fil.h	\
 			include/fsp0fsp.h	\
 			include/fsp0fsp.ic	\
+			include/fsp0types.h	\
 			include/fut0fut.h	\
 			include/fut0fut.ic	\
 			include/fut0lst.h	\
@@ -863,20 +869,22 @@ EXTRA_DIST = CMakeLists.txt plug.in \
 
 custom_checks:
 	echo '' > include/ut0auxconf.h
-	if $(COMPILE) ut/ut0auxconf_atomic_pthread_t_gcc.c -o ut0auxconf_atomic_pthread_t_gcc ; then \
-		echo '#define HAVE_ATOMIC_PTHREAD_T' >> include/ut0auxconf.h ; \
-	elif $(COMPILE) ut/ut0auxconf_have_solaris_atomics.c -o ut0auxconf_have_solaris_atomics ; then \
-		echo '#define HAVE_SOLARIS_ATOMICS' >> include/ut0auxconf.h ; \
-		if $(COMPILE) ut/ut0auxconf_atomic_pthread_t_solaris.c -o ut0auxconf_atomic_pthread_t_solaris ; then \
-			echo '#define HAVE_ATOMIC_PTHREAD_T' >> include/ut0auxconf.h ; \
-			$(COMPILE) ut/ut0auxconf_sizeof_pthread_t.c -o ut0auxconf_sizeof_pthread_t ; \
-			./ut0auxconf_sizeof_pthread_t >> include/ut0auxconf.h ; \
-		fi ; \
-	fi
-	if $(COMPILE) ut/ut0auxconf_pause.c -o ut0auxconf_pause ; then \
-		if ./ut0auxconf_pause ; then \
-			echo '#define IB_HAVE_PAUSE_INSTRUCTION' >> include/ut0auxconf.h ; \
-		fi ; \
+	if $(COMPILE) ut/ut0auxconf_have_gcc_atomics.c -o ut0auxconf_have_gcc_atomics && ./ut0auxconf_have_gcc_atomics ; then \
+		echo '#define HAVE_IB_GCC_ATOMIC_BUILTINS' >> include/ut0auxconf.h ; \
+	fi ; \
+	if $(COMPILE) ut/ut0auxconf_atomic_pthread_t_gcc.c -o ut0auxconf_atomic_pthread_t_gcc && ./ut0auxconf_atomic_pthread_t_gcc ; then \
+		echo '#define HAVE_IB_ATOMIC_PTHREAD_T_GCC' >> include/ut0auxconf.h ; \
+	fi ; \
+	if $(COMPILE) ut/ut0auxconf_have_solaris_atomics.c -o ut0auxconf_have_solaris_atomics && ./ut0auxconf_have_solaris_atomics ; then \
+		echo '#define HAVE_IB_SOLARIS_ATOMICS' >> include/ut0auxconf.h ; \
+	fi ; \
+	if $(COMPILE) ut/ut0auxconf_atomic_pthread_t_solaris.c -o ut0auxconf_atomic_pthread_t_solaris && ./ut0auxconf_atomic_pthread_t_solaris ; then \
+		echo '#define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS' >> include/ut0auxconf.h ; \
+	fi ; \
+	$(COMPILE) ut/ut0auxconf_sizeof_pthread_t.c -o ut0auxconf_sizeof_pthread_t ; \
+	./ut0auxconf_sizeof_pthread_t >> include/ut0auxconf.h ; \
+	if $(COMPILE) ut/ut0auxconf_pause.c -o ut0auxconf_pause && ./ut0auxconf_pause ; then \
+		echo '#define HAVE_IB_PAUSE_INSTRUCTION' >> include/ut0auxconf.h ; \
 	fi
 	$(MAKE) all-am
 

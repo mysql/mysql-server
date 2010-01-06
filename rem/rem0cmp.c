@@ -36,7 +36,7 @@ Created 7/1/1994 Heikki Tuuri
 
 The records are put into alphabetical order in the following
 way: let F be the first field where two records disagree.
-If there is a character in some position n where the the
+If there is a character in some position n where the
 records disagree, the order is determined by comparison of
 the characters at position n, possibly after
 collating transformation. If there is no such character,
@@ -76,7 +76,7 @@ cmp_debug_dtuple_rec_with_match(
 /*************************************************************//**
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
-must be a copy of the the one in ha_innobase.cc!
+must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
 extern
 int
@@ -399,7 +399,7 @@ next_byte:
 /*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
-the the data tuple! If we denote by n = n_fields_cmp, then rec must
+the data tuple! If we denote by n = n_fields_cmp, then rec must
 have either m >= n fields, or it must differ from dtuple in some of
 the m fields rec has. If rec has an externally stored field we do not
 compare it but return with value 0 if such a comparison should be
