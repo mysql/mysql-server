@@ -741,7 +741,8 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     DBUG_ASSERT (join_tab.ref.key_parts==key->key_parts);
 
     const NdbQueryOperand* linkedKey[MAX_LINKED_KEYS] = {NULL};
-    Uint32 i, offset= 0;
+    Uint32 offset= 0;
+    uint i;
     for (i = 0, key_part= key->key_part; 
         i < key->key_parts;
         i++, key_part++)
@@ -3630,7 +3631,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   KEY *key_def= &table->key_info[idx];
   KEY_PART_INFO *key_part;
 
-  Uint32 i, offset= 0;
+  uint i;
+  Uint32 offset= 0;
   NdbQueryParamValue paramValues[10]= {NdbQueryParamValue()};
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
