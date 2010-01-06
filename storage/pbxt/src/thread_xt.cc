@@ -96,7 +96,7 @@ xtPublic xtBool xt_init_logging(void)
 {
 	int err;
 
-	log_file = stdout;
+	log_file = stderr;
 	log_level = XT_LOG_TRACE;
 	err = xt_p_mutex_init_with_autoname(&log_mutex, NULL);
 	if (err) {
