@@ -228,6 +228,8 @@ struct st_connection
   char *name;
   size_t name_len;
   MYSQL_STMT* stmt;
+  /* Set after send to disallow other queries before reap */
+  my_bool pending;
 
 #ifdef EMBEDDED_LIBRARY
   const char *cur_query;
@@ -4691,7 +4693,8 @@ void do_close_connection(struct st_command *command)
   if (con->util_mysql)
     mysql_close(con->util_mysql);
   con->util_mysql= 0;
-
+  con->pending= FALSE;
+  
   my_free(con->name, MYF(0));
 
   /*
@@ -6513,6 +6516,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   if (flags & QUERY_SEND_FLAG)
   {
+    if (cn->pending)
+      die ("Cannot run query on connection between send and reap");
+    
     /*
       Send the query
     */
@@ -6532,8 +6538,11 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     wait_query_thread_end(cn);
 #endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
+  {
+    cn->pending= TRUE;
     DBUG_VOID_RETURN;
-
+  }
+  
   do
   {
     /*
@@ -6622,6 +6631,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
 end:
 
+  cn->pending= FALSE;
   /*
     We save the return code (mysql_errno(mysql)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
