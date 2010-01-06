@@ -288,7 +288,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
   table_map current_linked_parents= 0;
   table_map field_linked_parents= 0;
-  table_map all_linked_parents= 0;
+  table_map all_linked_parents= parents_in_scope;
   bool multiple_parents= false;
 
   parent= NULL;
@@ -317,7 +317,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
                 keyPartNo, keyItemField->field->table->alias, keyItemField->field->field_name));
 
     // 2) Calculate current parent referrences
-    field_linked_parents= (keyItemField->field->table->map & parents_in_scope);
+    field_linked_parents= keyItemField->field->table->map;
     current_linked_parents |= field_linked_parents;
     multiple_parents= (current_linked_parents != field_linked_parents);
     parent= keyItemField->field->table;    // Assumed until further
@@ -342,20 +342,20 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
 
           field_linked_parents |= item_field->field->table->map;
 
-          DBUG_PRINT("info", (" join_items[%d] %s.%s can be replaced with %s.%s",
-                    keyPartNo,
-                    keyItemField->field->table->alias, keyItemField->field->field_name,
-                    item_field->field->table->alias, item_field->field->field_name));
+          if (item_field                    != keyItemField &&     // Not Current ref
+              item_field->field->table->map & parents_in_scope )   // Inside linked scope
+          {
+            DBUG_PRINT("info", (" join_items[%d] %s.%s can be replaced with %s.%s",
+                      keyPartNo,
+                      keyItemField->field->table->alias, keyItemField->field->field_name,
+                      item_field->field->table->alias, item_field->field->field_name));
+          }
         }
       }
     } // if cond_equal
 
     // 4) Aggregate set of possible single parent candidates serving all child refs
-    if (keyPartNo > 0)
-      all_linked_parents &= field_linked_parents;
-    else
-      all_linked_parents = field_linked_parents;
-
+    all_linked_parents &= field_linked_parents;
     if (all_linked_parents == 0)
     {
       DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",inx+1));
