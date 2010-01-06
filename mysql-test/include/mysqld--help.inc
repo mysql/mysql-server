@@ -11,7 +11,8 @@ exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help 
 
 perl;
   @skipvars=qw/basedir open-files-limit general-log-file log
-               log-slow-queries pid-file slow-query-log-file/;
+               log-slow-queries pid-file slow-query-log-file
+               datadir slave-load-tmpdir tmpdir/;
   @plugins=qw/innodb ndb ndbcluster safemalloc debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector/;
   @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_SHAREDIR/;
