@@ -1598,7 +1598,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
                               bool&   isPruned,
                               Uint32& hashValue) const  // 'hashValue' only defined if 'isPruned'
 { 
-
   /**
    * Determine if scan may be pruned to a single partition:
    */
@@ -1614,13 +1613,16 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
             m_bound.highKeys >= distkey_min);     // High bounds have all d-keys
 
   isPruned = false;
-  if (isPrunable) {
+  if (isPrunable)
+  {
     Ndb::Key_part_ptr lowKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
     Ndb::Key_part_ptr highKey;
 
     // Aggregate prunable propert:
     // All hi/low keys values within 'distkey_min' must be equal
     int keyPos = 0;
+    Uint32 keyEnd = keyInfo.get(keyPos) >> 16;
+
     for (unsigned keyNo = 0; keyNo < distkey_min; keyNo++)
     {
       Uint32 type        = keyInfo.get(keyPos) & 0xFFFF;
@@ -1658,6 +1660,10 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
 
     // Scan is now known to be prunable, calculate hashValue
     assert (isPrunable);
+
+    // FIXME: Don't handle multiple bounds yet, assumed non-prunable
+    if (keyPos < keyEnd)
+      return 0;
 
     isPruned = true;
     Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
