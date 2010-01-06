@@ -523,6 +523,26 @@ a	D
 1	1
 1	4
 drop table t1;
+create table t1 ( f1 char(10));
+insert into t1 values ("Abcd");
+select * from t1;
+f1
+Abcd
+select * from t2;;
+ERROR 42S02: Table 'test.t2' doesn't exist
+select * from t1;
+f1
+Abcd
+select * from t1;;
+Result coming up
+f1
+Abcd
+select * from t1;;
+f1
+Abcd
+mysqltest: At line 2: Cannot run query on connection between send and reap
+select * from t1;;
+drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
