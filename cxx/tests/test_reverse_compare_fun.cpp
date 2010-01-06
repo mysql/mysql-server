@@ -58,7 +58,7 @@ void test_reverse_compare(int n, int dup_flags) {
 
     Db *db;
     DbTxn * const null_txn = 0;
-    const char * const fname = DIR "/reverse.compare.db";
+    const char * const fname = "reverse.compare.db";
 
     int r;
     int i;
@@ -68,7 +68,7 @@ void test_reverse_compare(int n, int dup_flags) {
 
     /* create the dup database file */
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     db = new Db(&env, DB_CXX_NO_EXCEPTIONS);
     assert(db);
     r = db->set_flags(dup_flags);
