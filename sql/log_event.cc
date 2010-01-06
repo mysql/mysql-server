@@ -7925,10 +7925,10 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     plus one or three bytes (see pack.c:net_store_length) for number of 
     elements in the field metadata array.
   */
-  if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 3; 
-  else
+  if (m_field_metadata_size < 251)
     m_data_size+= m_field_metadata_size + 1; 
+  else
+    m_data_size+= m_field_metadata_size + 3; 
 
   bzero(m_null_bits, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
