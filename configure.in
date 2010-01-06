@@ -25,7 +25,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.5.99)
+AM_INIT_AUTOMAKE(mysql, 5.5.99-m3)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 # Request support for automake silent-rules if available.
