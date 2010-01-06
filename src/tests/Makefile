@@ -477,9 +477,10 @@ dump.bdb.1426: test1426.bdb$(BINSUF) test1426.bdbdump/dump.bdb.1426
 endif
 
 # test1426 is run by comparing the BDB output to the TDB output
+# we use the -x flag (no transactions or recovery) in the dump program.  (-x is not in the BDB version of dump, but it's in ours)
 test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426 $(PTHREAD_LOCAL)
 	(./test1426.tdb$(BINSUF) -q && \
-	 $(TDBDUMP) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
+	 $(TDBDUMP) -x -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
 	 $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 

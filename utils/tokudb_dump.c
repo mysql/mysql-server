@@ -19,6 +19,7 @@ typedef struct {
    bool     header;
    bool     footer;
    bool     is_private;
+   bool     recovery_and_txn;
    char*    progname;
    char*    homedir;
    char*    database;
@@ -56,10 +57,11 @@ int test_main(int argc, char *argv[]) {
    g.progname       = argv[0];
    g.header         = true;
    g.footer         = true;
+   g.recovery_and_txn = true;
 
    if (verify_library_version() != 0) goto error;
 
-   while ((ch = getopt(argc, argv, "d:f:h:klNP:ps:RrVT")) != EOF) {
+   while ((ch = getopt(argc, argv, "d:f:h:klNP:ps:RrVTx")) != EOF) {
       switch (ch) {
          case ('d'): {
             PRINT_ERRORX("-%c option not supported.\n", ch);
@@ -132,6 +134,10 @@ int test_main(int argc, char *argv[]) {
             g.footer       = false;
             break;
          }
+         case ('x'): {
+	    g.recovery_and_txn = false;
+	    break;
+	 }
          case ('?'):
          default: {
             g.exitcode = usage();
@@ -225,7 +231,7 @@ cleanup:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-pVT] [-f output] [-h home] [-s database] db_file\n",
+           "usage: %s [-pVT] [-x] [-f output] [-h home] [-s database] db_file\n",
            g.progname);
    return EXIT_FAILURE;
 }
@@ -251,8 +257,10 @@ int create_init_env()
    /* Open the dbenvironment. */
    g.is_private = false;
    //flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_USE_ENVIRON;
-   flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL |DB_RECOVER; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
-   SET_BITS(flags, DB_INIT_TXN);
+   flags = DB_INIT_LOCK | DB_INIT_MPOOL; ///TODO: UNCOMMENT/IMPLEMENT | DB_USE_ENVIRON;
+   if (g.recovery_and_txn) {
+      SET_BITS(flags, DB_INIT_LOG | DB_INIT_TXN | DB_RECOVER);
+   }
    
    /*
    ///TODO: UNCOMMENT/IMPLEMENT  Notes:  We require DB_PRIVATE
@@ -420,10 +428,12 @@ int dump_pairs()
    memset(&data, 0, sizeof(data));
 
    DB_TXN* txn = NULL;
-   retval = g.dbenv->txn_begin(g.dbenv, NULL, &txn, 0);
-   if (retval) {
-      PRINT_ERROR(retval, "DB_ENV->txn_begin");
-      goto error;
+   if (g.recovery_and_txn) {
+      retval = g.dbenv->txn_begin(g.dbenv, NULL, &txn, 0);
+      if (retval) {
+	 PRINT_ERROR(retval, "DB_ENV->txn_begin");
+	 goto error;
+      }
    }
 
    if ((retval = db->cursor(db, txn, &dbc, 0)) != 0) {
