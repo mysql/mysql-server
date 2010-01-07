@@ -81,7 +81,8 @@ EXTRA_DIST =		FINISH.sh \
 			compile-solaris-x86-32 \
 			compile-solaris-x86-32-debug \
 			compile-solaris-x86-32-debug-forte \
-			compile-solaris-x86-forte-32
+			compile-solaris-x86-forte-32 \
+			util.sh
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
