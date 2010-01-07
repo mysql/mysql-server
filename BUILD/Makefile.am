@@ -34,6 +34,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-amd64-max \
 			compile-amd64-max-sci \
 			compile-amd64-valgrind-max \
+			compile-bintar \
 			compile-darwin-mwcc \
 			compile-dist \
 			compile-hpux11-parisc2-aCC \
