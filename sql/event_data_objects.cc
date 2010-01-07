@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1402,8 +1402,7 @@ Event_job_data::execute(THD *thd, bool drop)
   }
 #endif
 
-  if (check_access(thd, EVENT_ACL, dbname.str,
-                   0, 0, 0, is_schema_db(dbname.str)))
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
   {
     /*
       This aspect of behavior is defined in the worklog,

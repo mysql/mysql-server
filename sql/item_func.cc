@@ -5008,7 +5008,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
-      pthread_mutex_lock(&LOCK_global_system_variables);
+      mysql_mutex_lock(&LOCK_global_system_variables);
       cptr= var->show_type() == SHOW_CHAR ? 
         (char*) var->value_ptr(current_thd, var_type, &component) :
         *(char**) var->value_ptr(current_thd, var_type, &component);
@@ -5016,19 +5016,19 @@ void Item_func_get_system_var::fix_length_and_dec()
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         cptr,
                                                         cptr + strlen(cptr));
-      pthread_mutex_unlock(&LOCK_global_system_variables);
+      mysql_mutex_unlock(&LOCK_global_system_variables);
       collation.set(system_charset_info, DERIVATION_SYSCONST);
       max_length*= system_charset_info->mbmaxlen;
       decimals=NOT_FIXED_DEC;
       break;
     case SHOW_LEX_STRING:
       {
-        pthread_mutex_lock(&LOCK_global_system_variables);
+        mysql_mutex_lock(&LOCK_global_system_variables);
         LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(current_thd, var_type, &component));
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         ls->str,
                                                         ls->str + ls->length);
-        pthread_mutex_unlock(&LOCK_global_system_variables);
+        mysql_mutex_unlock(&LOCK_global_system_variables);
         collation.set(system_charset_info, DERIVATION_SYSCONST);
         max_length*= system_charset_info->mbmaxlen;
         decimals=NOT_FIXED_DEC;
@@ -5113,9 +5113,9 @@ enum_field_types Item_func_get_system_var::field_type() const
 #define get_sys_var_safe(type) \
 do { \
   type value; \
-  pthread_mutex_lock(&LOCK_global_system_variables); \
+  mysql_mutex_lock(&LOCK_global_system_variables); \
   value= *(type*) var->value_ptr(thd, var_type, &component); \
-  pthread_mutex_unlock(&LOCK_global_system_variables); \
+  mysql_mutex_unlock(&LOCK_global_system_variables); \
   cache_present |= GET_SYS_VAR_CACHE_LONG; \
   used_query_id= thd->query_id; \
   cached_llval= null_value ? 0 : (longlong) value; \
@@ -5238,7 +5238,7 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_CHAR_PTR:
     case SHOW_LEX_STRING:
     {
-      pthread_mutex_lock(&LOCK_global_system_variables);
+      mysql_mutex_lock(&LOCK_global_system_variables);
       char *cptr= var->show_type() == SHOW_CHAR ? 
         (char*) var->value_ptr(thd, var_type, &component) :
         *(char**) var->value_ptr(thd, var_type, &component);
@@ -5258,7 +5258,7 @@ String* Item_func_get_system_var::val_str(String* str)
         null_value= TRUE;
         str= NULL;
       }
-      pthread_mutex_unlock(&LOCK_global_system_variables);
+      mysql_mutex_unlock(&LOCK_global_system_variables);
       break;
     }
 
@@ -5323,9 +5323,9 @@ double Item_func_get_system_var::val_real()
   switch (var->show_type())
   {
     case SHOW_DOUBLE:
-      pthread_mutex_lock(&LOCK_global_system_variables);
+      mysql_mutex_lock(&LOCK_global_system_variables);
       cached_dval= *(double*) var->value_ptr(thd, var_type, &component);
-      pthread_mutex_unlock(&LOCK_global_system_variables);
+      mysql_mutex_unlock(&LOCK_global_system_variables);
       used_query_id= thd->query_id;
       cached_null_value= null_value;
       if (null_value)
@@ -5336,7 +5336,7 @@ double Item_func_get_system_var::val_real()
     case SHOW_LEX_STRING:
     case SHOW_CHAR_PTR:
       {
-        pthread_mutex_lock(&LOCK_global_system_variables);
+        mysql_mutex_lock(&LOCK_global_system_variables);
         char *cptr= var->show_type() == SHOW_CHAR ? 
           (char*) var->value_ptr(thd, var_type, &component) :
           *(char**) var->value_ptr(thd, var_type, &component);
@@ -5348,7 +5348,7 @@ double Item_func_get_system_var::val_real()
           null_value= TRUE;
           cached_dval= 0;
         }
-        pthread_mutex_unlock(&LOCK_global_system_variables);
+        mysql_mutex_unlock(&LOCK_global_system_variables);
         used_query_id= thd->query_id;
         cached_null_value= null_value;
         cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
@@ -6281,8 +6281,8 @@ void uuid_short_init()
 longlong Item_func_uuid_short::val_int()
 {
   ulonglong val;
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  mysql_mutex_lock(&LOCK_uuid_generator);
   val= uuid_value++;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  mysql_mutex_unlock(&LOCK_uuid_generator);
   return (longlong) val;
 }
