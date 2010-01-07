@@ -4641,7 +4641,6 @@ void select_connection_name(const char *name)
   if (!con)
     die("connection '%s' not found in connection pool", name);
 
-  con->pending= FALSE;
   set_current_connection(con);
 
   DBUG_VOID_RETURN;
@@ -6575,9 +6574,6 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   if (flags & QUERY_SEND_FLAG)
   {
-    if (cn->pending)
-      die ("Cannot run query on connection between send and reap");
-    
     /*
       Send the query
     */
@@ -7161,6 +7157,9 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_ENTER("run_query");
 
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
+
+  if (cn->pending && (flags & QUERY_SEND_FLAG))
+    die ("Cannot run query on connection between send and reap");
 
   /*
     Evaluate query if this is an eval command
