@@ -68,8 +68,8 @@ use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Find;
-use File::Temp qw / tempdir /;
-use File::Spec::Functions qw / splitdir /;
+use File::Temp qw/tempdir/;
+use File::Spec::Functions qw/splitdir/;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -118,6 +118,8 @@ END {
     rmtree($opt_tmpdir);
   }
 }
+
+sub env_or_val($$) { defined $ENV{$_[0]} ? $ENV{$_[0]} : $_[1] }
 
 my $path_config_file;           # The generated config file, var/my.cnf
 
@@ -217,7 +219,7 @@ my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
-my $opt_retry_failure= 2;
+my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 
 my $opt_strace_client;
 
@@ -247,9 +249,9 @@ our %mysqld_variables;
 
 my $source_dist= 0;
 
-my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
-my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
-my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
+my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
+my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
+my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
@@ -794,11 +796,12 @@ sub set_vardir {
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
+  my $opt_list_options;
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
   Getopt::Long::Configure("pass_through");
-  GetOptions(
+  my %options=(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
@@ -918,9 +921,13 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+	       'list-options'             => \$opt_list_options,
+	      );
+
+  GetOptions(%options) or usage("Can't read options");
 
   usage("") if $opt_usage;
+  list_options(\%options) if $opt_list_options;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
@@ -4977,7 +4984,7 @@ sub gdb_arguments {
   my $type= shift;
 
   # Write $args to gdb init file
-  my $str= join(" ", @$$args);
+  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
@@ -5041,7 +5048,7 @@ sub ddd_arguments {
   my $type= shift;
 
   # Write $args to ddd init file
-  my $str= join(" ", @$$args);
+  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
@@ -5434,5 +5441,17 @@ Misc options
 HERE
   exit(1);
 
+}
+
+sub list_options ($) {
+  my $hash= shift;
+
+  for (keys %$hash) {
+    s/([:=].*|[+!])$//;
+    s/\|/\n--/g;
+    print "--$_\n" unless /list-options/;
+  }
+
+  exit(1);
 }
 
