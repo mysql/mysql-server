@@ -2421,7 +2421,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
-   is_relay_log(0),
+   is_relay_log(0), signal_cnt(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
@@ -4902,6 +4902,7 @@ bool flush_error_log()
 void MYSQL_BIN_LOG::signal_update()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+  signal_cnt++;
   pthread_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }

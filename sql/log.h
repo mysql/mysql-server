@@ -287,7 +287,7 @@ public:
 
   /* This is relay log */
   bool is_relay_log;
-
+  ulong signal_cnt;  // update of the counter is checked by heartbeat
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
