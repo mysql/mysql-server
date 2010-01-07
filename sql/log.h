@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,8 @@ class TC_LOG_MMAP: public TC_LOG
     int size, free;       // max and current number of free xid slots on the page
     int waiters;          // number of waiters on condition
     PAGE_STATE state;     // see above
-    pthread_mutex_t lock; // to access page data or control structure
-    pthread_cond_t  cond; // to wait for a sync
+    mysql_mutex_t lock; // to access page data or control structure
+    mysql_cond_t  cond; // to wait for a sync
   } PAGE;
 
   char logname[FN_REFLEN];
@@ -81,8 +81,8 @@ class TC_LOG_MMAP: public TC_LOG
     one has to use active->lock.
     Same for LOCK_pool and LOCK_sync
   */
-  pthread_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
-  pthread_cond_t COND_pool, COND_active;
+  mysql_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
+  mysql_cond_t COND_pool, COND_active;
 
   public:
   TC_LOG_MMAP(): inited(0) {}
@@ -136,21 +136,25 @@ extern TC_LOG_DUMMY tc_log_dummy;
 
 class Relay_log_info;
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOG_INFO_lock;
+#endif
+
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
-  pthread_mutex_t lock;
+  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0)
     {
       log_file_name[0] = '\0';
-      pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { pthread_mutex_destroy(&lock);}
+  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
@@ -198,7 +202,7 @@ public:
   int generate_new_name(char *new_name, const char *log_name);
  protected:
   /* LOCK_log is inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log;
+  mysql_mutex_t LOCK_log;
   char *name;
   char log_file_name[FN_REFLEN];
   char time_buff[20], db[NAME_LEN + 1];
@@ -244,10 +248,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_index;
-  pthread_mutex_t LOCK_prep_xids;
-  pthread_cond_t  COND_prep_xids;
-  pthread_cond_t update_cond;
+  mysql_mutex_t LOCK_index;
+  mysql_mutex_t LOCK_prep_xids;
+  mysql_cond_t  COND_prep_xids;
+  mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -452,11 +456,11 @@ public:
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
-  inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
-  inline void lock_index() { pthread_mutex_lock(&LOCK_index);}
-  inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
+  inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
+  inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
 };
@@ -551,7 +555,7 @@ public:
 /* Class which manages slow, general and error log event handlers */
 class LOGGER
 {
-  rw_lock_t LOCK_logger;
+  mysql_rwlock_t LOCK_logger;
   /* flag to check whether logger mutex is initialized */
   uint inited;
 
@@ -571,9 +575,9 @@ public:
   LOGGER() : inited(0), table_log_handler(NULL),
              file_log_handler(NULL), is_log_tables_initialized(FALSE)
   {}
-  void lock_shared() { rw_rdlock(&LOCK_logger); }
-  void lock_exclusive() { rw_wrlock(&LOCK_logger); }
-  void unlock() { rw_unlock(&LOCK_logger); }
+  void lock_shared() { mysql_rwlock_rdlock(&LOCK_logger); }
+  void lock_exclusive() { mysql_rwlock_wrlock(&LOCK_logger); }
+  void unlock() { mysql_rwlock_unlock(&LOCK_logger); }
   bool is_log_table_enabled(uint log_table_type);
   bool log_command(THD *thd, enum enum_server_command command);
 
