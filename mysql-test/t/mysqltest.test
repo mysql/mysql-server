@@ -1654,18 +1654,6 @@ EOF
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.in;
 
-# 7. Test that stmt after send without reap IS allowed 
-#    if we have switched connections
-
-connect (test_con1,localhost,root,,);
---send select * from t1;
-connection default;
-select 1;
-connection test_con1;
-select 2;
-disconnect test_con1;
-connection default;
-
 drop table t1;
 
 # ----------------------------------------------------------------------------
