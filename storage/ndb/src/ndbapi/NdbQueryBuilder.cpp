@@ -1014,7 +1014,7 @@ int NdbInt64ConstOperandImpl::convertUint32()
 }
 int NdbInt64ConstOperandImpl::convertInt32()
 {
-  if (unlikely(m_value < -0x80000000L || m_value > 0x7FFFFFFF))
+  if (unlikely(m_value < -((Int64)0x80000000L) || m_value > 0x7FFFFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int32 = (Int32)m_value;
   m_converted.len = sizeof(m_converted.val.int32);
