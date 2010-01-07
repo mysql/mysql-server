@@ -36,8 +36,6 @@ injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   m_start_pos.m_file_pos= log_info.pos;
 
   begin_trans(m_thd);
-
-  thd->set_current_stmt_binlog_row_based();
 }
 
 injector::transaction::~transaction()

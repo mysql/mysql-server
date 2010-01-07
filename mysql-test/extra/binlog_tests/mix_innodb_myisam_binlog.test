@@ -8,6 +8,7 @@
 -- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -323,23 +324,24 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # and does not make slave to stop)
 if (`select @@binlog_format = 'ROW'`)
 {
-  --exec $MYSQL_BINLOG --start-position=525 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --echo This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
+  --echo were previously flushed upon committing/rolling back each statement.
 }
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
   --exec $MYSQL_BINLOG --start-position=556 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
-}
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select
-(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval select
-@a like "%#%error_code=0%ROLLBACK\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
-@a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
-@a not like "%#%error_code=%error_code=%";
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  eval select
+  (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
+  is not null;
+  --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+  eval select
+  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
+  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
+  @a not like "%#%error_code=%error_code=%";
+}
 drop table t1, t2;
 
 #
