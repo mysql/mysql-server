@@ -542,13 +542,6 @@ f1
 Abcd
 mysqltest: At line 2: Cannot run query on connection between send and reap
 select * from t1;;
-select * from t1;;
-select 1;
-1
-1
-select 2;
-2
-2
 drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
