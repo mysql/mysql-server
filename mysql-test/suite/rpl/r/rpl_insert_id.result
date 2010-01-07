@@ -1,3 +1,4 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 #
 # Setup
 #
@@ -533,3 +534,4 @@ drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
 set @@session.sql_auto_is_null=default;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");

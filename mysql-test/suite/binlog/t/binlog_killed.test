@@ -1,6 +1,8 @@
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_statement.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 # You cannot use `KILL' with the Embedded MySQL Server library,
 # because the embedded server merely runs inside the threads of the host
 # application. -- the docs
@@ -51,7 +53,7 @@ reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=135 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=175 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))

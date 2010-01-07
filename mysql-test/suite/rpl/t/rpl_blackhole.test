@@ -18,6 +18,8 @@
 source include/master-slave.inc;
 source include/have_blackhole.inc;
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 # We start with no primary key
 CREATE TABLE t1 (a INT, b INT, c INT);
 CREATE TABLE t2 (a INT, b INT, c INT);
@@ -45,9 +47,23 @@ source extra/rpl_tests/rpl_blackhole.test;
 let $statement = INSERT INTO t1 SELECT * FROM t2;
 source extra/rpl_tests/rpl_blackhole.test;
 
+# 
+# The MASTER has MyISAM as the engine for both tables. The SLAVE has Blackhole
+# on t1 (transactional engine) and MyISAM on t2 (non-transactional engine). 
+#
+# In MIXED mode, the command "INSERT INTO t2 SELECT * FROM t1" is logged as
+# statement on the master. On the slave, it is tagged as unsafe because the
+# statement mixes both transactional and non-transactional engines and as such
+# its changes are logged as rows. However, due to the nature of the blackhole
+# engine, no rows are returned and thus any chain replication would make the
+# next master on the chain diverge.
+#
+# Fo this reason, we have disabled the statement.
+#
 # Test INSERT-SELECT from Blackhole, no primary key
-let $statement = INSERT INTO t2 SELECT * FROM t1;
-source extra/rpl_tests/rpl_blackhole.test;
+# let $statement = INSERT INTO t2 SELECT * FROM t1;
+# source extra/rpl_tests/rpl_blackhole.test;
+#
 
 connection master;
 ALTER TABLE t1 ADD PRIMARY KEY pk_t1 (a,b);

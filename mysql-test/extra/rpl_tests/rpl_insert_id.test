@@ -9,6 +9,8 @@
 # column and index but without primary key.
 ##############################################################
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 --echo #
 --echo # Setup
 --echo #
@@ -188,7 +190,9 @@ drop trigger t1_bi;
 
 # Check that nested call doesn't affect outer context.
 select last_insert_id();
+--disable_warnings
 select bug15728_insert();
+--enable_warnings
 select last_insert_id();
 insert into t1 (last_id) values (bug15728());
 # This should be exactly one greater than in the previous call.
@@ -441,7 +445,9 @@ delimiter ;|
 
 INSERT INTO t1 VALUES (NULL, -1);
 CALL p1();
+--disable_warnings
 SELECT f1();
+--enable_warnings
 INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
                       (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
 INSERT INTO t1 VALUES (NULL, f2());
@@ -510,7 +516,9 @@ insert into t2 (id) values(1),(2),(3);
 delete from t2;
 set sql_log_bin=1;
 #inside SELECT, then inside INSERT
+--disable_warnings
 select insid();
+--enable_warnings
 set sql_log_bin=0;
 insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;

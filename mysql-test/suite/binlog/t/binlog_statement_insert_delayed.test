@@ -6,4 +6,7 @@
 -- disable_query_log
 reset master; # get rid of previous tests binlog
 -- enable_query_log
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
 -- source extra/binlog_tests/binlog_insert_delayed.test

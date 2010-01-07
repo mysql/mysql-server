@@ -36,6 +36,9 @@ sync_slave_with_master;
 STOP SLAVE;
 RESET SLAVE;
 
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
 eval CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
                       d FLOAT DEFAULT '2.00', 
                       e CHAR(4) DEFAULT 'TEST') 
@@ -61,6 +64,8 @@ SELECT * FROM t1 ORDER BY a;
 --echo *** Select from slave ***
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
 --echo *** Drop t1  ***
 connection master;
@@ -97,9 +102,8 @@ SELECT * FROM t2 ORDER BY a;
 connection slave;
 START SLAVE;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -146,13 +150,12 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -191,13 +194,12 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
                         (30000.22,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -236,13 +238,12 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
                         (2,'JOE',300.01,0,'b2b2',1.0000009);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -282,13 +283,12 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
                         (2,'JOE',300.01,0);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 #START SLAVE;
 
@@ -491,13 +491,12 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -515,7 +514,7 @@ sync_slave_with_master;
 --echo  *** Create t11 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
-eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+eval CREATE TABLE t11 (a INT KEY, b BLOB, f INT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
 --echo *** Create t11 on Master ***
@@ -535,13 +534,12 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -811,9 +809,8 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 
@@ -918,13 +915,12 @@ connection master;
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1677 ***
 --echo ********************************************
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+--echo Slave failed with Error $errno
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
