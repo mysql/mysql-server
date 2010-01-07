@@ -476,6 +476,8 @@ ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 CREATE TABLE t7 (i INT NOT NULL,
 c CHAR(255) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'NDB'  ;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 [expecting slave to replicate correctly]
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
@@ -484,11 +486,7 @@ Comparing tables master:test.t1 and slave:test.t1
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
 Comparing tables master:test.t2 and slave:test.t2
-[expecting slave to stop]
-INSERT INTO t3 VALUES (1, "", 1);
-INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
-Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -501,7 +499,7 @@ Comparing tables master:test.t4 and slave:test.t4
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
+Column 1 of table 'test.t5' cannot be converted from type 'char(255)' to type 'char(16)'
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -510,7 +508,7 @@ START SLAVE;
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
+Column 1 of table 'test.t6' cannot be converted from type 'char(255)' to type 'char(128)'
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;

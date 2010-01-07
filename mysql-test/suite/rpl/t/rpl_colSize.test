@@ -19,6 +19,9 @@ STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
 eval CREATE TABLE t1 (
   a float     (47),
   b double    (143,9),
@@ -218,5 +221,7 @@ SHOW CREATE TABLE t1;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
 # END 5.1 Test Case
