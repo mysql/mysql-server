@@ -379,9 +379,9 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
   } // for all 'key_parts'
 
   /**
-   * Resolve a condition where multiple parents are refered from this child
-   * based on information we have aggregated above. At this stage
-   * all parent candidates are aggregated in the bitmask 'all_linked_parents'
+   * Based on information we have aggregated above, resolve conditions where either:
+   *  - Multiple parents are refered from this child.
+   *  - Parent refered from this child is within the scope of visible parents.
    *
    * 1) New (common) parent is selected as the 'most grand-' parent
    *    in 'all_linked_parents' (new_parent)
@@ -390,7 +390,8 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
    *    update join_items[] to refer the correct new_parent field available from the
    *    equality set.
    **/
-  if (multiple_parents)
+  if (multiple_parents ||
+     (parents_in_scope & current_linked_parents) != current_linked_parents)
   {
     DBUG_ASSERT(all_linked_parents != 0);
 
