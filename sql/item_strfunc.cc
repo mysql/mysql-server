@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -465,18 +465,18 @@ String *Item_func_des_encrypt::val_str(String *str)
   if (arg_count == 1)
   {
     /* Protect against someone doing FLUSH DES_KEY_FILE */
-    pthread_mutex_lock(&LOCK_des_key_file);
+    mysql_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number=des_default_key];
-    pthread_mutex_unlock(&LOCK_des_key_file);
+    mysql_mutex_unlock(&LOCK_des_key_file);
   }
   else if (args[1]->result_type() == INT_RESULT)
   {
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
-    pthread_mutex_lock(&LOCK_des_key_file);
+    mysql_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number];
-    pthread_mutex_unlock(&LOCK_des_key_file);
+    mysql_mutex_unlock(&LOCK_des_key_file);
   }
   else
   {
@@ -566,9 +566,9 @@ String *Item_func_des_decrypt::val_str(String *str)
         key_number > 9)
       goto error;
 
-    pthread_mutex_lock(&LOCK_des_key_file);
+    mysql_mutex_lock(&LOCK_des_key_file);
     keyschedule= des_keyschedule[key_number];
-    pthread_mutex_unlock(&LOCK_des_key_file);
+    mysql_mutex_unlock(&LOCK_des_key_file);
   }
   else
   {
@@ -1702,17 +1702,17 @@ String *Item_func_encrypt::val_str(String *str)
       return 0;
     salt_ptr= salt_str->c_ptr_safe();
   }
-  pthread_mutex_lock(&LOCK_crypt);
+  mysql_mutex_lock(&LOCK_crypt);
   char *tmp= crypt(res->c_ptr_safe(),salt_ptr);
   if (!tmp)
   {
-    pthread_mutex_unlock(&LOCK_crypt);
+    mysql_mutex_unlock(&LOCK_crypt);
     null_value= 1;
     return 0;
   }
   str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
   str->copy();
-  pthread_mutex_unlock(&LOCK_crypt);
+  mysql_mutex_unlock(&LOCK_crypt);
   return str;
 #else
   null_value=1;
@@ -2998,7 +2998,7 @@ String *Item_load_file::val_str(String *str)
       strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
     goto err;
 
-  if (!my_stat(path, &stat_info, MYF(0)))
+  if (!mysql_file_stat(key_file_loadfile, path, &stat_info, MYF(0)))
     goto err;
 
   if (!(stat_info.st_mode & S_IROTH))
@@ -3016,15 +3016,17 @@ String *Item_load_file::val_str(String *str)
   }
   if (tmp_value.alloc(stat_info.st_size))
     goto err;
-  if ((file = my_open(file_name->ptr(), O_RDONLY, MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_loadfile,
+                             file_name->ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
-  if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
+  if (mysql_file_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size,
+                      MYF(MY_NABP)))
   {
-    my_close(file, MYF(0));
+    mysql_file_close(file, MYF(0));
     goto err;
   }
   tmp_value.length(stat_info.st_size);
-  my_close(file, MYF(0));
+  mysql_file_close(file, MYF(0));
   null_value = 0;
   DBUG_RETURN(&tmp_value);
 
@@ -3468,7 +3470,7 @@ String *Item_func_uuid::val_str(String *str)
   char *s;
   THD *thd= current_thd;
 
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  mysql_mutex_lock(&LOCK_uuid_generator);
   if (! uuid_time) /* first UUID() call. initializing data */
   {
     ulong tmp=sql_rnd_with_mutex();
@@ -3558,7 +3560,7 @@ String *Item_func_uuid::val_str(String *str)
   }
 
   uuid_time=tv;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  mysql_mutex_unlock(&LOCK_uuid_generator);
 
   uint32 time_low=            (uint32) (tv & 0xFFFFFFFF);
   uint16 time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
