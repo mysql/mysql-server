@@ -89,7 +89,7 @@ test_main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     int i;
-    for (i = 1; i <= 2048; i += 1) {
+    for (i = 1; i <= 2048; i *= 2) {
         test_rand_insert(i, 0);
     }
 
