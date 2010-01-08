@@ -36,6 +36,8 @@ SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
 SET(CMAKE_MAKE_PROGRAM "@CMAKE_MAKE_PROGRAM@")
 SET(CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@")
 
+SET(MYSQL_DOCS_LOCATION "@MYSQL_DOCS_LOCATION@")
+
 
 SET(PACKAGE_DIR  ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME})
 
@@ -127,10 +129,16 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
    ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
 
+# Add documentation, if user has specified where to find them
+IF(MYSQL_DOCS_LOCATION)
+  MESSAGE("Copying documentation files from " ${MYSQL_DOCS_LOCATION})
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy_directory "${MYSQL_DOCS_LOCATION}" "${PACKAGE_DIR}")
+ENDIF()
 
 # In case we used CPack, it could have copied some
 # extra files that are not usable on different machines.
 FILE(REMOVE ${PACKAGE_DIR}/CMakeCache.txt)
+FILE(REMOVE_RECURSE ${PACKAGE_DIR}/autom4te.cache)
 
 # When packing source, prefer gnu tar  to "cmake -P tar"
 # cmake does not preserve timestamps.gnuwin32 tar is broken, cygwin is ok
