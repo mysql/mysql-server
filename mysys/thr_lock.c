@@ -674,14 +674,23 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
         write locks are of TL_WRITE_ALLOW_WRITE type.
 
         Note that, since lock requests for the same table are sorted in
-        such way that requests with higher thr_lock_type value come first,
-        lock being requested usually has equal or "weaker" type than one
-        which thread might have already acquired.
-        The exceptions are situations when:
-          - old lock type is TL_WRITE_ALLOW_READ and new lock type is
-            TL_WRITE_ALLOW_WRITE
-          - when old lock type is TL_WRITE_DELAYED
-        But these should never happen within MySQL.
+        such way that requests with higher thr_lock_type value come first
+        (with one exception (*)), lock being requested usually (**) has
+        equal or "weaker" type than one which thread might have already
+        acquired.
+        *)  The only exception to this rule is case when type of old lock
+            is TL_WRITE_LOW_PRIORITY and type of new lock is changed inside
+            of thr_lock() from TL_WRITE_CONCURRENT_INSERT to TL_WRITE since
+            engine turns out to be not supporting concurrent inserts.
+            Note that since TL_WRITE has the same compatibility rules as
+            TL_WRITE_LOW_PRIORITY (their only difference is priority),
+            it is OK to grant new lock without additional checks in such
+            situation.
+        **) The exceptions are situations when:
+            - old lock type is TL_WRITE_ALLOW_READ and new lock type is
+              TL_WRITE_ALLOW_WRITE
+            - when old lock type is TL_WRITE_DELAYED
+            But these should never happen within MySQL.
         Therefore it is OK to allow acquiring write lock on the table if
         this thread already holds some write lock on it.
 
@@ -690,7 +699,9 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
         different types of write lock on the same table).
       */
       DBUG_ASSERT(! has_old_lock(lock->write.data, data->owner) ||
-                  (lock_type <= lock->write.data->type &&
+                  ((lock_type <= lock->write.data->type ||
+                    (lock_type == TL_WRITE &&
+                     lock->write.data->type == TL_WRITE_LOW_PRIORITY)) &&
                    ! ((lock_type < TL_WRITE_ALLOW_READ &&
                        lock->write.data->type == TL_WRITE_ALLOW_READ) ||
                      lock->write.data->type == TL_WRITE_DELAYED)));
