@@ -1,3 +1,4 @@
+RESET MASTER;
 CREATE TABLE t1 (c1 char(50));
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE t1;
