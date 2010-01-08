@@ -520,11 +520,13 @@ NdbQueryBuilder::constValue(const char* value)
   return &constOp->m_interface;
 }
 NdbConstOperand* 
-NdbQueryBuilder::constValue(const void* value,
+NdbQueryBuilder::constValue(const void* _rowptr,
                             const NdbRecord* record, Uint32 attrId)
 {
   returnErrIf(record==0,QRY_REQ_ARG_IS_NULL);
+  returnErrIf(_rowptr == 0, QRY_REQ_ARG_IS_NULL);
   const NdbRecord::Attr& attr = record->columns[attrId];
+  const void * value = reinterpret_cast<const Uint8*>(_rowptr) + attr.offset;
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,attr);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 

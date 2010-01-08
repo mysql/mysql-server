@@ -733,23 +733,18 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     }
 
     KEY *key= &handler->table->key_info[join_tab.ref.key];
-    KEY_PART_INFO *key_part;
     DBUG_ASSERT (join_tab.ref.key_parts==key->key_parts);
 
     const NdbRecord* key_record= handler->m_index[join_tab.ref.key].ndb_unique_record_key;
     const NdbQueryOperand* linked_key[MAX_LINKED_KEYS] = {NULL};
-    Uint32 offset= 0;
-    uint i;
-    for (i = 0, key_part= key->key_part; 
-        i < key->key_parts;
-        i++, key_part++)
+    for (uint i = 0; i < key->key_parts; i++)
     {
       Item* const item = join_items[i];
       linked_key[i]= NULL;
       if (item->const_item())
       {
         const uchar* const_key = join_tab.ref.key_buff;
-        linked_key[i]= builder.constValue(const_key+offset, key_record, i);
+        linked_key[i]= builder.constValue(const_key, key_record, i);
       }
       else if (item->type()==Item::FIELD_ITEM)
       {
@@ -760,8 +755,6 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
       }
       if (unlikely(!linked_key[i]))
         DBUG_RETURN(0);
-
-      offset+= key_part->store_length;
     }
 
     const NdbDictionary::Table* const table= handler->m_table;
