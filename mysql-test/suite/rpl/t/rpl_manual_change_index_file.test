@@ -25,7 +25,6 @@ sync_slave_with_master;
 connection master;
 # Delete './master-bin.000001' from index file.
 let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
-#remove_file $MYSQLD_DATADIR/master-bin.index;
 let $file= $MYSQLD_DATADIR/master-bin.index;
 source include/truncate_file.inc;
 
@@ -45,8 +44,7 @@ EOF
 sleep 0.00000001;
 }
 
-# Now, only 1 entry in index file.
-# ./master-bin.000002
+# Now, only 1 entry in index file.  ./master-bin.000002
 
 # Generate master-bin.000003, but it is in the second line.
 FLUSH LOGS;
@@ -66,6 +64,29 @@ echo Last_IO_Error;
 echo $last_error;
 
 connection master;
+
+source include/truncate_file.inc;
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+./master-bin.000001
+./master-bin.000002
+./master-bin.000003
+EOF
+sleep 0.00000001;
+}
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+.\master-bin.000001
+.\master-bin.000002
+.\master-bin.000003
+EOF
+sleep 0.00000001;
+}
+
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t3(c1 INT);
