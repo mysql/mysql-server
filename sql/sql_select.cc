@@ -11743,7 +11743,7 @@ join_read_linked_key(JOIN_TAB *tab)
   DBUG_ENTER("join_read_linked_key");
 
   // 'read' itself is a NOOP: Already fetched through linked key operation
-  // 'table->status' has also been correctly set previosly.
+  //  handler::read_pushed_next() unpack the prefetched row and set 'status'
 
   int error= table->file->read_pushed_next(table->record[0]);
   if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
