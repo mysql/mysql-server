@@ -284,7 +284,7 @@ public:
   // Raw data with specified length, with src type as specified by 'record.column[attrId]'.
   // Provide very basic type check to match destination column it is
   // used against.
-  NdbConstOperand* constValue(const void* value,
+  NdbConstOperand* constValue(const void* rowptr,
                               const NdbRecord* record, Uint32 attrId);
 
   // ::paramValue()
