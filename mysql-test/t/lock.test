@@ -441,6 +441,28 @@ FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Simplified test for bug #48538 "Assertion in thr_lock() on LOAD DATA
+--echo # CONCURRENT INFILE".
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (f1 INT, f2 INT) ENGINE = MEMORY;
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW 
+  UPDATE LOW_PRIORITY t1 SET f2 = 7; 
+
+--echo # Statement below should fail with ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+--echo # error instead of failing on assertion in table-level locking subsystem.
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+INSERT INTO t1(f1) VALUES(0);
+
+DROP TABLE t1;
+
+
 --echo #
 --echo # End of 6.0 tests.
 --echo #
