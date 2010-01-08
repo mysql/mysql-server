@@ -451,6 +451,23 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
   DBUG_RETURN(true);
 }
 
+/**
+ * To be removed once we fixed MysqldShrinkVarchar
+ */
+static
+bool
+is_short_varsize(KEY_PART_INFO * kp)
+{
+  Field *field = kp->field;
+  if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
+  {
+    if (((Field_varstring*)field)->length_bytes == 1)
+      return true;
+  }
+  
+  return false;
+}
+
 uint
 ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs, 
                          int max_joins)
@@ -577,6 +594,11 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
     const NdbQueryOperand* root_key[10] = {NULL};
     for (uint i = 0; i < key->key_parts; i++)
     {
+      /**
+       * TODO: Handle MysqldShrinkVarchar
+       */
+      if (is_short_varsize(key->key_part+i))
+        DBUG_RETURN(0);
       root_key[i]= builder.paramValue();
       if (!root_key[i])
         DBUG_RETURN(0);
@@ -669,6 +691,12 @@ ha_ndbcluster::make_pushed_join(struct st_join_table* join_tabs,
         const NdbQueryOperand* root_key[10] = {NULL};
         for (uint i = 0; i < key->key_parts; i++)
         {
+          /**
+           * TODO: Handle MysqldShrinkVarchar
+           */
+          if (is_short_varsize(key->key_part+i))
+            DBUG_RETURN(0);
+
           root_key[i]= builder.paramValue();
           if (!root_key[i])
             DBUG_RETURN(0);
