@@ -587,6 +587,18 @@ where y.a3=x.d3 and y.b3=x.b3 and
       z2.a3=z.d3 and z2.b3=z.b3 and
       t1.a = z2.d3;
 
+# Table expressions wo/ parent-child linkage should *not* be executes as a pushed join:
+explain
+select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
+select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
+
+# NOTE: Due to constValue replacement in equality sets, query below are
+# effectively the same as the one above. -> Don't push either
+explain
+select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
+select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
+
+
 # Tests usage of unique index
 create unique index t3_d3 on t3(d3); 
 commit;

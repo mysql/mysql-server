@@ -287,7 +287,6 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     parents_in_scope |= join_tab->table->map;
 
   table_map current_linked_parents= 0;
-  table_map field_linked_parents= 0;
   table_map all_linked_parents= parents_in_scope;
   bool multiple_parents= false;
 
@@ -332,7 +331,7 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     }
 
     // 2) Calculate current parent referrences
-    field_linked_parents= key_field->table->map;
+    table_map field_linked_parents= key_field->table->map;
     current_linked_parents |= field_linked_parents;
     multiple_parents= (current_linked_parents != field_linked_parents);
     parent= key_field->table;    // Assumed until further
@@ -378,10 +377,18 @@ field_ref_is_join_pushable(const JOIN_TAB* join_tabs,
     }
   } // for all 'key_parts'
 
+  if (current_linked_parents == 0)
+  {
+    DBUG_PRINT("info", ("  No parents -> can't append table to pushed joins:%d\n",inx+1));
+    DBUG_RETURN(false);
+  }
+
   /**
    * Based on information we have aggregated above, resolve conditions where either:
    *  - Multiple parents are refered from this child.
-   *  - Parent refered from this child is within the scope of visible parents.
+   *  - Parent refered from this child is outside scope of visible parents.
+   *
+   * Situation is resolved by:
    *
    * 1) New (common) parent is selected as the 'most grand-' parent
    *    in 'all_linked_parents' (new_parent)
