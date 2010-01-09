@@ -1013,7 +1013,7 @@ static xtBool thr_setup_signals(void)
 
 typedef void *(*ThreadMainFunc)(XTThreadPtr self);
 
-extern "C" void *thr_main(void *data)
+extern "C" void *thr_main_pbxt(void *data)
 {
 	ThreadDataPtr	td = (ThreadDataPtr) data;
 	XTThreadPtr		self = td->td_thr;
@@ -1503,10 +1503,10 @@ xtPublic pthread_t xt_run_thread(XTThreadPtr self, XTThreadPtr child, void *(*st
 		pthread_attr_t	attr = { 0, 0, 0 };
 
 		attr.priority = THREAD_PRIORITY_NORMAL;
-		err = pthread_create(&child_thread, &attr, thr_main, &data);
+		err = pthread_create(&child_thread, &attr, thr_main_pbxt, &data);
 	}
 #else
-	err = pthread_create(&child_thread, NULL, thr_main, &data);
+	err = pthread_create(&child_thread, NULL, thr_main_pbxt, &data);
 #endif
 	if (err) {
 		xt_free_thread(child);

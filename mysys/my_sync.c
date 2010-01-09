@@ -100,7 +100,8 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
   RETURN
     0 if ok, !=0 if error
 */
-int my_sync_dir(const char *dir_name, myf my_flags)
+int my_sync_dir(const char *dir_name __attribute__((unused)),
+                myf my_flags __attribute__((unused)))
 {
 #ifdef NEED_EXPLICIT_SYNC_DIR
   DBUG_ENTER("my_sync_dir");
@@ -141,7 +142,8 @@ int my_sync_dir(const char *dir_name, myf my_flags)
   RETURN
     0 if ok, !=0 if error
 */
-int my_sync_dir_by_file(const char *file_name, myf my_flags)
+int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
+                        myf my_flags __attribute__((unused)))
 {
 #ifdef NEED_EXPLICIT_SYNC_DIR
   char dir_name[FN_REFLEN];

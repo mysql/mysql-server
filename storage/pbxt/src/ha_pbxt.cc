@@ -1294,7 +1294,7 @@ static int pbxt_init(void *p)
 				#6	0x000debe1 in THD::THD at sql_class.cc:631
 				#7	0x00e207a4 in myxt_create_thread at myxt_xt.cc:2666
 				#8	0x00e3134b in tabc_fr_run_thread at tabcache_xt.cc:982
-				#9	0x00e422ca in thr_main at thread_xt.cc:1006
+				#9	0x00e422ca in thr_main_pbxt at thread_xt.cc:1006
 				#10	0x91ff7c55 in _pthread_start
 				#11	0x91ff7b12 in thread_start
 			 *
@@ -1557,7 +1557,7 @@ static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
 	return err;
 }
 
-static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, char *thread_name, int *err)
+static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, const char *thread_name, int *err)
 {
 	THD			*thd;
 	XTThreadPtr	self = NULL;

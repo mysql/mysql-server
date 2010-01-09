@@ -81,6 +81,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0ut.h"
 #include "os0proc.h"
+#include "os0sync.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
 #include "sync0sync.h"
@@ -1102,12 +1103,12 @@ srv_conc_enter_innodb_timer_based(trx_t* trx)
 	}
 retry:
 	if (srv_conc_n_threads < (lint) srv_thread_concurrency) {
-		conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+		conc_n_threads = os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		if (conc_n_threads <= (lint) srv_thread_concurrency) {
 			enter_innodb_with_tickets(trx);
 			return;
 		}
-		__sync_add_and_fetch(&srv_conc_n_threads, -1);
+		os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	}
 	if (!has_yielded)
 	{
@@ -1118,7 +1119,7 @@ retry:
 	if (trx->has_search_latch
 	    || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
 
-		conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+		conc_n_threads = os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		enter_innodb_with_tickets(trx);
 		return;
 	}
@@ -1129,7 +1130,7 @@ retry:
 		trx->op_info = "";
 		has_slept++;
 	}
-	conc_n_threads = __sync_add_and_fetch(&srv_conc_n_threads, 1);
+	conc_n_threads = os_atomic_increment_lint(&srv_conc_n_threads, 1);
 	enter_innodb_with_tickets(trx);
 	return;
 }
@@ -1137,7 +1138,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-	__sync_add_and_fetch(&srv_conc_n_threads, -1);
+	os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1326,7 +1327,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	if (srv_thread_concurrency_timer_based) {
-		__sync_add_and_fetch(&srv_conc_n_threads, 1);
+		os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;
