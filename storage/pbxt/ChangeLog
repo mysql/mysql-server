@@ -1,6 +1,10 @@
 PBXT Release Notes
 ==================
 
+------- 1.0.09g RC3 - 2009-12-16
+
+RN292: Fixed a bug that resulted in 2-phase commit not being used between PBXT and the binlog. This bug was a result of a hack which as added to solve a problem in an pre-release version of MySQL 5.1. The hack was removed. 
+
 ------- 1.0.09f RC3 - 2009-11-30
 
 RN291: Fixed bug #489088: On shutdown MySQL reports: [Warning] Plugin 'PBXT' will be forced to shutdown.

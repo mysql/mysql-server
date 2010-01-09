@@ -666,6 +666,9 @@ libmysqld/time.cc
 libmysqld/tztime.cc
 libmysqld/uniques.cc
 libmysqld/unireg.cc
+libmysqld/discover_xt.cc
+libmysqld/ha_pbxt.cc
+libmysqld/myxt_xt.cc
 libmysqltest/*.ds?
 libmysqltest/*.vcproj
 libmysqltest/mytest.c

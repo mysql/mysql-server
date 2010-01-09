@@ -278,6 +278,11 @@ enum legacy_db_type
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
+/*
+  Better name for DB_TYPE_UNKNOWN. Should be used for engines that do not have
+  a hard-coded type value here.
+ */
+#define DB_TYPE_AUTOASSIGN DB_TYPE_UNKNOWN
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
