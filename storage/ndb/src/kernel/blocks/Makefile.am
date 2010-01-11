@@ -89,8 +89,6 @@ EXTRA_DIST = CMakeLists.txt    \
 	dbdict/CMakeLists.txt  \
 	dbdih/CMakeLists.txt   \
 	dblqh/CMakeLists.txt   \
-	dbspj/CMakeLists.txt    \
-	dbtc/CMakeLists.txt    \
 	dbtup/CMakeLists.txt   \
 	ndbfs/Win32AsyncFile.cpp \
 	ndbfs/Win32AsyncFile.hpp
