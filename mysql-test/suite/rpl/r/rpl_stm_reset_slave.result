@@ -44,6 +44,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 stop slave;
 change master to master_user='test';
 SHOW SLAVE STATUS;
@@ -86,6 +88,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -127,6 +131,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 start slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -168,6 +174,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 stop slave;
 reset slave;
 start slave;

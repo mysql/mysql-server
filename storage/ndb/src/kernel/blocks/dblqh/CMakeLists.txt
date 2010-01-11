@@ -16,12 +16,6 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbdblqh STATIC
-    DblqhInit.cpp
-    DblqhMain.cpp
-    DblqhProxy.cpp
-    DblqhCommon.cpp)
-
 ADD_EXECUTABLE(ndb_redo_log_reader
     redoLogReader/records.cpp
     redoLogReader/reader.cpp)

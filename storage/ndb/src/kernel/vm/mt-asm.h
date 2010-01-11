@@ -153,6 +153,32 @@ extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 #endif
 #endif
+#elif defined (_MSC_VER)
+#include <intrin.h>
+/********************
+ * Microsoft
+ *******************/
+// Using instrinsics available on all architectures
+#define mb()    _ReadWriteBarrier()
+#define rmb()   _ReadBarrier()
+#define wmb()   _WriteBarrier()
+#define read_barrier_depends()  do {} while(0)
+
+#define NDB_HAVE_XCNG
+static inline
+int
+xcng(volatile unsigned * addr, int val)
+{
+  return InterlockedExchange((volatile LONG*)addr, val);
+}
+
+static
+inline
+void
+cpu_pause()
+{
+  YieldProcessor();
+}
 #else
 #error "Unsupported compiler"
 #endif

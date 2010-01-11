@@ -65,6 +65,7 @@ struct SubCreateRef {
     ,OutOfTableRecords = 1423
     ,TableDropped = 1417
     ,NF_FakeErrorREF = 11
+    ,NotStarted = 1428
   };
 };
 
@@ -122,6 +123,7 @@ struct SubStartRef {
     NotMaster = 702, // For API/DICT communication
     BusyWithNR = 1405,
     NodeDied = 1427
+    ,NotStarted = 1428
   };
 
   STATIC_CONST( SignalLength = 7 );
@@ -203,6 +205,7 @@ struct SubStopRef {
     NoSuchSubscriber = 1426,
     NotMaster = 702,
     BusyWithNR = 1405
+    ,NotStarted = 1428
   };
 
   STATIC_CONST( SignalLength = 8 );
@@ -442,6 +445,7 @@ struct SubRemoveRef {
     NoSuchSubscription = 1407,
     Locked = 1411,
     AlreadyDropped = 1419
+    ,NotStarted = 1428
   };
 
   Uint32 senderRef;

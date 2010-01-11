@@ -73,15 +73,21 @@ static void wait_for_kill_signal(THD *thd)
 
 /**
   @brief Helper function for explain_filename
+  @param thd          Thread handle
+  @param to_p         Explained name in system_charset_info
+  @param end_p        End of the to_p buffer
+  @param name         Name to be converted
+  @param name_len     Length of the name, in bytes
 */
-static char* add_identifier(char *to_p, const char * end_p,
-                           const char* name, uint name_len, bool add_quotes)
+static char* add_identifier(THD* thd, char *to_p, const char * end_p,
+                            const char* name, uint name_len)
 {
   uint res;
   uint errors;
   const char *conv_name;
   char tmp_name[FN_REFLEN];
   char conv_string[FN_REFLEN];
+  int quote;
 
   DBUG_ENTER("add_identifier");
   if (!name[name_len])
@@ -105,19 +111,21 @@ static char* add_identifier(char *to_p, const char * end_p,
     conv_name= conv_string;
   }
 
-  if (add_quotes && (end_p - to_p > 2))
+  quote = thd ? get_quote_char_for_identifier(thd, conv_name, res - 1) : '"';
+
+  if (quote != EOF && (end_p - to_p > 2))
   {
-    *(to_p++)= '`';
+    *(to_p++)= (char) quote;
     while (*conv_name && (end_p - to_p - 1) > 0)
     {
       uint length= my_mbcharlen(system_charset_info, *conv_name);
       if (!length)
         length= 1;
-      if (length == 1 && *conv_name == '`')
+      if (length == 1 && *conv_name == (char) quote)
       { 
         if ((end_p - to_p) < 3)
           break;
-        *(to_p++)= '`';
+        *(to_p++)= (char) quote;
         *(to_p++)= *(conv_name++);
       }
       else if (((long) length) < (end_p - to_p))
@@ -128,7 +136,11 @@ static char* add_identifier(char *to_p, const char * end_p,
       else
         break;                               /* string already filled */
     }
-    to_p= strnmov(to_p, "`", end_p - to_p);
+    if (end_p > to_p) {
+      *(to_p++)= (char) quote;
+      if (end_p > to_p)
+	*to_p= 0; /* terminate by NUL, but do not include it in the count */
+    }
   }
   else
     to_p= strnmov(to_p, conv_name, end_p - to_p);
@@ -148,6 +160,7 @@ static char* add_identifier(char *to_p, const char * end_p,
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
 
+   @param      thd          Thread handle
    @param      from         Path name in my_charset_filename
                             Null terminated in my_charset_filename, normalized
                             to use '/' as directory separation character.
@@ -164,13 +177,12 @@ static char* add_identifier(char *to_p, const char * end_p,
                             [,[ Temporary| Renamed] Partition `p`
                             [, Subpartition `sp`]] *|
                             (| is really a /, and it is all in one line)
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING ->
-                            same as above but no quotes are added.
 
    @retval     Length of returned string
 */
 
-uint explain_filename(const char *from,
+uint explain_filename(THD* thd,
+		      const char *from,
                       char *to,
                       uint to_length,
                       enum_explain_filename_mode explain_mode)
@@ -284,14 +296,12 @@ uint explain_filename(const char *from,
     {
       to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
       *(to_p++)= ' ';
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len, 1);
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ", ", end_p - to_p);
     }
     else
     {
-      to_p= add_identifier(to_p, end_p, db_name, db_name_len,
-                           (explain_mode !=
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+      to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ".", end_p - to_p);
     }
   }
@@ -299,16 +309,13 @@ uint explain_filename(const char *from,
   {
     to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len, 1);
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
   else
-    to_p= add_identifier(to_p, end_p, table_name, table_name_len,
-                         (explain_mode !=
-                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+    to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   if (part_name)
   {
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
-        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p= strnmov(to_p, " /* ", end_p - to_p);
     else if (explain_mode == EXPLAIN_PARTITIONS_VERBOSE)
       to_p= strnmov(to_p, " ", end_p - to_p);
@@ -324,20 +331,15 @@ uint explain_filename(const char *from,
     }
     to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
     *(to_p++)= ' ';
-    to_p= add_identifier(to_p, end_p, part_name, part_name_len,
-                         (explain_mode !=
-                          EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+    to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
       to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
       *(to_p++)= ' ';
-      to_p= add_identifier(to_p, end_p, subpart_name, subpart_name_len,
-                           (explain_mode !=
-                            EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING));
+      to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
-    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT ||
-        explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING)
+    if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p= strnmov(to_p, " */", end_p - to_p);
   }
   DBUG_PRINT("exit", ("to '%s'", to));
@@ -1775,6 +1777,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error= FALSE, need_start_waiters= FALSE;
+  Drop_table_error_handler err_handler(thd->get_internal_handler());
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -1795,7 +1798,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     LOCK_open during wait_if_global_read_lock(), other threads could not
     close their tables. This would make a pretty deadlock.
   */
+  thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
+  thd->pop_internal_handler();
+
 
   if (need_start_waiters)
     start_waiting_global_read_lock(thd);
@@ -1906,9 +1912,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_RETURN(1);
   }
 
-  /* Don't give warnings for not found errors, as we already generate notes */
-  thd->no_warnings_for_error= 1;
-
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
@@ -1960,7 +1963,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (thd->current_stmt_binlog_row_based && !dont_log_query)
+    if (!drop_temporary && thd->current_stmt_binlog_row_based && !dont_log_query)
     {
       non_temp_tables_count++;
       /*
@@ -2098,7 +2101,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           tables).  In this case, we can write the original query into
           the binary log.
          */
-        write_bin_log(thd, !error, thd->query, thd->query_length);
+        write_bin_log(thd, !error, thd->query(), thd->query_length());
       }
       else if (thd->current_stmt_binlog_row_based &&
                tmp_table_deleted)
@@ -2157,7 +2160,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 err_with_placeholders:
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   pthread_mutex_unlock(&LOCK_open);
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
@@ -3563,7 +3565,7 @@ static inline void write_create_table_bin_log(THD *thd,
       (!thd->current_stmt_binlog_row_based ||
        (thd->current_stmt_binlog_row_based &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 }
 
 
@@ -5231,9 +5233,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char tmp_path[FN_REFLEN];
 #endif
-  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
+  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
-
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
     global_schema_lock_guard.lock();
@@ -5279,8 +5281,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DBUG_EXECUTE_IF("sleep_create_like_before_copy", my_sleep(6000000););
 
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    flags|= MY_SYNC;
+
   /*
     Create a new table by copying from source table
+    and sync the new table if the flag MY_SYNC is set
 
     Altough exclusive name-lock on target table protects us from concurrent
     DML and DDL operations on it we still want to wrap .FRM creation and call
@@ -5301,7 +5307,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       goto err;
     }
   }
-  else if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  else if (my_copy(src_path, dst_path, flags))
   {
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
@@ -5428,14 +5434,14 @@ binlog:
         write_bin_log(thd, TRUE, query.ptr(), query.length());
       }
       else                                      // Case 1
-        write_bin_log(thd, TRUE, thd->query, thd->query_length);
+        write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     /*
       Case 3 and 4 does nothing under RBR
     */
   }
   else
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
   res= FALSE;
 
@@ -5523,7 +5529,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     error=1;
   if (error)
     goto err;
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
 err:
   ha_autocommit_or_rollback(thd, error);
@@ -6618,7 +6624,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       */
       if (alter_info->build_method == HA_BUILD_ONLINE)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
         goto err;
       }
       alter_info->build_method= HA_BUILD_OFFLINE;
@@ -7013,7 +7019,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length,
+        Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                               0, FALSE, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -7163,9 +7169,19 @@ view_err:
     goto err;
   }
 
+  /*
+   If this is an ALTER TABLE and no explicit row type specified reuse
+   the table's row type.
+   Note : this is the same as if the row type was specified explicitly.
+  */
   if (create_info->row_type == ROW_TYPE_NOT_USED)
   {
+    /* ALTER TABLE without explicit row type */
     create_info->row_type= table->s->row_type;
+  }
+  else
+  {
+    /* ALTER TABLE with specific row type */
     create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
   }
 
@@ -7280,7 +7296,7 @@ view_err:
 
     if (!error)
     {
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);
     }
     else if (error > 0)
@@ -7343,7 +7359,7 @@ view_err:
   {
     if (alter_info->build_method == HA_BUILD_ONLINE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
       goto err;
     }
     alter_info->build_method= HA_BUILD_OFFLINE;
@@ -7423,7 +7439,7 @@ view_err:
       case HA_ALTER_NOT_SUPPORTED:
         if (alter_info->build_method == HA_BUILD_ONLINE)
         {
-          my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query);
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
           close_temporary_table(thd, altered_table, 1, 1);
           goto err;
         }
@@ -7575,7 +7591,7 @@ view_err:
       goto err1;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->current_stmt_binlog_row_based)
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     goto end_temporary;
   }
 
@@ -7682,13 +7698,13 @@ end_online:
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
-                      thd->query, thd->query_length,
+                      thd->query(), thd->query_length(),
                       db, table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
   if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
   {
@@ -8146,8 +8162,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-	      if ((f->type() == MYSQL_TYPE_BLOB) ||
-                  (f->type() == MYSQL_TYPE_VARCHAR))
+        enum_field_types field_type= f->type();
+        /*
+          BLOB and VARCHAR have pointers in their field, we must convert
+          to string; GEOMETRY is implemented on top of BLOB.
+        */
+        if ((field_type == MYSQL_TYPE_BLOB) ||
+            (field_type == MYSQL_TYPE_VARCHAR) ||
+            (field_type == MYSQL_TYPE_GEOMETRY))
 	      {
 		String tmp;
 		f->val_str(&tmp);

@@ -2,7 +2,9 @@
 --source include/have_ndb.inc
 --source have_ndbinfo.inc
 
-SELECT * FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
+       PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
+FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
 
 ## Creation of temporary tables should not be supported by NDBINFO engine
 --error ER_ILLEGAL_HA_CREATE_OPTION

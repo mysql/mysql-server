@@ -130,6 +130,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
            ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
            ../sql/sql_parse.cc ../sql/sql_partition.cc ../sql/sql_plugin.cc 
+           ../sql/debug_sync.cc
            ../sql/sql_prepare.cc ../sql/sql_rename.cc ../sql/sql_repl.cc 
            ../sql/sql_select.cc ../sql/sql_servers.cc
            ../sql/sql_show.cc ../sql/sql_state.c ../sql/sql_string.cc
@@ -162,7 +163,6 @@ FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
     TARGET_LINK_LIBRARIES(mysqlserver ${${ENGINE_LIB_UPPER}_LIBS})
   ENDIF(${ENGINE_LIB_UPPER}_LIBS)
 ENDFOREACH(ENGINE_LIB)
-
 
 ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)

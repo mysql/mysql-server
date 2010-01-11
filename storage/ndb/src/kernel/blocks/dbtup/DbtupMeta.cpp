@@ -213,7 +213,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       jam();
       regTabPtr.p->m_attributes[ind].m_no_of_varsize++;
     }
-    
+    if (null_pos > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }      
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
   } else {
     /* A dynamic attribute. */
@@ -283,8 +288,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
                    fragOperPtr.p->charsetIndex, attrDes2);
   setTabDescrWord(firstTabDesIndex + 1, attrDes2);
 
-  if (ERROR_INSERTED(4009) && attrId == 0 ||
-      ERROR_INSERTED(4010) && lastAttr)
+  if ((ERROR_INSERTED(4009) && attrId == 0) ||
+      (ERROR_INSERTED(4010) && lastAttr))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;

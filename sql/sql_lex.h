@@ -214,10 +214,11 @@ typedef struct st_lex_master_info
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
-    ssl, ssl_verify_server_cert, heartbeat_opt;
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
+  DYNAMIC_ARRAY repl_ignore_server_ids;
 } LEX_MASTER_INFO;
 
 
@@ -1739,13 +1740,6 @@ typedef struct st_lex : public Query_tables_list
 
   const char *stmt_definition_end;
 
-  /*
-    Pointers to part of LOAD DATA statement that should be rewritten
-    during replication ("LOCAL 'filename' REPLACE INTO" part).
-  */
-  const char *fname_start;
-  const char *fname_end;
-  
   /**
     During name resolution search only in the table list given by 
     Name_resolution_context::first_name_resolution_table and

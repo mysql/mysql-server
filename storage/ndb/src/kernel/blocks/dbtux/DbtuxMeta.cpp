@@ -103,8 +103,8 @@ Dbtux::execCREATE_TAB_REQ(Signal* signal)
     }
 
     // error inserts
-    if (ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0 ||
-        ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1) {
+    if ((ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0) ||
+        (ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;
@@ -189,8 +189,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       }
     }
     const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
-    if (ERROR_INSERTED(12003) && attrId == 0 ||
-        ERROR_INSERTED(12004) && lastAttr)
+    if ((ERROR_INSERTED(12003) && attrId == 0) ||
+        (ERROR_INSERTED(12004) && lastAttr))
     {
       errorCode = (TuxAddAttrRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;
@@ -401,21 +401,50 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   jamEntry();
   const AlterIndxImplReq reqCopy = *(const AlterIndxImplReq*)signal->getDataPtr();
   const AlterIndxImplReq* const req = &reqCopy;
-  // set index online after build
+
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->indexId);
-  indexPtr.p->m_state = Index::Online;
-#ifdef VM_TRACE
-  if (debugFlags & DebugMeta) {
-    debugOut << "Online index " << indexPtr.i << " " << *indexPtr.p << endl;
+
+  //Uint32 save = indexPtr.p->m_state;
+  if (refToBlock(req->senderData) != DBDICT)
+  {
+    /**
+     * DICT has a really distorted view of the world...
+     *   ignore it :(
+     */
+    jam();
+    switch(req->requestType){
+    case AlterIndxImplReq::AlterIndexOffline:
+      jam();
+      indexPtr.p->m_state = Index::Dropping;
+      break;
+    case AlterIndxImplReq::AlterIndexBuilding:
+      jam();
+      indexPtr.p->m_state = Index::Building;
+      break;
+    default:
+      jam(); // fall-through
+    case AlterIndxImplReq::AlterIndexOnline:
+      jam();
+      indexPtr.p->m_state = Index::Online;
+      break;
+    }
   }
-#endif
+  
   // success
   AlterIndxImplConf* const conf = (AlterIndxImplConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = req->senderData;
-  sendSignal(req->senderRef, GSN_ALTER_INDX_IMPL_CONF,
-      signal, AlterIndxImplConf::SignalLength, JBB);
+  if (req->senderRef != 0)
+  {
+    /**
+     * TUP cheats and does execute direct
+     *   setting UserRef to 0
+     */
+    jam();
+    sendSignal(req->senderRef, GSN_ALTER_INDX_IMPL_CONF,
+               signal, AlterIndxImplConf::SignalLength, JBB);
+  }
 }
 
 /*

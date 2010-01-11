@@ -26,30 +26,35 @@ if BUILD_NDBMTD
 noinst_LIBRARIES += libsched_mt.a
 endif
 
-libkernel_a_SOURCES = \
-	VMSignal.cpp		\
-	Emulator.cpp		\
-	Configuration.cpp		\
-	WatchDog.cpp \
-        SectionReader.cpp \
-        Mutex.cpp SafeCounter.cpp \
-        Rope.cpp \
-        ndbd_malloc.cpp \
-	ndbd_malloc_impl.cpp \
-	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
-        ArenaPool.cpp \
-	GlobalData.cpp \
-	SafeMutex.cpp \
-	Ndbinfo.cpp NdbinfoTables.cpp
+libkernel_a_SOURCES = VMSignal.cpp \
+                      Emulator.cpp \
+                      Configuration.cpp \
+                      WatchDog.cpp \
+                      SectionReader.cpp \
+                      Mutex.cpp \
+                      SafeCounter.cpp \
+                      Rope.cpp \
+                      ndbd_malloc.cpp \
+                      ndbd_malloc_impl.cpp \
+                      Pool.cpp \
+                      WOPool.cpp \
+                      RWPool.cpp \
+                      DynArr256.cpp \
+                      LockQueue.cpp \
+                      ArenaPool.cpp \
+                      GlobalData.cpp \
+                      SafeMutex.cpp \
+                      Ndbinfo.cpp \
+                      NdbinfoTables.cpp
 
-libsched_a_SOURCES = TimeQueue.cpp		\
+libsched_a_SOURCES = TimeQueue.cpp \
                      ThreadConfig.cpp \
                      FastScheduler.cpp \
                      TransporterCallback_nonmt.cpp \
                      SimulatedBlock_nonmt.cpp \
                      LongSignal_nonmt.cpp \
                      SimplePropertiesSection_nonmt.cpp \
-		     dummy_nonmt.cpp
+                     dummy_nonmt.cpp
 
 libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         TransporterCallback_mt.cpp \

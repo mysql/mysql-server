@@ -18,7 +18,7 @@
 
 #include "ConsoleLogHandler.hpp"
 
-ConsoleLogHandler::ConsoleLogHandler(const NdbOut& out)
+ConsoleLogHandler::ConsoleLogHandler(NdbOut& out)
  : LogHandler(), _out(out)
 {
 }
@@ -53,19 +53,19 @@ void
 ConsoleLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level)
 {
   char str[LogHandler::MAX_HEADER_LENGTH];
-  ndbout << getDefaultHeader(str, pCategory, level);	
+  _out << getDefaultHeader(str, pCategory, level);	
 }
 
 void 
 ConsoleLogHandler::writeMessage(const char* pMsg)
 {
-  ndbout << pMsg;	
+  _out << pMsg;	
 }
 
 void 
 ConsoleLogHandler::writeFooter()
 {
-  ndbout << getDefaultFooter() << flush;
+  _out << getDefaultFooter() << flush;
 }
 
   

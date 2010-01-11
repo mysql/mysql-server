@@ -57,7 +57,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbtux/DbtuxGen.cpp dbtux/DbtuxMeta.cpp dbtux/DbtuxMaint.cpp \
   dbtux/DbtuxNode.cpp dbtux/DbtuxTree.cpp dbtux/DbtuxScan.cpp \
   dbtux/DbtuxSearch.cpp dbtux/DbtuxCmp.cpp dbtux/DbtuxStat.cpp \
-  dbtux/DbtuxDebug.cpp \
+  dbtux/DbtuxDebug.cpp dbtux/DbtuxBuild.cpp \
   LocalProxy.cpp \
   dblqh/DblqhProxy.cpp \
   dbacc/DbaccProxy.cpp \
@@ -86,25 +86,14 @@ include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
 EXTRA_DIST = CMakeLists.txt    \
 	backup/CMakeLists.txt  \
-	cmvmi/CMakeLists.txt   \
-	dbacc/CMakeLists.txt   \
 	dbdict/CMakeLists.txt  \
 	dbdih/CMakeLists.txt   \
 	dblqh/CMakeLists.txt   \
 	dbspj/CMakeLists.txt    \
 	dbtc/CMakeLists.txt    \
 	dbtup/CMakeLists.txt   \
-	dbtux/CMakeLists.txt   \
-	dbutil/CMakeLists.txt  \
-	ndbcntr/CMakeLists.txt \
-	ndbfs/CMakeLists.txt   \
-	qmgr/CMakeLists.txt    \
-	suma/CMakeLists.txt    \
-	trix/CMakeLists.txt    \
 	ndbfs/Win32AsyncFile.cpp \
-	ndbfs/Win32AsyncFile.hpp \
-	dbinfo/CMakeLists.txt
-
+	ndbfs/Win32AsyncFile.hpp
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

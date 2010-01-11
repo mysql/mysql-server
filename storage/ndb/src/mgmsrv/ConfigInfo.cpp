@@ -1761,6 +1761,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
 // 7.0 NodeGroup -> initial, system
 
+  {
+    CFG_DB_MT_BUILD_INDEX,
+    "BuildIndexThreads",
+    DB_TOKEN,
+    "No of threads to use for building ordered indexes during system/node restart",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "128" },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2901,7 +2913,7 @@ ConfigInfo::ConfigInfo()
       {
         Properties values(true); // case insensitive
         // Put the list of allowed enum values in pinfo
-        for (const Typelib* entry = param._typelib;
+        for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
              entry->name != 0; entry++)
           values.put(entry->name, entry->value);
         require(pinfo.put("values", &values));
@@ -5030,7 +5042,7 @@ ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
     if (param._type == ConfigInfo::CI_SECTION &&
         param._paramId == section &&
         (section_type == ~(Uint32)0 || 
-         Uint32(param._section_type) == section_type))
+         ConfigInfo::getSectionType(param) == section_type))
     {
       m_section_name= param._section;
       return;

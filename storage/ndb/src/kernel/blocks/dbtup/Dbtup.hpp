@@ -273,6 +273,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZROWID_ALLOCATED 899
 #define ZINVALID_ALTER_TAB 741
 
+#define ZTOO_MANY_BITS_ERROR 791
+
           /* SOME WORD POSITIONS OF FIELDS IN SOME HEADERS */
 
 #define ZTH_MM_FREE 3                     /* PAGE STATE, TUPLE HEADER PAGE WITH FREE AREA      */
@@ -1320,6 +1322,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     Uint32 m_pageId;            // logical fragment page id
     Uint32 m_tupleNo;           // tuple number on page
     Uint32 m_buildRef;          // Where to send tuples
+    Uint32 m_outstanding;       // If mt-build...
     BuildIndxImplRef::ErrorCode m_errorCode;
     union {
       Uint32 nextPool;
@@ -1331,6 +1334,9 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   ArrayPool<BuildIndexRec> c_buildIndexPool;
   DLList<BuildIndexRec> c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
+
+  int mt_scan_init(Uint32 tableId, Uint32 fragId, Local_key * pos, Uint32 * fragPtrI);
+  int mt_scan_next(Uint32 tableId, Uint32 fragPtrI, Local_key* pos, bool moveNext);
 
   /**
    * Reference to variable part when a tuple is chained
@@ -1490,11 +1496,18 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 
 struct KeyReqStruct {
 
+  KeyReqStruct(EmulatedJamBuffer * _jamBuffer) {
 #if defined VM_TRACE || defined ERROR_INSERT
-  KeyReqStruct() {
     memset(this, 0xf3, sizeof(* this));
-  }
 #endif
+    jamBuffer = _jamBuffer;
+  }
+  KeyReqStruct(Dbtup* tup) {
+#if defined VM_TRACE || defined ERROR_INSERT
+    memset(this, 0xf3, sizeof(* this));
+#endif
+    jamBuffer = tup->jamBuffer();
+  }
   
 /**
  * These variables are used as temporary storage during execution of the
@@ -1514,6 +1527,10 @@ struct KeyReqStruct {
  * contains the real allocated lengths whereas the tuple contains
  * the length of attribute stored.
  */
+  Tablerec* tablePtrP;
+  Fragrecord* fragPtrP;
+  Operationrec * operPtrP;
+  EmulatedJamBuffer * jamBuffer;
   Tuple_header *m_tuple_ptr;
 
   Uint32 check_offset[2];
@@ -1527,7 +1544,10 @@ struct KeyReqStruct {
     Uint32 in_buf_len;
     Uint32 m_lcp_varpart_len;
   };
-  Uint32          attr_descriptor;
+  union {
+    Uint32          attr_descriptor;
+    Uint32 errorCode; // Used in DbtupRoutines read/update functions
+  };
   bool            xfrm_flag;
 
   /* Flag: is tuple in expanded or in shrunken/stored format? */
@@ -1646,7 +1666,7 @@ public:
    * TUX index in TUP has single Uint32 array attribute which stores an
    * index node.  TUX reads and writes the node directly via pointer.
    */
-  int tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
+  int tuxAllocNode(EmulatedJamBuffer*, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
   void tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
   void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
 
@@ -1657,7 +1677,9 @@ public:
    * data with headers.  Uses readAttributes with xfrm option set.
    * Returns number of words or negative (-terrorCode) on error.
    */
-  int tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut);
+  int tuxReadAttrs(EmulatedJamBuffer*,
+                   Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion,
+                   const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used
@@ -1734,8 +1756,11 @@ private:
 
   // Ordered index related
   void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
+  void buildIndexOffline(Signal* signal, Uint32 buildPtrI);
 
   // Tup scan
   void execACC_SCANREQ(Signal* signal);
@@ -2027,6 +2052,7 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   int sendLogAttrinfo(Signal* signal,
+                      KeyReqStruct *req_struct,
                       Uint32 TlogSize,
                       Operationrec * regOperPtr);
 
@@ -2643,11 +2669,11 @@ private:
 // *****************************************************************
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  int TUPKEY_abort(Signal* signal, int error_type);
+  int TUPKEY_abort(KeyReqStruct*, int error_type);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void tupkeyErrorLab(Signal* signal);
+  void tupkeyErrorLab(KeyReqStruct*);
   void do_tup_abortreq(Signal*, Uint32 flags);
   bool do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
@@ -2738,7 +2764,7 @@ private:
   
   void send_TUPKEYREF(Signal* signal,
                       Operationrec* regOperPtr);
-  void early_tupkey_error(Signal* signal);
+  void early_tupkey_error(KeyReqStruct*);
 
   void printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit);
 
@@ -2922,8 +2948,8 @@ private:
   Uint32 getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId);
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(Fragrecord* regFragPtr);
-  Uint32 allocFragPage(Tablerec*, Fragrecord*, Uint32 page_no);
+  Uint32 allocFragPage(Uint32 * err, Fragrecord* regFragPtr);
+  Uint32 allocFragPage(Uint32 * err, Tablerec*, Fragrecord*, Uint32 page_no);
   void releaseFragPage(Fragrecord* regFragPtr, Uint32 logicalPageId, PagePtr);
   void rebuild_page_free_list(Signal*);
   Uint32 get_empty_var_page(Fragrecord* frag_ptr);
@@ -2962,10 +2988,11 @@ private:
 //---------------------------------------------------------------
 //
 // Public methods
-  Uint32* alloc_var_rec(Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
+  Uint32* alloc_var_rec(Uint32 * err,
+                        Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
   void free_var_rec(Fragrecord*, Tablerec*, Local_key*, Ptr<Page>);
-  Uint32* alloc_var_part(Fragrecord*, Tablerec*, Uint32, Local_key*);
-  Uint32 *realloc_var_part(Fragrecord*, Tablerec*, 
+  Uint32* alloc_var_part(Uint32*err,Fragrecord*, Tablerec*, Uint32, Local_key*);
+  Uint32 *realloc_var_part(Uint32 * err, Fragrecord*, Tablerec*,
                            PagePtr, Var_part_ref*, Uint32, Uint32);
   
   void move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
@@ -2975,12 +3002,15 @@ private:
 
   void validate_page(Tablerec*, Var_page* page);
   
-  Uint32* alloc_fix_rec(Fragrecord*const, Tablerec*const, Local_key*,
+  Uint32* alloc_fix_rec(Uint32 * err,
+                        Fragrecord*const, Tablerec*const, Local_key*,
                         Uint32*);
   void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
   
-  Uint32* alloc_fix_rowid(Fragrecord*, Tablerec*, Local_key*, Uint32 *);
-  Uint32* alloc_var_rowid(Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
+  Uint32* alloc_fix_rowid(Uint32 * err,
+                          Fragrecord*, Tablerec*, Local_key*, Uint32 *);
+  Uint32* alloc_var_rowid(Uint32 * err,
+                          Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
 // Private methods
   void convertThPage(Fix_page* regPagePtr,
 		     Tablerec*,
@@ -2998,9 +3028,6 @@ private:
 //---------------------------------------------------------------
 
   Uint32 c_lcp_scan_op;
-  FragrecordPtr   fragptr;
-  OperationrecPtr operPtr;
-  TablerecPtr     tabptr;
 
 // readAttributes and updateAttributes module
 //------------------------------------------------------------------------------------------------------
@@ -3024,6 +3051,7 @@ private:
 
   HostBuffer *hostBuffer;
 
+  NdbMutex c_page_map_pool_mutex;
   DynArr256Pool c_page_map_pool;
   ArrayPool<Operationrec> c_operation_pool;
 
@@ -3070,6 +3098,8 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
+
+  Uint32 m_max_parallel_index_build;
 
   Uint32 c_errorInsert4000TableId;
   Uint32 c_min_list_size[MAX_FREE_LIST + 1];

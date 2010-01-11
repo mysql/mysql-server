@@ -8,5 +8,7 @@ connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
 -- source include/master-slave-reset.inc
 
+connection master;
+sync_slave_with_master;
 # Set the default connection to 'master'
 connection master;

@@ -52,8 +52,8 @@
 #include <ndbapi/NdbDictionary.hpp>
 
 #include <DebuggerNames.hpp>
-#include <../dbtup/Dbtup.hpp>
-#include <../dbdih/Dbdih.hpp>
+#include "../dbtup/Dbtup.hpp"
+#include "../dbdih/Dbdih.hpp"
 
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/CreateNodegroupImpl.hpp>
@@ -74,16 +74,24 @@ extern EventLogger * g_eventLogger;
 //#define EVENT_DEBUG
 //#define EVENT_PH3_DEBUG
 //#define EVENT_DEBUG2
-#if 0
+#if 1
 #undef DBUG_ENTER
 #undef DBUG_PRINT
 #undef DBUG_RETURN
 #undef DBUG_VOID_RETURN
 
+#if 0
 #define DBUG_ENTER(a) {ndbout_c("%s:%d >%s", __FILE__, __LINE__, a);}
 #define DBUG_PRINT(a,b) {ndbout << __FILE__ << ":" << __LINE__ << " " << a << ": "; ndbout_c b ;}
 #define DBUG_RETURN(a) { ndbout_c("%s:%d <", __FILE__, __LINE__); return(a); }
 #define DBUG_VOID_RETURN { ndbout_c("%s:%d <", __FILE__, __LINE__); return; }
+#else
+#define DBUG_ENTER(a)
+#define DBUG_PRINT(a,b)
+#define DBUG_RETURN(a) return a
+#define DBUG_VOID_RETURN return
+#endif
+
 #endif
 
 #define DBG_3R 0
@@ -1830,7 +1838,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
      * We havent started syncing yet
      */
     sendSubCreateRef(signal, senderRef, senderData,
-                     SubCreateRef::NF_FakeErrorREF);
+                     SubCreateRef::NotStarted);
     return;
   }
 
@@ -2736,7 +2744,7 @@ Suma::execSUB_START_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStartRef(signal,
-                    senderRef, senderData, SubStartRef::NF_FakeErrorREF);
+                    senderRef, senderData, SubStartRef::NotStarted);
     return;
   }
 
@@ -3341,7 +3349,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
      * We havent started syncing yet
      */
     sendSubStopRef(signal,
-                   senderRef, senderData, SubStopRef::NF_FakeErrorREF);
+                   senderRef, senderData, SubStopRef::NotStarted);
     return;
   }
 
@@ -4736,7 +4744,7 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
     /**
      * We havent started syncing yet
      */
-    sendSubRemoveRef(signal,  req, SubRemoveRef::NF_FakeErrorREF);
+    sendSubRemoveRef(signal,  req, SubRemoveRef::NotStarted);
     return;
   }
 

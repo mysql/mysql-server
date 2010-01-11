@@ -17,9 +17,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
+#endif
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -151,7 +153,7 @@ struct thr_wait
  */
 static inline
 bool
-yield(struct thr_wait* wait, const struct timespec *timeout,
+yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
@@ -174,7 +176,12 @@ yield(struct thr_wait* wait, const struct timespec *timeout,
    */
   bool waited = (*check_callback)(check_arg);
   if (waited)
-    futex_wait(val, thr_wait::FS_SLEEPING, timeout);
+  {
+    struct timespec timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = nsec;
+    futex_wait(val, thr_wait::FS_SLEEPING, &timeout);
+  }
   xcng(val, thr_wait::FS_RUNNING);
   return waited;
 }
@@ -214,14 +221,11 @@ struct thr_wait
 
 static inline
 bool
-yield(struct thr_wait* wait, const struct timespec *timeout,
+yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
 {
-  Uint32 msec = 
-    (1000 * timeout->tv_sec) + 
-    (timeout->tv_nsec / 1000000);
   struct timespec end;
-  NdbCondition_ComputeAbsTime(&end, msec);
+  NdbCondition_ComputeAbsTime(&end, nsec/1000000);
   NdbMutex_Lock(wait->m_mutex);
 
   Uint32 waits = 0;
@@ -802,7 +806,7 @@ struct thr_data
   Bitmask<(MAX_NTRANSPORTERS+31)/32> m_pending_send_mask;
 
   /* pool for send buffers */
-  struct thread_local_pool<thr_send_page> m_send_buffer_pool;
+  class thread_local_pool<thr_send_page> m_send_buffer_pool;
 
   /* Send buffer for this thread, these are not touched by any other thread */
   struct thr_send_buffer m_send_buffers[MAX_NTRANSPORTERS];
@@ -935,9 +939,17 @@ fifo_used_pages(struct thr_data* selfptr)
 
 static
 void
-job_buffer_full()
+job_buffer_full(struct thr_data* selfptr)
 {
   ndbout_c("job buffer full");
+  abort();
+}
+
+static
+void
+out_of_job_buffer(struct thr_data* selfptr)
+{
+  ndbout_c("out of job buffer");
   abort();
 }
 
@@ -983,7 +995,7 @@ seize_buffer(struct thr_repository* rep, int thr_no, bool prioa)
       {
         if (unlikely(cnt == 0))
         {
-          job_buffer_full();
+          out_of_job_buffer(selfptr);
         }
         break;
       }
@@ -1237,6 +1249,7 @@ retry:
     }
   }
   abort();
+  return NULL;
 }
 
 void
@@ -1538,7 +1551,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
-  signal.theData[2] = (bytes/count);
+  signal.theData[2] = (Uint32)(bytes/count);
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
   sendlocal(g_thr_repository.m_send_buffers[nodeId].m_send_thread,
@@ -1608,7 +1621,14 @@ trp_callback::checkJobBuffer()
        *  a condition to free its execution resources.
        */
 //    usleep(a-few-usec);  /* A micro-sleep would likely have been better... */
+#if defined HAVE_SCHED_YIELD
       sched_yield();
+#elif defined _WIN32
+      SwitchToThread();
+#else
+      NdbSleep_MilliSleep(0);
+#endif
+
     } while (check_job_buffers(rep));
   }
 
@@ -2206,7 +2226,7 @@ insert_signal(thr_job_queue *q, thr_jb_write_state *w, Uint32 prioa,
      */
     if (unlikely(write_index == q->m_head->m_read_index))
     {
-      job_buffer_full();
+      job_buffer_full(0);
     }
     new_buffer->m_len = 0;
     new_buffer->m_prioa = prioa;
@@ -2679,8 +2699,7 @@ init_thread(thr_data *selfptr)
     Uint32 instance = blockToInstance(block);
     tmp.appfmt("%s(%u) ", getBlockName(main), instance);
   }
-  tmp.appfmt("\n");
-  printf(tmp.c_str());
+  printf("%s\n", tmp.c_str());
   fflush(stdout);
 }
 
@@ -2881,10 +2900,8 @@ loop:
       pending_send = do_send(selfptr, TRUE);
     }
 
-    struct timespec wait;
-    wait.tv_sec = 0;
-    wait.tv_nsec = 1 * 1000000;    /* 1 ms */
-    yield(&selfptr->m_waiter, &wait, check_job_buffer_full, selfptr);
+    const Uint32 wait = 1000000;    /* 1 ms */
+    yield(&selfptr->m_waiter, wait, check_job_buffer_full, selfptr);
     goto loop;
   }
 
@@ -2897,9 +2914,7 @@ mt_job_thread_main(void *thr_arg)
 {
   unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
-  struct timespec nowait;
-  nowait.tv_sec = 0;
-  nowait.tv_nsec = 10 * 1000000;    /* 10 ms */
+  const Uint32 nowait = 10 * 1000000;    /* 10 ms */
   Uint32 thrSignalId = 0;
 
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
@@ -2962,7 +2977,7 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        bool waited = yield(&selfptr->m_waiter, &nowait, check_queues_empty,
+        bool waited = yield(&selfptr->m_waiter, nowait, check_queues_empty,
                             selfptr);
         if (waited)
         {
@@ -3302,7 +3317,7 @@ void
 send_buffer_init(Uint32 node, thr_repository::send_buffer * sb)
 {
   char buf[100];
-  snprintf(buf, sizeof(buf), "send lock node %d", node);
+  BaseString::snprintf(buf, sizeof(buf), "send lock node %d", node);
   register_lock(&sb->m_send_lock, buf);
   sb->m_force_send = 0;
   sb->m_send_thread = NO_SEND_THREAD;
@@ -3670,8 +3685,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   static const Uint32 max_wait_seconds = 2;
   NDB_TICKS start = NdbTick_CurrentMillisecond();
   struct timespec waittime;
-  waittime.tv_sec = 0;
-  waittime.tv_nsec = 10*1000*1000;
+  set_timespec_nsec(waittime, 10*1000*1000);
   while (g_thr_repository.stopped_threads < waitFor_count)
   {
     pthread_cond_timedwait(&g_thr_repository.stop_for_crash_cond,
@@ -3948,6 +3962,11 @@ void
 mt_section_unlock()
 {
   unlock(&(g_thr_repository.m_section_lock));
+}
+
+void
+mt_mem_manager_init()
+{
 }
 
 void

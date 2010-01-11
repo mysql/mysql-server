@@ -717,7 +717,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
   }
 #endif
   // set up index keys for this operation
-  setKeyAttrs(frag);
+  setKeyAttrs(c_ctx, frag);
   // scan direction 0, 1
   const unsigned idir = scan.m_descending;
   unpackBound(*scan.m_bound[idir], c_dataBuffer);
@@ -828,7 +828,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   // cannot be moved away from tuple we have locked
   ndbrequire(scan.m_state != ScanOp::Locked);
   // set up index keys for this operation
-  setKeyAttrs(frag);
+  setKeyAttrs(c_ctx, frag);
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
@@ -973,8 +973,8 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
   const int jdir = 1 - 2 * (int)idir;
   unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
   unsigned boundCnt = scan.m_boundCnt[1 - idir];
-  readKeyAttrs(frag, ent, 0, c_entryKey);
-  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_entryKey);
+  readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_entryKey);
+  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_ctx.c_entryKey);
   ndbrequire(ret != NdbSqlUtil::CmpUnknown);
   if (jdir * ret > 0)
     return true;

@@ -63,7 +63,8 @@
 // fragment.
 // 
 Uint32*
-Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
+Dbtup::alloc_fix_rec(Uint32 * err,
+                     Fragrecord* const regFragPtr,
 		     Tablerec* const regTabPtr,
 		     Local_key* key,
 		     Uint32 * out_frag_page_id) 
@@ -78,7 +79,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
-    pagePtr.i = allocFragPage(regFragPtr);
+    pagePtr.i = allocFragPage(err, regFragPtr);
     if (pagePtr.i != RNIL) {
       jam();
 /* ---------------------------------------------------------------- */
@@ -210,7 +211,8 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
 }//Dbtup::freeTh()
 
 Uint32*
-Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
+Dbtup::alloc_fix_rowid(Uint32 * err,
+                       Fragrecord* regFragPtr,
 		       Tablerec* regTabPtr,
 		       Local_key* key,
 		       Uint32 * out_frag_page_id) 
@@ -219,9 +221,8 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   Uint32 idx= key->m_page_idx;
   
   PagePtr pagePtr;
-  if ((pagePtr.i = allocFragPage(regTabPtr, regFragPtr, page_no)) == RNIL)
+  if ((pagePtr.i = allocFragPage(err, regTabPtr, regFragPtr, page_no)) == RNIL)
   {
-    // error code set in allocFragPage
     return 0;
   }
 
@@ -232,7 +233,7 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
     {
-      terrorCode = ZROWID_ALLOCATED;
+      * err = ZROWID_ALLOCATED;
       return 0;
     }
     
@@ -248,7 +249,7 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
     key->m_page_idx = idx;
     return pagePtr.p->m_data + idx;
   case ZTH_MM_FULL:
-    terrorCode = ZROWID_ALLOCATED;
+    * err = ZROWID_ALLOCATED;
     return 0;
   default:
     ndbrequire(false);

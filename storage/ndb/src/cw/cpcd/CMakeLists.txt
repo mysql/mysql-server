@@ -28,8 +28,7 @@ LINK_LIBRARIES(ndbmgmclient
                mysys
                strings
                ndbgeneral
-               ndbportlib
-               ${NDB_SCI_LIBS})
+               ndbportlib)
 
 ADD_EXECUTABLE(ndb_cpcd
         APIService.cpp

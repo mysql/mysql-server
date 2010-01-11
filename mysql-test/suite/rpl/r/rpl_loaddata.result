@@ -41,7 +41,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	1798
+Read_Master_Log_Pos	2010
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -56,7 +56,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	1798
+Exec_Master_Log_Pos	2010
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -74,6 +74,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
@@ -88,7 +90,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	1833
+Read_Master_Log_Pos	2045
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -103,7 +105,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	1833
+Exec_Master_Log_Pos	2045
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -121,6 +123,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 set global sql_slave_skip_counter=1;
 start slave;
 set sql_log_bin=0;
@@ -169,6 +173,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
@@ -197,3 +203,32 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
 ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
 DROP TABLE IF EXISTS t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists b48297_db1;
+drop database if exists b42897_db2;
+create database b48297_db1;
+create database b42897_db2;
+use b48297_db1;
+CREATE TABLE t1 (c1 VARCHAR(256)) engine=MyISAM;;
+use b42897_db2;
+### assertion: works with cross-referenced database
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+use b48297_db1;
+### assertion: works with fully qualified name on current database
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+### assertion: works without fully qualified name on current database
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1;
+### create connection without default database
+### connect (conn2,localhost,root,,*NO-ONE*);
+### assertion: works without stating the default database
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+### disconnect and switch back to master connection
+use b48297_db1;
+Comparing tables master:b48297_db1.t1 and slave:b48297_db1.t1
+DROP DATABASE b48297_db1;
+DROP DATABASE b42897_db2;

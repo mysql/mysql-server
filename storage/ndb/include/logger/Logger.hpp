@@ -136,7 +136,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createConsoleHandler(const NdbOut &out= ndbout);
+  bool createConsoleHandler(NdbOut &out= ndbout);
 
   /**
    * Remove the default console handler.

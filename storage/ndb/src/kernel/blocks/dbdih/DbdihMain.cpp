@@ -16784,8 +16784,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == DumpStateOrd::DihStartLcpImmediately){
+  if (arg == DumpStateOrd::DihStartLcpImmediately)
+  {
+    jam();
     add_lcp_counter(&c_lcpState.ctimer, (1 << 31));
+
+    /**
+     * If sent from local LQH, forward to master
+     */
+    if (cmasterNodeId != getOwnNodeId() &&
+        refToMain(signal->getSendersBlockRef()) == DBLQH)
+    {
+      jam();
+      sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    }
     return;
   }
 
@@ -17989,9 +18001,9 @@ Dbdih::sendToRandomNodes(const char * msg,
 
     for (Uint32 i = 0; i<remove; i++)
     {
-      Uint32 i = rand() % nodes.size();
-      masked.set(nodes[i]);
-      nodes.erase(i);
+      Uint32 rand_node = rand() % nodes.size();
+      masked.set(nodes[rand_node]);
+      nodes.erase(rand_node);
     }
   }
 

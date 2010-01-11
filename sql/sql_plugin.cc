@@ -371,7 +371,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (report & REPORT_TO_USER)
       my_error(ER_UDF_NO_PATHS, MYF(0));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_UDF_NO_PATHS));
+      sql_print_error("%s", ER(ER_UDF_NO_PATHS));
     DBUG_RETURN(0);
   }
   /* If this dll is already loaded just increase ref_count. */
@@ -1523,7 +1523,7 @@ error:
 
 void plugin_shutdown(void)
 {
-  uint i, count= plugin_array.elements, free_slots= 0;
+  uint i, count= plugin_array.elements;
   struct st_plugin_int **plugins, *plugin;
   struct st_plugin_dl **dl;
   DBUG_ENTER("plugin_shutdown");
@@ -1544,18 +1544,13 @@ void plugin_shutdown(void)
     while (reap_needed && (count= plugin_array.elements))
     {
       reap_plugins();
-      for (i= free_slots= 0; i < count; i++)
+      for (i= 0; i < count; i++)
       {
         plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
-        switch (plugin->state) {
-        case PLUGIN_IS_READY:
+        if (plugin->state == PLUGIN_IS_READY)
+        {
           plugin->state= PLUGIN_IS_DELETED;
           reap_needed= true;
-          break;
-        case PLUGIN_IS_FREED:
-        case PLUGIN_IS_UNINITIALIZED:
-          free_slots++;
-          break;
         }
       }
       if (!reap_needed)
@@ -1567,9 +1562,6 @@ void plugin_shutdown(void)
         unlock_variables(NULL, &max_system_variables);
       }
     }
-
-    if (count > free_slots)
-      sql_print_warning("Forcing shutdown of %d plugins", count - free_slots);
 
     plugins= (struct st_plugin_int **) my_alloca(sizeof(void*) * (count+1));
 
@@ -1592,8 +1584,8 @@ void plugin_shutdown(void)
       if (!(plugins[i]->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_FREED |
                                  PLUGIN_IS_DISABLED)))
       {
-        sql_print_information("Plugin '%s' will be forced to shutdown",
-                              plugins[i]->name.str);
+        sql_print_warning("Plugin '%s' will be forced to shutdown",
+                          plugins[i]->name.str);
         /*
           We are forcing deinit on plugins so we don't want to do a ref_count
           check until we have processed all the plugins.
@@ -2077,7 +2069,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   const char *strvalue= "NULL", *str;
   TYPELIB *typelib;
   ulonglong result;
-  uint error_len;
+  uint error_len= 0;                            // init as only set on error
   bool not_used;
   int length;
 
@@ -2676,7 +2668,9 @@ uchar* sys_var_pluginvar::value_ptr(THD *thd, enum_var_type type,
     {
       if (!(value & mask))
         continue;
-      str.append(typelib->type_names[i], typelib->type_lengths[i]);
+      str.append(typelib->type_names[i], typelib->type_lengths
+                                       ? typelib->type_lengths[i]
+                                       : strlen(typelib->type_names[i]));
       str.append(',');
     }
 

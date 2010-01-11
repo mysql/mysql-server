@@ -1027,7 +1027,7 @@ static int write_conflict_row(NDB_SHARE *share,
   }
   {
     uint32 server_id= (uint32)::server_id;
-    uint32 master_server_id= (uint32)active_mi->master_server_id;
+    uint32 master_server_id= (uint32)active_mi->master_id;
     uint64 master_epoch= (uint64)active_mi->master_epoch;
     uint32 count= (uint32)++(cfn_share->m_count);
     if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
@@ -4313,7 +4313,7 @@ int ha_ndbcluster::write_row(uchar *record)
 #ifdef HAVE_NDB_BINLOG
   if (m_share == ndb_apply_status_share && table->in_use->slave_thread)
   {
-    uint32 sid, master_server_id= active_mi->master_server_id;
+    uint32 sid, master_server_id= active_mi->master_id;
     memcpy(&sid, table->field[0]->ptr + (record - table->record[0]), sizeof(sid));
     if (sid == master_server_id)
     {
@@ -8353,7 +8353,7 @@ cleanup_failed:
       if (share && !do_event_op)
         set_binlog_nologging(share);
       ndbcluster_log_schema_op(thd,
-                               thd->query, thd->query_length,
+                               thd->query(), thd->query_length(),
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
@@ -8768,7 +8768,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!is_old_table_tmpfile)
     {
       /* "real" rename table */
-      ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
@@ -8777,7 +8777,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     else
     {
       /* final phase of offline alter table */
-      ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+      ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                                m_dbname, new_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_ALTER_TABLE_COMMIT,
@@ -8972,7 +8972,7 @@ retry_temporary_error1:
       thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, 0, 0, 1);
@@ -10004,7 +10004,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
   ndbcluster_log_schema_op(thd,
-                           thd->query, thd->query_length,
+                           thd->query(), thd->query_length(),
                            db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
   DBUG_VOID_RETURN;
 }
@@ -10659,6 +10659,11 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   DBUG_ENTER("ndbcluster_print_error");
   TABLE_SHARE share;
   const char *tab_name= (error_op) ? error_op->getTableName() : "";
+  if (tab_name == NULL) 
+  {
+    DBUG_ASSERT(tab_name != NULL);
+    tab_name= "";
+  }
   share.db.str= (char*) "";
   share.db.length= 0;
   share.table_name.str= (char *) tab_name;
@@ -12566,6 +12571,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
           *multi_range_found_p= m_multi_ranges + current_range_no;
           /* Copy out data from the new row. */
           unpack_record(table->record[0], m_next_row);
+          table->status= 0;
           /*
             Mark that we have used this row, so we need to fetch a new
             one on the next call.
@@ -13008,9 +13014,11 @@ ndb_util_thread_fail:
   pthread_cond_signal(&COND_ndb_util_ready);
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
+
+  DBUG_LEAVE;                               // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(NULL);
+  return NULL;                              // Avoid compiler warnings
 }
 
 /*
@@ -14066,7 +14074,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
     all mysqld's will read frms from disk and setup new
     event operation for the table (new_op)
   */
-  ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
                            0, 0,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
@@ -14075,7 +14083,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
     all mysqld's will switch to using the new_op, and delete the old
     event operation
   */
-  ndbcluster_log_schema_op(thd, thd->query, thd->query_length,
+  ndbcluster_log_schema_op(thd, thd->query(), thd->query_length(),
                            db, name,
                            0, 0,
                            SOT_ONLINE_ALTER_TABLE_COMMIT,
@@ -14343,13 +14351,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   }
   if (is_tablespace)
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->tablespace_name,
                              0, 0,
                              SOT_TABLESPACE, 0, 0, 0);
   else
     ndbcluster_log_schema_op(thd,
-                             thd->query, thd->query_length,
+                             thd->query(), thd->query_length(),
                              "", alter_info->logfile_group_name,
                              0, 0,
                              SOT_LOGFILE_GROUP, 0, 0, 0);
