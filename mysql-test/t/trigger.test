@@ -1789,18 +1789,28 @@ CONNECTION rl_holder;
 SELECT GET_LOCK('B26162',120);
 
 CONNECTION rl_acquirer;
+let $rl_acquirer_thread_id = `SELECT @@pseudo_thread_id`;
 --send
 SELECT 'rl_acquirer', GET_LOCK('B26162',120), id FROM t2 WHERE id = 1;
 
 CONNECTION wl_acquirer;
+let $wl_acquirer_thread_id = `SELECT @@pseudo_thread_id`;
 SET SESSION LOW_PRIORITY_UPDATES=1;
 SET GLOBAL LOW_PRIORITY_UPDATES=1;
 #need to wait for rl_acquirer to lock on the B26162 lock 
-sleep 2;
+let $wait_condition=
+  SELECT STATE = 'User lock' FROM INFORMATION_SCHEMA.PROCESSLIST
+   WHERE ID = $rl_acquirer_thread_id;
+--source include/wait_condition.inc
 --send
 INSERT INTO t1 VALUES (5);
 
 CONNECTION rl_contender;
+# Wait until wl_acquirer is waiting for the read lock on t2 to be released.
+let $wait_condition=
+  SELECT STATE = 'Locked' FROM INFORMATION_SCHEMA.PROCESSLIST
+   WHERE ID = $wl_acquirer_thread_id;
+--source include/wait_condition.inc
 # must not "see" the row inserted by the INSERT (as it must run before the
 # INSERT)
 --send
