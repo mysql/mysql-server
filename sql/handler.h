@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -305,6 +304,8 @@ enum legacy_db_type
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
   DB_TYPE_MARIA,
+  /** Performance schema engine. */
+  DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -1216,6 +1217,20 @@ public:
   */
   uint auto_inc_intervals_count;
 
+  /**
+    Instrumented table associated with this handler.
+    This member should be set to NULL when no instrumentation is in place,
+    so that linking an instrumented/non instrumented server/plugin works.
+    For example:
+    - the server is compiled with the instrumentation.
+    The server expects either NULL or valid pointers in m_psi.
+    - an engine plugin is compiled without instrumentation.
+    The plugin can not leave this pointer uninitialized,
+    or can not leave a trash value on purpose in this pointer,
+    as this would crash the server.
+  */
+  PSI_table *m_psi;
+
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
@@ -1224,7 +1239,8 @@ public:
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
-    auto_inc_intervals_count(0)
+    auto_inc_intervals_count(0),
+    m_psi(NULL)
     {}
   virtual ~handler(void)
   {
@@ -1823,6 +1839,39 @@ protected:
   void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
+
+  /**
+    Acquire the instrumented table information from a table share.
+    @param share a table share
+    @return an instrumented table share, or NULL.
+  */
+  PSI_table_share *ha_table_share_psi(const TABLE_SHARE *share) const;
+
+  inline void psi_open()
+  {
+    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(table_share != NULL);
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+    {
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      if (share_psi)
+        m_psi= PSI_server->open_table(share_psi, this);
+    }
+#endif
+  }
+
+  inline void psi_close()
+  {
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server && m_psi)
+    {
+      PSI_server->close_table(m_psi);
+      m_psi= NULL; /* instrumentation handle, invalid after close_table() */
+    }
+#endif
+    DBUG_ASSERT(m_psi == NULL);
+  }
 
   /**
     Default rename_table() and delete_table() rename/delete files with a

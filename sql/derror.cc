@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2005 MySQL AB
+/* Copyright (C) 2000-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,10 +107,10 @@ bool read_texts(const char *file_name, const char *language,
   funktpos=0;
   convert_dirname(lang_path, language, NullS);
   (void) my_load_path(lang_path, lang_path, lc_messages_dir);
-  if ((file=my_open(fn_format(name,file_name,
-                              lang_path, "", 4),
-		    O_RDONLY | O_SHARE | O_BINARY,
-		    MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_ERRMSG,
+                             fn_format(name, file_name, lang_path, "", 4),
+                             O_RDONLY | O_SHARE | O_BINARY,
+                             MYF(0))) < 0)
   {
     /*
       Trying pre-5.4 sematics of the --language parameter.
@@ -118,16 +118,18 @@ bool read_texts(const char *file_name, const char *language,
       
       --language=/path/to/english/
     */
-    if ((file= my_open(fn_format(name, file_name, lc_messages_dir, "", 4),
-                       O_RDONLY | O_SHARE | O_BINARY,
-                       MYF(0))) < 0)
+    if ((file= mysql_file_open(key_file_ERRMSG,
+                               fn_format(name, file_name, lc_messages_dir, "", 4),
+                               O_RDONLY | O_SHARE | O_BINARY,
+                               MYF(0))) < 0)
       goto err;
     sql_print_error("An old style --language value with language specific part detected: %s", lc_messages_dir);
     sql_print_error("Use --lc-messages-dir without language specific part instead.");
   }
 
   funktpos=1;
-  if (my_read(file,(uchar*) head,32,MYF(MY_NABP))) goto err;
+  if (mysql_file_read(file, (uchar*) head, 32, MYF(MY_NABP)))
+    goto err;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
@@ -143,7 +145,7 @@ Error message file '%s' had only %d error messages,\n\
 but it should contain at least %d error messages.\n\
 Check that the above file is the right version for this program!",
 		    name,count,error_messages);
-    (void) my_close(file,MYF(MY_WME));
+    (void) mysql_file_close(file, MYF(MY_WME));
     DBUG_RETURN(1);
   }
 
@@ -156,21 +158,21 @@ Check that the above file is the right version for this program!",
   }
   buff= (uchar*) (*point + count);
 
-  if (my_read(file, buff, (size_t) count*2,MYF(MY_NABP)))
+  if (mysql_file_read(file, buff, (size_t) count*2, MYF(MY_NABP)))
     goto err;
   for (i=0, pos= buff ; i< count ; i++)
   {
     (*point)[i]= (char*) buff+uint2korr(pos);
     pos+=2;
   }
-  if (my_read(file, buff, length, MYF(MY_NABP)))
+  if (mysql_file_read(file, buff, length, MYF(MY_NABP)))
     goto err;
 
   for (i=1 ; i < textcount ; i++)
   {
     point[i]= *point +uint2korr(head+10+i+i);
   }
-  (void) my_close(file,MYF(0));
+  (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(0);
 
 err:
@@ -187,7 +189,7 @@ err:
   }
   sql_print_error(errmsg, name);
   if (file != FERR)
-    (void) my_close(file,MYF(MY_WME));
+    (void) mysql_file_close(file, MYF(MY_WME));
   DBUG_RETURN(1);
 } /* read_texts */
 
