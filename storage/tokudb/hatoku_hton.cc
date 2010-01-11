@@ -450,9 +450,6 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
         TOKUDB_TRACE("commit0\n");
     }
-    if (all) {
-        trx->iso_level = hatoku_iso_not_set;
-    }
     reset_stmt_progress(&trx->stmt_progress);
     TOKUDB_DBUG_RETURN(0);
 }
@@ -476,9 +473,6 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("abort0\n");
         }
-    }
-    if (all) {
-        trx->iso_level = hatoku_iso_not_set;
     }
     reset_stmt_progress(&trx->stmt_progress);
     TOKUDB_DBUG_RETURN(0);
