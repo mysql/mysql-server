@@ -1,3 +1,4 @@
+SET GLOBAL max_connections = 1000;
 select 0 as "before_use_test" ;
 before_use_test
 0
