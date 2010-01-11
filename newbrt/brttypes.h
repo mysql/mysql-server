@@ -48,6 +48,11 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 /* Make the FILEID a struct for the same reason. */
 typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
 
+typedef struct {
+    u_int32_t num;
+    FILENUM  *filenums;
+} FILENUMS;
+
 #if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
 #define BOOL_DEFINED
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
@@ -100,6 +105,11 @@ struct brt_msg {
 typedef struct brt_msg BRT_MSG_S, *BRT_MSG;
 
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
+
+typedef int (*generate_keys_vals_for_put_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
+typedef int (*cleanup_keys_vals_for_put_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
+typedef int (*generate_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra);
+typedef int (*cleanup_keys_for_del_func)(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, void *extra);
 
 #define UU(x) x __attribute__((__unused__))
 

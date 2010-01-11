@@ -27,7 +27,7 @@ run_test(void) {
     r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
     r = close(devnul);                      assert(r==0);
 
-    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, 0); 
+    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, NULL, NULL, 0); 
     assert(r == 0);
     return 0;
 }

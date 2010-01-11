@@ -55,6 +55,10 @@ struct __toku_db_env_internal {
     char *data_dir;
     int (*bt_compare)  (DB *, const DBT *, const DBT *);
     int (*dup_compare) (DB *, const DBT *, const DBT *);
+    generate_keys_vals_for_put_func generate_keys_vals_for_put;
+    cleanup_keys_vals_for_put_func  cleanup_keys_vals_for_put;
+    generate_keys_for_del_func      generate_keys_for_del;
+    cleanup_keys_for_del_func       cleanup_keys_for_del;
     //void (*noticecall)(DB_ENV *, db_notices);
     unsigned long cachetable_size;
     CACHETABLE cachetable;

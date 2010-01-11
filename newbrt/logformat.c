@@ -150,6 +150,14 @@ const struct logtype logtypes[] = {
                                {"TXNID",      "xid", 0},
                                {"BYTESTRING", "key", 0},
                                NULLFIELD}},
+    {"enq_insert_multiple", 'm', FA{{"FILENUMS", "filenums", 0},
+                           {"TXNID",      "xid", 0},
+                           {"BYTESTRING", "row", 0},
+                           NULLFIELD}},
+    {"enq_delete_multiple", 'M', FA{{"FILENUMS", "filenums", 0},
+                                    {"TXNID",      "xid", 0},
+                                    {"BYTESTRING", "row", 0},
+                                    NULLFIELD}},
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                           {"BYTESTRING", "comment", 0},
                           NULLFIELD}},
@@ -424,6 +432,10 @@ generate_log_reader (void) {
             DO_FIELDS(ft, lt, {
                     if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
                         fprintf(cf, "    toku_free_BYTESTRING(data->%s);\n", ft->name);
+                        free_count++;
+                    }
+                    else if ( strcmp(ft->type, "FILENUMS") == 0 ) {
+                        fprintf(cf, "    toku_free_FILENUMS(data->%s);\n", ft->name);
                         free_count++;
                     }
                 });

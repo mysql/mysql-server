@@ -40,7 +40,7 @@ run_test(void) {
     r = close(devnul);                      assert(r==0);
 
     // run recovery
-    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, 0); 
+    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, NULL, NULL, 0); 
     assert(r == 0);
 
     return 0;

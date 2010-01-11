@@ -30,6 +30,7 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     return 0;
 }
 static inline void toku_free_BYTESTRING(BYTESTRING val) { toku_free(val.data); }
+static inline void toku_free_FILENUMS(FILENUMS val) { toku_free(val.filenums); }
 
 void toku_set_lsn_increment (uint64_t incr) __attribute__((__visibility__("default")));
 

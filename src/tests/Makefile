@@ -125,6 +125,10 @@ BDB_DONTRUN_TESTS = \
 	recover-delboth-after-checkpoint \
 	filesize \
         isolation \
+	env-put-multiple \
+	recover-lsn-filter-multiple \
+	recover-put-multiple-fdelete-all \
+	recover-put-multiple-fdelete-some \
 #\ ends prev line
 
 # checkpoint tests depend on this header file, 
