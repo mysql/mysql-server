@@ -1,7 +1,7 @@
 #ifndef HA_NDBCLUSTER_INCLUDED
 #define HA_NDBCLUSTER_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,10 @@
 #include <ndbapi_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_file_key key_file_ndb;
+#endif /* HAVE_PSI_INTERFACE */
 
 
 class Ndb;             // Forward declaration
@@ -102,7 +106,7 @@ typedef struct st_ndbcluster_share {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
   THR_LOCK lock;
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   char *key;
   uint key_length;
   THD *util_lock;
@@ -131,9 +135,9 @@ NDB_SHARE_STATE
 get_ndb_share_state(NDB_SHARE *share)
 {
   NDB_SHARE_STATE state;
-  pthread_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   state= share->state;
-  pthread_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
   return state;
 }
 
@@ -141,19 +145,19 @@ inline
 void
 set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 {
-  pthread_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   share->state= state;
-  pthread_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 }
 
 struct Ndb_tuple_id_range_guard {
   Ndb_tuple_id_range_guard(NDB_SHARE* _share) :
     share(_share),
     range(share->tuple_id_range) {
-    pthread_mutex_lock(&share->mutex);
+    mysql_mutex_lock(&share->mutex);
   }
   ~Ndb_tuple_id_range_guard() {
-    pthread_mutex_unlock(&share->mutex);
+    mysql_mutex_unlock(&share->mutex);
   }
   NDB_SHARE* share;
   Ndb::TupleIdRange& range;
@@ -578,6 +582,6 @@ static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
 extern int ndbcluster_terminating;
 extern int ndb_util_thread_running;
-extern pthread_cond_t COND_ndb_util_ready;
+extern mysql_cond_t COND_ndb_util_ready;
 
 #endif /* HA_NDBCLUSTER_INCLUDED */
