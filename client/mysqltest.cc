@@ -1927,13 +1927,20 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
                                                   + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
+  if (name != NULL)
+  {
+    tmp_var->name= reinterpret_cast<char*>(tmp_var) + sizeof(*tmp_var);
+    memcpy(tmp_var->name, name, name_len);
+    tmp_var->name[name_len]= 0;
+  }
+  else
+    tmp_var->name= NULL;
+
   tmp_var->alloced = (v == 0);
 
   if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
   if (val)
   {
     memcpy(tmp_var->str_val, val, val_len);
@@ -2077,12 +2084,9 @@ void var_set(const char *var_name, const char *var_name_end,
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    char oldc= v->name[v->name_len];
-    if (oldc)
-      v->name[v->name_len]= 0;   // setenv() expects \0-terminated strings
-    setenv(v->name, v->str_val, 1); // v->str_val is always \0-terminated
-    if (oldc)
-      v->name[v->name_len]= oldc;
+    /* setenv() expects \0-terminated strings */
+    DBUG_ASSERT(v->name[v->name_len] == 0);
+    setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
 }
