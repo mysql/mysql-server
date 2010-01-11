@@ -92,6 +92,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
    # mininal architecture flags, i486 enables GCC atomics
    ADD_DEFINITIONS(-march=i486)
   ENDIF()
+  IF(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
+    # Workaround linker problems  on OSX 10.4
+    IF(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "10.5")
+      ADD_DEFINITIONS(-fno-common)
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 
