@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,22 +45,22 @@ public:
 
 class PolyLock_mutex: public PolyLock
 {
-  pthread_mutex_t *mutex;
+  mysql_mutex_t *mutex;
 public:
-  PolyLock_mutex(pthread_mutex_t *arg): mutex(arg) {}
-  void rdlock() { pthread_mutex_lock(mutex); }
-  void wrlock() { pthread_mutex_lock(mutex); }
-  void unlock() { pthread_mutex_unlock(mutex); }
+  PolyLock_mutex(mysql_mutex_t *arg): mutex(arg) {}
+  void rdlock() { mysql_mutex_lock(mutex); }
+  void wrlock() { mysql_mutex_lock(mutex); }
+  void unlock() { mysql_mutex_unlock(mutex); }
 };
 
 class PolyLock_rwlock: public PolyLock
 {
-  rw_lock_t *rwlock;
+  mysql_rwlock_t *rwlock;
 public:
-  PolyLock_rwlock(rw_lock_t *arg): rwlock(arg) {}
-  void rdlock() { rw_rdlock(rwlock); }
-  void wrlock() { rw_wrlock(rwlock); }
-  void unlock() { rw_unlock(rwlock); }
+  PolyLock_rwlock(mysql_rwlock_t *arg): rwlock(arg) {}
+  void rdlock() { mysql_rwlock_rdlock(rwlock); }
+  void wrlock() { mysql_rwlock_wrlock(rwlock); }
+  void unlock() { mysql_rwlock_unlock(rwlock); }
 };
 
 class AutoWLock

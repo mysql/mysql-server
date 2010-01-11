@@ -1,0 +1,1 @@
+--loose-enable-performance-schema --loose-performance-schema-max-table-handles=123

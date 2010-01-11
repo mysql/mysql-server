@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -169,11 +169,11 @@ static bool add_hostname(const char *ip_key, const char *hostname)
   if (specialflag & SPECIAL_NO_HOST_CACHE)
     return FALSE;
 
-  pthread_mutex_lock(&hostname_cache->lock);
+  mysql_mutex_lock(&hostname_cache->lock);
 
   bool err_status= add_hostname_impl(ip_key, hostname);
 
-  pthread_mutex_unlock(&hostname_cache->lock);
+  mysql_mutex_unlock(&hostname_cache->lock);
 
   return err_status;
 }
@@ -186,14 +186,14 @@ void inc_host_errors(const char *ip_string)
   char ip_key[HOST_ENTRY_KEY_SIZE];
   prepare_hostname_cache_key(ip_string, ip_key);
 
-  pthread_mutex_lock(&hostname_cache->lock);
+  mysql_mutex_lock(&hostname_cache->lock);
 
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
     entry->connect_errors++;
 
-  pthread_mutex_unlock(&hostname_cache->lock);
+  mysql_mutex_unlock(&hostname_cache->lock);
 }
 
 
@@ -205,14 +205,14 @@ void reset_host_errors(const char *ip_string)
   char ip_key[HOST_ENTRY_KEY_SIZE];
   prepare_hostname_cache_key(ip_string, ip_key);
 
-  pthread_mutex_lock(&hostname_cache->lock);
+  mysql_mutex_lock(&hostname_cache->lock);
 
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
     entry->connect_errors= 0;
 
-  pthread_mutex_unlock(&hostname_cache->lock);
+  mysql_mutex_unlock(&hostname_cache->lock);
 }
 
 
@@ -319,7 +319,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
   {
-    pthread_mutex_lock(&hostname_cache->lock);
+    mysql_mutex_lock(&hostname_cache->lock);
 
     Host_entry *entry= hostname_cache_search(ip_key);
 
@@ -337,12 +337,12 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                          (const char *) (*hostname? *hostname : "null"),
                          (int) *connect_errors));
 
-      pthread_mutex_unlock(&hostname_cache->lock);
+      mysql_mutex_unlock(&hostname_cache->lock);
 
       DBUG_RETURN(FALSE);
     }
 
-    pthread_mutex_unlock(&hostname_cache->lock);
+    mysql_mutex_unlock(&hostname_cache->lock);
   }
 
   /*
