@@ -18,35 +18,45 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbkernel STATIC
-            VMSignal.cpp
-            Emulator.cpp
-            Configuration.cpp
-            WatchDog.cpp
-            SimplePropertiesSection.cpp
-            SectionReader.cpp
-            Mutex.cpp
-            SafeCounter.cpp
-            ndbd_malloc_impl.cpp
-            ndbd_malloc.cpp
-            DynArr256.cpp
-            LockQueue.cpp
-            Pool.cpp
-            RWPool.cpp
-            Rope.cpp
-            WOPool.cpp
-	    GlobalData.cpp
-	    ArenaPool.cpp
-	    SafeMutex.cpp
-            Ndbinfo.cpp
-            NdbinfoTables.cpp
+    VMSignal.cpp
+    Emulator.cpp
+    Configuration.cpp
+    WatchDog.cpp
+    SectionReader.cpp
+    Mutex.cpp
+    SafeCounter.cpp
+    Rope.cpp
+    ndbd_malloc_impl.cpp
+    ndbd_malloc.cpp
+    Pool.cpp
+    WOPool.cpp
+    RWPool.cpp
+    DynArr256.cpp
+    LockQueue.cpp
+    GlobalData.cpp
+    ArenaPool.cpp
+    SafeMutex.cpp
+    Ndbinfo.cpp
+    NdbinfoTables.cpp
 )
+
 ADD_LIBRARY(ndbsched STATIC
-            TimeQueue.cpp
-            ThreadConfig.cpp
-            FastScheduler.cpp
-            TransporterCallback_nonmt.cpp
-            SimulatedBlock_nonmt.cpp
-	    dummy_nonmt.cpp
-	    SimplePropertiesSection_nonmt.cpp
-	    LongSignal_nonmt.cpp
+    TimeQueue.cpp
+    ThreadConfig.cpp
+    FastScheduler.cpp
+    TransporterCallback_nonmt.cpp
+    SimulatedBlock_nonmt.cpp
+    LongSignal_nonmt.cpp
+    SimplePropertiesSection_nonmt.cpp
+    dummy_nonmt.cpp
 )
+
+ADD_LIBRARY(ndbsched_mt STATIC
+    SimulatedBlock_mt.cpp
+    TransporterCallback_mt.cpp
+    LongSignal_mt.cpp
+    SimplePropertiesSection_mt.cpp
+    mt.cpp
+    dummy_mt.cpp
+ )
+

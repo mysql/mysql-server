@@ -252,7 +252,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 /* **************************************************************** */
 /* ********************** TRANSACTION ERROR MODULE **************** */
 /* **************************************************************** */
-int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
+int Dbtup::TUPKEY_abort(KeyReqStruct * req_struct, int error_type)
 {
   switch(error_type) {
   case 1:
@@ -356,10 +356,10 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
     break;
 
   case 39:
-    if (get_trans_state(operPtr.p) == TRANS_TOO_MUCH_AI) {
+    if (get_trans_state(req_struct->operPtrP) == TRANS_TOO_MUCH_AI) {
       jam();
       terrorCode = ZTOO_MUCH_ATTRINFO_ERROR;
-    } else if (get_trans_state(operPtr.p) == TRANS_ERROR_WAIT_TUPKEYREQ) {
+    } else if (get_trans_state(req_struct->operPtrP) == TRANS_ERROR_WAIT_TUPKEYREQ) {
       jam();
       terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
     } else {
@@ -374,23 +374,23 @@ int Dbtup::TUPKEY_abort(Signal* signal, int error_type)
     ndbrequire(false);
     break;
   }//switch
-  tupkeyErrorLab(signal);
+  tupkeyErrorLab(req_struct);
   return -1;
 }
 
-void Dbtup::early_tupkey_error(Signal* signal)
+void Dbtup::early_tupkey_error(KeyReqStruct* req_struct)
 {
-  Operationrec * const regOperPtr = operPtr.p;
+  Operationrec * const regOperPtr = req_struct->operPtrP;
   ndbrequire(!regOperPtr->op_struct.in_active_list);
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(signal, regOperPtr);
+  send_TUPKEYREF(req_struct->signal, regOperPtr);
 }
 
-void Dbtup::tupkeyErrorLab(Signal* signal) 
+void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
 {
-  Operationrec * const regOperPtr = operPtr.p;
+  Operationrec * const regOperPtr = req_struct->operPtrP;
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
 
@@ -421,7 +421,7 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
 
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(signal, regOperPtr);
+  send_TUPKEYREF(req_struct->signal, regOperPtr);
 }
 
 void Dbtup::send_TUPKEYREF(Signal* signal,

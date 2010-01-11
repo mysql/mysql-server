@@ -6,6 +6,7 @@ source include/have_log_bin.inc;
 source include/have_debug.inc;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+RESET MASTER;
 
 CREATE TABLE t1 (a INT);
 

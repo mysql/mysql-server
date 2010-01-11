@@ -8,7 +8,6 @@
 # ${engine}_SOURCES  variable containing source files to produce the library must set before
 # calling this macro
 # ${engine}_LIBS variable containing extra libraries to link with may be set
-
 MACRO(MYSQL_STORAGE_ENGINE engine)
 IF(NOT SOURCE_SUBLIBS)
   # Add common include directories
@@ -26,6 +25,9 @@ IF(NOT SOURCE_SUBLIBS)
       TARGET_LINK_LIBRARIES(${libname} ${${engine}_LIBS})
     ENDIF(${engine}_LIBS)
     ADD_DEPENDENCIES(${libname} GenError)
+    IF(${engine}_LIBS)
+      TARGET_LINK_LIBRARIES(${libname} ${${engine}_LIBS})
+    ENDIF(${engine}_LIBS)
     MESSAGE("build ${engine} as static library")
   ELSEIF(${ENGINE_BUILD_TYPE} STREQUAL "DYNAMIC")
     ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)

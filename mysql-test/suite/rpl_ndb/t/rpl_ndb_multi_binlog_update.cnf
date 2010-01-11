@@ -32,7 +32,7 @@ max_heap_table_size=        1M
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 slave-net-timeout=120
 ndbcluster
-
+ndb-wait-setup=60
 
 
 [mysqld.1.1]

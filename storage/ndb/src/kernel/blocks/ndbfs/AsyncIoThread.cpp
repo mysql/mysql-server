@@ -199,6 +199,9 @@ AsyncIoThread::run()
       allocMemReq(request);
       break;
     }
+    case Request::buildindx:
+      buildIndxReq(request);
+      break;
     default:
       DEBUG(ndbout_c("Invalid Request"));
       abort();
@@ -222,4 +225,14 @@ AsyncIoThread::allocMemReq(Request* request)
   else
     request->error = 1;
   
+}
+
+void
+AsyncIoThread::buildIndxReq(Request* request)
+{
+  mt_BuildIndxReq req;
+  memcpy(&req, &request->par.build.m_req, sizeof(req));
+  req.mem_buffer = request->file->m_page_ptr.p;
+  req.buffer_size = request->file->m_page_cnt * sizeof(GlobalPage);
+  request->error = (* req.func_ptr)(&req);
 }

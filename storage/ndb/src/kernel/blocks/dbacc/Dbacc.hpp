@@ -1,3 +1,4 @@
+/** **/
 /*
    Copyright (C) 2003 MySQL AB
     All rights reserved. Use is subject to license terms.
@@ -180,6 +181,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZWRITE_ERROR 630
 #define ZTO_OP_STATE_ERROR 631
 #define ZTOO_EARLY_ACCESS_ERROR 632
+#define ZDIR_RANGE_FULL_ERROR 633 // on fragment
 #endif
 
 class ElementHeader {
@@ -474,6 +476,11 @@ struct Fragmentrec {
 // flag to avoid accessing table record if no char attributes
 //-----------------------------------------------------------------------------
   Uint8 hasCharAttr;
+
+//-----------------------------------------------------------------------------
+// flag to mark that execEXPANDCHECK2 has failed due to DirRange full
+//-----------------------------------------------------------------------------
+  Uint8 dirRangeFull;
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
@@ -855,6 +862,12 @@ private:
   // Initialisation
   void initData();
   void initRecords();
+
+#ifdef VM_TRACE
+  void debug_lh_vars(const char* where);
+#else
+  void debug_lh_vars(const char* where) {}
+#endif
 
   // Variables
 /* --------------------------------------------------------------------------------- */

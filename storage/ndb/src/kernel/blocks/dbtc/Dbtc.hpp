@@ -1395,10 +1395,10 @@ private:
                             HostRecord * ahostptr,
                             UintR hostId);
   void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
-  void sendCommitLqh(Signal* signal,
-                     TcConnectRecord * const regTcPtr);
-  void sendCompleteLqh(Signal* signal,
+  Uint32 sendCommitLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
+  Uint32 sendCompleteLqh(Signal* signal,
+                         TcConnectRecord * const regTcPtr);
   void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 

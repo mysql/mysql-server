@@ -19,6 +19,7 @@
 #include <kernel_types.h>
 #include <Pool.hpp>
 #include "MemoryChannel.hpp"
+#include <signaldata/BuildIndxImpl.hpp>
 
 // Use this define if you want printouts from AsyncFile class
 //#define DEBUG_ASYNCFILE
@@ -62,7 +63,8 @@ public:
     append_synch,
     rmrf,
     readPartial,
-    allocmem
+    allocmem,
+    buildindx
   };
   Action action;
   union {
@@ -92,6 +94,9 @@ public:
       Block_context* ctx;
       Uint32 requestInfo;
     } alloc;
+    struct {
+      struct mt_BuildIndxReq m_req;
+    } build;
   } par;
   int error;
 
@@ -155,7 +160,16 @@ private:
   NdbMutex* theStartMutexPtr;
   NdbCondition* theStartConditionPtr;
 
+  /**
+   * Alloc mem in FS thread
+   */
   void allocMemReq(Request*);
+
+  /**
+   * Build ordered index in multi-threaded fashion
+   */
+  void buildIndxReq(Request*);
+
 };
 
 #endif

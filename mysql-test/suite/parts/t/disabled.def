@@ -5,3 +5,4 @@ part_supported_sql_func_ndb    : bug#44919 - incorrect testcases
 partition_basic_ndb            : bug#44919 - incorrect testcases
 partition_engine_ndb           : bug#44919 - incorrect testcases
 partition_mgm_lc0_ndb          : bug#44919 - incorrect testcases
+partition_mgm_lc2_ndb          : bug#44919 - incorrect testcases

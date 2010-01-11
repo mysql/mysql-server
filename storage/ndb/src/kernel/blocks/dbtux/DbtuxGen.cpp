@@ -31,8 +31,7 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   debugFlags(0),
 #endif
   c_internalStartPhase(0),
-  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
-  c_dataBuffer(0)
+  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE)
 {
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
@@ -229,11 +228,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
     new (indexPtr.p) Index();
   }
   // allocate buffers
-  c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
-  c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
-  c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
-  c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.jamBuffer = jamBuffer();
+  c_ctx.c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
+  c_ctx.c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
+  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+
   c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -245,14 +247,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 // utils
 
 void
-Dbtux::setKeyAttrs(const Frag& frag)
+Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
 {
-  Data keyAttrs = c_keyAttrs; // global
-  NdbSqlUtil::Cmp** sqlCmp = c_sqlCmp; // global
+  Data keyAttrs = ctx.c_keyAttrs;
+  NdbSqlUtil::Cmp** sqlCmp = ctx.c_sqlCmp; // global
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   for (unsigned i = 0; i < numAttrs; i++) {
-    jam();
+    thrjam(ctx.jamBuffer);
     const DescAttr& descAttr = descEnt.m_descAttr[i];
     Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
     // set attr id and fixed size
@@ -266,9 +268,9 @@ Dbtux::setKeyAttrs(const Frag& frag)
 }
 
 void
-Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
+Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 {
-  ConstData keyAttrs = c_keyAttrs; // global
+  ConstData keyAttrs = ctx.c_keyAttrs;
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   const Uint32 tupVersion = ent.m_tupVersion;
@@ -276,8 +278,10 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
   const Uint32 numAttrs = frag.m_numAttrs - start;
   // skip to start position in keyAttrs only
   keyAttrs += start;
-  int ret = c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupVersion, keyAttrs, numAttrs, keyData);
-  jamEntry();
+  int ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
+                                tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(),
+                                tupVersion, keyAttrs, numAttrs, keyData);
+  thrjamEntry(ctx.jamBuffer);
   // TODO handle error
   ndbrequire(ret > 0);
 #ifdef VM_TRACE
@@ -319,12 +323,12 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
  * Copies whatever fits.
  */
 void
-Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
+Dbtux::copyAttrs(TuxCtx& ctx, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
 {
   unsigned n = frag.m_numAttrs;
   unsigned len2 = maxlen2;
   while (n != 0) {
-    jam();
+    thrjam(ctx.jamBuffer);
     const unsigned dataSize = ah(data1).getDataSize();
     // copy header
     if (len2 == 0)

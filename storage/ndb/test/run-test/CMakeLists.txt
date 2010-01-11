@@ -30,9 +30,9 @@ INCLUDE_DIRECTORIES(
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
  ${CMAKE_SOURCE_DIR}/sql
 )
-LINK_LIBRARIES(ndbNDBT ndbclient dbug mysys strings mysqlclient
-                       ndbdbutil ${NDB_SCI_LIBS} )
+
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
+TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient dbug mysys strings mysqlclient)
 
 INSTALL(TARGETS atrt DESTINATION bin)
 INSTALL(FILES

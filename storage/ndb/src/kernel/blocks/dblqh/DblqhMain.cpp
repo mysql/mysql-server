@@ -168,7 +168,13 @@ static int DEBUG_REDO = 0;
 
 const Uint32 NR_ScanNo = 0;
 
-#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+#ifndef NDBD_TRACENR
+#if defined VM_TRACE
+#define NDBD_TRACENR
+#endif
+#endif
+
+#ifdef NDBD_TRACENR
 #include <NdbConfig.h>
 static NdbOut * tracenrout = 0;
 static int TRACENR_FLAG = 0;
@@ -182,7 +188,7 @@ static int TRACENR_FLAG = 0;
 #define CLEAR_TRACENR_FLAG
 #endif
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)
 #else
@@ -507,11 +513,8 @@ void Dblqh::execCONTINUEB(Signal* signal)
       jam();
       cstartRecReq = SRR_REDO_COMPLETE;
       ndbrequire(c_lcp_complete_fragments.isEmpty());
-      StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-      conf->startingNodeId = getOwnNodeId();
-      conf->senderData = cstartRecReqData;
-      sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-		 StartRecConf::SignalLength, JBB);
+
+      rebuildOrderedIndexes(signal, 0);
       return;
     }
   }
@@ -532,9 +535,13 @@ void Dblqh::execCONTINUEB(Signal* signal)
     return;
   }
   case ZWAIT_REORG_SUMA_FILTER_ENABLED:
-  {
     jam();
     wait_reorg_suma_filter_enabled(signal);
+    return;
+  case ZREBUILD_ORDERED_INDEXES:
+  {
+    Uint32 tableId = signal->theData[1];
+    rebuildOrderedIndexes(signal, tableId);
     return;
   }
   default:
@@ -611,7 +618,7 @@ void Dblqh::execSTTOR(Signal* signal)
     ndbrequire(c_tup != 0 && c_acc != 0 && c_lgman != 0);
     sendsttorryLab(signal);
     
-#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+#ifdef NDBD_TRACENR
 #ifdef VM_TRACE
     out = globalSignalLoggers.getOutputStream();
 #endif
@@ -622,7 +629,7 @@ void Dblqh::execSTTOR(Signal* signal)
     tracenrout = new NdbOut(* new FileOutputStream(out));
 #endif
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
     traceopout = &ndbout;
 #endif
     
@@ -1233,6 +1240,14 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   {
     ndbrequire(cmaxLogFilesInPageZero);
   }
+
+  Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
+  Uint64 limit = totalmb / 3;
+  ndbrequire(limit < Uint64(0xFFFFFFFF));
+  // If less than 33% of REDO free, force LCP
+  c_free_mb_force_lcp_limit = Uint32(limit); 
+  c_free_mb_tail_problem_limit = 4;  // If less than 4Mb set TAIL_PROBLEM
+
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, 
                             &cTransactionDeadlockDetectionTimeout);
@@ -3980,8 +3995,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 #endif /*UNUSED*/
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely(!all.isclear()) &&
-        checkTransporterOverloaded(signal, all, lqhKeyReq) ||
+    if (unlikely(!all.isclear() &&
+                 checkTransporterOverloaded(signal, all, lqhKeyReq)) ||
         ERROR_INSERTED_CLEAR(5047)) {
       jam();
       releaseSections(handle);
@@ -12422,11 +12437,27 @@ template class Vector<TraceLCP::Sig>;
 #else
 #endif
 
+void
+Dblqh::force_lcp(Signal* signal)
+{
+  if (cLqhTimeOutCount == c_last_force_lcp_time)
+  {
+    jam();
+    return;
+  }
+
+  c_last_force_lcp_time = cLqhTimeOutCount;
+  signal->theData[0] = 7099;
+  sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+}
+
 void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(5010);
-  LcpFragOrd * const lcpFragOrd = (LcpFragOrd *)&signal->theData[0];
+
+  LcpFragOrd lcpFragOrdCopy = * (LcpFragOrd *)&signal->theData[0];
+  LcpFragOrd * lcpFragOrd = &lcpFragOrdCopy;
 
   Uint32 lcpId = lcpFragOrd->lcpId;
 
@@ -13061,6 +13092,8 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
 
   for (sltLogPartPtr.i = 0; sltLogPartPtr.i < clogPartFileSize; sltLogPartPtr.i++) {
     jam();
+    bool TchangeMB = false;
+retry:
     ptrAss(sltLogPartPtr, logPartRecord);
     findLogfile(signal, sltLogPartPtr.p->logTailFileNo,
                 sltLogPartPtr, &sltLogFilePtr);
@@ -13147,33 +13180,125 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
       UintR ToldTailFileNo = sltLogPartPtr.p->logTailFileNo;
       UintR ToldTailMByte = sltLogPartPtr.p->logTailMbyte;
 
-      arrGuard(tsltMbyte, clogFileSize);
-      sltLogPartPtr.p->logTailFileNo = 
-         sltLogFilePtr.p->logLastPrepRef[tsltMbyte] >> 16;
 /* ------------------------------------------------------------------------- */
 /*SINCE LOG_MAX_GCI_STARTED ONLY KEEP TRACK OF COMMIT LOG RECORDS WE ALSO    */
 /*HAVE TO STEP BACK THE TAIL SO THAT WE INCLUDE ALL PREPARE RECORDS          */
 /*NEEDED FOR THOSE COMMIT RECORDS IN THIS MBYTE. THIS IS A RATHER            */
 /*CONSERVATIVE APPROACH BUT IT WORKS.                                        */
 /* ------------------------------------------------------------------------- */
+      arrGuard(tsltMbyte, clogFileSize);
+      sltLogPartPtr.p->logTailFileNo =
+        sltLogFilePtr.p->logLastPrepRef[tsltMbyte] >> 16;
       sltLogPartPtr.p->logTailMbyte = 
         sltLogFilePtr.p->logLastPrepRef[tsltMbyte] & 65535;
-      if ((ToldTailFileNo != sltLogPartPtr.p->logTailFileNo) ||
-          (ToldTailMByte != sltLogPartPtr.p->logTailMbyte)) {
+
+      bool tailmoved = !(ToldTailFileNo == sltLogPartPtr.p->logTailFileNo &&
+                         ToldTailMByte == sltLogPartPtr.p->logTailMbyte);
+
+      LogFileRecordPtr tmpfile;
+      tmpfile.i = sltLogPartPtr.p->currentLogfile;
+      ptrCheckGuard(tmpfile, clogFileFileSize, logFileRecord);
+
+      LogPosition head = { tmpfile.p->fileNo, tmpfile.p->currentMbyte };
+      LogPosition tail = { sltLogPartPtr.p->logTailFileNo,
+                           sltLogPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
+                           clogFileSize);
+
+      if (mb <= c_free_mb_force_lcp_limit)
+      {
+        /**
+         * Force a new LCP
+         */
+        force_lcp(signal);
+      }
+
+      if (tailmoved && mb > c_free_mb_tail_problem_limit)
+      {
         jam();
-        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM) {
-          if (sltLogPartPtr.p->firstLogQueue == RNIL) {
+        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM)
+        {
+          if (sltLogPartPtr.p->firstLogQueue == RNIL)
+          {
             jam();
             sltLogPartPtr.p->logPartState = LogPartRecord::IDLE;
-          } else {
+          }
+          else
+          {
             jam();
             sltLogPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-          }//if
-        }//if
-      }//if
-    }
-  }//for
+          }
+        }
+      }
+      else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
+      {
+        jam();
+        /**
+         * Tail didn't move...and we forced a new LCP
+         *   This could be as currentMb, contains backreferences making it
+         *   Check if changing mb forward will help situation
+         */
+        if (mb < 2)
+        {
+          /**
+           * 0 or 1 mb free, no point in trying to changeMbyte forward...
+           */
+          jam();
+          goto next;
+        }
 
+        if (TchangeMB)
+        {
+          jam();
+          /**
+           * We already did move forward...
+           */
+          goto next;
+        }
+
+        TcConnectionrecPtr tmp;
+        tmp.i = sltLogPartPtr.p->firstLogTcrec;
+        if (tmp.i != RNIL)
+        {
+          jam();
+          ptrCheckGuard(tmp, ctcConnectrecFileSize, tcConnectionrec);
+          Uint32 fileNo = tmp.p->logStartFileNo;
+          Uint32 mbyte = tmp.p->logStartPageNo >> ZTWOLOG_NO_PAGES_IN_MBYTE;
+
+          if (fileNo == sltLogPartPtr.p->logTailFileNo &&
+              mbyte == sltLogPartPtr.p->logTailMbyte)
+          {
+            jam();
+            /**
+             * An uncommitted operation...still pending...
+             *   with back-reference to tail...not much to do
+             *   (theoretically we could rewrite log-entry here...
+             *    but this is for future)
+             * skip to next
+             */
+            goto next;
+          }
+        }
+
+        {
+          /**
+           * Try forcing a changeMbyte
+           */
+          jam();
+          logPartPtr = sltLogPartPtr;
+          logFilePtr.i = logPartPtr.p->currentLogfile;
+          ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+          logPagePtr.i = logFilePtr.p->currentLogpage;
+          ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+          changeMbyte(signal);
+          TchangeMB = true; // don't try this twice...
+          goto retry;
+        }
+      }
+    }
+next:
+    (void)1;
+  }//for
 }//Dblqh::setLogTail()
 
 /* ######################################################################### */
@@ -15801,11 +15926,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     jam();
     cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
 
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    conf->senderData = cstartRecReqData;
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
+    rebuildOrderedIndexes(signal, 0);
     return;
   }
 
@@ -15820,6 +15941,73 @@ void Dblqh::execSTART_RECREF(Signal* signal)
   jamEntry();
   ndbrequire(false);
 }//Dblqh::execSTART_RECREF()
+
+void
+Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
+{
+  jamEntry();
+
+  if (tableId == 0)
+  {
+    jam();
+    infoEvent("LQH: Starting to rebuild ordered indexes");
+  }
+
+  if (tableId >= ctabrecFileSize)
+  {
+    jam();
+    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
+    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal,
+               StartRecConf::SignalLength, JBB);
+
+    infoEvent("LQH: Rebuild ordered indexes complete");
+    return;
+  }
+
+  tabptr.i = tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  if (!DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    signal->theData[0] = ZREBUILD_ORDERED_INDEXES;
+    signal->theData[1] = tableId + 1;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+
+  BuildIndxImplReq* const req = (BuildIndxImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = tableId;
+  req->requestType = 0; // unused
+  req->buildId = 0;     // not yet..
+  req->buildKey = 0;    // ..in use
+  req->transId = 0;
+  req->indexType = tabptr.p->tableType;
+  req->indexId = tableId;
+  req->tableId = tabptr.p->primaryTableId;
+  req->parallelism = 0;
+  sendSignal(calcInstanceBlockRef(DBTUP), GSN_BUILD_INDX_IMPL_REQ, signal,
+             BuildIndxImplReq::SignalLength, JBB);
+}
+
+void
+Dblqh::execBUILD_INDX_IMPL_REF(Signal * signal)
+{
+  jamEntry();
+  ndbrequire(false); // TODO error message
+}
+
+void
+Dblqh::execBUILD_INDX_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  BuildIndxImplConf * conf = (BuildIndxImplConf*)signal->getDataPtr();
+  Uint32 tableId = conf->senderData;
+  rebuildOrderedIndexes(signal, tableId + 1);
+  infoEvent("LQH: index %u rebuild done", tableId);
+}
 
 /* ***************>> */
 /*  START_EXEC_SR  > */
@@ -17763,12 +17951,11 @@ void Dblqh::srFourthComp(Signal* signal)
 	return;
       }
     }
+
     cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    conf->senderData = cstartRecReqData;
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-		 StartRecConf::SignalLength, JBB);
+
+    rebuildOrderedIndexes(signal, 0);
+    return;
   } else {
     ndbrequire(false);
   }//if
@@ -20420,8 +20607,6 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       CAN INVOKE THIS SYSTEM CRASH. HOWEVER ONLY   */
 /*       VERY SERIOUS TIMING PROBLEMS.                */
 /* -------------------------------------------------- */
-      signal->theData[0] = 2398;
-      execDUMP_STATE_ORD(signal);
       char buf[100];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
@@ -20430,6 +20615,9 @@ void Dblqh::writeNextLog(Signal* signal)
                            logFilePtr.p->fileNo,
                            logFilePtr.p->currentMbyte);
 
+
+      signal->theData[0] = 2398;
+      execDUMP_STATE_ORD(signal);
       progError(__LINE__, NDBD_EXIT_NO_MORE_REDOLOG, buf);
       systemError(signal, __LINE__);
     }//if
@@ -20450,7 +20638,14 @@ void Dblqh::writeNextLog(Signal* signal)
 
   LogPosition head = { twnlNextFileNo, twnlNextMbyte };
   LogPosition tail = { logPartPtr.p->logTailFileNo, logPartPtr.p->logTailMbyte};
-  if (free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize) <= 4)
+  Uint64 free_mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+  if (free_mb <= c_free_mb_force_lcp_limit)
+  {
+    jam();
+    force_lcp(signal);
+  }
+
+  if (free_mb <= c_free_mb_tail_problem_limit)
   {
     jam();
     logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
@@ -21125,7 +21320,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(arg != 2308);
   }
 
-#ifdef ERROR_INSERT
+#ifdef NDBD_TRACENR
   if (arg == 5712 || arg == 5713)
   {
     if (arg == 5712)
@@ -21224,7 +21419,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	jam();
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
+        {
           ndbrequire(false);
+        }
       }
 
       return;
@@ -21267,7 +21464,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	jam();
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
+        {
           ndbrequire(false);
+        }
       }
       
       return;
@@ -21747,7 +21946,7 @@ void Dblqh::logfileInitCompleteReport(Signal* signal){
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
 }
 
-#if defined ERROR_INSERT
+#ifdef NDBD_TRACENR
 void
 Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
 {

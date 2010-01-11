@@ -281,15 +281,15 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 	  if(0)ndbout_c("%s %s",
 			ConfigInfo::m_ParamInfo[p]._section,
 			ConfigInfo::m_ParamInfo[p]._fname);
-	  if(g_section == CFG_SECTION_CONNECTION &&
-	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0)
-	     ||
-	     g_section == CFG_SECTION_NODE &&
-	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+	  if((g_section == CFG_SECTION_CONNECTION &&
+              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+             ||
+	     (g_section == CFG_SECTION_NODE &&
+              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0)))
 	  {
 	    if(strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
 	    {

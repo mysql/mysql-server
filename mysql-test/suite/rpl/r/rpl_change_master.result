@@ -51,6 +51,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 change master to master_user='root';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -92,6 +94,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 start slave;
 select * from t1;
 n
@@ -140,6 +144,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 change master to master_bind='127.0.0.1';
 show slave status;;
 Slave_IO_State	#
@@ -181,6 +187,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	127.0.0.1
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 start slave;
 create table t1(n int);
 insert into t1 values(1);
@@ -230,6 +238,8 @@ Last_IO_Error
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	127.0.0.1
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 change master to master_bind='1.1.1.1';
 insert into t1 values (3);
 start slave;
@@ -273,6 +283,8 @@ Last_IO_Error	error connecting to master 'root@127.0.0.1:MASTER_PORT' - retry-ti
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	1.1.1.1
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 select * from t1;
 n
 1

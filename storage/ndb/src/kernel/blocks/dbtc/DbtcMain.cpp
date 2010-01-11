@@ -363,6 +363,19 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
     return;
   }
 
+  Uint32 Tnode = hostptr.i;
+  Uint32 lqhWorkers = getNodeInfo(Tnode).m_lqh_workers;
+  if (lqhWorkers == 1)
+  {
+    jam();
+    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, Tnode);
+  }
+  else
+  {
+    jam();
+    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, Tnode);
+  }
+
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
@@ -824,7 +837,17 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         jam();
         con_lineNodes++;
         hostptr.p->hostStatus = HS_ALIVE;
-	c_alive_nodes.set(i);
+        c_alive_nodes.set(i);
+        if (getNodeInfo(i).m_lqh_workers == 1)
+        {
+          jam();
+          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, i);
+        }
+        else
+        {
+          jam();
+          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, i);
+        }
       }//if
     }//if
   }//for
@@ -4844,10 +4867,9 @@ void Dbtc::commit020Lab(Signal* signal)
     /* *********< */
     localTcConnectptr.i = localTcConnectptr.p->nextTcConnect;
     localTcConnectptr.p->tcConnectstate = OS_COMMITTING;
-    sendCommitLqh(signal, localTcConnectptr.p);
+    Tcount += sendCommitLqh(signal, localTcConnectptr.p);
 
     if (localTcConnectptr.i != RNIL) {
-      Tcount = Tcount + 1;
       if (Tcount < 16 && !ERROR_INSERTED(8057) && !ERROR_INSERTED(8073)) {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
@@ -4884,14 +4906,19 @@ void Dbtc::commit020Lab(Signal* signal)
   } while (1);
 }//Dbtc::commit020Lab()
 
-void Dbtc::sendCommitLqh(Signal* signal,
-                         TcConnectRecord * const regTcPtr)
+Uint32
+Dbtc::sendCommitLqh(Signal* signal,
+                    TcConnectRecord * const regTcPtr)
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  Uint32 Tnode = Thostptr.i;
+  Uint32 self = getOwnNodeId();
+  Uint32 ret = (Tnode == self) ? 4 : 1;
 
   Uint32 Tdata[5];
   Tdata[0] = regTcPtr->lastLqhCon;
@@ -4909,15 +4936,13 @@ void Dbtc::sendCommitLqh(Signal* signal,
   }
 
   // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
+  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
   if (send_unpacked) {
-    Uint32* data = signal->getDataPtrSend();
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
-    return;
+    return ret;
   }
 
   if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
@@ -4925,6 +4950,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
     sendPackedSignalLqh(signal, Thostptr.p);
   } else {
     jam();
+    ret = 1;
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
@@ -4933,6 +4959,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
   Thostptr.p->noOfPackedWordsLqh = Tindex + len;
+  return ret;
 }
 
 void
@@ -5242,10 +5269,9 @@ void Dbtc::complete010Lab(Signal* signal)
     /*  COMPLETE  < */
     /* ************ */
     const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
-    sendCompleteLqh(signal, localTcConnectptr.p);
+    Tcount += sendCompleteLqh(signal, localTcConnectptr.p);
     localTcConnectptr.i = nextTcConnect;
     if (localTcConnectptr.i != RNIL) {
-      Tcount++;
       if (Tcount < 16) {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
@@ -5271,14 +5297,19 @@ void Dbtc::complete010Lab(Signal* signal)
   } while (1);
 }//Dbtc::complete010Lab()
 
-void Dbtc::sendCompleteLqh(Signal* signal,
-                           TcConnectRecord * const regTcPtr)
+Uint32
+Dbtc::sendCompleteLqh(Signal* signal,
+                      TcConnectRecord * const regTcPtr)
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId; //last???
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  Uint32 Tnode = Thostptr.i;
+  Uint32 self = getOwnNodeId();
+  Uint32 ret = (Tnode == self) ? 4 : 1;
 
   Uint32 Tdata[3];
   Tdata[0] = regTcPtr->lastLqhCon;
@@ -5287,14 +5318,13 @@ void Dbtc::sendCompleteLqh(Signal* signal,
   Uint32 len = 3;
 
   // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
+  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
   if (send_unpacked) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMPLETE, signal, 3, JBB);
-    return;
+    return ret;
   }
   
   if (Thostptr.p->noOfPackedWordsLqh > 22) {
@@ -5302,6 +5332,7 @@ void Dbtc::sendCompleteLqh(Signal* signal,
     sendPackedSignalLqh(signal, Thostptr.p);
   } else {
     jam();
+    ret = 1;
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
@@ -5310,6 +5341,8 @@ void Dbtc::sendCompleteLqh(Signal* signal,
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
   Thostptr.p->noOfPackedWordsLqh = Tindex + len;
+
+  return ret;
 }
 
 void
@@ -5366,7 +5399,7 @@ Dbtc::sendRemoveMarker(Signal* signal,
   Uint32 len = 3;
 
   // currently packed signals can not address specific instance
-  bool send_unpacked = getNodeInfo(hostPtr.i).m_lqh_workers != 0;
+  bool send_unpacked = getNodeInfo(hostPtr.i).m_lqh_workers > 1;
   if (send_unpacked) {
     jam();
     // first word omitted

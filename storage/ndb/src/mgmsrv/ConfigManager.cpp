@@ -285,6 +285,26 @@ ConfigManager::init_nodeid(void)
 }
 
 
+static void
+reset_dynamic_ports_in_config(const Config* config)
+{
+  ConfigIter iter(config, CFG_SECTION_CONNECTION);
+
+  for(;iter.valid();iter.next()) {
+    Uint32 port;
+    require(iter.get(CFG_CONNECTION_SERVER_PORT, &port) == 0);
+    
+    if ((int)port < 0)
+    {
+      port = 0;
+      ConfigValues::Iterator i2(config->m_configValues->m_config,
+                                iter.m_config);
+      require(i2.set(CFG_CONNECTION_SERVER_PORT, port));
+    } 
+  }
+}
+ 
+
 bool
 ConfigManager::init(void)
 {
@@ -417,6 +437,13 @@ ConfigManager::init(void)
         g_eventLogger->error("Could not fetch config!");
         DBUG_RETURN(false);
       }
+
+      /* 
+        The fetched config may contain dynamic ports for
+        ndbd(s) which have to be reset to 0 before using
+        the config
+      */
+      reset_dynamic_ports_in_config(conf);
 
       if (!config_ok(conf))
         DBUG_RETURN(false);
@@ -558,7 +585,7 @@ ConfigManager::prepareConfigChange(const Config* config)
 void
 ConfigManager::commitConfigChange(void)
 {
-  require(m_prepared_config);
+  require(m_prepared_config != 0);
 
   /* Set new config locally and in all subscribers */
   set_config(m_prepared_config);
@@ -2180,7 +2207,7 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
 
   }
 
-  require(m_config);
+  require(m_config != 0);
   if (!m_packed_config.length())
   {
     // No packed config exist, generate a new one

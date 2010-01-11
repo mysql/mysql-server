@@ -82,6 +82,10 @@ void Dblqh::initData()
   for (Uint32 i = 0; i < 1024; i++) {
     ctransidHash[i] = RNIL;
   }//for
+
+  c_last_force_lcp_time = 0;
+  c_free_mb_force_lcp_limit = 16;
+  c_free_mb_tail_problem_limit = 4;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -260,6 +264,9 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
   addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
   addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
+
+  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dblqh::execBUILD_INDX_IMPL_REF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dblqh::execBUILD_INDX_IMPL_CONF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
