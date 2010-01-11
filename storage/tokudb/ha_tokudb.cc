@@ -2529,26 +2529,6 @@ DBT *ha_tokudb::pack_key(
 }
 
 //
-// There can only be one auto-inc field, so if the first field of any key is
-// auto-inc, This returns true. If true, it sets keynr to be the value of the
-// index that has the auto inc field as the first column of the key.
-//
-bool ha_tokudb::is_auto_inc_first_column (uint* keynr) {
-    bool ret_val = false;
-    for (uint i = 0; i < table->s->keys; i++) {
-        KEY *key = &table->s->key_info[i];
-        KEY_PART_INFO *key_part = &key->key_part[0];
-        Field *field = key_part->field;
-        if (field->flags & AUTO_INCREMENT_FLAG) {
-            ret_val = true;
-            *keynr = i;
-            break;
-        }
-    }
-    return ret_val;
-}
-
-//
 // Reads the last element of dictionary of index keynr, and places
 // the data into table->record[1].
 //
@@ -2781,11 +2761,7 @@ cleanup:
 }
 
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
-    //
-    // make sure delay_updating_ai_metadata is true, iff the auto inc column
-    // is the first column of a key
-    //
-    delay_updating_ai_metadata = share->ai_first_col;
+    delay_updating_ai_metadata = true;
     ai_metadata_update_required = false;
     if (share->try_table_lock) {
         if (tokudb_prelock_empty && may_table_be_empty()) {
@@ -5887,25 +5863,7 @@ void ha_tokudb::init_auto_increment() {
         if (error || value.size != sizeof(share->last_auto_increment)) {
             share->last_auto_increment = 0;
         }
-        if (is_auto_inc_first_column(&auto_inc_keynr)) {
-            share->ai_first_col = true;
-            (void) extra(HA_EXTRA_KEYREAD);
-            error = read_last(auto_inc_keynr);
-            (void) extra(HA_EXTRA_NO_KEYREAD);
-            if (!error) {                
-                ulonglong last_entry = retrieve_auto_increment(
-                    table->field[share->ai_field_index]->key_type(), 
-                    field_offset(table->field[share->ai_field_index], table),
-                    table->record[1]
-                    );
-                if (last_entry > share->last_auto_increment) {
-                    share->last_auto_increment = last_entry;
-                }
-            }
-        }
-        else {
-            share->ai_first_col = false;
-        }
+
         //
         // Now retrieve the initial auto increment value, as specified by create table
         // so if a user does "create table t1 (a int auto_increment, primary key (a)) auto_increment=100",

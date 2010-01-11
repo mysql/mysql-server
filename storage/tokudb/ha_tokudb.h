@@ -52,7 +52,6 @@ typedef struct st_tokudb_share {
     // index of auto increment column in table->field, if auto_inc exists
     //
     uint ai_field_index;
-    bool ai_first_col;
 
     KEY_AND_COL_INFO kc_info;
     
@@ -467,5 +466,4 @@ private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
     int read_last(uint keynr);
-    bool is_auto_inc_first_column (uint* keynr);
 };
