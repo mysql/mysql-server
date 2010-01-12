@@ -1,0 +1,5 @@
+# check how --engine-condition-pushdown and --optimizer-switch
+# influence each other when used together (last wins).
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
