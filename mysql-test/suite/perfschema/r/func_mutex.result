@@ -1,0 +1,113 @@
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/synch/mutex/%'
+   OR name LIKE 'wait/synch/rwlock/%';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
+ENGINE=MyISAM;
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+SELECT * FROM t1 WHERE id = 1;
+id	b
+1	initial value
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+SELECT * FROM t1;
+id	b
+1	initial value
+2	initial value
+3	initial value
+4	initial value
+5	initial value
+6	initial value
+7	initial value
+8	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_fm1_timed;
+test_fm1_timed
+Success
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO'
+WHERE NAME = 'wait/synch/mutex/sql/LOCK_open';
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+SELECT * FROM t1 WHERE id = 1;
+id	b
+1	initial value
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+SELECT * FROM t1;
+id	b
+1	initial value
+2	initial value
+3	initial value
+4	initial value
+5	initial value
+6	initial value
+7	initial value
+8	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_timed;
+test_fm2_timed
+Success
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+SELECT * FROM t1 WHERE id = 1;
+id	b
+1	initial value
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
+SELECT * FROM t1;
+id	b
+1	initial value
+2	initial value
+3	initial value
+4	initial value
+5	initial value
+6	initial value
+7	initial value
+8	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
+SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_fm1_rw_timed;
+test_fm1_rw_timed
+Success
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO'
+WHERE NAME = 'wait/synch/rwlock/sql/LOCK_grant';
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+SELECT * FROM t1 WHERE id = 1;
+id	b
+1	initial value
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
+SELECT * FROM t1;
+id	b
+1	initial value
+2	initial value
+3	initial value
+4	initial value
+5	initial value
+6	initial value
+7	initial value
+8	initial value
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE (EVENT_NAME = 'wait/synch/rwlock/sql/LOCK_grant'));
+SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_rw_timed;
+test_fm2_rw_timed
+Success
+DROP TABLE t1;
