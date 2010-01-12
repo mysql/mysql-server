@@ -1171,8 +1171,7 @@ sp_head::execute(THD *thd)
     We should also save Item tree change list to avoid rollback something
     too early in the calling query.
   */
-  old_change_list= thd->change_list;
-  thd->change_list.empty();
+  thd->change_list.move_elements_to(&old_change_list);
   /*
     Cursors will use thd->packet, so they may corrupt data which was prepared
     for sending by upper level. OTOH cursors in the same routine can share this
@@ -1318,9 +1317,7 @@ sp_head::execute(THD *thd)
   /* Restore all saved */
   old_packet.swap(thd->packet);
   DBUG_ASSERT(thd->change_list.is_empty());
-  thd->change_list= old_change_list;
-  /* To avoid wiping out thd->change_list on old_change_list destruction */
-  old_change_list.empty();
+  old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->query_id= old_query_id;
   DBUG_ASSERT(!thd->derived_tables);
