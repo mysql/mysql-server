@@ -615,8 +615,10 @@ void free_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/* This works because items are allocated with sql_alloc() */
-
+/**
+   This works because items are allocated with sql_alloc().
+   @note The function also handles null pointers (empty list).
+*/
 void cleanup_items(Item *item)
 {
   DBUG_ENTER("cleanup_items");  
