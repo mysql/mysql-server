@@ -104,8 +104,8 @@ SET @@global.net_read_timeout = -1024;
 SELECT @@global.net_read_timeout;
 SET @@global.net_read_timeout = 655360354;
 SELECT @@global.net_read_timeout;
---Error ER_PARSE_ERROR
-SET @@global.net_read_timeout = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_read_timeout = 65530.34;
 SELECT @@global.net_read_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.net_read_timeout = test;
@@ -115,11 +115,10 @@ SET @@session.net_read_timeout = 0;
 SELECT @@session.net_read_timeout;
 SET @@session.net_read_timeout = -2;
 SELECT @@session.net_read_timeout;
---Error ER_PARSE_ERROR
-SET @@session.net_read_timeout = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.net_read_timeout = 65530.34;
 SET @@session.net_read_timeout = 6555015425;
 SELECT @@session.net_read_timeout;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.net_read_timeout = test;

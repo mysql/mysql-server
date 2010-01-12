@@ -30,6 +30,7 @@
 #include "sql_trigger.h"
 #include "sql_prepare.h"
 #include "probes_mysql.h"
+#include "set_var.h"
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -134,7 +135,7 @@ static bool xa_trans_rollback(THD *thd)
 
   bool status= test(ha_rollback(thd));
 
-  thd->options&= ~(ulong) OPTION_BEGIN;
+  thd->variables.option_bits&= ~(ulong) OPTION_BEGIN;
   thd->transaction.all.modified_non_trans_table= FALSE;
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
@@ -169,18 +170,18 @@ bool end_active_trans(THD *thd)
              xa_state_names[thd->transaction.xid_state.xa_state]);
     DBUG_RETURN(1);
   }
-  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
+  if (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
-    DBUG_PRINT("info",("options: 0x%llx", thd->options));
+    DBUG_PRINT("info",("options: 0x%llx", thd->variables.option_bits));
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables)
-      thd->options&= ~OPTION_TABLE_LOCK;
+      thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
   }
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
   DBUG_RETURN(error);
 }
@@ -204,7 +205,7 @@ bool begin_trans(THD *thd)
     error= -1;
   else
   {
-    thd->options|= OPTION_BEGIN;
+    thd->variables.option_bits|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
   }
   return error;
@@ -374,25 +375,34 @@ bool is_log_table_write_query(enum enum_sql_command command)
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
-void execute_init_command(THD *thd, sys_var_str *init_command_var,
-			  rw_lock_t *var_mutex)
+void execute_init_command(THD *thd, LEX_STRING *init_command,
+			  rw_lock_t *var_lock)
 {
   Vio* save_vio;
   ulong save_client_capabilities;
 
+  rw_rdlock(var_lock);
+  if (!init_command->length)
+  {
+    rw_unlock(var_lock);
+    return;
+  }
+
+  /*
+    copy the value under a lock, and release the lock.
+    init_command has to be executed without a lock held,
+    as it may try to change itself
+  */
+  size_t len= init_command->length;
+  char *buf= thd->strmake(init_command->str, len);
+  rw_unlock(var_lock);
+
 #if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
-  thd->profiling.set_query_source(init_command_var->value,
-                                  init_command_var->value_length);
+  thd->profiling.set_query_source(buf, len);
 #endif
 
   thd_proc_info(thd, "Execution of init_command");
-  /*
-    We need to lock init_command_var because
-    during execution of init_command_var query
-    values of init_command_var can't be changed
-  */
-  rw_rdlock(var_mutex);
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
   /*
@@ -401,10 +411,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
-  dispatch_command(COM_QUERY, thd,
-                   init_command_var->value,
-                   init_command_var->value_length);
-  rw_unlock(var_mutex);
+  dispatch_command(COM_QUERY, thd, buf, len);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
 
@@ -426,9 +433,6 @@ static void handle_bootstrap_impl(THD *thd)
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
 #endif /* EMBEDDED_LIBRARY */
-
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
 
   thd_proc_info(thd, 0);
   thd->version=refresh_version;
@@ -657,7 +661,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
     thd->transaction.all.modified_non_trans_table= FALSE;
     break;
   case COMMIT_RELEASE:
@@ -675,7 +679,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
     thd->transaction.all.modified_non_trans_table= FALSE;
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
@@ -728,7 +732,7 @@ bool do_command(THD *thd)
     This thread will do a blocking read from the client which
     will be interrupted when the next command is received from
     the client, the connection is closed or "net_wait_timeout"
-    number of seconds has passed
+    number of seconds has passed.
   */
   my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
@@ -1847,8 +1851,6 @@ bool sp_process_definer(THD *thd)
     TODO: this is workaround. right way will be move invalidating in
     the unlock procedure.
     - TODO: use check_change_password()
-    - JOIN is not supported yet. TODO
-    - SUSPEND and FOR MIGRATE are not supported yet. TODO
 
   @retval
     FALSE       OK
@@ -2541,7 +2543,7 @@ case SQLCOM_PREPARE:
     {
       /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
       if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-        thd->options|= OPTION_KEEP_LOG;
+        thd->variables.option_bits|= OPTION_KEEP_LOG;
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
         res= mysql_create_like_table(thd, create_table, select_tables,
@@ -3262,7 +3264,7 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->options |
+			select_lex->options | thd->variables.option_bits |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                         OPTION_SETUP_TABLES_DONE,
 			del_result, unit, select_lex);
@@ -3303,7 +3305,7 @@ end_with_restore_list:
         lex->drop_if_exists= 1;
 
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->options|= OPTION_KEEP_LOG;
+      thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
     /* DDL and binlog write order protected by LOCK_open */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
@@ -3392,11 +3394,6 @@ end_with_restore_list:
     if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
          || open_and_lock_tables(thd, all_tables)))
       goto error;
-    if (lex->one_shot_set && not_all_support_one_shot(lex_var_list))
-    {
-      my_error(ER_RESERVED_SYNTAX, MYF(0), "SET ONE_SHOT");
-      goto error;
-    }
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
       /*
@@ -3429,10 +3426,10 @@ end_with_restore_list:
       false, mysqldump will not work.
     */
     unlock_locked_tables(thd);
-    if (thd->options & OPTION_TABLE_LOCK)
+    if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
       end_active_trans(thd);
-      thd->options&= ~(OPTION_TABLE_LOCK);
+      thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
     }
     if (thd->global_read_lock)
       unlock_global_read_lock(thd);
@@ -3450,7 +3447,7 @@ end_with_restore_list:
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
     thd->in_lock_tables=1;
-    thd->options|= OPTION_TABLE_LOCK;
+    thd->variables.option_bits |= OPTION_TABLE_LOCK;
 
     if (!(res= simple_open_n_lock_tables(thd, all_tables)))
     {
@@ -3471,7 +3468,6 @@ end_with_restore_list:
       */
       ha_autocommit_or_rollback(thd, 1);
       end_active_trans(thd);
-      thd->options&= ~(OPTION_TABLE_LOCK);
     }
     thd->in_lock_tables=0;
     break;
@@ -4037,7 +4033,7 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if (((thd->options & OPTION_KEEP_LOG) || 
+        if (((thd->variables.option_bits & OPTION_KEEP_LOG) || 
              thd->transaction.all.modified_non_trans_table) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -4052,7 +4048,7 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_SAVEPOINT:
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+    if (!(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
           thd->in_sub_stmt) || !opt_using_transactions)
       my_ok(thd);
     else
@@ -4609,7 +4605,7 @@ create_sp_error:
       break;
     }
     if (thd->lex->xa_opt != XA_NONE)
-    { // JOIN is not supported yet. TODO
+    { /// @todo JOIN is not supported yet.
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
@@ -4635,14 +4631,14 @@ create_sp_error:
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
     thd->transaction.all.modified_non_trans_table= FALSE;
-    thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
+    thd->variables.option_bits= ((thd->variables.option_bits & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     my_ok(thd);
     break;
   case SQLCOM_XA_END:
     /* fake it */
     if (thd->lex->xa_opt != XA_NONE)
-    { // SUSPEND and FOR MIGRATE are not supported yet. TODO
+    { /// @todo SUSPEND and FOR MIGRATE are not supported yet.
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
@@ -4741,7 +4737,7 @@ create_sp_error:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+    thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
@@ -5470,7 +5466,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 			0, no_errors, 0))
     return TRUE;
   
-    return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
+  return check_grant_routine(thd, want_access, tables, is_proc, no_errors);
 }
 
 
@@ -5699,9 +5695,9 @@ void THD::reset_for_next_command()
     OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
     in ha_rollback_trans() about some tables couldn't be rolled back.
   */
-  if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (!(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
-    thd->options&= ~OPTION_KEEP_LOG;
+    thd->variables.option_bits&= ~OPTION_KEEP_LOG;
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
@@ -7324,7 +7320,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   }
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
-  if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && !select_lex->where)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));

@@ -93,8 +93,8 @@ Warning	1292	Truncated incorrect max_tmp_tables value: '429496729500'
 SELECT @@global.max_tmp_tables;
 @@global.max_tmp_tables
 4294967295
-SET @@global.max_tmp_tables = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_tmp_tables = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_tmp_tables'
 SELECT @@global.max_tmp_tables;
 @@global.max_tmp_tables
 4294967295
@@ -127,8 +127,8 @@ Warning	1292	Truncated incorrect max_tmp_tables value: '-1'
 SELECT @@session.max_tmp_tables;
 @@session.max_tmp_tables
 1
-SET @@session.max_tmp_tables = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.max_tmp_tables = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_tmp_tables'
 SET @@session.max_tmp_tables = 10737418241;
 Warnings:
 Warning	1292	Truncated incorrect max_tmp_tables value: '10737418241'

@@ -25,7 +25,8 @@
 #include <m_string.h>
 
 /*
-  Alloc for things we don't nead to free
+  Alloc for things we don't nend to free run-time (that only
+  should be free'd on exit)
 
   SYNOPSIS
     my_once_alloc()
@@ -100,7 +101,7 @@ void *my_once_memdup(const void *src, size_t len, myf myflags)
 
 
 /*
-  Deallocate everything used by my_once_alloc
+  Deallocate everything that was allocated with my_once_alloc
 
   SYNOPSIS
     my_once_free()

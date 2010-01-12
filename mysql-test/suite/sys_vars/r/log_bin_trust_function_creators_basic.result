@@ -2,10 +2,6 @@ SET @start_global_value = @@global.log_bin_trust_function_creators;
 SELECT @start_global_value;
 @start_global_value
 1
-'Bug# 34876: TRUE value is coming as Default'
-SET @start_session_value = @@session.log_bin_trust_function_creators;
-ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable
-'Bug# 34881: According to documentation the scope of this variable is GLOBAL as well as SESSION too';
 '#--------------------FN_DYNVARS_063_01-------------------------#'
 SET @@global.log_bin_trust_function_creators = TRUE;
 SET @@global.log_bin_trust_function_creators = DEFAULT;
@@ -55,7 +51,7 @@ ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the valu
 SET @@global.log_bin_trust_function_creators = "OFFF";
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OFFF'
 SET @@global.log_bin_trust_function_creators = OF;
-'Bug# 34828: OF is also working as OFF and no error is coming';
+ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OF'
 SET @@global.log_bin_trust_function_creators = TTRUE;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'TTRUE'
 SET @@global.log_bin_trust_function_creators = FELSE;
@@ -65,7 +61,7 @@ ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the valu
 SET @@global.log_bin_trust_function_creators = 65536;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of '65536'
 SET @@global.log_bin_trust_function_creators = 65530.34;
-ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of '65530'
+ERROR 42000: Incorrect argument type to variable 'log_bin_trust_function_creators'
 SET @@global.log_bin_trust_function_creators = test;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_063_06-----------------------#'

@@ -46,10 +46,6 @@ SELECT @start_value;
 SET @@global.log_output = FILE;
 SET @@global.log_output = DEFAULT;
 SELECT @@global.log_output;
---echo 'Bug# 34876: Documentation specifies a DEFAULT value of TABLE whereas';
---echo 'DEFAULT value is FILE. Also note that initial value is different';
---echo 'from DEFAULT';
-
 
 --echo '#---------------------FN_DYNVARS_065_02-------------------------#'
 ################################################## 
@@ -61,9 +57,6 @@ SET @@global.log_output = NULL;
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = "";
-SELECT @@global.log_output;
---echo 'Bug# 34838: Empty value is allowed where as it is not specified in';
---echo 'documentation';
 
 --echo '#--------------------FN_DYNVARS_065_03------------------------#'
 ######################################################################## 
@@ -103,9 +96,6 @@ SELECT @@global.log_output;
 SET @@global.log_output = ',TABLE';
 SELECT @@global.log_output;
 
-SET @@global.log_output = ',';
-SELECT @@global.log_output;
-
 SET @@global.log_output = 'TABLE,,FILE,,,';
 SELECT @@global.log_output;
 
@@ -117,33 +107,25 @@ SELECT @@global.log_output;
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = -1;
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = TAB;
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = NIL;
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = 'FIL';
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = 'T';
 
 # use of space in value
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = 'TABLE, FILE';
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = ' TABLE,FILE';
-
-SET @@global.log_output = ', ';
-SELECT @@global.log_output;
-SET @@global.log_output = ' ';
-SELECT @@global.log_output;
-SET @@global.log_output = '   ';
-SELECT @@global.log_output;
-
---echo 'Bug: The behavior of space in value is not consistent.';
---echo 'Some times it is trimmed and some times not.';
---echo 'The space before and after value is not accepted where as space';
---echo 'between comma is accepted.';
-
 
 --echo '#-------------------FN_DYNVARS_065_05----------------------------#'
 ######################################################################
@@ -208,6 +190,7 @@ SET @@global.log_output = 8;
 
 SET @@global.log_output = TRUE;
 SELECT @@global.log_output;
+
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = FALSE;
 SELECT @@global.log_output;

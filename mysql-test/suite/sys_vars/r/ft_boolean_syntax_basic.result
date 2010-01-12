@@ -93,9 +93,6 @@ SELECT @global_start_value;
 @global_start_value
 + -><()~*:""&|
 SET @@global.ft_boolean_syntax = @global_start_value;
-ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
-'Bug# 34883: ft_boolean_syntax cant be assigned values from session temporary';
-'variables';
 SET @@global.ft_boolean_syntax = DEFAULT;
 SELECT @@global.ft_boolean_syntax;
 @@global.ft_boolean_syntax
