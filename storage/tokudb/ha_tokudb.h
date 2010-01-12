@@ -439,7 +439,8 @@ public:
     int unpack_blobs(
         uchar* record,
         const uchar* from_tokudb_blob,
-        u_int32_t num_blob_bytes
+        u_int32_t num_blob_bytes,
+        bool check_bitmap
         );
     int unpack_row(
         uchar* record, 

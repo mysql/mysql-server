@@ -2024,7 +2024,8 @@ cleanup:
 int ha_tokudb::unpack_blobs(
     uchar* record,
     const uchar* from_tokudb_blob,
-    u_int32_t num_bytes
+    u_int32_t num_bytes,
+    bool check_bitmap
     )
 {
     uint error = 0;
@@ -2047,13 +2048,18 @@ int ha_tokudb::unpack_blobs(
     memcpy(blob_buff, from_tokudb_blob, num_bytes);
     buff= blob_buff;
     for (uint i = 0; i < share->kc_info.num_blobs; i++) {
-        Field* field = table->field[share->kc_info.blob_fields[i]];
+        u_int32_t curr_field_index = share->kc_info.blob_fields[i]; 
+        bool skip = check_bitmap ? 
+            !(bitmap_is_set(table->read_set,curr_field_index) || 
+                bitmap_is_set(table->write_set,curr_field_index)) : 
+            false;
+        Field* field = table->field[curr_field_index];
         u_int32_t len_bytes = field->row_pack_length();
         buff = unpack_toku_field_blob(
             record + field_offset(field, table),
             buff,
             len_bytes,
-            false
+            skip
             );
     }
 
@@ -2081,7 +2087,6 @@ int ha_tokudb::unpack_row(
     //
     /* Copy null bits */
     int error = 0;
-    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
     const uchar* fixed_field_ptr = (const uchar *) row->data;
     const uchar* var_field_offset_ptr = NULL;
     const uchar* var_field_data_ptr = NULL;
@@ -2152,7 +2157,8 @@ int ha_tokudb::unpack_row(
         error = unpack_blobs(
             record,
             var_field_data_ptr,
-            row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data)
+            row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data),
+            false
             );
         if (error) {
             goto exit;
@@ -2218,7 +2224,8 @@ int ha_tokudb::unpack_row(
             error = unpack_blobs(
                 record,
                 var_field_data_ptr,
-                row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data)
+                row->size - (u_int32_t)(var_field_data_ptr - (const uchar *)row->data),
+                true
                 );
             if (error) {
                 goto exit;
@@ -2227,7 +2234,6 @@ int ha_tokudb::unpack_row(
     }
     error = 0;
 exit:
-    dbug_tmp_restore_column_map(table->write_set, old_map);
     return error;
 }
 
@@ -4522,8 +4528,6 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     else {
         end_dbt_data = share->key_file[active_index]->dbt_pos_infty();
     }
-
-    
 
     error = share->key_file[active_index]->pre_acquire_read_lock(
         share->key_file[active_index], 
