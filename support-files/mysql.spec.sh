@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,9 @@
 %{!?_with_yassl:%define YASSL_BUILD 0}
 
 %if %{STATIC_BUILD}
-%define release 0
+%define release 1
 %else
-%define release 0.glibc23
+%define release 1.glibc23
 %endif
 %define license GPL
 %define mysqld_user     mysql
@@ -64,7 +64,7 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Version:	@MYSQL_NO_DASH_VERSION@
+Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
 License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
@@ -818,6 +818,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Jan 11 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Change RPM file naming:
+  - Suffix like "-m2", "-rc" becomes part of version as "_m2", "_rc".
+  - Release counts from 1, not 0.
+
 * Fri Nov 07 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Correct yesterday's fix, so that it also works for the last flag.
