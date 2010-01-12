@@ -1378,6 +1378,10 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
+  /* Close and old connections to MySQL */
+  if (mysql)
+    mysql_close(mysql);
+
   mysql= mysql_init(NULL);
 
   if (!mysql)
