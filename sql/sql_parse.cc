@@ -3402,6 +3402,12 @@ end_with_restore_list:
     if (check_access(thd,CREATE_ACL,lex->name.str, 0, 1, 0,
                      is_schema_db(lex->name.str)))
       break;
+    if (thd->locked_tables_mode)
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
                               lex->name.str), &create_info, 0);
     break;
