@@ -3407,7 +3407,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   bool error;
   Query_arena *save_stmt_arena= thd->stmt_arena;
   Item_change_list save_change_list;
-  thd->change_list= save_change_list;
+  thd->change_list.move_elements_to(&save_change_list);
 
   state= CONVENTIONAL_EXECUTION;
 
@@ -3431,7 +3431,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= save_stmt_arena;
 
-  save_change_list= thd->change_list;
+  save_change_list.move_elements_to(&thd->change_list);
 
   /* Items and memory will freed in destructor */
 
