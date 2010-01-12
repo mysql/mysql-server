@@ -1,3 +1,5 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted. .*");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave. .*");
 ### NOT filtered database => assertion: warnings ARE shown
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a int, b int, primary key (a));

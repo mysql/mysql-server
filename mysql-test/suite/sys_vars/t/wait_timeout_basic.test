@@ -1,0 +1,216 @@
+############## mysql-test\t\wait_timeout_basic.test ###########################
+#                                                                             #
+# Variable Name: wait_timeout                                                 #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Sharique Abdullah                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable wait_timeout             #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html#option_mysqld_wait_timeouts                   #
+#                                                                             #
+###############################################################################
+# Due to differnces between linux and windows in the results
+
+--source include/not_windows.inc
+--source include/load_sysvars.inc
+
+############################################################
+#           START OF wait_timeout TESTS                    #
+############################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.wait_timeout;
+SET @start_session_value = @@session.wait_timeout;
+
+--echo '#--------------------FN_DYNVARS_005_01-------------------------#'
+############################################################
+#     Display the DEFAULT value of wait_timeout            #
+############################################################
+
+SET @@global.wait_timeout = 100;
+SET @@global.wait_timeout = DEFAULT;
+SELECT @@global.wait_timeout;
+
+SET @@session.wait_timeout = 200;
+SET @@session.wait_timeout = DEFAULT;
+SELECT @@session.wait_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_005_02-------------------------#'
+############################################################
+#     Check the DEFAULT value of wait_timeout              #
+############################################################
+
+SET @@global.wait_timeout = DEFAULT;
+SELECT @@global.wait_timeout = @default_wait_timeout;
+
+SET @@session.wait_timeout = DEFAULT;
+SELECT @@session.wait_timeout = @default_wait_timeout;
+
+
+
+--echo '#--------------------FN_DYNVARS_005_03-------------------------#'
+######################################################################
+# Change the value of wait_timeout to a valid value for GLOBAL Scope #
+######################################################################
+
+#SET @@global.wait_timeout= @min_wait_timeout;
+SET @@global.wait_timeout= 1;
+SELECT @@global.wait_timeout;
+
+SET @@global.wait_timeout = 60020;
+SELECT @@global.wait_timeout;
+
+#SET @@global.wait_timeout = @max_wait_timeout;
+SET @@global.wait_timeout = 31536000;
+SELECT @@global.wait_timeout = @max_wait_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_005_04-------------------------#'
+#######################################################################
+# Change the value of wait_timeout to a valid value for SESSION Scope #
+#######################################################################
+#SET @@session.wait_timeout = @min_wait_timeout;
+#SELECT @@session.wait_timeout;
+
+SET @@session.wait_timeout =6000;
+SELECT @@session.wait_timeout;
+
+#SET @@session.wait_timeout = @max_wait_timeout;
+#SELECT @@session.wait_timeout = @max_wait_timeout;
+
+
+--echo '#------------------FN_DYNVARS_005_05-----------------------#'
+########################################################
+# Change the value of wait_timeout to an invalid value #
+########################################################
+
+SET @@global.wait_timeout = 0;
+SET @@global.wait_timeout = -1024;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.wait_timeout = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.wait_timeout = OFF;
+
+SET @@global.wait_timeout = True;
+SELECT @@global.wait_timeout;
+
+SET @@global.wait_timeout = False;
+SELECT @@global.wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.wait_timeout = 65530.34;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.wait_timeout ="Test";
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = ON;
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = OFF;
+
+SET @@session.wait_timeout = True;
+SELECT @@session.wait_timeout;
+
+SET @@session.wait_timeout = False;
+SELECT @@session.wait_timeout;
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = "Test";
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = 'test';
+
+SET @@session.wait_timeout = 123456789031;
+SELECT @@session.wait_timeout = @max_wait_timeout;
+
+
+--echo '#------------------FN_DYNVARS_005_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+SELECT @@global.wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='wait_timeout';
+
+--echo '#------------------FN_DYNVARS_005_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+SELECT @@session.wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='wait_timeout';
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+###########################################################################
+#  Check if global and session variable are independent of each other     #
+###########################################################################
+
+SET @@global.wait_timeout = 30000;
+SET @@global.wait_timeout = 40000;
+SELECT @@wait_timeout = @@global.wait_timeout;
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+########################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE  #
+#    points to same session variable                                   #
+########################################################################
+
+SET @@wait_timeout = 100;
+SELECT @@wait_timeout = @@local.wait_timeout;
+SELECT @@local.wait_timeout = @@session.wait_timeout;
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+#######################################################################
+#   Check if wait_timeout can be accessed with and without @@ sign    #
+#######################################################################
+
+SET wait_timeout = 1027;
+SELECT @@wait_timeout;
+
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.wait_timeout;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.wait_timeout;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT wait_timeout = @@session.wait_timeout;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.wait_timeout = @start_global_value;
+SET @@session.wait_timeout = @start_session_value;
+
+#################################################
+#                 END OF wait_timeout TESTS     #
+#################################################

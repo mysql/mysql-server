@@ -68,8 +68,6 @@ SET @@global.query_cache_size = 512;
 SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = 1024;
 SELECT @@global.query_cache_size;
---echo : 'Bug#34880: Warnings are coming on assinging valid values to variable
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.query_cache_size = 1048576;
 SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = 1048575;
@@ -93,8 +91,6 @@ SET @@global.query_cache_size = -1024;
 SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = 42949672950;
 SELECT @@global.query_cache_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_size = ON;
 SELECT @@global.query_cache_size;

@@ -22,7 +22,6 @@ SET @@global.query_cache_min_res_unit = 1;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
-'Bug#34842: FN_DYNVARS_132_03 - Minimum value according to documentation is 0, and here it is 512';
 SET @@global.query_cache_min_res_unit = 512;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
@@ -31,7 +30,6 @@ SET @@global.query_cache_min_res_unit = 513;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 520
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.query_cache_min_res_unit = 1048576;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
@@ -74,7 +72,6 @@ Warning	1292	Truncated incorrect query_cache_min_res_unit value: '42949672950'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 0
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.query_cache_min_res_unit = ON;
 ERROR 42000: Incorrect argument type to variable 'query_cache_min_res_unit'
 SELECT @@global.query_cache_min_res_unit;

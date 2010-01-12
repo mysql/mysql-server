@@ -38,8 +38,6 @@ SELECT @@global.character_set_client;
 SELECT @@session.character_set_client;
 disconnect con1;
 
---echo 'Bug# 35372: session character_set_client is not effected by global character_set_client'
-
 --echo '#--------------------FN_DYNVARS_010_02-------------------------#'
 #############################################################
 # Begin the functionality Testing of character_set_client   #
@@ -62,13 +60,13 @@ CREATE TABLE t1(a CHAR(3) character set utf8);
 --echo 'For latin1 characterset';
 SET @@session.character_set_client = latin1;
 INSERT INTO t1 values('è');
-SELECT a,CHAR_LENGTH(a) FROM t1;
+SELECT hex(a),CHAR_LENGTH(a) FROM t1;
 DELETE FROM t1;
 
 --echo 'For utf8 characterset';
 SET @@session.character_set_client = utf8;
 INSERT INTO t1 values('è');
-SELECT a,CHAR_LENGTH(a) FROM t1;
+SELECT hex(a),CHAR_LENGTH(a) FROM t1;
 DELETE FROM t1;
 
 --disable_warnings

@@ -1298,13 +1298,13 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 show engine foobar status;
-ERROR 42000: Unknown table engine 'foobar'
+ERROR 42000: Unknown storage engine 'foobar'
 show engine foobar logs;
-ERROR 42000: Unknown table engine 'foobar'
+ERROR 42000: Unknown storage engine 'foobar'
 show engine foobar mutex;
-ERROR 42000: Unknown table engine 'foobar'
+ERROR 42000: Unknown storage engine 'foobar'
 show engine mutex status;
-ERROR 42000: Unknown table engine 'mutex'
+ERROR 42000: Unknown storage engine 'mutex'
 show engine csv status;
 Type	Name	Status
 show engine csv logs;

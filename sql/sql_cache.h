@@ -503,5 +503,4 @@ protected:
 };
 
 extern Query_cache query_cache;
-extern TYPELIB query_cache_type_typelib;
 #endif

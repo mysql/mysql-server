@@ -44,7 +44,7 @@ Warnings:
 Note	1003	select abs(-(10)) AS `abs(-10)`,sign(-(5)) AS `sign(-5)`,sign(5) AS `sign(5)`,sign(0) AS `sign(0)`
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 log(exp(10))	exp(log(sqrt(10))*2)	log(-1)	log(NULL)	log(1,1)	log(3,9)	log(-1,2)	log(NULL,2)
-10	10	NULL	NULL	NULL	2	NULL	NULL
+10	10.000000000000002	NULL	NULL	NULL	2	NULL	NULL
 explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -52,7 +52,7 @@ Warnings:
 Note	1003	select log(exp(10)) AS `log(exp(10))`,exp((log(sqrt(10)) * 2)) AS `exp(log(sqrt(10))*2)`,log(-(1)) AS `log(-1)`,log(NULL) AS `log(NULL)`,log(1,1) AS `log(1,1)`,log(3,9) AS `log(3,9)`,log(-(1),2) AS `log(-1,2)`,log(NULL,2) AS `log(NULL,2)`
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
-10	10	NULL	NULL	NULL
+10	10.000000000000002	NULL	NULL	NULL
 explain extended select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -60,7 +60,7 @@ Warnings:
 Note	1003	select ln(exp(10)) AS `ln(exp(10))`,exp((ln(sqrt(10)) * 2)) AS `exp(ln(sqrt(10))*2)`,ln(-(1)) AS `ln(-1)`,ln(0) AS `ln(0)`,ln(NULL) AS `ln(NULL)`
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
-3	3.90689059560852	NULL	NULL	NULL
+3	3.9068905956085187	NULL	NULL	NULL
 explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -68,7 +68,7 @@ Warnings:
 Note	1003	select log2(8) AS `log2(8)`,log2(15) AS `log2(15)`,log2(-(2)) AS `log2(-2)`,log2(0) AS `log2(0)`,log2(NULL) AS `log2(NULL)`
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
-2	1.25527250510331	NULL	NULL	NULL
+2	1.255272505103306	NULL	NULL	NULL
 explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -85,7 +85,7 @@ Note	1003	select pow(10,log10(10)) AS `pow(10,log10(10))`,pow(2,4) AS `power(2,4
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select rand(999999),rand();
 rand(999999)	rand()
-0.0142313651873091	0.028870999839968
+0.014231365187309091	0.028870999839968048
 explain extended select rand(999999),rand();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -101,7 +101,7 @@ Warnings:
 Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format((1 / tan(1)),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
-180	6.28318530717959
+180	6.283185307179586
 select format(atan(-2, 2), 6);
 format(atan(-2, 2), 6)
 -0.785398
@@ -119,7 +119,7 @@ ACOS(1.0)
 0
 SELECT ASIN(1.0);
 ASIN(1.0)
-1.5707963267949
+1.5707963267948966
 SELECT ACOS(0.2*5.0);
 ACOS(0.2*5.0)
 0
@@ -128,10 +128,10 @@ ACOS(0.5*2.0)
 0
 SELECT ASIN(0.8+0.2);
 ASIN(0.8+0.2)
-1.5707963267949
+1.5707963267948966
 SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
-1.5707963267949
+1.5707963267948966
 select format(4.55, 1), format(4.551, 1);
 format(4.55, 1)	format(4.551, 1)
 4.6	4.6
@@ -368,7 +368,7 @@ mod(5, cast(-2 as unsigned))	mod(5, 18446744073709551614)	mod(5, -2)
 5	5	1
 select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
 pow(cast(-2 as unsigned), 5)	pow(18446744073709551614, 5)	pow(-2, 5)
-2.13598703592091e+96	2.13598703592091e+96	-32
+2.13598703592091e96	2.13598703592091e96	-32
 CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
@@ -437,10 +437,10 @@ a	ROUND(a)
 2.5	2
 -2.9	-3
 2.9	3
--1e+16	-10000000000000000
-1e+16	10000000000000000
--1e+16	-10000000000000002
-1e+16	10000000000000002
+-1e16	-10000000000000000
+1e16	10000000000000000
+-1.0000000000000002e16	-10000000000000002
+1.0000000000000002e16	10000000000000002
 DROP TABLE t1;
 CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
 INSERT INTO t1 VALUES ('a');
@@ -475,16 +475,16 @@ NULL
 CREATE OR REPLACE VIEW v1 AS SELECT NULL AS a;
 SELECT RAND(a) FROM v1;
 RAND(a)
-0.155220427694936
+0.15522042769493574
 DROP VIEW v1;
 SELECT RAND(a) FROM (SELECT NULL AS a) b;
 RAND(a)
-0.155220427694936
+0.15522042769493574
 CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (NULL);
 SELECT RAND(i) FROM t1;
 RAND(i)
-0.155220427694936
+0.15522042769493574
 DROP TABLE t1;
 #
 select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;

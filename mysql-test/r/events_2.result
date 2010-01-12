@@ -13,12 +13,6 @@ ERROR HY000: Incorrect AT value: 'definitely not a datetime'
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
 drop event задачка;
-set event_scheduler=off;
-ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
-set global event_scheduler=3;
-ERROR 42000: Variable 'event_scheduler' can't be set to the value of '3'
-set global event_scheduler=disabled;
-ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'disabled'
 "DISABLE the scheduler. Testing that it does not work when the variable is 0"
 set global event_scheduler=off;
 select definer, name, db from mysql.event;

@@ -101,7 +101,7 @@ SELECT @@global.engine_condition_pushdown;
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.engine_condition_pushdown = -1;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.engine_condition_pushdown = 1.6;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.engine_condition_pushdown = "T";
@@ -111,14 +111,10 @@ SET @@session.engine_condition_pushdown = "Y";
 SET @@session.engine_condition_pushdown = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.engine_condition_pushdown = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.engine_condition_pushdown = OF;
-SELECT @@session.engine_condition_pushdown;
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.engine_condition_pushdown = ÓFF;
-
 
 
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -133,12 +129,8 @@ SET @@global.engine_condition_pushdown = "Y";
 SET @@global.engine_condition_pushdown = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.engine_condition_pushdown = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.engine_condition_pushdown = OF;
-SELECT @@global.engine_condition_pushdown;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.engine_condition_pushdown = ÓFF;
 

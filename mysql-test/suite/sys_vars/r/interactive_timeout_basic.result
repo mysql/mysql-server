@@ -71,8 +71,8 @@ Warning	1292	Truncated incorrect interactive_timeout value: '1000000000'
 SELECT @@global.interactive_timeout;
 @@global.interactive_timeout
 31536000
-SET @@global.interactive_timeout = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.interactive_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
 SELECT @@global.interactive_timeout;
 @@global.interactive_timeout
 31536000
@@ -93,15 +93,14 @@ Warning	1292	Truncated incorrect interactive_timeout value: '-2'
 SELECT @@session.interactive_timeout;
 @@session.interactive_timeout
 1
-SET @@session.interactive_timeout = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.interactive_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
 SET @@session.interactive_timeout = 100000000;
 Warnings:
 Warning	1292	Truncated incorrect interactive_timeout value: '100000000'
 SELECT @@session.interactive_timeout;
 @@session.interactive_timeout
 31536000
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@session.interactive_timeout = test;
 ERROR 42000: Incorrect argument type to variable 'interactive_timeout'
 SELECT @@session.interactive_timeout;
