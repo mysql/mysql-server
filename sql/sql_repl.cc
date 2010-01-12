@@ -214,7 +214,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
 {
   THD *tmp;
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
 
   while ((tmp=it++))
@@ -235,7 +235,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
       mysql_mutex_unlock(&linfo->lock);
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 
@@ -245,7 +245,7 @@ bool log_in_use(const char* log_name)
   THD *tmp;
   bool result = 0;
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
 
   while ((tmp=it++))
@@ -262,7 +262,7 @@ bool log_in_use(const char* log_name)
     }
   }
 
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   return result;
 }
 
@@ -516,9 +516,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = &linfo;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
   {
@@ -967,9 +967,9 @@ end:
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
   thd_proc_info(thd, "Waiting to finalize termination");
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
 err:
@@ -983,9 +983,9 @@ err:
     this mutex will make sure that it never tried to update our linfo
     after we return from this stack frame
   */
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     mysql_file_close(file, MYF(MY_WME));
 
@@ -1296,7 +1296,7 @@ err:
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
   THD *tmp;
 
@@ -1309,7 +1309,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (tmp)
   {
     /*
@@ -1724,9 +1724,9 @@ bool mysql_show_binlog_events(THD* thd)
       goto err;
     }
 
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     thd->current_linfo = &linfo;
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
 
     if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
@@ -1812,9 +1812,9 @@ err:
   else
     my_eof(thd);
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(ret);
 }
 
