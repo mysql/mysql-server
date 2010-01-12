@@ -266,7 +266,7 @@ fid	AsText(EndPoint(g))
 107	POINT(40 10)
 SELECT fid, GLength(g) FROM gis_line ORDER by fid;
 fid	GLength(g)
-105	24.142135623731
+105	24.14213562373095
 106	40
 107	30
 SELECT fid, NumPoints(g) FROM gis_line ORDER by fid;
@@ -292,7 +292,7 @@ Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon ORDER by fid;
 fid	AsText(Centroid(g))
 108	POINT(15 15)
-109	POINT(25.4166666666667 25.4166666666667)
+109	POINT(25.416666666666668 25.416666666666668)
 110	POINT(20 10)
 SELECT fid, Area(g) FROM gis_polygon ORDER by fid;
 fid	Area(g)
@@ -326,8 +326,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon ORDER by fid;
 fid	AsText(Centroid(g))
-117	POINT(55.5885277530424 17.426536064114)
-118	POINT(55.5885277530424 17.426536064114)
+117	POINT(55.58852775304245 17.426536064113982)
+118	POINT(55.58852775304245 17.426536064113982)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon ORDER by fid;
 fid	Area(g)

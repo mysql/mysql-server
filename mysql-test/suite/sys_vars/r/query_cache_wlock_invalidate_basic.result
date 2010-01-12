@@ -57,22 +57,19 @@ SELECT @@global.query_cache_wlock_invalidate;
 SET @@session.query_cache_wlock_invalidate = -1;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of '-1'
 SET @@session.query_cache_wlock_invalidate = 1.6;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of '2'
+ERROR 42000: Incorrect argument type to variable 'query_cache_wlock_invalidate'
 SET @@session.query_cache_wlock_invalidate = "T";
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'T'
 SET @@session.query_cache_wlock_invalidate = "Y";
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Y'
 SET @@session.query_cache_wlock_invalidate = TRÜE;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'TRÜE'
 SET @@session.query_cache_wlock_invalidate = ÕN;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@session.query_cache_wlock_invalidate = OF;
-SELECT @@session.query_cache_wlock_invalidate;
-@@session.query_cache_wlock_invalidate
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
 SET @@session.query_cache_wlock_invalidate = ÓFF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 SET @@global.query_cache_wlock_invalidate = -1;
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of '-1'
 SET @@global.query_cache_wlock_invalidate = 2;
@@ -82,16 +79,13 @@ ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value o
 SET @@global.query_cache_wlock_invalidate = "Y";
 ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Y'
 SET @@global.query_cache_wlock_invalidate = TRÜE;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'TRÜE'
 SET @@global.query_cache_wlock_invalidate = ÕN;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÕN'
 SET @@global.query_cache_wlock_invalidate = OF;
-SELECT @@global.query_cache_wlock_invalidate;
-@@global.query_cache_wlock_invalidate
-0
-'Bug 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'OF'
 SET @@global.query_cache_wlock_invalidate = ÓFF;
-ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'query_cache_wlock_invalidate' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_135_05----------------------------#'
 SET @@global.query_cache_wlock_invalidate = 0;
 SET @@session.query_cache_wlock_invalidate = 1;

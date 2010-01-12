@@ -91,7 +91,6 @@ SET @@global.query_cache_limit = -1024;
 SELECT @@global.query_cache_limit;
 SET @@global.query_cache_limit = 42949672950;
 SELECT @@global.query_cache_limit;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_limit = ON;

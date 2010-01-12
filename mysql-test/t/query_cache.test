@@ -940,9 +940,9 @@ set global query_cache_size=0;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 set GLOBAL query_cache_type=1;
-set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_limit=10240;
 set GLOBAL query_cache_min_res_unit=0;
-set GLOBAL query_cache_size= 100000;
+set GLOBAL query_cache_size= 102400;
 
 # default_week_format
 reset query cache;
@@ -1010,7 +1010,7 @@ set GLOBAL query_cache_size= default;
 # Bug#28897 UUID() returns non-unique values when query cache is enabled
 #
 
-set GLOBAL query_cache_size=1000000;
+set GLOBAL query_cache_size=1024000;
 
 create table t1 (a char);
 insert into t1 values ('c');
@@ -1179,7 +1179,7 @@ SET GLOBAL query_cache_size= default;
 --echo #
 --echo # Bug#25132 disabled query cache: Qcache_free_blocks = 1
 --echo #
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 set global query_cache_size=0;
 set global query_cache_type=0;
 show status like 'Qcache_free_blocks';

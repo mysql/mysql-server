@@ -455,7 +455,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
       return;
     }
 
-    bool log_on= (thd->options & OPTION_BIN_LOG ||
+    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG ||
                   ! (thd->security_ctx->master_access & SUPER_ACL));
     if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT &&
         log_on && mysql_bin_log.is_open() && is_multi_insert)
@@ -607,7 +607,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= ((thd->options & OPTION_BIN_LOG) ||
+  bool log_on= ((thd->variables.option_bits & OPTION_BIN_LOG) ||
                 (!(thd->security_ctx->master_access & SUPER_ACL)));
 #endif
   thr_lock_type lock_type;
@@ -978,7 +978,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   if (error)
     goto abort;
-  if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
+  if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
     thd->row_count_func= info.copied + info.deleted +

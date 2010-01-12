@@ -162,11 +162,8 @@ SET @@character_set_client = utf8;
 SELECT @@character_set_client;
 @@character_set_client
 utf8
-'Bug: Assignment of ucs2 to session character-set does not raise error';
-'but selecting variable after setting it does.'; 
-'Even catching this does not allow any further character-set to be set.';
-'Offending querry seems to be:';
-'SET @@character_set_client = ucs2;'
+SET @@character_set_client = ucs2;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
 SET @@character_set_client = cp866;
 SELECT @@character_set_client;
 @@character_set_client
@@ -426,9 +423,6 @@ SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
 36
-'Bug # 34843: character sets are mapped in such a way that 100 and following';
-'numbers gives error, and before 100 the 36 mapped wraps arround';
-'several times.';
 '#--------------------FN_DYNVARS_010_10-------------------------#'
 SET @@character_set_client = abc;
 ERROR 42000: Unknown character set: 'abc'

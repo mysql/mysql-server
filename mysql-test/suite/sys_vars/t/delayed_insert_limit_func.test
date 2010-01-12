@@ -1,11 +1,11 @@
 ################################################################################
 #                                                                              #
-# Variable Name: sql_low_priority_updates                                      #
+# Variable Name: delayed_insert_limit                                          #
 # Scope: GLOBAL                                                                #
 # Access Type: Dynamic                                                         #
-# Data Type: BOOLEAN                                                           #
-# Default Value: 1 TRUE                                                        #
-# Values:       1 TRUE, 0 FALSE                                                #
+# Data Type: Numeric                                                           #
+# Default Value: 100                                                           #
+# Range: 1 - 4294967295                                                        #
 #                                                                              #
 #                                                                              #
 # Creation Date: 2008-02-25                                                    #
@@ -13,7 +13,7 @@
 # Modified: HHunger 2009-02-26 Replaced 2 sleeps by wait conditions            #
 # Modified: mleich  2009-03-18 Partially reimplemented                         #
 #                                                                              #
-# Description: Test Cases of Dynamic System Variable "sql_low_priority_updates"#
+# Description: Test Cases of Dynamic System Variable "delayed_insert_limit"    #
 #              that checks behavior of this variable in the following ways     #
 #              * Functionality based on different values                       #
 #                                                                              #
@@ -109,10 +109,10 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 let $wait_condition=
-   SELECT variable_value > 0 FROM information_schema.global_status
+   SELECT variable_value > @@global.delayed_insert_limit
+   FROM information_schema.global_status
    WHERE variable_name like 'Not_flushed_delayed_rows';
 --source include/wait_condition.inc
-let $my_select= SELECT COUNT(*) BETWEEN 21 AND 43 FROM t1;
 let $my_select= SELECT COUNT(*) FROM t1;
 send;
 eval $my_select;
@@ -136,6 +136,13 @@ connection con0;
 --echo Asynchronous "reap" result
 --echo The next result suffers from
 --echo '# Bug#35386 insert delayed inserts 1 + limit rows instead of just limit rows'
+#
+# on UNLOCK TABLES both SELECT in the con0 and delayed insert thread in the
+# con1 were awaken. There's no FIFO for TL_WRITE_DELAYED and TL_READ,
+# so either the first delayed_insert_limit rows will be inserted
+# before select (which will see 21 row) or select will go first (and see 6 rows)
+#
+--replace_result 6 21
 reap;
 
 --echo ** Connection default **

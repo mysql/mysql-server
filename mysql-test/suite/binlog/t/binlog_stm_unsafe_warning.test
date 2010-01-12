@@ -25,6 +25,8 @@
 
 -- source include/have_log_bin.inc
 -- source include/have_binlog_format_statement.inc
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted. .*");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave. .*");
 
 -- echo ### NOT filtered database => assertion: warnings ARE shown
 

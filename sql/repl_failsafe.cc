@@ -38,7 +38,7 @@
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 
 
-RPL_STATUS rpl_status=RPL_NULL;
+uint rpl_status=RPL_NULL;
 pthread_mutex_t LOCK_rpl_status;
 pthread_cond_t COND_rpl_status;
 HASH slave_list;
@@ -49,7 +49,7 @@ TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",
 
 const char* rpl_status_type[]=
 {
-  "AUTH_MASTER","ACTIVE_SLAVE","IDLE_SLAVE", "LOST_SOLDIER","TROOP_SOLDIER",
+  "AUTH_MASTER","IDLE_SLAVE","ACTIVE_SLAVE","LOST_SOLDIER","TROOP_SOLDIER",
   "RECOVERY_CAPTAIN","NULL",NullS
 };
 TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
@@ -98,9 +98,6 @@ static int init_failsafe_rpl_thread(THD* thd)
   }
 
   thd->mem_root->free= thd->mem_root->used= 0;
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options|= OPTION_BIG_SELECTS;
-
   thd_proc_info(thd, "Thread initialized");
   thd->version=refresh_version;
   thd->set_time();

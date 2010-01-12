@@ -54,35 +54,19 @@ SET @@session.read_rnd_buffer_size = 2000;
 SET @@session.read_rnd_buffer_size = DEFAULT;
 SELECT @@session.read_rnd_buffer_size;
 
-
---echo '#--------------------FN_DYNVARS_140_02-------------------------#'
-######################################################################
-#     Check the DEFAULT value of read_rnd_buffer_size              #
-######################################################################
-
-SET @@global.read_rnd_buffer_size = DEFAULT;
-SELECT @@global.read_rnd_buffer_size = 262144;
-
-SET @@session.read_rnd_buffer_size = DEFAULT;
-SELECT @@session.read_rnd_buffer_size = 262144;
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
-
 --echo '#--------------------FN_DYNVARS_140_03-------------------------#'
 ################################################################################
 # Change the value of read_rnd_buffer_size to a valid value for GLOBAL Scope #
 ################################################################################
 
 SET @@global.read_rnd_buffer_size = 8201;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = 8200;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = 2147479552;
 SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = 2147479551;
 SELECT @@global.read_rnd_buffer_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
 
 --echo '#--------------------FN_DYNVARS_140_04-------------------------#'
 ###################################################################################
@@ -90,9 +74,9 @@ SELECT @@global.read_rnd_buffer_size;
 ###################################################################################
  
 SET @@session.read_rnd_buffer_size = 8200;
-SELECT @@session.read_rnd_buffer_size= 8200 OR @@session.read_rnd_buffer_size= 8228;
+SELECT @@session.read_rnd_buffer_size;
 SET @@session.read_rnd_buffer_size = 8201;
-SELECT @@session.read_rnd_buffer_size= 8200 OR @@session.read_rnd_buffer_size= 8228;
+SELECT @@session.read_rnd_buffer_size;
 SET @@session.read_rnd_buffer_size = 2147479552;
 SELECT @@session.read_rnd_buffer_size;
 SET @@session.read_rnd_buffer_size = 2147479551;
@@ -105,32 +89,24 @@ SELECT @@session.read_rnd_buffer_size;
 ##################################################################
 
 SET @@global.read_rnd_buffer_size = 8199;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = -1024;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = 2147479553;
 SELECT @@global.read_rnd_buffer_size;
---Error ER_PARSE_ERROR
-SET @@global.read_rnd_buffer_size = 65530.34.;
-SELECT @@global.read_rnd_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.read_rnd_buffer_size = 65530.34;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.read_rnd_buffer_size = test;
-SELECT @@global.read_rnd_buffer_size;
 
 SET @@session.read_rnd_buffer_size = 8199;
-SELECT @@session.read_rnd_buffer_size= 8200 OR @@session.read_rnd_buffer_size= 8228;
-SET @@session.read_rnd_buffer_size = -2;
-SELECT @@session.read_rnd_buffer_size= 8200 OR @@session.read_rnd_buffer_size= 8228;
---Error ER_PARSE_ERROR
-SET @@session.read_rnd_buffer_size = 65530.34.;
-SET @@session.read_rnd_buffer_size = 2147479553;
 SELECT @@session.read_rnd_buffer_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
+SET @@session.read_rnd_buffer_size = -2;
+SELECT @@session.read_rnd_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.read_rnd_buffer_size = 65530.34;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.read_rnd_buffer_size = test;
-SELECT @@session.read_rnd_buffer_size;
-
 
 --echo '#------------------FN_DYNVARS_140_06-----------------------#'
 ####################################################################
@@ -155,9 +131,9 @@ VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='re
 ####################################################################
 
 SET @@global.read_rnd_buffer_size = TRUE;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 SET @@global.read_rnd_buffer_size = FALSE;
-SELECT @@global.read_rnd_buffer_size= 8200 OR @@global.read_rnd_buffer_size= 8228;
+SELECT @@global.read_rnd_buffer_size;
 
 
 --echo '#---------------------FN_DYNVARS_140_09----------------------#'
@@ -185,7 +161,7 @@ SELECT @@local.read_rnd_buffer_size = @@session.read_rnd_buffer_size;
 ###################################################################################
 
 SET read_rnd_buffer_size = 9100;
-SELECT @@read_rnd_buffer_size= 8200 OR @@read_rnd_buffer_size= 8228;
+SELECT @@read_rnd_buffer_size;
 --Error ER_UNKNOWN_TABLE
 SELECT local.read_rnd_buffer_size;
 --Error ER_UNKNOWN_TABLE

@@ -13,242 +13,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef _atomic_h_cleanup_
+#define _atomic_h_cleanup_ "atomic/solaris.h"
+
 #include <atomic.h>
 
 #define	MY_ATOMIC_MODE	"solaris-atomic"
 
-/*
- * This is defined to indicate we fully define the my_atomic_* (inline)
- * functions here, so there is no need to "make" them in my_atomic.h
- * using make_atomic_* and make_atomic_*_body.
- */
-#define	MY_ATOMICS_MADE
+#define uintptr_t void *
+#define atomic_or_ptr_nv(X,Y) (void *)atomic_or_ulong_nv((volatile ulong_t *)X, Y)
 
-STATIC_INLINE int
-my_atomic_cas8(int8 volatile *a, int8 *cmp, int8 set)
-{
-	int ret;
-	int8 sav;
-	sav = (int8) atomic_cas_8((volatile uint8_t *)a, (uint8_t)*cmp,
-		(uint8_t)set);
-	if (! (ret = (sav == *cmp)))
-		*cmp = sav;
-	return ret;
-}
+#define make_atomic_cas_body(S)                         \
+  uint ## S ## _t sav;                                  \
+  sav = atomic_cas_ ## S(                               \
+           (volatile uint ## S ## _t *)a,               \
+           (uint ## S ## _t)*cmp,                       \
+           (uint ## S ## _t)set);                       \
+  if (! (ret= (sav == *cmp)))                           \
+    *cmp= sav;
 
-STATIC_INLINE int
-my_atomic_cas16(int16 volatile *a, int16 *cmp, int16 set)
-{
-	int ret;
-	int16 sav;
-	sav = (int16) atomic_cas_16((volatile uint16_t *)a, (uint16_t)*cmp,
-		(uint16_t)set);
-	if (! (ret = (sav == *cmp)))
-		*cmp = sav;
-	return ret;
-}
-
-STATIC_INLINE int
-my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
-{
-	int ret;
-	int32 sav;
-	sav = (int32) atomic_cas_32((volatile uint32_t *)a, (uint32_t)*cmp,
-		(uint32_t)set);
-	if (! (ret = (sav == *cmp)))
-		*cmp = sav;
-	return ret;
-}
-
-STATIC_INLINE int
-my_atomic_cas64(int64 volatile *a, int64 *cmp, int64 set)
-{
-	int ret;
-	int64 sav;
-	sav = (int64) atomic_cas_64((volatile uint64_t *)a, (uint64_t)*cmp,
-		(uint64_t)set);
-	if (! (ret = (sav == *cmp)))
-		*cmp = sav;
-	return ret;
-}
-
-STATIC_INLINE int
-my_atomic_casptr(void * volatile *a, void **cmp, void *set)
-{
-	int ret;
-	void *sav;
-	sav = atomic_cas_ptr(a, *cmp, set);
-	if (! (ret = (sav == *cmp)))
-		*cmp = sav;
-	return ret;
-}
-
-/* ------------------------------------------------------------------------ */
-
-STATIC_INLINE int8
-my_atomic_add8(int8 volatile *a, int8 v)
-{
-	int8 nv;
-	nv = atomic_add_8_nv((volatile uint8_t *)a, v);
-	return (nv - v);
-}
-
-STATIC_INLINE int16
-my_atomic_add16(int16 volatile *a, int16 v)
-{
-	int16 nv;
-	nv = atomic_add_16_nv((volatile uint16_t *)a, v);
-	return (nv - v);
-}
-
-STATIC_INLINE int32
-my_atomic_add32(int32 volatile *a, int32 v)
-{
-	int32 nv;
-	nv = atomic_add_32_nv((volatile uint32_t *)a, v);
-	return (nv - v);
-}
-
-STATIC_INLINE int64
-my_atomic_add64(int64 volatile *a, int64 v)
-{
-	int64 nv;
-	nv = atomic_add_64_nv((volatile uint64_t *)a, v);
-	return (nv - v);
-}
+#define make_atomic_add_body(S)                         \
+  int ## S nv;  /* new value */                         \
+  nv= atomic_add_ ## S ## _nv((volatile uint ## S ## _t *)a, v); \
+  v= nv - v
 
 /* ------------------------------------------------------------------------ */
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 
-STATIC_INLINE int8
-my_atomic_load8(int8 volatile *a)	{ return (*a); }
-
-STATIC_INLINE int16
-my_atomic_load16(int16 volatile *a)	{ return (*a); }
-
-STATIC_INLINE int32
-my_atomic_load32(int32 volatile *a)	{ return (*a); }
-
-STATIC_INLINE int64
-my_atomic_load64(int64 volatile *a)	{ return (*a); }
-
-STATIC_INLINE void *
-my_atomic_loadptr(void * volatile *a)	{ return (*a); }
-
-/* ------------------------------------------------------------------------ */
-
-STATIC_INLINE void
-my_atomic_store8(int8 volatile *a, int8 v)	{ *a = v; }
-
-STATIC_INLINE void
-my_atomic_store16(int16 volatile *a, int16 v)	{ *a = v; }
-
-STATIC_INLINE void
-my_atomic_store32(int32 volatile *a, int32 v)	{ *a = v; }
-
-STATIC_INLINE void
-my_atomic_store64(int64 volatile *a, int64 v)	{ *a = v; }
-
-STATIC_INLINE void
-my_atomic_storeptr(void * volatile *a, void *v)	{ *a = v; }
-
-/* ------------------------------------------------------------------------ */
+#define make_atomic_load_body(S)  ret= *a
+#define make_atomic_store_body(S)   *a= v
 
 #else /* MY_ATOMIC_MODE_DUMMY */
 
-STATIC_INLINE int8
-my_atomic_load8(int8 volatile *a)
-{
-	return ((int8) atomic_or_8_nv((volatile uint8_t *)a, 0));
-}
+#define make_atomic_load_body(S)                        \
+  ret= atomic_or_ ## S ## _nv((volatile uint ## S ## _t *)a, 0)
 
-STATIC_INLINE int16
-my_atomic_load16(int16 volatile *a)
-{
-	return ((int16) atomic_or_16_nv((volatile uint16_t *)a, 0));
-}
-
-STATIC_INLINE int32
-my_atomic_load32(int32 volatile *a)
-{
-	return ((int32) atomic_or_32_nv((volatile uint32_t *)a, 0));
-}
-
-STATIC_INLINE int64
-my_atomic_load64(int64 volatile *a)
-{
-	return ((int64) atomic_or_64_nv((volatile uint64_t *)a, 0));
-}
-
-STATIC_INLINE void *
-my_atomic_loadptr(void * volatile *a)
-{
-	return ((void *) atomic_or_ulong_nv((volatile ulong_t *)a, 0));
-}
-
-/* ------------------------------------------------------------------------ */
-
-STATIC_INLINE void
-my_atomic_store8(int8 volatile *a, int8 v)
-{
-	(void) atomic_swap_8((volatile uint8_t *)a, (uint8_t)v);
-}
-
-STATIC_INLINE void
-my_atomic_store16(int16 volatile *a, int16 v)
-{
-	(void) atomic_swap_16((volatile uint16_t *)a, (uint16_t)v);
-}
-
-STATIC_INLINE void
-my_atomic_store32(int32 volatile *a, int32 v)
-{
-	(void) atomic_swap_32((volatile uint32_t *)a, (uint32_t)v);
-}
-
-STATIC_INLINE void
-my_atomic_store64(int64 volatile *a, int64 v)
-{
-	(void) atomic_swap_64((volatile uint64_t *)a, (uint64_t)v);
-}
-
-STATIC_INLINE void
-my_atomic_storeptr(void * volatile *a, void *v)
-{
-	(void) atomic_swap_ptr(a, v);
-}
+#define make_atomic_store_body(S)                       \
+  (void) atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
 
 #endif
 
-/* ------------------------------------------------------------------------ */
+#define make_atomic_fas_body(S)                        \
+  v= atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
 
-STATIC_INLINE int8
-my_atomic_fas8(int8 volatile *a, int8 v)
-{
-	return ((int8) atomic_swap_8((volatile uint8_t *)a, (uint8_t)v));
-}
+#else /* cleanup */
 
-STATIC_INLINE int16
-my_atomic_fas16(int16 volatile *a, int16 v)
-{
-	return ((int16) atomic_swap_16((volatile uint16_t *)a, (uint16_t)v));
-}
+#undef uintptr_t
+#undef atomic_or_ptr_nv
 
-STATIC_INLINE int32
-my_atomic_fas32(int32 volatile *a, int32 v)
-{
-	return ((int32) atomic_swap_32((volatile uint32_t *)a, (uint32_t)v));
-}
+#endif
 
-STATIC_INLINE int64
-my_atomic_fas64(int64 volatile *a, int64 v)
-{
-	return ((int64) atomic_swap_64((volatile uint64_t *)a, (uint64_t)v));
-}
-
-STATIC_INLINE void *
-my_atomic_fasptr(void * volatile *a, void *v)
-{
-	return (atomic_swap_ptr(a, v));
-}

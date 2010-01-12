@@ -1364,7 +1364,7 @@ void close_thread_tables(THD *thd)
       good idea to turn off OPTION_TABLE_LOCK flag.
     */
     DBUG_ASSERT(thd->lex->requires_prelocking());
-    thd->options&= ~(OPTION_TABLE_LOCK);
+    thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
   }
 
   DBUG_VOID_RETURN;
@@ -1444,7 +1444,7 @@ void close_temporary_tables(THD *thd)
   TABLE *table;
   TABLE *next= NULL;
   TABLE *prev_table;
-  /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
+  /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
 
   if (!thd->temporary_tables)
@@ -1512,9 +1512,9 @@ void close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= test(thd->options & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= test(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
   {
-    thd->options |= OPTION_QUOTE_SHOW_CREATE;
+    thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
 
   /* scan sorted tmps to generate sequence of DROP */
@@ -1571,7 +1571,7 @@ void close_temporary_tables(THD *thd)
     }
   }
   if (!was_quote_show)
-    thd->options&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
 }
 
@@ -4455,7 +4455,7 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
 
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 {
-  bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  bool log_on= mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
@@ -5174,7 +5174,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     if (thd->lex->requires_prelocking())
     {
       thd->in_lock_tables=1;
-      thd->options|= OPTION_TABLE_LOCK;
+      thd->variables.option_bits|= OPTION_TABLE_LOCK;
       /*
         A query that modifies autoinc column in sub-statement can make the 
         master and slave inconsistent.
@@ -5196,7 +5196,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       if (thd->lex->requires_prelocking())
       {
-        thd->options&= ~(OPTION_TABLE_LOCK);
+        thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
         thd->in_lock_tables=0;
       }
       DBUG_RETURN(-1);
@@ -5239,7 +5239,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
           {
             mysql_unlock_tables(thd, thd->locked_tables);
             thd->locked_tables= 0;
-            thd->options&= ~(OPTION_TABLE_LOCK);
+            thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
             DBUG_RETURN(-1);
           }
         }
