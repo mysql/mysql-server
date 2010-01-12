@@ -1306,8 +1306,8 @@ end:
   to the user.
 
   RESULTS
-        1	Query was not cached.
-	0	The query was cached and user was sent the result.
+        0	Query was not cached.
+	1	The query was cached and user was sent the result.
 	-1	The query was cached but we didn't have rights to use it.
 		No error is sent to the client yet.
 

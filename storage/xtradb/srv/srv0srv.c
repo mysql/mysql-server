@@ -81,7 +81,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0ut.h"
 #include "os0proc.h"
-#include "os0sync.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
 #include "sync0sync.h"
@@ -103,6 +102,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
+#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -162,6 +165,7 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
 UNIV_INTERN ibool	srv_fast_recovery = FALSE;
+UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN ibool	srv_use_purge_thread = FALSE;
 
@@ -1077,7 +1081,7 @@ UNIV_INTERN ulong	srv_max_purge_lag		= 0;
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#ifdef HAVE_ATOMIC_BUILTINS
 static void
 enter_innodb_with_tickets(trx_t* trx)
 {
@@ -1175,7 +1179,7 @@ srv_conc_enter_innodb(
 		return;
 	}
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
 		srv_conc_enter_innodb_timer_based(trx);
 		return;
@@ -1325,7 +1329,7 @@ srv_conc_force_enter_innodb(
 	}
 
 	ut_ad(srv_conc_n_threads >= 0);
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
 		os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
@@ -1366,7 +1370,7 @@ srv_conc_force_exit_innodb(
 		return;
 	}
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+#ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
 		srv_conc_exit_innodb_timer_based(trx);
 		return;
