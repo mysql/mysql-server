@@ -3652,11 +3652,12 @@ skip_field:
 
 /************************************************************************
 Get the upper limit of the MySQL integral and floating-point type. */
-
+static
 ulonglong
-ha_innobase::innobase_get_int_col_max_value(
-/*========================================*/
-	const Field*	field)
+innobase_get_int_col_max_value(
+/*===========================*/
+				/* out: maximum allowed value for the field */
+	const Field*	field)	/* in: MySQL field */
 {
 	ulonglong	max_value = 0;
 
