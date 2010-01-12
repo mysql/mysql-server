@@ -29,6 +29,7 @@ ADD_LIBRARY(ndbblocks STATIC
     dbdih/DbdihInit.cpp dbdih/DbdihMain.cpp
     dblqh/DblqhInit.cpp dblqh/DblqhMain.cpp
     dbtc/DbtcInit.cpp dbtc/DbtcMain.cpp
+    dbspj/DbspjInit.cpp dbspj/DbspjMain.cpp dbspj/DbspjProxy.cpp
     dbtup/DbtupExecQuery.cpp dbtup/DbtupBuffer.cpp
     dbtup/DbtupRoutines.cpp dbtup/DbtupCommit.cpp
     dbtup/DbtupFixAlloc.cpp dbtup/DbtupTrigger.cpp
