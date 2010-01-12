@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009 Sun Microsystems, Inc
+/* Copyright (C) 2008-2010 Sun Microsystems, Inc
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -256,15 +256,15 @@ ulonglong my_timer_nanoseconds(void)
     read_real_time(&tr, TIMEBASE_SZ);
     return (ulonglong) tr.tb_high * 1000000000 + (ulonglong) tr.tb_low;
   }
+#elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
+  /* SunOS 5.10+, Solaris, HP-UX: hrtime_t gethrtime(void) */
+  return (ulonglong) gethrtime();
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
   {
     struct timespec tp;
     clock_gettime(CLOCK_REALTIME, &tp);
     return (ulonglong) tp.tv_sec * 1000000000 + (ulonglong) tp.tv_nsec;
   }
-#elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
-  /* SunOS 5.10+, Solaris, HP-UX: hrtime_t gethrtime(void) */
-  return (ulonglong) gethrtime();
 #elif defined(__NETWARE__)
   {
     NXTime_t tm;
@@ -579,10 +579,10 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->nanoseconds.frequency=  1000000000; /* initial assumption */
 #if defined(HAVE_READ_REAL_TIME)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_READ_REAL_TIME;
-#elif defined(HAVE_CLOCK_GETTIME)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_CLOCK_GETTIME;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_GETHRTIME;
+#elif defined(HAVE_CLOCK_GETTIME)
+  mti->nanoseconds.routine= MY_TIMER_ROUTINE_CLOCK_GETTIME;
 #elif defined(__NETWARE__)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_NXGETTIME;
 #elif defined(__APPLE__) && defined(__MACH__)
