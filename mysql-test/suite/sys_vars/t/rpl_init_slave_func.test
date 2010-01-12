@@ -31,6 +31,9 @@
 source include/master-slave.inc;
 --echo connection slave
 connection slave;
+--disable_query_log
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
 #
 # save the current values
 
