@@ -5836,7 +5836,6 @@ void ha_tokudb::init_auto_increment() {
     DBT key;
     DBT value;
     int error;
-    uint auto_inc_keynr;
     HA_METADATA_KEY key_val = hatoku_max_ai;
     bzero(&key, sizeof(key));
     bzero(&value, sizeof(value));
