@@ -814,6 +814,7 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
   {
     jam();
     buildIndexReply(signal, buildPtr.p);
+    c_buildIndexList.release(buildPtr);
     return;
   }
   else

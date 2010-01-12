@@ -32,6 +32,7 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     tux_ctx->jambase = (Uint8*)ptr;
     ptr += (JAM_MASK32 + 1);
     tux_ctx->jamidx = ptr;
+    * tux_ctx->jamidx = 0; // init jam-idx
     ptr += 1;
 
     tux_ctx->c_keyAttrs = ptr;

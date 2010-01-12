@@ -374,6 +374,7 @@ DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr)
     else
     {
       // Will add assert in 5.1
+      assert(false);
     }
   }
   
@@ -406,6 +407,7 @@ DLHashTableImpl<P, T, U>::release(Ptr<T> & ptr)
     }
     else
     {
+      assert(false);
       // Will add assert in 5.1
     }
   }
