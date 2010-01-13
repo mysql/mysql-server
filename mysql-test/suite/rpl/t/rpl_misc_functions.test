@@ -3,12 +3,16 @@
 #
 source include/master-slave.inc;
 
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+
 create table t1(id int, i int, r1 int, r2 int, p varchar(100));
 insert into t1 values(1, connection_id(), 0, 0, "");
 # don't put rand and password in the same query, to see if they replicate
 # independently
 # Pure rand test
+--disable_warnings
 insert into t1 values(2, 0, rand()*1000, rand()*1000, "");
+--enable_warnings
 # change the rand suite on the master (we do this because otherwise password()
 # benefits from the fact that the above rand() is well replicated : 
 # it picks the same sequence element, which hides a possible bug in password() replication.
@@ -19,7 +23,9 @@ set sql_log_bin=1;
 # Pure password test
 insert into t1 values(3, 0, 0, 0, password('does_this_work?'));
 # "altogether now"
+--disable_warnings
 insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('does_this_still_work?'));
+--enable_warnings
 select * into outfile 'rpl_misc_functions.outfile' from t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 sync_slave_with_master;
@@ -73,11 +79,13 @@ DELIMITER ;|
 
 # Exercise the functions and procedures then compare the results on
 # the master to those on the slave.
+--disable_warnings
 CALL test_replication_sp1();
 CALL test_replication_sp2();
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
+--enable_warnings
 
 --sync_slave_with_master
 
