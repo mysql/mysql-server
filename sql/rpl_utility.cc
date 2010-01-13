@@ -592,6 +592,12 @@ can_convert_field_to(Field *field,
   {
     if (metadata == 0) // Metadata can only be zero if no metadata was provided
     {
+      /*
+        If there is no metadata, we either have an old event where no
+        metadata were supplied, or a type that does not require any
+        metadata. In either case, conversion can be done but no
+        conversion table is necessary.
+       */
       DBUG_PRINT("debug", ("Base types are identical, but there is no metadata"));
       *order_var= 0;
       DBUG_RETURN(true);
