@@ -11381,7 +11381,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
   if (!select_cond || select_cond_result)
   {
-    DBUG_PRINT("info", ("  Condition passed\n"));
+    DBUG_PRINT("info", ("  Condition passed"));
     /*
       There is no select condition or the attached pushed down
       condition is true => a match is found.
@@ -11448,7 +11448,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
     if (found)
     {
-      DBUG_PRINT("info", ("  found match\n"));
+      DBUG_PRINT("info", ("  found match"));
       enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
@@ -11469,7 +11469,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   }
   else
   {
-    DBUG_PRINT("info", ("  not a match\n"));
+    DBUG_PRINT("info", ("  not a match"));
     /*
       The condition pushed down to the table join_tab rejects all rows
       with the beginning coinciding with the current partial join.

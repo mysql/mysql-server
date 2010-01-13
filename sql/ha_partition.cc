@@ -5520,6 +5520,12 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Currently only NDB use the *_CANNOT_BATCH */
     break;
   }
+  case HA_EXTRA_ENABLE_JOINPUSH:
+  case HA_EXTRA_DISABLE_JOINPUSH:
+  {
+    /* Currently only NDB implements join pushing (aka 'SPJ'). */
+    break;
+  }
   /*
     http://dev.mysql.com/doc/refman/5.1/en/partitioning-limitations.html
     says we no longer support logging to partitioned tables, so we fail
