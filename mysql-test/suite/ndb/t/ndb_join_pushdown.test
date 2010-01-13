@@ -673,6 +673,20 @@ join t1 as t3 on t3.a = t2.a
 join t1 as t4 on t4.a = t3.b
 ;
 
+## Test subquery execution where 'Full scan on NULL key' strategy requires
+## table scan execution in addition to the key lookup which was prepared
+## as part of the pushed join NdbQuery
+explain
+select *
+from t1 where b in 
+  (select x.a from t1 as x join t1 as y on (y.a = x.b))
+xor c > 5;
+--sorted_result
+select *
+from t1 where b in 
+  (select x.a from t1 as x join t1 as y on (y.a = x.b))
+xor c > 5;
+
 drop table t1;
 
 # mixed engines

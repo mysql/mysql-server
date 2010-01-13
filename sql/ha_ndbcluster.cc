@@ -6294,14 +6294,21 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_UPDATE_CANNOT_BATCH"));
     m_update_cannot_batch= TRUE;
     break;
-  // We don't implement 'KEYREAD' itself:
-  // However, we should not execute entire pushed-join chain if only 'KEYREAD' was requested.
+  // We don't implement 'KEYREAD'. However, KEYREAD also implies DISABLE_JOINPUSH.
   case HA_EXTRA_KEYREAD:
     DBUG_PRINT("info", ("HA_EXTRA_KEYREAD"));
     m_disable_pushed_join= TRUE;
     break;
   case HA_EXTRA_NO_KEYREAD:
     DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
+    m_disable_pushed_join= FALSE;
+    break;
+  case HA_EXTRA_DISABLE_JOINPUSH:
+    DBUG_PRINT("info", ("HA_EXTRA_DISABLE_JOINPUSH"));
+    m_disable_pushed_join= TRUE;
+    break;
+  case HA_EXTRA_ENABLE_JOINPUSH:
+    DBUG_PRINT("info", ("HA_EXTRA_ENABLE_JOINPUSH"));
     m_disable_pushed_join= FALSE;
     break;
   default:
