@@ -386,10 +386,18 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
-/* Flag checks for push_flags() */
+/* Flag used for for push_flag() / test_push_flag() */
+enum ha_push_flag {
+  /*
+    Enables handler to execute a pushed join operation (if present) 
+    having this table as its parent table.
+  */
+  HA_PUSH_ENABLE,
+  HA_PUSH_DISABLE,
 
-/* Do handler want to block const table optimization */
-#define HA_PUSH_BLOCK_CONST_TABLE 1
+  /* Handler want to block const table optimization */
+  HA_PUSH_BLOCK_CONST_TABLE
+};
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -1842,8 +1850,13 @@ public:
   virtual int read_pushed_next(uchar *buf)
   { return -1; }
 
-  virtual uint push_flags(uint flag) const
-  { return 0; }
+  virtual int push_flag(enum ha_push_flag flag)
+  { return -1; }
+
+  virtual bool test_push_flag(enum ha_push_flag flag) const
+  {
+    return (flag == HA_PUSH_DISABLE);
+  }
 
  /*
     Part of old fast alter table, to be depricated

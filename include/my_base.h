@@ -206,13 +206,7 @@ enum ha_extra_function {
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN,
-  /*
-    Enables handler to execute a pushed join operation (if present) 
-    having this table as its parent table.
-  */
-  HA_EXTRA_ENABLE_JOINPUSH,
-  HA_EXTRA_DISABLE_JOINPUSH
+  HA_EXTRA_DETACH_CHILDREN
 };
 
 /* Compatible option, to be deleted in 6.0 */

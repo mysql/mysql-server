@@ -538,7 +538,9 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  uint push_flags(uint flags) const;
+  int push_flag(enum ha_push_flag flag);
+  bool test_push_flag(enum ha_push_flag flag) const;
+
   uint make_pushed_join(struct st_join_table* join_tabs, int count);
   uint has_pushed_joins() const;
 
