@@ -40,6 +40,10 @@ SELECT @session_start_value;
 SET @global_start_value = @@global.engine_condition_pushdown;
 SELECT @global_start_value;
 
+# same for optimizer_switch
+select @old_session_opt_switch:=@@session.optimizer_switch,
+@old_global_opt_switch:=@@global.optimizer_switch;
+
 --echo '#--------------------FN_DYNVARS_028_01------------------------#'
 ######################################################################## 
 #           Display the DEFAULT value of engine_condition_pushdown     #
@@ -204,6 +208,44 @@ SELECT @@global.engine_condition_pushdown;
 SET @@global.engine_condition_pushdown = FALSE;
 SELECT @@global.engine_condition_pushdown;
 
+--echo Check that @@engine_condition_pushdown influences
+--echo @@optimizer_switch and vice-versa
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@session.engine_condition_pushdown = TRUE;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@session.engine_condition_pushdown = FALSE;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@global.engine_condition_pushdown = TRUE;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@global.engine_condition_pushdown = FALSE;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@session.optimizer_switch = "engine_condition_pushdown=on";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@session.optimizer_switch = "engine_condition_pushdown=off";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@global.optimizer_switch = "engine_condition_pushdown=on";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+set @@global.optimizer_switch = "engine_condition_pushdown=off";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+
 ##############################  
 #   Restore initial value    #
 ##############################
@@ -213,6 +255,12 @@ SELECT @@session.engine_condition_pushdown;
 
 SET @@global.engine_condition_pushdown = @global_start_value;
 SELECT @@global.engine_condition_pushdown;
+
+set @session.optimizer_switch=@old_session_opt_switch,
+@@global.optimizer_switch=@old_global_opt_switch;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
 
 ###############################################################
 #                    END OF engine_condition_pushdown TESTS   #

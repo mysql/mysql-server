@@ -533,6 +533,11 @@
 #cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#ifdef _WIN32
+#define HAVE_SETENV
+#define setenv(a,b,c) _putenv_s(a,b)
+#endif
+
 
 
 
