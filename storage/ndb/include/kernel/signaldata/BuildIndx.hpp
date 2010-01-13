@@ -46,6 +46,11 @@ public:
     RT_DICT_ABORT = 0xF << 4,
     RT_TRIX = 7 << 8
   };
+
+  enum RequestFlag {
+    RF_BUILD_OFFLINE = 1 << 3 // NOTE check Dbdict.hpp::RequestFlag & BuildIndx
+  };
+
   STATIC_CONST( SignalLength = 9 );
   STATIC_CONST( INDEX_COLUMNS = 0 );
   STATIC_CONST( KEY_COLUMNS = 1 );
