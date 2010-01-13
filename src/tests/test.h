@@ -162,7 +162,8 @@ int
 main(int argc, char *argv[]) {
     int r;
 #if IS_TDB && (defined(_WIN32) || defined(_WIN64))
-    toku_ydb_init();
+    int rinit = toku_ydb_init();
+    CKERR(rinit);
 #endif
 #if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
     r = db_env_set_func_malloc(toku_malloc);   assert(r==0);
@@ -172,7 +173,8 @@ main(int argc, char *argv[]) {
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);
 #if IS_TDB && (defined(_WIN32) || defined(_WIN64))
-    toku_ydb_destroy();
+    int rdestroy = toku_ydb_destroy();
+    CKERR(rdestroy);
 #endif
     return r;
 }
