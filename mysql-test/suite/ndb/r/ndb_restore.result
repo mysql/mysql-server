@@ -600,3 +600,4 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
 drop table t1;
+drop table t1;

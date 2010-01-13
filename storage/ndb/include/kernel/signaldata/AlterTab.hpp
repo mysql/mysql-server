@@ -33,6 +33,8 @@ struct AlterTabReq {
     AlterTableWaitScan = 4,
     AlterTableSumaEnable = 5,
     AlterTableSumaFilter = 6
+    ,AlterTableReadOnly = 7  // From TUP to LQH before mtoib
+    ,AlterTableReadWrite = 8 // From TUP to LQH after mtoib
   };
 
   Uint32 senderRef;

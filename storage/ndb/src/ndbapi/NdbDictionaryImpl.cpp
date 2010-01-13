@@ -3885,7 +3885,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
  * Create index
  */
 int
-NdbDictionaryImpl::createIndex(NdbIndexImpl &ix)
+NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, bool offline)
 {
   ASSERT_NOT_MYSQLD;
   NdbTableImpl* tab = getTable(ix.getTable());
@@ -3894,19 +3894,21 @@ NdbDictionaryImpl::createIndex(NdbIndexImpl &ix)
     return -1;
   }
   
-  return m_receiver.createIndex(m_ndb, ix, * tab);
+  return m_receiver.createIndex(m_ndb, ix, * tab, offline);
 }
 
 int
-NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, NdbTableImpl &tab)
+NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, NdbTableImpl &tab,
+                               bool offline)
 {
-  return m_receiver.createIndex(m_ndb, ix, tab);
+  return m_receiver.createIndex(m_ndb, ix, tab, offline);
 }
 
 int 
 NdbDictInterface::createIndex(Ndb & ndb,
 			      const NdbIndexImpl & impl, 
-			      const NdbTableImpl & table)
+			      const NdbTableImpl & table,
+                              bool offline)
 {
   //validate();
   //aggregate();
@@ -3929,14 +3931,13 @@ NdbDictInterface::createIndex(Ndb & ndb,
   tSignal.theLength = CreateIndxReq::SignalLength;
   
   CreateIndxReq * const req = CAST_PTR(CreateIndxReq, tSignal.getDataPtrSend());
-  
   req->clientRef = m_reference;
   req->clientData = 0;
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
-  req->requestInfo = 0;
+  req->requestInfo = offline ? CreateIndxReq::RF_BUILD_OFFLINE : 0;
   req->requestInfo |= m_tx.requestFlags();
-  
+
   Uint32 it = getKernelConstant(impl.m_type,
 				indexTypeMapping,
 				DictTabInfo::UndefTableType);
