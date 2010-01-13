@@ -54,10 +54,10 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(0),
+  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
-    a_cache(0), b_cache(0), set_null(0),
+    a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
   int set_compare_func(Item_result_field *owner, Item_result type);
