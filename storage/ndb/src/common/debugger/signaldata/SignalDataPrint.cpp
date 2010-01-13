@@ -252,6 +252,11 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_API_VERSION_CONF, printAPI_VERSION_CONF }
 
   ,{ GSN_LOCAL_ROUTE_ORD, printLOCAL_ROUTE_ORD }
+
+  ,{ GSN_DBINFO_SCANREQ, printDBINFO_SCAN }
+  ,{ GSN_DBINFO_SCANCONF, printDBINFO_SCAN }
+  ,{ GSN_DBINFO_SCANREF, printDBINFO_SCAN_REF }
+
   ,{ 0, 0 }
 };
 

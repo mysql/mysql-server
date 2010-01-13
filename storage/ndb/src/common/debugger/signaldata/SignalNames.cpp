@@ -54,6 +54,10 @@ const GsnName SignalNames [] = {
   ,{ GSN_TCSEIZECONF,            "TCSEIZECONF" }
   ,{ GSN_TCSEIZEREF,             "TCSEIZEREF" }
   ,{ GSN_TCSEIZEREQ,             "TCSEIZEREQ" }
+  ,{ GSN_DBINFO_SCANREQ,         "DBINFO_SCANREQ" }
+  ,{ GSN_DBINFO_SCANCONF,        "DBINFO_SCANCONF" }
+  ,{ GSN_DBINFO_SCANREF,         "DBINFO_SCANREF" }
+  ,{ GSN_DBINFO_TRANSID_AI,      "DBINFO_TRANSID_AI" }
   ,{ GSN_TRANSID_AI,             "TRANSID_AI" }
   ,{ GSN_TRANSID_AI_R,           "TRANSID_AI_R" }
   ,{ GSN_ABORT,                  "ABORT" }
@@ -89,6 +93,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_ADD_FRAGCONF,           "ADD_FRAGCONF" }
   ,{ GSN_ADD_FRAGREF,            "ADD_FRAGREF" }
   ,{ GSN_ADD_FRAGREQ,            "ADD_FRAGREQ" }
+  ,{ GSN_API_START_REP,          "API_START_REP" }
   ,{ GSN_API_FAILCONF,           "API_FAILCONF" }
   ,{ GSN_API_FAILREQ,            "API_FAILREQ" }
   ,{ GSN_CHECK_LCP_STOP,         "CHECK_LCP_STOP" }
