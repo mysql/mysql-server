@@ -2978,6 +2978,7 @@ row_sel_get_clust_rec_for_mysql(
 
 		if (clust_rec
 		    && (old_vers
+			|| trx->isolation_level <= TRX_ISO_READ_UNCOMMITTED
 			|| rec_get_deleted_flag(rec, dict_table_is_comp(
 							sec_index->table)))
 		    && !row_sel_sec_rec_is_for_clust_rec(
