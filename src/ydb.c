@@ -1025,6 +1025,8 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
 }
 
 // For test purposes only.
+// These callbacks are never used in production code, only as a way to test the system
+// (for example, by causing crashes at predictable times).
 static void (*checkpoint_callback_f)(void*) = NULL;
 static void * checkpoint_callback_extra     = NULL;
 static void (*checkpoint_callback2_f)(void*) = NULL;
