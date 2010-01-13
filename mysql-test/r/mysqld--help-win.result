@@ -912,6 +912,7 @@ slave-load-tmpdir                 MYSQLTEST_VARDIR/tmp/
 slave-net-timeout                 3600
 slave-skip-errors                 (No default value)
 slave-transaction-retries         10
+slave-type-conversions            
 slow-launch-time                  2
 slow-query-log                    FALSE
 socket                            MySQL
