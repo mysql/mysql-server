@@ -4704,4 +4704,19 @@ c1
 9.1234
 DROP TABLE t1;
 # End of test for bug#49489.
+#
+# Bug #49517: Inconsistent behavior while using 
+# NULLable BIGINT and INT columns in comparison
+#
+CREATE TABLE t1(a BIGINT UNSIGNED NOT NULL, b BIGINT NULL, c INT NULL);
+INSERT INTO t1 VALUES(105, NULL, NULL);
+SELECT * FROM t1 WHERE b < 102;
+a	b	c
+SELECT * FROM t1 WHERE c < 102;
+a	b	c
+SELECT * FROM t1 WHERE 102 < b;
+a	b	c
+SELECT * FROM t1 WHERE 102 < c;
+a	b	c
+DROP TABLE t1;
 End of 5.1 tests
