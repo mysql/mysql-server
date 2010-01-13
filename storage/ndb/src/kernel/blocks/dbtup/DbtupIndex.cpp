@@ -503,7 +503,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     buildPtr.p->m_tupleNo= firstTupleNo;
     // start build
     bool offline = refToMain(buildReq->senderRef) == DBLQH; // crude
-    if (false && offline && m_max_parallel_index_build > 1)
+    if (offline && m_max_parallel_index_build > 1)
     {
       jam();
       buildIndexOffline(signal, buildPtr.i);
@@ -792,7 +792,13 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
     req.indexId = buildPtr.p->m_indexId;
     req.fragId = tablePtr.p->fragid[buildPtr.p->m_fragNo];
 
-    req.tux_ptr = globalData.getBlock(DBTUX);
+    SimulatedBlock * tux = globalData.getBlock(DBTUX);
+    if (instance() != 0)
+    {
+      tux = tux->getInstance(instance());
+      ndbrequire(tux != 0);
+    }
+    req.tux_ptr = tux;
     req.tup_ptr = this;
     req.func_ptr = Dbtux_mt_buildIndexFragment_wrapper_C;
     req.buffer_size = 16*32768; // thread-local-buffer

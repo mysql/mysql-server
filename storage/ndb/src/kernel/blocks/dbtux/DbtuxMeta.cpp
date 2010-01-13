@@ -406,7 +406,7 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   c_indexPool.getPtr(indexPtr, req->indexId);
 
   //Uint32 save = indexPtr.p->m_state;
-  if (refToBlock(req->senderData) != DBDICT)
+  if (refToBlock(req->senderRef) != DBDICT)
   {
     /**
      * DICT has a really distorted view of the world...
