@@ -841,11 +841,38 @@ ha_ndbcluster::has_pushed_joins() const
     return m_pushed_join->m_count;
 }
 
-uint
-ha_ndbcluster::push_flags(uint flags) const
+int
+ha_ndbcluster::push_flag(enum ha_push_flag flag)
 {
   DBUG_ENTER("push_flags");
-  if (flags == HA_PUSH_BLOCK_CONST_TABLE)
+  switch (flag)
+  {
+  case HA_PUSH_BLOCK_CONST_TABLE:
+    DBUG_RETURN(-1);
+
+  case HA_PUSH_DISABLE:
+    DBUG_PRINT("info", ("HA_PUSH_DISABLE"));
+    m_disable_pushed_join= TRUE;
+    break;
+
+  case HA_PUSH_ENABLE:
+    DBUG_PRINT("info", ("HA_PUSH_ENABLE"));
+    m_disable_pushed_join= FALSE;
+    break;
+
+  default:
+    DBUG_ASSERT(0);
+    DBUG_RETURN(-1);
+  }
+}
+
+bool
+ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
+{
+  DBUG_ENTER("test_push_flag");
+  switch (flag)
+  {
+  case HA_PUSH_BLOCK_CONST_TABLE:
   {
     /**
      * We don't support join push down if...
@@ -857,18 +884,30 @@ ha_ndbcluster::push_flags(uint flags) const
      */
     THD *thd= current_thd;
     if (unlikely(!(thd->variables.ndb_join_pushdown)))
-      DBUG_RETURN(0);
+      DBUG_RETURN(false);
 
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
     if (lm == NdbOperation::LM_CommittedRead)
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     }
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
-  DBUG_RETURN(0);
+  case HA_PUSH_DISABLE:
+    DBUG_PRINT("info", ("HA_PUSH_DISABLE"));
+    DBUG_RETURN(m_disable_pushed_join==TRUE);
+
+  case HA_PUSH_ENABLE:
+    DBUG_PRINT("info", ("HA_PUSH_ENABLE"));
+    DBUG_RETURN(m_disable_pushed_join==FALSE);
+
+  default:
+    DBUG_ASSERT(0);
+    DBUG_RETURN(false);
+  }
 }
+
 
 /**
  * Prefer ordered indexscan over filesort?
@@ -6301,14 +6340,6 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_NO_KEYREAD:
     DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
-    m_disable_pushed_join= FALSE;
-    break;
-  case HA_EXTRA_DISABLE_JOINPUSH:
-    DBUG_PRINT("info", ("HA_EXTRA_DISABLE_JOINPUSH"));
-    m_disable_pushed_join= TRUE;
-    break;
-  case HA_EXTRA_ENABLE_JOINPUSH:
-    DBUG_PRINT("info", ("HA_EXTRA_ENABLE_JOINPUSH"));
     m_disable_pushed_join= FALSE;
     break;
   default:

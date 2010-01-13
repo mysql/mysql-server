@@ -1958,7 +1958,7 @@ int subselect_single_select_engine::exec()
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
               tab->read_record.unlock_row= rr_unlock_row;
-              tab->table->file->extra(HA_EXTRA_DISABLE_JOINPUSH);
+              tab->table->file->push_flag(HA_PUSH_DISABLE);
               *(last_changed_tab++)= tab;
               break;
             }
@@ -1977,7 +1977,7 @@ int subselect_single_select_engine::exec()
       tab->read_record.ref_length= 0;
       tab->read_first_record= tab->save_read_first_record; 
       tab->read_record.read_record= tab->save_read_record;
-      tab->table->file->extra(HA_EXTRA_ENABLE_JOINPUSH);
+      tab->table->file->push_flag(HA_PUSH_ENABLE);
     }
     executed= 1;
     thd->where= save_where;
