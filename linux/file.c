@@ -114,7 +114,7 @@ toku_file_fsync(int fd) {
 	if (r) 
 	    assert(errno==EINTR);
     }
-    toku_sync_fetch_and_add_uint64(&toku_fsync_count, 1);
+    toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
     toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
     return r;
 }

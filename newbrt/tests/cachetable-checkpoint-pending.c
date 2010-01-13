@@ -39,9 +39,9 @@ flush (CACHEFILE UU(thiscf), CACHEKEY UU(key), void *value, void *UU(extraargs),
     int *v = value;
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
-    (void)toku_sync_fetch_and_add_int32(&n_flush, 1);
-    if (write_me) (void)toku_sync_fetch_and_add_int32(&n_write_me, 1);
-    if (keep_me)  (void)toku_sync_fetch_and_add_int32(&n_keep_me,  1);
+    (void)toku_sync_fetch_and_increment_int32(&n_flush);
+    if (write_me) (void)toku_sync_fetch_and_increment_int32(&n_write_me);
+    if (keep_me)  (void)toku_sync_fetch_and_increment_int32(&n_keep_me);
     sleep_random();
 }
 
