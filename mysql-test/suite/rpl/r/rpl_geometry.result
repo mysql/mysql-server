@@ -1,0 +1,18 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(a varchar(100),
+b multipoint not null,
+c varchar(256));
+insert into t1 set
+a='hello',
+b=geomfromtext('multipoint(1 1)'),
+c='geometry';
+create table t2 (a int(11) not null auto_increment primary key,
+b geometrycollection default null,
+c decimal(10,0));
+insert into t2(c) values (null);
+drop table t1, t2;

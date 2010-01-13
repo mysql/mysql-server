@@ -1,4 +1,4 @@
-# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,9 +51,9 @@
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
 %if %{STATIC_BUILD}
-%define release 0
+%define release 1
 %else
-%define release 0.glibc23
+%define release 1.glibc23
 %endif
 %define mysql_license	GPL
 %define mysqld_user	mysql
@@ -64,6 +64,19 @@
 # We don't package all files installed into the build root by intention -
 # See BUG#998 for details.
 %define _unpackaged_files_terminate_build 0
+
+# ------------------------------------------------------------------------------
+# RPM build tools now automatically detects Perl module dependencies. This 
+# detection gives problems as it is broken in some versions, and it also
+# give unwanted dependencies from mandatory scripts in our package.
+# Might not be possible to disable in all RPM tool versions, but here we
+# try. We keep the "AutoReqProv: no" for the "test" sub package, as disabling
+# here might fail, and that package has the most problems.
+# See http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
+#     http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
+# ------------------------------------------------------------------------------
+%undefine __perl_provides
+%undefine __perl_requires
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
@@ -87,7 +100,7 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Version:	@MYSQL_NO_DASH_VERSION@
+Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
 License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
@@ -205,7 +218,7 @@ They should be used with caution.
 %endif
 
 %package test
-Requires: %{name}-client perl-DBI perl
+Requires: %{name}-client perl
 Summary: MySQL - Test suite
 Group: Applications/Databases
 Provides: mysql-test
@@ -882,6 +895,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Jan 11 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Change RPM file naming:
+  - Suffix like "-m2", "-rc" becomes part of version as "_m2", "_rc".
+  - Release counts from 1, not 0.
+
 * Mon Aug 24 2009 Jonathan Perkin <jperkin@sun.com>
 
 - Add conditionals for bundled zlib and innodb plugin
