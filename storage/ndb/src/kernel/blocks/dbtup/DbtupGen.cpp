@@ -478,6 +478,15 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
                             &m_max_parallel_index_build);
+
+  if (isNdbMt())
+  {
+    /**
+     * Disable for now...
+     * TODO: Figure out why this doesnt work
+     */
+    m_max_parallel_index_build = 0;
+  }
   
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
