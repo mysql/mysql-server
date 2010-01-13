@@ -3178,8 +3178,9 @@ compare_errors:
       has already been dropped. To ignore such irrelevant "table does
       not exist errors", we silently clear the error if TEMPORARY was used.
     */
-    if (thd->lex->drop_temporary && thd->is_error() &&
-        thd->main_da.sql_errno() == ER_BAD_TABLE_ERROR && !expected_error)
+    if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
+        thd->is_error() && thd->main_da.sql_errno() == ER_BAD_TABLE_ERROR &&
+        !expected_error)
       thd->main_da.reset_diagnostics_area();
     /*
       If we expected a non-zero error code, and we don't get the same error

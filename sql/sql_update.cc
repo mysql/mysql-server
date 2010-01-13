@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "debug_sync.h"
 
 /* Return 0 if row hasn't changed */
 
@@ -1143,8 +1144,11 @@ reopen_tables:
       items from 'fields' list, so the cleanup above is necessary to.
     */
     cleanup_items(thd->free_list);
-
+    cleanup_items(thd->stmt_arena->free_list);
     close_tables_for_reopen(thd, &table_list);
+
+    DEBUG_SYNC(thd, "multi_update_reopen_tables");
+
     goto reopen_tables;
   }
 

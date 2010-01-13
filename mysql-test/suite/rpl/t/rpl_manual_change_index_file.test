@@ -1,0 +1,106 @@
+source include/master-slave.inc;
+
+#
+# BUG#28421 Infinite loop on slave relay logs
+# 
+# That, manually deleteing one or more entries from 'master-bin.index', will
+# cause master infinitely loop to send one binlog file.
+# 
+# Manually changing index file is a illegal action, so when this happen, we
+# send a fatal error to slave and close the dump session.
+
+FLUSH LOGS;
+# Now, 2 entries in index file.
+# ./master-bin.000001
+# ./master-bin.000002
+
+CREATE TABLE t1(c1 INT);
+# Now, the current dump file(master-bin.000002) is the second line of index
+# file
+sync_slave_with_master;
+# Now, all events has been replicate to slave. As current dump file
+# (master-bin.000002) is the last binlog file, so master is waiting for new
+# events.
+
+connection master;
+# Delete './master-bin.000001' from index file.
+let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
+let $file= $MYSQLD_DATADIR/master-bin.index;
+source include/truncate_file.inc;
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+./master-bin.000002
+EOF
+sleep 0.00000001;
+}
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+.\master-bin.000002
+EOF
+sleep 0.00000001;
+}
+
+# Now, only 1 entry in index file.  ./master-bin.000002
+
+# Generate master-bin.000003, but it is in the second line.
+FLUSH LOGS;
+# Now, 2 entries in index file.
+# ./master-bin.000002
+# ./master-bin.000003
+
+# Now, master know that new binlog file(master-bin.000003) has been generated.
+# It expects that the new binlog file is in third line of index file, but
+# there is no third line in index file. It is so strange that master sends an
+# error to slave. 
+call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
+connection slave;
+source include/wait_for_slave_io_to_stop.inc;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+echo Last_IO_Error;
+echo $last_error;
+
+connection master;
+
+source include/truncate_file.inc;
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+./master-bin.000001
+./master-bin.000002
+./master-bin.000003
+EOF
+sleep 0.00000001;
+}
+
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+append_file $MYSQLD_DATADIR/master-bin.index;
+.\master-bin.000001
+.\master-bin.000002
+.\master-bin.000003
+EOF
+sleep 0.00000001;
+}
+
+CREATE TABLE t2(c1 INT);
+FLUSH LOGS;
+CREATE TABLE t3(c1 INT);
+FLUSH LOGS;
+CREATE TABLE t4(c1 INT);
+
+connection slave;
+START SLAVE IO_THREAD;
+source include/wait_for_slave_io_to_start.inc;
+
+connection master;
+sync_slave_with_master;
+SHOW TABLES;
+
+connection master;
+DROP TABLE t1, t2, t3, t4;
+source include/master-slave-end.inc;

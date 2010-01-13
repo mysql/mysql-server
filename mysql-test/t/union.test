@@ -1144,8 +1144,10 @@ SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY (SELECT a FROM t2 WHERE b = 12);
 
 --echo # Should not crash
+--disable_result_log
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY (SELECT a FROM t2 WHERE b = 12);
+--enable_result_log
 
 --echo # Should not crash
 SELECT * FROM t2 UNION SELECT * FROM t2
