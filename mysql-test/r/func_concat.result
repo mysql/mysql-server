@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
 INSERT INTO t1 VALUES (1413006,'idlfmv'),
 (1413065,'smpsfz'),(1413127,'sljrhx'),(1413304,'qerfnd');
@@ -119,4 +120,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	102	NULL	3	Using index
 1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	
 DROP TABLE t1, t2;
+#
+# Bug #50096: CONCAT_WS inside procedure returning wrong data
+#
+CREATE PROCEDURE p1(a varchar(255), b int, c int)
+SET @query = CONCAT_WS(",", a, b, c);
+CALL p1("abcde", "0", "1234");
+SELECT @query;
+@query
+abcde,0,1234
+DROP PROCEDURE p1;
 # End of 5.1 tests
