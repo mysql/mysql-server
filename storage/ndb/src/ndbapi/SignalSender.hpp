@@ -53,7 +53,7 @@ public:
     return (header.m_fragmentInfo == 0 ? 0 : getDataPtr()[header.theLength - 1]);
   }
 
-  void print(FILE * out = stdout);
+  void print(FILE * out = stdout) const;
 private:
   bool deallocSections;
 };
