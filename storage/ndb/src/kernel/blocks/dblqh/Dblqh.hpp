@@ -239,6 +239,7 @@ class Dbtup;
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
 #define ZREBUILD_ORDERED_INDEXES 23
+#define ZWAIT_READONLY 24
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -309,6 +310,7 @@ class Dbtup;
 #define ZTABLE_NOT_DEFINED 1225
 #define ZDROP_TABLE_IN_PROGRESS 1226
 #define ZINVALID_SCHEMA_VERSION 1227
+#define ZTABLE_READ_ONLY 1233
 
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 2.X                                    */
@@ -1850,7 +1852,8 @@ public:
       NOT_DEFINED = 1,
       ADD_TABLE_ONGOING = 2,
       PREP_DROP_TABLE_ONGOING = 3,
-      PREP_DROP_TABLE_DONE = 4
+      PREP_DROP_TABLE_DONE = 4,
+      TABLE_READ_ONLY = 5
     };
     
     UintR fragrec[MAX_FRAG_PER_NODE];
@@ -1867,7 +1870,8 @@ public:
     Uint32 schemaVersion;
     Uint8 m_disk_table;
 
-    Uint32 usageCount;
+    Uint32 usageCountR; // readers
+    Uint32 usageCountW; // writers
     NdbNodeBitmask waitingTC;
     NdbNodeBitmask waitingDIH;
   }; // Size 100 bytes
@@ -2560,6 +2564,8 @@ private:
   void sendAddAttrReq(Signal* signal);
   void checkDropTab(Signal*);
   Uint32 checkDropTabState(Tablerec::TableStatus, Uint32) const;
+  int check_tabstate(Signal* signal, const Tablerec*, Uint32 op);
+  void wait_readonly(Signal*);
 
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation

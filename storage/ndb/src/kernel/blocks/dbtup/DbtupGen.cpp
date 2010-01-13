@@ -98,6 +98,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
   addRecSignal(GSN_BUILDINDXREF, &Dbtup::execBUILDINDXREF);
   addRecSignal(GSN_BUILDINDXCONF, &Dbtup::execBUILDINDXCONF);
+  addRecSignal(GSN_ALTER_TAB_CONF, &Dbtup::execALTER_TAB_CONF);
   m_max_parallel_index_build = 0;
 
   // Tup scan

@@ -50,6 +50,9 @@ public:
     AlterTablePrepare = 0, // Prepare alter table
     AlterTableCommit = 1,  // Commit alter table
     AlterTableRevert = 2   // Prepare failed, revert instead
+
+    ,AlterTableReadOnly = 3  // From TUP to LQH before mtoib
+    ,AlterTableReadWrite = 4 // From TUP to LQH after mtoib
   };
 private:
   Uint32 senderRef;

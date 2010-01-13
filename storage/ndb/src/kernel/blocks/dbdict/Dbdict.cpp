@@ -13237,6 +13237,7 @@ Dbdict::buildIndex_buildTrix(Signal* signal, OpBuildIndexPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(BuildIndxReq::RT_TRIX);
+  req->addRequestFlag(opPtr.p->m_requestFlag);
   req->setBuildId(0);   // not yet..
   req->setBuildKey(0);  // ..in use
   req->setIndexType(indexPtr.p->tableType);

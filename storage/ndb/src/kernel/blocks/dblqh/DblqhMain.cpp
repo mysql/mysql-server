@@ -527,6 +527,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
     rebuildOrderedIndexes(signal, tableId);
     return;
   }
+  case ZWAIT_READONLY:
+  {
+    jam();
+    wait_readonly(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -1822,7 +1828,8 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
     ndbrequire(false);
     return;
   }//if
-  tabptr.p->usageCount = 0;
+  tabptr.p->usageCountR = 0;
+  tabptr.p->usageCountW = 0;
   tabptr.p->tableStatus = Tablerec::TABLE_DEFINED;
   signal->theData[0] = dihPtr;
   signal->theData[1] = cownNodeid;
@@ -2041,7 +2048,8 @@ Dblqh::checkDropTab(Signal* signal){
   
   ndbrequire(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING);
   
-  if(tabPtr.p->usageCount > 0){
+  if (tabPtr.p->usageCountR > 0 || tabPtr.p->usageCountW > 0)
+  {
     jam();
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
     return;
@@ -2134,6 +2142,7 @@ Dblqh::execWAIT_DROP_TAB_REQ(Signal* signal){
 
   bool ok = false;
   switch(tabPtr.p->tableStatus){
+  case Tablerec::TABLE_READ_ONLY:
   case Tablerec::TABLE_DEFINED:
     ok = true;
     ref->errorCode = WaitDropTabRef::IllegalTableState;
@@ -2199,7 +2208,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     
   } while(false);
   
-  ndbrequire(tabPtr.p->usageCount == 0);
+  ndbrequire(tabPtr.p->usageCountR == 0 && tabPtr.p->usageCountW == 0);
   tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
   
   DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
@@ -2234,6 +2243,10 @@ Dblqh::checkDropTabState(Tablerec::TableStatus status, Uint32 gsn) const{
       jam();
       return 0;
       break;
+    case Tablerec::TABLE_READ_ONLY:
+      jam();
+      return PrepDropTabRef::InvalidTableState;
+      break;
     }
     ndbrequire(0);
   }
@@ -2258,6 +2271,9 @@ Dblqh::checkDropTabState(Tablerec::TableStatus status, Uint32 gsn) const{
     case Tablerec::TABLE_DEFINED:
       jam();
       return DropTabRef::DropWoPrep;
+    case Tablerec::TABLE_READ_ONLY:
+      jam();
+      return DropTabRef::InvalidTableState;
     }
     ndbrequire(0);
   }
@@ -2296,7 +2312,30 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
-  tablePtr.p->schemaVersion = tableVersion;
+
+  if (requestType == AlterTabReq::AlterTableReadOnly)
+  {
+    jam();
+    ndbrequire(tablePtr.p->tableStatus == Tablerec::TABLE_DEFINED);
+    tablePtr.p->tableStatus = Tablerec::TABLE_READ_ONLY;
+    signal->theData[0] = ZWAIT_READONLY;
+    signal->theData[1] = tablePtr.i;
+    signal->theData[2] = senderRef;
+    signal->theData[3] = senderData;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    return;
+  }
+  else if (requestType == AlterTabReq::AlterTableReadWrite)
+  {
+    jam();
+    ndbrequire(tablePtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
+    tablePtr.p->tableStatus = Tablerec::TABLE_DEFINED;
+  }
+  else
+  {
+    jam();
+    tablePtr.p->schemaVersion = tableVersion;
+  }
 
   // Request handled successfully
   AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
@@ -2307,6 +2346,42 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   conf->tableVersion = tableVersion;
   conf->gci = gci;
   conf->requestType = requestType;
+  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+	     AlterTabConf::SignalLength, JBB);
+}
+
+void
+Dblqh::wait_readonly(Signal* signal)
+{
+  jam();
+
+  Uint32 tableId = signal->theData[1];
+
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+  ndbrequire(tablePtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
+
+  if (tablePtr.p->usageCountW > 0)
+  {
+    jam();
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000,
+                        signal->getLength());
+    return;
+  }
+
+  Uint32 senderRef = signal->theData[2];
+  Uint32 senderData = signal->theData[3];
+
+  // Request handled successfully
+  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  conf->changeMask = 0;
+  conf->tableId = tableId;
+  conf->tableVersion = tablePtr.p->schemaVersion;
+  conf->gci = 0;
+  conf->requestType = AlterTabReq::AlterTableReadOnly;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -2451,6 +2526,38 @@ void Dblqh::noFreeRecordLab(Signal* signal,
   return;
 }//Dblqh::noFreeRecordLab()
 
+int
+Dblqh::check_tabstate(Signal * signal, const Tablerec * tablePtrP, Uint32 op)
+{
+  switch(tabptr.p->tableStatus){
+  case Tablerec::TABLE_DEFINED:
+    jam();
+    return 0;
+  case Tablerec::NOT_DEFINED:
+  case Tablerec::ADD_TABLE_ONGOING:
+    jam();
+    terrorCode = ZTABLE_NOT_DEFINED;
+    break;
+  case Tablerec::PREP_DROP_TABLE_ONGOING:
+  case Tablerec::PREP_DROP_TABLE_DONE:
+    jam();
+    terrorCode = ZDROP_TABLE_IN_PROGRESS;
+    break;
+  case Tablerec::TABLE_READ_ONLY:
+    jam();
+    if (op != ZREAD && op != ZREAD_EX)
+    {
+      jam();
+      terrorCode = ZTABLE_READ_ONLY;
+      break;
+    }
+    return 0;
+  }
+  abortErrorLab(signal);
+  return 1;
+}
+
+
 void Dblqh::LQHKEY_abort(Signal* signal, int errortype)
 {
   switch (errortype) {
@@ -2474,17 +2581,7 @@ void Dblqh::LQHKEY_abort(Signal* signal, int errortype)
     return;
     break;
   case 4:
-    jam();
-    if(tabptr.p->tableStatus == Tablerec::NOT_DEFINED){
-      jam();
-      terrorCode = ZTABLE_NOT_DEFINED;
-    } else if (tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
-	       tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
-      jam();
-      terrorCode = ZDROP_TABLE_IN_PROGRESS;
-    } else {
-      ndbrequire(0);
-    }
+    ndbrequire(0);
     break;
   case 5:
     jam();
@@ -3855,14 +3952,16 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }//if
   ptrAss(tabptr, tablerec);
-  if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
-    LQHKEY_abort(signal, 4);
-    return;
-  }
   if(table_version_major(tabptr.p->schemaVersion) != 
      table_version_major(schemaVersion)){
     LQHKEY_abort(signal, 5);
     return;
+  }
+
+  if (unlikely(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED))
+  {
+    if (check_tabstate(signal, tabptr.p, op))
+      return;
   }
   
   regTcPtr->tableref = tabptr.i;
@@ -3872,7 +3971,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   else if(op == ZREAD || op == ZREAD_EX || op == ZUPDATE)
     regTcPtr->m_disk_table &= !LqhKeyReq::getNoDiskFlag(Treqinfo);
   
-  tabptr.p->usageCount++;
+  if (op == ZREAD || op == ZREAD_EX)
+    tabptr.p->usageCountR++;
+  else
+    tabptr.p->usageCountW++;
   
   if (!getFragmentrec(signal, regTcPtr->fragmentid)) {
     LQHKEY_error(signal, 6);
@@ -6955,6 +7057,7 @@ void Dblqh::completeUnusualLab(Signal* signal)
 void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
   jam();
+  Uint32 op = locTcConnectptr.p->operation;
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = cfirstfreeTcConrec;
@@ -6970,8 +7073,16 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   /**
    * Normal case
    */
-  ndbrequire(tabPtr.p->usageCount > 0);
-  tabPtr.p->usageCount--;
+  if (op == ZREAD)
+  {
+    ndbrequire(tabPtr.p->usageCountR > 0);
+    tabPtr.p->usageCountR--;
+  }
+  else
+  {
+    ndbrequire(tabPtr.p->usageCountW > 0);
+    tabPtr.p->usageCountW--;
+  }
 }//Dblqh::releaseTcrec()
 
 void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
@@ -8733,7 +8844,9 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint8 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
   
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  if(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED){
+  if (tabptr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+      tabptr.p->tableStatus != Tablerec::TABLE_READ_ONLY)
+  {
     senderData = scanFragReq->senderData;
     goto error_handler_early_1;
   }
@@ -10157,7 +10270,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tcConnectptr.p->m_disk_table = tTablePtr.p->m_disk_table &&
     (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));  
 
-  tabptr.p->usageCount++;
+  tabptr.p->usageCountR++;
 }//Dblqh::initScanTc()
 
 /* ========================================================================= 
@@ -11828,7 +11941,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   
   ndbrequire(tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING ||
 	     tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE ||
-	     tabptr.p->tableStatus == Tablerec::TABLE_DEFINED);
+	     tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+             tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
 
   ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
   
@@ -12185,7 +12299,8 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   lcpPtr.p->m_error = 0;
   lcpPtr.p->m_outstanding = 1;
 
-  ndbrequire(tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED);
+  ndbrequire(tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+             tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
   
   lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_FRAGID;
   LcpPrepareReq* req= (LcpPrepareReq*)signal->getDataPtr();
@@ -15182,9 +15297,11 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   }
 
   BuildIndxReq* const req = (BuildIndxReq*)signal->getDataPtrSend();
+  bzero(req, sizeof(req));
   req->setUserRef(reference());
   req->setConnectionPtr(tableId);
   req->setRequestType(BuildIndxReq::RT_TRIX);
+  req->addRequestFlag(BuildIndxReq::RF_BUILD_OFFLINE);
   req->setBuildId(0);   // not yet..
   req->setBuildKey(0);  // ..in use
   req->setIndexType(tabptr.p->tableType);
@@ -18234,7 +18351,8 @@ void Dblqh::initialiseTabrec(Signal* signal)
       refresh_watch_dog();
       ptrAss(tabptr, tablerec);
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
-      tabptr.p->usageCount = 0;
+      tabptr.p->usageCountR = 0;
+      tabptr.p->usageCountW = 0;
       for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
         tabptr.p->fragid[i] = ZNIL;
         tabptr.p->fragrec[i] = RNIL;
@@ -20100,8 +20218,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       tabPtr.i = i;
       ptrAss(tabPtr, tablerec);
       if(tabPtr.p->tableStatus != Tablerec::NOT_DEFINED){
-	infoEvent("Table %d Status: %d Usage: %d",
-		  i, tabPtr.p->tableStatus, tabPtr.p->usageCount);
+	infoEvent("Table %d Status: %d Usage: [ r: %u w: %u ]",
+		  i, tabPtr.p->tableStatus,
+                  tabPtr.p->usageCountR, tabPtr.p->usageCountW);
 
 	for (Uint32 j = 0; j<MAX_FRAG_PER_NODE; j++)
 	{
