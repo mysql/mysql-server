@@ -1677,6 +1677,15 @@ JOIN::reinit()
   if (join_tab_save)
     memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
 
+  /* Manually applied bugfix for bug#48709 below:
+   *   - Showstopper to get on with SPJ testing
+   *   - Expect mergeconflict here later... :-(
+   */ 
+  /* need to reset ref access state (see join_read_key) */
+  if (join_tab)
+    for (uint i= 0; i < tables; i++)
+      join_tab[i].ref.key_err= TRUE;
+
   if (tmp_join)
     restore_tmp();
 
