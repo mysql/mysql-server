@@ -191,6 +191,7 @@ unpack_row(Relay_log_info const *rli,
   DBUG_ASSERT(row_data);
   DBUG_ASSERT(table);
   size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
+  int error= 0;
 
   uchar const *null_ptr= row_data;
   uchar const *pack_ptr= row_data + master_null_byte_count;
@@ -356,7 +357,7 @@ unpack_row(Relay_log_info const *rli,
       *master_reclength = table->s->reclength;
   }
   
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /**
