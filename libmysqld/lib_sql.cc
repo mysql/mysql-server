@@ -501,7 +501,19 @@ int init_embedded_server(int argc, char **argv, char **groups)
   */
   logger.init_base();
 
-  if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
+  orig_argc= *argcp;
+  orig_argv= *argvp;
+  load_defaults("my", (const char **)groups, argcp, argvp);
+  defaults_argc= *argcp;
+  defaults_argv= *argvp;
+  remaining_argc= argc;
+  remaining_argv= argv;
+
+  /* Must be initialized early for comparison of options name */
+  system_charset_info= &my_charset_utf8_general_ci;
+  sys_var_init();
+
+  if (init_common_variables())
   {
     mysql_server_end();
     return 1;
