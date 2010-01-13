@@ -260,7 +260,7 @@ dict_sys_tables_get_flags(
 		return(0);
 	}
 
-	field = rec_get_nth_field_old(rec, 4, &len);
+	field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
 	n_cols = mach_read_from_4(field);
 
 	if (UNIV_UNLIKELY(!(n_cols & 0x80000000UL))) {
