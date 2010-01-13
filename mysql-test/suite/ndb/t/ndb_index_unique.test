@@ -112,11 +112,11 @@ insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NU
 select * from t2 where c IS NULL order by a;
 select * from t2 where b = 3 AND c IS NULL order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
-set @old_ecpd = @@session.engine_condition_pushdown;
-set engine_condition_pushdown = true;
+set @old_optimizer_switch = @@session.optimizer_switch;
+set optimizer_switch = "engine_condition_pushdown=on";
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
-set engine_condition_pushdown = @old_ecpd;
+set optimizer_switch = @old_optimizer_switch;
 
 drop table t2;
 
