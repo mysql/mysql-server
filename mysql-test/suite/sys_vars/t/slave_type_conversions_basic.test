@@ -1,4 +1,6 @@
 
+--source include/not_embedded.inc
+
 set @saved_slave_type_conversions = @@global.slave_type_conversions;
 
 SELECT @@global.slave_type_conversions;
