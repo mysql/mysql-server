@@ -65,6 +65,19 @@
 # See BUG#998 for details.
 %define _unpackaged_files_terminate_build 0
 
+# ------------------------------------------------------------------------------
+# RPM build tools now automatically detects Perl module dependencies. This 
+# detection gives problems as it is broken in some versions, and it also
+# give unwanted dependencies from mandatory scripts in our package.
+# Might not be possible to disable in all RPM tool versions, but here we
+# try. We keep the "AutoReqProv: no" for the "test" sub package, as disabling
+# here might fail, and that package has the most problems.
+# See http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
+#     http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
+# ------------------------------------------------------------------------------
+%undefine __perl_provides
+%undefine __perl_requires
+
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
 # On SuSE 9 no separate "debuginfo" package is built. To enable basic
@@ -205,7 +218,7 @@ They should be used with caution.
 %endif
 
 %package test
-Requires: %{name}-client perl-DBI perl
+Requires: %{name}-client perl
 Summary: MySQL - Test suite
 Group: Applications/Databases
 Provides: mysql-test
