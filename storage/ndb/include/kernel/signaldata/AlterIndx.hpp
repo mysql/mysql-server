@@ -26,6 +26,10 @@
 struct AlterIndxReq {
   STATIC_CONST( SignalLength = 7 );
 
+  enum RequestFlag {
+    RF_BUILD_OFFLINE = 1 << 8
+  };
+
   Uint32 clientRef;
   Uint32 clientData;
   Uint32 transId;

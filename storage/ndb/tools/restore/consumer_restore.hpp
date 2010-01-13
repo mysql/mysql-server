@@ -78,6 +78,8 @@ public:
     m_preserve_trailing_spaces = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
+    m_disable_indexes = false;
+    m_rebuild_indexes = false;
   }
   
   virtual ~BackupRestore();
@@ -99,6 +101,7 @@ public:
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
   virtual bool finalize_table(const TableS &);
+  virtual bool rebuild_indexes(const TableS&);
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
   virtual bool table_equal(const TableS & table);
@@ -170,6 +173,8 @@ public:
   bool m_no_restore_disk;
   bool m_restore_epoch;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
+  bool m_disable_indexes;
+  bool m_rebuild_indexes;
   Uint32 m_tableChangesMask;
   static bool m_preserve_trailing_spaces;
 
@@ -205,6 +210,7 @@ public:
   const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
 
   Vector<const NdbDictionary::Table*> m_indexes;
+  Vector<Vector<NdbDictionary::Index *> > m_index_per_table; //
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
   Vector<NdbDictionary::HashMap*> m_hashmaps;

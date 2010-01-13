@@ -29,6 +29,10 @@ struct BuildIndxReq {
     SubOp = 2   // actual build of hash index
   };
 
+  enum RequestFlag {
+    RF_BUILD_OFFLINE = 1 << 8
+  };
+
   STATIC_CONST( SignalLength = 11 );
   STATIC_CONST( INDEX_COLUMNS = 0 );
   STATIC_CONST( KEY_COLUMNS = 1 );

@@ -2246,8 +2246,8 @@ public:
      * @param index Index to create
      * @return 0 if successful otherwise -1.
      */
-    int createIndex(const Index &index);
-    int createIndex(const Index &index, const Table &table);
+    int createIndex(const Index &index, bool offline = false);
+    int createIndex(const Index &index, const Table &table, bool offline = false);
 
     /**
      * Drop index with given name
