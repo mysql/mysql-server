@@ -111,7 +111,7 @@ scan_table(NdbInfo& ndbinfo, const NdbInfo::Table* table, int &rows)
 
   ndbinfo.releaseScanOperation(scanOp);
 
-  if (ret < 0)
+  if (ret != 0)
   {
     g_err << "scanOp->nextResult failed, ret: " << ret << endl;
     return false;
