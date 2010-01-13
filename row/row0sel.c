@@ -132,7 +132,8 @@ index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
 @return TRUE if the secondary record is equal to the corresponding
-fields in the clustered record, when compared with collation */
+fields in the clustered record, when compared with collation;
+FALSE if not equal or if the clustered record has been marked for deletion */
 static
 ibool
 row_sel_sec_rec_is_for_clust_rec(
@@ -2977,6 +2978,7 @@ row_sel_get_clust_rec_for_mysql(
 
 		if (clust_rec
 		    && (old_vers
+			|| trx->isolation_level <= TRX_ISO_READ_UNCOMMITTED
 			|| rec_get_deleted_flag(rec, dict_table_is_comp(
 							sec_index->table)))
 		    && !row_sel_sec_rec_is_for_clust_rec(
