@@ -68,8 +68,8 @@ CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NO
 
 insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 
-set @old_ecpd = @@session.engine_condition_pushdown;
-set engine_condition_pushdown = off;
+set @old_optimizer_switch = @@session.optimizer_switch;
+set optimizer_switch = "engine_condition_pushdown=off";
 
 # Test all types and compare operators
 select auto from t1 where 
@@ -453,7 +453,7 @@ select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 
 # Test all types and compare operators
 --replace_column 9 #
@@ -1674,18 +1674,18 @@ select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.a
 create table t5 (a int primary key auto_increment, b tinytext not null) 
 engine = ndb;
 insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
-set engine_condition_pushdown = off;
+set optimizer_switch = "engine_condition_pushdown=off";
 select * from t5 where b like '%jo%' order by a;
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 --replace_column 9 #
 explain select * from t5 where b like '%jo%';
 select * from t5 where b like '%jo%' order by a;
 
 # bug#21056  	ndb pushdown equal/setValue error on datetime
-set engine_condition_pushdown = off;
+set optimizer_switch = "engine_condition_pushdown=off";
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 --replace_column 9 #
 explain select auto from t1 where date_time like '1902-02-02 %';
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
@@ -1701,12 +1701,12 @@ insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
 # in TUP the constants 'ab' 'abc' were expected in varchar format
 # "like" returned error which became "false"
 # scan filter negates "or" which exposes the bug
-set engine_condition_pushdown = off;
+set optimizer_switch = "engine_condition_pushdown=off";
 select * from t1 where b like 'ab';
 select * from t1 where b like 'ab' or b like 'ab';
 select * from t1 where b like 'abc';
 select * from t1 where b like 'abc' or b like 'abc';
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 select * from t1 where b like 'ab';
 select * from t1 where b like 'ab' or b like 'ab';
 select * from t1 where b like 'abc';
@@ -1719,12 +1719,12 @@ engine=ndb;
 insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
 # test that incorrect MySQL behaviour is preserved
 # 'ab ' LIKE 'ab' is true in MySQL
-set engine_condition_pushdown = off;
+set optimizer_switch = "engine_condition_pushdown=off";
 select * from t1 where b like 'ab';
 select * from t1 where b like 'ab' or b like 'ab';
 select * from t1 where b like 'abc';
 select * from t1 where b like 'abc' or b like 'abc';
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 select * from t1 where b like 'ab';
 select * from t1 where b like 'ab' or b like 'ab';
 select * from t1 where b like 'abc';
@@ -1736,9 +1736,9 @@ create table  t1 ( fname varchar(255), lname varchar(255) )
 engine=ndbcluster;
 insert into t1 values ("Young","Foo");
 
-set engine_condition_pushdown = 0;
+set optimizer_switch = "engine_condition_pushdown=off";
 SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
-set engine_condition_pushdown = 1;
+set optimizer_switch = "engine_condition_pushdown=on";
 SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
 
 # make sure optimizer does not do some crazy shortcut
@@ -1747,9 +1747,9 @@ insert into t1 values ("bbb", "bbb");
 insert into t1 values ("ccc", "ccc");
 insert into t1 values ("ddd", "ddd");
 
-set engine_condition_pushdown = 0;
+set optimizer_switch = "engine_condition_pushdown=off";
 SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
-set engine_condition_pushdown = 1;
+set optimizer_switch = "engine_condition_pushdown=on";
 SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
 
 # bug#29390 (scan filter is too large, discarded)
@@ -1766,7 +1766,7 @@ insert into t1 values (30,3,300,0+0x3333);
 insert into t1 values (40,4,400,0+0x4444);
 insert into t1 values (50,5,500,0+0x5555);
 
-set engine_condition_pushdown = on;
+set optimizer_switch = "engine_condition_pushdown=on";
 
 select a,b,d from t1
     where b in (0,1,2,5)
@@ -2050,5 +2050,5 @@ select a,b,d from t1
     order by b;
 --enable_query_log
 
-set engine_condition_pushdown = @old_ecpd;
+set optimizer_switch = @old_optimizer_switch;
 DROP TABLE t1,t2,t3,t4,t5;

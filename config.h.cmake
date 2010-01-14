@@ -18,6 +18,7 @@
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
 #cmakedefine STDC_HEADERS 1
+#cmakedefine _GNU_SOURCE 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_AIO_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
@@ -533,6 +534,11 @@
 #cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#ifdef _WIN32
+#define HAVE_SETENV
+#define setenv(a,b,c) _putenv_s(a,b)
+#endif
+
 
 
 

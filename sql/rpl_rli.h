@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,17 +123,17 @@ public:
   TABLE *save_temporary_tables;
 
   /*
-    standard lock acquistion order to avoid deadlocks:
+    standard lock acquisition order to avoid deadlocks:
     run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
   */
-  pthread_mutex_t data_lock,run_lock;
+  mysql_mutex_t data_lock, run_lock;
 
   /*
     start_cond is broadcast when SQL thread is started
     stop_cond - when stopped
     data_cond - when data protected by data_lock changes
   */
-  pthread_cond_t start_cond, stop_cond, data_cond;
+  mysql_cond_t start_cond, stop_cond, data_cond;
 
   /* parent Master_info structure */
   Master_info *mi;
@@ -215,8 +215,8 @@ public:
   volatile uint32 slave_skip_counter;
   volatile ulong abort_pos_wait;	/* Incremented on change master */
   volatile ulong slave_run_id;		/* Incremented on slave start */
-  pthread_mutex_t log_space_lock;
-  pthread_cond_t log_space_cond;
+  mysql_mutex_t log_space_lock;
+  mysql_cond_t log_space_cond;
   THD * sql_thd;
 #ifndef DBUG_OFF
   int events_till_abort;
