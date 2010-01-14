@@ -29,14 +29,27 @@
 static bool file_exists(const char* path)
 {
   g_info << "File '" << path << "' ";
-  if (access(path, F_OK) == 0)
+  /**
+   * ndb_mgmd does currently not fsync the directory
+   *   after committing config-bin,
+   *   which means that it can be on disk, wo/ being visible
+   *   remedy this by retrying some
+   */
+  for (int i = 0; i<10; i++)
   {
-    g_info << "exists" << endl;
-    return true;
+    if (access(path, F_OK) == 0)
+    {
+      g_info << "exists" << endl;
+      return true;
+    }
+    if (i == 0)
+    {
+      g_info << "does not exist, retrying...";
+    }
+    NdbSleep_MilliSleep(100);
   }
   g_info << "does not exist" << endl;
   return false;
-
 }
 
 // Util function that concatenate strings to form a path
@@ -171,8 +184,7 @@ public:
     // Diconnect and close our "builtin" client
     m_mgmd_client.close();
 
-    assert(m_proc);
-    if (!m_proc->stop())
+    if (m_proc == 0 || !m_proc->stop())
     {
       fprintf(stderr, "Failed to stop process %s\n", name());
       return false; // Can't kill with -9 -> fatal error
@@ -183,7 +195,13 @@ public:
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false; // Can't wait after kill with -9 -> fatal error
     }
-    assert(ret == 9);
+
+    if (ret != 9)
+    {
+      fprintf(stderr, "stop ret: %u\n", ret);
+      return false; // Can't wait after kill with -9 -> fatal error
+    }
+
     delete m_proc;
     m_proc = 0;
 
@@ -191,12 +209,11 @@ public:
 
   }
 
-  bool wait(int& ret, int timeout = 30)
+  bool wait(int& ret, int timeout = 300)
   {
     g_info << "Waiting for " << name() << endl;
 
-    assert(m_proc);
-    if (!m_proc->wait(ret, timeout))
+    if (m_proc == 0 || !m_proc->wait(ret, timeout))
     {
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false;
@@ -336,8 +353,8 @@ int runTestBasic2Mgm(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 1; i <= 2; i++)
   {
     Mgmd* mgmd = new Mgmd(i);
-    CHECK(mgmd->start_from_config_ini(wd.path()));
     mgmds.push_back(mgmd);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
   }
 
   // Connect the ndb_mgmd(s)
@@ -402,8 +419,8 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 1; i <= 2; i++)
   {
     Mgmd* mgmd = new Mgmd(i);
-    CHECK(mgmd->start_from_config_ini(wd.path()));
     mgmds.push_back(mgmd);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
   }
 
   // Connect the ndb_mgmd(s)
@@ -522,21 +539,21 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
                                           "--reload", NULL));
     CHECK(mgmds[i]->connect(config));
     CHECK(mgmds[i]->wait_confirmed_config());
-
-    CHECK(file_exists(path(wd.path(),
-                           "ndb_1_config.bin.1",
-                           NULL).c_str()));
-    CHECK(file_exists(path(wd.path(),
-                           "ndb_2_config.bin.1",
-                           NULL).c_str()));
-
-    CHECK(file_exists(path(wd.path(),
-                            "ndb_1_config.bin.2",
-                            NULL).c_str()));
-    CHECK(file_exists(path(wd.path(),
-                            "ndb_2_config.bin.2",
-                            NULL).c_str()));
   }
+
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_2_config.bin.1",
+                         NULL).c_str()));
+
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.2",
+                         NULL).c_str()));
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_2_config.bin.2",
+                         NULL).c_str()));
 
   g_err << "** Reload mgmd initial(from generation=2)" << endl;
   for (unsigned i = 0; i < mgmds.size(); i++)
@@ -545,6 +562,7 @@ int runTestBug45495(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(mgmds[i]->start_from_config_ini(wd.path(),
                                           "-f config2.ini",
                                           "--reload", "--initial", NULL));
+
     CHECK(mgmds[i]->connect(config));
     CHECK(mgmds[i]->wait_confirmed_config());
 
@@ -582,16 +600,16 @@ int runTestBug42015(NDBT_Context* ctx, NDBT_Step* step)
   MgmdProcessList mgmds;
   // Start ndb_mgmd 1 from config.ini
   Mgmd* mgmd = new Mgmd(1);
-  CHECK(mgmd->start_from_config_ini(wd.path()));
   mgmds.push_back(mgmd);
+  CHECK(mgmd->start_from_config_ini(wd.path()));
 
   // Start ndb_mgmd 2 by fetching from first
   Mgmd* mgmd2 = new Mgmd(2);
+  mgmds.push_back(mgmd2);
   CHECK(mgmd2->start(wd.path(),
                      "--ndb-connectstring",
                      mgmd->connectstring(config).c_str(),
                      NULL));
-  mgmds.push_back(mgmd2);
 
   // Connect the ndb_mgmd(s)
   for (unsigned i = 0; i < mgmds.size(); i++)
@@ -625,13 +643,13 @@ int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
   // Start first ndb_mgmd
+  Mgmd* mgmd1 = new Mgmd(1);
   {
-    Mgmd* mgmd1 = new Mgmd(1);
+    mgmds.push_back(mgmd1);
     CHECK(mgmd1->start_from_config_ini(wd.path(),
                                     "--initial",
                                        "--nowait-nodes=2",
                                        NULL));
-    mgmds.push_back(mgmd1);
 
     // Connect the ndb_mgmd
     CHECK(mgmd1->connect(config));
@@ -648,10 +666,10 @@ int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
   // Start second ndb_mgmd
   {
     Mgmd* mgmd2 = new Mgmd(2);
+    mgmds.push_back(mgmd2);
     CHECK(mgmd2->start_from_config_ini(wd.path(),
                                        "--initial",
                                        NULL));
-    mgmds.push_back(mgmd2);
 
     // Connect the ndb_mgmd
     CHECK(mgmd2->connect(config));
@@ -683,6 +701,7 @@ int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
                                        "-f config2.ini",
                                        "--reload", NULL));
     CHECK(mgmd2->connect(config));
+    CHECK(mgmd1->wait_confirmed_config());
     CHECK(mgmd2->wait_confirmed_config());
 
     CHECK(file_exists(path(wd.path(),
@@ -722,7 +741,9 @@ int runTestNowaitNodes2(NDBT_Context* ctx, NDBT_Step* step)
                                              NULL).c_str()));
 
   g_err << "** Start mgmd1 from config.ini" << endl;
+  MgmdProcessList mgmds;
   Mgmd* mgmd1 = new Mgmd(1);
+  mgmds.push_back(mgmd1);
   CHECK(mgmd1->start_from_config_ini(wd.path(),
                                      "--initial",
                                      "--nowait-nodes=1-255",
@@ -744,6 +765,7 @@ int runTestNowaitNodes2(NDBT_Context* ctx, NDBT_Step* step)
 
   g_err << "** Start mgmd2 from config2.ini" << endl;
   Mgmd* mgmd2 = new Mgmd(2);
+  mgmds.push_back(mgmd2);
   CHECK(mgmd2->start_from_config_ini(wd.path(),
                                      "-f config2.ini",
                                      "--initial",

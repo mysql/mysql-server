@@ -423,15 +423,6 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
-  if (theFacade->start_instance(_ownNodeId,
-                                config->m_configValues) < 0)
-  {
-    g_eventLogger->error("Failed to start transporter");
-    delete theFacade;
-    theFacade = 0;
-    DBUG_RETURN(false);
-  }
-
   assert(_blockNumber == -1); // Blocknumber shouldn't been allocated yet
 
   /*
@@ -444,6 +435,20 @@ MgmtSrvr::start_transporter(const Config* config)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();
+    delete theFacade;
+    theFacade = 0;
+    DBUG_RETURN(false);
+  }
+
+  /**
+   * Need to call ->open() prior to actually starting TF
+   */
+  m_config_manager->set_facade(theFacade);
+
+  if (theFacade->start_instance(_ownNodeId,
+                                config->m_configValues) < 0)
+  {
+    g_eventLogger->error("Failed to start transporter");
     delete theFacade;
     theFacade = 0;
     DBUG_RETURN(false);
@@ -590,7 +595,6 @@ MgmtSrvr::start()
   }
 
   /* Start config manager */
-  m_config_manager->set_facade(theFacade);
   if (!m_config_manager->start())
   {
     g_eventLogger->error("Failed to start ConfigManager");
