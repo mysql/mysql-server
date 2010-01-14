@@ -1714,12 +1714,19 @@ ConfigManager::execCONFIG_CHECK_REF(SignalSender& ss, SimpleSignal* sig)
   exit(1);
 }
 
+void
+ConfigManager::set_facade(TransporterFacade * f)
+{
+  m_facade = f;
+  m_ss = new SignalSender(f, MGM_CONFIG_MAN);
+  require(m_ss != 0);
+}
 
 void
 ConfigManager::run()
 {
   assert(m_facade);
-  SignalSender ss(m_facade, MGM_CONFIG_MAN);
+  SignalSender & ss = * m_ss;
   ss.lock();
 
   // Build bitmaks of all mgm nodes in config
