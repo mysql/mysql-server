@@ -1,0 +1,82 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+# Test how columns privileges can be used on performance schema tables,
+# for very fine control.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+show grants;
+
+grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;
+
+# Test per column privileges on performance_schema
+
+grant SELECT(thread_id, event_id) on performance_schema.EVENTS_WAITS_CURRENT
+  to 'pfs_user_5'@localhost;
+
+grant UPDATE(enabled) on performance_schema.SETUP_INSTRUMENTS
+  to 'pfs_user_5'@localhost;
+
+flush privileges;
+
+connect (con1, localhost, pfs_user_5, , );
+
+# Commented because the result is not consistent (uppercase/lowercase)
+# show grants;
+
+# For statements that works, we do not look at the output
+--disable_result_log
+
+select thread_id from performance_schema.EVENTS_WAITS_CURRENT;
+
+select thread_id, event_id from performance_schema.EVENTS_WAITS_CURRENT;
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+
+--enable_result_log
+
+# For statements that are denied, check the error number and error text.
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_COLUMNACCESS_DENIED_ERROR
+select event_name from performance_schema.EVENTS_WAITS_CURRENT;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_COLUMNACCESS_DENIED_ERROR
+select thread_id, event_id, event_name
+  from performance_schema.EVENTS_WAITS_CURRENT;
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_COLUMNACCESS_DENIED_ERROR
+update performance_schema.SETUP_INSTRUMENTS set name='illegal';
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_COLUMNACCESS_DENIED_ERROR
+update performance_schema.SETUP_INSTRUMENTS set timed='NO';
+
+# Cleanup
+
+--connection default
+--disconnect con1
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'pfs_user_5'@localhost;
+DROP USER 'pfs_user_5'@localhost;
+flush privileges;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'CYCLE';
+

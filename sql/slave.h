@@ -158,7 +158,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already
   inside the start_lock section, but at the same time we want a
-  pthread_cond_wait() on start_cond,start_lock
+  mysql_cond_wait() on start_cond, start_lock
 */
 int start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
