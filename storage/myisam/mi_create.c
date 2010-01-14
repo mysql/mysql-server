@@ -575,7 +575,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     max(share.base.pack_reclength,MI_MIN_BLOCK_LENGTH) :
     MI_EXTEND_BLOCK_LENGTH;
   if (! (flags & HA_DONT_TOUCH_DATA))
-    share.state.create_time= (long) time((time_t*) 0);
+    share.state.create_time= time((time_t*) 0);
 
   pthread_mutex_lock(&THR_LOCK_myisam);
 

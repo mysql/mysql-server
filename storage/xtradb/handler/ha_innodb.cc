@@ -61,7 +61,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#ifndef MYSQL_SERVER
 #define MYSQL_SERVER
+#endif
 
 #include <mysql_priv.h>
 #ifdef MYSQL_SERVER
