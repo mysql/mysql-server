@@ -315,3 +315,13 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
     return 0;
 }
 
+int
+toku_dup2(int fd, int fd2) {
+    int r;
+    r = _dup2(fd, fd2);
+    if (r==0) //success
+        r = fd2;
+    return r;
+
+}
+

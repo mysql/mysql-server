@@ -991,7 +991,7 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
 
 #if DO_TOKU_TRACE
     if (toku_trace_fd == -1) 
-        toku_trace_fd = open("/dev/null", O_WRONLY);
+        toku_trace_fd = open(DEV_NULL_FILE, O_WRONLY);
     toku_trace("deserial start");
 #endif
 

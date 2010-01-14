@@ -222,7 +222,7 @@ static void scanscan_lwc (void) {
 #endif
 
 static void scanscan_range (void) {
-    int fnull = open("/dev/null", O_WRONLY); assert(fnull >= 0); // use with strace
+    int fnull = open(DEV_NULL_FILE, O_WRONLY); assert(fnull >= 0); // use with strace
     int r;
     double tstart = gettime();
     DBC *dbc;

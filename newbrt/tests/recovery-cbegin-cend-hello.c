@@ -34,9 +34,9 @@ run_test(void) {
     }
 
     // redirect stderr
-    int devnul = open("/dev/null", O_WRONLY);
+    int devnul = open(DEV_NULL_FILE, O_WRONLY);
     assert(devnul>=0);
-    r = dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
+    r = toku_dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr));
     r = close(devnul);                      assert(r==0);
 
     // run recovery
