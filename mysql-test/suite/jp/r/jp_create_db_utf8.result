@@ -13,6 +13,7 @@ information_schema
 龔龖龗
 ﾆﾎﾝｺﾞ
 mysql
+performance_schema
 test
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;

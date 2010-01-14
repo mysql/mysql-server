@@ -1,0 +1,1 @@
+--loose-enable-performance-schema --loose-performance_schema_max_thread_instances=0
