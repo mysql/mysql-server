@@ -343,7 +343,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       i++;
   }
   /*
-    We don't call pthread_cond_broadcast(&COND_queue_state);
+    We don't call mysql_cond_broadcast(&COND_queue_state);
     If we remove the top event:
     1. The queue is empty. The scheduler will wake up at some time and
        realize that the queue is empty. If create_event() comes inbetween
@@ -706,13 +706,13 @@ Event_queue::unlock_data(const char *func, uint line)
 
 
 /*
-  Wrapper for pthread_cond_wait/timedwait
+  Wrapper for mysql_cond_wait/timedwait
 
   SYNOPSIS
     Event_queue::cond_wait()
       thd     Thread (Could be NULL during shutdown procedure)
       msg     Message for thd->proc_info
-      abstime If not null then call pthread_cond_timedwait()
+      abstime If not null then call mysql_cond_timedwait()
       func    Which function is requesting cond_wait
       line    On which line cond_wait is requested
 */
@@ -729,7 +729,7 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
 
-  DBUG_PRINT("info", ("pthread_cond_%swait", abstime? "timed":""));
+  DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
   if (!abstime)
     mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
   else
