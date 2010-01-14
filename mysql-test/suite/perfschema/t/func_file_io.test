@@ -1,0 +1,192 @@
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+##
+## WL#4814, 4.1.4 FILE IO
+##
+## Functional testing of File IO
+##
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/io/file/%';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# TODO: Change to InnoDB when it gets instrumentation
+#
+
+CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
+ENGINE=MyISAM;
+
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+
+#
+# FF1: Count for file should increase with instrumentation enabled and
+# FF2: Count for file should not increase with instrumentation disabled
+#
+
+SELECT * FROM t1 WHERE id = 1;
+
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+                     FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+                     WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+                       AND (OBJECT_NAME LIKE '%t1.MYD'));
+
+SELECT IF(@before_count > 0, 'Success', 'Failure') has_instrumentation;
+
+SELECT * FROM t1 WHERE id < 4;
+
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+                    FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+                    WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+                      AND (OBJECT_NAME LIKE '%t1.MYD') AND (1 = 1));
+
+SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_ff1_timed;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled='NO';
+
+SET @before_count = (SELECT SUM(TIMER_WAIT)
+                     FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+                     WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+                       AND (OBJECT_NAME LIKE '%t1.MYD') AND (2 = 2));
+
+SELECT * FROM t1 WHERE id < 6;
+
+SET @after_count = (SELECT SUM(TIMER_WAIT)
+                    FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+                    WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
+                      AND (OBJECT_NAME LIKE '%t1.MYD') AND (3 = 3));
+
+SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_ff2_timed;
+
+#
+# Check not timed measurements
+#
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/io/file/%';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET timed = 'NO';
+
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+
+SELECT * FROM t1 WHERE id > 4;
+
+SELECT * FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+WHERE TIMER_WAIT != NULL
+   OR TIMER_START != NULL
+   OR TIMER_END != NULL;
+
+SELECT * FROM performance_schema.EVENTS_WAITS_HISTORY
+WHERE TIMER_WAIT != NULL
+   OR TIMER_START != NULL
+   OR TIMER_END != NULL;
+
+SELECT * FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE TIMER_WAIT != NULL
+   OR TIMER_START != NULL
+   OR TIMER_END != NULL;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET timed = 'YES';
+
+SELECT * FROM t1 WHERE id < 4;
+
+DROP TABLE t1;
+
+#
+# FF4: Use-case from Enterprise Monitor
+#
+
+--disable_result_log
+SELECT SUM(COUNT_READ) AS sum_count_read,
+       SUM(COUNT_WRITE) AS sum_count_write,
+       SUM(SUM_NUMBER_OF_BYTES_READ) AS sum_num_bytes_read,
+       SUM(SUM_NUMBER_OF_BYTES_WRITE) AS sum_num_bytes_write
+FROM performance_schema.FILE_SUMMARY_BY_INSTANCE
+WHERE FILE_NAME LIKE CONCAT('%', @@tmpdir, '%') ORDER BY NULL;
+--enable_result_log
+
+#
+# FF5: Troubleshooting tasks
+#
+# These queries will give different results based on timing,
+# but at least they should not crash.
+#
+
+#
+# Total and average wait time for different events on system level
+#
+--disable_result_log
+SELECT EVENT_NAME, COUNT_STAR, AVG_TIMER_WAIT, SUM_TIMER_WAIT
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
+WHERE COUNT_STAR > 0
+ORDER BY SUM_TIMER_WAIT DESC
+LIMIT 10;
+--enable_result_log
+
+#
+# Total and average wait time for different users
+#
+
+--disable_result_log
+SELECT i.user, SUM(TIMER_WAIT) SUM_WAIT
+# ((TIME_TO_SEC(TIMEDIFF(NOW(), i.startup_time)) * 1000) / SUM(TIMER_WAIT)) * 100 WAIT_PERCENTAGE
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
+INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
+LEFT JOIN information_schema.PROCESSLIST i USING (ID)
+GROUP BY i.user
+ORDER BY SUM_WAIT DESC
+LIMIT 20;
+--enable_result_log
+
+#
+# Total and average wait times for different events for a session
+#
+--disable_result_log
+SELECT h.EVENT_NAME, SUM(h.TIMER_WAIT) TOTAL_WAIT
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
+INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
+WHERE p.ID = 1
+GROUP BY h.EVENT_NAME
+HAVING TOTAL_WAIT > 0;
+--enable_result_log
+
+#
+# Which user reads and writes data
+#
+
+--disable_result_log
+SELECT i.user, h.operation, SUM(NUMBER_OF_BYTES) bytes
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG h
+INNER JOIN performance_schema.PROCESSLIST p USING (THREAD_ID)
+LEFT JOIN information_schema.PROCESSLIST i USING (ID)
+GROUP BY i.user, h.operation
+HAVING BYTES > 0
+ORDER BY i.user, h.operation;
+--enable_result_log
