@@ -50,6 +50,7 @@
 
    toku_stat;
    toku_fstat;
+   toku_dup2;
 
  local: *;
 };
