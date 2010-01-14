@@ -129,11 +129,11 @@ post_init_event_thread(THD *thd)
     return TRUE;
   }
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   thread_count++;
   inc_thread_running();
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   return FALSE;
 }
 
@@ -153,12 +153,12 @@ deinit_event_thread(THD *thd)
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net);
   DBUG_PRINT("exit", ("Event thread finishing"));
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
   dec_thread_running();
   delete thd;
-  pthread_cond_broadcast(&COND_thread_count);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 
@@ -190,9 +190,9 @@ pre_init_event_thread(THD* thd)
   thd->slave_thread= 0;
   thd->variables.option_bits|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   /*
     Guarantees that we will see the thread in SHOW PROCESSLIST though its
@@ -421,12 +421,12 @@ Event_scheduler::start()
     new_thd->proc_info= "Clearing";
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     thread_count--;
     dec_thread_running();
     delete new_thd;
-    pthread_cond_broadcast(&COND_thread_count);
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_cond_broadcast(&COND_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
 end:
   UNLOCK_DATA();
@@ -555,12 +555,12 @@ error:
     new_thd->proc_info= "Clearing";
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     thread_count--;
     dec_thread_running();
     delete new_thd;
-    pthread_cond_broadcast(&COND_thread_count);
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_cond_broadcast(&COND_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
   delete event_name;
   DBUG_RETURN(TRUE);
@@ -675,12 +675,12 @@ Event_scheduler::workers_count()
   uint count= 0;
 
   DBUG_ENTER("Event_scheduler::workers_count");
-  pthread_mutex_lock(&LOCK_thread_count);       // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count);       // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
     if (tmp->system_thread == SYSTEM_THREAD_EVENT_WORKER)
       ++count;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("exit", ("%d", count));
   DBUG_RETURN(count);
 }
@@ -733,12 +733,12 @@ Event_scheduler::unlock_data(const char *func, uint line)
 
 
 /*
-  Wrapper for pthread_cond_wait/timedwait
+  Wrapper for mysql_cond_wait/timedwait
 
   SYNOPSIS
     Event_scheduler::cond_wait()
       thd     Thread (Could be NULL during shutdown procedure)
-      abstime If not null then call pthread_cond_timedwait()
+      abstime If not null then call mysql_cond_timedwait()
       msg     Message for thd->proc_info
       func    Which function is requesting cond_wait
       line    On which line cond_wait is requested
@@ -756,7 +756,7 @@ Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
   if (thd)
     thd->enter_cond(&COND_state, &LOCK_scheduler_state, msg);
 
-  DBUG_PRINT("info", ("pthread_cond_%swait", abstime? "timed":""));
+  DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
   if (!abstime)
     mysql_cond_wait(&COND_state, &LOCK_scheduler_state);
   else

@@ -1,0 +1,69 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+
+# Setup : in this main thread
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
+
+--disable_warnings
+drop table if exists test.t1;
+--enable_warnings
+
+truncate table performance_schema.EVENTS_WAITS_CURRENT;
+truncate table performance_schema.EVENTS_WAITS_HISTORY;
+truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+
+show variables like "thread_handling";
+
+# Code to test : in this main thread
+
+create table test.t1(a int) engine=MYISAM;
+
+show variables like "performance_schema";
+show variables like "performance_schema_max_thread%";
+
+# Verification : in this main thread
+
+select count(*) from performance_schema.PROCESSLIST
+  where name like "thread/sql/main";
+
+select count(*) from performance_schema.PROCESSLIST
+  where name like "thread/sql/OneConnection";
+
+select event_name, operation,
+  left(source, locate(":", source)) as short_source
+  from performance_schema.EVENTS_WAITS_CURRENT;
+
+select event_name, operation,
+  left(source, locate(":", source)) as short_source
+  from performance_schema.EVENTS_WAITS_HISTORY;
+
+select event_name, operation,
+  left(source, locate(":", source)) as short_source
+  from performance_schema.EVENTS_WAITS_HISTORY_LONG;
+
+# Cleanup
+
+drop table test.t1;
+
