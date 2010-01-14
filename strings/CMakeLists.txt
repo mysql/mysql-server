@@ -23,4 +23,7 @@ SET(STRINGS_SOURCES bchange.c bcmp.c bfill.c bmove512.c bmove_upp.c ctype-big5.c
                 str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strnmov.c 
                 strtol.c strtoll.c strtoul.c strtoull.c strxmov.c strxnmov.c xml.c
 		my_strchr.c strcont.c strinstr.c strnlen.c strappend.c)
+
+# Avoid dependencies on perschema data defined in mysys
+ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
