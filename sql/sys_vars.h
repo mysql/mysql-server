@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,11 +107,12 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOWT, def_val, lock, binlog_status_arg,
               on_check_func, on_update_func, deprecated_version,
-              substitute)
+              substitute, parse_flag)
   {
     option.var_type= ARGT;
     option.min_value= min_val;
@@ -194,11 +195,11 @@ public:
           ulonglong def_val, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute)
+          uint deprecated_version, const char *substitute, int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, show_val_type_arg, def_val, lock,
               binlog_status_arg, on_check_func,
-              on_update_func, deprecated_version, substitute)
+              on_update_func, deprecated_version, substitute, parse_flag)
   {
     for (typelib.count= 0; values[typelib.count]; typelib.count++) /*no-op */;
     typelib.name="";
@@ -308,11 +309,12 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : Sys_var_typelib(name_arg, comment, flag_args, off, getopt,
                       SHOW_MY_BOOL, bool_values, def_val, lock,
                       binlog_status_arg, on_check_func, on_update_func,
-                      deprecated_version, substitute)
+                      deprecated_version, substitute, parse_flag)
   {
     option.var_type= GET_BOOL;
     global_var(my_bool)= def_val;
@@ -363,11 +365,12 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR_PTR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute)
+              deprecated_version, substitute, parse_flag)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     /*
@@ -510,11 +513,12 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0)
+               uint deprecated_version=0, const char *substitute=0,
+               int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute)
+              deprecated_version, substitute, parse_flag)
   { option.var_type= GET_NO_ARG; }
   bool do_check(THD *thd, set_var *var)
   {
@@ -666,7 +670,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
         and clear the old key cache.
       */
       key_cache->in_init= 1;
-      pthread_mutex_unlock(&LOCK_global_system_variables);
+      mysql_mutex_unlock(&LOCK_global_system_variables);
       key_cache->param_buff_size= 0;
       ha_resize_key_cache(key_cache);
       ha_change_key_cache(key_cache, dflt_key_cache);
@@ -674,7 +678,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
         We don't delete the key cache as some running threads my still be in
         the key cache code with a pointer to the deleted (empty) key cache
       */
-      pthread_mutex_lock(&LOCK_global_system_variables);
+      mysql_mutex_lock(&LOCK_global_system_variables);
       key_cache->in_init= 0;
     }
     return error;
@@ -684,14 +688,14 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
 
   /* If key cache didn't exist initialize it, else resize it */
   key_cache->in_init= 1;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
     error= ha_init_key_cache(0, key_cache);
   else
     error= ha_resize_key_cache(key_cache);
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;
 
   return error;
@@ -706,10 +710,10 @@ static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
   keycache_var(key_cache, offset)= new_value;
 
   key_cache->in_init= 1;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   error= ha_resize_key_cache(key_cache);
 
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;
 
   return error;
@@ -732,10 +736,12 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_DOUBLE, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func, deprecated_version, substitute)
+              on_check_func, on_update_func, deprecated_version, substitute,
+              parse_flag)
   {
     option.var_type= GET_DOUBLE;
     option.min_value= min_val;
@@ -1053,11 +1059,12 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute),
+              deprecated_version, substitute, parse_flag),
     plugin_type(plugin_type_arg)
   {
     option.var_type= GET_STR;
@@ -1165,11 +1172,12 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0)
+               uint deprecated_version=0, const char *substitute=0,
+               int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute)
+              deprecated_version, substitute, parse_flag)
   {
     DBUG_ASSERT(scope() == ONLY_SESSION);
     option.var_type= GET_NO_ARG;
@@ -1383,11 +1391,12 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0)
+               uint deprecated_version=0, const char *substitute=0,
+               int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, 0,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute)
+              deprecated_version, substitute, parse_flag)
   {
     DBUG_ASSERT(scope() == GLOBAL);
     DBUG_ASSERT(getopt.id == -1);
@@ -1451,11 +1460,13 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0)
+          uint deprecated_version=0, const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute), name_offset(name_off)
+              deprecated_version, substitute, parse_flag),
+      name_offset(name_off)
   {
     option.var_type= GET_STR;
     /*
@@ -1519,11 +1530,12 @@ public:
              enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
              on_check_function on_check_func=0,
              on_update_function on_update_func=0,
-             uint deprecated_version=0, const char *substitute=0)
+             uint deprecated_version=0, const char *substitute=0,
+             int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute)
+              deprecated_version, substitute, parse_flag)
   {
     DBUG_ASSERT(getopt.id == -1);
     DBUG_ASSERT(size == sizeof(Time_zone *));

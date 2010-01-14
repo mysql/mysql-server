@@ -1,7 +1,7 @@
 #ifndef HA_NDBCLUSTER_BINLOG_INCLUDED
 #define HA_NDBCLUSTER_BINLOG_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -104,16 +104,24 @@ private:
 };
 
 #ifdef HAVE_NDB_BINLOG
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_injector_mutex, key_ndb_schema_share_mutex,
+                     key_ndb_schema_object_mutex;
+extern PSI_cond_key key_injector_cond;
+extern PSI_thread_key key_thread_ndb_binlog;
+#endif /* HAVE_PSI_INTERFACE */
+
 extern pthread_t ndb_binlog_thread;
-extern pthread_mutex_t injector_mutex;
-extern pthread_cond_t  injector_cond;
+extern mysql_mutex_t injector_mutex;
+extern mysql_cond_t  injector_cond;
 
 extern unsigned char g_node_id_map[max_ndb_nodes];
 extern pthread_t ndb_util_thread;
-extern pthread_mutex_t LOCK_ndb_util_thread;
-extern pthread_cond_t COND_ndb_util_thread;
+extern mysql_mutex_t LOCK_ndb_util_thread;
+extern mysql_cond_t COND_ndb_util_thread;
 extern int ndbcluster_util_inited;
-extern pthread_mutex_t ndbcluster_mutex;
+extern mysql_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 extern long ndb_number_of_storage_nodes;

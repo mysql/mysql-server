@@ -132,6 +132,7 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld sql)
+
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
 IF(INTERFACE_LIBS)
@@ -144,6 +145,17 @@ ENDIF()
 DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
  "sql;mysys;${MYSQLD_STATIC_PLUGIN_LIBS}")
  
+
+SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
+MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
+IF(WITH_MYSQLD_LDFLAGS)
+  GET_TARGET_PROPERTY(mysqld LINK_FLAGS MYSQLD_LINK_FLAGS)
+  IF(NOT MYSQLD_LINK_FLAGS)
+    SET(MYSQLD_LINK_FLAGS) 
+  ENDIF() 
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
+     "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
+ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
