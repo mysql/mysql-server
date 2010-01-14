@@ -845,8 +845,7 @@ int
 ha_ndbcluster::push_flag(enum ha_push_flag flag)
 {
   DBUG_ENTER("push_flags");
-  switch (flag)
-  {
+  switch (flag) {
   case HA_PUSH_BLOCK_CONST_TABLE:
     DBUG_RETURN(-1);
 
@@ -864,14 +863,14 @@ ha_ndbcluster::push_flag(enum ha_push_flag flag)
     DBUG_ASSERT(0);
     DBUG_RETURN(-1);
   }
+  DBUG_RETURN(0);
 }
 
 bool
 ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
 {
   DBUG_ENTER("test_push_flag");
-  switch (flag)
-  {
+  switch (flag) {
   case HA_PUSH_BLOCK_CONST_TABLE:
   {
     /**
@@ -906,6 +905,7 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
     DBUG_ASSERT(0);
     DBUG_RETURN(false);
   }
+  DBUG_RETURN(false);
 }
 
 
