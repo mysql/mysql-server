@@ -3502,7 +3502,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   @param lock the associated mutex
   @param abstime the amount of time in seconds to wait
 
-  @retval return value from pthread_cond_timedwait
+  @retval return value from mysql_cond_timedwait
 */
 
 #define INTERRUPT_INTERVAL (5 * ULL(1000000000))
@@ -3822,7 +3822,7 @@ longlong Item_func_sleep::val_int()
 
   timeout= args[0]->val_real();
   /*
-    On 64-bit OSX pthread_cond_timedwait() waits forever
+    On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 
     the system time.
     When given a very short timeout (< 10 mcs) just return 
