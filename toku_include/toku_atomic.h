@@ -74,7 +74,7 @@ static inline int32_t toku_sync_fetch_and_decrement_int32(volatile int32_t *a) {
 #if __GNUC__ && __i386__
 
 // workaround for a gcc 4.1.2 bug on 32 bit platforms.
-static uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) __attribute__((noinline));
+uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) __attribute__((noinline));
 
 #else
 
