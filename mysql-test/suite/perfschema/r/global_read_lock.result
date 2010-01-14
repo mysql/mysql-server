@@ -1,0 +1,33 @@
+use performance_schema;
+grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
+flush privileges;
+connect (con1, localhost, pfsuser, , test);
+lock tables performance_schema.SETUP_INSTRUMENTS read;
+select * from performance_schema.SETUP_INSTRUMENTS;
+unlock tables;
+lock tables performance_schema.SETUP_INSTRUMENTS write;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+unlock tables;
+connection default;
+flush tables with read lock;
+connection con1;
+lock tables performance_schema.SETUP_INSTRUMENTS read;
+select * from performance_schema.SETUP_INSTRUMENTS;
+unlock tables;
+lock tables performance_schema.SETUP_INSTRUMENTS write;
+connection default;
+select event_name,
+left(source, locate(":", source)) as short_source,
+timer_end, timer_wait, operation
+from performance_schema.EVENTS_WAITS_CURRENT
+where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+event_name	short_source	timer_end	timer_wait	operation
+wait/synch/cond/sql/COND_global_read_lock	lock.cc:	NULL	NULL	wait
+unlock tables;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+unlock tables;
+connection default;
+drop user pfsuser@localhost;
+flush privileges;
