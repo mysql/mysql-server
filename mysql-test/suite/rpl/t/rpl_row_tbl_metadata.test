@@ -290,6 +290,7 @@ for my $i (1..$ntables)
     
   print FILE "LOCK TABLES t$i WRITE;\n";
   print FILE "INSERT INTO t$i(c". ($base_ncols+1) . ") VALUES (50018);\n";
+  print FILE "UNLOCK TABLES;";
 }
 
 close(FILE);
@@ -301,7 +302,6 @@ EOF
 ## may want to reactivate query logging
 -- disable_query_log 
 -- source $generated_sql
-UNLOCK TABLES;
 -- enable_query_log
 
 -- sync_slave_with_master
