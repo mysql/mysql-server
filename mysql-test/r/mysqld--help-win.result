@@ -993,7 +993,6 @@ use-symbolic-links                                FALSE
 verbose                                           TRUE
 wait-timeout                                      28800
 warnings                                          1
->>>>>>> MERGE-SOURCE
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.
