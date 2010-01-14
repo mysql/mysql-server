@@ -107,3 +107,68 @@ SELECT s, hex(a), hex(u), hex(a2) FROM t2 ORDER BY s;
 DROP TABLE t1, t2;
 
 --echo End of 5.4 tests
+
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Testing WL#4583 Case conversion in Asian character sets 
+--echo #
+#
+# Populate t1 with all hex digits
+#
+SET NAMES utf8;
+SET collation_connection=euckr_korean_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+#
+# Populate table t1 with all codes [80..FF][20..FF]
+# Expected valid euckr codes: [81..FE][41..5A,61..7A,81..FE]
+#
+CREATE TABLE t1 AS
+SELECT concat(head, tail) AS code, ' ' AS a
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+SELECT COUNT(*) FROM t1 WHERE a<>'';
+#
+# Display all characters that have upper or lower case mapping.
+#
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a));
+#
+# Make sure all possible conversion happened
+#
+# Expect U+212B ANGSTROM SIGN
+#
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+#
+# Expect U+0111 LATIN SMALL LETTER D WITH STROKE
+# Expect U+24D0 to U+24E9 CIRCLED LATIN SMALL LETTER A to Z
+#
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+
+DROP TABLE t1;
+
+
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

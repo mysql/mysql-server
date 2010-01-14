@@ -55,3 +55,331 @@ hex(a)	hex(lower(a))	hex(upper(a))
 8372835E	8372835E	8372835E
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Start of 5.5 tests
+#
+#
+# Testing WL#4583 Case conversion in Asian character sets 
+#
+SET NAMES utf8;
+SET collation_connection=cp932_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+CREATE TABLE t1 AS
+SELECT concat(head, tail) AS code, ' ' AS a
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN 'A1' AND 'DF')
+AND (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+INSERT t1 (code) SELECT head FROM head
+WHERE (head BETWEEN 'A1' AND 'DF')
+ORDER BY head;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `code` varchar(8) DEFAULT NULL,
+  `a` varchar(1) CHARACTER SET cp932 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+Warnings:
+Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x80!' for column 'a' at row 2
+Warning	1366	Incorrect string value: '\x80"' for column 'a' at row 3
+Warning	1366	Incorrect string value: '\x80#' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x80$' for column 'a' at row 5
+Warning	1366	Incorrect string value: '\x80%' for column 'a' at row 6
+Warning	1366	Incorrect string value: '\x80&' for column 'a' at row 7
+Warning	1366	Incorrect string value: '\x80'' for column 'a' at row 8
+Warning	1366	Incorrect string value: '\x80(' for column 'a' at row 9
+Warning	1366	Incorrect string value: '\x80)' for column 'a' at row 10
+Warning	1366	Incorrect string value: '\x80*' for column 'a' at row 11
+Warning	1366	Incorrect string value: '\x80+' for column 'a' at row 12
+Warning	1366	Incorrect string value: '\x80,' for column 'a' at row 13
+Warning	1366	Incorrect string value: '\x80-' for column 'a' at row 14
+Warning	1366	Incorrect string value: '\x80.' for column 'a' at row 15
+Warning	1366	Incorrect string value: '\x80/' for column 'a' at row 16
+Warning	1366	Incorrect string value: '\x800' for column 'a' at row 17
+Warning	1366	Incorrect string value: '\x801' for column 'a' at row 18
+Warning	1366	Incorrect string value: '\x802' for column 'a' at row 19
+Warning	1366	Incorrect string value: '\x803' for column 'a' at row 20
+Warning	1366	Incorrect string value: '\x804' for column 'a' at row 21
+Warning	1366	Incorrect string value: '\x805' for column 'a' at row 22
+Warning	1366	Incorrect string value: '\x806' for column 'a' at row 23
+Warning	1366	Incorrect string value: '\x807' for column 'a' at row 24
+Warning	1366	Incorrect string value: '\x808' for column 'a' at row 25
+Warning	1366	Incorrect string value: '\x809' for column 'a' at row 26
+Warning	1366	Incorrect string value: '\x80:' for column 'a' at row 27
+Warning	1366	Incorrect string value: '\x80;' for column 'a' at row 28
+Warning	1366	Incorrect string value: '\x80<' for column 'a' at row 29
+Warning	1366	Incorrect string value: '\x80=' for column 'a' at row 30
+Warning	1366	Incorrect string value: '\x80>' for column 'a' at row 31
+Warning	1366	Incorrect string value: '\x80?' for column 'a' at row 32
+Warning	1366	Incorrect string value: '\x80@' for column 'a' at row 33
+Warning	1366	Incorrect string value: '\x80A' for column 'a' at row 34
+Warning	1366	Incorrect string value: '\x80B' for column 'a' at row 35
+Warning	1366	Incorrect string value: '\x80C' for column 'a' at row 36
+Warning	1366	Incorrect string value: '\x80D' for column 'a' at row 37
+Warning	1366	Incorrect string value: '\x80E' for column 'a' at row 38
+Warning	1366	Incorrect string value: '\x80F' for column 'a' at row 39
+Warning	1366	Incorrect string value: '\x80G' for column 'a' at row 40
+Warning	1366	Incorrect string value: '\x80H' for column 'a' at row 41
+Warning	1366	Incorrect string value: '\x80I' for column 'a' at row 42
+Warning	1366	Incorrect string value: '\x80J' for column 'a' at row 43
+Warning	1366	Incorrect string value: '\x80K' for column 'a' at row 44
+Warning	1366	Incorrect string value: '\x80L' for column 'a' at row 45
+Warning	1366	Incorrect string value: '\x80M' for column 'a' at row 46
+Warning	1366	Incorrect string value: '\x80N' for column 'a' at row 47
+Warning	1366	Incorrect string value: '\x80O' for column 'a' at row 48
+Warning	1366	Incorrect string value: '\x80P' for column 'a' at row 49
+Warning	1366	Incorrect string value: '\x80Q' for column 'a' at row 50
+Warning	1366	Incorrect string value: '\x80R' for column 'a' at row 51
+Warning	1366	Incorrect string value: '\x80S' for column 'a' at row 52
+Warning	1366	Incorrect string value: '\x80T' for column 'a' at row 53
+Warning	1366	Incorrect string value: '\x80U' for column 'a' at row 54
+Warning	1366	Incorrect string value: '\x80V' for column 'a' at row 55
+Warning	1366	Incorrect string value: '\x80W' for column 'a' at row 56
+Warning	1366	Incorrect string value: '\x80X' for column 'a' at row 57
+Warning	1366	Incorrect string value: '\x80Y' for column 'a' at row 58
+Warning	1366	Incorrect string value: '\x80Z' for column 'a' at row 59
+Warning	1366	Incorrect string value: '\x80[' for column 'a' at row 60
+Warning	1366	Incorrect string value: '\x80\' for column 'a' at row 61
+Warning	1366	Incorrect string value: '\x80]' for column 'a' at row 62
+Warning	1366	Incorrect string value: '\x80^' for column 'a' at row 63
+Warning	1366	Incorrect string value: '\x80_' for column 'a' at row 64
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+14623
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
+COUNT(*)
+63
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
+COUNT(*)
+11280
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1
+WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a))
+ORDER BY code;
+code	hex(upper(a))	hex(lower(a))	a	upper(a)	lower(a)
+8260	8260	8281	Ａ	Ａ	ａ
+8261	8261	8282	Ｂ	Ｂ	ｂ
+8262	8262	8283	Ｃ	Ｃ	ｃ
+8263	8263	8284	Ｄ	Ｄ	ｄ
+8264	8264	8285	Ｅ	Ｅ	ｅ
+8265	8265	8286	Ｆ	Ｆ	ｆ
+8266	8266	8287	Ｇ	Ｇ	ｇ
+8267	8267	8288	Ｈ	Ｈ	ｈ
+8268	8268	8289	Ｉ	Ｉ	ｉ
+8269	8269	828A	Ｊ	Ｊ	ｊ
+826A	826A	828B	Ｋ	Ｋ	ｋ
+826B	826B	828C	Ｌ	Ｌ	ｌ
+826C	826C	828D	Ｍ	Ｍ	ｍ
+826D	826D	828E	Ｎ	Ｎ	ｎ
+826E	826E	828F	Ｏ	Ｏ	ｏ
+826F	826F	8290	Ｐ	Ｐ	ｐ
+8270	8270	8291	Ｑ	Ｑ	ｑ
+8271	8271	8292	Ｒ	Ｒ	ｒ
+8272	8272	8293	Ｓ	Ｓ	ｓ
+8273	8273	8294	Ｔ	Ｔ	ｔ
+8274	8274	8295	Ｕ	Ｕ	ｕ
+8275	8275	8296	Ｖ	Ｖ	ｖ
+8276	8276	8297	Ｗ	Ｗ	ｗ
+8277	8277	8298	Ｘ	Ｘ	ｘ
+8278	8278	8299	Ｙ	Ｙ	ｙ
+8279	8279	829A	Ｚ	Ｚ	ｚ
+8281	8260	8281	ａ	Ａ	ａ
+8282	8261	8282	ｂ	Ｂ	ｂ
+8283	8262	8283	ｃ	Ｃ	ｃ
+8284	8263	8284	ｄ	Ｄ	ｄ
+8285	8264	8285	ｅ	Ｅ	ｅ
+8286	8265	8286	ｆ	Ｆ	ｆ
+8287	8266	8287	ｇ	Ｇ	ｇ
+8288	8267	8288	ｈ	Ｈ	ｈ
+8289	8268	8289	ｉ	Ｉ	ｉ
+828A	8269	828A	ｊ	Ｊ	ｊ
+828B	826A	828B	ｋ	Ｋ	ｋ
+828C	826B	828C	ｌ	Ｌ	ｌ
+828D	826C	828D	ｍ	Ｍ	ｍ
+828E	826D	828E	ｎ	Ｎ	ｎ
+828F	826E	828F	ｏ	Ｏ	ｏ
+8290	826F	8290	ｐ	Ｐ	ｐ
+8291	8270	8291	ｑ	Ｑ	ｑ
+8292	8271	8292	ｒ	Ｒ	ｒ
+8293	8272	8293	ｓ	Ｓ	ｓ
+8294	8273	8294	ｔ	Ｔ	ｔ
+8295	8274	8295	ｕ	Ｕ	ｕ
+8296	8275	8296	ｖ	Ｖ	ｖ
+8297	8276	8297	ｗ	Ｗ	ｗ
+8298	8277	8298	ｘ	Ｘ	ｘ
+8299	8278	8299	ｙ	Ｙ	ｙ
+829A	8279	829A	ｚ	Ｚ	ｚ
+839F	839F	83BF	Α	Α	α
+83A0	83A0	83C0	Β	Β	β
+83A1	83A1	83C1	Γ	Γ	γ
+83A2	83A2	83C2	Δ	Δ	δ
+83A3	83A3	83C3	Ε	Ε	ε
+83A4	83A4	83C4	Ζ	Ζ	ζ
+83A5	83A5	83C5	Η	Η	η
+83A6	83A6	83C6	Θ	Θ	θ
+83A7	83A7	83C7	Ι	Ι	ι
+83A8	83A8	83C8	Κ	Κ	κ
+83A9	83A9	83C9	Λ	Λ	λ
+83AA	83AA	83CA	Μ	Μ	μ
+83AB	83AB	83CB	Ν	Ν	ν
+83AC	83AC	83CC	Ξ	Ξ	ξ
+83AD	83AD	83CD	Ο	Ο	ο
+83AE	83AE	83CE	Π	Π	π
+83AF	83AF	83CF	Ρ	Ρ	ρ
+83B0	83B0	83D0	Σ	Σ	σ
+83B1	83B1	83D1	Τ	Τ	τ
+83B2	83B2	83D2	Υ	Υ	υ
+83B3	83B3	83D3	Φ	Φ	φ
+83B4	83B4	83D4	Χ	Χ	χ
+83B5	83B5	83D5	Ψ	Ψ	ψ
+83B6	83B6	83D6	Ω	Ω	ω
+83BF	839F	83BF	α	Α	α
+83C0	83A0	83C0	β	Β	β
+83C1	83A1	83C1	γ	Γ	γ
+83C2	83A2	83C2	δ	Δ	δ
+83C3	83A3	83C3	ε	Ε	ε
+83C4	83A4	83C4	ζ	Ζ	ζ
+83C5	83A5	83C5	η	Η	η
+83C6	83A6	83C6	θ	Θ	θ
+83C7	83A7	83C7	ι	Ι	ι
+83C8	83A8	83C8	κ	Κ	κ
+83C9	83A9	83C9	λ	Λ	λ
+83CA	83AA	83CA	μ	Μ	μ
+83CB	83AB	83CB	ν	Ν	ν
+83CC	83AC	83CC	ξ	Ξ	ξ
+83CD	83AD	83CD	ο	Ο	ο
+83CE	83AE	83CE	π	Π	π
+83CF	83AF	83CF	ρ	Ρ	ρ
+83D0	83B0	83D0	σ	Σ	σ
+83D1	83B1	83D1	τ	Τ	τ
+83D2	83B2	83D2	υ	Υ	υ
+83D3	83B3	83D3	φ	Φ	φ
+83D4	83B4	83D4	χ	Χ	χ
+83D5	83B5	83D5	ψ	Ψ	ψ
+83D6	83B6	83D6	ω	Ω	ω
+8440	8440	8470	А	А	а
+8441	8441	8471	Б	Б	б
+8442	8442	8472	В	В	в
+8443	8443	8473	Г	Г	г
+8444	8444	8474	Д	Д	д
+8445	8445	8475	Е	Е	е
+8446	8446	8476	Ё	Ё	ё
+8447	8447	8477	Ж	Ж	ж
+8448	8448	8478	З	З	з
+8449	8449	8479	И	И	и
+844A	844A	847A	Й	Й	й
+844B	844B	847B	К	К	к
+844C	844C	847C	Л	Л	л
+844D	844D	847D	М	М	м
+844E	844E	847E	Н	Н	н
+844F	844F	8480	О	О	о
+8450	8450	8481	П	П	п
+8451	8451	8482	Р	Р	р
+8452	8452	8483	С	С	с
+8453	8453	8484	Т	Т	т
+8454	8454	8485	У	У	у
+8455	8455	8486	Ф	Ф	ф
+8456	8456	8487	Х	Х	х
+8457	8457	8488	Ц	Ц	ц
+8458	8458	8489	Ч	Ч	ч
+8459	8459	848A	Ш	Ш	ш
+845A	845A	848B	Щ	Щ	щ
+845B	845B	848C	Ъ	Ъ	ъ
+845C	845C	848D	Ы	Ы	ы
+845D	845D	848E	Ь	Ь	ь
+845E	845E	848F	Э	Э	э
+845F	845F	8490	Ю	Ю	ю
+8460	8460	8491	Я	Я	я
+8470	8440	8470	а	А	а
+8471	8441	8471	б	Б	б
+8472	8442	8472	в	В	в
+8473	8443	8473	г	Г	г
+8474	8444	8474	д	Д	д
+8475	8445	8475	е	Е	е
+8476	8446	8476	ё	Ё	ё
+8477	8447	8477	ж	Ж	ж
+8478	8448	8478	з	З	з
+8479	8449	8479	и	И	и
+847A	844A	847A	й	Й	й
+847B	844B	847B	к	К	к
+847C	844C	847C	л	Л	л
+847D	844D	847D	м	М	м
+847E	844E	847E	н	Н	н
+8480	844F	8480	о	О	о
+8481	8450	8481	п	П	п
+8482	8451	8482	р	Р	р
+8483	8452	8483	с	С	с
+8484	8453	8484	т	Т	т
+8485	8454	8485	у	У	у
+8486	8455	8486	ф	Ф	ф
+8487	8456	8487	х	Х	х
+8488	8457	8488	ц	Ц	ц
+8489	8458	8489	ч	Ч	ч
+848A	8459	848A	ш	Ш	ш
+848B	845A	848B	щ	Щ	щ
+848C	845B	848C	ъ	Ъ	ъ
+848D	845C	848D	ы	Ы	ы
+848E	845D	848E	ь	Ь	ь
+848F	845E	848F	э	Э	э
+8490	845F	8490	ю	Ю	ю
+8491	8460	8491	я	Я	я
+8754	8754	EEEF	Ⅰ	Ⅰ	ⅰ
+8755	8755	EEF0	Ⅱ	Ⅱ	ⅱ
+8756	8756	EEF1	Ⅲ	Ⅲ	ⅲ
+8757	8757	EEF2	Ⅳ	Ⅳ	ⅳ
+8758	8758	EEF3	Ⅴ	Ⅴ	ⅴ
+8759	8759	EEF4	Ⅵ	Ⅵ	ⅵ
+875A	875A	EEF5	Ⅶ	Ⅶ	ⅶ
+875B	875B	EEF6	Ⅷ	Ⅷ	ⅷ
+875C	875C	EEF7	Ⅸ	Ⅸ	ⅸ
+875D	875D	EEF8	Ⅹ	Ⅹ	ⅹ
+EEEF	8754	EEEF	ⅰ	Ⅰ	ⅰ
+EEF0	8755	EEF0	ⅱ	Ⅱ	ⅱ
+EEF1	8756	EEF1	ⅲ	Ⅲ	ⅲ
+EEF2	8757	EEF2	ⅳ	Ⅳ	ⅳ
+EEF3	8758	EEF3	ⅴ	Ⅴ	ⅴ
+EEF4	8759	EEF4	ⅵ	Ⅵ	ⅵ
+EEF5	875A	EEF5	ⅶ	Ⅶ	ⅶ
+EEF6	875B	EEF6	ⅷ	Ⅷ	ⅷ
+EEF7	875C	EEF7	ⅸ	Ⅸ	ⅸ
+EEF8	875D	EEF8	ⅹ	Ⅹ	ⅹ
+FA40	FA4A	FA40	ⅰ	Ⅰ	ⅰ
+FA41	FA4B	FA41	ⅱ	Ⅱ	ⅱ
+FA42	FA4C	FA42	ⅲ	Ⅲ	ⅲ
+FA43	FA4D	FA43	ⅳ	Ⅳ	ⅳ
+FA44	FA4E	FA44	ⅴ	Ⅴ	ⅴ
+FA45	FA4F	FA45	ⅵ	Ⅵ	ⅵ
+FA46	FA50	FA46	ⅶ	Ⅶ	ⅶ
+FA47	FA51	FA47	ⅷ	Ⅷ	ⅷ
+FA48	FA52	FA48	ⅸ	Ⅸ	ⅸ
+FA49	FA53	FA49	ⅹ	Ⅹ	ⅹ
+FA4A	FA4A	FA40	Ⅰ	Ⅰ	ⅰ
+FA4B	FA4B	FA41	Ⅱ	Ⅱ	ⅱ
+FA4C	FA4C	FA42	Ⅲ	Ⅲ	ⅲ
+FA4D	FA4D	FA43	Ⅳ	Ⅳ	ⅳ
+FA4E	FA4E	FA44	Ⅴ	Ⅴ	ⅴ
+FA4F	FA4F	FA45	Ⅵ	Ⅵ	ⅵ
+FA50	FA50	FA46	Ⅶ	Ⅶ	ⅶ
+FA51	FA51	FA47	Ⅷ	Ⅷ	ⅷ
+FA52	FA52	FA48	Ⅸ	Ⅸ	ⅸ
+FA53	FA53	FA49	Ⅹ	Ⅹ	ⅹ
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+code	a
+81F0	Å
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+code	a
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#

@@ -40,9 +40,9 @@ extern "C" {
 
 typedef struct unicase_info_st
 {
-  uint16 toupper;
-  uint16 tolower;
-  uint16 sort;
+  uint32 toupper;
+  uint32 tolower;
+  uint32 sort;
 } MY_UNICASE_INFO;
 
 
@@ -439,6 +439,14 @@ extern size_t my_caseup_mb(CHARSET_INFO *, char *src, size_t srclen,
                                          char *dst, size_t dstlen);
 extern size_t my_casedn_mb(CHARSET_INFO *, char *src, size_t srclen,
                                          char *dst, size_t dstlen);
+extern size_t my_caseup_mb_varlen(CHARSET_INFO *, char *src, size_t srclen,
+                                  char *dst, size_t dstlen);
+extern size_t my_casedn_mb_varlen(CHARSET_INFO *, char *src, size_t srclen,
+                                  char *dst, size_t dstlen);
+extern size_t my_caseup_ujis(CHARSET_INFO *, char *src, size_t srclen,
+                             char *dst, size_t dstlen);
+extern size_t my_casedn_ujis(CHARSET_INFO *, char *src, size_t srclen,
+                             char *dst, size_t dstlen);
 extern int my_strcasecmp_mb(CHARSET_INFO * cs,const char *, const char *);
 
 int my_wildcmp_mb(CHARSET_INFO *,

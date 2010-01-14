@@ -2377,3 +2377,535 @@ DROP TABLE t2;
 set names default;
 set character_set_database=default;
 set character_set_server=default;
+#
+# Start of 5.5 tests
+#
+#
+# Testing WL#4583 Case conversion in Asian character sets 
+#
+SET NAMES utf8;
+SET collation_connection=ujis_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT 'XXXXXX' AS code, ' ' AS a LIMIT 0;
+INSERT INTO t1 (code) SELECT concat('8E', head) FROM head
+WHERE (head BETWEEN 'A1' AND 'DF') ORDER BY head;
+INSERT INTO t1 (code) SELECT concat(head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN '8E' AND '8F')
+AND   (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+INSERT INTO t1 (code) SELECT concat('8F', head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '80' AND 'FF')
+ORDER BY head, tail;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `code` varchar(6) CHARACTER SET ujis NOT NULL DEFAULT '',
+  `a` varchar(1) CHARACTER SET ujis NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+Warnings:
+Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x80!' for column 'a' at row 2
+Warning	1366	Incorrect string value: '\x80"' for column 'a' at row 3
+Warning	1366	Incorrect string value: '\x80#' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x80$' for column 'a' at row 5
+Warning	1366	Incorrect string value: '\x80%' for column 'a' at row 6
+Warning	1366	Incorrect string value: '\x80&' for column 'a' at row 7
+Warning	1366	Incorrect string value: '\x80'' for column 'a' at row 8
+Warning	1366	Incorrect string value: '\x80(' for column 'a' at row 9
+Warning	1366	Incorrect string value: '\x80)' for column 'a' at row 10
+Warning	1366	Incorrect string value: '\x80*' for column 'a' at row 11
+Warning	1366	Incorrect string value: '\x80+' for column 'a' at row 12
+Warning	1366	Incorrect string value: '\x80,' for column 'a' at row 13
+Warning	1366	Incorrect string value: '\x80-' for column 'a' at row 14
+Warning	1366	Incorrect string value: '\x80.' for column 'a' at row 15
+Warning	1366	Incorrect string value: '\x80/' for column 'a' at row 16
+Warning	1366	Incorrect string value: '\x800' for column 'a' at row 17
+Warning	1366	Incorrect string value: '\x801' for column 'a' at row 18
+Warning	1366	Incorrect string value: '\x802' for column 'a' at row 19
+Warning	1366	Incorrect string value: '\x803' for column 'a' at row 20
+Warning	1366	Incorrect string value: '\x804' for column 'a' at row 21
+Warning	1366	Incorrect string value: '\x805' for column 'a' at row 22
+Warning	1366	Incorrect string value: '\x806' for column 'a' at row 23
+Warning	1366	Incorrect string value: '\x807' for column 'a' at row 24
+Warning	1366	Incorrect string value: '\x808' for column 'a' at row 25
+Warning	1366	Incorrect string value: '\x809' for column 'a' at row 26
+Warning	1366	Incorrect string value: '\x80:' for column 'a' at row 27
+Warning	1366	Incorrect string value: '\x80;' for column 'a' at row 28
+Warning	1366	Incorrect string value: '\x80<' for column 'a' at row 29
+Warning	1366	Incorrect string value: '\x80=' for column 'a' at row 30
+Warning	1366	Incorrect string value: '\x80>' for column 'a' at row 31
+Warning	1366	Incorrect string value: '\x80?' for column 'a' at row 32
+Warning	1366	Incorrect string value: '\x80@' for column 'a' at row 33
+Warning	1366	Incorrect string value: '\x80A' for column 'a' at row 34
+Warning	1366	Incorrect string value: '\x80B' for column 'a' at row 35
+Warning	1366	Incorrect string value: '\x80C' for column 'a' at row 36
+Warning	1366	Incorrect string value: '\x80D' for column 'a' at row 37
+Warning	1366	Incorrect string value: '\x80E' for column 'a' at row 38
+Warning	1366	Incorrect string value: '\x80F' for column 'a' at row 39
+Warning	1366	Incorrect string value: '\x80G' for column 'a' at row 40
+Warning	1366	Incorrect string value: '\x80H' for column 'a' at row 41
+Warning	1366	Incorrect string value: '\x80I' for column 'a' at row 42
+Warning	1366	Incorrect string value: '\x80J' for column 'a' at row 43
+Warning	1366	Incorrect string value: '\x80K' for column 'a' at row 44
+Warning	1366	Incorrect string value: '\x80L' for column 'a' at row 45
+Warning	1366	Incorrect string value: '\x80M' for column 'a' at row 46
+Warning	1366	Incorrect string value: '\x80N' for column 'a' at row 47
+Warning	1366	Incorrect string value: '\x80O' for column 'a' at row 48
+Warning	1366	Incorrect string value: '\x80P' for column 'a' at row 49
+Warning	1366	Incorrect string value: '\x80Q' for column 'a' at row 50
+Warning	1366	Incorrect string value: '\x80R' for column 'a' at row 51
+Warning	1366	Incorrect string value: '\x80S' for column 'a' at row 52
+Warning	1366	Incorrect string value: '\x80T' for column 'a' at row 53
+Warning	1366	Incorrect string value: '\x80U' for column 'a' at row 54
+Warning	1366	Incorrect string value: '\x80V' for column 'a' at row 55
+Warning	1366	Incorrect string value: '\x80W' for column 'a' at row 56
+Warning	1366	Incorrect string value: '\x80X' for column 'a' at row 57
+Warning	1366	Incorrect string value: '\x80Y' for column 'a' at row 58
+Warning	1366	Incorrect string value: '\x80Z' for column 'a' at row 59
+Warning	1366	Incorrect string value: '\x80[' for column 'a' at row 60
+Warning	1366	Incorrect string value: '\x80\' for column 'a' at row 61
+Warning	1366	Incorrect string value: '\x80]' for column 'a' at row 62
+Warning	1366	Incorrect string value: '\x80^' for column 'a' at row 63
+Warning	1366	Incorrect string value: '\x80_' for column 'a' at row 64
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+44671
+SELECT COUNT(*) FROM t1 WHERE a<>'';
+COUNT(*)
+17735
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
+COUNT(*)
+8899
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=3;
+COUNT(*)
+8836
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a)) ORDER BY code;
+code	hex(upper(a))	hex(lower(a))	a	upper(a)	lower(a)
+8FA6E1	8FA6E1	8FA6F1	Ά	Ά	ά
+8FA6E2	8FA6E2	8FA6F2	Έ	Έ	έ
+8FA6E3	8FA6E3	8FA6F3	Ή	Ή	ή
+8FA6E4	8FA6E4	8FA6F4	Ί	Ί	ί
+8FA6E5	8FA6E5	8FA6F5	Ϊ	Ϊ	ϊ
+8FA6E7	8FA6E7	8FA6F7	Ό	Ό	ό
+8FA6E9	8FA6E9	8FA6F9	Ύ	Ύ	ύ
+8FA6EA	8FA6EA	8FA6FA	Ϋ	Ϋ	ϋ
+8FA6EC	8FA6EC	8FA6FC	Ώ	Ώ	ώ
+8FA6F1	8FA6E1	8FA6F1	ά	Ά	ά
+8FA6F2	8FA6E2	8FA6F2	έ	Έ	έ
+8FA6F3	8FA6E3	8FA6F3	ή	Ή	ή
+8FA6F4	8FA6E4	8FA6F4	ί	Ί	ί
+8FA6F5	8FA6E5	8FA6F5	ϊ	Ϊ	ϊ
+8FA6F7	8FA6E7	8FA6F7	ό	Ό	ό
+8FA6F8	A6B2	8FA6F8	ς	Σ	ς
+8FA6F9	8FA6E9	8FA6F9	ύ	Ύ	ύ
+8FA6FA	8FA6EA	8FA6FA	ϋ	Ϋ	ϋ
+8FA6FC	8FA6EC	8FA6FC	ώ	Ώ	ώ
+8FA7C2	8FA7C2	8FA7F2	Ђ	Ђ	ђ
+8FA7C3	8FA7C3	8FA7F3	Ѓ	Ѓ	ѓ
+8FA7C4	8FA7C4	8FA7F4	Є	Є	є
+8FA7C5	8FA7C5	8FA7F5	Ѕ	Ѕ	ѕ
+8FA7C6	8FA7C6	8FA7F6	І	І	і
+8FA7C7	8FA7C7	8FA7F7	Ї	Ї	ї
+8FA7C8	8FA7C8	8FA7F8	Ј	Ј	ј
+8FA7C9	8FA7C9	8FA7F9	Љ	Љ	љ
+8FA7CA	8FA7CA	8FA7FA	Њ	Њ	њ
+8FA7CB	8FA7CB	8FA7FB	Ћ	Ћ	ћ
+8FA7CC	8FA7CC	8FA7FC	Ќ	Ќ	ќ
+8FA7CD	8FA7CD	8FA7FD	Ў	Ў	ў
+8FA7CE	8FA7CE	8FA7FE	Џ	Џ	џ
+8FA7F2	8FA7C2	8FA7F2	ђ	Ђ	ђ
+8FA7F3	8FA7C3	8FA7F3	ѓ	Ѓ	ѓ
+8FA7F4	8FA7C4	8FA7F4	є	Є	є
+8FA7F5	8FA7C5	8FA7F5	ѕ	Ѕ	ѕ
+8FA7F6	8FA7C6	8FA7F6	і	І	і
+8FA7F7	8FA7C7	8FA7F7	ї	Ї	ї
+8FA7F8	8FA7C8	8FA7F8	ј	Ј	ј
+8FA7F9	8FA7C9	8FA7F9	љ	Љ	љ
+8FA7FA	8FA7CA	8FA7FA	њ	Њ	њ
+8FA7FB	8FA7CB	8FA7FB	ћ	Ћ	ћ
+8FA7FC	8FA7CC	8FA7FC	ќ	Ќ	ќ
+8FA7FD	8FA7CD	8FA7FD	ў	Ў	ў
+8FA7FE	8FA7CE	8FA7FE	џ	Џ	џ
+8FA9A1	8FA9A1	8FA9C1	Æ	Æ	æ
+8FA9A2	8FA9A2	8FA9C2	Đ	Đ	đ
+8FA9A4	8FA9A4	8FA9C4	Ħ	Ħ	ħ
+8FA9A6	8FA9A6	8FA9C6	Ĳ	Ĳ	ĳ
+8FA9A8	8FA9A8	8FA9C8	Ł	Ł	ł
+8FA9A9	8FA9A9	8FA9C9	Ŀ	Ŀ	ŀ
+8FA9AB	8FA9AB	8FA9CB	Ŋ	Ŋ	ŋ
+8FA9AC	8FA9AC	8FA9CC	Ø	Ø	ø
+8FA9AD	8FA9AD	8FA9CD	Œ	Œ	œ
+8FA9AF	8FA9AF	8FA9CF	Ŧ	Ŧ	ŧ
+8FA9B0	8FA9B0	8FA9D0	Þ	Þ	þ
+8FA9C1	8FA9A1	8FA9C1	æ	Æ	æ
+8FA9C2	8FA9A2	8FA9C2	đ	Đ	đ
+8FA9C4	8FA9A4	8FA9C4	ħ	Ħ	ħ
+8FA9C5	49	8FA9C5	ı	I	ı
+8FA9C6	8FA9A6	8FA9C6	ĳ	Ĳ	ĳ
+8FA9C8	8FA9A8	8FA9C8	ł	Ł	ł
+8FA9C9	8FA9A9	8FA9C9	ŀ	Ŀ	ŀ
+8FA9CB	8FA9AB	8FA9CB	ŋ	Ŋ	ŋ
+8FA9CC	8FA9AC	8FA9CC	ø	Ø	ø
+8FA9CD	8FA9AD	8FA9CD	œ	Œ	œ
+8FA9CF	8FA9AF	8FA9CF	ŧ	Ŧ	ŧ
+8FA9D0	8FA9B0	8FA9D0	þ	Þ	þ
+8FAAA1	8FAAA1	8FABA1	Á	Á	á
+8FAAA2	8FAAA2	8FABA2	À	À	à
+8FAAA3	8FAAA3	8FABA3	Ä	Ä	ä
+8FAAA4	8FAAA4	8FABA4	Â	Â	â
+8FAAA5	8FAAA5	8FABA5	Ă	Ă	ă
+8FAAA6	8FAAA6	8FABA6	Ǎ	Ǎ	ǎ
+8FAAA7	8FAAA7	8FABA7	Ā	Ā	ā
+8FAAA8	8FAAA8	8FABA8	Ą	Ą	ą
+8FAAA9	8FAAA9	8FABA9	Å	Å	å
+8FAAAA	8FAAAA	8FABAA	Ã	Ã	ã
+8FAAAB	8FAAAB	8FABAB	Ć	Ć	ć
+8FAAAC	8FAAAC	8FABAC	Ĉ	Ĉ	ĉ
+8FAAAD	8FAAAD	8FABAD	Č	Č	č
+8FAAAE	8FAAAE	8FABAE	Ç	Ç	ç
+8FAAAF	8FAAAF	8FABAF	Ċ	Ċ	ċ
+8FAAB0	8FAAB0	8FABB0	Ď	Ď	ď
+8FAAB1	8FAAB1	8FABB1	É	É	é
+8FAAB2	8FAAB2	8FABB2	È	È	è
+8FAAB3	8FAAB3	8FABB3	Ë	Ë	ë
+8FAAB4	8FAAB4	8FABB4	Ê	Ê	ê
+8FAAB5	8FAAB5	8FABB5	Ě	Ě	ě
+8FAAB6	8FAAB6	8FABB6	Ė	Ė	ė
+8FAAB7	8FAAB7	8FABB7	Ē	Ē	ē
+8FAAB8	8FAAB8	8FABB8	Ę	Ę	ę
+8FAABA	8FAABA	8FABBA	Ĝ	Ĝ	ĝ
+8FAABB	8FAABB	8FABBB	Ğ	Ğ	ğ
+8FAABD	8FAABD	8FABBD	Ġ	Ġ	ġ
+8FAABE	8FAABE	8FABBE	Ĥ	Ĥ	ĥ
+8FAABF	8FAABF	8FABBF	Í	Í	í
+8FAAC0	8FAAC0	8FABC0	Ì	Ì	ì
+8FAAC1	8FAAC1	8FABC1	Ï	Ï	ï
+8FAAC2	8FAAC2	8FABC2	Î	Î	î
+8FAAC3	8FAAC3	8FABC3	Ǐ	Ǐ	ǐ
+8FAAC4	8FAAC4	69	İ	İ	i
+8FAAC5	8FAAC5	8FABC5	Ī	Ī	ī
+8FAAC6	8FAAC6	8FABC6	Į	Į	į
+8FAAC7	8FAAC7	8FABC7	Ĩ	Ĩ	ĩ
+8FAAC8	8FAAC8	8FABC8	Ĵ	Ĵ	ĵ
+8FAAC9	8FAAC9	8FABC9	Ķ	Ķ	ķ
+8FAACA	8FAACA	8FABCA	Ĺ	Ĺ	ĺ
+8FAACB	8FAACB	8FABCB	Ľ	Ľ	ľ
+8FAACC	8FAACC	8FABCC	Ļ	Ļ	ļ
+8FAACD	8FAACD	8FABCD	Ń	Ń	ń
+8FAACE	8FAACE	8FABCE	Ň	Ň	ň
+8FAACF	8FAACF	8FABCF	Ņ	Ņ	ņ
+8FAAD0	8FAAD0	8FABD0	Ñ	Ñ	ñ
+8FAAD1	8FAAD1	8FABD1	Ó	Ó	ó
+8FAAD2	8FAAD2	8FABD2	Ò	Ò	ò
+8FAAD3	8FAAD3	8FABD3	Ö	Ö	ö
+8FAAD4	8FAAD4	8FABD4	Ô	Ô	ô
+8FAAD5	8FAAD5	8FABD5	Ǒ	Ǒ	ǒ
+8FAAD6	8FAAD6	8FABD6	Ő	Ő	ő
+8FAAD7	8FAAD7	8FABD7	Ō	Ō	ō
+8FAAD8	8FAAD8	8FABD8	Õ	Õ	õ
+8FAAD9	8FAAD9	8FABD9	Ŕ	Ŕ	ŕ
+8FAADA	8FAADA	8FABDA	Ř	Ř	ř
+8FAADB	8FAADB	8FABDB	Ŗ	Ŗ	ŗ
+8FAADC	8FAADC	8FABDC	Ś	Ś	ś
+8FAADD	8FAADD	8FABDD	Ŝ	Ŝ	ŝ
+8FAADE	8FAADE	8FABDE	Š	Š	š
+8FAADF	8FAADF	8FABDF	Ş	Ş	ş
+8FAAE0	8FAAE0	8FABE0	Ť	Ť	ť
+8FAAE1	8FAAE1	8FABE1	Ţ	Ţ	ţ
+8FAAE2	8FAAE2	8FABE2	Ú	Ú	ú
+8FAAE3	8FAAE3	8FABE3	Ù	Ù	ù
+8FAAE4	8FAAE4	8FABE4	Ü	Ü	ü
+8FAAE5	8FAAE5	8FABE5	Û	Û	û
+8FAAE6	8FAAE6	8FABE6	Ŭ	Ŭ	ŭ
+8FAAE7	8FAAE7	8FABE7	Ǔ	Ǔ	ǔ
+8FAAE8	8FAAE8	8FABE8	Ű	Ű	ű
+8FAAE9	8FAAE9	8FABE9	Ū	Ū	ū
+8FAAEA	8FAAEA	8FABEA	Ų	Ų	ų
+8FAAEB	8FAAEB	8FABEB	Ů	Ů	ů
+8FAAEC	8FAAEC	8FABEC	Ũ	Ũ	ũ
+8FAAED	8FAAED	8FABED	Ǘ	Ǘ	ǘ
+8FAAEE	8FAAEE	8FABEE	Ǜ	Ǜ	ǜ
+8FAAEF	8FAAEF	8FABEF	Ǚ	Ǚ	ǚ
+8FAAF0	8FAAF0	8FABF0	Ǖ	Ǖ	ǖ
+8FAAF1	8FAAF1	8FABF1	Ŵ	Ŵ	ŵ
+8FAAF2	8FAAF2	8FABF2	Ý	Ý	ý
+8FAAF3	8FAAF3	8FABF3	Ÿ	Ÿ	ÿ
+8FAAF4	8FAAF4	8FABF4	Ŷ	Ŷ	ŷ
+8FAAF5	8FAAF5	8FABF5	Ź	Ź	ź
+8FAAF6	8FAAF6	8FABF6	Ž	Ž	ž
+8FAAF7	8FAAF7	8FABF7	Ż	Ż	ż
+8FABA1	8FAAA1	8FABA1	á	Á	á
+8FABA2	8FAAA2	8FABA2	à	À	à
+8FABA3	8FAAA3	8FABA3	ä	Ä	ä
+8FABA4	8FAAA4	8FABA4	â	Â	â
+8FABA5	8FAAA5	8FABA5	ă	Ă	ă
+8FABA6	8FAAA6	8FABA6	ǎ	Ǎ	ǎ
+8FABA7	8FAAA7	8FABA7	ā	Ā	ā
+8FABA8	8FAAA8	8FABA8	ą	Ą	ą
+8FABA9	8FAAA9	8FABA9	å	Å	å
+8FABAA	8FAAAA	8FABAA	ã	Ã	ã
+8FABAB	8FAAAB	8FABAB	ć	Ć	ć
+8FABAC	8FAAAC	8FABAC	ĉ	Ĉ	ĉ
+8FABAD	8FAAAD	8FABAD	č	Č	č
+8FABAE	8FAAAE	8FABAE	ç	Ç	ç
+8FABAF	8FAAAF	8FABAF	ċ	Ċ	ċ
+8FABB0	8FAAB0	8FABB0	ď	Ď	ď
+8FABB1	8FAAB1	8FABB1	é	É	é
+8FABB2	8FAAB2	8FABB2	è	È	è
+8FABB3	8FAAB3	8FABB3	ë	Ë	ë
+8FABB4	8FAAB4	8FABB4	ê	Ê	ê
+8FABB5	8FAAB5	8FABB5	ě	Ě	ě
+8FABB6	8FAAB6	8FABB6	ė	Ė	ė
+8FABB7	8FAAB7	8FABB7	ē	Ē	ē
+8FABB8	8FAAB8	8FABB8	ę	Ę	ę
+8FABBA	8FAABA	8FABBA	ĝ	Ĝ	ĝ
+8FABBB	8FAABB	8FABBB	ğ	Ğ	ğ
+8FABBD	8FAABD	8FABBD	ġ	Ġ	ġ
+8FABBE	8FAABE	8FABBE	ĥ	Ĥ	ĥ
+8FABBF	8FAABF	8FABBF	í	Í	í
+8FABC0	8FAAC0	8FABC0	ì	Ì	ì
+8FABC1	8FAAC1	8FABC1	ï	Ï	ï
+8FABC2	8FAAC2	8FABC2	î	Î	î
+8FABC3	8FAAC3	8FABC3	ǐ	Ǐ	ǐ
+8FABC5	8FAAC5	8FABC5	ī	Ī	ī
+8FABC6	8FAAC6	8FABC6	į	Į	į
+8FABC7	8FAAC7	8FABC7	ĩ	Ĩ	ĩ
+8FABC8	8FAAC8	8FABC8	ĵ	Ĵ	ĵ
+8FABC9	8FAAC9	8FABC9	ķ	Ķ	ķ
+8FABCA	8FAACA	8FABCA	ĺ	Ĺ	ĺ
+8FABCB	8FAACB	8FABCB	ľ	Ľ	ľ
+8FABCC	8FAACC	8FABCC	ļ	Ļ	ļ
+8FABCD	8FAACD	8FABCD	ń	Ń	ń
+8FABCE	8FAACE	8FABCE	ň	Ň	ň
+8FABCF	8FAACF	8FABCF	ņ	Ņ	ņ
+8FABD0	8FAAD0	8FABD0	ñ	Ñ	ñ
+8FABD1	8FAAD1	8FABD1	ó	Ó	ó
+8FABD2	8FAAD2	8FABD2	ò	Ò	ò
+8FABD3	8FAAD3	8FABD3	ö	Ö	ö
+8FABD4	8FAAD4	8FABD4	ô	Ô	ô
+8FABD5	8FAAD5	8FABD5	ǒ	Ǒ	ǒ
+8FABD6	8FAAD6	8FABD6	ő	Ő	ő
+8FABD7	8FAAD7	8FABD7	ō	Ō	ō
+8FABD8	8FAAD8	8FABD8	õ	Õ	õ
+8FABD9	8FAAD9	8FABD9	ŕ	Ŕ	ŕ
+8FABDA	8FAADA	8FABDA	ř	Ř	ř
+8FABDB	8FAADB	8FABDB	ŗ	Ŗ	ŗ
+8FABDC	8FAADC	8FABDC	ś	Ś	ś
+8FABDD	8FAADD	8FABDD	ŝ	Ŝ	ŝ
+8FABDE	8FAADE	8FABDE	š	Š	š
+8FABDF	8FAADF	8FABDF	ş	Ş	ş
+8FABE0	8FAAE0	8FABE0	ť	Ť	ť
+8FABE1	8FAAE1	8FABE1	ţ	Ţ	ţ
+8FABE2	8FAAE2	8FABE2	ú	Ú	ú
+8FABE3	8FAAE3	8FABE3	ù	Ù	ù
+8FABE4	8FAAE4	8FABE4	ü	Ü	ü
+8FABE5	8FAAE5	8FABE5	û	Û	û
+8FABE6	8FAAE6	8FABE6	ŭ	Ŭ	ŭ
+8FABE7	8FAAE7	8FABE7	ǔ	Ǔ	ǔ
+8FABE8	8FAAE8	8FABE8	ű	Ű	ű
+8FABE9	8FAAE9	8FABE9	ū	Ū	ū
+8FABEA	8FAAEA	8FABEA	ų	Ų	ų
+8FABEB	8FAAEB	8FABEB	ů	Ů	ů
+8FABEC	8FAAEC	8FABEC	ũ	Ũ	ũ
+8FABED	8FAAED	8FABED	ǘ	Ǘ	ǘ
+8FABEE	8FAAEE	8FABEE	ǜ	Ǜ	ǜ
+8FABEF	8FAAEF	8FABEF	ǚ	Ǚ	ǚ
+8FABF0	8FAAF0	8FABF0	ǖ	Ǖ	ǖ
+8FABF1	8FAAF1	8FABF1	ŵ	Ŵ	ŵ
+8FABF2	8FAAF2	8FABF2	ý	Ý	ý
+8FABF3	8FAAF3	8FABF3	ÿ	Ÿ	ÿ
+8FABF4	8FAAF4	8FABF4	ŷ	Ŷ	ŷ
+8FABF5	8FAAF5	8FABF5	ź	Ź	ź
+8FABF6	8FAAF6	8FABF6	ž	Ž	ž
+8FABF7	8FAAF7	8FABF7	ż	Ż	ż
+A2F2	A2F2	8FABA9	Å	Å	å
+A3C1	A3C1	A3E1	Ａ	Ａ	ａ
+A3C2	A3C2	A3E2	Ｂ	Ｂ	ｂ
+A3C3	A3C3	A3E3	Ｃ	Ｃ	ｃ
+A3C4	A3C4	A3E4	Ｄ	Ｄ	ｄ
+A3C5	A3C5	A3E5	Ｅ	Ｅ	ｅ
+A3C6	A3C6	A3E6	Ｆ	Ｆ	ｆ
+A3C7	A3C7	A3E7	Ｇ	Ｇ	ｇ
+A3C8	A3C8	A3E8	Ｈ	Ｈ	ｈ
+A3C9	A3C9	A3E9	Ｉ	Ｉ	ｉ
+A3CA	A3CA	A3EA	Ｊ	Ｊ	ｊ
+A3CB	A3CB	A3EB	Ｋ	Ｋ	ｋ
+A3CC	A3CC	A3EC	Ｌ	Ｌ	ｌ
+A3CD	A3CD	A3ED	Ｍ	Ｍ	ｍ
+A3CE	A3CE	A3EE	Ｎ	Ｎ	ｎ
+A3CF	A3CF	A3EF	Ｏ	Ｏ	ｏ
+A3D0	A3D0	A3F0	Ｐ	Ｐ	ｐ
+A3D1	A3D1	A3F1	Ｑ	Ｑ	ｑ
+A3D2	A3D2	A3F2	Ｒ	Ｒ	ｒ
+A3D3	A3D3	A3F3	Ｓ	Ｓ	ｓ
+A3D4	A3D4	A3F4	Ｔ	Ｔ	ｔ
+A3D5	A3D5	A3F5	Ｕ	Ｕ	ｕ
+A3D6	A3D6	A3F6	Ｖ	Ｖ	ｖ
+A3D7	A3D7	A3F7	Ｗ	Ｗ	ｗ
+A3D8	A3D8	A3F8	Ｘ	Ｘ	ｘ
+A3D9	A3D9	A3F9	Ｙ	Ｙ	ｙ
+A3DA	A3DA	A3FA	Ｚ	Ｚ	ｚ
+A3E1	A3C1	A3E1	ａ	Ａ	ａ
+A3E2	A3C2	A3E2	ｂ	Ｂ	ｂ
+A3E3	A3C3	A3E3	ｃ	Ｃ	ｃ
+A3E4	A3C4	A3E4	ｄ	Ｄ	ｄ
+A3E5	A3C5	A3E5	ｅ	Ｅ	ｅ
+A3E6	A3C6	A3E6	ｆ	Ｆ	ｆ
+A3E7	A3C7	A3E7	ｇ	Ｇ	ｇ
+A3E8	A3C8	A3E8	ｈ	Ｈ	ｈ
+A3E9	A3C9	A3E9	ｉ	Ｉ	ｉ
+A3EA	A3CA	A3EA	ｊ	Ｊ	ｊ
+A3EB	A3CB	A3EB	ｋ	Ｋ	ｋ
+A3EC	A3CC	A3EC	ｌ	Ｌ	ｌ
+A3ED	A3CD	A3ED	ｍ	Ｍ	ｍ
+A3EE	A3CE	A3EE	ｎ	Ｎ	ｎ
+A3EF	A3CF	A3EF	ｏ	Ｏ	ｏ
+A3F0	A3D0	A3F0	ｐ	Ｐ	ｐ
+A3F1	A3D1	A3F1	ｑ	Ｑ	ｑ
+A3F2	A3D2	A3F2	ｒ	Ｒ	ｒ
+A3F3	A3D3	A3F3	ｓ	Ｓ	ｓ
+A3F4	A3D4	A3F4	ｔ	Ｔ	ｔ
+A3F5	A3D5	A3F5	ｕ	Ｕ	ｕ
+A3F6	A3D6	A3F6	ｖ	Ｖ	ｖ
+A3F7	A3D7	A3F7	ｗ	Ｗ	ｗ
+A3F8	A3D8	A3F8	ｘ	Ｘ	ｘ
+A3F9	A3D9	A3F9	ｙ	Ｙ	ｙ
+A3FA	A3DA	A3FA	ｚ	Ｚ	ｚ
+A6A1	A6A1	A6C1	Α	Α	α
+A6A2	A6A2	A6C2	Β	Β	β
+A6A3	A6A3	A6C3	Γ	Γ	γ
+A6A4	A6A4	A6C4	Δ	Δ	δ
+A6A5	A6A5	A6C5	Ε	Ε	ε
+A6A6	A6A6	A6C6	Ζ	Ζ	ζ
+A6A7	A6A7	A6C7	Η	Η	η
+A6A8	A6A8	A6C8	Θ	Θ	θ
+A6A9	A6A9	A6C9	Ι	Ι	ι
+A6AA	A6AA	A6CA	Κ	Κ	κ
+A6AB	A6AB	A6CB	Λ	Λ	λ
+A6AC	A6AC	A6CC	Μ	Μ	μ
+A6AD	A6AD	A6CD	Ν	Ν	ν
+A6AE	A6AE	A6CE	Ξ	Ξ	ξ
+A6AF	A6AF	A6CF	Ο	Ο	ο
+A6B0	A6B0	A6D0	Π	Π	π
+A6B1	A6B1	A6D1	Ρ	Ρ	ρ
+A6B2	A6B2	A6D2	Σ	Σ	σ
+A6B3	A6B3	A6D3	Τ	Τ	τ
+A6B4	A6B4	A6D4	Υ	Υ	υ
+A6B5	A6B5	A6D5	Φ	Φ	φ
+A6B6	A6B6	A6D6	Χ	Χ	χ
+A6B7	A6B7	A6D7	Ψ	Ψ	ψ
+A6B8	A6B8	A6D8	Ω	Ω	ω
+A6C1	A6A1	A6C1	α	Α	α
+A6C2	A6A2	A6C2	β	Β	β
+A6C3	A6A3	A6C3	γ	Γ	γ
+A6C4	A6A4	A6C4	δ	Δ	δ
+A6C5	A6A5	A6C5	ε	Ε	ε
+A6C6	A6A6	A6C6	ζ	Ζ	ζ
+A6C7	A6A7	A6C7	η	Η	η
+A6C8	A6A8	A6C8	θ	Θ	θ
+A6C9	A6A9	A6C9	ι	Ι	ι
+A6CA	A6AA	A6CA	κ	Κ	κ
+A6CB	A6AB	A6CB	λ	Λ	λ
+A6CC	A6AC	A6CC	μ	Μ	μ
+A6CD	A6AD	A6CD	ν	Ν	ν
+A6CE	A6AE	A6CE	ξ	Ξ	ξ
+A6CF	A6AF	A6CF	ο	Ο	ο
+A6D0	A6B0	A6D0	π	Π	π
+A6D1	A6B1	A6D1	ρ	Ρ	ρ
+A6D2	A6B2	A6D2	σ	Σ	σ
+A6D3	A6B3	A6D3	τ	Τ	τ
+A6D4	A6B4	A6D4	υ	Υ	υ
+A6D5	A6B5	A6D5	φ	Φ	φ
+A6D6	A6B6	A6D6	χ	Χ	χ
+A6D7	A6B7	A6D7	ψ	Ψ	ψ
+A6D8	A6B8	A6D8	ω	Ω	ω
+A7A1	A7A1	A7D1	А	А	а
+A7A2	A7A2	A7D2	Б	Б	б
+A7A3	A7A3	A7D3	В	В	в
+A7A4	A7A4	A7D4	Г	Г	г
+A7A5	A7A5	A7D5	Д	Д	д
+A7A6	A7A6	A7D6	Е	Е	е
+A7A7	A7A7	A7D7	Ё	Ё	ё
+A7A8	A7A8	A7D8	Ж	Ж	ж
+A7A9	A7A9	A7D9	З	З	з
+A7AA	A7AA	A7DA	И	И	и
+A7AB	A7AB	A7DB	Й	Й	й
+A7AC	A7AC	A7DC	К	К	к
+A7AD	A7AD	A7DD	Л	Л	л
+A7AE	A7AE	A7DE	М	М	м
+A7AF	A7AF	A7DF	Н	Н	н
+A7B0	A7B0	A7E0	О	О	о
+A7B1	A7B1	A7E1	П	П	п
+A7B2	A7B2	A7E2	Р	Р	р
+A7B3	A7B3	A7E3	С	С	с
+A7B4	A7B4	A7E4	Т	Т	т
+A7B5	A7B5	A7E5	У	У	у
+A7B6	A7B6	A7E6	Ф	Ф	ф
+A7B7	A7B7	A7E7	Х	Х	х
+A7B8	A7B8	A7E8	Ц	Ц	ц
+A7B9	A7B9	A7E9	Ч	Ч	ч
+A7BA	A7BA	A7EA	Ш	Ш	ш
+A7BB	A7BB	A7EB	Щ	Щ	щ
+A7BC	A7BC	A7EC	Ъ	Ъ	ъ
+A7BD	A7BD	A7ED	Ы	Ы	ы
+A7BE	A7BE	A7EE	Ь	Ь	ь
+A7BF	A7BF	A7EF	Э	Э	э
+A7C0	A7C0	A7F0	Ю	Ю	ю
+A7C1	A7C1	A7F1	Я	Я	я
+A7D1	A7A1	A7D1	а	А	а
+A7D2	A7A2	A7D2	б	Б	б
+A7D3	A7A3	A7D3	в	В	в
+A7D4	A7A4	A7D4	г	Г	г
+A7D5	A7A5	A7D5	д	Д	д
+A7D6	A7A6	A7D6	е	Е	е
+A7D7	A7A7	A7D7	ё	Ё	ё
+A7D8	A7A8	A7D8	ж	Ж	ж
+A7D9	A7A9	A7D9	з	З	з
+A7DA	A7AA	A7DA	и	И	и
+A7DB	A7AB	A7DB	й	Й	й
+A7DC	A7AC	A7DC	к	К	к
+A7DD	A7AD	A7DD	л	Л	л
+A7DE	A7AE	A7DE	м	М	м
+A7DF	A7AF	A7DF	н	Н	н
+A7E0	A7B0	A7E0	о	О	о
+A7E1	A7B1	A7E1	п	П	п
+A7E2	A7B2	A7E2	р	Р	р
+A7E3	A7B3	A7E3	с	С	с
+A7E4	A7B4	A7E4	т	Т	т
+A7E5	A7B5	A7E5	у	У	у
+A7E6	A7B6	A7E6	ф	Ф	ф
+A7E7	A7B7	A7E7	х	Х	х
+A7E8	A7B8	A7E8	ц	Ц	ц
+A7E9	A7B9	A7E9	ч	Ч	ч
+A7EA	A7BA	A7EA	ш	Ш	ш
+A7EB	A7BB	A7EB	щ	Щ	щ
+A7EC	A7BC	A7EC	ъ	Ъ	ъ
+A7ED	A7BD	A7ED	ы	Ы	ы
+A7EE	A7BE	A7EE	ь	Ь	ь
+A7EF	A7BF	A7EF	э	Э	э
+A7F0	A7C0	A7F0	ю	Ю	ю
+A7F1	A7C1	A7F1	я	Я	я
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+code	a
+8FAABC	Ģ
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+code	a
+8FA9C3	ð
+8FABB9	ǵ
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
