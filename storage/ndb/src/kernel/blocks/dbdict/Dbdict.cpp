@@ -10839,6 +10839,12 @@ Dbdict::createIndex_toAlterIndex(Signal* signal, SchemaOpPtr op_ptr)
   DictSignal::setRequestType(requestInfo, AlterIndxImplReq::AlterIndexOnline);
   DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
 
+  if (op_ptr.p->m_requestInfo & CreateIndxReq::RF_BUILD_OFFLINE)
+  {
+    jam();
+    requestInfo |= AlterIndxReq::RF_BUILD_OFFLINE;
+  }
+
   req->clientRef = reference();
   req->clientData = op_ptr.p->op_key;
   req->transId = trans_ptr.p->m_transId;
@@ -11962,6 +11968,12 @@ Dbdict::alterIndex_toBuildIndex(Signal* signal, SchemaOpPtr op_ptr)
   DictSignal::setRequestType(requestInfo, BuildIndxReq::MainOp);
   DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
 
+  if (op_ptr.p->m_requestInfo & AlterIndxReq::RF_BUILD_OFFLINE)
+  {
+    jam();
+    requestInfo |= BuildIndxReq::RF_BUILD_OFFLINE;
+  }
+
   req->clientRef = reference();
   req->clientData = op_ptr.p->op_key;
   req->transId = trans_ptr.p->m_transId;
@@ -13027,7 +13039,7 @@ Dbdict:: buildIndex_toLocalBuild(Signal* signal, SchemaOpPtr op_ptr)
 
   req->senderRef = reference();
   req->senderData = op_ptr.p->op_key;
-  req->requestType = 0;
+  req->requestType = impl_req->requestType;
   req->transId = trans_ptr.p->m_transId;
   req->buildId = impl_req->buildId;
   req->buildKey = impl_req->buildKey;
@@ -13058,6 +13070,12 @@ Dbdict:: buildIndex_toLocalBuild(Signal* signal, SchemaOpPtr op_ptr)
     break;
   case DictTabInfo::OrderedIndex:
     jam();
+    if (op_ptr.p->m_requestInfo & BuildIndxReq::RF_BUILD_OFFLINE)
+    {
+      jam();
+      req->requestType |= BuildIndxImplReq::RF_BUILD_OFFLINE;
+    }
+
     {
       sendSignal(DBTUP_REF, GSN_BUILD_INDX_IMPL_REQ, signal,
                  BuildIndxImplReq::SignalLength, JBB);

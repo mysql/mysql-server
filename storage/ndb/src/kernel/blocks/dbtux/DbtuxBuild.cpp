@@ -30,8 +30,8 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     ptr += (sizeof(* tux_ctx) + 3) / 4;
 
     tux_ctx->jamBuffer = (EmulatedJamBuffer*)ptr;
+    tux_ctx->jamBuffer->theEmulatedJamIndex = 0;
     ptr += (sizeof(EmulatedJamBuffer) + 3) / 4;
-
     tux_ctx->c_keyAttrs = ptr;
     ptr += MaxIndexAttributes;
     while (UintPtr(ptr) & 7)

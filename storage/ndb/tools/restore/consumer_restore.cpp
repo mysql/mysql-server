@@ -36,7 +36,6 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
 
 extern const char * g_connect_string;
 extern BaseString g_options;
-
 extern unsigned int opt_no_binlog;
 
 bool BackupRestore::m_preserve_trailing_spaces = false;
@@ -86,7 +85,8 @@ BackupRestore::init(Uint32 tableChangesMask)
 {
   release();
 
-  if (!m_restore && !m_restore_meta && !m_restore_epoch)
+  if (!m_restore && !m_restore_meta && !m_restore_epoch &&
+      !m_rebuild_indexes && !m_disable_indexes)
     return true;
 
   m_tableChangesMask = tableChangesMask;
@@ -239,6 +239,45 @@ BackupRestore::finalize_table(const TableS & table){
   } while (1);
 }
 
+bool
+BackupRestore::rebuild_indexes(const TableS& table)
+{
+  const char *tablename = table.getTableName();
+
+  const NdbDictionary::Table * tab = get_table(table.m_dictTable);
+  Uint32 id = tab->getObjectId();
+  if (m_index_per_table.size() <= id)
+    return true;
+
+  BaseString tmp(tablename);
+  Vector<BaseString> split;
+  if (tmp.split(split, "/") != 3)
+  {
+    err << "Invalid table name format " << tablename << endl;
+    return false;
+  }
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  Vector<NdbDictionary::Index*> & indexes = m_index_per_table[id];
+  for(size_t i = 0; i<indexes.size(); i++)
+  {
+    NdbDictionary::Index * idx = indexes[i];
+    err << "Rebuilding index " << idx->getName() << " on table "
+        << tab->getName() << " ..." << flush;
+    if (dict->createIndex(* idx, 1) != 0)
+    {
+      err << "FAIL!" << endl;
+      err << dict->getNdbError() << endl;
+
+      return false;
+    }
+    err << "OK" << endl;
+  }
+
+  return true;
+}
 
 #ifdef NOT_USED
 static bool default_nodegroups(NdbDictionary::Table *table)
@@ -1173,7 +1212,7 @@ BackupRestore::createSystable(const TableS & tables){
 
 bool
 BackupRestore::table(const TableS & table){
-  if (!m_restore && !m_restore_meta)
+  if (!m_restore && !m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
     return true;
 
   const char * name = table.getTableName();
@@ -1385,7 +1424,7 @@ BackupRestore::table(const TableS & table){
 
 bool
 BackupRestore::endOfTables(){
-  if(!m_restore_meta)
+  if(!m_restore_meta && !m_rebuild_indexes && !m_disable_indexes)
     return true;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
@@ -1431,18 +1470,37 @@ BackupRestore::endOfTables(){
 	return false;
     }
     idx->setName(split_idx[3].c_str());
-    if(dict->createIndex(* idx) != 0)
+    if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
-      delete idx;
-      err << "Failed to create index `" << split_idx[3].c_str()
-	  << "` on `" << split[2].c_str() << "`" << endl
-	  << dict->getNdbError() << endl;
+      if (dict->createIndex(* idx) != 0)
+      {
+        delete idx;
+        err << "Failed to create index `" << split_idx[3].c_str()
+            << "` on `" << split[2].c_str() << "`" << endl
+            << dict->getNdbError() << endl;
 
-      return false;
+        return false;
+      }
+      err << "Successfully created index `" << split_idx[3].c_str()
+          << "` on `" << split[2].c_str() << "`" << endl;
     }
-    delete idx;
-    info << "Successfully created index `" << split_idx[3].c_str()
-	 << "` on `" << split[2].c_str() << "`" << endl;
+    else if (m_disable_indexes)
+    {
+      int res = dict->dropIndex(idx->getName(), prim->getName());
+      if (res == 0)
+      {
+        err << "Dropped index `" << split_idx[3].c_str()
+            << "` on `" << split[2].c_str() << "`" << endl;
+      }
+    }
+    Uint32 id = prim->getObjectId();
+    if (m_index_per_table.size() <= id)
+    {
+      Vector<NdbDictionary::Index*> tmp;
+      m_index_per_table.fill(id + 1, tmp);
+    }
+    Vector<NdbDictionary::Index*> & list = m_index_per_table[id];
+    list.push_back(idx);
   }
   return true;
 }
@@ -2548,3 +2606,5 @@ template class Vector<const NdbDictionary::Table*>;
 template class Vector<NdbDictionary::Tablespace*>;
 template class Vector<NdbDictionary::LogfileGroup*>;
 template class Vector<NdbDictionary::HashMap*>;
+template class Vector<NdbDictionary::Index*>;
+template class Vector<Vector<NdbDictionary::Index*> >;

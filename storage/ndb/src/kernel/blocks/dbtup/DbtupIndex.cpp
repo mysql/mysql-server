@@ -425,11 +425,15 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     (const BuildIndxImplReq*)signal->getDataPtr();
   // get new operation
   BuildIndexPtr buildPtr;
-  if (! c_buildIndexList.seize(buildPtr)) {
+  if (ERROR_INSERTED(4031) || ! c_buildIndexList.seize(buildPtr)) {
     jam();
     BuildIndexRec buildRec;
     buildRec.m_request = *req;
     buildRec.m_errorCode = BuildIndxImplRef::Busy;
+    if (ERROR_INSERTED(4031))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+    }
     buildIndexReply(signal, &buildRec);
     return;
   }
@@ -502,8 +506,9 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
     buildPtr.p->m_pageId= 0;
     buildPtr.p->m_tupleNo= firstTupleNo;
     // start build
-    bool offline = refToMain(buildReq->senderRef) == DBLQH; // crude
-    if (false && offline && m_max_parallel_index_build > 1)
+
+    bool offline = !!(buildReq->requestType&BuildIndxImplReq::RF_BUILD_OFFLINE);
+    if (offline && m_max_parallel_index_build > 1)
     {
       jam();
       buildIndexOffline(signal, buildPtr.i);
@@ -761,6 +766,56 @@ Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
 void
 Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
 {
+  jam();
+  /**
+   * We need to make table read-only...as mtoib does not work otherwise
+   */
+  BuildIndexPtr buildPtr;
+  buildPtr.i= buildPtrI;
+  c_buildIndexList.getPtr(buildPtr);
+  const BuildIndxImplReq* buildReq = 
+    (const BuildIndxImplReq*)&buildPtr.p->m_request;
+
+  AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+  bzero(req, sizeof(req));
+  req->senderRef = reference();
+  req->senderData = buildPtrI;
+  req->tableId = buildReq->tableId;
+  req->requestType = AlterTabReq::AlterTableReadOnly;
+  sendSignal(calcInstanceBlockRef(DBLQH), GSN_ALTER_TAB_REQ, signal,
+             AlterTabReq::SignalLength, JBB);
+}
+
+void
+Dbtup::execALTER_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtr();
+
+  BuildIndexPtr buildPtr;
+  buildPtr.i = conf->senderData;
+  c_buildIndexList.getPtr(buildPtr);
+
+
+  if (buildPtr.p->m_fragNo == 0)
+  {
+    jam();
+    buildIndexOffline_table_readonly(signal, conf->senderData);
+    return;
+  }
+  else
+  {
+    jam();
+    ndbrequire(buildPtr.p->m_fragNo >= MAX_FRAG_PER_NODE);
+    buildIndexReply(signal, buildPtr.p);
+    c_buildIndexList.release(buildPtr);
+    return;
+  }
+}
+
+void
+Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
+{
   // get build record
   BuildIndexPtr buildPtr;
   buildPtr.i= buildPtrI;
@@ -792,7 +847,13 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
     req.indexId = buildPtr.p->m_indexId;
     req.fragId = tablePtr.p->fragid[buildPtr.p->m_fragNo];
 
-    req.tux_ptr = globalData.getBlock(DBTUX);
+    SimulatedBlock * tux = globalData.getBlock(DBTUX);
+    if (instance() != 0)
+    {
+      tux = tux->getInstance(instance());
+      ndbrequire(tux != 0);
+    }
+    req.tux_ptr = tux;
     req.tup_ptr = this;
     req.func_ptr = Dbtux_mt_buildIndexFragment_wrapper_C;
     req.buffer_size = 16*32768; // thread-local-buffer
@@ -814,7 +875,14 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
   if (buildPtr.p->m_outstanding == 0)
   {
     jam();
-    buildIndexReply(signal, buildPtr.p);
+    AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+    bzero(req, sizeof(req));
+    req->senderRef = reference();
+    req->senderData = buildPtrI;
+    req->tableId = buildReq->tableId;
+    req->requestType = AlterTabReq::AlterTableReadWrite;
+    sendSignal(calcInstanceBlockRef(DBLQH), GSN_ALTER_TAB_REQ, signal,
+               AlterTabReq::SignalLength, JBB);
     return;
   }
   else
@@ -942,7 +1010,7 @@ Dbtup::execBUILD_INDX_IMPL_REF(Signal* signal)
 
   buildPtr.p->m_errorCode = (BuildIndxImplRef::ErrorCode)err;
   buildPtr.p->m_fragNo = MAX_FRAG_PER_NODE; // No point in starting any more
-  buildIndexOffline(signal, ptr);
+  buildIndexOffline_table_readonly(signal, ptr);
 }
 
 void
@@ -958,7 +1026,7 @@ Dbtup::execBUILD_INDX_IMPL_CONF(Signal* signal)
   buildPtr.p->m_outstanding--;
   buildPtr.p->m_fragNo++;
 
-  buildIndexOffline(signal, ptr);
+  buildIndexOffline_table_readonly(signal, ptr);
 }
 
 void

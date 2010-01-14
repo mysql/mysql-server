@@ -18,7 +18,12 @@
 
 #include "SignalData.hpp"
 
-struct BuildIndxImplReq {
+struct BuildIndxImplReq
+{
+  enum RequestFlag {
+    RF_BUILD_OFFLINE = 1 << 8
+  };
+
   STATIC_CONST( SignalLength = 10 );
   STATIC_CONST( INDEX_COLUMNS = 0 );
   STATIC_CONST( KEY_COLUMNS = 1 );

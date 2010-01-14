@@ -109,6 +109,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Dbtup::execBUILD_INDX_IMPL_REQ);
   addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dbtup::execBUILD_INDX_IMPL_REF);
   addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dbtup::execBUILD_INDX_IMPL_CONF);
+  addRecSignal(GSN_ALTER_TAB_CONF, &Dbtup::execALTER_TAB_CONF);
   m_max_parallel_index_build = 0;
 
   // Tup scan
@@ -478,6 +479,15 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
                             &m_max_parallel_index_build);
+
+  if (isNdbMt())
+  {
+    /**
+     * Disable for now...
+     * TODO: Figure out why this doesnt work
+     */
+    m_max_parallel_index_build = 0;
+  }
   
   initialiseRecordsLab(signal, 0, ref, senderData);
 }//Dbtup::execSIZEALT_REP()
