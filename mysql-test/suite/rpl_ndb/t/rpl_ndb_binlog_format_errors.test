@@ -93,16 +93,20 @@ AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
 --error ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 INSERT INTO t_self_logging VALUES (1);
 DROP trigger trig_1;
+SELECT * FROM t_self_logging /* Should be empty */;
+SELECT * FROM t /* Should be empty */;
 
 --echo * Modify both row-only and stmt-only table
 --eval CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END
 --error ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (1);
+SELECT * FROM t_stmt /* should be empty */;
 DROP TRIGGER trig_2;
 
 --echo * Stmt-only table and binlog_format=row
 --error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (1);
+SELECT * FROM t_stmt /* should be empty */;
 
 --echo * Row injection and stmt-only table: in slave sql thread
 INSERT INTO t_slave_stmt VALUES (1);
@@ -112,7 +116,11 @@ INSERT INTO t_slave_stmt VALUES (1);
 --let $slave_sql_errno= 1642
 --let $show_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
+--connection slave
+SELECT * FROM t_slave_stmt /* should be empty */;
 
+--echo [on master]
+--connection master
 --echo * Row injection and stmt-only table: use BINLOG statement
 # This is a Table_map_event and a Write_rows_event. Together, they are
 # equivalent to 'INSERT INTO t_stmt VALUES (1)'
@@ -121,6 +129,7 @@ BINLOG '
 1gRVShMBAAAALwAAAEABAAAAABcAAAAAAAAABHRlc3QABnRfc3RtdAABDwJkAAE=
 1gRVShcBAAAAIAAAAGABAAAQABcAAAAAAAEAAf/+ATE=
 ';
+SELECT * FROM t_stmt /* should be empty */;
 
 
 --echo ---- binlog_format=mixed ----
@@ -161,6 +170,7 @@ SET @@session.binlog_format = STATEMENT;
 --echo * Row-only engine and binlog_format=statement: innodb-specific message
 --error ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
 INSERT INTO t_row VALUES (1);
+SELECT * FROM t_row /* should be empty */;
 
 # Commented out since innodb gives an error (this is a bug)
 #--echo * Same statement, but db filtered out - no error
@@ -172,12 +182,14 @@ INSERT INTO t_row VALUES (1);
 SET @@session.debug= '+d,no_innodb_binlog_errors';
 --error ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
 INSERT INTO t_row VALUES (1);
+SELECT * FROM t_row /* should be empty */;
 
 --echo * Same statement, but db filtered out - no error
 USE other;
 INSERT INTO test.t_row VALUES (1);
 USE test;
 SET @@session.debug= '';
+SELECT * FROM t_row /* should contain the value 1 */;
 
 --echo * Row injection and binlog_format=statement: BINLOG statement
 # This is a Table_map_event and a Write_rows_event. Together, they are
@@ -187,6 +199,7 @@ BINLOG '
 cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
 cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
 ';
+SELECT * FROM t /* should be empty */;
 
 --echo * Same statement, but db filtered out - no error
 # This is a Table_map_event and a Write_rows_event. Together, they are
@@ -197,15 +210,21 @@ cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
 cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
 ';
 USE test;
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
 
 --echo * Unsafe statement and binlog_format=statement
 # This will give a warning.
-INSERT INTO t VALUES (UUID());
+INSERT INTO t VALUES (COALESCE(1, UUID()));
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
 
 --echo * Same statement, but db filtered out - no message
 USE other;
-INSERT INTO test.t VALUES (UUID());
+INSERT INTO test.t VALUES (COALESCE(1, UUID()));
 USE test;
+SELECT * FROM t /* should contain the value 1 */;
+DELETE FROM t;
 
 
 --echo ---- master: binlog_format=mixed, slave: binlog_format=statement ----
@@ -214,14 +233,15 @@ SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 
 --echo * Row injection and binlog_format=statement: in slave sql thread
-INSERT INTO t VALUES (UUID());
+INSERT INTO t VALUES (COALESCE(1, UUID()));
 --echo [on slave]
 --connection slave
 # 1644 = ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
 --let $slave_sql_errno= 1644
 --let $show_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
-
+--connection slave
+SELECT * FROM t /* should be empty */;
 --echo [on master]
 --connection master
 
