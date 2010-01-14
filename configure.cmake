@@ -177,6 +177,10 @@ ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX" AND CMAKE_SYSTEM MATCHES "11")
   ADD_DEFINITIONS(-DHPUX11)
 ENDIF()
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  ADD_DEFINITIONS(-DHAVE_RWLOCK_T)
+ENDIF()
+
 # Disable warnings in Visual Studio 8 and above
 IF(MSVC AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7")
   #TODO: update the code and remove the disabled warnings
