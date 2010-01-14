@@ -32,7 +32,8 @@
 
 class ConfigManager : public MgmtThread {
   const MgmtSrvr::MgmtOpts& m_opts;
-  TransporterFacade* m_facade;
+  TransporterFacade * m_facade;
+  SignalSender * m_ss;
 
   NdbMutex *m_config_mutex;
   const Config * m_config;
@@ -199,7 +200,7 @@ public:
                 const char* configdir);
   virtual ~ConfigManager();
   bool init();
-  void set_facade(TransporterFacade* facade) { m_facade= facade; };
+  void set_facade(TransporterFacade* facade);
   virtual void run();
 
 

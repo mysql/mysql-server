@@ -91,6 +91,8 @@ static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
 static bool _preserve_trailing_spaces = false;
+static bool ga_disable_indexes = false;
+static bool ga_rebuild_indexes = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
@@ -114,7 +116,9 @@ enum ndb_restore_options {
   OPT_EXCLUDE_TABLES,
   OPT_INCLUDE_DATABASES,
   OPT_EXCLUDE_DATABASES,
-  OPT_EXCLUDE_MISSING_COLUMNS
+  OPT_EXCLUDE_MISSING_COLUMNS,
+  OPT_DISABLE_INDEXES,
+  OPT_REBUILD_INDEXES
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -263,6 +267,16 @@ static struct my_option my_long_options[] =
     "Ignore columns present in backup but not in database",
     (uchar**) &ga_exclude_missing_columns,
     (uchar**) &ga_exclude_missing_columns, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "disable-indexes", OPT_DISABLE_INDEXES,
+    "Disable indexes",
+    (uchar**) &ga_disable_indexes,
+    (uchar**) &ga_disable_indexes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "rebuild-indexes", OPT_REBUILD_INDEXES,
+    "Rebuild indexes",
+    (uchar**) &ga_rebuild_indexes,
+    (uchar**) &ga_rebuild_indexes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -614,6 +628,16 @@ o verify nodegroup mapping
   if (ga_restore_epoch)
   {
     restore->m_restore_epoch = true;
+  }
+
+  if (ga_disable_indexes)
+  {
+    restore->m_disable_indexes = true;
+  }
+
+  if (ga_rebuild_indexes)
+  {
+    restore->m_rebuild_indexes = true;
   }
 
   {
@@ -1050,6 +1074,10 @@ main(int argc, char** argv)
     g_options.appfmt(" -d");
   if (ga_exclude_missing_columns)
     g_options.append(" --exclude-missing-columns");
+  if (ga_disable_indexes)
+    g_options.append(" --disable-indexes");
+  if (ga_rebuild_indexes)
+    g_options.append(" --rebuild-indexes");
   g_options.appfmt(" -p %d", ga_nParallelism);
 
   g_connect_string = opt_connect_str;
@@ -1423,7 +1451,25 @@ main(int argc, char** argv)
                "please look at configuration.");
     }               
   }
-  
+
+  if (ga_rebuild_indexes)
+  {
+    debug << "Rebuilding indexes" << endl;
+    for(i = 0; i<metaData.getNoOfTables(); i++)
+    {
+      const TableS *table= metaData[i];
+      if (! (checkSysTable(table) && checkDbAndTableName(table)))
+        continue;
+      if (isBlobTable(table) || isIndex(table))
+        continue;
+      for(Uint32 j= 0; j < g_consumers.size(); j++)
+      {
+        if (!g_consumers[j]->rebuild_indexes(* table))
+          return -1;
+      }
+    }
+  }
+
   /* report to clusterlog if applicable */
   for (i = 0; i < g_consumers.size(); i++)
     g_consumers[i]->report_completed(ga_backupId, ga_nodeId);

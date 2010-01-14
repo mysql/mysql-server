@@ -39,6 +39,7 @@ public:
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
   virtual bool finalize_table(const TableS &){return true;}
+  virtual bool rebuild_indexes(const TableS &) { return true;}
   virtual bool createSystable(const TableS &){ return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
   virtual bool report_started(unsigned backup_id, unsigned node_id)

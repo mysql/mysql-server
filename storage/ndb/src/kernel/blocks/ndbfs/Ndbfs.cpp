@@ -896,7 +896,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   jamEntry();
   mt_BuildIndxReq * req = (mt_BuildIndxReq*)signal->getDataPtr();
 
-  AsyncFile* file = getIdleFile(false);
+  AsyncFile* file = getIdleFile(true);
   ndbrequire(file != NULL);
 
   Request *request = theRequestPool->get();
@@ -1054,13 +1054,7 @@ Ndbfs::report(Request * request, Signal* signal)
   {
     Uint32 cnt;
     Ptr<GlobalPage> ptr;
-    if (request->file->m_open_flags & FsOpenReq::OM_INIT)
-    {
-      jam();
-      request->file->clear_buffer(ptr, cnt);
-      m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, ptr.i, cnt);
-    }
-    else if (request->file->m_open_flags & FsOpenReq::OM_WRITE_BUFFER)
+    if (request->file->m_open_flags & FsOpenReq::OM_WRITE_BUFFER)
     {
       jam();
       if ((request->action == Request::open && request->error) ||
@@ -1071,6 +1065,12 @@ Ndbfs::report(Request * request, Signal* signal)
         request->file->clear_buffer(ptr, cnt);
         m_ctx.m_mm.release_pages(RT_FILE_BUFFER, ptr.i, cnt);
       }
+    }
+    else
+    {
+      jam();
+      request->file->clear_buffer(ptr, cnt);
+      m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, ptr.i, cnt);
     }
   }
   

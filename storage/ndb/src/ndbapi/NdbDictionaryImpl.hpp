@@ -626,7 +626,8 @@ public:
 
   int dropTable(const NdbTableImpl &);
 
-  int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &);
+  int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &,
+                  bool offline);
   int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
   
   int createEvent(class Ndb & ndb, NdbEventImpl &, int getFlag);
@@ -807,8 +808,8 @@ public:
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
-  int createIndex(NdbIndexImpl &ix);
-  int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab);
+  int createIndex(NdbIndexImpl &ix, bool offline);
+  int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab, bool offline);
   int dropIndex(const char * indexName, 
 		const char * tableName);
   int dropIndex(NdbIndexImpl &, const char * tableName);

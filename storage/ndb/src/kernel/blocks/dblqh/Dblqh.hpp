@@ -243,6 +243,7 @@ class Lgman;
 #define ZRETRY_TCKEYREF 22
 #define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
 #define ZREBUILD_ORDERED_INDEXES 24
+#define ZWAIT_READONLY 25
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -313,6 +314,7 @@ class Lgman;
 #define ZTABLE_NOT_DEFINED 1225
 #define ZDROP_TABLE_IN_PROGRESS 1226
 #define ZINVALID_SCHEMA_VERSION 1227
+#define ZTABLE_READ_ONLY 1233
 
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 2.X                                    */
@@ -1836,6 +1838,7 @@ public:
       DROP_TABLE_ACC = 6,
       DROP_TABLE_TUP = 7,
       DROP_TABLE_TUX = 8
+      ,TABLE_READ_ONLY = 9
     };
     
     UintR fragrec[MAX_FRAG_PER_NODE];
@@ -1852,7 +1855,8 @@ public:
     Uint32 schemaVersion;
     Uint8 m_disk_table;
 
-    Uint32 usageCount;
+    Uint32 usageCountR; // readers
+    Uint32 usageCountW; // writers
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 
@@ -2573,6 +2577,8 @@ private:
   void sendAddFragReq(Signal* signal);
   void dropTab_wait_usage(Signal*);
   Uint32 get_table_state_error(Ptr<Tablerec> tabPtr) const;
+  void wait_readonly(Signal*);
+  int check_tabstate(Signal * signal, const Tablerec * tablePtrP, Uint32 op);
 
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation

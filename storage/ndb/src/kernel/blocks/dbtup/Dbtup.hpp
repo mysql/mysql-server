@@ -1761,6 +1761,8 @@ private:
   void buildIndex(Signal* signal, Uint32 buildPtrI);
   void buildIndexReply(Signal* signal, const BuildIndexRec* buildRec);
   void buildIndexOffline(Signal* signal, Uint32 buildPtrI);
+  void buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI);
+  void execALTER_TAB_CONF(Signal*);
 
   // Tup scan
   void execACC_SCANREQ(Signal* signal);

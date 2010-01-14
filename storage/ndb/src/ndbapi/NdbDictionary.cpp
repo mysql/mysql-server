@@ -2383,24 +2383,26 @@ NdbDictionary::Dictionary::removeCachedTable(const Table *table){
 }
 
 int
-NdbDictionary::Dictionary::createIndex(const Index & ind)
+NdbDictionary::Dictionary::createIndex(const Index & ind, bool offline)
 {
   int ret;
   DO_TRANS(
     ret,
-    m_impl.createIndex(NdbIndexImpl::getImpl(ind))
+    m_impl.createIndex(NdbIndexImpl::getImpl(ind), offline)
   );
   return ret;
 }
 
 int
-NdbDictionary::Dictionary::createIndex(const Index & ind, const Table & tab)
+NdbDictionary::Dictionary::createIndex(const Index & ind, const Table & tab,
+                                       bool offline)
 {
   int ret;
   DO_TRANS(
     ret,
     m_impl.createIndex(NdbIndexImpl::getImpl(ind),
-                       NdbTableImpl::getImpl(tab))
+                       NdbTableImpl::getImpl(tab),
+		       offline)
   );
   return ret;
 }

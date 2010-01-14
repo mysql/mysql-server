@@ -722,6 +722,11 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
     signal->theData[0] = ~Uint32(0);
     return;
   }
+  case AlterTabReq::AlterTableReadOnly:
+  case AlterTabReq::AlterTableReadWrite:
+    signal->theData[0] = 0;
+    signal->theData[1] = RNIL;
+    return;
   default:
     break;
   }

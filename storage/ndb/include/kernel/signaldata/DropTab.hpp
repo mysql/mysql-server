@@ -53,7 +53,8 @@ struct DropTabRef {
     DropWoPrep = 2, // Calling Drop with first calling PrepDrop
     PrepDropInProgress = 3,
     DropInProgress = 4,
-    NF_FakeErrorREF = 5
+    NF_FakeErrorREF = 5,
+    InvalidTableState = 6
   };
   
   Uint32 senderRef;

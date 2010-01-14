@@ -23,10 +23,16 @@
 #include <NodeBitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
-struct CreateIndxReq {
+struct CreateIndxReq 
+{
   STATIC_CONST( SignalLength = 9 );
   SECTION( ATTRIBUTE_LIST_SECTION = 0 );
   SECTION( INDEX_NAME_SECTION = 1 );
+
+  enum RequestType
+  {
+    RF_BUILD_OFFLINE = 1 << 8 // See BuildIndxReq
+  };
 
   Uint32 clientRef;
   Uint32 clientData;

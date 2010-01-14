@@ -324,6 +324,7 @@ ErrorBundle ErrorCodes[] = {
   { 886,  DMEC, AE, "More than 65535 instructions executed in interpreter" },
   { 897,  DMEC, AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 892,  DMEC, AE, "Unsupported type in scan filter" },
+  { 1233, DMEC, AE, "Table read-only" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
   { 4257, DMEC, AE, "Tried to read too much - too many getValue calls" },
   { 320,  DMEC, AE, "Invalid no of nodes specified for new nodegroup" },
