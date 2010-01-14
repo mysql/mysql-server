@@ -1,0 +1,96 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+#
+# Check that
+# - a regular user can not update SETUP_ tables under --read-only
+# - a user with SUPER privileges cam
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+use performance_schema;
+
+set @start_read_only= @@global.read_only;
+
+grant SELECT, UPDATE on performance_schema.* to pfsuser@localhost;
+flush privileges;
+
+--echo connect (con1, localhost, pfsuser, , test);
+connect (con1, localhost, pfsuser, , test);
+
+--echo connection default;
+connection default;
+
+set global read_only=0;
+
+--echo connection con1;
+connection con1;
+
+select @@global.read_only;
+show grants;
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+--enable_result_log
+
+--echo connection default;
+connection default;
+
+set global read_only=1;
+
+--echo connection con1;
+connection con1;
+
+select @@global.read_only;
+show grants;
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS;
+--error ER_OPTION_PREVENTS_STATEMENT
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+--error ER_OPTION_PREVENTS_STATEMENT
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+--enable_result_log
+
+--echo connection default;
+connection default;
+
+grant super on *.* to pfsuser@localhost;
+flush privileges;
+
+disconnect con1;
+--echo connect (con1, localhost, pfsuser, , test);
+connect (con1, localhost, pfsuser, , test);
+
+select @@global.read_only;
+show grants;
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+--enable_result_log
+
+disconnect con1;
+
+--echo connection default;
+connection default;
+
+set global read_only= @start_read_only;
+
+drop user pfsuser@localhost;
+flush privileges;
+

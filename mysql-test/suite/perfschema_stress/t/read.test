@@ -1,0 +1,49 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+--source include/not_embedded.inc
+
+SELECT * FROM performance_schema.SETUP_INSTRUMENTS
+WHERE ENABLED='NO' AND TIMED='NO';
+
+SELECT * FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE (TIMER_END - TIMER_START != TIMER_WAIT);
+
+SELECT * FROM performance_schema.EVENTS_WAITS_HISTORY
+WHERE SPINS != NULL;
+
+SELECT * FROM performance_schema.PROCESSLIST p,
+              performance_schema.EVENTS_WAITS_CURRENT e
+WHERE p.THREAD_ID = e.THREAD_ID
+  AND TIMER_START = 0
+ORDER BY e.EVENT_ID;
+
+SELECT * FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE THREAD_ID IN (SELECT THREAD_ID
+                    FROM performance_schema.PROCESSLIST
+                    ORDER BY THREAD_ID)
+  AND TIMER_END = 0
+  AND TIMER_WAIT != NULL
+ORDER BY EVENT_ID;
+
+--disable_result_log
+SELECT SUM(COUNT_READ) AS sum_count_read,
+       SUM(COUNT_WRITE) AS sum_count_write,
+       SUM(SUM_NUMBER_OF_BYTES_READ) AS sum_num_bytes_read,
+       SUM(SUM_NUMBER_OF_BYTES_WRITE) AS sum_num_bytes_write
+FROM performance_schema.FILE_SUMMARY_BY_INSTANCE
+WHERE FILE_NAME LIKE CONCAT('%', @@tmpdir, '%') ORDER BY NULL;
+--enable_result_log
+
