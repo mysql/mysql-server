@@ -176,6 +176,9 @@ typedef fp_except fp_except_t;
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
 #endif
+#ifdef HAVE_FPU_CONTROL_H
+#include <fpu_control.h>
+#endif
 #if defined(__i386__) && !defined(HAVE_FPU_CONTROL_H)
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
