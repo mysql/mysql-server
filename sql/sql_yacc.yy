@@ -9483,16 +9483,12 @@ replace:
 insert_lock_option:
           /* empty */
           {
-#ifdef HAVE_QUERY_CACHE
             /*
-              If it is SP we do not allow insert optimisation whan result of
+              If it is SP we do not allow insert optimisation when result of
               insert visible only after the table unlocking but everyone can
               read table.
             */
             $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
-#else
-            $$= TL_WRITE_CONCURRENT_INSERT;
-#endif
           }
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM   { $$= TL_WRITE_DELAYED; }
@@ -10515,15 +10511,11 @@ load_data_lock:
           /* empty */ { $$= TL_WRITE_DEFAULT; }
         | CONCURRENT
           {
-#ifdef HAVE_QUERY_CACHE
             /*
-              Ignore this option in SP to avoid problem with query cache
+              Ignore this option in SP to avoid problem with query cache and
+              triggers with non default priority locks
             */
-            if (Lex->sphead != 0)
-              $$= TL_WRITE_DEFAULT;
-            else
-#endif
-              $$= TL_WRITE_CONCURRENT_INSERT;
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
           }
         | LOW_PRIORITY { $$= TL_WRITE_LOW_PRIORITY; }
         ;
@@ -12237,12 +12229,7 @@ lock_option:
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
         | WRITE_SYM CONCURRENT
           {
-#ifdef HAVE_QUERY_CACHE
-            if (Lex->sphead != 0)
-             $$= TL_WRITE_DEFAULT;
-           else
-#endif
-             $$= TL_WRITE_CONCURRENT_INSERT;
+            $$= (Lex->sphead ? TL_WRITE_DEFAULT : TL_WRITE_CONCURRENT_INSERT);
           }
 
         | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
