@@ -34,11 +34,11 @@ typedef byte	trx_sysf_rseg_t;
 
 /* Rollback segment specification slot offsets */
 /*-------------------------------------------------------------*/
-#define	TRX_SYS_RSEG_SPACE	0	/* space where the the segment
+#define	TRX_SYS_RSEG_SPACE	0	/* space where the segment
 					header is placed; starting with
 					MySQL/InnoDB 5.1.7, this is
 					UNIV_UNDEFINED if the slot is unused */
-#define	TRX_SYS_RSEG_PAGE_NO	4	/*  page number where the the segment
+#define	TRX_SYS_RSEG_PAGE_NO	4	/*  page number where the segment
 					header is placed; this is FIL_NULL
 					if the slot is unused */
 /*-------------------------------------------------------------*/

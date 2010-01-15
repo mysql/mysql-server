@@ -36,6 +36,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "buf0flu.h"
 
 #ifndef UNIV_HOTBACKUP
+# include "log0recv.h"
 /*****************************************************************//**
 Releases the item in the slot given. */
 UNIV_INLINE
@@ -148,7 +149,6 @@ mtr_log_reserve_and_write(
 	dyn_array_t*	mlog;
 	dyn_block_t*	block;
 	ulint		data_size;
-	ibool		success;
 	byte*		first_data;
 
 	ut_ad(mtr);
@@ -167,8 +167,8 @@ mtr_log_reserve_and_write(
 	if (mlog->heap == NULL) {
 		mtr->end_lsn = log_reserve_and_write_fast(
 			first_data, dyn_block_get_used(mlog),
-			&(mtr->start_lsn), &success);
-		if (success) {
+			&mtr->start_lsn);
+		if (mtr->end_lsn) {
 
 			return;
 		}
@@ -215,6 +215,8 @@ mtr_commit(
 	ut_d(mtr->state = MTR_COMMITTING);
 
 #ifndef UNIV_HOTBACKUP
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
 	write_log = mtr->modifications && mtr->n_log_recs;
 
 	if (write_log) {

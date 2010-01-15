@@ -89,7 +89,7 @@ cmp_dfield_dfield(
 /*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
-the the data tuple! If we denote by n = n_fields_cmp, then rec must
+the data tuple! If we denote by n = n_fields_cmp, then rec must
 have either m >= n fields, or it must differ from dtuple in some of
 the m fields rec has. If rec has an externally stored field we do not
 compare it but return with value 0 if such a comparison should be

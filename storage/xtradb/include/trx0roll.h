@@ -133,6 +133,17 @@ trx_rollback(
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
+transaction was not yet committed, then we roll it back. */
+UNIV_INTERN
+void
+trx_rollback_or_clean_recovered(
+/*============================*/
+	ibool	all);	/*!< in: FALSE=roll back dictionary transactions;
+			TRUE=roll back all non-PREPARED transactions */
+/*******************************************************************//**
+Rollback or clean up any incomplete transactions which were
+encountered in crash recovery.  If the transaction already was
+committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread.
 @return	a dummy parameter */
@@ -208,9 +219,9 @@ int
 trx_general_rollback_for_mysql(
 /*===========================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		partial,/*!< in: TRUE if partial rollback requested */
 	trx_savept_t*	savept);/*!< in: pointer to savepoint undo number, if
-				partial rollback requested */
+				partial rollback requested, or NULL for
+				complete rollback */
 /*******************************************************************//**
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
