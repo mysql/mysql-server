@@ -5,6 +5,8 @@
 --source include/have_binlog_format_mixed_or_statement.inc 
 --source include/master-slave.inc
 
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -89,7 +91,11 @@ end
 |
 
 delimiter ;|
+# The trigger causes a warning for unsafe statement when
+# binlog_format=statement since it uses get_lock.
+--disable_warnings
 insert into t1 set a = now();
+--enable_warnings
 select a=b && a=c from t1;
 let $time=`select a from t1`;
 
@@ -135,7 +141,11 @@ disconnect con2;
 truncate table t1;
 drop trigger t1_first;
 
+# The trigger causes a warning for unsafe statement when
+# binlog_format=statement since it uses get_lock.
+--disable_warnings
 insert into t1 values ("2003-03-03","2003-03-03","2003-03-03"),(bug12480(),bug12480(),bug12480()),(now(),now(),now());
+--enable_warnings
 select a=b && a=c from t1;
 
 drop function bug12480;
