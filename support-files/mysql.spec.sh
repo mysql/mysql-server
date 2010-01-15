@@ -1,4 +1,4 @@
-# Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,9 +50,9 @@
 %{!?malloc_lib_target:%define WITH_TCMALLOC 0}
 
 %if %{STATIC_BUILD}
-%define release 0
+%define release 1
 %else
-%define release 0.glibc23
+%define release 1.glibc23
 %endif
 %define mysql_license	GPL
 %define mysqld_user	mysql
@@ -86,7 +86,7 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Version:	@MYSQL_NO_DASH_VERSION@
+Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
 License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ Sun Microsystems, Inc.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
@@ -673,7 +673,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
@@ -715,8 +715,8 @@ fi
 %attr(755, root, root) %{_bindir}/resolveip
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -849,10 +849,10 @@ fi
 %{_libdir}/mysql/libz.la
 %{_libdir}/mysql/plugin/ha_example.a
 %{_libdir}/mysql/plugin/ha_example.la
-%{_libdir}/mysql/plugin/libsemisync_master.a
-%{_libdir}/mysql/plugin/libsemisync_master.la
-%{_libdir}/mysql/plugin/libsemisync_slave.a
-%{_libdir}/mysql/plugin/libsemisync_slave.la
+%{_libdir}/mysql/plugin/semisync_master.a
+%{_libdir}/mysql/plugin/semisync_master.la
+%{_libdir}/mysql/plugin/semisync_slave.a
+%{_libdir}/mysql/plugin/semisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -882,6 +882,20 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Wed Dec 23 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- The "semisync" plugin file name has lost its introductory "lib",
+  adapt the file lists for the subpackages.
+  This is a part missing from the fix for bug#48351.
+- Remove the "fix_privilege_tables" manual, it does not exist in 5.5
+  (and likely, the whole script will go, too).
+
+* Tue Dec 22 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Change RPM file naming:
+  - Suffix like "-m2", "-rc" becomes part of version as "_m2", "_rc".
+  - Release counts from 1, not 0.
+
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Fix some problems with the directives around "tcmalloc" (experimental),
