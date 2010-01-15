@@ -390,12 +390,15 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
     NdbInfoScanOperation* scanOp = NULL;
     if (ndbinfo.createScanOperation(table, &scanOp))
     {
+      ndbinfo.closeTable(table);
       g_err << "No NdbInfoScanOperation" << endl;
       return NDBT_FAILED;
     }
 
     if (scanOp->readTuples() != 0)
     {
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
       g_err << "scanOp->readTuples failed" << endl;
       return NDBT_FAILED;
     }
@@ -407,22 +410,42 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
 
     if(scanOp->execute() != 0)
     {
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
       g_err << "scanOp->execute failed" << endl;
       return NDBT_FAILED;
     }
 
+    int ret;
     int rows = 0;
-    while(scanOp->nextResult() == 1)
+    while((ret = scanOp->nextResult()) == 1)
+       rows++;
+    ndbinfo.releaseScanOperation(scanOp);
+    if (ret != 0)
     {
-      rows++;//
+      ndbinfo.closeTable(table);
+      g_err << "scan failed, ret: " << ret << endl;
+      return NDBT_FAILED;
     }
     ndbout << "rows: " << rows << endl;
-    ndbinfo.releaseScanOperation(scanOp);
+
   }
 
   ndbinfo.closeTable(table);
   return NDBT_OK;
 }
+
+
+int runTestTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int i = 0;
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    (void)runTestTable(ctx,  step);
+    i++;
+  }
+  return NDBT_OK;
+}
+
 
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
@@ -536,13 +559,11 @@ TESTCASE("TestTable",
           "of rows which will depend on how many TUP blocks are configured"){
   STEP(runTestTable);
 }
-#if 0
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
-  TC_PROPERTY("Sleep0", 29000); // Between restarts
+  TC_PROPERTY("Sleep0", 10000); // Between restarts(miliseconds)
   STEP(runRestarter);
-  STEPS(runScanAllUntilStopped, 1);
+  STEPS(runTestTableUntilStopped, 1);
 }
-#endif
 NDBT_TESTSUITE_END(testNdbinfo);
 
 
