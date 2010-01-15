@@ -121,11 +121,20 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
       SET(SYSTEM_NAME_AND_PROCESSOR "${PLATFORM}-${MACHINE}")
     ENDIF()
   ENDIF()
+
+  IF(SHORT_PRODUCT_TAG)
+    SET(PRODUCT_TAG "-${SHORT_PRODUCT_TAG}")
+  ELSEIF(MYSQL_SERVER_SUFFIX)
+    SET(PRODUCT_TAG "${MYSQL_SERVER_SUFFIX}")  # Already has a leading dash
+  ELSE()
+    SET(PRODUCT_TAG)
+  ENDIF()
+
+  SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   
-  SET(package_name "mysql-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}" )
-  # Sometimes package suffix is added (something like icc-glibc23)
+  # Sometimes package suffix is added (something like "-icc-glibc23")
   IF(PACKAGE_SUFFIX)
-    SET(package_name "${package_name}-${PACKAGE_SUFFIX}")
+    SET(package_name "${package_name}${PACKAGE_SUFFIX}")
   ENDIF()
   STRING(TOLOWER ${package_name} package_name)
   SET(CPACK_PACKAGE_FILE_NAME ${package_name})
