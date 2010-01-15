@@ -9729,7 +9729,7 @@ ha_innobase::check_if_incompatible_data(
 			if (table->field[i]->flags & FIELD_IN_ADD_INDEX
 			    && innobase_strcasecmp(table->field[i]->field_name,
 					dict_table_get_col_name(prebuilt->table, i))) {
-				return(COMPATIBLE_DATA_NO);
+				DBUG_RETURN(COMPATIBLE_DATA_NO);
 			}
 		}
 	}
