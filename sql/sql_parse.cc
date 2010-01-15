@@ -616,8 +616,10 @@ void free_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/* This works because items are allocated with sql_alloc() */
-
+/**
+   This works because items are allocated with sql_alloc().
+   @note The function also handles null pointers (empty list).
+*/
 void cleanup_items(Item *item)
 {
   DBUG_ENTER("cleanup_items");  
@@ -3515,17 +3517,6 @@ end_with_restore_list:
     }
     else
     {
-      /*
-	If this is a slave thread, we may sometimes execute some 
-	DROP / * 40005 TEMPORARY * / TABLE
-	that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
-	MASTER TO), while the temporary table has already been dropped.
-	To not generate such irrelevant "table does not exist errors",
-	we silently add IF EXISTS if TEMPORARY was used.
-      */
-      if (thd->slave_thread)
-        lex->drop_if_exists= 1;
-
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
     }
@@ -7052,13 +7043,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
-    
+
     if (thd)
     {
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-      
+
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -7214,7 +7205,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
  *write_to_binlog= tmp_write_to_binlog;
- return result;
+ /*
+   If the query was killed then this function must fail.
+ */
+ return result || thd->killed;
 }
 
 
