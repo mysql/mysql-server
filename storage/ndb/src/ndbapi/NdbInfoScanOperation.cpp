@@ -22,7 +22,7 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <signaldata/NFCompleteRep.hpp>
+#include <signaldata/NodeFailRep.hpp>
 
 #define CAST_PTR(X,Y) static_cast<X*>(static_cast<void*>(Y))
 #define CAST_CONSTPTR(X,Y) static_cast<const X*>(static_cast<const void*>(Y))
@@ -41,7 +41,9 @@ NdbInfoScanOperation::NdbInfoScanOperation(const NdbInfo& info,
   m_max_bytes(max_bytes),
   m_result_data(0x37),
   m_rows_received(0),
-  m_rows_confirmed(0)
+  m_rows_confirmed(0),
+  m_nodes(0),
+  m_max_nodes(0)
 {
 }
 
@@ -110,6 +112,41 @@ NdbInfoScanOperation::getValue(Uint32 anAttrId)
   return recAttr;
 }
 
+
+bool
+NdbInfoScanOperation::find_next_node()
+{
+  DBUG_ENTER("NdbInfoScanOperation::find_next_node");
+  NodeId next = m_node_id;
+
+  next++;
+  while(!m_signal_sender->get_node_alive(next) &&
+        next < MAX_NDB_NODES)
+     next++;
+
+  assert(m_node_id != next);
+  m_node_id = next;
+  m_nodes++;
+
+  if (next == MAX_NDB_NODES)
+  {
+    DBUG_PRINT("info", ("no more alive nodes"));
+    DBUG_RETURN(false);
+  }
+
+  // Check if number of nodes to scan is limited
+  DBUG_PRINT("info", ("nodes: %d, max_nodes: %d", m_nodes, m_max_nodes));
+  if (m_max_nodes && m_nodes > m_max_nodes)
+  {
+    DBUG_PRINT("info", ("Reached max nodes to scan"));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info", ("switched to node %d", m_node_id));
+  DBUG_RETURN(true);
+}
+
+
 int NdbInfoScanOperation::execute()
 {
   DBUG_ENTER("NdbInfoScanOperation::execute");
@@ -123,6 +160,13 @@ int NdbInfoScanOperation::execute()
   m_state = MoreData;
 
   m_signal_sender->lock();
+
+  if (!find_next_node())
+  {
+    m_signal_sender->unlock();
+    DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
+  }
+
   int ret = sendDBINFO_SCANREQ();
   m_signal_sender->unlock();
 
@@ -133,13 +177,6 @@ int
 NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
 {
   DBUG_ENTER("NdbInfoScanOperation::sendDBINFO_SCANREQ");
-
-  if (m_node_id == 0)
-  {
-    m_node_id = m_signal_sender->get_an_alive_node();
-    if(m_node_id == 0)
-      DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
-  }
 
   SimpleSignal ss;
   DbinfoScanReq * req = CAST_PTR(DbinfoScanReq, ss.getDataPtrSend());
@@ -218,7 +255,7 @@ int NdbInfoScanOperation::receive(void)
       // All rows in this batch recieved
       assert(m_rows_received == m_rows_confirmed);
 
-      if (m_cursor.size() == 0)
+      if (m_cursor.size() == 0 && !find_next_node())
       {
         DBUG_PRINT("info", ("No cursor -> EOF"));
         m_state = End;
@@ -251,7 +288,7 @@ int NdbInfoScanOperation::receive(void)
       // All rows in this batch recieved
       assert(m_rows_received == m_rows_confirmed);
 
-      if (m_cursor.size() == 0)
+      if (m_cursor.size() == 0 && !find_next_node())
       {
         DBUG_PRINT("info", ("No cursor -> EOF"));
         m_state = End;
@@ -282,11 +319,20 @@ int NdbInfoScanOperation::receive(void)
     }
 
     case GSN_NODE_FAILREP:
-      // Ignore and wait for NF_COMPLETEREP
+    {
+      const NodeFailRep * const rep =
+        CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, m_node_id))
+      {
+        DBUG_PRINT("info", ("Node %d where scan was runnig failed", m_node_id));
+        m_state = Error;
+        DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
+      }
       break;
+    }
 
     case GSN_NF_COMPLETEREP:
-      DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
+      // Already handled in NODE_FAILREP
       break;
 
     case GSN_SUB_GCP_COMPLETE_REP:
