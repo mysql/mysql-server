@@ -88,6 +88,9 @@ storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
 
+#
+# Yassl
+include/runtime.hpp: .*pure_error.*
 
 #
 # Groff warnings on OpenSUSE.

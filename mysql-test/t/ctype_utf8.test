@@ -2,6 +2,15 @@
 # Tests with the utf8 character set
 #
 
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
+--enable_warnings
+
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings

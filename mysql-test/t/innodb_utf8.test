@@ -1,0 +1,24 @@
+#
+# Tests for innodb that requires not default character sets
+#
+
+--source include/have_innodb.inc
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
+# Setup
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug #26835: table corruption after delete+insert
+#
+
+CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('DDD');
+SELECT * FROM t1;
+DROP TABLE t1;

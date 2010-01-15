@@ -159,8 +159,7 @@ enum mysql_db_table_field
   MYSQL_DB_FIELD_COUNT
 };
 
-extern TABLE_FIELD_W_TYPE mysql_db_table_fields[];
-extern time_t mysql_db_table_last_check;
+extern const TABLE_FIELD_DEF mysql_db_table_def;
 
 /* Classes */
 

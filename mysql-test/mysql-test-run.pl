@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,innodb,maria,parts";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -300,6 +300,9 @@ sub main {
       }
     }
   }
+
+  # Check for plugin availability so we know whether to skip tests or not.
+  detect_plugins();
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_suites, \@opt_cases);
@@ -1877,6 +1880,37 @@ sub have_maria_support () {
 }
 
 
+# Detect plugin presense and set environment variables appropriately.
+# This needs to be done early, so we can know whether to skip tests.
+sub detect_plugins {
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_example.so
+  # --------------------------------------------------------------------------
+  if ($mysql_version_id >= 50100) {
+    my $plugin_filename;
+    if (IS_WINDOWS)
+    {
+       $plugin_filename = "ha_example.dll";
+    }
+    else 
+    {
+       $plugin_filename = "ha_example.so";
+    }
+    my $lib_example_plugin=
+      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
+		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
+    $ENV{'EXAMPLE_PLUGIN'}=
+      ($lib_example_plugin ? basename($lib_example_plugin) : "");
+    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
+      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
+
+    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
+    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
+  }
+}
+
 #
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
@@ -1934,33 +1968,6 @@ sub environment_setup {
     ($lib_udf_example ? basename($lib_udf_example) : "");
   $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
     ($lib_udf_example ? dirname($lib_udf_example) : "");
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100) {
-    my $plugin_filename;
-    if (IS_WINDOWS)
-    {
-       $plugin_filename = "ha_example.dll";
-    }
-    else 
-    {
-       $plugin_filename = "ha_example.so";
-    }
-    my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename,
-                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
-                      "$basedir/lib/mysql/plugin/".$plugin_filename);
-    $ENV{'EXAMPLE_PLUGIN'}=
-      ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
-      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
-
-    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
-  }
 
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
@@ -4003,6 +4010,7 @@ sub extract_warning_lines ($) {
      qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
      qr/Error reading packet/,
      qr/Slave: Can't drop database.* database doesn't exist/,
+     qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
     );
 
   my $matched_lines= [];

@@ -9,14 +9,15 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in mysqlbinlog.cc / check_master_version().
-#
-# When merging new MySQL releases, update the version number to match the
-# MySQL version number.
-#
-# Note: the following line must be parseable by win/configure.js:GetVersion()
-AM_INIT_AUTOMAKE(mysql, 5.1.41-MariaDB-beta)
+# in mysqlbinlog::check_master_version().
+AM_INIT_AUTOMAKE(mysql, 5.1.42-MariaDB-rc)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
+
+# Request support for automake silent-rules if available.
+# Default to verbose output. One can use the configure-time
+# option --enable-silent-rules or make V=0 to activate
+# silent rules.
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6

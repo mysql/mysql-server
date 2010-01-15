@@ -324,3 +324,16 @@ a
 1
 2
 DROP TABLE t1, t2, t3;
+#
+# Bug #46425 crash in Diagnostics_area::set_ok_status, 
+#            empty statement, DELETE IGNORE
+#
+CREATE table t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TRIGGER tr1 AFTER DELETE ON t1 FOR EACH ROW 
+BEGIN 
+INSERT INTO t1 SELECT * FROM t1 AS A;
+END |
+DELETE IGNORE FROM t1;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP TABLE t1;

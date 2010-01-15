@@ -941,14 +941,16 @@ static Item *create_comparator(MY_XPATH *xpath,
      in a loop through all of the nodes in the node set.
     */
 
-    Item *fake= new Item_string("", 0, xpath->cs);
+    Item_string *fake= new Item_string("", 0, xpath->cs);
+    /* Don't cache fake because its value will be changed during comparison.*/
+    fake->set_used_tables(RAND_TABLE_BIT);
     Item_nodeset_func *nodeset;
     Item *scalar, *comp;
     if (a->type() == Item::XPATH_NODESET)
     {
       nodeset= (Item_nodeset_func*) a;
       scalar= b;
-      comp= eq_func(oper, fake, scalar);
+      comp= eq_func(oper, (Item*)fake, scalar);
     }
     else
     {

@@ -1,2 +1,1 @@
---secure-file-priv=""
-
+--secure-file-priv="../../std_data"

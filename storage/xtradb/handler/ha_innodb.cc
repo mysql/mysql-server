@@ -61,7 +61,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#ifndef MYSQL_SERVER
 #define MYSQL_SERVER
+#endif
 
 #include <mysql_priv.h>
 #ifdef MYSQL_SERVER
@@ -1711,7 +1713,7 @@ innobase_convert_identifier(
 				FALSE=id is an UTF-8 string */
 {
 	char nz[NAME_LEN + 1];
-	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
 
 	const char*	s	= id;
 	int		q;
@@ -1729,7 +1731,14 @@ innobase_convert_identifier(
 		nz[idlen] = 0;
 
 		s = nz2;
-		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+
+		if (UNIV_UNLIKELY(idlen > buflen)) {
+			idlen = buflen;
+		}
+		memcpy(buf, s, idlen);
+		return(buf + idlen);
 	}
 
 	/* See if the identifier needs to be quoted. */
@@ -1737,14 +1746,6 @@ innobase_convert_identifier(
 		q = '"';
 	} else {
 		q = get_quote_char_for_identifier((THD*) thd, s, (int) idlen);
-	}
-
-	if (q == EOF) {
-		if (UNIV_UNLIKELY(idlen > buflen)) {
-			idlen = buflen;
-		}
-		memcpy(buf, s, idlen);
-		return(buf + idlen);
 	}
 
 	/* Quote the identifier. */

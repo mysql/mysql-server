@@ -180,7 +180,7 @@ void start_test(int id)
   if (pagecacheing && rnd(2) == 0)
     init_pagecache(maria_pagecache, 65536L, 0, 0, MARIA_KEY_BLOCK_LENGTH,
                    MY_WME);
-  printf("Process %d, pid: %d\n",id,getpid()); fflush(stdout);
+  printf("Process %d, pid: %ld\n",id,(long) getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)
   {
@@ -362,7 +362,7 @@ int test_write(MARIA_HA *file,int id,int lock_type)
       maria_extra(file,HA_EXTRA_WRITE_CACHE,0);
   }
 
-  sprintf((char*) record.id,"%7d",getpid());
+  sprintf((char*) record.id,"%7ld", (long) getpid());
   strnmov((char*) record.text,"Testing...", sizeof(record.text));
 
   tries=(uint) rnd(100)+10;

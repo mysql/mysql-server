@@ -1603,4 +1603,54 @@ SELECT str_to_date('', '%Y-%m-%d');
 str_to_date('', '%Y-%m-%d')
 0000-00-00
 DROP TABLE t1, t2;
+#
+# Bug#48459: valgrind errors with query using 'Range checked for each 
+# record'
+#
+CREATE TABLE t1 (
+a INT,
+b CHAR(2),
+c INT,
+d INT,
+KEY ( c ),
+KEY ( d, a, b ( 2 ) ),
+KEY ( b ( 1 ) )
+);
+INSERT INTO t1 VALUES ( NULL, 'a', 1, 2 ), ( NULL, 'a', 1, 2 ),
+( 1,    'a', 1, 2 ), ( 1,    'a', 1, 2 );
+CREATE TABLE t2 (
+a INT,
+c INT,
+e INT,
+KEY ( e )
+);
+INSERT INTO t2 VALUES ( 1, 1, NULL ), ( 1, 1, NULL );
+# Should not give Valgrind warnings
+SELECT 1
+FROM t1, t2
+WHERE t1.d <> '1' AND t1.b > '1'
+AND t1.a = t2.a AND t1.c = t2.c;
+1
+1
+1
+1
+1
+DROP TABLE t1, t2;
+#
+# Bug #48665: sql-bench's insert test fails due to wrong result
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (0,0), (1,1);
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+@	@	@	range	@	@	@	@	@	@
+# Should return 2 rows
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+a	b
+0	0
+1	1
+DROP TABLE t1;
 End of 5.1 tests

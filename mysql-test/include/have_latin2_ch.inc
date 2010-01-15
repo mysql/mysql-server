@@ -1,4 +1,2 @@
--- require r/have_latin2_ch.require
-disable_query_log;
-show collation like 'latin2_czech_cs';
-enable_query_log;
+let collation=latin2_czech_cs;
+--source include/have_collation.inc

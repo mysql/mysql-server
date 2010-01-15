@@ -6094,7 +6094,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       DBUG_RETURN(0);
     }
 
-    if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
+    if (((uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
     {
       /*
         This is a page that has been freed before and now should be
@@ -6241,7 +6241,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
       Note that in case the page is not anymore a head or tail page
       a future redo will fix the bitmap.
     */
-    if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
+    if ((uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
     {
       empty_space= uint2korr(buff+EMPTY_SPACE_OFFSET);
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE,

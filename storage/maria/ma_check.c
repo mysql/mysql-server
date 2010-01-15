@@ -6018,7 +6018,7 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
   {
     if (update & UPDATE_TIME)
     {
-      share->state.check_time= (long) time((time_t*) 0);
+      share->state.check_time= time((time_t*) 0);
       if (!share->state.create_time)
 	share->state.create_time= share->state.check_time;
     }

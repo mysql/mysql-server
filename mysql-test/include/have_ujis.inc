@@ -1,4 +1,2 @@
--- require r/have_ujis.require
-disable_query_log;
-show collation like 'ujis_japanese_ci';
-enable_query_log;
+let collation=ujis_japanese_ci;
+--source include/have_collation.inc

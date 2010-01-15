@@ -278,6 +278,11 @@ enum legacy_db_type
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
+/*
+  Better name for DB_TYPE_UNKNOWN. Should be used for engines that do not have
+  a hard-coded type value here.
+ */
+#define DB_TYPE_AUTOASSIGN DB_TYPE_UNKNOWN
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
@@ -886,9 +891,9 @@ typedef struct {
   ulonglong delete_length;
   ha_rows records;
   ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;
+  time_t check_time;
+  time_t update_time;
   ulonglong check_sum;
 } PARTITION_INFO;
 
@@ -1055,9 +1060,9 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;			/* When table was created */
+  time_t check_time;
+  time_t update_time;
   uint block_size;			/* index block size */
 
   ha_statistics():
