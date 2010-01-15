@@ -2,6 +2,9 @@
 # Testing of table locking
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -464,5 +467,42 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Bug#43685 Lock table affects other non-related tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+connect (con2, localhost, root);
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 WRITE;
+ANALYZE TABLE t1;
+
+--echo # Connection con2
+connection con2;
+LOCK TABLE t2 WRITE;
+--echo # This used to hang until the first connection
+--echo # unlocked t1.
+FLUSH TABLE t2;
+
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+disconnect con2;
+
+
+--echo #
 --echo # End of 6.0 tests.
 --echo #
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
