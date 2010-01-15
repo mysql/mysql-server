@@ -401,7 +401,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
 
   // Validate tableId
   const Uint32 tableId= conf.tableId;
-  ndbassert(tableId < Ndbinfo::getNumTables());
+  ndbassert(tableId < (Uint32)Ndbinfo::getNumTables());
 
   const Uint32 resultRef = conf.resultRef;
 
