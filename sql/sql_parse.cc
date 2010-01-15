@@ -5412,7 +5412,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
     DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
                         tables->view != 0));
     if (tables->is_anonymous_derived_table() ||
-        (tables->table && (int)tables->table->s &&
+        (tables->table && tables->table->s &&
          (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
