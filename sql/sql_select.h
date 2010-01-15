@@ -709,6 +709,12 @@ public:
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
     int res= item->save_in_field(to_field, 1);
+    /*
+     Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
+     we need to check for errors executing it and react accordingly
+    */
+    if (!res && table->in_use->is_error())
+      res= 2;
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null() || item->null_value;
     return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
@@ -742,6 +748,12 @@ protected:
         if (!err)
           err= res;
       }
+      /*
+        Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
+        we need to check for errors executing it and react accordingly
+        */
+      if (!err && to_field->table->in_use->is_error())
+        err= 2;
     }
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
