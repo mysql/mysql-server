@@ -2,6 +2,8 @@
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
 
+let $file_format_check=`select @@innodb_file_format_check`;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -655,3 +657,7 @@ REPLACE INTO t1 VALUES (-1);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_format_check=$file_format_check;
+--enable_query_log
