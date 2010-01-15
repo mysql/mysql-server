@@ -660,7 +660,7 @@ static ha_checksum checksum_format_specifier(const char* msg)
       case 'u':
       case 'x':
       case 's':
-        chksum= my_checksum(chksum, start, (uint) (p - start));
+        chksum= my_checksum(chksum, start, (uint) (p + 1 - start));
         start= 0; /* Not in format specifier anymore */
         break;
 
@@ -1030,8 +1030,10 @@ static char *parse_text_line(char *pos)
 {
   int i, nr;
   char *row= pos;
+  size_t len;
   DBUG_ENTER("parse_text_line");
 
+  len= strlen (pos);
   while (*pos)
   {
     if (*pos == '\\')
@@ -1039,11 +1041,11 @@ static char *parse_text_line(char *pos)
       switch (*++pos) {
       case '\\':
       case '"':
-	VOID(strmov(pos - 1, pos));
+	VOID(memmove (pos - 1, pos, len - (row - pos)));
 	break;
       case 'n':
 	pos[-1]= '\n';
-	VOID(strmov(pos, pos + 1));
+	VOID(memmove (pos, pos + 1, len - (row - pos)));
 	break;
       default:
 	if (*pos >= '0' && *pos < '8')
@@ -1053,10 +1055,10 @@ static char *parse_text_line(char *pos)
 	    nr= nr * 8 + (*(pos++) - '0');
 	  pos -= i;
 	  pos[-1]= nr;
-	  VOID(strmov(pos, pos + i));
+	  VOID(memmove (pos, pos + i, len - (row - pos)));
 	}
 	else if (*pos)
-	  VOID(strmov(pos - 1, pos));		/* Remove '\' */
+	  VOID(memmove (pos - 1, pos, len - (row - pos)));		/* Remove '\' */
       }
     }
     else

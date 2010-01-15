@@ -753,4 +753,16 @@ b
 100
 NULL
 DROP TABLE t1, t2;
+#
+# Bug #48475: DISTINCT is ignored with GROUP BY WITH ROLLUP
+#             and only const tables
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+b
+1
+NULL
+DROP TABLE t1, t2;
 End of 5.0 tests

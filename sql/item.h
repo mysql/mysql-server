@@ -1053,7 +1053,11 @@ class sp_head;
 
 class Item_basic_constant :public Item
 {
+  table_map used_table_map;
 public:
+  Item_basic_constant(): Item(), used_table_map(0) {};
+  void set_used_tables(table_map map) { used_table_map= map; }
+  table_map used_tables() const { return used_table_map; }
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -1065,7 +1069,6 @@ public:
     if (orig_name)
       name= orig_name;
   }
-  Item_basic_constant() {}                      /* Remove gcc warning */
 };
 
 
@@ -2165,6 +2168,23 @@ public:
     save_in_field(result_field, no_conversions);
   }
   void cleanup();
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print() and error messages, where it is
+    applicable. To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string. This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+    Added here, to the parent class of both Item_func and Item_sum_func.
+
+    NOTE: for Items inherited from Item_sum, func_name() return part of
+    function name till first argument (including '(') to make difference in
+    names for functions with 'distinct' clause and without 'distinct' and
+    also to make printing of items inherited from Item_sum uniform.
+  */
+  virtual const char *func_name() const= 0;
 };
 
 
@@ -2924,15 +2944,25 @@ protected:
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
+  /*
+    TRUE <=> cache holds value of the last stored item (i.e actual value).
+    store() stores item to be cached and sets this flag to FALSE.
+    On the first call of val_xxx function if this flag is set to FALSE the 
+    cache_value() will be called to actually cache value of saved item.
+    cache_value() will set this flag to TRUE.
+  */
+  bool value_cached;
 public:
-  Item_cache(): 
-    example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING) 
+  Item_cache():
+    example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING),
+    value_cached(0)
   {
     fixed= 1; 
     null_value= 1;
   }
   Item_cache(enum_field_types field_type_arg):
-    example(0), used_table_map(0), cached_field(0), cached_field_type(field_type_arg)
+    example(0), used_table_map(0), cached_field(0), cached_field_type(field_type_arg),
+    value_cached(0)
   {
     fixed= 1;
     null_value= 1;
@@ -2952,10 +2982,10 @@ public:
       cached_field= ((Item_field *)item)->field;
     return 0;
   };
-  virtual void store(Item *)= 0;
   enum Type type() const { return CACHE_ITEM; }
   enum_field_types field_type() const { return cached_field_type; }
   static Item_cache* get_cache(const Item *item);
+  static Item_cache* get_cache(const Item* item, const Item_result type);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
   virtual void print(String *str, enum_query_type query_type);
@@ -2967,6 +2997,8 @@ public:
   {
     return this == item;
   }
+  virtual void store(Item *item);
+  virtual bool cache_value()= 0;
 };
 
 
@@ -2975,18 +3007,19 @@ class Item_cache_int: public Item_cache
 protected:
   longlong value;
 public:
-  Item_cache_int(): Item_cache(), value(0) {}
+  Item_cache_int(): Item_cache(),
+    value(0) {}
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  void store(Item *item);
   void store(Item *item, longlong val_arg);
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real();
+  longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool result_as_longlong() { return TRUE; }
+  bool cache_value();
 };
 
 
@@ -2994,14 +3027,15 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache(), value(0) {}
+  Item_cache_real(): Item_cache(),
+    value(0) {}
 
-  void store(Item *item);
-  double val_real() { DBUG_ASSERT(fixed == 1); return value; }
+  double val_real();
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return REAL_RESULT; }
+  bool cache_value();
 };
 
 
@@ -3012,12 +3046,12 @@ protected:
 public:
   Item_cache_decimal(): Item_cache() {}
 
-  void store(Item *item);
   double val_real();
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return DECIMAL_RESULT; }
+  bool cache_value();
 };
 
 
@@ -3035,14 +3069,14 @@ public:
                    MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
   {}
-  void store(Item *item);
   double val_real();
   longlong val_int();
-  String* val_str(String *) { DBUG_ASSERT(fixed == 1); return value; }
+  String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
+  bool cache_value();
 };
 
 class Item_cache_row: public Item_cache
@@ -3052,7 +3086,8 @@ class Item_cache_row: public Item_cache
   bool save_array;
 public:
   Item_cache_row()
-    :Item_cache(), values(0), item_count(2), save_array(0) {}
+    :Item_cache(), values(0), item_count(2),
+    save_array(0) {}
   
   /*
     'allocate' used only in row transformer, to preallocate space for row 
@@ -3110,6 +3145,7 @@ public:
       values= 0;
     DBUG_VOID_RETURN;
   }
+  bool cache_value();
 };
 
 
