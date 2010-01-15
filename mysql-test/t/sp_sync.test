@@ -1,3 +1,6 @@
+# This test should work in embedded server after mysqltest is fixed
+-- source include/not_embedded.inc
+
 --echo Tests of syncronization of stored procedure execution.
 
 --source include/have_debug_sync.inc
