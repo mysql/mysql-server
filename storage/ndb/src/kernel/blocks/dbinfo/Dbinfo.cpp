@@ -32,14 +32,11 @@ Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
                            TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
-  SimulatedBlock(DBINFO, ctx),
-  c_nodes(c_nodePool)
+  SimulatedBlock(DBINFO, ctx)
 {
   BLOCK_CONSTRUCTOR(Dbinfo);
 
   STATIC_ASSERT(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
-
-  c_nodePool.setSize(MAX_NDB_NODES);
 
   /* Add Received Signals */
   addRecSignal(GSN_STTOR, &Dbinfo::execSTTOR);
@@ -49,7 +46,6 @@ Dbinfo::Dbinfo(Block_context& ctx) :
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbinfo::execDBINFO_SCANREQ);
   addRecSignal(GSN_DBINFO_SCANCONF, &Dbinfo::execDBINFO_SCANCONF);
 
-  addRecSignal(GSN_READ_NODESCONF, &Dbinfo::execREAD_NODESCONF);
   addRecSignal(GSN_NODE_FAILREP, &Dbinfo::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Dbinfo::execINCL_NODEREQ);
 
@@ -57,7 +53,6 @@ Dbinfo::Dbinfo(Block_context& ctx) :
 
 Dbinfo::~Dbinfo()
 {
-  /* Nothing */
 }
 
 BLOCK_FUNCTIONS(Dbinfo)
@@ -65,17 +60,6 @@ BLOCK_FUNCTIONS(Dbinfo)
 void Dbinfo::execSTTOR(Signal *signal)
 {
   jamEntry();
-
-  const Uint32 startphase  = signal->theData[1];
-
-  if (startphase == 3) 
-  {
-    jam();
-    signal->theData[0] = reference();
-    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
-    return;
-  }//if
-
   sendSTTORRY(signal);
   return;
 }
@@ -139,17 +123,6 @@ void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
   };
 }
 
-Uint32 Dbinfo::find_next_node(Uint32 node) const
-{
-  node++;
-  while(!c_aliveNodes.get(node) &&
-        node < MAX_NDB_NODES)
-     node++;
-
-  if (node == MAX_NDB_NODES)
-    return 0;
-  return node;
-}
 
 Uint32 Dbinfo::find_next_block(Uint32 block) const
 {
@@ -185,22 +158,20 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
   const Uint32 instance = refToInstance(cursor->currRef);
   ndbrequire(instance == 0);
 
+  if (node == 0)
+  {
+    jam();
+    // First 'find_next'
+    ndbrequire(block == 0);
+    cursor->currRef = switchRef(dbinfo_blocks[0], getOwnNodeId());
+    return true;
+  }
+
   if (block)
   {
     jam();
-    if (block == DBINFO)
-    {
-      jam();
-
-      // Starting scan on this node
-      ndbrequire(node == getOwnNodeId());
-
-      // Start on first block
-      cursor->currRef = switchRef(dbinfo_blocks[0], node);
-      return true;
-    }
-
     // Find next block
+    ndbrequire(node == getOwnNodeId());
     block = find_next_block(block);
     if (block)
     {
@@ -210,16 +181,7 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
     }
   }
 
-  node = find_next_node(node);
-  if (node)
-  {
-    jam();
-    block = DBINFO;
-    cursor->currRef = switchRef(block, node);
-    return true;
-  }
-
-  // No more nodes -> done
+  // Nothing more to scan
   cursor->currRef = 0;
   return false;
 }
@@ -468,43 +430,6 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
 }
 
 
-/**
- * Maintain bitmap of active nodes
- */
-
-void Dbinfo::execREAD_NODESCONF(Signal* signal)
-{
-  jamEntry();
-  ReadNodesConf * conf = (ReadNodesConf *)signal->getDataPtr();
-
-  c_aliveNodes.clear();
-
-  Uint32 count = 0;
-  for (Uint32 i = 0; i<MAX_NDB_NODES; i++) {
-    jam();
-    if(NdbNodeBitmask::get(conf->allNodes, i)){
-      jam();
-      count++;
-
-      NodePtr node;
-      ndbrequire(c_nodes.seize(node));
-
-      node.p->nodeId = i;
-      if(NdbNodeBitmask::get(conf->inactiveNodes, i)) {
-        jam();
-	node.p->alive = 0;
-      } else {
-        jam();
-	node.p->alive = 1;
-	c_aliveNodes.set(i);
-      }//if
-    }//if
-  }//for
-  c_masterNodeId = conf->masterNodeId;
-  ndbrequire(count == conf->noOfNodes);
-  sendSTTORRY(signal);
-}
-
 void Dbinfo::execINCL_NODEREQ(Signal* signal)
 {
   jamEntry();
@@ -512,22 +437,6 @@ void Dbinfo::execINCL_NODEREQ(Signal* signal)
   const Uint32 senderRef = signal->theData[0];
   const Uint32 inclNode  = signal->theData[1];
 
-  NodePtr node;
-  for(c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
-    jam();
-    const Uint32 nodeId = node.p->nodeId;
-    if(inclNode == nodeId){
-      jam();
-
-      ndbrequire(node.p->alive == 0);
-      ndbrequire(!c_aliveNodes.get(nodeId));
-
-      node.p->alive = 1;
-      c_aliveNodes.set(nodeId);
-
-      break;
-    }//if
-  }//for
   signal->theData[0] = inclNode;
   signal->theData[1] = reference();
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
@@ -539,44 +448,17 @@ void Dbinfo::execNODE_FAILREP(Signal* signal)
 
   NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
 
-  bool doStuff = false;
-
-  NodeId new_master_node_id = rep->masterNodeId;
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   for (Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
     theFailedNodes[i] = rep->theNodes[i];
 
-  c_masterNodeId = new_master_node_id;
-
-  NodePtr nodePtr;
-  for(c_nodes.first(nodePtr); nodePtr.i != RNIL; c_nodes.next(nodePtr)) {
-    jam();
-    if(NdbNodeBitmask::get(theFailedNodes, nodePtr.p->nodeId)){
-      if(nodePtr.p->alive){
-	jam();
-	ndbrequire(c_aliveNodes.get(nodePtr.p->nodeId));
-	doStuff = true;
-      } else {
-        jam();
-	ndbrequire(!c_aliveNodes.get(nodePtr.p->nodeId));
-      }//if
-      nodePtr.p->alive = 0;
-      c_aliveNodes.clear(nodePtr.p->nodeId);
-
-      Uint32 elementsCleaned = simBlockNodeFailure(signal, nodePtr.p->nodeId); // No callback
+  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  {
+    if (NdbNodeBitmask::get(theFailedNodes, i))
+    {
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
       ndbassert(elementsCleaned == 0); // DbInfo should have no distributed frag signals
       (void) elementsCleaned; // Remove compiler warning
-    }//if
-  }//for
-
-  if(!doStuff){
-    jam();
-    return;
-  }//if
-
-#ifdef DEBUG_ABORT
-  ndbout_c("****************** Node fail rep ******************");
-#endif
-
-  // DO STUFF TO HANDLE NF
+    }
+  }
 }

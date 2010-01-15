@@ -42,6 +42,7 @@ private:
   int sendDBINFO_SCANREQ();
 
   int receive(void);
+  bool find_next_node();
 
   const NdbInfo& m_info;
   enum State { Undefined, Initial, Prepared,
@@ -60,6 +61,8 @@ private:
   Uint32 m_result_data;
   Uint32 m_rows_received;
   Uint32 m_rows_confirmed;
+  Uint32 m_nodes; // Number of nodes scanned
+  Uint32 m_max_nodes; // Max number of nodes to scan
 };
 
 
