@@ -292,6 +292,12 @@ int NdbInfo::createScanOperation(const Table* table,
     return ERR_ClusterFailure;
   }
 
+  if (table->getTableId() < NUM_HARDCODED_TABLES)
+  {
+    // Each db node have the full list -> scan only one node
+    scan_op->m_max_nodes = 1;
+  }
+
   *ret_scan_op = scan_op;
 
   return 0;
@@ -305,8 +311,10 @@ void NdbInfo::releaseScanOperation(NdbInfoScanOperation* scan_op) const
 void NdbInfo::flush_tables()
 {
   // Delete all but the hardcoded tables
-  for (size_t i = NUM_HARDCODED_TABLES; i < m_tables.entries(); i++)
-    m_tables.remove(i);
+  while (m_tables.entries() > NUM_HARDCODED_TABLES)
+  {
+    m_tables.remove(NUM_HARDCODED_TABLES);
+  }
   assert(m_tables.entries() == NUM_HARDCODED_TABLES);
 }
 

@@ -22,6 +22,7 @@
 
 #include <NdbRestarter.hpp>
 
+
 int runTestNdbInfo(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
@@ -75,6 +76,51 @@ int runTestNdbInfo(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static bool
+scan_table(NdbInfo& ndbinfo, const NdbInfo::Table* table, int &rows)
+{
+  NdbInfoScanOperation* scanOp = NULL;
+  if (ndbinfo.createScanOperation(table, &scanOp))
+  {
+    g_err << "No NdbInfoScanOperation" << endl;
+    return false;
+  }
+
+  if (scanOp->readTuples() != 0)
+  {
+    g_err << "scanOp->readTuples failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    return false;
+  }
+
+  int columnId = 0;
+  while (scanOp->getValue(columnId))
+    columnId++;
+  // At least one column
+  assert(columnId >= 1);
+  int ret;
+  if((ret = scanOp->execute()) != 0)
+  {
+    g_err << "scanOp->execute failed, ret: " << ret << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    return false;
+  }
+
+  while((ret = scanOp->nextResult()) == 1)
+    rows++;
+
+  ndbinfo.releaseScanOperation(scanOp);
+
+  if (ret != 0)
+  {
+    g_err << "scanOp->nextResult failed, ret: " << ret << endl;
+    return false;
+  }
+
+  return true;
+}
+
+
 int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbInfo ndbinfo(&ctx->m_cluster_connection, "ndbinfo/");
@@ -102,38 +148,29 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
+    Uint32 last_rows;
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
-      NdbInfoScanOperation* scanOp = NULL;
-      if (ndbinfo.createScanOperation(table, &scanOp))
+      if (ctx->isTestStopped())
+        return NDBT_OK;
+ 
+      int rows = 0;
+      if (!scan_table(ndbinfo, table, rows))
       {
-        g_err << "No NdbInfoScanOperation" << endl;
+        ctx->stopTest();
         return NDBT_FAILED;
       }
-
-      if (scanOp->readTuples() != 0)
+      // Check that the number of rows is same as last round on same table
+      if (l > 0 &&
+          last_rows != rows)
       {
-        g_err << "scanOp->readTuples failed" << endl;
+        g_err << "Got different number of rows this round, expected: "
+          << last_rows << ", got: " << rows << endl;
+        ndbinfo.closeTable(table);
+        ctx->stopTest();
         return NDBT_FAILED;
       }
-
-      int columnId = 0;
-      while (scanOp->getValue(columnId))
-        columnId++;
-      // At least one column
-      assert(columnId >= 1);
-      int ret;
-      if((ret = scanOp->execute()) != 0)
-      {
-        g_err << "scanOp->execute failed, ret: " << ret << endl;
-        return NDBT_FAILED;
-      }
-
-      int row = 0;
-      while(scanOp->nextResult() == 1)
-        row++;
-      ndbout << "rows: " << row << endl;
-      ndbinfo.releaseScanOperation(scanOp);
+      last_rows = rows;
     }
     ndbinfo.closeTable(table);
     tableId++;
@@ -353,12 +390,15 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
     NdbInfoScanOperation* scanOp = NULL;
     if (ndbinfo.createScanOperation(table, &scanOp))
     {
+      ndbinfo.closeTable(table);
       g_err << "No NdbInfoScanOperation" << endl;
       return NDBT_FAILED;
     }
 
     if (scanOp->readTuples() != 0)
     {
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
       g_err << "scanOp->readTuples failed" << endl;
       return NDBT_FAILED;
     }
@@ -370,22 +410,42 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
 
     if(scanOp->execute() != 0)
     {
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
       g_err << "scanOp->execute failed" << endl;
       return NDBT_FAILED;
     }
 
+    int ret;
     int rows = 0;
-    while(scanOp->nextResult() == 1)
+    while((ret = scanOp->nextResult()) == 1)
+       rows++;
+    ndbinfo.releaseScanOperation(scanOp);
+    if (ret != 0)
     {
-      rows++;//
+      ndbinfo.closeTable(table);
+      g_err << "scan failed, ret: " << ret << endl;
+      return NDBT_FAILED;
     }
     ndbout << "rows: " << rows << endl;
-    ndbinfo.releaseScanOperation(scanOp);
+
   }
 
   ndbinfo.closeTable(table);
   return NDBT_OK;
 }
+
+
+int runTestTableUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int i = 0;
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    (void)runTestTable(ctx,  step);
+    i++;
+  }
+  return NDBT_OK;
+}
+
 
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
@@ -476,8 +536,15 @@ TESTCASE("Ndbinfo10",
   STEPS(runTestNdbInfo, 10);
 }
 TESTCASE("ScanAll",
-         "Scan all colums of all table known to NdbInfo"){
+         "Scan all colums of all table known to NdbInfo"
+         "check that number of rows returned are constant"){
   STEPS(runScanAll, 1);
+}
+TESTCASE("ScanAll10",
+         "Scan all columns of all table known to NdbInfo from "
+         "10 parallel threads, check that number of rows returned "
+         "are constant"){
+  STEPS(runScanAll, 10);
 }
 TESTCASE("ScanStop",
          "Randomly stop the scan"){
@@ -492,13 +559,11 @@ TESTCASE("TestTable",
           "of rows which will depend on how many TUP blocks are configured"){
   STEP(runTestTable);
 }
-#if 0
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
-  TC_PROPERTY("Sleep0", 29000); // Between restarts
+  TC_PROPERTY("Sleep0", 10000); // Between restarts(miliseconds)
   STEP(runRestarter);
-  STEPS(runScanAllUntilStopped, 1);
+  STEPS(runTestTableUntilStopped, 1);
 }
-#endif
 NDBT_TESTSUITE_END(testNdbinfo);
 
 

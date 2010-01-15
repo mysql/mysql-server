@@ -49,7 +49,7 @@ SimpleSignal::set(class SignalSender& ss,
 }
 
 void
-SimpleSignal::print(FILE * out){
+SimpleSignal::print(FILE * out) const {
   fprintf(out, "---- Signal ----------------\n");
   SignalLoggerManager::printSignalHeader(out, header, 0, 0, false);
   SignalLoggerManager::printSignalData(out, header, theData);
