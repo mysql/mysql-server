@@ -148,7 +148,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
-    Uint32 last_rows;
+    int last_rows;
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
@@ -419,7 +419,13 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
     int ret;
     int rows = 0;
     while((ret = scanOp->nextResult()) == 1)
+    {
        rows++;
+       (void)nodeId->u_32_value(); 
+       (void)blockNumber->u_32_value(); 
+       (void)blockInstance->u_32_value(); 
+       (void)counter->u_32_value(); 
+    }
     ndbinfo.releaseScanOperation(scanOp);
     if (ret != 0)
     {
