@@ -2559,10 +2559,9 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
-	srv_table_reserve_slot(SRV_MASTER);
-
 	mutex_enter(&kernel_mutex);
 
+	srv_table_reserve_slot(SRV_MASTER);
 	srv_n_threads_active[SRV_MASTER]++;
 
 	mutex_exit(&kernel_mutex);
@@ -3167,8 +3166,8 @@ srv_purge_thread(
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
 
-	srv_table_reserve_slot(SRV_PURGE);
 	mutex_enter(&kernel_mutex);
+	srv_table_reserve_slot(SRV_PURGE);
 	srv_n_threads_active[SRV_PURGE]++;
 	mutex_exit(&kernel_mutex);
 
@@ -3255,8 +3254,8 @@ srv_purge_worker_thread(
 	fprintf(stderr, "Purge worker thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
-	srv_table_reserve_slot(SRV_PURGE_WORKER);
 	mutex_enter(&kernel_mutex);
+	srv_table_reserve_slot(SRV_PURGE_WORKER);
 	srv_n_threads_active[SRV_PURGE_WORKER]++;
 	mutex_exit(&kernel_mutex);
 
