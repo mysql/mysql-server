@@ -997,7 +997,6 @@ switchRef(Uint32 block, Uint32 instance, Uint32 node)
 bool
 LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
 {
-  jam();
   const Uint32 node = refToNode(cursor->currRef);
   const Uint32 block = refToMain(cursor->currRef);
   Uint32 instance = refToInstance(cursor->currRef);
@@ -1007,6 +1006,7 @@ LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
 
   if (instance++ < c_workers)
   {
+    jam();
     cursor->currRef = switchRef(block, instance, node);
     return true;
   }
@@ -1031,6 +1031,7 @@ LocalProxy::execDBINFO_SCANREQ(Signal* signal)
   if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) &&
       cursor->saveCurrRef)
   {
+    jam();
     /* Continue in the saved block ref */
     cursor->currRef = cursor->saveCurrRef;
     cursor->saveCurrRef = 0;
@@ -1062,10 +1063,7 @@ LocalProxy::execDBINFO_SCANREQ(Signal* signal)
   }
 
   /* Scan is done, send SCANCONF back to caller  */
-
-  /* Swap back saved senderRef */
-  const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
-  cursor->saveSenderRef = 0;
+  ndbrequire(cursor->saveSenderRef == 0);
 
   ndbrequire(cursor->currRef);
   ndbrequire(cursor->saveCurrRef == 0);
@@ -1088,9 +1086,9 @@ LocalProxy::execDBINFO_SCANCONF(Signal* signal)
 
   if (Ndbinfo::ScanCursor::getHasMoreData(cursor->flags))
   {
-    /* The underlying block want to continue */
+    /* The instance has more data and want to continue */
     jam();
-    
+
     /* Swap back saved senderRef */
     const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
     cursor->saveSenderRef = 0;
@@ -1101,8 +1099,46 @@ LocalProxy::execDBINFO_SCANCONF(Signal* signal)
 
     sendSignal(senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
     return;
-  } 
-  
+  }
+
+  if (conf->returnedRows)
+  {
+    jam();
+    /*
+       The instance has no more data, but it has sent rows
+       to the API which need to be CONFed
+    */
+
+    /* Swap back saved senderRef */
+    const Uint32 senderRef = cursor->senderRef = cursor->saveSenderRef;
+    cursor->saveSenderRef = 0;
+
+    if (find_next(cursor))
+    {
+      /*
+        There is another instance to continue in - signal 'more data'
+        and setup saveCurrRef to continue in that instance
+      */
+      jam();
+      Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, true);
+
+      cursor->saveCurrRef = cursor->currRef;
+      cursor->currRef = reference();
+    }
+    else
+    {
+      /* There was no more instances to continue in */
+      ndbrequire(Ndbinfo::ScanCursor::getHasMoreData(cursor->flags) == false);
+
+      ndbrequire(cursor->currRef == reference());
+      cursor->saveCurrRef = 0;
+    }
+
+    sendSignal(senderRef, GSN_DBINFO_SCANCONF, signal, signal_length, JBB);
+    return;
+  }
+
+
   /* The underlying block reported completed, find next if any */
   if (find_next(cursor))
   {
