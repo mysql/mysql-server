@@ -977,6 +977,23 @@ LocalProxy::sendDROP_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
 
 // GSN_DBINFO_SCANREQ
 
+//#define DBINFO_SCAN_TRACE
+#ifdef DBINFO_SCAN_TRACE
+#include <debugger/DebuggerNames.hpp>
+#endif
+
+static Uint32
+switchRef(Uint32 block, Uint32 instance, Uint32 node)
+{
+  const Uint32 ref = numberToRef(block, instance,  node);
+#ifdef DBINFO_SCAN_TRACE
+  ndbout_c("Dbinfo::LocalProxy: switching to %s(%d) in node %d, ref: 0x%.8x",
+           getBlockName(block, "<unknown>"), instance, node, ref);
+#endif
+  return ref;
+}
+
+
 bool
 LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
 {
@@ -990,7 +1007,7 @@ LocalProxy::find_next(Ndbinfo::ScanCursor* cursor) const
 
   if (instance++ < c_workers)
   {
-    cursor->currRef = numberToRef(block, instance, node);
+    cursor->currRef = switchRef(block, instance, node);
     return true;
   }
 

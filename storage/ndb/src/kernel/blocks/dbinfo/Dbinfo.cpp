@@ -23,6 +23,11 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
 
+//#define DBINFO_SCAN_TRACE
+#ifdef DBINFO_SCAN_TRACE
+#include <debugger/DebuggerNames.hpp>
+#endif
+
 Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
                            TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN, 0};
 
@@ -161,6 +166,18 @@ Uint32 Dbinfo::find_next_block(Uint32 block) const
   return dbinfo_blocks[++i];
 }
 
+static Uint32
+switchRef(Uint32 block, Uint32 node)
+{
+  const Uint32 ref = numberToRef(block, node);
+#ifdef DBINFO_SCAN_TRACE
+  ndbout_c("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
+           getBlockName(block, "<unknown>"), node, ref);
+#endif
+  return ref;
+}
+
+
 bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
 {
   Uint32 node = refToNode(cursor->currRef);
@@ -179,7 +196,7 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
       ndbrequire(node == getOwnNodeId());
 
       // Start on first block
-      cursor->currRef = numberToRef(dbinfo_blocks[0], node);
+      cursor->currRef = switchRef(dbinfo_blocks[0], node);
       return true;
     }
 
@@ -188,7 +205,7 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
     if (block)
     {
       jam();
-      cursor->currRef = numberToRef(block, node);
+      cursor->currRef = switchRef(block, node);
       return true;
     }
   }
@@ -198,7 +215,7 @@ bool Dbinfo::find_next(Ndbinfo::ScanCursor* cursor) const
   {
     jam();
     block = DBINFO;
-    cursor->currRef = numberToRef(block, node);
+    cursor->currRef = switchRef(block, node);
     return true;
   }
 
