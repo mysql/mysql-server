@@ -333,6 +333,7 @@ Dbtc::Dbtc(Block_context& ctx):
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+  csystemStart = SSS_FALSE;
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 
