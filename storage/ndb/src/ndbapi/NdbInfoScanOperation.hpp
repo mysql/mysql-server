@@ -36,9 +36,9 @@ protected:
   ~NdbInfoScanOperation();
   void close();
 private:
-  int execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
-  int execDBINFO_SCANCONF(const struct SimpleSignal * signal);
-  int execDBINFO_SCANREF(const struct SimpleSignal * signal);
+  bool execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
+  bool execDBINFO_SCANCONF(const struct SimpleSignal * signal);
+  bool execDBINFO_SCANREF(const struct SimpleSignal * signal, int& error_code);
   int sendDBINFO_SCANREQ();
 
   int receive(void);
@@ -58,7 +58,8 @@ private:
   Uint32 m_max_rows;
   Uint32 m_max_bytes;
   Uint32 m_result_data;
-  Uint32 m_received_rows;
+  Uint32 m_rows_received;
+  Uint32 m_rows_confirmed;
 };
 
 

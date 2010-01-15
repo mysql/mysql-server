@@ -40,7 +40,8 @@ NdbInfoScanOperation::NdbInfoScanOperation(const NdbInfo& info,
   m_max_rows(max_rows),
   m_max_bytes(max_bytes),
   m_result_data(0x37),
-  m_received_rows(0)
+  m_rows_received(0),
+  m_rows_confirmed(0)
 {
 }
 
@@ -116,15 +117,14 @@ int NdbInfoScanOperation::execute()
              m_table->getName(), m_table->getTableId()));
 
   if (m_state != Prepared)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   assert(m_cursor.size() == 0);
+  m_state = MoreData;
 
   m_signal_sender->lock();
   int ret = sendDBINFO_SCANREQ();
   m_signal_sender->unlock();
-
-  m_state = MoreData;
 
   DBUG_RETURN(ret);
 }
@@ -157,6 +157,7 @@ NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
   req->requestInfo = 0;
   req->maxRows = m_max_rows;
   req->maxBytes = m_max_bytes;
+  DBUG_PRINT("info", ("max rows: %d, max bytes: %d", m_max_rows, m_max_bytes));
 
   // Scan result
   req->returnedRows = 0;
@@ -172,11 +173,23 @@ NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
   req->cursor_sz = m_cursor.size();
   m_cursor.clear();
 
+  assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) || // first
+         m_rows_received == m_rows_confirmed);                       // subsequent
+
+  // No rows recieved in this batch yet
+  m_rows_received = 0;
+
+  // Number of rows returned by batch is not yet known
+  m_rows_confirmed = ~0;
+
   assert(m_node_id);
   Uint32 len = DbinfoScanReq::SignalLength + req->cursor_sz;
   if (m_signal_sender->sendSignal(m_node_id, ss, DBINFO,
                                   GSN_DBINFO_SCANREQ, len) != SEND_OK)
+  {
+    m_state = Error;
     DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
+  }
 
   DBUG_RETURN(0);
 }
@@ -196,28 +209,75 @@ int NdbInfoScanOperation::receive(void)
 
     case GSN_DBINFO_TRANSID_AI:
     {
-      int ret = execDBINFO_TRANSID_AI(sig);
-      if (ret == 0)
-        continue;
-      DBUG_RETURN(ret); // More data
+      if (execDBINFO_TRANSID_AI(sig))
+        continue;  // Wait for next signal
+
+      if (m_rows_received < m_rows_confirmed)
+        DBUG_RETURN(1); // Row available
+
+      // All rows in this batch recieved
+      assert(m_rows_received == m_rows_confirmed);
+
+      if (m_cursor.size() == 0)
+      {
+        DBUG_PRINT("info", ("No cursor -> EOF"));
+        m_state = End;
+        DBUG_RETURN(1); // Row available(will get End on next 'nextResult')
+      }
+
+      // Cursor is still set, fetch more rows
+      assert(m_state == MoreData);
+      int err = sendDBINFO_SCANREQ();
+      if (err != 0)
+      {
+        DBUG_PRINT("error", ("Failed to request more data"));
+        assert(m_state == Error);
+        // Return error immediately
+        DBUG_RETURN(err);
+      }
+
+      DBUG_RETURN(1); // Row available
       break;
     }
 
     case GSN_DBINFO_SCANCONF:
     {
-      int ret = execDBINFO_SCANCONF(sig);
-      if (ret > 0)
-        continue; // Wait for more data
-      DBUG_RETURN(ret);
-      break;
+      if (execDBINFO_SCANCONF(sig))
+        continue; // Wait for next signal
+
+      if (m_rows_received < m_rows_confirmed)
+        continue;  // Continue waiting(for late TRANSID_AI signals)
+
+      // All rows in this batch recieved
+      assert(m_rows_received == m_rows_confirmed);
+
+      if (m_cursor.size() == 0)
+      {
+        DBUG_PRINT("info", ("No cursor -> EOF"));
+        m_state = End;
+        DBUG_RETURN(0); // No more rows
+      }
+
+      // Cursor is still set, fetch more rows
+      assert(m_state == MoreData);
+      int err = sendDBINFO_SCANREQ();
+      if (err != 0)
+      {
+        DBUG_PRINT("error", ("Failed to request more data"));
+        assert(m_state == Error);
+        DBUG_RETURN(err);
+      }
+
+      continue;
     }
 
     case GSN_DBINFO_SCANREF:
     {
-      int ret = execDBINFO_SCANREF(sig);
-      if (ret == 0)
-        continue;
-      DBUG_RETURN(ret);
+      int error;
+      if (execDBINFO_SCANREF(sig, error))
+        continue; // Wait for next signal
+      assert(m_state == Error);
+      DBUG_RETURN(error);
       break;
     }
 
@@ -226,7 +286,7 @@ int NdbInfoScanOperation::receive(void)
       break;
 
     case GSN_NF_COMPLETEREP:
-      DBUG_RETURN(-3);
+      DBUG_RETURN(NdbInfo::ERR_ClusterFailure);
       break;
 
     case GSN_SUB_GCP_COMPLETE_REP:
@@ -264,9 +324,9 @@ NdbInfoScanOperation::nextResult()
     DBUG_RETURN(0); // EOF
     break;
   default:
-    DBUG_RETURN(-1);
     break;
   }
+  DBUG_RETURN(-1);
 }
 
 void
@@ -286,7 +346,7 @@ NdbInfoScanOperation::close()
   DBUG_VOID_RETURN;
 }
 
-int
+bool
 NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
 {
   DBUG_ENTER("NdbInfoScanOperation::execDBINFO_TRANSID_AI");
@@ -297,9 +357,11 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
       transid->transId[1] != m_transid1)
   {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(0);
+    DBUG_RETURN(true); // Continue waiting
   }
-  m_received_rows++;
+
+  m_rows_received++;
+  DBUG_PRINT("info", ("rows received: %d", m_rows_received));
 
   const Uint32* start = signal->ptr[0].p;
   const Uint32* end = start + signal->ptr[0].sz;
@@ -330,23 +392,23 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
     // No reading beyond end of signal size
     assert(start <= end);
   }
-  DBUG_RETURN(1);
+
+  DBUG_RETURN(false); // Don't wait more, process this row
 }
 
-int
+bool
 NdbInfoScanOperation::execDBINFO_SCANCONF(const SimpleSignal * sig)
 {
   DBUG_ENTER("NdbInfoScanOperation::execDBINFO_SCANCONF");
   const DbinfoScanConf* conf =
           CAST_CONSTPTR(DbinfoScanConf, sig->getDataPtr());
-
   if (conf->resultData != m_result_data ||
       conf->transId[0] != m_transid0 ||
       conf->transId[1] != m_transid1 ||
       conf->resultRef != m_result_ref)
   {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(1); // Continue waiting
+    DBUG_RETURN(true); // Continue waiting
   }
   const Uint32 tableId = conf->tableId;
   assert(tableId == m_table->getTableId());
@@ -358,38 +420,33 @@ NdbInfoScanOperation::execDBINFO_SCANCONF(const SimpleSignal * sig)
   assert(conf->maxRows == m_max_rows);
   assert(conf->maxBytes == m_max_bytes);
 
+  DBUG_PRINT("info", ("returnedRows : %d", conf->returnedRows));
+
   // Save cursor data
+  DBUG_PRINT("info", ("cursor size: %d", conf->cursor_sz));
   assert(m_cursor.size() == 0);
   const Uint32* cursor_ptr = DbinfoScan::getCursorPtr(conf);
   for (unsigned i = 0; i < conf->cursor_sz; i++)
   {
     m_cursor.push_back(*cursor_ptr);
-    DBUG_PRINT("info", ("cursor[%u]: 0x%x", i, m_cursor[i]));
+    //DBUG_PRINT("info", ("cursor[%u]: 0x%x", i, m_cursor[i]));
     cursor_ptr++;
   }
   assert(conf->cursor_sz == m_cursor.size());
 
-  if (conf->cursor_sz)
-  {
-    DBUG_PRINT("info", ("Request more data"));
-    int err = sendDBINFO_SCANREQ();
-    if (err != 0)
-    {
-      DBUG_PRINT("info", ("Failed to reuqest more data"));
-      m_state = Error;
-      DBUG_RETURN(err);
-    }
+  assert(m_rows_confirmed == (Uint32)~0); // Should've been unknown until now
+  m_rows_confirmed = conf->returnedRows;
 
-    m_state = MoreData;
-    DBUG_RETURN(1);
-  }
+  // Don't allow confirmation of less rows than already been received
+  DBUG_PRINT("info", ("received: %d, confirmed: %d", m_rows_received, m_rows_confirmed));
+  assert(m_rows_received <= m_rows_confirmed);
 
-  m_state = End;
-  DBUG_RETURN(0); // EOF
+  DBUG_RETURN(false);
 }
 
-int
-NdbInfoScanOperation::execDBINFO_SCANREF(const SimpleSignal * signal)
+bool
+NdbInfoScanOperation::execDBINFO_SCANREF(const SimpleSignal * signal,
+                                         int& error_code)
 {
   DBUG_ENTER("NdbInfoScanOperation::execDBINFO_SCANREF");
   const DbinfoScanRef* ref =
@@ -401,11 +458,14 @@ NdbInfoScanOperation::execDBINFO_SCANREF(const SimpleSignal * signal)
       ref->resultRef != m_result_ref)
   {
     // Drop signal that belongs to previous scan
-    DBUG_RETURN(0); // Continue waiting
+    DBUG_RETURN(true); // Continue waiting
   }
 
+  error_code = ref->errorCode;
+
   m_state = Error;
-  DBUG_RETURN(ref->errorCode);
+  DBUG_RETURN(false);
 }
+
 
 template class Vector<NdbInfoRecAttr*>;
