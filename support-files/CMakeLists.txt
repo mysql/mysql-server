@@ -26,8 +26,8 @@ ELSE()
   SET(datadir  "/usr/local/mysql/data")
   SET(CC ${CMAKE_C_COMPILER})
   SET(CXX ${CMAKE_CXX_COMPILER})
-  SET(CFLAGS ${CMAKE_C_COMPILE_FLAGS})
-  SET(CXXFLAGS ${CMAKE_COMPILE_CXX_FLAGS})
+  SET(CFLAGS ${CMAKE_C_FLAGS})
+  SET(CXXFLAGS ${CMAKE_CXX_FLAGS})
   SET(MYSQLD_USER "mysql")
   SET(install_destination "support-files")
   SET(ini_file_extension "cnf")
@@ -44,7 +44,7 @@ IF(UNIX)
   FILE(GLOB ndb_ini_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
   INSTALL(FILES ${ndb_ini_files}  DESTINATION  ${install_destination})
 
-  FOREACH(script mysql.server mysqld_multi.server mysql-log-rotate)
+  FOREACH(script  mysqld_multi.server mysql-log-rotate)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
@@ -57,5 +57,17 @@ IF(UNIX)
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/mysql.spec @ONLY)
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/mysql.${VERSION}.spec @ONLY)
   CONFIGURE_FILE(MySQL-shared-compat.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/MySQL-shared-compat.spec @ONLY)
+
+  # mysql.server needs another set variables
+  SET(bindir ./bin)
+  SET(sbindir ./bin)
+  SET(scriptdir ./bin)
+  SET(libexecdir ./bin)
+  SET(pkgdatadir "${CMAKE_INSTALL_PREFIX}/data")
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh 
+                 ${CMAKE_CURRENT_BINARY_DIR}/mysql.server @ONLY)
+  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.server 
+    DESTINATION support-files 
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
+    GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 ENDIF()
-	 

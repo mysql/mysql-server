@@ -133,8 +133,30 @@ ENDIF(UNIX)
 
 
 
-set(prefix "${CMAKE_INSTALL_PREFIX}")
+# Really ugly, one script, "mysql_install_db", needs prefix set to ".",
+# i.e. makes access relative the current directory. This matches
+# the documentation, so better not change this.
 
+SET(prefix .)
+SET(bindir ./bin)
+SET(sbindir ./bin)
+SET(scriptdir ./bin)
+SET(libexecdir ./bin)
+SET(pkgdatadir ./share)
+SET(localstatedir ./data)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
+   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
+
+INSTALL(FILES
+ "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db"
+  DESTINATION bin
+  PERMISSIONS OWNER_READ OWNER_WRITE 
+  OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
+  WORLD_READ WORLD_EXECUTE 
+  )
+
+
+SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
 SET(bindir ${prefix}/bin)
 SET(libexecdir ${prefix}/bin)
@@ -253,7 +275,6 @@ ELSE()
     mysqld_multi
     mysqlaccess
     mysqlaccess.conf
-    mysql_install_db
   )
   FOREACH(file ${BIN_SCRIPTS})
     IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh)
@@ -288,7 +309,7 @@ ELSE()
 
   # For some reason, mysqld_safe needs to be also in scripts directory
   INSTALL(FILES 
-    "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db"
+    "${CMAKE_CURRENT_BINARY_DIR}/mysqld_safe"
      DESTINATION scripts
      PERMISSIONS OWNER_READ OWNER_WRITE 
      OWNER_EXECUTE GROUP_READ GROUP_EXECUTE 
