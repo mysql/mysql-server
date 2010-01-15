@@ -1912,7 +1912,7 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
@@ -1921,7 +1921,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
@@ -1931,7 +1931,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELE
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -1955,7 +1955,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
@@ -1963,11 +1963,11 @@ DROP TRIGGER trig_2;
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
 CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP VIEW view_sidef_2;
@@ -1977,7 +1977,7 @@ PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -1988,7 +1988,7 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 SELE
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -2007,7 +2007,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
@@ -2017,7 +2017,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -2040,7 +2040,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
@@ -2050,7 +2050,7 @@ PREPARE prep_2 FROM "CALL proc_1()";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -2071,7 +2071,7 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 
@@ -2080,7 +2080,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
@@ -2090,7 +2090,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -2114,7 +2114,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
@@ -2124,7 +2124,7 @@ PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -2133,11 +2133,11 @@ DROP TRIGGER trig_1;
 Invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
 CREATE VIEW view_retval_1 AS SELECT COUNT(*) FROM mysql.general_log;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT * FROM view_retval_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 * Invoke statement so that return value is dicarded: expect no warning.
@@ -2148,7 +2148,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP FUNCTION func_sidef_2;
@@ -2158,7 +2158,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELE
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
@@ -2178,7 +2178,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP TRIGGER trig_2;
@@ -2186,11 +2186,11 @@ DROP TRIGGER trig_2;
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe use of mysql.general_log.
 CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 * Invoke statement so that return value is dicarded: expect no warning.
@@ -2202,7 +2202,7 @@ PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_retval_1";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_2;
@@ -2213,7 +2213,7 @@ PREPARE prep_1 FROM "INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 DROP PREPARE prep_1;
@@ -2222,7 +2222,7 @@ Invoking unsafe use of mysql.general_log.
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 * Invoke statement so that return value is dicarded: expect no warning.
@@ -2237,7 +2237,7 @@ INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2252,7 +2252,7 @@ INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2268,7 +2268,7 @@ CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2300,7 +2300,7 @@ INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2314,7 +2314,7 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2324,7 +2324,7 @@ INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2340,7 +2340,7 @@ EXECUTE prep_2;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2360,7 +2360,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
@@ -2372,7 +2372,7 @@ INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2391,7 +2391,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
@@ -2420,7 +2420,7 @@ INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2439,7 +2439,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
@@ -2453,7 +2453,7 @@ INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2468,7 +2468,7 @@ INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2484,7 +2484,7 @@ CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2516,7 +2516,7 @@ INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2532,7 +2532,7 @@ EXECUTE prep_2;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2549,7 +2549,7 @@ EXECUTE prep_1;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
@@ -2564,7 +2564,7 @@ INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfun
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system variable whose value may differ on slave.
