@@ -45,5 +45,6 @@ ADD_LIBRARY(ndbsignaldata STATIC
         UtilLock.cpp TuxMaint.cpp AccLock.cpp
         LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp
         ScanFrag.cpp ApiVersion.cpp
-        LocalRouteOrd.cpp)
+        LocalRouteOrd.cpp
+	DbinfoScan.cpp)
 
