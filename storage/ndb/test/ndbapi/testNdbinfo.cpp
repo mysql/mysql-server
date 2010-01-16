@@ -565,11 +565,16 @@ TESTCASE("TestTable",
           "of rows which will depend on how many TUP blocks are configured"){
   STEP(runTestTable);
 }
+#ifndef NDB_WIN
+/**
+ * TODO NdbRestarter does not work on windoze
+ */
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
   TC_PROPERTY("Sleep0", 10000); // Between restarts(miliseconds)
   STEP(runRestarter);
   STEPS(runTestTableUntilStopped, 1);
 }
+#endif
 NDBT_TESTSUITE_END(testNdbinfo);
 
 
