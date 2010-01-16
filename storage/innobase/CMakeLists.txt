@@ -34,6 +34,80 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+
+  # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
+IF(NOT CMAKE_CROSSCOMPILING)
+  CHECK_C_SOURCE_RUNS(
+  "
+  int main()
+  {
+    long	x;
+    long	y;
+    long	res;
+    char	c;
+
+    x = 10;
+    y = 123;
+    res = __sync_bool_compare_and_swap(&x, x, y);
+    if (!res || x != y) {
+      return(1);
+    }
+
+    x = 10;
+    y = 123;
+    res = __sync_bool_compare_and_swap(&x, x + 1, y);
+    if (res || x != 10) {
+      return(1);
+    }
+    x = 10;
+    y = 123;
+    res = __sync_add_and_fetch(&x, y);
+    if (res != 123 + 10 || x != 123 + 10) {
+      return(1);
+    }
+
+    c = 10;
+    res = __sync_lock_test_and_set(&c, 123);
+    if (res != 10 || c != 123) {
+      return(1);
+    }
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_BUILTINS
+  )
+ENDIF()
+
+IF(HAVE_IBGCC_ATOMIC_BUILTINS)
+ ADD_DEFINITIONS(-DHAVE_IBGCCC_ATOMIC_BUILTINS=1)
+ENDIF()
+
+ # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
+IF(NOT CMAKE_CROSSCOMPILING)
+  CHECK_C_SOURCE_RUNS(
+  "
+  #include <pthread.h>
+  #include <string.h>
+
+  int main(int argc, char** argv) {
+    pthread_t       x1;
+    pthread_t       x2;
+    pthread_t       x3;
+
+    memset(&x1, 0x0, sizeof(x1));
+    memset(&x2, 0x0, sizeof(x2));
+    memset(&x3, 0x0, sizeof(x3));
+
+    __sync_bool_compare_and_swap(&x1, x2, x3);
+
+    return(0);
+  }"
+  HAVE_IB_ATOMIC_PTHREAD_T_GCC)
+ENDIF()
+IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
+  ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
+ENDIF()
+
+
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   CHECK_FUNCTION_EXISTS(atomic_cas_ulong  HAVE_ATOMIC_CAS_ULONG)
@@ -42,10 +116,50 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   CHECK_FUNCTION_EXISTS(atomic_add_long HAVE_ATOMIC_ADD_LONG)
   IF(HAVE_ATOMIC_CAS_ULONG AND HAVE_ATOMIC_CAS_32 AND
     HAVE_ATOMIC_CAS_64 AND HAVE_ATOMIC_ADD_LONG)
-    
-    SET(HAVE_SOLARIS_ATOMICS 1)
+    SET(HAVE_IB_SOLARIS_ATOMICS 1)
+  ENDIF()
+  
+  IF(HAVE_IB_SOLARIS_ATOMICS)
+    ADD_DEFINITIONS(-DHAVE_IB_SOLARIS_ATOMICS=1)
+  ENDIF()
+
+  IF(NOT CMAKE_CROSSCOMPILING)
+  # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
+  CHECK_C_SOURCE_COMPILES(
+  "   #include <pthread.h>
+      #include <string.h>
+
+      int main(int argc, char** argv) {
+        pthread_t       x1;
+        pthread_t       x2;
+        pthread_t       x3;
+
+        memset(&x1, 0x0, sizeof(x1));
+        memset(&x2, 0x0, sizeof(x2));
+        memset(&x3, 0x0, sizeof(x3));
+
+        if (sizeof(pthread_t) == 4) {
+        
+          atomic_cas_32(&x1, x2, x3);
+        
+        } else if (sizeof(pthread_t) == 8) {
+        
+          atomic_cas_64(&x1, x2, x3);
+        
+        } else {
+        
+          return(1);
+        }
+
+      return(0);
+    }
+  " HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
+  ENDIF()
+  IF(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
+    ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_SOLARIS=1)
   ENDIF()
 ENDIF()
+
 
 IF(HAVE_GCC_ATOMIC_BUILTINS)
   CHECK_C_SOURCE_COMPILES("
@@ -62,50 +176,12 @@ IF(HAVE_GCC_ATOMIC_BUILTINS)
   )
 ENDIF()
 
-IF(NOT HAVE_ATOMIC_PTHREAD_T_GCC AND HAVE_SOLARIS_ATOMICS)
-  CHECK_C_SOURCE_COMPILES("
-  #include <pthread.h>
-  int main()
-  {
-    pthread_t x = 0;
-    return(0);
-  }" HAVE_ATOMIC_PTHREAD_T_SOLARIS
-  )
-  IF(HAVE_ATOMIC_PTHREAD_T_SOLARIS)
-    SET(CMAKE_EXTRA_INCLUDE_FILES pthread.h)
-    CHECK_TYPE_SIZE(pthread_t SIZEOF_PTHREAD_T)
-    SET(CMAKE_EXTRA_INCLUDE_FILES)
-  ENDIF()
-ENDIF()
-
-IF(NOT CMAKE_CROSSCOMPILING)
-  STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
-  IF(NOT WIN32 AND processor MATCHES "86" OR processor MATCHES "amd64" 
-     OR processor MATCHES "x64")
-  # Check for x86 PAUSE instruction
-  # We have to actually try running the test program, because of a bug
-  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
-  # supported when trying to run an application.  See
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
-  CHECK_C_SOURCE_RUNS("
-    int main()
-    { 
-      __asm__ __volatile__ (\"pause\"); 
-      return 0;
-    }"  IB_HAVE_PAUSE_INSTRUCTION)
-  ENDIF()
-ENDIF()
- 
-IF(HAVE_ATOMIC_PTHREAD_T_SOLARIS OR HAVE_ATOMIC_PTHREAD_T_GCC)
-  ADD_DEFINITIONS(-DHAVE_ATOMIC_PTHREAD_T=1)
-ENDIF()
- 
-IF(HAVE_SOLARIS_ATOMICS)
-  ADD_DEFINITIONS(-DHAVE_SOLARIS_ATOMICS=1)
-ENDIF()
- 
-IF(IB_HAVE_PAUSE_INSTRUCTIONS)
-  ADD_DEFINITIONS(-DIB_HAVE_PAUSE_INSTRUCTIONS=1)
+IF(UNIX)
+# this is needed to know which one of atomic_cas_32() or atomic_cas_64()
+# to use in the source
+SET(CMAKE_EXTRA_INCLUDE_FILES pthread.h)
+CHECK_TYPE_SIZE(pthread_t SIZEOF_PTHREAD_T)
+SET(CMAKE_EXTRA_INCLUDE_FILES)
 ENDIF()
 
 IF(SIZEOF_PTHREAD_T)
@@ -113,7 +189,7 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
- ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
+ ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
 ENDIF()
 
 
