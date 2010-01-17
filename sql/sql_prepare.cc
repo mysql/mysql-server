@@ -1353,6 +1353,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
+  thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
     JOIN::prepare calls

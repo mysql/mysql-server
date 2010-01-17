@@ -213,6 +213,44 @@ TEST_join(JOIN *join)
 }
 
 
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+
+void print_keyuse(KEYUSE *keyuse)
+{
+  char buff[256];
+  char buf2[64]; 
+  const char *fieldname;
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
+  keyuse->val->print(&str, QT_ORDINARY);
+  str.append('\0');
+  if (keyuse->keypart == FT_KEYPART)
+    fieldname= "FT_KEYPART";
+  else
+    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
+  longlong2str(keyuse->used_tables, buf2, 16); 
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
+          "ref_table_rows= %lu keypart_map= %0lx\n",
+          keyuse->table->alias, fieldname, str.ptr(),
+          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
+          keyuse->keypart_map);
+  DBUG_UNLOCK_FILE;
+  //key_part_map keypart_map; --?? there can be several? 
+}
+
+
+/* purecov: begin inspected */
+void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
+{
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "KEYUSE array (%d elements)\n", keyuse_array->elements);
+  DBUG_UNLOCK_FILE;
+  for(uint i=0; i < keyuse_array->elements; i++)
+    print_keyuse((KEYUSE*)dynamic_array_ptr(keyuse_array, i));
+}
+
+
 /* 
   Print the current state during query optimization.
 
@@ -312,6 +350,27 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
   DBUG_UNLOCK_FILE;
 }
+
+
+void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
+{
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "\nsemi-join nest{\n");
+  fprintf(DBUG_FILE, "  tables { \n");
+  for (uint i= 0;i < sjm->tables; i++)
+  {
+    fprintf(DBUG_FILE, "    %s%s\n", 
+            sjm->positions[i].table->table->alias,
+            (i == sjm->tables -1)? "": ",");
+  }
+  fprintf(DBUG_FILE, "  }\n");
+  fprintf(DBUG_FILE, "  materialize_cost= %g\n",
+          sjm->materialization_cost.total_cost());
+  fprintf(DBUG_FILE, "  rows= %g\n", sjm->rows);
+  fprintf(DBUG_FILE, "}\n");
+  DBUG_UNLOCK_FILE;
+}
+/* purecov: end */
 
 #endif
 

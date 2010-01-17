@@ -725,7 +725,11 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
     }
     else
     {
-      DBUG_ASSERT(!tbl->nested_join);
+      DBUG_ASSERT(!tbl->nested_join || tbl->sj_on_expr);
+      //psergey-todo: is the following really correct or we'll need to descend
+      //down all ON clauses: ? 
+      if (tbl->sj_on_expr)
+        tables_used_on_left |= tbl->sj_on_expr->used_tables();
     }
   }
 

@@ -2211,6 +2211,24 @@ table_map Item_field::used_tables() const
 }
 
 
+void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  if (new_parent == depended_from)
+    depended_from= NULL;
+  Name_resolution_context *ctx= new Name_resolution_context();
+  ctx->outer_context= NULL; // We don't build a complete name resolver
+  ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
+  ctx->select_lex= new_parent;
+  ctx->first_name_resolution_table= context->first_name_resolution_table;
+  ctx->last_name_resolution_table=  context->last_name_resolution_table;
+  ctx->error_processor=             context->error_processor;
+  ctx->error_processor_data=        context->error_processor_data;
+  ctx->resolve_in_select_list=      context->resolve_in_select_list;
+  ctx->security_ctx=                context->security_ctx;
+  this->context=ctx;
+}
+
+
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
   Item_field *new_item= new Item_field(thd, this);
@@ -6411,6 +6429,25 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   if ((*ref)->type() == Item::FIELD_ITEM)
     table_name= ((Item_field*)outer_ref)->table_name;
   return err;
+}
+
+
+void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  if (depended_from == new_parent)
+  {
+    *ref= outer_ref;
+    outer_ref->fix_after_pullout(new_parent, ref);
+  }
+}
+
+void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
+{
+  if (depended_from == new_parent)
+  {
+    (*ref)->fix_after_pullout(new_parent, ref);
+    depended_from= NULL;
+  }
 }
 
 

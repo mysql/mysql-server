@@ -686,7 +686,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), optimizer(0), transformed(0),
-  pushed_cond_guards(NULL), upper_item(0)
+  pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1083,6 +1083,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex->current_select= current;
+
+    //psergey-merge-jan11:
+    /* We will refer to upper level cache array => we have to save it for SP */
+    optimizer->keep_top_level_cache();
+    //:psergey-merge-jan11
 
     /*
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
@@ -1599,6 +1604,12 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   if (result)
     goto err;
 
+  /*
+    If we didn't choose an execution method up to this point, we choose
+    the IN=>EXISTS transformation.
+  */
+  if (exec_method == NOT_TRANSFORMED)
+    exec_method= IN_TO_EXISTS;
   transformed= 1;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
@@ -1659,6 +1670,7 @@ Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   transformed= 1;
+  exec_method= IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
   return select_in_like_transformer(join, func);
@@ -2396,8 +2408,10 @@ int subselect_indexsubquery_engine::exec()
 
 uint subselect_single_select_engine::cols()
 {
-  DBUG_ASSERT(select_lex->join != 0); // should be called after fix_fields()
-  return select_lex->join->fields_list.elements;
+  //psergey-sj-backport: the following assert was gone in 6.0:
+  //DBUG_ASSERT(select_lex->join != 0); // should be called after fix_fields()
+  //return select_lex->join->fields_list.elements;
+  return select_lex->item_list.elements;
 }
 
 

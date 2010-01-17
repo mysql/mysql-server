@@ -1060,6 +1060,11 @@ public:
 };
 
 
+class SJ_MATERIALIZATION_INFO;
+class Index_hint;
+class Item_in_subselect;
+
+
 /*
   Table reference in the FROM clause.
 
@@ -1122,6 +1127,20 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+
+  Item          *sj_on_expr;
+  /*
+    (Valid only for semi-join nests) Bitmap of tables that are within the
+    semi-join (this is different from bitmap of all nest's children because
+    tables that were pulled out of the semi-join nest remain listed as
+    nest's children).
+  */
+  table_map     sj_inner_tables;
+  /* Number of IN-compared expressions */
+  uint          sj_in_exprs; 
+  Item_in_subselect  *sj_subq_pred;
+  SJ_MATERIALIZATION_INFO *sj_mat_info;
+
   /*
     The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
@@ -1658,6 +1677,14 @@ typedef struct st_nested_join
   */
   uint              n_tables;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /*
+    (Valid only for semi-join nests) Bitmap of tables outside the semi-join
+    that are used within the semi-join's ON condition.
+  */
+  table_map         sj_depends_on;
+  /* Outer non-trivially correlated tables */
+  table_map         sj_corr_tables;
+  List<Item>        sj_outer_expr_list;
 } NESTED_JOIN;
 
 

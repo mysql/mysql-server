@@ -28,6 +28,10 @@
 #include "procedure.h"
 #include <myisam.h>
 
+/* Values in optimize */
+#define KEY_OPTIMIZE_EXISTS		1
+#define KEY_OPTIMIZE_REF_OR_NULL	2
+
 typedef struct keyuse_t {
   TABLE *table;
   Item	*val;				/**< or value if no field */
@@ -51,6 +55,11 @@ typedef struct keyuse_t {
     NULL  - Otherwise (the source equality can't be turned off)
   */
   bool *cond_guard;
+  /*
+     0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
+     MAX_UINT  Otherwise
+  */
+  uint         sj_pred_no;
 } KEYUSE;
 
 class store_key;
@@ -122,8 +131,11 @@ typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
 typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
+int rr_sequential(READ_RECORD *info);
+
 
 class JOIN_CACHE;
+class SJ_TMP_TABLE;
 
 typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
@@ -212,12 +224,54 @@ typedef struct st_join_table {
   Item          *cache_idx_cond;
   SQL_SELECT    *cache_select;
   JOIN		*join;
-  /** Bitmap of nested joins this table is part of */
-  nested_join_map embedding_map;
+  /*
+    Embedding SJ-nest (may be not the direct parent), or NULL if none.
+    This variable holds the result of table pullout.
+  */
+  TABLE_LIST    *emb_sj_nest;
 
   /* FirstMatch variables (final QEP) */
   struct st_join_table *first_sj_inner_tab;
   struct st_join_table *last_sj_inner_tab;
+
+  /* Variables for semi-join duplicate elimination */
+  SJ_TMP_TABLE  *flush_weedout_table;
+  SJ_TMP_TABLE  *check_weed_out_table;
+  
+  /*
+    If set, means we should stop join enumeration after we've got the first
+    match and return to the specified join tab. May point to
+    join->join_tab[-1] which means stop join execution after the first
+    match.
+  */
+  struct st_join_table  *do_firstmatch;
+ 
+  /* 
+     ptr  - We're doing a LooseScan, this join tab is the first (i.e. 
+            "driving") join tab), and ptr points to the last join tab
+            handled by the strategy. loosescan_match_tab->found_match
+            should be checked to see if the current value group had a match.
+     NULL - Not doing a loose scan on this join tab.
+  */
+  struct st_join_table *loosescan_match_tab;
+
+  /* Buffer to save index tuple to be able to skip duplicates */
+  uchar *loosescan_buf;
+  
+  /* Length of key tuple (depends on #keyparts used) to store in the above */
+  uint loosescan_key_len;
+
+  /* Used by LooseScan. TRUE<=> there has been a matching record combination */
+  bool found_match;
+  
+  /*
+    Used by DuplicateElimination. tab->table->ref must have the rowid
+    whenever we have a current record.
+  */
+  int  keep_current_rowid;
+
+  /* NestedOuterJoins: Bitmap of nested joins this table is part of */
+  nested_join_map embedding_map;
 
   void cleanup();
   inline bool is_using_loose_index_scan()
@@ -1141,6 +1195,8 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
+enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
+                                      bool end_of_records);
 
 /**
   Information about a position of table within a join order. Used in join
@@ -1171,6 +1227,89 @@ typedef struct st_position
 
   /* If ref-based access is used: bitmap of tables this table depends on  */
   table_map ref_depend_map;
+
+  bool use_join_buffer; 
+  
+  
+  /* These form a stack of partial join order costs and output sizes */
+  COST_VECT prefix_cost;
+  double    prefix_record_count;
+
+  /*
+    Current optimization state: Semi-join strategy to be used for this
+    and preceding join tables.
+    
+    Join optimizer sets this for the *last* join_tab in the
+    duplicate-generating range. That is, in order to interpret this field, 
+    one needs to traverse join->[best_]positions array from right to left.
+    When you see a join table with sj_strategy!= SJ_OPT_NONE, some other
+    field (depending on the strategy) tells how many preceding positions 
+    this applies to. The values of covered_preceding_positions->sj_strategy
+    must be ignored.
+  */
+  uint sj_strategy;
+  /*
+    Valid only after fix_semijoin_strategies_for_picked_join_order() call:
+    if sj_strategy!=SJ_OPT_NONE, this is the number of subsequent tables that
+    are covered by the specified semi-join strategy
+  */
+  uint n_sj_tables;
+
+/* LooseScan strategy members */
+
+  /* The first (i.e. driving) table we're doing loose scan for */
+  uint        first_loosescan_table;
+  /* 
+     Tables that need to be in the prefix before we can calculate the cost
+     of using LooseScan strategy.
+  */
+  table_map   loosescan_need_tables;
+
+  /*
+    keyno  -  Planning to do LooseScan on this key. If keyuse is NULL then 
+              this is a full index scan, otherwise this is a ref+loosescan
+              scan (and keyno matches the KEUSE's)
+    MAX_KEY - Not doing a LooseScan
+  */
+  uint loosescan_key;  // final (one for strategy instance )
+  uint loosescan_parts; /* Number of keyparts to be kept distinct */
+  
+/* FirstMatch strategy */
+  /*
+    Index of the first inner table that we intend to handle with this
+    strategy
+  */
+  uint first_firstmatch_table;
+  /*
+    Tables that were not in the join prefix when we've started considering 
+    FirstMatch strategy.
+  */
+  table_map first_firstmatch_rtbl;
+  /* 
+    Tables that need to be in the prefix before we can calculate the cost
+    of using FirstMatch strategy.
+   */
+  table_map firstmatch_need_tables;
+
+
+/* Duplicate Weedout strategy */
+  /* The first table that the strategy will need to handle */
+  uint  first_dupsweedout_table;
+  /*
+    Tables that we will need to have in the prefix to do the weedout step
+    (all inner and all outer that the involved semi-joins are correlated with)
+  */
+  table_map dupsweedout_tables;
+
+/* SJ-Materialization-Scan strategy */
+  /* The last inner table (valid once we're after it) */
+  uint      sjm_scan_last_inner;
+  /*
+    Tables that we need to have in the prefix to calculate the correct cost.
+    Basically, we need all inner tables and outer tables mentioned in the
+    semi-join's ON expression so we can correctly account for fanout.
+  */
+  table_map sjm_scan_need_tables;
 } POSITION;
 
 
@@ -1183,6 +1322,87 @@ typedef struct st_rollup
   List<Item> *fields;
 } ROLLUP;
 
+/*
+  Temporary table used by semi-join DuplicateElimination strategy
+
+  This consists of the temptable itself and data needed to put records
+  into it. The table's DDL is as follows:
+
+    CREATE TABLE tmptable (col VARCHAR(n) BINARY, PRIMARY KEY(col));
+
+  where the primary key can be replaced with unique constraint if n exceeds
+  the limit (as it is always done for query execution-time temptables).
+
+  The record value is a concatenation of rowids of tables from the join we're
+  executing. If a join table is on the inner side of the outer join, we
+  assume that its rowid can be NULL and provide means to store this rowid in
+  the tuple.
+*/
+
+class SJ_TMP_TABLE : public Sql_alloc
+{
+public:
+  /*
+    Array of pointers to tables whose rowids compose the temporary table
+    record.
+  */
+  class TAB
+  {
+  public:
+    JOIN_TAB *join_tab;
+    uint rowid_offset;
+    ushort null_byte;
+    uchar null_bit;
+  };
+  TAB *tabs;
+  TAB *tabs_end;
+  
+  /* 
+    is_confluent==TRUE means this is a special case where the temptable record
+    has zero length (and presence of a unique key means that the temptable can
+    have either 0 or 1 records). 
+    In this case we don't create the physical temptable but instead record
+    its state in SJ_TMP_TABLE::have_confluent_record.
+  */
+  bool is_confluent;
+
+  /* 
+    When is_confluent==TRUE: the contents of the table (whether it has the
+    record or not).
+  */
+  bool have_confluent_row;
+  
+  /* table record parameters */
+  uint null_bits;
+  uint null_bytes;
+  uint rowid_len;
+
+  /* The temporary table itself (NULL means not created yet) */
+  TABLE *tmp_table;
+  
+  /*
+    These are the members we got from temptable creation code. We'll need
+    them if we'll need to convert table from HEAP to MyISAM/Maria.
+  */
+  ENGINE_COLUMNDEF *start_recinfo;
+  ENGINE_COLUMNDEF *recinfo;
+
+  /* Pointer to next table (next->start_idx > this->end_idx) */
+  SJ_TMP_TABLE *next; 
+};
+
+#define SJ_OPT_NONE 0
+#define SJ_OPT_DUPS_WEEDOUT 1
+#define SJ_OPT_LOOSE_SCAN   2
+#define SJ_OPT_FIRST_MATCH  3
+#define SJ_OPT_MATERIALIZE  4
+#define SJ_OPT_MATERIALIZE_SCAN  5
+
+inline bool sj_is_materialize_strategy(uint strategy)
+{
+  return strategy >= SJ_OPT_MATERIALIZE;
+}
+
 
 class JOIN :public Sql_alloc
 {
@@ -1192,8 +1412,17 @@ public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
-  TABLE    **table,**all_tables,*sort_by_table;
-  uint	   tables,const_tables;
+  TABLE    **table;
+  TABLE    **all_tables;
+  /**
+    The table which has an index that allows to produce the requried ordering.
+    A special value of 0x1 means that the ordering will be produced by
+    passing 1st non-const table to filesort(). NULL means no such table exists.
+  */
+  TABLE    *sort_by_table;
+  uint	   tables;        /**< Number of tables in the join */
+  uint     outer_tables;  /**< Number of tables that are not inside semijoin */
+  uint     const_tables;
   uint	   send_group_parts;
   bool     sort_and_group,first_record,full_join, no_field_update;
   bool	   group;          /**< If query contains GROUP BY clause */
@@ -1227,14 +1456,47 @@ public:
       - on each fetch iteration we add num_rows to fetch to fetch_limit
   */
   ha_rows  fetch_limit;
-  POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
+  /* Finally picked QEP. This is result of join optimization */
+  POSITION best_positions[MAX_TABLES+1];
+
+/******* Join optimization state members start *******/
+  /*
+    pointer - we're doing optimization for a semi-join materialization nest.
+    NULL    - otherwise
+  */
+  TABLE_LIST *emb_sjm_nest;
   
-  /* *
+  /* Current join optimization state */
+  POSITION positions[MAX_TABLES+1];
+  
+  /*
     Bitmap of nested joins embedding the position at the end of the current 
     partial join (valid only during join optimizer run).
   */
   nested_join_map cur_embedding_map;
+  
+  /*
+    Bitmap of inner tables of semi-join nests that have a proper subset of
+    their tables in the current join prefix. That is, of those semi-join
+    nests that have their tables both in and outside of the join prefix.
+  */
+  table_map cur_sj_inner_tables;
+  
+  /*
+    Bitmap of semi-join inner tables that are in the join prefix and for
+    which there's no provision for how to eliminate semi-join duplicates
+    they produce.
+  */
+  table_map cur_dups_producing_tables;
 
+  /* We also maintain a stack of join optimization states in * join->positions[] */
+/******* Join optimization state members end *******/
+  Next_select_func first_select;
+  /*
+    The cost of best complete join plan found so far during optimization,
+    after optimization phase - cost of picked join order (not taking into
+    account the changes made by test_if_skip_sort_order()).
+  */
   double   best_read;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
@@ -1322,6 +1584,12 @@ public:
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
+  Array<Item_in_subselect> sj_subselects;
+
+  /* Temporary tables used to weed-out semi-join duplicates */
+  List<TABLE> sj_tmp_tables;
+  List<SJ_MATERIALIZATION_INFO> sjm_info_list;
+
   /* 
     storage for caching buffers allocated during query execution. 
     These buffers allocations need to be cached as the thread memory pool is
@@ -1339,7 +1607,7 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    :fields_list(fields_arg)
+    :fields_list(fields_arg), sj_subselects(thd_arg->mem_root, 4)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
@@ -1401,6 +1669,7 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
+    first_select= sub_select;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
@@ -1413,6 +1682,8 @@ public:
   int destroy();
   void restore_tmp();
   bool alloc_func_list();
+  bool flatten_subqueries();
+  bool setup_subquery_materialization();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
@@ -1498,8 +1769,10 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item **func_ptr);
-bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
-			     int error, bool ignore_last_dupp_error);
+bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
+                                         ENGINE_COLUMNDEF *start_recinfo,
+                                         ENGINE_COLUMNDEF **recinfo, 
+                                         int error, bool ignore_last_dupp_key_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,

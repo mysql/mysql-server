@@ -65,7 +65,10 @@ bool select_union::send_data(List<Item> &values)
   {
     /* create_internal_tmp_table_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_internal_tmp_table_from_heap(thd, table, &tmp_table_param, error, 1))
+        create_internal_tmp_table_from_heap(thd, table,
+                                            tmp_table_param.start_recinfo, 
+                                            &tmp_table_param.recinfo, error,
+                                            1))
       return 1;
   }
   return 0;

@@ -1549,61 +1549,73 @@ longlong Item_in_optimizer::val_int()
   
   if (cache->null_value)
   {
+    /*
+      We're evaluating 
+      "<outer_value_list> [NOT] IN (SELECT <inner_value_list>...)" 
+      where one or more of the outer values is NULL. 
+    */
     if (((Item_in_subselect*)args[1])->is_top_level_item())
     {
       /*
-        We're evaluating "NULL IN (SELECT ...)". The result can be NULL or
-        FALSE, and we can return one instead of another. Just return NULL.
+        We're evaluating a top level item, e.g. 
+	"<outer_value_list> IN (SELECT <inner_value_list>...)",
+	and in this case a NULL value in the outer_value_list means
+        that the result shall be NULL/FALSE (makes no difference for
+        top level items). The cached value is NULL, so just return
+        NULL.
       */
       null_value= 1;
     }
     else
     {
-      if (!((Item_in_subselect*)args[1])->is_correlated &&
-          result_for_null_param != UNKNOWN)
+      /*
+	We're evaluating an item where a NULL value in either the
+        outer or inner value list does not automatically mean that we
+        can return NULL/FALSE. An example of such a query is
+        "<outer_value_list> NOT IN (SELECT <inner_value_list>...)" 
+        The result when there is at least one NULL value is: NULL if the
+        SELECT evaluated over the non-NULL values produces at least
+        one row, FALSE otherwise
+      */
+      Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
+      bool all_left_cols_null= true;
+      const uint ncols= cache->cols();
+
+      /*
+        Turn off the predicates that are based on column compares for
+        which the left part is currently NULL
+      */
+      for (uint i= 0; i < ncols; i++)
       {
-        /* Use cached value from previous execution */
-        null_value= result_for_null_param;
+        if (cache->element_index(i)->null_value)
+          item_subs->set_cond_guard_var(i, FALSE);
+        else 
+          all_left_cols_null= false;
       }
-      else
+
+      if (!((Item_in_subselect*)args[1])->is_correlated && 
+          all_left_cols_null && result_for_null_param != UNKNOWN)
       {
-        /*
-          We're evaluating "NULL IN (SELECT ...)". The result is:
-             FALSE if SELECT produces an empty set, or
-             NULL  otherwise.
-          We disable the predicates we've pushed down into subselect, run the
-          subselect and see if it has produced any rows.
+        /* 
+           This is a non-correlated subquery, all values in the outer
+           value list are NULL, and we have already evaluated the
+           subquery for all NULL values: Return the same result we
+           did last time without evaluating the subquery.
         */
-        Item_in_subselect *item_subs=(Item_in_subselect*)args[1]; 
-        if (cache->cols() == 1)
-        {
-          item_subs->set_cond_guard_var(0, FALSE);
-          (void) args[1]->val_bool_result();
-          result_for_null_param= null_value= !item_subs->engine->no_rows();
-          item_subs->set_cond_guard_var(0, TRUE);
-        }
-        else
-        {
-          uint i;
-          uint ncols= cache->cols();
-          /*
-            Turn off the predicates that are based on column compares for
-            which the left part is currently NULL
-          */
-          for (i= 0; i < ncols; i++)
-          {
-            if (cache->element_index(i)->null_value)
-              item_subs->set_cond_guard_var(i, FALSE);
-          }
-          
-          (void) args[1]->val_bool_result();
-          result_for_null_param= null_value= !item_subs->engine->no_rows();
-          
-          /* Turn all predicates back on */
-          for (i= 0; i < ncols; i++)
-            item_subs->set_cond_guard_var(i, TRUE);
-        }
+        null_value= result_for_null_param;
+      } 
+      else 
+      {
+        /* The subquery has to be evaluated */
+        (void) args[1]->val_bool_result();
+        null_value= !item_subs->engine->no_rows();
+        if (all_left_cols_null)
+          result_for_null_param= null_value;
       }
+
+      /* Turn all predicates back on */
+      for (uint i= 0; i < ncols; i++)
+        item_subs->set_cond_guard_var(i, TRUE);
     }
     return 0;
   }
@@ -3873,11 +3885,15 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 #ifndef EMBEDDED_LIBRARY
   uchar buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
+
+  if (functype() != COND_AND_FUNC)
+    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -3936,10 +3952,44 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
 }
+
+
+void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
+
+  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
+  not_null_tables_cache= 0;
+
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    item->fix_after_pullout(new_parent, li.ref());
+    item= *li.ref();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
+  }
+}
+
 
 bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {

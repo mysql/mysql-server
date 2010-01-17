@@ -1431,6 +1431,14 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  /* Place to store various things */
+  union 
+  { 
+    /*
+      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
+    */
+    TABLE_LIST *emb_on_expr_nest;
+  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2787,6 +2795,67 @@ public:
     :select_subselect(item_arg){}
   bool send_data(List<Item> &items);
 };
+
+
+
+
+/*
+  Optimizer and executor structure for the materialized semi-join info. This
+  structure contains
+   - The sj-materialization temporary table
+   - Members needed to make index lookup or a full scan of the temptable.
+*/
+class SJ_MATERIALIZATION_INFO : public Sql_alloc
+{
+public:
+  /* Optimal join sub-order */
+  struct st_position *positions;
+
+  uint tables; /* Number of tables in the sj-nest */
+
+  /* Expected #rows in the materialized table */
+  double rows;
+
+  /* 
+    Cost to materialize - execute the sub-join and write rows into temp.table
+  */
+  COST_VECT materialization_cost;
+
+  /* Cost to make one lookup in the temptable */
+  COST_VECT lookup_cost;
+  
+  /* Cost of scanning the materialized table */
+  COST_VECT scan_cost;
+
+  /* --- Execution structures ---------- */
+  
+  /*
+    TRUE <=> This structure is used for execution. We don't necessarily pick
+    sj-materialization, so some of SJ_MATERIALIZATION_INFO structures are not
+    used by materialization
+  */
+  bool is_used;
+  
+  bool materialized; /* TRUE <=> materialization already performed */
+  /*
+    TRUE  - the temptable is read with full scan
+    FALSE - we use the temptable for index lookups
+  */
+  bool is_sj_scan; 
+  
+  /* The temptable and its related info */
+  TMP_TABLE_PARAM sjm_table_param;
+  List<Item> sjm_table_cols;
+  TABLE *table;
+
+  /* Structure used to make index lookups */
+  struct st_table_ref *tab_ref;
+  Item *in_equality; /* See create_subq_in_equalities() */
+
+  Item *join_cond; /* See comments in make_join_select() */
+  Copy_field *copy_field; /* Needed for SJ_Materialization scan */
+};
+
 
 /* Structs used when sorting */
 

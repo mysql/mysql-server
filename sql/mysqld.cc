@@ -301,6 +301,7 @@ static const char *optimizer_switch_names[]=
   "index_merge","index_merge_union","index_merge_sort_union",
   "index_merge_intersection",
   "index_condition_pushdown",
+  "firstmatch","loosescan","materialization", "semijoin", 
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -315,6 +316,10 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
   sizeof("index_condition_pushdown") - 1,
+  sizeof("firstmatch") - 1,
+  sizeof("loosescan") - 1,
+  sizeof("materialization") - 1,
+  sizeof("semijoin") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif

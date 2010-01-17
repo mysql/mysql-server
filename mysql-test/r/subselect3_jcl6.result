@@ -1,3 +1,7 @@
+set join_cache_level=6;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
@@ -154,7 +158,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where; Using join buffer
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
@@ -182,7 +186,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref	a	a	4	func	2	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where; Using join buffer
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`))))) AS `Z` from `test`.`t3`
@@ -337,8 +341,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-ff	2
 aa	1
+ff	2
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -421,8 +425,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-ff	2
 aa	1
+ff	2
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -515,8 +519,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-ff	2	2
 aa	1	1
+ff	2	2
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
@@ -560,8 +564,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-ff	2	2
 aa	1	1
+ff	2	2
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
@@ -607,8 +611,8 @@ aa	1	1
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-cc	5
 aa	1
+cc	5
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 ee	NULL
@@ -724,7 +728,7 @@ WHERE t3.name='xxx' AND t2.id=t3.id);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where; Using index; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition; Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition(BKA); Using where; Full scan on NULL key; Using join buffer
 SELECT * FROM t1
 WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
 WHERE t3.name='xxx' AND t2.id=t3.id);
@@ -1019,6 +1023,7 @@ select t21.* from t21,t22 where t21.a = t22.a and
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
 256	67	NULL
+256	67	NULL
 drop table t1, t11, t12, t21, t22;
 create table t1(a int);
 insert into t1 values (0),(1);
@@ -1098,7 +1103,7 @@ set @@optimizer_switch=default;
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(<derived2>)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(<derived2>); Using join buffer
 2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	
 drop table t0, t1;
 create table t0 (a int);
@@ -1135,7 +1140,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 flush status;
 select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 count(*)
-5000
+4999
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
@@ -1151,7 +1156,7 @@ insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	Using join buffer
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -1199,7 +1204,7 @@ explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
@@ -1228,13 +1233,13 @@ explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t4.x	10	Using where
+1	PRIMARY	t3	ref	a	a	5	test.t4.x	10	Using where; Using join buffer
 drop table t0,t1,t2,t3,t4;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1275,7 +1280,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0); Using join buffer
 select * from t0 where a in (select a from t1);
 a
 10.24
@@ -1288,7 +1293,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; FirstMatch(t0); Using join buffer
 select * from t0 where a in (select a from t1);
 a
 2008-01-01
@@ -1375,7 +1380,7 @@ WHERE cona.postalStripped='T2H3B2'
 	);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start materialize; Scan
-1	PRIMARY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	End materialize
+1	PRIMARY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	End materialize; Using join buffer
 1	PRIMARY	a	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
 Warnings:
 Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
@@ -1405,3 +1410,7 @@ CALL p1;
 ERROR 42S22: Unknown column 'f1' in 'where clause'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
+set join_cache_level=default;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	1
