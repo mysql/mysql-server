@@ -2786,8 +2786,10 @@ void
 pars_lexer_close(void)
 /*==================*/
 {
-	yylex_destroy();
-	free(stringbuf);
+        if (yy_buffer_stack)
+          yylex_destroy();
+        if (stringbuf)
+	  free(stringbuf);
 	stringbuf = NULL;
 	stringbuf_len_alloc = stringbuf_len = 0;
 }
