@@ -3645,7 +3645,7 @@ FROM t1 GROUP BY t1.a LIMIT 1)
 2
 2
 DROP TABLE t1,t2;
-CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
 PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
 create table t3 (a int);
@@ -4381,7 +4381,229 @@ WHERE a = 230;
 MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 NULL	0
 DROP TABLE t1, st1, st2;
+#
+# Bug #48709: Assertion failed in sql_select.cc:11782: 
+#   int join_read_key(JOIN_TAB*)
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, int_key int);
+INSERT INTO t1 VALUES (10,1), (14,1);
+CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
+INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
+# should have eq_ref for t1
+EXPLAIN
+SELECT * FROM t2 outr
+WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
+ORDER BY outr.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	outr	ALL	x	x	x	x	x	x
+x	x	t1	eq_ref	x	x	x	x	x	x
+x	x	t2	index	x	x	x	x	x	x
+# should not crash on debug binaries
+SELECT * FROM t2 outr
+WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
+ORDER BY outr.pk;
+pk	int_key
+3	3
+7	3
+DROP TABLE t1,t2;
 End of 5.0 tests.
+create table t_out (subcase char(3),
+a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+insert into t_out values ('A.1','2a', NULL, '2a');
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+
+Test general IN semantics (not top-level)
+
+case A.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+subcase	pred_in	pred_not_in
+A.1	0	1
+case A.2 - impossible
+case A.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+subcase	pred_in	pred_not_in
+A.3	NULL	NULL
+case A.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+subcase	pred_in	pred_not_in
+A.4	0	1
+case B.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+subcase	pred_in	pred_not_in
+B.1	0	1
+case B.2
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+subcase	pred_in	pred_not_in
+B.2	1	0
+case B.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+subcase	pred_in	pred_not_in
+B.3	NULL	NULL
+case B.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+subcase	pred_in	pred_not_in
+B.4	0	1
+
+Test IN as top-level predicate, and
+as non-top level for cases A.3, B.3 (the only cases with NULL result).
+
+case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+drop table t_out;
+drop table t_in;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
@@ -4496,6 +4718,42 @@ DELETE FROM v3;
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
 #
+# BUG#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
+#
+create table t1(id integer primary key, g integer, v integer, s char(1));
+create table t2(id integer primary key, g integer, v integer, s char(1));
+insert into t1 values
+(10, 10, 10,   'l'),
+(20, 20, 20,   'l'),
+(40, 40, 40,   'l'),
+(41, 40, null, 'l'),
+(50, 50, 50,   'l'),
+(51, 50, null, 'l'),
+(60, 60, 60,   'l'),
+(61, 60, null, 'l'),
+(70, 70, 70,   'l'),
+(90, 90, null, 'l');
+insert into t2 values
+(10, 10, 10,   'r'),
+(30, 30, 30,   'r'),
+(50, 50, 50,   'r'),
+(60, 60, 60,   'r'),
+(61, 60, null, 'r'),
+(70, 70, 70,   'r'),
+(71, 70, null, 'r'),
+(80, 80, 80,   'r'),
+(81, 80, null, 'r'),
+(100,100,null, 'r');
+select *
+from t1
+where v in(select v
+from t2
+where t1.g=t2.g) is unknown;
+id	g	v	s
+51	50	NULL	l
+61	60	NULL	l
+drop table t1, t2;
+#
 # Bug#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
 #
 create table t1(id integer primary key, g integer, v integer, s char(1));
@@ -4531,4 +4789,18 @@ id	g	v	s
 51	50	NULL	l
 61	60	NULL	l
 drop table t1, t2;
+CREATE TABLE t1 (a ENUM('rainbow'));
+INSERT INTO t1 VALUES (),(),(),(),();
+SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB);
+INSERT INTO t1 SET a = 'aaaa';
+INSERT INTO t1 SET a = 'aaaa';
+SELECT 1 FROM t1 GROUP BY
+(SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+1
+1
+DROP TABLE t1;
 End of 5.1 tests.

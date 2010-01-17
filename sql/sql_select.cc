@@ -4663,6 +4663,7 @@ typedef struct key_field_t {
   */
   bool          null_rejecting; 
   bool         *cond_guard; /* See KEYUSE::cond_guard */
+  uint          sj_pred_no; /* See KEYUSE::sj_pred_no */
 } KEY_FIELD;
 
 /**
@@ -4825,6 +4826,52 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     old++;
   }
   return first_free;
+}
+
+
+/*
+  Given a field, return its index in semi-join's select list, or UINT_MAX
+
+  DESCRIPTION
+    Given a field, we find its table; then see if the table is within a
+    semi-join nest and if the field was in select list of the subselect.
+    If it was, we return field's index in the select list. The value is used
+    by LooseScan strategy.
+*/
+
+static uint get_semi_join_select_list_index(Field *field)
+{
+  uint res= UINT_MAX;
+  TABLE_LIST *emb_sj_nest;
+  if ((emb_sj_nest= field->table->pos_in_table_list->embedding) &&
+      emb_sj_nest->sj_on_expr)
+  {
+    Item_in_subselect *subq_pred= emb_sj_nest->sj_subq_pred;
+    st_select_lex *subq_lex= subq_pred->unit->first_select();
+    if (subq_pred->left_expr->cols() == 1)
+    {
+      Item *sel_item= subq_lex->ref_pointer_array[0];
+      if (sel_item->type() == Item::FIELD_ITEM &&
+          ((Item_field*)sel_item)->field->eq(field))
+      {
+        res= 0;
+      }
+    }
+    else
+    {
+      for (uint i= 0; i < subq_pred->left_expr->cols(); i++)
+      {
+        Item *sel_item= subq_lex->ref_pointer_array[i];
+        if (sel_item->type() == Item::FIELD_ITEM &&
+            ((Item_field*)sel_item)->field->eq(field))
+        {
+          res= i;
+          break;
+        }
+      }
+    }
+  }
+  return res;
 }
 
 
@@ -4998,6 +5045,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
       (*key_fields)->null_rejecting= false;
   }
   (*key_fields)->cond_guard= NULL;
+
+  (*key_fields)->sj_pred_no= get_semi_join_select_list_index(field);
   (*key_fields)++;
 }
 
@@ -5334,6 +5383,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
+          keyuse.sj_pred_no= key_field->sj_pred_no;
 	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
             return TRUE;
 	}
@@ -5406,6 +5456,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.used_tables=cond_func->key_item()->used_tables();
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
+  keyuse.sj_pred_no= UINT_MAX;
   return insert_dynamic(keyuse_array,(uchar*) &keyuse);
 }
 

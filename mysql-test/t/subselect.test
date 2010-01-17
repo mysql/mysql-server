@@ -3655,8 +3655,6 @@ SELECT * FROM t2 WHERE b NOT IN (SELECT max(t.c) FROM t1, t1 t WHERE t.c>10);
 
 DROP TABLE t1,t2;
 
---echo End of 5.0 tests.
-
 #
 # Bug#38191 Server crash with subquery containing DISTINCT and ORDER BY
 #
@@ -3939,6 +3937,44 @@ DROP TABLE t1,t2,t3;
 # --error ER_PARSE_ERROR
 # SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
 # DROP TABLE t1, t2;
+#
+# Bug#37460 Assertion failed:
+# !table->file || table->file->inited == handler::NONE
+#
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int, c int);
+
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+
+CREATE VIEW v1 AS
+SELECT t2.c AS c FROM t1, t2
+WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+UPDATE v1 SET c=1;
+
+CREATE VIEW v2 (a,b) AS
+SELECT t2.id, t2.c AS c FROM t1, t2
+WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+
+--error ER_VIEW_CHECK_FAILED
+INSERT INTO v2(a,b) VALUES (2,2);
+
+# disabled for now as this refers to old content of t2
+--disable_parsing
+INSERT INTO v2(a,b) VALUES (1,2);
+--enable_parsing
+SELECT * FROM v1;
+
+CREATE VIEW v3 AS
+SELECT t2.c AS c FROM t2
+WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
+
+DELETE FROM v3;
+
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2;
 
 --echo #
 --echo # BUG#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
