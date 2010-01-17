@@ -85,6 +85,7 @@ TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+XTRADB_ADMIN_COMMAND
 XTRADB_ENHANCEMENTS
 columns_priv
 db
@@ -865,8 +866,8 @@ TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
-INNODB_INDEX_STATS	table_name	select
 INNODB_TABLE_STATS	table_name	select
+INNODB_INDEX_STATS	table_name	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;

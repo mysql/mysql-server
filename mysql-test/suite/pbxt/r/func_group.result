@@ -885,7 +885,7 @@ cast(sum(distinct df) as signed)
 3
 select cast(min(df) as signed) from t1;
 cast(min(df) as signed)
-0
+1
 select 1e8 * sum(distinct df) from t1;
 1e8 * sum(distinct df)
 330000000

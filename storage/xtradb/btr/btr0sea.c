@@ -175,6 +175,21 @@ btr_search_sys_create(
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
 }
 
+/*****************************************************************//**
+Frees the adaptive search system at a database shutdown. */
+UNIV_INTERN
+void
+btr_search_sys_free(void)
+/*=====================*/
+{
+	mem_free(btr_search_latch_temp);
+	btr_search_latch_temp = NULL;
+	mem_heap_free(btr_search_sys->hash_index->heap);
+	hash_table_free(btr_search_sys->hash_index);
+	mem_free(btr_search_sys);
+	btr_search_sys = NULL;
+}
+
 /********************************************************************//**
 Disable the adaptive hash search system and empty the index. */
 UNIV_INTERN
@@ -957,7 +972,7 @@ btr_search_guess_on_hash(
 	/* Increment the page get statistics though we did not really
 	fix the page: for user info only */
 
-	buf_pool->n_page_gets++;
+	buf_pool->stat.n_page_gets++;
 
 	return(TRUE);
 

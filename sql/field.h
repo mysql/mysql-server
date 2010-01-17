@@ -807,6 +807,7 @@ public:
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
+  static Field *create_from_item (Item *);
 };
 
 

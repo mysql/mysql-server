@@ -224,15 +224,6 @@ fil_space_create(
 				0 for uncompressed tablespaces */
 	ulint		purpose);/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 /*******************************************************************//**
-Frees a space object from a the tablespace memory cache. Closes the files in
-the chain but does not delete them.
-@return	TRUE if success */
-UNIV_INTERN
-ibool
-fil_space_free(
-/*===========*/
-	ulint	id);	/*!< in: space id */
-/*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return	space size, 0 if space not found */
@@ -277,6 +268,12 @@ fil_init(
 /*=====*/
 	ulint	hash_size,	/*!< in: hash table size */
 	ulint	max_n_open);	/*!< in: max number of open files */
+/*******************************************************************//**
+Initializes the tablespace memory cache. */
+UNIV_INTERN
+void
+fil_close(void);
+/*===========*/
 /*******************************************************************//**
 Opens all log files and system tablespace data files. They stay open until the
 database server shutdown. This should be called at a server startup after the
@@ -614,9 +611,12 @@ fil_space_get_n_reserved_extents(
 Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
+#define fil_io(type, sync, space_id, zip_size, block_offset, byte_offset, len, buf, message) \
+	_fil_io(type, sync, space_id, zip_size, block_offset, byte_offset, len, buf, message, NULL)
+
 UNIV_INTERN
 ulint
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -641,8 +641,25 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message);	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	trx_t*	trx);
+/********************************************************************//**
+Confirm whether the parameters are valid or not */
+UNIV_INTERN
+ibool
+fil_area_is_exist(
+/*==============*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	block_offset,	/*!< in: offset in number of blocks */
+	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
+				aio this must be divisible by the OS block
+				size */
+	ulint	len);		/*!< in: how many bytes to read or write; this
+				must not cross a file boundary; in aio this
+				must be a block size multiple */
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
