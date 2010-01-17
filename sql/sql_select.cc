@@ -14587,7 +14587,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (!using_unique_constraint ?
                                       uniq_tuple_length_arg : 0),
-                        &bitmaps, bitmap_buffer_size(1)*3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -16087,6 +16086,45 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     rc= NESTED_LOOP_OK;
   DBUG_RETURN(rc);
 }
+
+
+/*
+  SemiJoinDuplicateElimination: Weed out duplicate row combinations
+
+  SYNPOSIS
+    do_sj_dups_weedout()
+      thd    Thread handle
+      sjtbl  Duplicate weedout table
+
+  DESCRIPTION
+    Try storing current record combination of outer tables (i.e. their
+    rowids) in the temporary table. This records the fact that we've seen 
+    this record combination and also tells us if we've seen it before.
+
+  RETURN
+    -1  Error
+    1   The row combination is a duplicate (discard it)
+    0   The row combination is not a duplicate (continue)
+*/
+
+int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) 
+{
+  int error;
+  SJ_TMP_TABLE::TAB *tab= sjtbl->tabs;
+  SJ_TMP_TABLE::TAB *tab_end= sjtbl->tabs_end;
+
+  DBUG_ENTER("do_sj_dups_weedout");
+
+  if (sjtbl->is_confluent)
+  {
+    if (sjtbl->have_confluent_row) 
+      DBUG_RETURN(1);
+    else
+    {
+      sjtbl->have_confluent_row= TRUE;
+      DBUG_RETURN(0);
+    }
+  }
 
 
 /*
