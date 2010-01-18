@@ -324,12 +324,19 @@ int runRandScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
   int tupscan = ctx->getProperty("TupScan", (Uint32)0);
+  int lmarg = ctx->getProperty("LockMode", ~Uint32(0));
+  int nocount = ctx->getProperty("NoCount", Uint32(0));
+
+  if (nocount)
+    records = 0;
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
+    if (lmarg != ~0)
+      lm = (NdbOperation::LockMode)lmarg;
     int scan_flags = 0;
   
     if (tupscan == 1)
@@ -1784,6 +1791,17 @@ TESTCASE("InsertDelete",
   INITIALIZER(runClearTable);
   STEP(runScanReadUntilStoppedNoCount);
   STEP(runScanUpdateUntilStopped);
+  STEP(runInsertDelete);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug48700", 
+	 "Load and delete all while scan updating and scan reading\n"\
+	 "Alexander Lukas special"){
+  TC_PROPERTY("AbortProb", Uint32(0));
+  TC_PROPERTY("NoCount", 1);
+  TC_PROPERTY("LockMode", NdbOperation::LM_CommittedRead);
+  INITIALIZER(runClearTable);
+  STEPS(runRandScanRead, 10);
   STEP(runInsertDelete);
   FINALIZER(runClearTable);
 }
