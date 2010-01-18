@@ -487,6 +487,10 @@ args: -n InsertDelete T1 T6 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n Bug48700 T1
+
+max-time: 500
+cmd: testScan
 args: -n CheckAfterTerror T1 D1 D2 
 
 max-time: 1200
