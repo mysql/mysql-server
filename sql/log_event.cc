@@ -5629,7 +5629,7 @@ bool User_var_log_event::write(IO_CACHE* file)
 	  my_b_safe_write(file, (uchar*) name, name_len)     ||
 	  my_b_safe_write(file, (uchar*) buf1, buf1_length) ||
 	  my_b_safe_write(file, pos, val_len) ||
-          my_b_safe_write(file, (uchar*) &flags, unsigned_len));
+          my_b_safe_write(file, &flags, unsigned_len));
 }
 #endif
 
