@@ -92,10 +92,14 @@ ELSE()
  SET(TEST_EMBEDDED echo "Can not test embedded, not compiled in")
 ENDIF()
 
-ADD_CUSTOM_TARGET(test-bt
+SET(TEST_BT_START
   COMMAND ${SETCONFIG_COMMAND}
   COMMAND ${SETOS_COMMAND}
   COMMAND ${SET_ENV} MTR_BUILD_THREAD=auto
+)
+
+ADD_CUSTOM_TARGET(test-bt
+  ${TEST_BT_START}
   COMMAND ${MTR_FORCE} --comment=normal --timer  --skip-ndbcluster --report-features ${EXP}
   COMMAND ${MTR_FORCE} --comment=ps --timer	 --skip-ndbcluster --ps-protocol ${EXP}
   COMMAND ${MTR_FORCE} --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1 ${EXP}
@@ -105,6 +109,17 @@ ADD_CUSTOM_TARGET(test-bt
   COMMAND ${MTR_FORCE} --force --comment=jp --suite=jp ${EXP}
   COMMAND ${TEST_NIST}
   COMMAND ${TEST_EMBEDDED}
+)
+
+ADD_CUSTOM_TARGET(test-bt-fast
+  ${TEST_BT_START}
+  COMMAND ${MTR_FORCE}  --comment=ps  --timer  --skip-ndbcluster --ps-protocol --report-features ${EXP}
+  COMMAND ${MTR_FORCE} --comment=stress --suite=stress ${EXP}
+)
+
+ADD_CUSTOM_TARGET(test-bt-debug
+  ${TEST_BT_START}
+  COMMAND ${MTR_FORCE} --comment=debug --timer  --skip-ndbcluster --skip-rpl --report-features ${EXP}
 )
 
 
