@@ -146,6 +146,7 @@ private:
   void parse_error(Signal*, FilePtr, Uint32 line, Uint32 extra);
   int check_file_version(Signal*, Uint32 file_version);
   void restore_lcp_conf(Signal* signal, FilePtr);
+  void crash_during_restore(FilePtr, Uint32 line, Uint32 errCode);
 public:
   
 private:
