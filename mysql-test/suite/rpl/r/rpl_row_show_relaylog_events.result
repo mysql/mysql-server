@@ -74,11 +74,12 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 [MASTER] ********* SOW BINLOG EVENTS ... LIMIT offset,rows  *********
-show binlog events from <binlog_start> limit 1,  3;
+show binlog events from <binlog_start> limit 1,  4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 [SLAVE] ********* SOW BINLOG EVENTS IN ...   *********
 show binlog events in 'slave-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -142,11 +143,12 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 [SLAVE] ********* SOW BINLOG EVENTS ... LIMIT offset,rows  *********
-show binlog events from <binlog_start> limit 1,  3;
+show binlog events from <binlog_start> limit 1,  4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
 [SLAVE] ********* SOW RELAYLOG EVENTS IN ... *********
 show relaylog events in 'slave-relay-bin.000003' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

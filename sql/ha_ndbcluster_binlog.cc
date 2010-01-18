@@ -306,6 +306,7 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->transaction.all= save_thd_transaction_all;
   thd->transaction.stmt= save_thd_transaction_stmt;
   thd->net= save_thd_net;
+  thd->set_current_stmt_binlog_format_row();
 
   if (thd == injector_thd)
   {
@@ -1874,7 +1875,7 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   thd->db= schema->db;
   int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                    schema->query_length, FALSE,
+                    schema->query_length, FALSE, TRUE,
                     schema->name[0] == 0 || thd->db[0] == 0,
                     errcode);
   thd->server_id= thd_server_id_save;
@@ -3655,6 +3656,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
+  thd->set_current_stmt_binlog_format_row();
 
   /* We need to set thd->thread_id before thd->store_globals, or it will
      set an invalid value for thd->variables.pseudo_thread_id.
