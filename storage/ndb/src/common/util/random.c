@@ -264,11 +264,11 @@ void printSequence(RandomSequence *seq, unsigned int numPerRow)
       ndbout_c("%d ", seq->values[i]);
 
       if((i+1) % numPerRow == 0)
-         ndbout_c("");
+        ndbout_c("%s", "");
    }
 
    if(i % numPerRow != 0)
-      ndbout_c("");
+     ndbout_c("%s", "");
 }
 
 void myRandom48Init(long int seedval)

@@ -3964,11 +3964,11 @@ NdbDictInterface::createIndex(Ndb & ndb,
     *impl.m_columns[i] = *col;
 
     // index key type check
-    if (it == DictTabInfo::UniqueHashIndex &&
-        (err = NdbSqlUtil::check_column_for_hash_index(col->m_type, col->m_cs))
+    if ((it == DictTabInfo::UniqueHashIndex &&
+         (err = NdbSqlUtil::check_column_for_hash_index(col->m_type, col->m_cs)))
         ||
-        it == DictTabInfo::OrderedIndex &&
-        (err = NdbSqlUtil::check_column_for_ordered_index(col->m_type, col->m_cs)))
+        (it == DictTabInfo::OrderedIndex &&
+         (err = NdbSqlUtil::check_column_for_ordered_index(col->m_type, col->m_cs))))
     {
       m_error.code = err;
       return -1;

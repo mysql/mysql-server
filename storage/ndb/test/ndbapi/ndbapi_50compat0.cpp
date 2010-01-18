@@ -266,11 +266,13 @@ static void do_read(Ndb &myNdb)
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
     if(myTransaction->execute( NdbTransaction::Commit ) == -1)
+    {
       if (i == 3) {
 	ndbout << "Detected that deleted tuple doesn't exist!" << endl;
       } else {
 	APIERROR(myTransaction->getNdbError());
-      }
+      } 
+    }
     
     if (i != 3) {
       printf(" %2d    %2d\n", i, myRecAttr->u_32_value());
