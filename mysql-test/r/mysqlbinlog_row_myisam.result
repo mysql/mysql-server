@@ -2584,7 +2584,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3110,7 +3110,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3365,7 +3365,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3745,7 +3745,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */

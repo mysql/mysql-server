@@ -354,6 +354,8 @@ X	Q	5	7	R	49	X	Y	2	S	1
 X	Q	5	7	R	49	X	Z	2	S	2
 X	Q	5	9	R	81	X	Y	2	S	1
 X	Q	5	9	R	81	X	Z	2	S	2
+SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY';
 CREATE TABLE t4 (C1 CHAR(1) PRIMARY KEY, B1 BIT(1), B2 BIT(1) NOT NULL DEFAULT 0, C2 CHAR(1) NOT NULL DEFAULT 'A') ENGINE = 'INNODB'  ;
 INSERT INTO t4 SET C1 = 1;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
@@ -362,6 +364,7 @@ C1	HEX(B1)	HEX(B2)
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 C1	HEX(B1)	HEX(B2)
 1	NULL	0
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = 'INNODB'  ;
 --- on slave: original values ---
 INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
@@ -476,6 +479,8 @@ ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 CREATE TABLE t7 (i INT NOT NULL,
 c CHAR(255) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'INNODB'  ;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 [expecting slave to replicate correctly]
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
@@ -484,11 +489,7 @@ Comparing tables master:test.t1 and slave:test.t1
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
 Comparing tables master:test.t2 and slave:test.t2
-[expecting slave to stop]
-INSERT INTO t3 VALUES (1, "", 1);
-INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
-Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -501,7 +502,7 @@ Comparing tables master:test.t4 and slave:test.t4
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
+Column 1 of table 'test.t5' cannot be converted from type 'char(255)' to type 'char(16)'
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -510,7 +511,7 @@ START SLAVE;
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 Last_SQL_Error
-Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
+Column 1 of table 'test.t6' cannot be converted from type 'char(255)' to type 'char(128)'
 RESET MASTER;
 STOP SLAVE;
 RESET SLAVE;
@@ -597,6 +598,8 @@ UPDATE t1 SET a = 0 WHERE a < 4;
 UPDATE t1 SET a = 8 WHERE a < 5;
 Comparing tables master:test.t1 and slave:test.t1
 drop table t1;
+SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY';
 CREATE TABLE t1 (a bit) ENGINE='INNODB' ;
 INSERT IGNORE INTO t1 VALUES (NULL);
 INSERT INTO t1 ( a ) VALUES ( 0 );
@@ -637,5 +640,6 @@ DELETE FROM t1 WHERE a < 3 LIMIT 0;
 UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
 INSERT INTO t1 ( a ) VALUES ( 1 );
 UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 Comparing tables master:test.t1 and slave:test.t1
 drop table t1;

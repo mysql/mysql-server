@@ -9,3 +9,4 @@
 -- source include/have_innodb.inc
 let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_insert_id.test
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
