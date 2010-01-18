@@ -91,6 +91,9 @@ typedef int64_t toku_off_t;
 #       pragma poison   pthread_condattr_t   pthread_cond_t
 #       pragma poison   pthread_rwlockattr_t pthread_rwlock_t
 #       pragma poison   timespec
+#    ifndef DONT_DEPRECATE_WRITES
+#       pragma poison   write                pwrite
+#    endif
 #    ifndef DONT_DEPRECATE_MALLOC
 #       pragma deprecated (malloc, free, realloc)
 #    endif
@@ -114,6 +117,10 @@ int      _dup2(int fd, int fd2)                     __attribute__((__deprecated_
 char*    strdup(const char *)           __attribute__((__deprecated__));
 #undef __strdup
 char*    __strdup(const char *)         __attribute__((__deprecated__));
+#    ifndef DONT_DEPRECATE_WRITES
+ssize_t  write(int, const void *, size_t)           __attribute__((__deprecated__));
+ssize_t  pwrite(int, const void *, size_t, off_t)   __attribute__((__deprecated__));
+#endif
 #    ifndef DONT_DEPRECATE_MALLOC
 void *malloc(size_t)                    __attribute__((__deprecated__));
 void free(void*)                        __attribute__((__deprecated__));
@@ -126,8 +133,8 @@ void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
 // full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
-void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off);
-void toku_os_full_write (int fd, const void *buf, size_t len);
+void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
+void toku_os_full_write (int fd, const void *buf, size_t len) __attribute__((__visibility__("default")));
 
 // wrapper around fsync
 int toku_file_fsync(int fd);

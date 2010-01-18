@@ -27,8 +27,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
 	memset(buf, 0, sizeof(buf));
 	u_int64_t i;
 	for (i=0; i<(1LL<<32); i+=BUFSIZE) {
-	    int r = write(fd, buf, BUFSIZE);
-	    assert(r==BUFSIZE);
+	    toku_os_full_write(fd, buf, BUFSIZE);
 	}
     }
     int64_t file_size;

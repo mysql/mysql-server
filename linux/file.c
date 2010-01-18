@@ -8,36 +8,35 @@
 
 //Print any necessary errors
 //Return whether we should try the write again.
-static int
+static void
 try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     int try_again = 0;
 
-    if (r_write==-1) {
-        int errno_write = errno;
-        assert(errno_write != 0);
-        switch (errno_write) {
-            case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
-                char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-                snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
-                perror(err_msg);
-                fflush(stderr);
-                try_again = 1;
-                break;
-            }
-            case ENOSPC: {
-                char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-                snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
-                perror(err_msg);
-                fflush(stderr);
-                int out_of_disk_space = 1;
-                assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
-            }
-            default:
-                break;
+    assert(r_write < 0);
+    int errno_write = errno;
+    assert(errno_write != 0);
+    switch (errno_write) {
+        case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
+            char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+            snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
+            perror(err_msg);
+            fflush(stderr);
+            try_again = 1;
+            break;
         }
-        errno = errno_write;
+        case ENOSPC: {
+            char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+            snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
+            perror(err_msg);
+            fflush(stderr);
+            int out_of_disk_space = 1;
+            assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
+        }
+        default:
+            break;
     }
-    return try_again;
+    assert(try_again);
+    errno = errno_write;
 }
 
 static ssize_t (*t_pwrite)(int, const void *, size_t, off_t) = 0;
@@ -50,16 +49,23 @@ toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
 
 void
 toku_os_full_pwrite (int fd, const void *buf, size_t len, off_t off) {
-    ssize_t r;
-again:
-    if (t_pwrite) {
-	r = t_pwrite(fd, buf, len, off);
-    } else {
-	r = pwrite(fd, buf, len, off);
+    while (len > 0) {
+        ssize_t r;
+        if (t_pwrite) {
+            r = t_pwrite(fd, buf, len, off);
+        } else {
+            r = pwrite(fd, buf, len, off);
+        }
+        if (r > 0) {
+            len           -= r;
+            buf           += r;
+            off           += r;
+        }
+        else {
+            try_again_after_handling_write_error(fd, len, r);
+        }
     }
-    if (try_again_after_handling_write_error(fd, len, r))
-        goto again;
-    assert(r==(ssize_t)len);
+    assert(len == 0);
 }
 
 static ssize_t (*t_write)(int, const void *, size_t) = 0;
@@ -72,16 +78,22 @@ toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
 
 void
 toku_os_full_write (int fd, const void *buf, size_t len) {
-    ssize_t r;
-again:
-    if (t_write) {
-	r = t_write(fd, buf, len);
-    } else {
-	r = write(fd, buf, len);
+    while (len > 0) {
+        ssize_t r;
+        if (t_write) {
+            r = t_write(fd, buf, len);
+        } else {
+            r = write(fd, buf, len);
+        }
+        if (r > 0) {
+            len           -= r;
+            buf           += r;
+        }
+        else {
+            try_again_after_handling_write_error(fd, len, r);
+        }
     }
-    if (try_again_after_handling_write_error(fd, len, r))
-        goto again;
-    assert(r==(ssize_t)len);
+    assert(len == 0);
 }
 
 static uint64_t get_tnow(void) {

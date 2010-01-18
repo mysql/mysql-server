@@ -18,8 +18,7 @@ static void f_flush (CACHEFILE f,
 		     BOOL for_checkpoint     __attribute__((__unused__))) {
     assert(size==BLOCKSIZE);
     if (write_me) {
-	int r = pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key.b);
-	assert(r==BLOCKSIZE);
+	toku_os_full_pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key.b);
     }
     if (!keep_me) {
 	toku_free(value);
