@@ -45,7 +45,6 @@ SELECT @start_value;
 SET @@big_tables = 1;
 SET @@big_tables = DEFAULT;
 SELECT @@big_tables;
---echo 'Bug# 34829: No default value for variable and setting default does not raise error';
 
 
 --echo '#--------------------FN_DYNVARS_005_02------------------------#'
@@ -96,11 +95,9 @@ SET @@big_tables = '';
 #            Test if accessing global big_tables gives error              #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
-SET @@global.big_tables = 0;
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.big_tables = 1-@@global.big_tables;
 SELECT @@global.big_tables;
-
+SET @@global.big_tables = 1-@@global.big_tables;
 
 --echo '#----------------------FN_DYNVARS_005_05------------------------#'
 ############################################################################## 
@@ -110,7 +107,6 @@ SELECT @@global.big_tables;
 SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='big_tables';
---echo Bug # 34839: Values in variable and information_schema do not match for autocommit
 
 
 --echo '#---------------------FN_DYNVARS_005_06----------------------#'

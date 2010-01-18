@@ -508,6 +508,8 @@ AAA
 drop table t1;
 create table t1 (a int);
 set GLOBAL query_cache_size=1000;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_size value: '1000'
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -1342,9 +1344,9 @@ set global query_cache_size=0;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 set GLOBAL query_cache_type=1;
-set GLOBAL query_cache_limit=10000;
+set GLOBAL query_cache_limit=10240;
 set GLOBAL query_cache_min_res_unit=0;
-set GLOBAL query_cache_size= 100000;
+set GLOBAL query_cache_size= 102400;
 reset query cache;
 set LOCAL default_week_format = 0;
 select week('2007-01-04');
@@ -1434,7 +1436,7 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size= default;
-set GLOBAL query_cache_size=1000000;
+set GLOBAL query_cache_size=1024000;
 create table t1 (a char);
 insert into t1 values ('c');
 a
@@ -1562,7 +1564,7 @@ SET GLOBAL query_cache_size= default;
 #
 # Bug#25132 disabled query cache: Qcache_free_blocks = 1
 #
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 set global query_cache_size=0;
 set global query_cache_type=0;
 show status like 'Qcache_free_blocks';
@@ -1581,7 +1583,7 @@ CREATE TABLE t1 (c1 INT NOT NULL) ENGINE=MyISAM;
 INSERT INTO t1 (c1) VALUES (1), (2);
 SHOW GLOBAL VARIABLES LIKE 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	0
+concurrent_insert	NEVER
 SHOW STATUS LIKE 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	0

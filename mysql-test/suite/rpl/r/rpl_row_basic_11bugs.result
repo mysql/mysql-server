@@ -11,6 +11,7 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test
 test_ignore
 USE test;
@@ -38,6 +39,7 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test
 USE test;
 SHOW TABLES;

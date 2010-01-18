@@ -120,7 +120,7 @@ SET @@collation_server = latin7_general_ci + latin7_general_cs;
 #     Change the value of collation_server to a valid value for session      #
 ##############################################################################
 
-let collation_variable = @@session.collation_server;
+let $collation_variable = @@session.collation_server;
 --source suite/sys_vars/inc/collation_basic.inc
 
 
@@ -129,7 +129,7 @@ let collation_variable = @@session.collation_server;
 #     Change the value of collation_server to a valid value for global      #
 #############################################################################
 
-let collation_variable = @@global.collation_server;
+let $collation_variable = @@global.collation_server;
 --source suite/sys_vars/inc/collation_basic.inc
 
 

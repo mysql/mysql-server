@@ -121,7 +121,7 @@ SET @@collation_connection = latin7_general_ci + latin7_general_cs;
 #     Change the value of collation_connection to a valid value for session   #
 ###############################################################################
 
-let collation_variable = @@session.collation_connection;
+let $collation_variable = @@session.collation_connection;
 --source suite/sys_vars/inc/collation_basic.inc
 
 
@@ -130,7 +130,7 @@ let collation_variable = @@session.collation_connection;
 #     Change the value of collation_connection to a valid value for global    #
 ###############################################################################
 
-let collation_variable = @@global.collation_connection;
+let $collation_variable = @@global.collation_connection;
 --source suite/sys_vars/inc/collation_basic.inc
 
 

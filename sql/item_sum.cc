@@ -578,7 +578,14 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
   if (aggr)
   {
+    /* 
+      Dependent subselects may be executed multiple times, making
+      set_aggregator to be called multiple times. The aggregator type
+      will be the same, but it needs to be reset so that it is
+      reevaluated with the new dependent data.
+    */
     DBUG_ASSERT(aggregator == aggr->Aggrtype());
+    aggr->clear();
     return FALSE;
   }
   switch (aggregator)
@@ -778,8 +785,8 @@ bool Aggregator_distinct::setup(THD *thd)
     }    
     if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
                                   0,
-                                  (select_lex->options | thd->options),
-                                  HA_POS_ERROR, (char*)"")))
+                                  (select_lex->options | thd->variables.option_bits),
+                                  HA_POS_ERROR, "")))
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
@@ -3324,7 +3331,7 @@ bool Item_func_group_concat::setup(THD *thd)
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 (ORDER*) 0, 0, TRUE,
-                                (select_lex->options | thd->options),
+                                (select_lex->options | thd->variables.option_bits),
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);

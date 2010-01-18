@@ -45,25 +45,11 @@ SELECT @start_session_value;
 #     Display the DEFAULT value of join_buffer_size            #
 ################################################################
 
-SET @@global.join_buffer_size = 8200;
 SET @@global.join_buffer_size = DEFAULT;
 SELECT @@global.join_buffer_size;
 
-SET @@session.join_buffer_size = 8200;
 SET @@session.join_buffer_size = DEFAULT;
 SELECT @@session.join_buffer_size;
-
-
---echo '#--------------------FN_DYNVARS_053_02-------------------------#'
-###################################################################
-#     Check the DEFAULT value of join_buffer_size              #
-###################################################################
-
-SET @@global.join_buffer_size = DEFAULT;
-SELECT @@global.join_buffer_size = 131072;
-
-SET @@session.join_buffer_size = DEFAULT;
-SELECT @@session.join_buffer_size = 131072;
 
 
 --echo '#--------------------FN_DYNVARS_053_03-------------------------#'
@@ -72,13 +58,11 @@ SELECT @@session.join_buffer_size = 131072;
 ##########################################################################
 
 SET @@global.join_buffer_size = 8200;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
+SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = 65536;
 SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = 4294967295;
 SELECT @@global.join_buffer_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 
 --echo '#--------------------FN_DYNVARS_053_04-------------------------#'
 ###########################################################################
@@ -86,13 +70,11 @@ echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable
 ###########################################################################
  
 SET @@session.join_buffer_size = 8200;
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
+SELECT @@session.join_buffer_size;
 SET @@session.join_buffer_size = 65536;
 SELECT @@session.join_buffer_size;
 SET @@session.join_buffer_size = 4294967295;
 SELECT @@session.join_buffer_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 
 --echo '#------------------FN_DYNVARS_053_05-----------------------#'
 ############################################################
@@ -100,39 +82,37 @@ echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable
 ############################################################
 
 SET @@global.join_buffer_size = 0;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
+SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = -1024;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-SET @@global.join_buffer_size = 8199;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
+SELECT @@global.join_buffer_size;
+SET @@global.join_buffer_size = 127;
+SELECT @@global.join_buffer_size;
 SET @@global.join_buffer_size = 42949672951;
 SELECT @@global.join_buffer_size;
 
---Error ER_PARSE_ERROR
-SET @@global.join_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.join_buffer_size = 65530.34;
 SELECT @@global.join_buffer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.join_buffer_size = test;
 SELECT @@global.join_buffer_size;
 
 SET @@session.join_buffer_size = 0;
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-SET @@session.join_buffer_size = -2;
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-SET @@session.join_buffer_size = 8199;
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
+SELECT @@session.join_buffer_size;
+SET @@session.join_buffer_size = -1024;
+SELECT @@session.join_buffer_size;
+SET @@session.join_buffer_size = 127;
+SELECT @@session.join_buffer_size;
 SET @@session.join_buffer_size = 42949672951;
 SELECT @@session.join_buffer_size;
 
---Error ER_PARSE_ERROR
-SET @@session.join_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.join_buffer_size = 65530.34;
 SELECT @@session.join_buffer_size;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.join_buffer_size = test;
 SELECT @@session.join_buffer_size;
-
 
 --echo '#------------------FN_DYNVARS_053_06-----------------------#'
 ####################################################################
@@ -160,11 +140,7 @@ WHERE VARIABLE_NAME='join_buffer_size';
 ####################################################################
 
 SET @@global.join_buffer_size = TRUE;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
 SET @@global.join_buffer_size = FALSE;
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
---echo 'Bug: Errors are not coming on assigning TRUE/FALSE to variable';
-
 
 --echo '#---------------------FN_DYNVARS_001_09----------------------#'
 #################################################################################
@@ -173,7 +149,6 @@ SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
 
 SET @@global.join_buffer_size = 10;
 SELECT @@join_buffer_size = @@global.join_buffer_size;
-
 
 --echo '#---------------------FN_DYNVARS_001_10----------------------#'
 ########################################################################################################
@@ -184,21 +159,19 @@ SET @@join_buffer_size = 100;
 SELECT @@join_buffer_size = @@local.join_buffer_size;
 SELECT @@local.join_buffer_size = @@session.join_buffer_size;
 
-
 --echo '#---------------------FN_DYNVARS_001_11----------------------#'
 ##############################################################################
 #   Check if join_buffer_size can be accessed with and without @@ sign    #
 ##############################################################################
 
 SET join_buffer_size = 1;
-SELECT @@join_buffer_size=8200 OR @@join_buffer_size= 8228;
+SELECT @@join_buffer_size;
 --Error ER_UNKNOWN_TABLE
 SELECT local.join_buffer_size;
 --Error ER_UNKNOWN_TABLE
 SELECT session.join_buffer_size;
 --Error ER_BAD_FIELD_ERROR
 SELECT join_buffer_size = @@session.join_buffer_size;
-
 
 ####################################
 #     Restore initial value        #

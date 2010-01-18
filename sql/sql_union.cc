@@ -121,7 +121,7 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
-                                 options, HA_POS_ERROR, (char*) alias)))
+                                 options, HA_POS_ERROR, alias)))
     return TRUE;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -232,7 +232,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     bool can_skip_order_by;
     sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
-			 sl->options | thd_arg->options | additional_options,
+			 sl->options | thd_arg->variables.option_bits | additional_options,
 			 tmp_result);
     /*
       setup_tables_done_option should be set only for very first SELECT,
@@ -335,7 +335,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
-    create_options= (first_sl->options | thd_arg->options |
+    create_options= (first_sl->options | thd_arg->variables.option_bits |
                      TMP_TABLE_ALL_COLUMNS);
     /*
       Force the temporary table to be a MyISAM table if we're going to use
@@ -376,7 +376,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	init_prepare_fake_select_lex(thd);
         /* Should be done only once (the only item_list per statement) */
         DBUG_ASSERT(fake_select_lex->join == 0);
-	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
+	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->variables.option_bits,
 					      result)))
 	{
 	  fake_select_lex->table_list.empty();

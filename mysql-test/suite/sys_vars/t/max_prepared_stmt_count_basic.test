@@ -97,8 +97,6 @@ SELECT @@global.max_prepared_stmt_count;
 SET @@global.max_prepared_stmt_count = 104857612;
 SELECT @@global.max_prepared_stmt_count;
 
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_prepared_stmt_count = ON;
 SELECT @@global.max_prepared_stmt_count;

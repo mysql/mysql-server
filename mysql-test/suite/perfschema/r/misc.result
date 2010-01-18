@@ -1,0 +1,13 @@
+SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE THREAD_ID IN
+(SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+AND EVENT_NAME IN
+(SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
+WHERE NAME LIKE "wait/synch/%")
+LIMIT 1;
+create table test.t1(a int) engine=performance_schema;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+ERROR HY000: Invalid performance_schema usage.
+create table performance_schema.t1(a int);
+ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'

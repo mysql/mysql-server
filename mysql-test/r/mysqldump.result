@@ -55,7 +55,7 @@ CREATE TABLE `t1` (
   `a` double DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `t1` VALUES (RES);
+INSERT INTO `t1` VALUES (-1.7976931348623157e308);
 DROP TABLE t1;
 #
 # Bug#3361 mysqldump quotes DECIMAL values inconsistently

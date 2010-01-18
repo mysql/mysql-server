@@ -154,8 +154,7 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
-/* per the platform's documentation */
-#define pthread_yield() Sleep(0)
+#define pthread_yield() SwitchToThread()
 
 #else /* Normal threads */
 

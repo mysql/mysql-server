@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@
 
 static HASH servers_cache;
 static MEM_ROOT mem;
-static rw_lock_t THR_LOCK_servers;
+static mysql_rwlock_t THR_LOCK_servers;
 
 static bool get_server_from_table_to_cache(TABLE *table);
 
@@ -89,6 +89,26 @@ static uchar *servers_cache_get_key(FOREIGN_SERVER *server, size_t *length,
   DBUG_RETURN((uchar*) server->server_name);
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_rwlock_key key_rwlock_THR_LOCK_servers;
+
+static PSI_rwlock_info all_servers_cache_rwlocks[]=
+{
+  { &key_rwlock_THR_LOCK_servers, "THR_LOCK_servers", PSI_FLAG_GLOBAL}
+};
+
+static void init_servers_cache_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_servers_cache_rwlocks);
+  PSI_server->register_rwlock(category, all_servers_cache_rwlocks, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 /*
   Initialize structures responsible for servers used in federated
@@ -115,8 +135,12 @@ bool servers_init(bool dont_read_servers_table)
   bool return_val= FALSE;
   DBUG_ENTER("servers_init");
 
+#ifdef HAVE_PSI_INTERFACE
+  init_servers_cache_psi_keys();
+#endif
+
   /* init the mutex */
-  if (my_rwlock_init(&THR_LOCK_servers, NULL))
+  if (mysql_rwlock_init(key_rwlock_THR_LOCK_servers, &THR_LOCK_servers))
     DBUG_RETURN(TRUE);
 
   /* initialise our servers cache */
@@ -231,7 +255,7 @@ bool servers_reload(THD *thd)
   }
 
   DBUG_PRINT("info", ("locking servers_cache"));
-  rw_wrlock(&THR_LOCK_servers);
+  mysql_rwlock_wrlock(&THR_LOCK_servers);
 
   bzero((char*) tables, sizeof(tables));
   tables[0].alias= tables[0].table_name= (char*) "servers";
@@ -256,7 +280,7 @@ bool servers_reload(THD *thd)
 end:
   close_thread_tables(thd);
   DBUG_PRINT("info", ("unlocking servers_cache"));
-  rw_unlock(&THR_LOCK_servers);
+  mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);
 }
 
@@ -586,7 +610,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   tables.db= (char*) "mysql";
   tables.alias= tables.table_name= (char*) "servers";
 
-  rw_wrlock(&THR_LOCK_servers);
+  mysql_rwlock_wrlock(&THR_LOCK_servers);
 
   /* hit the memory hit first */
   if ((error= delete_server_record_in_cache(server_options)))
@@ -610,7 +634,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   }
 
 end:
-  rw_unlock(&THR_LOCK_servers);
+  mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
 
@@ -962,7 +986,7 @@ int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   DBUG_PRINT("info", ("server_options->server_name %s",
                       server_options->server_name));
 
-  rw_wrlock(&THR_LOCK_servers);
+  mysql_rwlock_wrlock(&THR_LOCK_servers);
 
   /* hit the memory first */
   if (my_hash_search(&servers_cache, (uchar*) server_options->server_name,
@@ -983,7 +1007,7 @@ int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   DBUG_PRINT("info", ("error returned %d", error));
 
 end:
-  rw_unlock(&THR_LOCK_servers);
+  mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
 
@@ -1012,7 +1036,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   DBUG_PRINT("info", ("server_options->server_name %s",
                       server_options->server_name));
 
-  rw_wrlock(&THR_LOCK_servers);
+  mysql_rwlock_wrlock(&THR_LOCK_servers);
 
   if (!(existing= (FOREIGN_SERVER *) my_hash_search(&servers_cache,
                                                     (uchar*) name.str,
@@ -1037,7 +1061,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
 end:
   DBUG_PRINT("info", ("error returned %d", error));
-  rw_unlock(&THR_LOCK_servers);
+  mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(error);
 }
 
@@ -1203,7 +1227,7 @@ void servers_free(bool end)
 	my_hash_reset(&servers_cache);
     DBUG_VOID_RETURN;
   }
-  rwlock_destroy(&THR_LOCK_servers);
+  mysql_rwlock_destroy(&THR_LOCK_servers);
   free_root(&mem,MYF(0));
   my_hash_free(&servers_cache);
   DBUG_VOID_RETURN;
@@ -1285,7 +1309,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   }
 
   DBUG_PRINT("info", ("locking servers_cache"));
-  rw_rdlock(&THR_LOCK_servers);
+  mysql_rwlock_rdlock(&THR_LOCK_servers);
   if (!(server= (FOREIGN_SERVER *) my_hash_search(&servers_cache,
                                                   (uchar*) server_name,
                                                   server_name_length)))
@@ -1299,7 +1323,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
     server= clone_server(mem, server, buff);
 
   DBUG_PRINT("info", ("unlocking servers_cache"));
-  rw_unlock(&THR_LOCK_servers);
+  mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(server);
 
 }

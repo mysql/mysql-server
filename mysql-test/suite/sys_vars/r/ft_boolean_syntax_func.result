@@ -70,20 +70,20 @@ FROM articles WHERE MATCH (title,body)
 AGAINST ('+security configuring' IN BOOLEAN MODE);
 id	title	body	relevance
 8	MySQL Security	When configured properly, MySQL ...	1
-9	Database Security	Configuring MySQL for ...	1.33333337306976
+9	Database Security	Configuring MySQL for ...	1.3333333730697632
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('"faster than"' IN BOOLEAN MODE);
 id	title	body
 6	100 Tips for Myisam	1. Myisam is faster than innodb 2. Tricks and Tips for Myisam...
 SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('+run ~line' IN BOOLEAN MODE);
+AGAINST ('+tutorial ~line' IN BOOLEAN MODE);
 id	title	body
-'Bug#35359: ~ is not working correctly. Its behaving like -'
+1	MySQL Tutorial	DBMS stands for DataBase ...
+4	Optimizing MySQL	In this tutorial we will show .... Run command line ...
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('10*' IN BOOLEAN MODE);
 id	title	body
 5	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-'Bug#35360: * is not working correctly. Not all rows are returned'
 SELECT id,title,body, (MATCH (title,body) 
 AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)) AS relevance
 FROM articles WHERE MATCH (title,body) 
@@ -91,7 +91,7 @@ AGAINST ('+MySQL +(>show <dbms)' IN BOOLEAN MODE)
 ORDER BY relevance DESC;
 id	title	body	relevance
 4	Optimizing MySQL	In this tutorial we will show .... Run command line ...	1.25
-1	MySQL Tutorial	DBMS stands for DataBase ...	0.833333373069763
+1	MySQL Tutorial	DBMS stands for DataBase ...	0.8333333730697632
 '---try setting different operators. Default '+ -><()~*:""&|'--'
 SET @@global.ft_boolean_syntax='~ /!@#$%^&*()-';
 SELECT * FROM articles WHERE MATCH (title,body)
@@ -103,6 +103,5 @@ id	title	body
 5	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
 8	MySQL Security	When configured properly, MySQL ...
 9	Database Security	Configuring MySQL for ...
-'Bug#35361: Different syntax does not produce result as default operators'
 SET @@global.ft_boolean_syntax=DEFAULT;
 DROP TABLE articles;

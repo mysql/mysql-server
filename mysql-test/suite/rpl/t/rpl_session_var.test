@@ -2,6 +2,11 @@
 # FOREIGN_KEY_CHECKS is tested in rpl_insert_id.test
 
 source include/master-slave.inc;
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 drop table if exists t1;
 create table t1(a varchar(100),b int);
 set @@session.sql_mode=pipes_as_concat;

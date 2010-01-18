@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,7 +307,6 @@ const char **get_handler_errmsgs()
 int ha_init_errors(void)
 {
 #define SETMSG(nr, msg) handler_errmsgs[(nr) - HA_ERR_FIRST]= (msg)
-  const char    **errmsgs;
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
@@ -1683,7 +1682,7 @@ bool mysql_xa_recover(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
@@ -1696,13 +1695,13 @@ bool mysql_xa_recover(THD *thd)
                       &my_charset_bin);
       if (protocol->write())
       {
-        pthread_mutex_unlock(&LOCK_xid_cache);
+        mysql_mutex_unlock(&LOCK_xid_cache);
         DBUG_RETURN(1);
       }
     }
   }
 
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   my_eof(thd);
   DBUG_RETURN(0);
 }
@@ -2105,6 +2104,10 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
+PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
+{
+  return share->m_psi;
+}
 
 /** @brief
   Open database-handler.
@@ -2487,7 +2490,7 @@ int handler::update_auto_increment()
                                           variables->auto_increment_increment);
     auto_inc_intervals_count++;
     /* Row-based replication does not need to store intervals in binlog */
-    if (mysql_bin_log.is_open() && !thd->current_stmt_binlog_row_based)
+    if (mysql_bin_log.is_open() && !thd->is_current_stmt_binlog_format_row())
         thd->auto_inc_intervals_in_cur_stmt_for_binlog.append(auto_inc_interval_for_cur_row.minimum(),
                                                               auto_inc_interval_for_cur_row.values(),
                                                               variables->auto_increment_increment);
@@ -2994,7 +2997,8 @@ static bool update_frm_version(TABLE *table)
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
 
-  if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
     char *key= table->s->table_cache_key.str;
@@ -3004,7 +3008,7 @@ static bool update_frm_version(TABLE *table)
 
     int4store(version, MYSQL_VERSION_ID);
 
-    if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
+    if ((result= mysql_file_pwrite(file, (uchar*) version, 4, 51L, MYF_RW)))
       goto err;
 
     for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
@@ -3014,7 +3018,7 @@ static bool update_frm_version(TABLE *table)
   }
 err:
   if (file >= 0)
-    (void) my_close(file,MYF(MY_WME));
+    (void) mysql_file_close(file, MYF(MY_WME));
   DBUG_RETURN(result);
 }
 
@@ -3061,7 +3065,7 @@ int handler::delete_table(const char *name)
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
-    if (my_delete_with_symlink(buff, MYF(0)))
+    if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
       if (my_errno != ENOENT)
       {
@@ -3696,7 +3700,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
-  sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
 }
 
 
@@ -3719,12 +3722,12 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 
   if (!key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     uint tmp_block_size= (uint) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
@@ -3743,12 +3746,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
 				  tmp_buff_size,
 				  division_limit, age_threshold));
@@ -3764,21 +3767,12 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
-  return 0;
-}
-
-/**
-  Free memory allocated by a key cache.
-*/
-int ha_end_key_cache(KEY_CACHE *key_cache)
-{
-  end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
@@ -4487,9 +4481,9 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
               table->s->cached_row_logging_check == 1);
 
-  return (thd->current_stmt_binlog_row_based &&
+  return (thd->is_current_stmt_binlog_format_row() &&
           table->s->cached_row_logging_check &&
-          (thd->options & OPTION_BIN_LOG) &&
+          (thd->variables.option_bits & OPTION_BIN_LOG) &&
           mysql_bin_log.is_open());
 }
 
@@ -4549,7 +4543,21 @@ static int write_locked_table_maps(THD *thd)
         if (table->current_lock == F_WRLCK &&
             check_table_binlog_row_based(thd, table))
         {
-          int const has_trans= table->file->has_transactions();
+          /*
+            We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+            (e.g. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+            compatible behavior with the STMT based replication even when
+            the table is not transactional. In other words, if the operation
+            fails while executing the insert phase nothing is written to the
+            binlog.
+
+            Note that at this point, we check the type of a set of tables to
+            create the table map events. In the function binlog_log_row(),
+            which calls the current function, we check the type of the table
+            of the current row.
+          */
+          bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                                table->file->has_transactions();
           int const error= thd->binlog_write_table_map(table, has_trans);
           /*
             If an error occurs, it is the responsibility of the caller to
@@ -4598,10 +4606,20 @@ static int binlog_log_row(TABLE* table,
     {
       bitmap_set_all(&cols);
       if (likely(!(error= write_locked_table_maps(thd))))
-        error= (*log_func)(thd, table, table->file->has_transactions(),
-                           &cols, table->s->fields,
+      {
+        /*
+          We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+          (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+          compatible behavior with the STMT based replication even when
+          the table is not transactional. In other words, if the operation
+          fails while executing the insert phase nothing is written to the
+          binlog.
+        */
+        bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                             table->file->has_transactions();
+        error= (*log_func)(thd, table, has_trans, &cols, table->s->fields,
                            before_record, after_record);
-
+      }
       if (!use_bitbuf)
         bitmap_free(&cols);
     }
@@ -4805,7 +4823,8 @@ int example_of_iterator_using_for_logs_cleanup(handlerton *hton)
   {
     printf("%s\n", data.filename.str);
     if (data.status == HA_LOG_STATUS_FREE &&
-        my_delete(data.filename.str, MYF(MY_WME)))
+        mysql_file_delete(INSTRUMENT_ME,
+                          data.filename.str, MYF(MY_WME)))
       goto err;
   }
   res= 0;
@@ -4833,7 +4852,7 @@ err:
 enum log_status fl_get_log_status(char *log)
 {
   MY_STAT stat_buff;
-  if (my_stat(log, &stat_buff, MYF(0)))
+  if (mysql_file_stat(INSTRUMENT_ME, log, &stat_buff, MYF(0)))
     return HA_LOG_STATUS_INUSE;
   return HA_LOG_STATUS_NOSUCHLOG;
 }

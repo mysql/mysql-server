@@ -101,7 +101,7 @@ enum options_client
 /**
   First mysql version supporting the performance schema.
 */
-#define FIRST_PERFORMANCE_SCHEMA_VERSION 50600
+#define FIRST_PERFORMANCE_SCHEMA_VERSION 50599
 
 /**
   Name of the performance schema database.

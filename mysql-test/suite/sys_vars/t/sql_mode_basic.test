@@ -57,9 +57,6 @@ SET @@session.sql_mode = ANSI;
 SET @@session.sql_mode = DEFAULT;
 SELECT @@session.sql_mode;
 
---echo 'Bug# 34876: Default values for both session and global sql_mode is ""';
---echo 'and not OFF.';
-
 --echo '#---------------------FN_DYNVARS_152_02-------------------------#'
 ######################################################### 
 #      Check if NULL or empty value is accepeted        #
@@ -91,9 +88,6 @@ SELECT @@session.sql_mode;
 ######################################################################## 
 
 # sql modes ref: http://dev.mysql.com/doc/refman/5.1/en/server-sql-mode.html
-
---echo 'Bug: Incomplete sql modes valid values at:'; 
---echo 'http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html';
 
 # check valid values for global
 
@@ -164,7 +158,6 @@ SELECT @@global.sql_mode;
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_mode = OFF;
---echo 'Bug: OFF is documented as an sql mode but infact it is not';
 
 #check valid values for session
 SET @@session.sql_mode = ANSI;
@@ -235,14 +228,9 @@ SELECT @@session.sql_mode;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_mode = OFF;
 
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_mode = '?';
 SELECT @@global.sql_mode;
-
-SET @@session.sql_mode = '?';
-SELECT @@session.sql_mode;
-
---echo 'Bug# 34834: ? is acceptable as a valid sql mode.'
-
 
 --echo '#--------------------FN_DYNVARS_152_04-------------------------#'
 ########################################################################### 
@@ -327,30 +315,8 @@ SET @@global.sql_mode = 4294967296;
 
 # use of decimal values
 
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.sql_mode = 0.4;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 1.0;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 40000.1;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 1.5;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 124567.49;
-SELECT @@global.sql_mode;
-
-SET @@session.sql_mode = 50000000.5;
-SELECT @@session.sql_mode;
-
-SET @@session.sql_mode = 4294967295.4;
-SELECT @@session.sql_mode;
-
---echo 'Bug: Decimal values can be used within the range [0.0-4294967295.5).';
---echo 'Values are rounded to numeric values as evident from outcome.';
-
 
 --echo '#---------------------FN_DYNVARS_152_08----------------------#'
 ################################################################### 
@@ -394,8 +360,16 @@ SELECT @@global.sql_mode;
 
 #try combining invalid mode with correct mode
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,HIGH_OR_PRECEDENCE,
-IGNORE_SPACE';
+SET @@session.sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,FOOBAR,IGNORE_SPACE';
+
+#zero-length values are ok
+SET @@sql_mode=',';
+SELECT @@sql_mode;
+SET @@sql_mode=',,,,ANSI_QUOTES,,,';
+SELECT @@sql_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_mode=',,,,FOOBAR,,,,,';
+SELECT @@sql_mode;
 
 ##############################
 #   Restore initial value    #

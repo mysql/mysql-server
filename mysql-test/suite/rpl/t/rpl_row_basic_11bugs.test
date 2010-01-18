@@ -1,4 +1,5 @@
 --source include/have_binlog_format_row.inc
+--source include/have_innodb.inc
 
 let $SERVER_VERSION=`select version()`;
 
