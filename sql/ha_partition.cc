@@ -1215,17 +1215,28 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
                                         partition_element *p_elem)
 {
   int error;
-  bool create_flag= FALSE;
   DBUG_ENTER("prepare_new_partition");
 
   if ((error= set_up_table_before_create(tbl, part_name, create_info,
                                          0, p_elem)))
-    goto error;
+    goto error_create;
   if ((error= file->ha_create(part_name, tbl, create_info)))
-    goto error;
-  create_flag= TRUE;
+  {
+    /*
+      Added for safety, InnoDB reports HA_ERR_FOUND_DUPP_KEY
+      if the table/partition already exists.
+      If we return that error code, then print_error would try to
+      get_dup_key on a non-existing partition.
+      So return a more reasonable error code.
+    */
+    if (error == HA_ERR_FOUND_DUPP_KEY)
+      error= HA_ERR_TABLE_EXIST;
+    goto error_create;
+  }
+  DBUG_PRINT("info", ("partition %s created", part_name));
   if ((error= file->ha_open(tbl, part_name, m_mode, m_open_test_lock)))
-    goto error;
+    goto error_open;
+  DBUG_PRINT("info", ("partition %s opened", part_name));
   /*
     Note: if you plan to add another call that may return failure,
     better to do it before external_lock() as cleanup_new_partition()
@@ -1233,12 +1244,15 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
     Otherwise see description for cleanup_new_partition().
   */
   if ((error= file->ha_external_lock(ha_thd(), m_lock_type)))
-    goto error;
+    goto error_external_lock;
+  DBUG_PRINT("info", ("partition %s external locked", part_name));
 
   DBUG_RETURN(0);
-error:
-  if (create_flag)
-    VOID(file->ha_delete_table(part_name));
+error_external_lock:
+  VOID(file->close());
+error_open:
+  VOID(file->ha_delete_table(part_name));
+error_create:
   DBUG_RETURN(error);
 }
 
@@ -1272,19 +1286,23 @@ error:
 
 void ha_partition::cleanup_new_partition(uint part_count)
 {
-  handler **save_m_file= m_file;
   DBUG_ENTER("ha_partition::cleanup_new_partition");
 
-  if (m_added_file && m_added_file[0])
+  if (m_added_file)
   {
-    m_file= m_added_file;
+    THD *thd= ha_thd();
+    handler **file= m_added_file;
+    while ((part_count > 0) && (*file))
+    {
+      (*file)->ha_external_lock(thd, F_UNLCK);
+      (*file)->close();
+
+      /* Leave the (*file)->ha_delete_table(part_name) to the ddl-log */
+
+      file++;
+      part_count--;
+    }
     m_added_file= NULL;
-
-    external_lock(ha_thd(), F_UNLCK);
-    /* delete_table also needed, a bit more complex */
-    close();
-
-    m_file= save_m_file;
   }
   DBUG_VOID_RETURN;
 }
@@ -1590,7 +1608,15 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
     part_elem->part_state= PART_TO_BE_DROPPED;
   }
   m_new_file= new_file_array;
-  DBUG_RETURN(copy_partitions(copied, deleted));
+  if ((error= copy_partitions(copied, deleted)))
+  {
+    /*
+      Close and unlock the new temporary partitions.
+      They will later be deleted through the ddl-log.
+    */
+    cleanup_new_partition(part_count);
+  }
+  DBUG_RETURN(error);
 }
 
 
