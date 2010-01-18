@@ -963,9 +963,7 @@ master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES(1, 't1, text 1')
 master-bin.000001	#	Xid	1	#	#
-master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; TRUNCATE t1
-master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
 master-bin.000001	#	Xid	1	#	#
