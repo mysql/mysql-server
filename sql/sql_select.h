@@ -1197,6 +1197,7 @@ enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
 enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
                                       bool end_of_records);
+int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 
 /**
   Information about a position of table within a join order. Used in join

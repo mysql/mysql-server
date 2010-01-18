@@ -354,7 +354,6 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
                                                  &copy_ptr);
   
     /* SemiJoinDuplicateElimination: allocate space for rowid if needed */
-/* !!! NB igor: Enable the code in the comment after backporting the SJ code
     if (tab->keep_current_rowid)
     {
       copy->str= table->file->ref;
@@ -366,7 +365,6 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
       data_field_count++;
       copy++;
     }
-*/
   }
 }
 
@@ -1778,10 +1776,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   info= &join_tab->read_record;
   do
   {
-/* !!! NB igor: Enable the code in the comment after backporting the SJ code
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
-*/
 
     if (join->thd->killed)
     {
@@ -1913,10 +1909,9 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
   if (check_match(rec_ptr))
   {    
     int res= 0;
-/* !!! NB igor: Enable the code in the comment after backporting the SJ code
+
     if (!join_tab->check_weed_out_table || 
         !(res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table)))
-*/
     {
       set_curr_rec_link(rec_ptr);
       rc= (join_tab->next_select)(join, join_tab+1, 0);
@@ -2291,10 +2286,8 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
       rc= NESTED_LOOP_KILLED; 
       goto finish;
     }
-/* !!!NB igor: Enable the statement in the comment after backporting the SJ code
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
-*/
     /* 
       If only the first match is needed and it has been already found 
       for the associated partial join record then the returned candidate
