@@ -14,7 +14,7 @@ ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=XYZ;
 Warnings:
-Warning	1286	Unknown table engine 'XYZ'
+Warning	1286	Unknown storage engine 'XYZ'
 Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'

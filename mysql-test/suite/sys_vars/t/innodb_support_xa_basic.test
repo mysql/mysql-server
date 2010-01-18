@@ -105,9 +105,9 @@ SELECT @@global.innodb_support_xa;
 ###########################################################################
 
 # for session
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.innodb_support_xa = -0.6;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.innodb_support_xa = 1.6;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_support_xa = "T";
@@ -120,8 +120,6 @@ SET @@session.innodb_support_xa = ÕN;
 
 SET @@session.innodb_support_xa = OF;
 SELECT @@session.innodb_support_xa;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_support_xa = ÓFF;
@@ -145,8 +143,6 @@ SET @@global.innodb_support_xa = ÕN;
 
 SET @@global.innodb_support_xa = OF;
 SELECT @@global.innodb_support_xa;
-
---echo 'Bug# 34828 : OF is taken as OFF and a value of 0 is set.'
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_support_xa = ÓFF;

@@ -1,0 +1,33 @@
+select * from performance_schema.SETUP_TIMERS;
+NAME	TIMER_NAME
+wait	CYCLE
+select * from performance_schema.SETUP_TIMERS
+where name='Wait';
+NAME	TIMER_NAME
+wait	CYCLE
+select * from performance_schema.SETUP_TIMERS
+where timer_name='CYCLE';
+NAME	TIMER_NAME
+wait	CYCLE
+insert into performance_schema.SETUP_TIMERS
+set name='FOO', timer_name='CYCLE';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'SETUP_TIMERS'
+update performance_schema.SETUP_TIMERS
+set name='FOO';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.SETUP_TIMERS
+set timer_name='MILLISECOND';
+select * from performance_schema.SETUP_TIMERS;
+NAME	TIMER_NAME
+wait	MILLISECOND
+update performance_schema.SETUP_TIMERS
+set timer_name='CYCLE';
+delete from performance_schema.SETUP_TIMERS;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'SETUP_TIMERS'
+delete from performance_schema.SETUP_TIMERS
+where name='Wait';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'SETUP_TIMERS'
+LOCK TABLES performance_schema.SETUP_TIMERS READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.SETUP_TIMERS WRITE;
+UNLOCK TABLES;

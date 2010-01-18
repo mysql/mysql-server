@@ -22,6 +22,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_show.h"
+#include "keycaches.h"
 
 #ifdef __WIN__
 #include <io.h>
@@ -606,7 +607,7 @@ struct st_global_ddl_log
 
 st_global_ddl_log global_ddl_log;
 
-pthread_mutex_t LOCK_gdl;
+mysql_mutex_t LOCK_gdl;
 
 #define DDL_LOG_ENTRY_TYPE_POS 0
 #define DDL_LOG_ACTION_TYPE_POS 1
@@ -636,8 +637,8 @@ static bool read_ddl_log_file_entry(uint entry_no)
   uint io_size= global_ddl_log.io_size;
   DBUG_ENTER("read_ddl_log_file_entry");
 
-  if (my_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
-               MYF(MY_WME)) != io_size)
+  if (mysql_file_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
+                       MYF(MY_WME)) != io_size)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -660,8 +661,8 @@ static bool write_ddl_log_file_entry(uint entry_no)
   char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("write_ddl_log_file_entry");
 
-  if (my_pwrite(file_id, (uchar*)file_entry_buf,
-                IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
+  if (mysql_file_pwrite(file_id, (uchar*)file_entry_buf,
+                        IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -737,8 +738,9 @@ static uint read_ddl_log_header()
   DBUG_ENTER("read_ddl_log_header");
 
   create_ddl_log_file_name(file_name);
-  if ((global_ddl_log.file_id= my_open(file_name,
-                                        O_RDWR | O_BINARY, MYF(0))) >= 0)
+  if ((global_ddl_log.file_id= mysql_file_open(key_file_global_ddl_log,
+                                               file_name,
+                                               O_RDWR | O_BINARY, MYF(0))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -763,7 +765,7 @@ static uint read_ddl_log_header()
   global_ddl_log.first_free= NULL;
   global_ddl_log.first_used= NULL;
   global_ddl_log.num_entries= 0;
-  pthread_mutex_init(&LOCK_gdl, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_gdl, &LOCK_gdl, MY_MUTEX_INIT_FAST);
   global_ddl_log.do_release= true;
   DBUG_RETURN(entry_no);
 }
@@ -833,10 +835,10 @@ static bool init_ddl_log()
 
   global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
-  if ((global_ddl_log.file_id= my_create(file_name,
-                                         CREATE_MODE,
-                                         O_RDWR | O_TRUNC | O_BINARY,
-                                         MYF(MY_WME))) < 0)
+  if ((global_ddl_log.file_id= mysql_file_create(key_file_global_ddl_log,
+                                                 file_name, CREATE_MODE,
+                                                 O_RDWR | O_TRUNC | O_BINARY,
+                                                 MYF(MY_WME))) < 0)
   {
     /* Couldn't create ddl log file, this is serious error */
     sql_print_error("Failed to open ddl log file");
@@ -845,7 +847,7 @@ static bool init_ddl_log()
   global_ddl_log.inited= TRUE;
   if (write_ddl_log_header())
   {
-    (void) my_close(global_ddl_log.file_id, MYF(MY_WME));
+    (void) mysql_file_close(global_ddl_log.file_id, MYF(MY_WME));
     global_ddl_log.inited= FALSE;
     DBUG_RETURN(TRUE);
   }
@@ -915,14 +917,14 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         if (frm_action)
         {
           strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
-          if ((error= my_delete(to_path, MYF(MY_WME))))
+          if ((error= mysql_file_delete(key_file_frm, to_path, MYF(MY_WME))))
           {
             if (my_errno != ENOENT)
               break;
           }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
-          (void) my_delete(to_path, MYF(MY_WME));
+          (void) mysql_file_delete(key_file_partition, to_path, MYF(MY_WME));
 #endif
         }
         else
@@ -954,12 +956,12 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       {
         strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, reg_ext, NullS);
-        if (my_rename(from_path, to_path, MYF(MY_WME)))
+        if (mysql_file_rename(key_file_frm, from_path, to_path, MYF(MY_WME)))
           break;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, par_ext, NullS);
-        (void) my_rename(from_path, to_path, MYF(MY_WME));
+        (void) mysql_file_rename(key_file_partition, from_path, to_path, MYF(MY_WME));
 #endif
       }
       else
@@ -1276,7 +1278,7 @@ bool sync_ddl_log()
   {
     DBUG_RETURN(TRUE);
   }
-  if (my_sync(global_ddl_log.file_id, MYF(0)))
+  if (mysql_file_sync(global_ddl_log.file_id, MYF(0)))
   {
     /* Write to error log */
     sql_print_error("Failed to sync ddl log");
@@ -1332,7 +1334,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
   uint read_entry= first_entry;
   DBUG_ENTER("execute_ddl_log_entry");
 
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   do
   {
     if (read_ddl_log_entry(read_entry, &ddl_log_entry))
@@ -1354,7 +1356,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
     }
     read_entry= ddl_log_entry.next_entry;
   } while (read_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 }
 
@@ -1372,7 +1374,7 @@ static void close_ddl_log()
   DBUG_ENTER("close_ddl_log");
   if (global_ddl_log.file_id >= 0)
   {
-    (void) my_close(global_ddl_log.file_id, MYF(MY_WME));
+    (void) mysql_file_close(global_ddl_log.file_id, MYF(MY_WME));
     global_ddl_log.file_id= (File) -1;
   }
   DBUG_VOID_RETURN;
@@ -1432,7 +1434,7 @@ void execute_ddl_log_recovery()
   }
   close_ddl_log();
   create_ddl_log_file_name(file_name);
-  (void) my_delete(file_name, MYF(0));
+  (void) mysql_file_delete(key_file_global_ddl_log, file_name, MYF(0));
   global_ddl_log.recovery_phase= FALSE;
   delete thd;
   /* Remember that we don't have a THD */
@@ -1458,7 +1460,7 @@ void release_ddl_log()
   if (!global_ddl_log.do_release)
     DBUG_VOID_RETURN;
 
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
@@ -1473,8 +1475,8 @@ void release_ddl_log()
   }
   close_ddl_log();
   global_ddl_log.inited= 0;
-  pthread_mutex_unlock(&LOCK_gdl);
-  pthread_mutex_destroy(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_destroy(&LOCK_gdl);
   global_ddl_log.do_release= false;
   DBUG_VOID_RETURN;
 }
@@ -1606,7 +1608,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                   CHF_CREATE_FLAG,
                                                   lpt->create_info))
     {
-      my_delete(shadow_frm_name, MYF(0));
+      mysql_file_delete(key_file_frm, shadow_frm_name, MYF(0));
       error= 1;
       goto end;
     }
@@ -1630,7 +1632,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       error= 1;
       goto end;
     }
-    error= my_delete(shadow_frm_name, MYF(MY_WME));
+    error= mysql_file_delete(key_file_frm, shadow_frm_name, MYF(MY_WME));
   }
   if (flags & WFRM_INSTALL_SHADOW)
   {
@@ -1654,7 +1656,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       deactivate it.
     */
     mysql_mutex_lock(&LOCK_open);
-    if (my_delete(frm_name, MYF(MY_WME)) ||
+    if (mysql_file_delete(key_file_frm, frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_DELETE_FLAG, NULL) ||
@@ -1662,11 +1664,13 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         (sync_ddl_log(), FALSE) ||
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
+        mysql_file_rename(key_file_frm,
+                          shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_RENAME_FLAG, NULL))
 #else
-        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)))
+        mysql_file_rename(key_file_frm,
+                          shadow_frm_name, frm_name, MYF(MY_WME)))
 #endif
     {
       error= 1;
@@ -1736,7 +1740,7 @@ end:
 */
 
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length)
+                  char const *query, ulong query_length, bool is_trans)
 {
   int error= 0;
   if (mysql_bin_log.is_open())
@@ -1747,7 +1751,8 @@ int write_bin_log(THD *thd, bool clear_error,
     else
       errcode= query_error_code(thd, TRUE);
     error= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                             query, query_length, FALSE, FALSE, errcode);
+                             query, query_length, is_trans, FALSE, FALSE,
+                             errcode);
   }
   return error;
 }
@@ -1860,7 +1865,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   LINT_INIT(alias);
   LINT_INIT(path_length);
 
-  if (thd->current_stmt_binlog_row_based && !dont_log_query)
+  if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
     built_query.set_charset(system_charset_info);
     if (if_exists)
@@ -1887,7 +1892,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       table->db_type= share->db_type();
 
     /* Disable drop of enabled log tables */
-    if (share && (share->table_category == TABLE_CATEGORY_PERFORMANCE) &&
+    if (share && (share->table_category == TABLE_CATEGORY_LOG) &&
         check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
@@ -1920,7 +1925,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       // removed temporary table
       tmp_table_deleted= 1;
       if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-          thd->current_stmt_binlog_row_based)
+          thd->is_current_stmt_binlog_format_row())
       {
         if (built_tmp_query.is_empty()) 
         {
@@ -1954,7 +1959,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (!drop_temporary && thd->current_stmt_binlog_row_based && !dont_log_query)
+    if (!drop_temporary && thd->is_current_stmt_binlog_format_row() && !dont_log_query)
     {
       non_temp_tables_count++;
       /*
@@ -2042,7 +2047,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         int new_error;
 	/* Delete the table definition file */
 	strmov(end,reg_ext);
-	if (!(new_error=my_delete(path,MYF(MY_WME))))
+        if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
 	  some_tables_deleted=1;
           new_error= Table_triggers_list::drop_all_triggers(thd, db,
@@ -2088,7 +2093,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
     {
-      if (!thd->current_stmt_binlog_row_based ||
+      if (!thd->is_current_stmt_binlog_format_row() ||
           (non_temp_tables_count > 0 && !tmp_table_deleted))
       {
         /*
@@ -2100,7 +2105,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          */
         error |= write_bin_log(thd, !error, thd->query(), thd->query_length());
       }
-      else if (thd->current_stmt_binlog_row_based &&
+      else if (thd->is_current_stmt_binlog_format_row() &&
                tmp_table_deleted)
       {
         if (non_temp_tables_count > 0)
@@ -2139,7 +2144,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           */
           built_tmp_query.chop();                  // Chop of the last comma
           built_tmp_query.append(" /* generated by server */");
-          error|= write_bin_log(thd, !error, built_tmp_query.ptr(), built_tmp_query.length());
+          error|= write_bin_log(thd, !error, built_tmp_query.ptr(), built_tmp_query.length(),
+                                thd->in_multi_stmt_transaction());
         }
       }
 
@@ -2185,7 +2191,7 @@ bool quick_rm_table(handlerton *base,const char *db,
 
   uint path_length= build_table_filename(path, sizeof(path) - 1,
                                          db, table_name, reg_ext, flags);
-  if (my_delete(path,MYF(0)))
+  if (mysql_file_delete(key_file_frm, path, MYF(0)))
     error= 1; /* purecov: inspected */
   path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
   if (!(flags & FRM_ONLY))
@@ -2214,10 +2220,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b_flags & HA_NOSAME))
       return -1;
-    if ((a_flags ^ b_flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
+    if ((a_flags ^ b_flags) & HA_NULL_PART_KEY)
     {
       /* Sort NOT NULL keys before other keys */
-      return (a_flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
+      return (a_flags & HA_NULL_PART_KEY) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -3592,8 +3598,8 @@ static inline int write_create_table_bin_log(THD *thd,
     Otherwise, the statement shall be binlogged.
    */
   if (!internal_tmp_table &&
-      (!thd->current_stmt_binlog_row_based ||
-       (thd->current_stmt_binlog_row_based &&
+      (!thd->is_current_stmt_binlog_format_row() ||
+       (thd->is_current_stmt_binlog_format_row() &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     return write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   return 0;
@@ -4413,7 +4419,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
-  if (!my_stat(from, &stat_info, MYF(0)))
+  if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
   my_snprintf(tmp, sizeof(tmp), "%s-%lx_%lx",
@@ -4431,7 +4437,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     error= -1;
     goto end;
   }
-  if (my_rename(from, tmp, MYF(MY_WME)))
+  if (mysql_file_rename(key_file_misc, from, tmp, MYF(MY_WME)))
   {
     mysql_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
@@ -4449,7 +4455,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed generating table from .frm file");
     goto end;
   }
-  if (my_rename(tmp, from, MYF(MY_WME)))
+  if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     mysql_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
@@ -5041,57 +5047,18 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   DBUG_ENTER("mysql_assign_to_keycache");
 
   check_opt.init();
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache= get_key_cache(key_cache_name)))
   {
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
     DBUG_RETURN(TRUE);
   }
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 0,
 				0, 0, &handler::assign_to_keycache, 0));
-}
-
-
-/*
-  Reassign all tables assigned to a key cache to another key cache
-
-  SYNOPSIS
-    reassign_keycache_tables()
-    thd		Thread object
-    src_cache	Reference to the key cache to clean up
-    dest_cache	New key cache
-
-  NOTES
-    This is called when one sets a key cache size to zero, in which
-    case we have to move the tables associated to this key cache to
-    the "default" one.
-
-    One has to ensure that one never calls this function while
-    some other thread is changing the key cache. This is assured by
-    the caller setting src_cache->in_init before calling this function.
-
-    We don't delete the old key cache as there may still be pointers pointing
-    to it for a while after this function returns.
-
- RETURN VALUES
-    0	  ok
-*/
-
-int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache,
-			     KEY_CACHE *dst_cache)
-{
-  DBUG_ENTER("reassign_keycache_tables");
-
-  DBUG_ASSERT(src_cache != dst_cache);
-  DBUG_ASSERT(src_cache->in_init);
-  src_cache->param_buff_size= 0;		// Free key cache
-  ha_resize_key_cache(src_cache);
-  ha_change_key_cache(src_cache, dst_cache);
-  DBUG_RETURN(0);
 }
 
 
@@ -5361,7 +5328,7 @@ binlog:
   /*
     We have to write the query before we unlock the tables.
   */
-  if (thd->current_stmt_binlog_row_based)
+  if (thd->is_current_stmt_binlog_format_row())
   {
     /*
        Since temporary tables are not replicated under row-based
@@ -6565,7 +6532,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
         thd->clear_error();
         Query_log_event qinfo(thd, thd->query(), thd->query_length(),
-                              0, FALSE, 0);
+                              FALSE, TRUE, FALSE, 0);
         if (error= mysql_bin_log.write(&qinfo))
           goto view_err_unlock;
       }
@@ -7309,8 +7276,8 @@ view_err:
     /* Should pass the 'new_name' as we store table name in the cache */
     if (rename_temporary_table(thd, new_table, new_db, new_name))
       goto err1;
-    /* We don't replicate alter table statement on temporary tables */
-    if (!thd->current_stmt_binlog_row_based &&
+
+    if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
       DBUG_RETURN(TRUE);
     goto end_temporary;
@@ -7473,7 +7440,7 @@ view_err:
                       db, table_name);
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
-                thd->current_stmt_binlog_row_based &&
+                thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
     DBUG_RETURN(TRUE);

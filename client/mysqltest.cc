@@ -72,6 +72,10 @@
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
+#ifndef HAVE_SETENV
+#error implement our portable setenv replacement in mysys
+#endif
+
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
@@ -216,7 +220,6 @@ typedef struct
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
-  char *env_s;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -1924,13 +1927,20 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
                                                   + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
+  if (name != NULL)
+  {
+    tmp_var->name= reinterpret_cast<char*>(tmp_var) + sizeof(*tmp_var);
+    memcpy(tmp_var->name, name, name_len);
+    tmp_var->name[name_len]= 0;
+  }
+  else
+    tmp_var->name= NULL;
+
   tmp_var->alloced = (v == 0);
 
   if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
   if (val)
   {
     memcpy(tmp_var->str_val, val, val_len);
@@ -1941,7 +1951,6 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->alloced_len = val_alloc_len;
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
-  tmp_var->env_s = 0;
   return tmp_var;
 }
 
@@ -2069,20 +2078,15 @@ void var_set(const char *var_name, const char *var_name_end,
 
   if (env_var)
   {
-    char buf[1024], *old_env_s= v->env_s;
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
-                v->name_len, v->name,
-                v->str_val_len, v->str_val);
-    if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
-      die("Out of memory");
-    putenv(v->env_s);
-    my_free(old_env_s, MYF(MY_ALLOW_ZERO_PTR));
+    /* setenv() expects \0-terminated strings */
+    DBUG_ASSERT(v->name[v->name_len] == 0);
+    setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
 }
@@ -2227,7 +2231,7 @@ do_result_format_version(struct st_command *command)
   long version;
   static DYNAMIC_STRING ds_version;
   const struct command_arg result_format_args[] = {
-    "version", ARG_STRING, TRUE, &ds_version, "Version to use",
+    {"version", ARG_STRING, TRUE, &ds_version, "Version to use"}
   };
 
   DBUG_ENTER("do_result_format_version");
@@ -6154,6 +6158,8 @@ void init_win_path_patterns()
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
                           "$MASTER_MYSOCK",
+                          "$MYSQL_SHAREDIR",
+                          "$MYSQL_LIBDIR",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
@@ -7102,7 +7108,7 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+ DBUG_RETURN(mysql_query(mysql, query));
 }
 
 
@@ -7740,6 +7746,7 @@ int main(int argc, char **argv)
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
+  var_set_string("MYSQLTEST_FILE", cur_file->file_name);
   init_re();
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;

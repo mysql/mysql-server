@@ -93,8 +93,8 @@ Warning	1292	Truncated incorrect preload_buffer_size value: '1073741825'
 SELECT @@global.preload_buffer_size;
 @@global.preload_buffer_size
 1073741824
-SET @@global.preload_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.preload_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'preload_buffer_size'
 SELECT @@global.preload_buffer_size;
 @@global.preload_buffer_size
 1073741824
@@ -115,8 +115,8 @@ Warning	1292	Truncated incorrect preload_buffer_size value: '-2'
 SELECT @@session.preload_buffer_size;
 @@session.preload_buffer_size
 1024
-SET @@session.preload_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.preload_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'preload_buffer_size'
 SET @@session.preload_buffer_size = 1023;
 Warnings:
 Warning	1292	Truncated incorrect preload_buffer_size value: '1023'
@@ -129,7 +129,6 @@ Warning	1292	Truncated incorrect preload_buffer_size value: '1073741825'
 SELECT @@session.preload_buffer_size;
 @@session.preload_buffer_size
 1073741824
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.preload_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'preload_buffer_size'
 SELECT @@session.preload_buffer_size;

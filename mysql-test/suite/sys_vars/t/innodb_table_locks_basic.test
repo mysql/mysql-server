@@ -107,7 +107,7 @@ SELECT @@global.innodb_table_locks;
 # for session
 
 SET @@session.innodb_table_locks = -6;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.innodb_table_locks = 1.6;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = "T";
@@ -120,8 +120,6 @@ SET @@session.innodb_table_locks = ÕN;
 
 SET @@session.innodb_table_locks = OF;
 SELECT @@session.innodb_table_locks;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = ÓFF;
@@ -143,8 +141,6 @@ SET @@global.innodb_table_locks = QN;
 
 SET @@global.innodb_table_locks = OF;
 SELECT @@global.innodb_table_locks;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
 
 --Error ER_WRONG_TYPE_FOR_VAR
 #SET @@global.innodb_table_locks = ÓFF;

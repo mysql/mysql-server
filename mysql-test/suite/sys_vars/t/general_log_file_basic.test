@@ -45,7 +45,8 @@ SELECT @start_value;
 ############################################### 
 
 SET @@global.general_log_file = DEFAULT;
-SELECT RIGHT(@@global.general_log_file,10) AS log_file;
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '.log');
+SELECT RIGHT(@@global.general_log_file, length(@a)) = @a;
 
 
 --echo '#--------------------FN_DYNVARS_004_02------------------------#'

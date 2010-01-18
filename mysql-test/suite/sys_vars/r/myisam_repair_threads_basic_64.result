@@ -69,8 +69,8 @@ SET @@global.myisam_repair_threads  = 429496729533;
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 429496729533
-SET @@global.myisam_repair_threads  = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.myisam_repair_threads  = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 429496729533
@@ -106,8 +106,8 @@ Warning	1292	Truncated incorrect myisam_repair_threads value: '-2'
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 1
-SET @@session.myisam_repair_threads  = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.myisam_repair_threads  = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_repair_threads'
 SELECT @@session.myisam_repair_threads ;
 @@session.myisam_repair_threads
 1
