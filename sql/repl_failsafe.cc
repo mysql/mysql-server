@@ -180,11 +180,18 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   get_object(p,si->host, "Failed to register slave: too long 'report-host'");
   get_object(p,si->user, "Failed to register slave: too long 'report-user'");
   get_object(p,si->password, "Failed to register slave; too long 'report-password'");
-  /*6 is the total length of port and master_id*/
-  if (p+6 != p_end)
+  if (p+10 > p_end)
     goto err;
   si->port= uint2korr(p);
   p += 2;
+  /* 
+     We need to by pass the bytes used in the fake rpl_recovery_rank
+     variable. It was removed in patch for BUG#13963. But this would 
+     make a server with that patch unable to connect to an old master.
+     See: BUG#49259
+  */
+  // si->rpl_recovery_rank= uint4korr(p);
+  p += 4;
   if (!(si->master_id= uint4korr(p)))
     si->master_id= server_id;
   si->thd= thd;
