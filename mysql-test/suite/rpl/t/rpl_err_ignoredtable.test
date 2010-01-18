@@ -7,7 +7,9 @@
 
 -- source include/master-slave.inc
 
-CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+-- disable_query_log
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT.");
+-- enable_query_log
 
 connection master;
 create table t1 (a int primary key);
