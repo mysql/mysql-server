@@ -1979,7 +1979,7 @@ Val::calcnokey(Par par)
   }
   int r = irandom((par.m_pctrange * par.m_range) / 100);
   if (par.m_bdir != 0 && urandom(10) != 0) {
-    if (r < 0 && par.m_bdir > 0 || r > 0 && par.m_bdir < 0)
+    if ((r < 0 && par.m_bdir > 0) || (r > 0 && par.m_bdir < 0))
       r = -r;
   }
   uint v = par.m_range + r;
@@ -2036,7 +2036,7 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
     uint half = maxcharcount / 2;
     int r = irandom((par.m_pctrange * half) / 100);
     if (par.m_bdir != 0 && urandom(10) != 0) {
-      if (r < 0 && par.m_bdir > 0 || r > 0 && par.m_bdir < 0)
+      if ((r < 0 && par.m_bdir > 0) || (r > 0 && par.m_bdir < 0))
         r = -r;
     }
     uint i = half + r;
@@ -5757,8 +5757,8 @@ runtest(Par par)
     }
     for (uint i = 0; i < tcasecount; i++) {
       const TCase& tcase = tcaselist[i];
-      if (par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0 ||
-          par.m_skip != 0 && strchr(par.m_skip, tcase.m_name[0]) != 0) {
+      if ((par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0) ||
+          (par.m_skip != 0 && strchr(par.m_skip, tcase.m_name[0]) != 0)) {
         continue;
       }
       sprintf(par.m_currcase, "%c", tcase.m_name[0]);

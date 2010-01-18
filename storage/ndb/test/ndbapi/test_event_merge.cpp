@@ -1071,7 +1071,7 @@ copydata(const Data& d1, Data& d3, bool pk, bool nonpk)
   uint i;
   for (i = 0; i < ncol(); i++) {
     const Col& c = g_col[i];
-    if (c.pk && pk || ! c.pk && nonpk)
+    if ((c.pk && pk) || (! c.pk && nonpk))
       copycol(c, d1, d3);
   }
 }
@@ -1082,7 +1082,7 @@ compdata(const Data& d1, const Data& d2, Data& d3, bool pk, bool nonpk)
   uint i;
   for (i = 0; i < ncol(); i++) {
     const Col& c = g_col[i];
-    if (c.pk && pk || ! c.pk && nonpk) {
+    if ((c.pk && pk) || (! c.pk && nonpk)) {
       const Data* d = 0;
       if (d1.ind[i] == -1 && d2.ind[i] == -1)
         d3.ind[i] = -1;
@@ -1545,7 +1545,7 @@ makeops(Run& r)
           optype = (Op::Type)urandom(g_optypes);
         } while (tot_op->type == Op::NUL &&
                  (optype == Op::DEL || optype == Op::UPD) ||
-                 tot_op->type == Op::INS && optype == Op::INS);
+                 (tot_op->type == Op::INS && optype == Op::INS));
       } else {
         const char* str = g_opstringpart[g_loop % g_opstringparts];
         uint m = strlen(str);
@@ -1805,7 +1805,7 @@ cmppostpre(Run& r)
           const Col& c = getcol(i);
           bool eq =
             d[0].ind[i] == 1 && d[1].ind[i] == 1 ||
-            d[0].ind[i] == 0 && d[1].ind[i] == 0 && cmpcol(c, d[0], d[1]) == 0;
+            (d[0].ind[i] == 0 && d[1].ind[i] == 0 && cmpcol(c, d[0], d[1])== 0);
           if (eq) {
             d[0].ppeq |= (1 << i);
             d[1].ppeq |= (1 << i);

@@ -255,7 +255,7 @@ printproc(SimpleCpcClient::Process & p) {
   ndbout.println("Owner:               %s", p.m_owner.c_str());
   ndbout.println("Runas:               %s", p.m_runas.c_str());
   ndbout.println("Ulimit:              %s", p.m_ulimit.c_str());
-  ndbout.println("");
+  ndbout.println("%s", "");
 }
 
 void
@@ -518,7 +518,7 @@ SimpleCpcClient::cpc_send(const char *cmd,
       break;
     }
   }
-  cpc_out.println("");
+  cpc_out.println("%s", "");
 
   return 0;
 }
