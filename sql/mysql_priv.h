@@ -1039,7 +1039,8 @@ struct Query_cache_query_flags
 #endif /*HAVE_QUERY_CACHE*/
 
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length);
+                  char const *query, ulong query_length,
+                  bool is_trans= FALSE);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1574,7 +1575,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
-int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(handlerton *base, char *path);
@@ -2020,6 +2020,7 @@ extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern uint slave_exec_mode_options;
+extern ulonglong slave_type_conversions_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
