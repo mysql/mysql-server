@@ -437,6 +437,7 @@ void Dbtc::execTAB_COMMITREQ(Signal* signal)
   ndbrequire(tabptr.p->get_prepared() == true);
   ndbrequire(tabptr.p->get_enabled() == false);
   tabptr.p->set_enabled(true);
+  tabptr.p->set_prepared(false);
   tabptr.p->set_dropping(false);
 
   signal->theData[0] = senderData;
@@ -486,6 +487,7 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
   }
   
   tabPtr.p->set_dropping(true);
+  tabPtr.p->set_prepared(false);
 
   PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
@@ -535,6 +537,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
   }
   
   tabPtr.p->set_enabled(false);
+  tabPtr.p->set_prepared(false);
   tabPtr.p->set_dropping(false);
   
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
