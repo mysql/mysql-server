@@ -1,0 +1,52 @@
+# Helper file to perform one insert of a value into a table with
+# different types on master and slave.  The file will insert the
+# result into the type_conversions table *on the slave* to get a
+# summary of failing and succeeding tests.
+
+# Input:
+#    $source_type      Type on the master
+#    $target_type      Type on the slave
+#    $source_value     Value on the master (inserted into the table)
+#    $target_value     Value on the slave (expected value in the table
+#                      on the slave)
+#    $can_convert      True if conversion shall work, false if it
+#                      shall generate an error 
+
+
+connection master;
+disable_warnings;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
+eval CREATE TABLE t1 (a $source_type);
+sync_slave_with_master;
+eval ALTER TABLE t1 MODIFY a $target_type;
+
+connection master;
+eval INSERT INTO t1 VALUES($source_value);
+if ($can_convert) {
+  sync_slave_with_master;
+  eval SELECT a = $target_value into @compare FROM t1;
+  eval INSERT INTO type_conversions SET
+       Source = "$source_type",
+       Target = "$target_type",
+       Flags = @@slave_type_conversions,
+       On_Master = $source_value,
+       Expected = $target_value,
+       Compare = @compare;
+  UPDATE type_conversions
+     SET On_Slave = (SELECT a FROM t1)
+   WHERE TestNo = LAST_INSERT_ID();
+}
+if (!$can_convert) {
+  connection slave;
+  wait_for_slave_to_stop;
+  let $error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+  eval INSERT INTO type_conversions SET
+       Source = "$source_type",
+       Target = "$target_type",
+       Flags = @@slave_type_conversions,
+       On_Master = $source_value,
+       Error = "$error";
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+  START SLAVE;
+}
