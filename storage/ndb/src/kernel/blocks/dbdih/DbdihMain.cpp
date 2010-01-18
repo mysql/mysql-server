@@ -12478,9 +12478,12 @@ void Dbdih::sendLastLCP_FRAG_ORD(Signal* signal)
       sendSignal(ref, GSN_LCP_FRAG_ORD, signal,LcpFragOrd::SignalLength, JBB);
     }
   }
-  if(ERROR_INSERTED(7075)){
+  if(ERROR_INSERTED(7075))
+  {
     if(c_lcpState.m_LAST_LCP_FRAG_ORD.done())
+    {
       CRASH_INSERTION(7075);
+    }
   }
 }//Dbdih::sendLastLCP_FRAGORD()
 
@@ -17858,10 +17861,10 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
     const unsigned int get_minor = getMinor(masterVersion);
     const unsigned int get_build = getBuild(masterVersion);
     ndbrequire(get_major >= 4);
-
+    
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
-        masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-        get_major == 5 && get_minor == 1 ||
+        (masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
+         get_major == 5 && get_minor == 1) ||
         ERROR_INSERTED(7176)) {
       jam();
 
@@ -17937,10 +17940,10 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
     const unsigned int get_major = getMajor(masterVersion);
     const unsigned int get_minor = getMinor(masterVersion);
     ndbrequire(get_major >= 4);
-
+    
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
-        masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
-        get_major == 5 && get_minor == 1 ||
+        (masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
+         get_major == 5 && get_minor == 1) ||
         ERROR_INSERTED(7176)) {
       return;
     }

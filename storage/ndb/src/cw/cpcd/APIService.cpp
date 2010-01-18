@@ -249,7 +249,7 @@ CPCDAPISession::defineProcess(Parser_t::Context & /* unused */,
     } else {
       m_output->println("errormessage: %s", rs.getErrMsg());
     }
-    m_output->println("");
+    m_output->println("%s", "");
   }
 }
 
@@ -268,7 +268,7 @@ CPCDAPISession::undefineProcess(Parser_t::Context & /* unused */,
   if(!ret)
     m_output->println("errormessage: %s", rs.getErrMsg());
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -286,7 +286,7 @@ CPCDAPISession::startProcess(Parser_t::Context & /* unused */,
     m_output->println("status: %d", rs.getStatus());
     if(!ret)
       m_output->println("errormessage: %s", rs.getErrMsg());
-    m_output->println("");
+    m_output->println("%s", "");
   }
 }
 
@@ -305,7 +305,7 @@ CPCDAPISession::stopProcess(Parser_t::Context & /* unused */,
   if(!ret)
     m_output->println("errormessage: %s", rs.getErrMsg());
   
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 static const char *
@@ -346,7 +346,7 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
   MutexVector<CPCD::Process *> *proclist = m_cpcd.getProcessList();
 
   m_output->println("start processes");
-  m_output->println("");
+  m_output->println("%s", "");
   
 
   for(size_t i = 0; i < proclist->size(); i++) {
@@ -384,12 +384,12 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
       break;
     }
     
-    m_output->println("");
+    m_output->println("%s", "");
     
   }
 
   m_output->println("end processes");
-  m_output->println("");
+  m_output->println("%s", "");
 
   m_cpcd.m_processes.unlock();
 }
@@ -402,7 +402,7 @@ CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
   m_output->println("show version");
   m_output->println("compile time: %s %s", __DATE__, __TIME__);
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 template class Vector<ParserRow<CPCDAPISession> const*>;

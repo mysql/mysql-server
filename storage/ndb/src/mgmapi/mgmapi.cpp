@@ -432,7 +432,7 @@ ndb_mgm_call(NdbMgmHandle handle,
   cmd_args->print(handle->logfile, "OUT: ");
 #endif
   }
-  out.println("");
+  out.println("%s", "");
 
   if (cmd_bulk)
     out.println(cmd_bulk);
@@ -958,7 +958,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   {
     out.println("types: %s", typestring);
   }
-  out.println("");
+  out.println("%s", "");
 
   CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
@@ -2789,7 +2789,7 @@ ndb_mgm_check_connection(NdbMgmHandle handle)
   if (out.println("check connection"))
     goto ndb_mgm_check_connection_error;
 
-  if (out.println(""))
+  if (out.println("%s", ""))
     goto ndb_mgm_check_connection_error;
 
   in.gets(buf, sizeof(buf));
@@ -2927,7 +2927,7 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 
   SocketOutputStream s_output(s, (*handle)->timeout);
   s_output.println("transporter connect");
-  s_output.println("");
+  s_output.println("%s", "");
 
   ndb_mgm_destroy_handle(handle); // set connected=0, so won't disconnect
 
@@ -3004,7 +3004,7 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
 
   SocketOutputStream s_output(handle->socket, handle->timeout);
   s_output.println("end session");
-  s_output.println("");
+  s_output.println("%s", "");
 
   SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
