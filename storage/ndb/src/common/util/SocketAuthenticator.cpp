@@ -49,15 +49,8 @@ bool SocketAuthSimple::client_authenticate(int sockfd)
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
 
-  if (m_username)
-    s_output.println("%s", m_username);
-  else
-    s_output.println("");
-
-  if (m_passwd)
-    s_output.println("%s", m_passwd);
-  else
-    s_output.println("");
+  s_output.println("%s", m_username ? m_username : "");
+  s_output.println("%s", m_passwd ? m_passwd : "");
 
   char buf[16];
   if (s_input.gets(buf, 16) == 0) return false;
