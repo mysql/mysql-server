@@ -3,7 +3,7 @@
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 
-CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 
 # Load some data into t1
 create table t1 (word char(20) not null);

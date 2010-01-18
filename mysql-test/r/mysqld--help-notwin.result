@@ -653,6 +653,12 @@ The following options may be given as the first argument:
                       Number of times the slave SQL thread will retry a
                       transaction in case it failed with a deadlock or elapsed
                       lock wait timeout, before giving up and stopping
+  --slave-type-conversions=name 
+                      Set of slave type conversions that are enabled. Legal
+                      values are: ALL_LOSSY to enable lossy conversions and
+                      ALL_NON_LOSSY to enable non-lossy conversions. If the
+                      variable is assigned the empty set, no conversions are
+                      allowed and it is expected that the types match exactly.
   --slow-launch-time=# 
                       If creating the thread takes longer than this value (in
                       seconds), the Slow_launch_threads counter will be
@@ -948,6 +954,7 @@ slave-exec-mode                                   STRICT
 slave-net-timeout                                 3600
 slave-skip-errors                                 (No default value)
 slave-transaction-retries                         10
+slave-type-conversions                            
 slow-launch-time                                  2
 slow-query-log                                    FALSE
 socket                                            /tmp/mysql.sock
