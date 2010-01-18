@@ -2049,6 +2049,19 @@ runBug21384(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runReadIndexUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  HugoTransactions hugoTrans(*ctx->getTab());
+  int rows = ctx->getNumRecords();
+  while (!ctx->isTestStopped())
+  {
+    hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, 1);
+  }
+  return NDBT_OK;
+}
+
 int 
 runBug25059(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -2301,6 +2314,21 @@ runBug46069_scandel(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+int
+runBug50118(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbSleep_MilliSleep(500);
+  int loops = ctx->getNumLoops();
+  while (loops--)
+  {
+    createPkIndex_Drop(ctx, step);
+    createPkIndex(ctx, step);
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
@@ -2679,6 +2707,18 @@ TESTCASE("ConstraintDetails",
          "Test that the details part of the returned NdbError is as "
          "expected"){
   INITIALIZER(runConstraintDetails);
+}
+TESTCASE("Bug50118", ""){
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(runClearTable);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(createPkIndex);
+  STEP(runReadIndexUntilStopped);
+  STEP(runReadIndexUntilStopped);
+  STEP(runReadIndexUntilStopped);
+  STEP(runBug50118);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testIndex);
 
