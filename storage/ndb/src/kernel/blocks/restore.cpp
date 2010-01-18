@@ -489,7 +489,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       
       if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
       {
-	ndbrequire(false);
+        crash_during_restore(file_ptr, __LINE__, 0);
       }
       len= 0;
       break;
@@ -1181,18 +1181,32 @@ Restore::execLQHKEYREF(Signal* signal)
   LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
   m_file_pool.getPtr(file_ptr, ref->connectPtr);
   
+  crash_during_restore(file_ptr, __LINE__, ref->errorCode);
+  ndbrequire(false);
+}
+
+void
+Restore::crash_during_restore(FilePtr file_ptr, Uint32 line, Uint32 errCode)
+{
   char buf[255], name[100];
   BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
 		       file_ptr.p->m_lcp_no,
 		       file_ptr.p->m_table_id,
 		       file_ptr.p->m_fragment_id);
   
-  BaseString::snprintf(buf, sizeof(buf),
-		       "Error %d during restore of  %s",
-		       ref->errorCode, name);
-  
+  if (errCode)
+  {
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Error %d (line: %u) during restore of  %s",
+                         errCode, line, name);
+  }
+  else
+  {
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Error (line %u) during restore of  %s",
+                         line, name);
+  }
   progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
-  ndbrequire(false);
 }
 
 void
