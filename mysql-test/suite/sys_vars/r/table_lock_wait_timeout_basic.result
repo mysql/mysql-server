@@ -47,7 +47,6 @@ Warning	1292	Truncated incorrect table_lock_wait_timeout value: '-1024'
 SET @@global.table_lock_wait_timeout= 0;
 Warnings:
 Warning	1292	Truncated incorrect table_lock_wait_timeout value: '0'
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.table_lock_wait_timeout= 10000.01;
 ERROR 42000: Incorrect argument type to variable 'table_lock_wait_timeout'
 SET @@global.table_lock_wait_timeout= ON;

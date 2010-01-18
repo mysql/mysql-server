@@ -1,0 +1,35 @@
+--source include/have_profiling.inc
+
+SET @start_global_value = @@global.sql_log_update;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.sql_log_update;
+select @@session.sql_log_update;
+show global variables like 'sql_log_update';
+show session variables like 'sql_log_update';
+select * from information_schema.global_variables where variable_name='sql_log_update';
+select * from information_schema.session_variables where variable_name='sql_log_update';
+
+#
+# show that it's writable
+#
+set global sql_log_update=1;
+select @@global.sql_log_update;
+set session sql_log_update=ON;
+select @@session.sql_log_update;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global sql_log_update=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sql_log_update=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global sql_log_update="foo";
+
+SET @@global.sql_log_update = @start_global_value;
+SELECT @@global.sql_log_update;

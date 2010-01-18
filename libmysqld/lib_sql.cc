@@ -501,11 +501,26 @@ int init_embedded_server(int argc, char **argv, char **groups)
   */
   logger.init_base();
 
-  if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
+  orig_argc= *argcp;
+  orig_argv= *argvp;
+  load_defaults("my", (const char **)groups, argcp, argvp);
+  defaults_argc= *argcp;
+  defaults_argv= *argvp;
+  remaining_argc= argc;
+  remaining_argv= argv;
+
+  /* Must be initialized early for comparison of options name */
+  system_charset_info= &my_charset_utf8_general_ci;
+  sys_var_init();
+
+  if (init_common_variables())
   {
     mysql_server_end();
     return 1;
   }
+
+  mysql_data_home= mysql_real_data_home;
+  mysql_data_home_len= mysql_real_data_home_len;
     
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
@@ -614,7 +629,7 @@ void *create_embedded_thd(int client_flag)
   /* TODO - add init_connect command execution */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
+    thd->variables.option_bits |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;

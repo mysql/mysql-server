@@ -675,6 +675,7 @@ struct st_mysql_value
   const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
   int (*val_real)(struct st_mysql_value *, double *realbuf);
   int (*val_int)(struct st_mysql_value *, long long *intbuf);
+  int (*is_unsigned)(struct st_mysql_value *);
 };
 
 

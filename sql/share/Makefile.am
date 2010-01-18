@@ -43,8 +43,8 @@ install-data-local:
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
-		$(INSTALL_DATA) $(srcdir)/errmsg-utf8.txt \
-	        $(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
+	$(INSTALL_DATA) $(srcdir)/errmsg-utf8.txt \
+	$(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 

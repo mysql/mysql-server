@@ -1,0 +1,24 @@
+#
+# show the global and session values;
+#
+--replace_column 1 #
+select @@global.open_files_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.open_files_limit;
+--replace_column 2 #
+show global variables like 'open_files_limit';
+--replace_column 2 #
+show session variables like 'open_files_limit';
+--replace_column 2 #
+select * from information_schema.global_variables where variable_name='open_files_limit';
+--replace_column 2 #
+select * from information_schema.session_variables where variable_name='open_files_limit';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global open_files_limit=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session open_files_limit=1;
+

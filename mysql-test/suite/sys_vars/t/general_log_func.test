@@ -46,8 +46,18 @@ name VARCHAR(30)
 SET @@global.general_log = OFF;
 SELECT @@general_log;
 
-
 let $MYSQLD_LOGFILE= `select @@global.general_log_file`;
+
+#
+# truncate the existing log - it could be larger than max_allowed_packet
+# and that would cause load_file() below to fail
+#
+--remove_file $MYSQLD_LOGFILE
+flush logs;
+SET @@global.general_log = ON;
+flush logs;
+SET @@global.general_log = OFF;
+
 --copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
 
 --echo ## Inserting some Records & Verifying output in log ##
@@ -78,13 +88,12 @@ INSERT into t1(name) values('Record_4');
 --copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.orig
 --chmod 0777 $MYSQLD_LOGFILE.orig
 
---echo ## There should be a difference ##
-SET @@global.max_allowed_packet= 1024*1024*1024;
+--echo ## old log is a proper prefix of the new log ##
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
 eval SET @orig_file= load_file('$MYSQLD_LOGFILE.orig');
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
 eval SET @copy_file= load_file('$MYSQLD_LOGFILE.copy');
-eval SELECT STRCMP(@orig_file, @copy_file);
+SELECT @orig_file > @copy_file, left(@orig_file, length(@copy_file)) = @copy_file;
 --remove_file $MYSQLD_LOGFILE.copy
 --remove_file $MYSQLD_LOGFILE.orig
 

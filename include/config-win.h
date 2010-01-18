@@ -318,10 +318,11 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifdef NOT_USED
-#define HAVE_SNPRINTF		/* Gave link error */
-#define _snprintf snprintf
-#endif
+#define HAVE_SNPRINTF 1
+#define snprintf _snprintf
+
+#define HAVE_SETENV 1
+#define setenv(VAR,VAL,X)       _putenv_s(VAR,VAL)
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
@@ -360,7 +361,7 @@ inline ulonglong double2ulonglong(double d)
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
-#define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
+#define FN_NO_CASE_SENSE        /* Files are not case-sensitive */
 #define OS_FILE_LIMIT	UINT_MAX /* No limit*/
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS

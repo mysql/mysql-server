@@ -14,8 +14,6 @@ SELECT @@session.sql_low_priority_updates;
 0
 SET @@global.sql_low_priority_updates = 1;
 SET @@global.sql_low_priority_updates = DEFAULT;
-ERROR 42000: Variable 'sql_low_priority_updates' doesn't have a default value
-'Bug: DEFAULT value is only associated with session'
 '#---------------------FN_DYNVARS_159_02-------------------------#'
 SET sql_low_priority_updates = 1;
 SELECT @@sql_low_priority_updates;
@@ -56,22 +54,19 @@ SELECT @@global.sql_low_priority_updates;
 SET @@session.sql_low_priority_updates = -1;
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of '-1'
 SET @@session.sql_low_priority_updates = 1.6;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of '2'
+ERROR 42000: Incorrect argument type to variable 'sql_low_priority_updates'
 SET @@session.sql_low_priority_updates = "T";
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'T'
 SET @@session.sql_low_priority_updates = "Y";
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Y'
 SET @@session.sql_low_priority_updates = TRÜE;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'TRÜE'
 SET @@session.sql_low_priority_updates = ÕN;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'ÕN'
 SET @@session.sql_low_priority_updates = OF;
-SELECT @@session.sql_low_priority_updates;
-@@session.sql_low_priority_updates
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'OF'
 SET @@session.sql_low_priority_updates = ÓFF;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'ÓFF'
 SET @@global.sql_low_priority_updates = -1;
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of '-1'
 SET @@global.sql_low_priority_updates = 2;
@@ -81,16 +76,13 @@ ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'T
 SET @@global.sql_low_priority_updates = "Y";
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Y'
 SET @@global.sql_low_priority_updates = TRÜE;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'TRÜE'
 SET @@global.sql_low_priority_updates = ÕN;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'ÕN'
 SET @@global.sql_low_priority_updates = OF;
-SELECT @@global.sql_low_priority_updates;
-@@global.sql_low_priority_updates
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'OF'
 SET @@global.sql_low_priority_updates = ÓFF;
-ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_159_05----------------------------#'
 SET @@global.sql_low_priority_updates = 0;
 SET @@session.sql_low_priority_updates = 1;

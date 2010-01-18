@@ -39,8 +39,6 @@ SELECT @start_global_value;
 SET @start_session_value = @@session.transaction_prealloc_size;
 SELECT @start_session_value;
 
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
 --echo '#--------------------FN_DYNVARS_005_01-------------------------#'
 ########################################################################
 #     Display the DEFAULT value of transaction_prealloc_size           #
@@ -105,8 +103,6 @@ SELECT @@global.transaction_prealloc_size;
 
 SET @@global.transaction_prealloc_size = -1024;
 SELECT @@global.transaction_prealloc_size;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 -- Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.transaction_prealloc_size = ON;

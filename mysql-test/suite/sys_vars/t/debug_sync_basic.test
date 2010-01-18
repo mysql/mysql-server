@@ -1,0 +1,21 @@
+--source include/have_debug_sync.inc
+#
+# exists as session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.debug_sync;
+select @@session.debug_sync;
+
+show global variables like "debug_sync";
+show session variables like "debug_sync";
+
+select * from information_schema.global_variables where variable_name="debug_sync";
+select * from information_schema.session_variables where variable_name="debug_sync";
+
+--error ER_WRONG_TYPE_FOR_VAR
+set @@session.debug_sync=1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@session.debug_sync=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@session.debug_sync=1e1;
+

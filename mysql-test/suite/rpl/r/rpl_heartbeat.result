@@ -42,7 +42,7 @@ Variable_name	Slave_heartbeat_period
 Value	4.000
 set @@global.slave_net_timeout= 3 /* must be a warning */;
 Warnings:
-Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+Warning	1624	The current value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
 reset slave;
 drop table if exists t1;
 set @@global.slave_net_timeout= 10;

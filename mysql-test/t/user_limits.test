@@ -132,7 +132,7 @@ drop user mysqltest_1@localhost;
 select @@session.max_user_connections, @@global.max_user_connections;
 # Local max_user_connections variable can't be set directly
 # since this limit is per-account
---error ER_GLOBAL_VARIABLE
+--error ER_VARIABLE_IS_READONLY
 set session max_user_connections= 2;
 # But it is ok to set global max_user_connections
 set global max_user_connections= 2;

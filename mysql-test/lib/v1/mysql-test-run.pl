@@ -3911,7 +3911,7 @@ sub mysqld_arguments ($$$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+    mtr_add_arg($args, "%s--loose-skip-safemalloc", $prefix);
 
     if ( $mysql_version_id < 50100 )
     {
@@ -5208,7 +5208,6 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--alignment=8");
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)

@@ -22,6 +22,7 @@
 #include "repl_failsafe.h"
 #include "sp.h"
 #include "sp_head.h"
+#include "set_var.h"
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
@@ -432,7 +433,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
-        if (!my_stat(buff, file->mystat, MYF(0)))
+        if (!mysql_file_stat(key_file_misc, buff, file->mystat, MYF(0)))
                continue;
        }
 #endif
@@ -960,7 +961,7 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
   if (length &&
       !is_keyword(name,length) &&
       !require_quotes(name, length) &&
-      !(thd->options & OPTION_QUOTE_SHOW_CREATE))
+      !(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     return '"';
@@ -1726,7 +1727,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   if (!thd->killed)
   {
     I_List_iterator<THD> it(threads);
@@ -1768,18 +1769,18 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
-        pthread_mutex_lock(&tmp->LOCK_thd_data);
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
-        pthread_mutex_unlock(&tmp->LOCK_thd_data);
+        mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   thread_info *thd_info;
   time_t now= my_time(0);
@@ -1818,7 +1819,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
 
   if (!thd->killed)
   {
@@ -1893,13 +1894,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
       if (schema_table_store_record(thd, table))
       {
-        pthread_mutex_unlock(&LOCK_thread_count);
+        mysql_mutex_unlock(&LOCK_thread_count);
         DBUG_RETURN(1);
       }
     }
   }
 
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(0);
 }
 
@@ -2146,7 +2147,7 @@ static bool show_status_array(THD *thd, const char *wild,
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
 
-        pthread_mutex_lock(&LOCK_global_system_variables);
+        mysql_mutex_lock(&LOCK_global_system_variables);
 
         if (show_type == SHOW_SYS)
         {
@@ -2166,7 +2167,8 @@ static bool show_status_array(THD *thd, const char *wild,
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_DOUBLE:
-          end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
+          /* 6 is the default precision for '%f' in sprintf() */
+          end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
           break;
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (ulong) value);
@@ -2214,6 +2216,15 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
+        case SHOW_LEX_STRING:
+        {
+          LEX_STRING *ls=(LEX_STRING*)value;
+          if (!(pos= ls->str))
+            end= pos= "";
+          else
+            end= pos + ls->length;
+          break;
+        }
         case SHOW_KEY_CACHE_LONG:
           value= (char*) dflt_key_cache + (ulong)value;
           end= int10_to_str(*(long*) value, buff, 10);
@@ -2233,7 +2244,7 @@ static bool show_status_array(THD *thd, const char *wild,
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 
-        pthread_mutex_unlock(&LOCK_global_system_variables);
+        mysql_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
         {
@@ -2256,7 +2267,7 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   DBUG_ENTER("calc_sum_of_all_status");
 
   /* Ensure that thread id not killed during loop */
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
   I_List_iterator<THD> it(threads);
   THD *tmp;
@@ -2268,7 +2279,7 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   while ((tmp= it++))
     add_to_status(to, &tmp->status_var);
   
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
 
@@ -3278,8 +3289,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   while ((db_name= it++))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd,SELECT_ACL, db_name->str, 
-                      &thd->col_access, 0, 1, with_i_schema) ||
+    if (!check_access(thd, SELECT_ACL, db_name->str,
+                      &thd->col_access, NULL, 0, 1) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
 	!check_grant_db(thd, db_name->str))
@@ -3477,7 +3488,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
-    if (!my_stat(path,&stat_info,MYF(0)))
+    if (!mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
       DBUG_RETURN(0);
   }
 
@@ -3767,9 +3778,10 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
-    check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, FALSE, FALSE,
-                 test(tables->schema_table));
+    check_access(thd, SELECT_ACL, db_name->str,
+                 &tables->grant.privilege,
+                 &tables->grant.m_internal,
+                 FALSE, FALSE);
     col_access= get_column_grant(thd, &tables->grant, 
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -4589,8 +4601,7 @@ static bool store_trigger(THD *thd, TABLE *table, LEX_STRING *db_name,
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd, sql_mode,
-                                                     &sql_mode_rep);
+  sql_mode_string_representation(thd, sql_mode, &sql_mode_rep);
   table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
   table->field[18]->store(definer_buffer->str, definer_buffer->length, cs);
   table->field[19]->store(client_cs_name->str, client_cs_name->length, cs);
@@ -5299,8 +5310,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     has access.
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
-      check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
-                   is_schema_db(et.dbname.str)))
+      check_access(thd, EVENT_ACL, et.dbname.str, NULL, NULL, 0, 1))
     DBUG_RETURN(0);
 
   sch_table->field[ISE_EVENT_CATALOG]->store(STRING_WITH_LEN("def"), scs);
@@ -5321,8 +5331,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   /* SQL_MODE */
   {
     LEX_STRING sql_mode;
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                       &sql_mode);
+    sql_mode_string_representation(thd, et.sql_mode, &sql_mode);
     sch_table->field[ISE_SQL_MODE]->
                                 store(sql_mode.str, sql_mode.length, scs);
   }
@@ -5485,10 +5494,10 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
-  rw_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars),
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
                          option_type, NULL, "", tables->table, upper_case_names, cond);
-  rw_unlock(&LOCK_system_variables_hash);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
 
@@ -5811,7 +5820,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   SELECT_LEX *select_lex= thd->lex->current_select;
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
-                                (select_lex->options | thd->options |
+                                (select_lex->options | thd->variables.option_bits |
                                  TMP_TABLE_ALL_COLUMNS),
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
@@ -7057,9 +7066,7 @@ static bool show_create_trigger_impl(THD *thd,
                              &trg_connection_cl_name,
                              &trg_db_cl_name);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                     trg_sql_mode,
-                                                     &trg_sql_mode_str);
+  sql_mode_string_representation(thd, trg_sql_mode, &trg_sql_mode_str);
 
   /* Resolve trigger client character set. */
 
@@ -7307,6 +7314,56 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     send data to the client. In this case we simply raise the error
     status and client connection will be closed.
   */
+}
+
+class IS_internal_schema_access : public ACL_internal_schema_access
+{
+public:
+  IS_internal_schema_access()
+  {}
+
+  ~IS_internal_schema_access()
+  {}
+
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const;
+
+  const ACL_internal_table_access *lookup(const char *name) const;
+};
+
+ACL_internal_access_result
+IS_internal_schema_access::check(ulong want_access,
+                                 ulong *save_priv) const
+{
+  want_access &= ~SELECT_ACL;
+
+  /*
+    We don't allow any simple privileges but SELECT_ACL on
+    the information_schema database.
+  */
+  if (unlikely(want_access & DB_ACLS))
+    return ACL_INTERNAL_ACCESS_DENIED;
+
+  /* Always grant SELECT for the information schema. */
+  *save_priv|= SELECT_ACL;
+
+  return want_access ? ACL_INTERNAL_ACCESS_CHECK_GRANT :
+                       ACL_INTERNAL_ACCESS_GRANTED;
+}
+
+const ACL_internal_table_access *
+IS_internal_schema_access::lookup(const char *name) const
+{
+  /* There are no per table rules for the information schema. */
+  return NULL;
+}
+
+static IS_internal_schema_access is_internal_schema_access;
+
+void initialize_information_schema_acl()
+{
+  ACL_internal_schema_registry::register_schema(&INFORMATION_SCHEMA_NAME,
+                                                &is_internal_schema_access);
 }
 
 /*
