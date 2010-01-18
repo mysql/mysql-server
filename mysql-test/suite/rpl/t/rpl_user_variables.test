@@ -5,6 +5,11 @@
 ###################################
 
 -- source include/master-slave.inc
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 # Disable PS as the log positions differs
 --disable_ps_protocol
 
