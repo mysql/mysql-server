@@ -1499,10 +1499,11 @@ cmd: testPartitioning
 args: --forceshortreqs
 
 # End of short (signal train) handling tests
-
 max-time: 300
 cmd: testIndex
 args: -n ConstraintDetails
 
-
+max-time: 500
+cmd: testNdbinfo
+args:
 
