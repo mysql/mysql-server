@@ -5164,14 +5164,14 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
   Uint32 TSplit;
   Uint32 TreleaseInd = 0;
   Uint32 TreleaseScanBucket;
-  Uint32 TreleaseScanIndicator[4];
+  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
   DirectoryarrayPtr TDirptr;
   DirRangePtr TDirRangePtr;
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
   TSplit = fragrecptr.p->p;
-  for (Ti = 0; Ti < 4; Ti++) {
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
     TreleaseScanIndicator[Ti] = 0;
     if (fragrecptr.p->scan[Ti] != RNIL) {
       //-------------------------------------------------------------
@@ -5233,7 +5233,7 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
     ptrCheckGuard(TDirptr, cdirarraysize, directoryarray);
     TPageptr.i = TDirptr.p->pagep[TDirInd & 0xff];
     ptrCheckGuard(TPageptr, cpagesize, page8);
-    for (Ti = 0; Ti < 4; Ti++) {
+    for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
       if (TreleaseScanIndicator[Ti] == 1) {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
@@ -5704,7 +5704,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
   Uint32 TmergeSource;
   Uint32 TreleaseScanBucket;
   Uint32 TreleaseInd = 0;
-  Uint32 TreleaseScanIndicator[4];
+  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
   DirectoryarrayPtr TDirptr;
   DirRangePtr TDirRangePtr;
   Page8Ptr TPageptr;
@@ -5718,7 +5718,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
     TmergeDest = fragrecptr.p->p - 1;
   }//if
   TmergeSource = fragrecptr.p->maxp + fragrecptr.p->p;
-  for (Ti = 0; Ti < 4; Ti++) {
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
     TreleaseScanIndicator[Ti] = 0;
     if (fragrecptr.p->scan[Ti] != RNIL) {
       TscanPtr.i = fragrecptr.p->scan[Ti];
@@ -5780,7 +5780,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
     ptrCheckGuard(TDirptr, cdirarraysize, directoryarray);
     TPageptr.i = TDirptr.p->pagep[TDirInd & 0xff];
     ptrCheckGuard(TPageptr, cpagesize, page8);
-    for (Ti = 0; Ti < 4; Ti++) {
+    for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
       if (TreleaseScanIndicator[Ti] == 1) {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
