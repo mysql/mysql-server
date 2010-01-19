@@ -292,7 +292,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  my_bool return_val= 1;
+  my_bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   int password_length;
@@ -605,7 +605,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   init_check_host();
 
   initialized=1;
-  return_val=0;
+  return_val= FALSE;
 
 end:
   thd->variables.sql_mode= old_sql_mode;
@@ -656,7 +656,7 @@ my_bool acl_reload(THD *thd)
   DYNAMIC_ARRAY old_acl_hosts,old_acl_users,old_acl_dbs;
   MEM_ROOT old_mem;
   bool old_initialized;
-  my_bool return_val= 1;
+  my_bool return_val= TRUE;
   DBUG_ENTER("acl_reload");
 
   if (thd->locked_tables)
@@ -683,8 +683,13 @@ my_bool acl_reload(THD *thd)
 
   if (simple_open_n_lock_tables(thd, tables))
   {
-    sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-		    thd->stmt_da->message());
+    /*
+      Execution might have been interrupted; only print the error message
+      if an error condition has been raised.
+    */
+    if (thd->stmt_da->is_error())
+      sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
+                      thd->stmt_da->message());
     goto end;
   }
 
