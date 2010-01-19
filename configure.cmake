@@ -284,9 +284,13 @@ IF(UNIX)
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
-  IF(NOT LIBM)
-    MY_SEARCH_LIBS(rint m LIBM)
+  
+  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+   # On  Solaris, use of intrinsics will screw the lib search logic
+   # Force using -lm, so rint etc are found.
+   SET(LIBM m)
   ENDIF()
+
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
