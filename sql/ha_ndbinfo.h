@@ -60,6 +60,15 @@ public:
     return to;
   }
 
+  bool low_byte_first() const {
+    // Data will be returned in machine format
+#ifdef WORDS_BIGENDIAN
+    return false;
+#else
+    return true;
+#endif
+  }
+
 private:
   void unpack_record(uchar *dst_row);
 
