@@ -32,7 +32,7 @@ DECLARE_NDBINFO_TABLE(TABLES,3) =
     {"table_id",  Ndbinfo::Number, ""},
 
     {"table_name",Ndbinfo::String, ""},
-    {"comment",   Ndbinfo::String, ""},
+    {"comment",   Ndbinfo::String, ""}
   }
 };
 
@@ -44,7 +44,7 @@ DECLARE_NDBINFO_TABLE(COLUMNS,5) =
 
     {"column_name", Ndbinfo::String, ""},
     {"column_type", Ndbinfo::Number, ""},
-    {"comment",     Ndbinfo::String, ""},
+    {"comment",     Ndbinfo::String, ""}
   }
 };
 
@@ -56,7 +56,7 @@ DECLARE_NDBINFO_TABLE(TEST,5) =
     {"block_instance",     Ndbinfo::Number, ""},
 
     {"counter",            Ndbinfo::Number, ""},
-    {"counter2",           Ndbinfo::Number64, ""},
+    {"counter2",           Ndbinfo::Number64, ""}
   }
 };
 
@@ -75,7 +75,7 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
     {"config_param1",      Ndbinfo::Number, "config param 1 affecting pool"},
     {"config_param2",      Ndbinfo::Number, "config param 2 affecting pool"},
     {"config_param3",      Ndbinfo::Number, "config param 3 affecting pool"},
-    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"},
+    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"}
   }
 };
 
@@ -85,7 +85,7 @@ DECLARE_NDBINFO_TABLE(TRANSPORTERS, 3) =
     {"node_id",            Ndbinfo::Number, ""},
     {"remote_node_id",     Ndbinfo::Number, ""},
 
-    {"connection_status",  Ndbinfo::Number, ""},
+    {"connection_status",  Ndbinfo::Number, ""}
   }
 };
 
@@ -113,7 +113,7 @@ DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
 
     {"total",              Ndbinfo::Number64, "total allocated"},
     {"used",               Ndbinfo::Number64, "currently in use"},
-    {"high",               Ndbinfo::Number64, "in use high water mark"},
+    {"high",               Ndbinfo::Number64, "in use high water mark"}
   }
 };
 
@@ -126,7 +126,7 @@ DECLARE_NDBINFO_TABLE(RESOURCES,6) =
     {"reserved",           Ndbinfo::Number, "reserved for this resource"},
     {"used",               Ndbinfo::Number, "currently in use"},
     {"max",                Ndbinfo::Number, "max available"},
-    {"high",               Ndbinfo::Number, "in use high water mark"},
+    {"high",               Ndbinfo::Number, "in use high water mark"}
   }
 };
 
@@ -149,7 +149,7 @@ DECLARE_NDBINFO_TABLE(NODES,4) =
 
     {"uptime",             Ndbinfo::Number64, "time in seconds that node has been running"},
     {"status",             Ndbinfo::Number, "starting/started/stopped etc."},
-    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"},
+    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"}
   }
 };
 

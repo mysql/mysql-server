@@ -428,7 +428,7 @@ MgmApiSession::runSession()
         // Send result to client
         m_output->println("result: %s, '%s'",
                           msg, ctx.m_currentToken);
-        m_output->println("");
+        m_output->print("\n");
       }
     }
 
@@ -1810,7 +1810,7 @@ MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
   {
     m_output->println("result: Ok");
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1831,7 +1831,7 @@ MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
 //end:
   m_output->println("drop nodegroup reply");
   m_output->println("result: %s", result.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -2057,7 +2057,7 @@ done:
 
   m_output->println("set config reply");
   m_output->println("result: %s", result.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2075,7 +2075,7 @@ void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
   m_output->println("show config reply");
   m_mgmsrv.print_config(section, nodeid, name,
                         socket_out);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2101,7 +2101,7 @@ MgmApiSession::reloadConfig(Parser_t::Context &,
   else
     m_output->println("result: Ok");
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2112,8 +2112,7 @@ MgmApiSession::show_variables(Parser_t::Context &,
   m_output->println("show variables reply");
   NdbOut socket_out(*m_output, false /* turn off autoflush */);
   m_mgmsrv.show_variables(socket_out);
-  m_output->println("");
-
+  m_output->println("%s", "");
 }
 
 

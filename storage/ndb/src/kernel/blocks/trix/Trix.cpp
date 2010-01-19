@@ -508,14 +508,14 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
         c_theAttrOrderBufferPool.getSize(),
         c_theAttrOrderBufferPool.getEntrySize(),
         c_theAttrOrderBufferPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Subscription Record",
         c_theSubscriptionRecPool.getUsed(),
         c_theSubscriptionRecPool.getSize(),
         c_theSubscriptionRecPool.getEntrySize(),
         c_theSubscriptionRecPool.getUsedHi(),
-        0,0,0,0 },
-      { NULL, 0,0,0,0,0,0,0,0}
+        { 0,0,0,0 }},
+      { NULL, 0,0,0,0,{0,0,0,0}}
     };
 
     const size_t num_config_params =
