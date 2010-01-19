@@ -377,17 +377,13 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
 
       case (MYSQL_TYPE_LONG):
       {
-        Uint32 val = record->u_32_value();
-        DBUG_PRINT("info", ("val: %d", val));
-        memcpy(field->ptr, &val, sizeof (Uint32));
+        memcpy(field->ptr, record->ptr(), sizeof(Uint32));
         break;
       }
 
       case (MYSQL_TYPE_LONGLONG):
       {
-        Uint64 val = record->u_64_value();
-        DBUG_PRINT("info", ("val: %llu", val));
-        memcpy(field->ptr, &val, sizeof (Uint64));
+        memcpy(field->ptr, record->ptr(), sizeof(Uint64));
         break;
       }
 
