@@ -13,8 +13,7 @@ CREATE TEMPORARY TABLE `t1` (
 ) ENGINE=NDBINFO;
 ERROR HY000: Table storage engine 'ndbinfo' does not support the create option 'TEMPORARY'
 
-@have_ndbinfo:= COUNT(*)
-1
+
 USE ndbinfo;
 
 SHOW CREATE TABLE ndb$tables;
@@ -165,5 +164,3 @@ SELECT count(*) >= 20 FROM blocks;
 count(*) >= 20
 1
 
-## Cleanup
-DROP DATABASE ndbinfo;

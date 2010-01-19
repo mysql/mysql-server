@@ -401,14 +401,10 @@ drop table db1.tab1,db1.tab2,db2.tab1;
 Include unknown database
 ************************
 Should result in nothing restored
-show databases;
-Database
-information_schema
+show databases like "db%";
+Database (db%)
 db1
 db2
-mtr
-mysql
-test
 use db1;
 show tables;
 Tables_in_db1
@@ -419,14 +415,10 @@ Tables_in_db2
 Exclude unknown table
 *********************
 Should result in everything restored
-show databases;
-Database
-information_schema
+show databases like "db%";
+Database (db%)
 db1
 db2
-mtr
-mysql
-test
 use db1;
 show tables;
 Tables_in_db1
