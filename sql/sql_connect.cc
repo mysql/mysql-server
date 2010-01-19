@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
 					       (uchar*) temp_user, temp_len)))
   {
@@ -91,7 +91,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   thd->user_connect=uc;
   uc->connections++;
 end:
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   return return_val;
 
 }
@@ -120,7 +120,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
 
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
       !uc->user_resources.user_conn &&
       global_system_variables.max_user_connections < (uint) uc->connections)
@@ -161,7 +161,7 @@ end:
     */
     thd->user_connect= NULL;
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
@@ -187,14 +187,14 @@ end:
 void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
     (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
 
@@ -242,7 +242,7 @@ bool check_mqh(THD *thd, uint check_command)
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
 
   time_out_user_resource_limits(thd, uc);
 
@@ -269,7 +269,7 @@ bool check_mqh(THD *thd, uint check_command)
     }
   }
 end:
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
@@ -330,9 +330,9 @@ check_user(THD *thd, enum enum_server_command command,
 #else
 
   my_bool opt_secure_auth_local;
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   opt_secure_auth_local= opt_secure_auth;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   
   /*
     If the server is running in secure auth mode, short scrambles are 
@@ -409,10 +409,10 @@ check_user(THD *thd, enum enum_server_command command,
 
       if (check_count)
       {
-        pthread_mutex_lock(&LOCK_connection_count);
+        mysql_mutex_lock(&LOCK_connection_count);
         bool count_ok= connection_count <= max_connections ||
                        (thd->main_security_ctx.master_access & SUPER_ACL);
-        pthread_mutex_unlock(&LOCK_connection_count);
+        mysql_mutex_unlock(&LOCK_connection_count);
 
         if (!count_ok)
         {                                         // too many connections
@@ -557,7 +557,7 @@ void free_max_user_conn(void)
 void reset_mqh(LEX_USER *lu, bool get_them= 0)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
     USER_CONN *uc;
@@ -591,7 +591,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
       uc->conn_per_hour=0;
     }
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
@@ -1107,6 +1107,16 @@ pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
 
+  mysql_thread_set_psi_id(thd->thread_id);
+
+  do_handle_one_connection(thd);
+  return 0;
+}
+
+void do_handle_one_connection(THD *thd_arg)
+{
+  THD *thd= thd_arg;
+
   thd->thr_create_utime= my_micro_time();
 
   if (thread_scheduler.init_new_connection_thread())
@@ -1114,7 +1124,7 @@ pthread_handler_t handle_one_connection(void *arg)
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
     thread_scheduler.end_thread(thd,0);
-    return 0;
+    return;
   }
 
   /*
@@ -1141,7 +1151,7 @@ pthread_handler_t handle_one_connection(void *arg)
   */
   thd->thread_stack= (char*) &thd;
   if (setup_connection_thread_globals(thd))
-    return 0;
+    return;
 
   for (;;)
   {
@@ -1167,7 +1177,7 @@ pthread_handler_t handle_one_connection(void *arg)
 end_thread:
     close_connection(thd, 0, 1);
     if (thread_scheduler.end_thread(thd,1))
-      return 0;                                 // Probably no-threads
+      return;                                 // Probably no-threads
 
     /*
       If end_thread() returns, we are either running with

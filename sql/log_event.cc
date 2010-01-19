@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
-#include "rpl_utility.h"
 #include "rpl_record.h"
 #include <my_dir.h>
 
@@ -37,6 +36,7 @@
 
 #include <base64.h>
 #include <my_bitmap.h>
+#include "rpl_utility.h"
 
 #define log_cs	&my_charset_latin1
 
@@ -497,7 +497,7 @@ static void cleanup_load_tmpdir()
     if (is_prefix(file->name, prefbuf))
     {
       fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
-      my_delete(fname, MYF(0));
+      mysql_file_delete(key_file_misc, fname, MYF(0));
     }
   }
 
@@ -665,9 +665,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-  cache_stmt=	using_trans;
+  cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+               ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+               Log_event::EVENT_STMT_CACHE);
 }
-
 
 /**
   This minimal constructor is for when you are not even sure that there
@@ -677,8 +678,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 */
 
 Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0), cache_stmt(0),
-   thd(0)
+  :temp_buf(0), exec_time(0), flags(0),
+  cache_type(Log_event::EVENT_INVALID_CACHE), thd(0)
 {
   server_id=	::server_id;
   /*
@@ -697,7 +698,7 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), cache_stmt(0)
+  :temp_buf(0), cache_type(Log_event::EVENT_INVALID_CACHE)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -967,7 +968,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
-			      pthread_mutex_t* log_lock)
+                              mysql_mutex_t* log_lock)
 {
   ulong data_len;
   int result=0;
@@ -975,7 +976,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   DBUG_ENTER("Log_event::read_log_event");
 
   if (log_lock)
-    pthread_mutex_lock(log_lock);
+    mysql_mutex_lock(log_lock);
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -1033,14 +1034,14 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
 end:
   if (log_lock)
-    pthread_mutex_unlock(log_lock);
+    mysql_mutex_unlock(log_lock);
   DBUG_RETURN(result);
 }
 #endif /* !MYSQL_CLIENT */
 
 #ifndef MYSQL_CLIENT
-#define UNLOCK_MUTEX if (log_lock) pthread_mutex_unlock(log_lock);
-#define LOCK_MUTEX if (log_lock) pthread_mutex_lock(log_lock);
+#define UNLOCK_MUTEX if (log_lock) mysql_mutex_unlock(log_lock);
+#define LOCK_MUTEX if (log_lock) mysql_mutex_lock(log_lock);
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
@@ -1052,7 +1053,7 @@ end:
     Allocates memory;  The caller is responsible for clean-up.
 */
 Log_event* Log_event::read_log_event(IO_CACHE* file,
-				     pthread_mutex_t* log_lock,
+                                     mysql_mutex_t* log_lock,
                                      const Format_description_log_event
                                      *description_event)
 #else
@@ -1567,37 +1568,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
         /* a long CHAR() field: see #37426 */
         length= byte1 | (((byte0 & 0x30) ^ 0x30) << 4);
         type= byte0 | 0x30;
-        goto beg;
       }
-
-      switch (byte0)
-      {
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_STRING:
-          type= byte0;
-          length= byte1;
-          break;
-
-        default:
-
-        {
-          char tmp[5];
-          my_snprintf(tmp, sizeof(tmp), "%04X", meta);
-          my_b_printf(file,
-                      "!! Don't know how to handle column type=%d meta=%d (%s)",
-                      type, meta, tmp);
-          return 0;
-        }
-      }
+      else
+        length = meta & 0xFF;
     }
     else
       length= meta;
   }
 
-
-beg:
-  
   switch (type) {
   case MYSQL_TYPE_LONG:
     {
@@ -1734,6 +1712,33 @@ beg:
       return 3;
     }
     
+  case MYSQL_TYPE_NEWDATE:
+    {
+      uint32 tmp= uint3korr(ptr);
+      int part;
+      char buf[10];
+      char *pos= &buf[10];
+
+      /* Copied from field.cc */
+      *pos--=0;					// End NULL
+      part=(int) (tmp & 31);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 5 & 15);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 9);
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos=   (char) ('0'+part);
+      my_b_printf(file , "'%s'", buf);
+      my_snprintf(typestr, typestr_length, "DATE");
+      return 3;
+    }
+    
   case MYSQL_TYPE_DATE:
     {
       uint i32= uint3korr(ptr);
@@ -1752,7 +1757,7 @@ beg:
     }
   
   case MYSQL_TYPE_ENUM:
-    switch (length) { 
+    switch (meta & 0xFF) {
     case 1:
       my_b_printf(file, "%d", (int) *ptr);
       my_snprintf(typestr, typestr_length, "ENUM(1 byte)");
@@ -1765,15 +1770,15 @@ beg:
         return 2;
       }
     default:
-      my_b_printf(file, "!! Unknown ENUM packlen=%d", length); 
+      my_b_printf(file, "!! Unknown ENUM packlen=%d", meta & 0xFF); 
       return 0;
     }
     break;
     
   case MYSQL_TYPE_SET:
-    my_b_write_bit(file, ptr , length * 8);
-    my_snprintf(typestr, typestr_length, "SET(%d bytes)", length);
-    return length;
+    my_b_write_bit(file, ptr , (meta & 0xFF) * 8);
+    my_snprintf(typestr, typestr_length, "SET(%d bytes)", meta & 0xFF);
+    return meta & 0xFF;
   
   case MYSQL_TYPE_BLOB:
     switch (meta) {
@@ -2353,7 +2358,7 @@ Query_log_event::Query_log_event()
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use, int errcode)
+				 bool direct, bool suppress_use, int errcode)
 
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
@@ -2432,6 +2437,95 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
   else
     time_zone_len= 0;
+
+  /*
+    In what follows, we decide whether to write to the binary log or to use a
+    cache.
+  */
+  LEX *lex= thd->lex;
+  bool implicit_commit= FALSE;
+  cache_type= Log_event::EVENT_INVALID_CACHE;
+  switch (lex->sql_command)
+  {
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_DROP_FUNCTION:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_INSTALL_PLUGIN:
+    case SQLCOM_UNINSTALL_PLUGIN:
+    case SQLCOM_ALTER_TABLESPACE:
+      implicit_commit= TRUE;
+      break;
+    case SQLCOM_DROP_TABLE:
+      implicit_commit= !(lex->drop_temporary && thd->in_multi_stmt_transaction());
+      break;
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_CREATE_TABLE:
+      implicit_commit= !((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+                   thd->in_multi_stmt_transaction()) &&
+                  !(lex->select_lex.item_list.elements &&
+                   thd->is_current_stmt_binlog_format_row());
+      break;
+    case SQLCOM_SET_OPTION:
+      implicit_commit= (lex->autocommit ? TRUE : FALSE);
+      break;
+    /*
+      Replace what follows after CF_AUTO_COMMIT_TRANS is backported by:
+
+      default:
+        implicit_commit= ((sql_command_flags[lex->sql_command] &
+                      CF_AUTO_COMMIT_TRANS));
+      break;
+    */
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_TRUNCATE:
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB_UPGRADE:
+    case SQLCOM_RENAME_TABLE:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_CREATE_VIEW:
+    case SQLCOM_DROP_VIEW:
+    case SQLCOM_CREATE_TRIGGER:
+    case SQLCOM_DROP_TRIGGER:
+    case SQLCOM_CREATE_EVENT:
+    case SQLCOM_ALTER_EVENT:
+    case SQLCOM_DROP_EVENT:
+    case SQLCOM_REPAIR:
+    case SQLCOM_OPTIMIZE:
+    case SQLCOM_ANALYZE:
+    case SQLCOM_CREATE_USER:
+    case SQLCOM_DROP_USER:
+    case SQLCOM_RENAME_USER:
+    case SQLCOM_REVOKE_ALL:
+    case SQLCOM_REVOKE:
+    case SQLCOM_GRANT:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_ALTER_PROCEDURE:
+    case SQLCOM_ALTER_FUNCTION:
+    case SQLCOM_ASSIGN_TO_KEYCACHE:
+    case SQLCOM_PRELOAD_KEYS:
+    case SQLCOM_FLUSH:
+    case SQLCOM_CHECK:
+      implicit_commit= TRUE;
+      break;
+    default:
+      implicit_commit= FALSE;
+      break;
+  }
+
+  if (implicit_commit || direct)
+  {
+    cache_type= Log_event::EVENT_NO_CACHE;
+  }
+  else
+  {
+    cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+                 ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                 Log_event::EVENT_STMT_CACHE);
+  }
+  DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
                      (ulong) flags2, sql_mode));
 }
@@ -4932,7 +5026,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !rli->is_in_group())
   {
-    pthread_mutex_lock(&rli->data_lock);
+    mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->group_master_log_name,
@@ -4944,7 +5038,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         "new group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
-    pthread_mutex_unlock(&rli->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
     flush_relay_log_info(rli);
     
     /*
@@ -5765,8 +5859,8 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
 
   Master_info* mi = rli->mi;
   // TODO: re-write this better without holding both locks at the same time
-  pthread_mutex_lock(&mi->data_lock);
-  pthread_mutex_lock(&rli->data_lock);
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&rli->data_lock);
   master_host_len = strlen(mi->host);
   master_log_len = strlen(rli->group_master_log_name);
   // on OOM, just do not initialize the structure and print the error
@@ -5784,8 +5878,8 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   }
   else
     sql_print_error("Out of memory while recording slave event");
-  pthread_mutex_unlock(&rli->data_lock);
-  pthread_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&rli->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
   DBUG_VOID_RETURN;
 }
 #endif /* !MYSQL_CLIENT */
@@ -6142,10 +6236,12 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   fname_buf= strmov(proc_info, "Making temp file ");
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   thd_proc_info(thd, proc_info);
-  my_delete(fname_buf, MYF(0)); // old copy may exist already
-  if ((fd= my_create(fname_buf, CREATE_MODE,
-		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		     MYF(MY_WME))) < 0 ||
+  /* old copy may exist already */
+  mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+  if ((fd= mysql_file_create(key_file_log_event_info,
+                             fname_buf, CREATE_MODE,
+                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -6167,20 +6263,22 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
   end_io_cache(&file);
-  my_close(fd, MYF(0));
+  mysql_file_close(fd, MYF(0));
   
   // fname_buf now already has .data, not .info, because we did our trick
-  my_delete(fname_buf, MYF(0)); // old copy may exist already
-  if ((fd= my_create(fname_buf, CREATE_MODE,
-		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		     MYF(MY_WME))) < 0)
+  /* old copy may exist already */
+  mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  if ((fd= mysql_file_create(key_file_log_event_data,
+                             fname_buf, CREATE_MODE,
+                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             MYF(MY_WME))) < 0)
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in Create_file event: could not open file '%s'",
                 fname_buf);
     goto err;
   }
-  if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in Create_file event: write to '%s' failed",
@@ -6193,7 +6291,7 @@ err:
   if (error)
     end_io_cache(&file);
   if (fd >= 0)
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   thd_proc_info(thd, 0);
   return error != 0;
 }
@@ -6325,10 +6423,12 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
-    my_delete(fname, MYF(0)); // old copy may exist already
-    if ((fd= my_create(fname, CREATE_MODE,
-		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		       MYF(MY_WME))) < 0)
+    /* old copy may exist already */
+    mysql_file_delete(key_file_log_event_data, fname, MYF(0));
+    if ((fd= mysql_file_create(key_file_log_event_data,
+                               fname, CREATE_MODE,
+                               O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                               MYF(MY_WME))) < 0)
     {
       rli->report(ERROR_LEVEL, my_errno,
                   "Error in %s event: could not create file '%s'",
@@ -6336,8 +6436,10 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
       goto err;
     }
   }
-  else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
-                         MYF(MY_WME))) < 0)
+  else if ((fd= mysql_file_open(key_file_log_event_data,
+                                fname,
+                                O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                                MYF(MY_WME))) < 0)
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in %s event: could not open file '%s'",
@@ -6345,10 +6447,14 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
 
-  DBUG_EXECUTE_IF("remove_slave_load_file_before_write", 
-                  my_close(fd,MYF(0)); fd= -1; my_delete(fname, MYF(0)););
+  DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
+                  {
+                    mysql_file_close(fd, MYF(0));
+                    fd= -1;
+                    mysql_file_delete(0, fname, MYF(0));
+                  });
 
-  if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in %s event: write to '%s' failed",
@@ -6359,7 +6465,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 
 err:
   if (fd >= 0)
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   thd_proc_info(thd, 0);
   DBUG_RETURN(error);
 }
@@ -6453,9 +6559,9 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
   char fname[FN_REFLEN+10];
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
   return 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -6556,8 +6662,9 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   Load_log_event *lev= 0;
 
   ext= slave_load_file_stem(fname, file_id, server_id, ".info");
-  if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
-                    MYF(MY_WME))) < 0 ||
+  if ((fd= mysql_file_open(key_file_log_event_info,
+                           fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
+                           MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -6567,7 +6674,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
-                                                         (pthread_mutex_t*)0,
+                                                         (mysql_mutex_t*)0,
                                                          rli->relay_log.description_event_for_exec)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
@@ -6607,24 +6714,24 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   }
   /*
     We have an open file descriptor to the .info file; we need to close it
-    or Windows will refuse to delete the file in my_delete().
+    or Windows will refuse to delete the file in mysql_file_delete().
   */
   if (fd >= 0)
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     end_io_cache(&file);
     fd= -1;
   }
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
   memcpy(ext, ".data", 6);
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   error = 0;
 
 err:
   delete lev;
   if (fd >= 0)
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     end_io_cache(&file);
   }
   return error;
@@ -6689,9 +6796,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              ulong query_length_arg, uint fn_pos_start_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
-                             bool using_trans, bool suppress_use,
+                             bool using_trans, bool direct, bool suppress_use,
                              int errcode):
-  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
+  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, direct,
                   suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
@@ -6863,7 +6970,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
     file so that we can re-execute this event at START SLAVE.
   */
   if (!error)
-    (void) my_delete(fname, MYF(MY_WME));
+    mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
 
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   return error;
@@ -7260,7 +7367,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       We also call the mysql_reset_thd_for_next_command(), since this
       is the logical start of the next "statement". Note that this
-      call might reset the value of current_stmt_binlog_row_based, so
+      call might reset the value of current_stmt_binlog_format, so
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
@@ -7272,16 +7379,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     thd->transaction.stmt.modified_non_trans_table= FALSE;
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
-    {
-      thd->set_current_stmt_binlog_row_based();
-    }
-
+    thd->lex->set_stmt_row_injection();
 
     /*
       There are a few flags that are replicated with each row event.
@@ -7330,11 +7433,18 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
 
     {
+      DBUG_PRINT("debug", ("Checking compability of tables to lock - tables_to_lock: %p",
+                           rli->tables_to_lock));
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                             ptr->table, &conv_table))
         {
+          DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
+                               ptr->table->s->db.str,
+                               ptr->table->s->table_name.str));
           /*
             We should not honour --slave-skip-errors at this point as we are
             having severe errors which should not be skiped.
@@ -7345,12 +7455,17 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+                             " - conv_table: %p",
+                             ptr->table->s->db.str,
+                             ptr->table->s->table_name.str, conv_table));
+        ptr->m_conv_table= conv_table;
       }
     }
 
     /*
-      ... and then we add all the tables to the table map and remove
-      them from tables to lock.
+      ... and then we add all the tables to the table map and but keep
+      them in the tables to lock list.
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
@@ -7517,7 +7632,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       error= 0;
     }
 
-    if (!cache_stmt)
+    if (!use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->variables.option_bits|= OPTION_KEEP_LOG;
@@ -7536,7 +7651,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
                              get_type_str(),
                              RPL_LOG_NAME, (ulong) log_pos);
-    thd->reset_current_stmt_binlog_row_based();
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_format_row() from here.
+
+      Note: this applies to log_event_old.cc too.
+      /Sven
+    */
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -7597,7 +7719,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    error= thd->binlog_flush_pending_rows_event(true);
+    error= thd->binlog_flush_pending_rows_event(TRUE);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -7620,7 +7742,17 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       event flushed.
     */
 
-    thd->reset_current_stmt_binlog_row_based();
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_format_row() from here.
+
+      Note: this applies to log_event_old.cc too
+
+      Btw, the previous comment about transactional engines does not
+      seem related to anything that happens here.
+      /Sven
+    */
+    thd->reset_current_stmt_binlog_format_row();
 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
   }
@@ -7827,7 +7959,10 @@ int Table_map_log_event::save_field_metadata()
   DBUG_ENTER("Table_map_log_event::save_field_metadata");
   int index= 0;
   for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
+  {
+    DBUG_PRINT("debug", ("field_type: %d", m_coltype[i]));
     index+= m_table->s->field[i]->save_field_metadata(&m_field_metadata[index]);
+  }
   DBUG_RETURN(index);
 }
 #endif /* !defined(MYSQL_CLIENT) */
@@ -7839,8 +7974,8 @@ int Table_map_log_event::save_field_metadata()
  */
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
-                                         bool is_transactional, uint16 flags)
-  : Log_event(thd, 0, true),
+                                         bool is_transactional)
+  : Log_event(thd, 0, is_transactional),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
@@ -7849,7 +7984,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_colcnt(tbl->s->fields),
     m_memory(NULL),
     m_table_id(tid),
-    m_flags(flags),
+    m_flags(TM_BIT_LEN_EXACT_F),
     m_data_size(0),
     m_field_metadata(0),
     m_field_metadata_size(0),
@@ -8105,8 +8240,10 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       inside Relay_log_info::clear_tables_to_lock() by calling the
       table_def destructor explicitly.
     */
-    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt, 
-         m_field_metadata, m_field_metadata_size, m_null_bits);
+    new (&table_list->m_tabledef)
+      table_def(m_coltype, m_colcnt,
+                m_field_metadata, m_field_metadata_size,
+                m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
 
     /*
