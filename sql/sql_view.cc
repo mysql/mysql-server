@@ -258,12 +258,16 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
   */
-  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
+  if ((check_access(thd, CREATE_VIEW_ACL, view->db,
+                    &view->grant.privilege,
+                    &view->grant.m_internal,
+                    0, 0) ||
        check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
       (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
+       (check_access(thd, DROP_ACL, view->db,
+                     &view->grant.privilege,
+                     &view->grant.m_internal,
+                     0, 0) ||
         check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
     goto err;
 
@@ -313,7 +317,9 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       if (!tbl->table_in_first_from_clause)
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
+                         &tbl->grant.privilege,
+                         &tbl->grant.m_internal,
+                         0, 0) ||
             check_grant(thd, SELECT_ACL, tbl, FALSE, 1, FALSE))
           goto err;
       }
@@ -654,7 +660,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
     int errcode= query_error_code(thd, TRUE);
     if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          buff.ptr(), buff.length(), FALSE, FALSE, errcode))
+                          buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
       res= TRUE;
   }
 
@@ -1300,8 +1306,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       If the view's body needs row-based binlogging (e.g. the VIEW is created
       from SELECT UUID()), the top statement also needs it.
     */
-    if (lex->is_stmt_unsafe())
-      old_lex->set_stmt_unsafe();
+    old_lex->set_stmt_unsafe_flags(lex->get_stmt_unsafe_flags());
+
     view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                         lex->can_be_merged());
 
@@ -1608,7 +1614,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       }
       continue;
     }
-    if (my_delete(path, MYF(MY_WME)))
+    if (mysql_file_delete(key_file_frm, path, MYF(MY_WME)))
       error= TRUE;
 
     some_views_deleted= TRUE;
@@ -1620,10 +1626,10 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if ((share= get_cached_table_share(view->db, view->table_name)))
     {
       DBUG_ASSERT(share->ref_count == 0);
-      pthread_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       share->ref_count++;
       share->version= 0;
-      pthread_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
       release_table_share(share, RELEASE_WAIT_FOR_DROP);
     }
     query_cache_invalidate3(thd, view, 0);
@@ -1683,10 +1689,11 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
   *dbt= DB_TYPE_UNKNOWN;
 
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(FRMTYPE_ERROR);
-  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
-  my_close(file, MYF(MY_WME));
+  error= mysql_file_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
+  mysql_file_close(file, MYF(MY_WME));
 
   if (error)
     DBUG_RETURN(FRMTYPE_ERROR);

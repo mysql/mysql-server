@@ -21,6 +21,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "mysql_com.h"
 
 class Relay_log_info;
 
@@ -32,127 +33,24 @@ class Relay_log_info;
   - Extract and decode table definition data from the table map event
   - Check if table definition in table map is compatible with table
     definition on slave
-
-  Currently, the only field type data available is an array of the
-  type operators that are present in the table map event.
-
-  @todo Add type operands to this structure to allow detection of
-     difference between, e.g., BIT(5) and BIT(10).
  */
 
 class table_def
 {
 public:
   /**
-    Convenience declaration of the type of the field type data in a
-    table map event.
-  */
-  typedef unsigned char field_type;
-
-  /**
     Constructor.
 
-    @param types Array of types
+    @param types Array of types, each stored as a byte
     @param size  Number of elements in array 'types'
     @param field_metadata Array of extra information about fields
     @param metadata_size Size of the field_metadata array
     @param null_bitmap The bitmap of fields that can be null
    */
-  table_def(field_type *types, ulong size, uchar *field_metadata, 
-      int metadata_size, uchar *null_bitmap)
-    : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
-      m_field_metadata(0), m_null_bits(0), m_memory(NULL)
-  {
-    m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
-                                       &m_type, size,
-                                       &m_field_metadata,
-                                       size * sizeof(uint16),
-                                       &m_null_bits, (size + 7) / 8,
-                                       NULL);
+  table_def(unsigned char *types, ulong size, uchar *field_metadata,
+            int metadata_size, uchar *null_bitmap, uint16 flags);
 
-    bzero(m_field_metadata, size * sizeof(uint16));
-
-    if (m_type)
-      memcpy(m_type, types, size);
-    else
-      m_size= 0;
-    /*
-      Extract the data from the table map into the field metadata array
-      iff there is field metadata. The variable metadata_size will be
-      0 if we are replicating from an older version server since no field
-      metadata was written to the table map. This can also happen if 
-      there were no fields in the master that needed extra metadata.
-    */
-    if (m_size && metadata_size)
-    { 
-      int index= 0;
-      for (unsigned int i= 0; i < m_size; i++)
-      {
-        switch (m_type[i]) {
-        case MYSQL_TYPE_TINY_BLOB:
-        case MYSQL_TYPE_BLOB:
-        case MYSQL_TYPE_MEDIUM_BLOB:
-        case MYSQL_TYPE_LONG_BLOB:
-        case MYSQL_TYPE_DOUBLE:
-        case MYSQL_TYPE_FLOAT:
-        {
-          /*
-            These types store a single byte.
-          */
-          m_field_metadata[i]= field_metadata[index];
-          index++;
-          break;
-        }
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_STRING:
-        {
-          uint16 x= field_metadata[index++] << 8U; // real_type
-          x+= field_metadata[index++];            // pack or field length
-          m_field_metadata[i]= x;
-          break;
-        }
-        case MYSQL_TYPE_BIT:
-        {
-          uint16 x= field_metadata[index++]; 
-          x = x + (field_metadata[index++] << 8U);
-          m_field_metadata[i]= x;
-          break;
-        }
-        case MYSQL_TYPE_VARCHAR:
-        {
-          /*
-            These types store two bytes.
-          */
-          char *ptr= (char *)&field_metadata[index];
-          m_field_metadata[i]= uint2korr(ptr);
-          index= index + 2;
-          break;
-        }
-        case MYSQL_TYPE_NEWDECIMAL:
-        {
-          uint16 x= field_metadata[index++] << 8U; // precision
-          x+= field_metadata[index++];            // decimals
-          m_field_metadata[i]= x;
-          break;
-        }
-        default:
-          m_field_metadata[i]= 0;
-          break;
-        }
-      }
-    }
-    if (m_size && null_bitmap)
-       memcpy(m_null_bits, null_bitmap, (m_size + 7) / 8);
-  }
-
-  ~table_def() {
-    my_free(m_memory, MYF(0));
-#ifndef DBUG_OFF
-    m_type= 0;
-    m_size= 0;
-#endif
-  }
+  ~table_def();
 
   /**
     Return the number of fields there is type data for.
@@ -171,10 +69,40 @@ public:
     <code>index</code>. Currently, only the type identifier is
     returned.
    */
-  field_type type(ulong index) const
+  enum_field_types type(ulong index) const
   {
     DBUG_ASSERT(index < m_size);
-    return m_type[index];
+    /*
+      If the source type is MYSQL_TYPE_STRING, it can in reality be
+      either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
+      we might need to modify the type to get the real type.
+    */
+    enum_field_types source_type= static_cast<enum_field_types>(m_type[index]);
+    uint16 source_metadata= m_field_metadata[index];
+    switch (source_type)
+    {
+    case MYSQL_TYPE_STRING:
+    {
+      int real_type= source_metadata >> 8;
+      if (real_type == MYSQL_TYPE_ENUM || real_type == MYSQL_TYPE_SET)
+        source_type= static_cast<enum_field_types>(real_type);
+      break;
+    }
+
+    /*
+      This type has not been used since before row-based replication,
+      so we can safely assume that it really is MYSQL_TYPE_NEWDATE.
+    */
+    case MYSQL_TYPE_DATE:
+      source_type= MYSQL_TYPE_NEWDATE;
+      break;
+
+    default:
+      /* Do nothing */
+      break;
+    }
+
+    return source_type;
   }
 
 
@@ -226,26 +154,62 @@ public:
     with it.
 
     A table definition is compatible with a table if:
-      - the columns types of the table definition is a (not
-        necessarily proper) prefix of the column type of the table, or
-      - the other way around
+      - The columns types of the table definition is a (not
+        necessarily proper) prefix of the column type of the table.
 
+      - The other way around.
+
+      - Each column on the master that also exists on the slave can be
+        converted according to the current settings of @c
+        SLAVE_TYPE_CONVERSIONS.
+
+    @param thd
     @param rli   Pointer to relay log info
     @param table Pointer to table to compare with.
+
+    @param[out] tmp_table_var Pointer to temporary table for holding
+    conversion table.
 
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
 #ifndef MYSQL_CLIENT
-  int compatible_with(Relay_log_info const *rli, TABLE *table) const;
+  bool compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
+                      TABLE **conv_table_var) const;
+
+  /**
+   Create a virtual in-memory temporary table structure.
+
+   The table structure has records and field array so that a row can
+   be unpacked into the record for further processing.
+
+   In the virtual table, each field that requires conversion will
+   have a non-NULL value, while fields that do not require
+   conversion will have a NULL value.
+
+   Some information that is missing in the events, such as the
+   character set for string types, are taken from the table that the
+   field is going to be pushed into, so the target table that the data
+   eventually need to be pushed into need to be supplied.
+
+   @param thd Thread to allocate memory from.
+   @param rli Relay log info structure, for error reporting.
+   @param target_table Target table for fields.
+
+   @return A pointer to a temporary table with memory allocated in the
+   thread's memroot, NULL if the table could not be created
+   */
+  TABLE *create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *target_table) const;
 #endif
+
 
 private:
   ulong m_size;           // Number of elements in the types array
-  field_type *m_type;                     // Array of type descriptors
+  unsigned char *m_type;  // Array of type descriptors
   uint m_field_metadata_size;
   uint16 *m_field_metadata;
   uchar *m_null_bits;
+  uint16 m_flags;         // Table flags
   uchar *m_memory;
 };
 
@@ -260,6 +224,7 @@ struct RPL_TABLE_LIST
 {
   bool m_tabledef_valid;
   table_def m_tabledef;
+  TABLE *m_conv_table;
 };
 
 

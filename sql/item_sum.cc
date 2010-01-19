@@ -578,7 +578,14 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
   if (aggr)
   {
+    /* 
+      Dependent subselects may be executed multiple times, making
+      set_aggregator to be called multiple times. The aggregator type
+      will be the same, but it needs to be reset so that it is
+      reevaluated with the new dependent data.
+    */
     DBUG_ASSERT(aggregator == aggr->Aggrtype());
+    aggr->clear();
     return FALSE;
   }
   switch (aggregator)

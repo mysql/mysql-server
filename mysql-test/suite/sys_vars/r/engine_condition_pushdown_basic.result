@@ -6,19 +6,33 @@ SET @global_start_value = @@global.engine_condition_pushdown;
 SELECT @global_start_value;
 @global_start_value
 1
+select @old_session_opt_switch:=@@session.optimizer_switch,
+@old_global_opt_switch:=@@global.optimizer_switch;
+@old_session_opt_switch:=@@session.optimizer_switch	@old_global_opt_switch:=@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
 '#--------------------FN_DYNVARS_028_01------------------------#'
 SET @@session.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SET @@session.engine_condition_pushdown = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 1
 SET @@global.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SET @@global.engine_condition_pushdown = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 1
 '#---------------------FN_DYNVARS_028_02-------------------------#'
 SET engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@engine_condition_pushdown;
 @@engine_condition_pushdown
 1
@@ -29,27 +43,39 @@ ERROR 42S02: Unknown table 'local' in field list
 SELECT global.engine_condition_pushdown;
 ERROR 42S02: Unknown table 'global' in field list
 SET session engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 0
 SET global engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 0
 '#--------------------FN_DYNVARS_028_03------------------------#'
 SET @@session.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 0
 SET @@session.engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 1
 SET @@global.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 0
 SET @@global.engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 1
@@ -88,11 +114,17 @@ SET @@global.engine_condition_pushdown = ÓFF;
 ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_028_05----------------------------#'
 SET @@global.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SET @@session.engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown AS res_is_0;
 res_is_0
 0
 SET @@global.engine_condition_pushdown = 0;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown AS res_is_1;
 res_is_1
 1
@@ -126,43 +158,133 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_028_08-------------------------#'
 SET @@session.engine_condition_pushdown = OFF;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 0
 SET @@session.engine_condition_pushdown = ON;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 1
 SET @@global.engine_condition_pushdown = OFF;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 0
 SET @@global.engine_condition_pushdown = ON;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 1
 '#---------------------FN_DYNVARS_028_09----------------------#'
 SET @@session.engine_condition_pushdown = TRUE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 1
 SET @@session.engine_condition_pushdown = FALSE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 0
 SET @@global.engine_condition_pushdown = TRUE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 1
 SET @@global.engine_condition_pushdown = FALSE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 0
+Check that @@engine_condition_pushdown influences
+@@optimizer_switch and vice-versa
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@session.engine_condition_pushdown = TRUE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@session.engine_condition_pushdown = FALSE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@global.engine_condition_pushdown = TRUE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+set @@global.engine_condition_pushdown = FALSE;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@session.optimizer_switch = "engine_condition_pushdown=on";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@session.optimizer_switch = "engine_condition_pushdown=off";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+set @@global.optimizer_switch = "engine_condition_pushdown=on";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+set @@global.optimizer_switch = "engine_condition_pushdown=off";
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
 SET @@session.engine_condition_pushdown = @session_start_value;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@session.engine_condition_pushdown;
 @@session.engine_condition_pushdown
 1
 SET @@global.engine_condition_pushdown = @global_start_value;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT @@global.engine_condition_pushdown;
 @@global.engine_condition_pushdown
 1
+set @session.optimizer_switch=@old_session_opt_switch,
+@@global.optimizer_switch=@old_global_opt_switch;
+select @@session.engine_condition_pushdown,
+@@global.engine_condition_pushdown,
+@@session.optimizer_switch, @@global.optimizer_switch;
+@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
+1	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on

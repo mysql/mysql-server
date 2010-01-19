@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,10 @@
 #include "slave.h"
 #include "rpl_mi.h"
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#include "../storage/perfschema/pfs_server.h"
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 /*
   The rule for this file: everything should be 'static'. When a sys_var
   variable or a function from this file is - in very rare cases - needed
@@ -41,6 +45,141 @@
   not a mistakenly forgotten 'static' keyword.
 */
 #define export /* not static */
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+#define PFS_TRAILING_PROPERTIES \
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
+  0, NULL, sys_var::PARSE_EARLY
+
+static Sys_var_mybool Sys_pfs_enabled(
+       "performance_schema",
+       "Enable the performance schema.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
+       "performance_schema_events_waits_history_long_size",
+       "Number of rows in EVENTS_WAITS_HISTORY_LONG.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_WAITS_HISTORY_LONG_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_waits_history_size(
+       "performance_schema_events_waits_history_size",
+       "Number of rows per thread in EVENTS_WAITS_HISTORY.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_WAITS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_cond_classes(
+       "performance_schema_max_cond_classes",
+       "Maximum number of condition instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_cond_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_COND_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_cond_instances(
+       "performance_schema_max_cond_instances",
+       "Maximum number of instrumented condition objects.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_cond_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_COND),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_file_classes(
+       "performance_schema_max_file_classes",
+       "Maximum number of file instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_file_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_FILE_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_file_handles(
+       "performance_schema_max_file_handles",
+       "Maximum number of opened instrumented files.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_file_handle_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_FILE_HANDLE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_file_instances(
+       "performance_schema_max_file_instances",
+       "Maximum number of instrumented files.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_file_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_FILE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_mutex_classes(
+       "performance_schema_max_mutex_classes",
+       "Maximum number of mutex instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_MUTEX_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_mutex_instances(
+       "performance_schema_max_mutex_instances",
+       "Maximum number of instrumented MUTEX objects.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_MUTEX),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_rwlock_classes(
+       "performance_schema_max_rwlock_classes",
+       "Maximum number of rwlock instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_RWLOCK_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_rwlock_instances(
+       "performance_schema_max_rwlock_instances",
+       "Maximum number of instrumented RWLOCK objects.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_RWLOCK),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_table_handles(
+       "performance_schema_max_table_handles",
+       "Maximum number of opened instrumented tables.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_table_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_TABLE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_table_instances(
+       "performance_schema_max_table_instances",
+       "Maximum number of instrumented tables.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_table_share_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_TABLE_SHARE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_thread_classes(
+       "performance_schema_max_thread_classes",
+       "Maximum number of thread instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_thread_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_THREAD_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_thread_instances(
+       "performance_schema_max_thread_instances",
+       "Maximum number of instrumented threads.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_THREAD),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
        "auto_increment_increment",
@@ -101,12 +240,6 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 }
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_format == var->save_result.ulonglong_value))
-    return false;
-
   /*
     If RBR and open temporary tables, their CREATE TABLE may not be in the
     binlog, so we can't toggle to SBR in this connection.
@@ -125,6 +258,21 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
   }
+  /*
+    Make the session variable 'binlog_format' read-only inside a transaction.
+  */
+  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  {
+    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+    return true;
+  }
+
+  if (check_has_super(self, thd, var))
+    return true;
+  if (var->type == OPT_GLOBAL ||
+      (thd->variables.binlog_format == var->save_result.ulonglong_value))
+    return false;
+
   return false;
 }
 
@@ -132,7 +280,7 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
                                            enum_var_type type)
 {
   if (type == OPT_SESSION)
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
   return false;
 }
 
@@ -446,7 +594,7 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 }
 static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
 {
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   /*
     Events::start() is heavyweight. In particular it creates a new THD,
     which takes LOCK_global_system_variables internally.
@@ -457,9 +605,9 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
   bool ret= Events::opt_event_scheduler == Events::EVENTS_ON
             ? Events::start()
             : Events::stop();
-  pthread_mutex_unlock(&Events::LOCK_event_metadata);
-  pthread_mutex_lock(&LOCK_global_system_variables);
-  pthread_mutex_lock(&Events::LOCK_event_metadata);
+  mysql_mutex_unlock(&Events::LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&Events::LOCK_event_metadata);
   if (ret)
     my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
   return ret;
@@ -1114,16 +1262,28 @@ static Sys_var_ulong Sys_optimizer_search_depth(
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
-  "index_merge_intersection",
+  "index_merge_intersection", "engine_condition_pushdown",
   "default", NullS
 };
+/** propagates changes to @@engine_condition_pushdown */
+static bool fix_optimizer_switch(sys_var *self, THD *thd,
+                                 enum_var_type type)
+{
+  SV *sv= (type == OPT_GLOBAL) ? &global_system_variables : &thd->variables;
+  sv->engine_condition_pushdown= 
+    test(sv->optimizer_switch & OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+  return false;
+}
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection} and val is one of {on, off, default}",
+       "index_merge_intersection, engine_condition_pushdown}"
+       " and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
-       optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT));
+       optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_optimizer_switch));
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
@@ -1217,7 +1377,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   */
 
   read_only= opt_readonly;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (lock_global_read_lock(thd))
     goto end_with_mutex_unlock;
@@ -1245,7 +1405,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   /* Release the lock */
   unlock_global_read_lock(thd);
  end_with_mutex_unlock:
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
  end:
   read_only= opt_readonly;
   DBUG_RETURN(result);
@@ -1533,7 +1693,19 @@ static Sys_var_enum Slave_exec_mode(
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
+const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
+static Sys_var_set Slave_type_conversions(
+       "slave_type_conversions",
+       "Set of slave type conversions that are enabled. Legal values are:"
+       " ALL_LOSSY to enable lossy conversions and"
+       " ALL_NON_LOSSY to enable non-lossy conversions."
+       " If the variable is assigned the empty set, no conversions are"
+       " allowed and it is expected that the types match exactly.",
+       GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
+       slave_type_conversions_name,
+       DEFAULT(0));
 #endif
+
 
 static Sys_var_ulong Sys_slow_launch_time(
        "slow_launch_time",
@@ -1820,11 +1992,26 @@ static Sys_var_ulong Sys_net_wait_timeout(
        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
+/** propagates changes to the relevant flag of @@optimizer_switch */
+static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  SV *sv= (type == OPT_GLOBAL) ? &global_system_variables : &thd->variables;
+  if (sv->engine_condition_pushdown)
+    sv->optimizer_switch|= OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+  else
+    sv->optimizer_switch&= ~OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+  return false;
+}
 static Sys_var_mybool Sys_engine_condition_pushdown(
        "engine_condition_pushdown",
-       "Push supported query conditions to the storage engine",
-       SESSION_VAR(engine_condition_pushdown), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       "Push supported query conditions to the storage engine."
+       " Deprecated, use --optimizer-switch instead.",
+       SESSION_VAR(engine_condition_pushdown),
+       CMD_LINE(OPT_ARG, OPT_ENGINE_CONDITION_PUSHDOWN),
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_engine_condition_pushdown),
+       DEPRECATED(70000, "'@@optimizer_switch'"));
 
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
@@ -2327,11 +2514,11 @@ static bool fix_log(char** logname, const char* default_logname,
       return true;
   }
   logger.lock_exclusive();
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   if (enabled)
     reopen(*logname);
   logger.unlock();
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   return false;
 }
 static void reopen_general_log(char* name)
@@ -2487,7 +2674,7 @@ static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 
   *newvalptr= oldval; // [de]activate_log_handler works that way (sigh)
 
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   if (!newval)
   {
     logger.deactivate_log_handler(thd, log_type);
@@ -2495,7 +2682,7 @@ static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
   }
   else
     res= logger.activate_log_handler(thd, log_type);
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   return res;
 }
 
@@ -2564,7 +2751,7 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
-  pthread_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%lu mi->heartbeat_period=%.3f",
                      slave_net_timeout,
                      (active_mi? active_mi->heartbeat_period : 0.0)));
@@ -2575,7 +2762,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                         " exceeds the new value of `slave_net_timeout' sec."
                         " A sensible value for the period should be"
                         " less than the timeout.");
-  pthread_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }
 static Sys_var_ulong Sys_slave_net_timeout(
@@ -2589,21 +2776,21 @@ static Sys_var_ulong Sys_slave_net_timeout(
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
-  pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
   if (active_mi->rli.slave_running)
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     result= true;
   }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
-  pthread_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
-  pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
   /*
     The following test should normally never be true as we test this
     in the check function;  To be safe against multiple
@@ -2611,12 +2798,12 @@ static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
   */
   if (!active_mi->rli.slave_running)
   {
-    pthread_mutex_lock(&active_mi->rli.data_lock);
+    mysql_mutex_lock(&active_mi->rli.data_lock);
     active_mi->rli.slave_skip_counter= sql_slave_skip_counter;
-    pthread_mutex_unlock(&active_mi->rli.data_lock);
+    mysql_mutex_unlock(&active_mi->rli.data_lock);
   }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
-  pthread_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
 static Sys_var_uint Sys_slave_skip_counter(
@@ -2708,7 +2895,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   if (!locale->errmsgs->errmsgs)
   {
-    pthread_mutex_lock(&LOCK_error_messages);
+    mysql_mutex_lock(&LOCK_error_messages);
     if (!locale->errmsgs->errmsgs &&
         read_texts(ERRMSG_FILE, locale->errmsgs->language,
                    &locale->errmsgs->errmsgs,
@@ -2717,10 +2904,10 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
                           locale->name);
-      pthread_mutex_unlock(&LOCK_error_messages);
+      mysql_mutex_unlock(&LOCK_error_messages);
       return true;
     }
-    pthread_mutex_unlock(&LOCK_error_messages);
+    mysql_mutex_unlock(&LOCK_error_messages);
   }
   return false;
 }
