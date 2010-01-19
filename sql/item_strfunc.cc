@@ -677,8 +677,8 @@ String *Item_func_concat_ws::val_str(String *str)
 	     res->length() + sep_str->length() + res2->length())
     {
       /* We have room in str;  We can't get any errors here */
-      if (str == res2)
-      {						// This is quote uncommon!
+      if (str->ptr() == res2->ptr())
+      {						// This is quite uncommon!
 	str->replace(0,0,*sep_str);
 	str->replace(0,0,*res);
       }

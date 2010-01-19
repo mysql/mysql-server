@@ -522,7 +522,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode)
+  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -7170,6 +7170,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
     table_map depend_map;
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
+    order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
         && !order->item[0]->with_sum_func)

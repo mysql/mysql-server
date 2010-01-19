@@ -1942,6 +1942,28 @@ execute stmt;
 deallocate prepare stmt;
 drop table t1,t2;
 #
+#
+# Bug #49570: Assertion failed: !(order->used & map)
+# on re-execution of prepared statement
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(0), (1);
+PREPARE stmt FROM 
+"SELECT 1 FROM t1 JOIN t1 t2 USING(a) GROUP BY t2.a, t1.a";
+EXECUTE stmt;
+1
+1
+1
+EXECUTE stmt;
+1
+1
+1
+EXECUTE stmt;
+1
+1
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
 call proc_1();
