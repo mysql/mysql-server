@@ -73,7 +73,7 @@
 #define QUERY_REAP_FLAG  2
 
 #ifndef HAVE_SETENV
-#error implement our portable setenv replacement in mysys
+static int setenv(const char *name, const char *value, int overwrite)
 #endif
 
 enum {
@@ -9672,3 +9672,18 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
+
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite)
+{
+  size_t buflen= strlen(name) + strlen(value) + 2;
+  char *envvar= malloc(buflen);
+  if(!envvar)
+    return ENOMEM;
+  strcpy(envvar, name);
+  strcat(envvar, "=");
+  strcat(envvar, value);
+  putenv(envvar);
+  return 0;
+}
+#endif
