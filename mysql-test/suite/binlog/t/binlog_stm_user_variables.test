@@ -1,4 +1,5 @@
 -- source include/have_binlog_format_statement.inc
+RESET MASTER;
 #
 # BUG#49562: SBR out of sync when using numeric data types + user variable
 #
