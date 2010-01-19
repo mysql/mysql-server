@@ -8292,8 +8292,8 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
         cpagesize,
         sizeof(page8),
         cnoOfAllocatedPagesMax = 0,
-        CFG_DB_INDEX_MEM,0,0,0 },
-      { NULL, 0,0,0,0,0,0,0,0 }
+        { CFG_DB_INDEX_MEM,0,0,0 }},
+      { NULL, 0,0,0,0,{ 0,0,0,0 }}
     };
 
     static const size_t num_config_params =
