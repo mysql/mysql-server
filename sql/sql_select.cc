@@ -5824,8 +5824,6 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   const_table_map= 0;
   tmp_table_param.field_count= tmp_table_param.sum_func_count=
     tmp_table_param.func_count= 0;
-  if (tmp_table_param.copy_field)
-    delete [] tmp_table_param.copy_field;
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
