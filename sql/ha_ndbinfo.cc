@@ -77,6 +77,19 @@ static MYSQL_SYSVAR_STR(
   NULL                              /* default */
 );
 
+static Uint32 version = NDB_VERSION_D;
+static MYSQL_SYSVAR_UINT(
+  version,                          /* name */
+  version,                          /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version for ndbinfo",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0,                                /* default */
+  0,                                /* min */
+  0,                                /* max */
+  0                                 /* block */
+);
 
 
 static NdbInfo* g_ndbinfo;
@@ -503,6 +516,7 @@ struct st_mysql_sys_var* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(show_hidden),
   MYSQL_SYSVAR(database),
   MYSQL_SYSVAR(table_prefix),
+  MYSQL_SYSVAR(version),
 
   NULL
 };

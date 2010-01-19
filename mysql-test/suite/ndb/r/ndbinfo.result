@@ -132,6 +132,7 @@ ndbinfo_max_bytes	0
 ndbinfo_max_rows	10
 ndbinfo_show_hidden	OFF
 ndbinfo_table_prefix	ndb$
+ndbinfo_version	NDB_VERSION_D
 
 SELECT counter, HEX(counter2) FROM ndb$test LIMIT 10;
 counter	HEX(counter2)
