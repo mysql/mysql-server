@@ -12,12 +12,18 @@ CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
 
-# Run the ndbinfo.sql script that creates ndbinfo database, tables and views
---disable_warnings
---disable_query_log
-source $NDBINFO_SQL;
---enable_query_log
---enable_warnings
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
+  --disable_warnings
+  --disable_query_log
+  --disable_result_log
+  set @ndbinfo_skip_version_check=1;
+  source $NDBINFO_SQL;
+  --enable_result_log
+  --enable_query_log
+  --enable_warnings
+}
 
 USE ndbinfo;
 
@@ -87,5 +93,9 @@ set @@ndbinfo_database="somethingelse";
 # Check that block table has been created and contain data
 SELECT count(*) >= 20 FROM blocks;
 
-## Cleanup
-DROP DATABASE ndbinfo;
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  --disable_query_log
+  DROP DATABASE ndbinfo;
+  --enable_query_log
+}

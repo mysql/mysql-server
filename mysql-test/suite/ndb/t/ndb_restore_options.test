@@ -255,7 +255,7 @@ drop table db1.tab1,db1.tab2,db2.tab1;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
 
-show databases;
+show databases like "db%";
 use db1;
 show tables;
 use db2;
@@ -268,7 +268,7 @@ show tables;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
 
-show databases;
+show databases like "db%";
 
 use db1;
 show tables;

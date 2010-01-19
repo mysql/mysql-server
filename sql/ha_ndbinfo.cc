@@ -422,7 +422,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
                    const char *wild, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbinfo_find_files");
-  DBUG_PRINT("enter", ("db: '%s', dir: %d", db, dir));
+  DBUG_PRINT("enter", ("db: '%s', dir: %d, path: '%s'", db, dir, path));
 
   const bool show_hidden = THDVAR(thd, show_hidden);
 
@@ -430,7 +430,24 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
     DBUG_RETURN(0); // Don't filter out anything
 
   if (dir)
-    DBUG_RETURN(0); // Don't care about filtering databases
+  {
+    if (!ndbcluster_is_disabled())
+      DBUG_RETURN(0);
+
+    // Hide our database when ndbcluster is disabled
+    LEX_STRING *dir_name;
+    List_iterator<LEX_STRING> it(*files);
+    while ((dir_name=it++))
+    {
+      if (strcmp(dir_name->str, ndbinfo_dbname))
+        continue;
+
+      DBUG_PRINT("info", ("Hiding own databse '%s'", dir_name->str));
+      it.remove();
+    }
+
+    DBUG_RETURN(0);
+  }
 
   DBUG_ASSERT(db);
   if (strcmp(db, ndbinfo_dbname))
