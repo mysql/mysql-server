@@ -576,6 +576,10 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     will ignore calls to register already registered error numbers.
 */
 
+static const char **get_handler_error_messages()
+{
+  return handler_error_messages;
+}
 
 void my_handler_error_register(void)
 {
@@ -587,7 +591,7 @@ void my_handler_error_register(void)
   */
   compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
                       HA_ERR_LAST + 1);
-  my_error_register(handler_error_messages, HA_ERR_FIRST,
+  my_error_register(get_handler_error_messages, HA_ERR_FIRST,
                     HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }
 
