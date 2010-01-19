@@ -21,6 +21,7 @@
 
 #include <ndb_global.h>
 #include <ndb_types.h>
+#include <ndb_version.h>
 
 #include <util/Vector.hpp>
 #include <util/BaseString.hpp>

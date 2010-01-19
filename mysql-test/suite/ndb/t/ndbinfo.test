@@ -63,6 +63,8 @@ TRUNCATE ndb$tables;
 
 ## Variables and status
 SHOW GLOBAL STATUS LIKE 'ndbinfo\_%';
+let $current_version = `select @@ndbinfo_version`;
+--replace_result $current_version NDB_VERSION_D
 SHOW GLOBAL VARIABLES LIKE 'ndbinfo\_%';
 
 SELECT counter, HEX(counter2) FROM ndb$test LIMIT 10;
