@@ -163,21 +163,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 ENDIF()
 
 
-IF(HAVE_GCC_ATOMIC_BUILTINS)
-  CHECK_C_SOURCE_COMPILES("
-    #include <pthread.h>
-    #include <string.h>
-    int main()
-    {
-      pthread_t       x1;
-      pthread_t       x2;
-      pthread_t       x3;
-      __sync_bool_compare_and_swap(&x1, x2, x3);
-      return 0;
-    }" HAVE_ATOMIC_PTHREAD_T_GCC
-  )
-ENDIF()
-
 IF(UNIX)
 # this is needed to know which one of atomic_cas_32() or atomic_cas_64()
 # to use in the source
