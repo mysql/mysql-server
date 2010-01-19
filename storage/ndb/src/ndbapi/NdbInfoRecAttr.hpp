@@ -21,6 +21,10 @@
 
 class NdbInfoRecAttr {
 public:
+  const void* ptr() const {
+    return m_data;
+  }
+
   Uint32 u_32_value() const {
     assert(m_len == sizeof(Uint32));
     return *((Uint32 *) m_data);
