@@ -27,8 +27,10 @@ public:
   }
 
   Uint64 u_64_value() const {
+    Uint64 val;
     assert(m_len == sizeof(Uint64));
-    return *((Uint64 *) m_data);
+    memcpy(&val, m_data, sizeof(Uint64));
+    return val;
   }
 
   const char* c_str() const {

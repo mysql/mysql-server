@@ -407,6 +407,7 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
     const NdbInfoRecAttr* blockNumber= scanOp->getValue("block_number");
     const NdbInfoRecAttr* blockInstance= scanOp->getValue("block_instance");
     const NdbInfoRecAttr* counter= scanOp->getValue("counter");
+    const NdbInfoRecAttr* counter2= scanOp->getValue("counter2");
 
     if(scanOp->execute() != 0)
     {
@@ -425,6 +426,7 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
        (void)blockNumber->u_32_value(); 
        (void)blockInstance->u_32_value(); 
        (void)counter->u_32_value(); 
+       (void)counter2->u_64_value();
     }
     ndbinfo.releaseScanOperation(scanOp);
     if (ret != 0)
