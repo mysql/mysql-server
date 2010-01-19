@@ -647,7 +647,7 @@ static bool read_ddl_log_file_entry(uint entry_no)
   Write one entry from ddl log file
   SYNOPSIS
     write_ddl_log_file_entry()
-    entry_no                     Entry number to read
+    entry_no                     Entry number to write
   RETURN VALUES
     TRUE                         Error
     FALSE                        Success
@@ -748,10 +748,10 @@ static uint read_ddl_log_header()
     else
       successful_open= TRUE;
   }
-  entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
-  global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
   if (successful_open)
   {
+    entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
+    global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
     global_ddl_log.io_size= uint4korr(&file_entry_buf[DDL_LOG_IO_SIZE_POS]);
     DBUG_ASSERT(global_ddl_log.io_size <=
                 sizeof(global_ddl_log.file_entry_buf));
@@ -832,6 +832,7 @@ static bool init_ddl_log()
     goto end;
 
   global_ddl_log.io_size= IO_SIZE;
+  global_ddl_log.name_len= FN_LEN;
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_create(file_name,
                                          CREATE_MODE,
@@ -884,6 +885,13 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
   {
     DBUG_RETURN(FALSE);
   }
+  DBUG_PRINT("ddl_log",
+             ("execute type %c next %u name '%s' from_name '%s' handler '%s'",
+             ddl_log_entry->action_type,
+             ddl_log_entry->next_entry,
+             ddl_log_entry->name,
+             ddl_log_entry->from_name,
+             ddl_log_entry->handler_name));
   handler_name.str= (char*)ddl_log_entry->handler_name;
   handler_name.length= strlen(ddl_log_entry->handler_name);
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
@@ -1091,6 +1099,15 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
     DBUG_RETURN(TRUE);
   }
   error= FALSE;
+  DBUG_PRINT("ddl_log",
+             ("write type %c next %u name '%s' from_name '%s' handler '%s'",
+             (char) global_ddl_log.file_entry_buf[DDL_LOG_ACTION_TYPE_POS],
+             ddl_log_entry->next_entry,
+             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
+             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
+                                                    + FN_LEN],
+             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
+                                                    + (2*FN_LEN)]));
   if (write_ddl_log_file_entry((*active_entry)->entry_pos))
   {
     error= TRUE;
