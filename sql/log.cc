@@ -28,6 +28,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "rpl_rli.h"
+#include "sql_audit.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -42,7 +43,6 @@
 
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
-#define MAX_USER_HOST_SIZE 512
 #define MAX_TIME_SIZE 32
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 
@@ -1069,7 +1069,6 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   bool error= FALSE;
   Log_event_handler **current_handler= general_log_handler_list;
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
   time_t current_time;
 
@@ -1081,14 +1080,16 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
     unlock();
     return 0;
   }
-  user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                          sctx->priv_user ? sctx->priv_user : "", "[",
-                          sctx->user ? sctx->user : "", "] @ ",
-                          sctx->host ? sctx->host : "", " [",
-                          sctx->ip ? sctx->ip : "", "]", NullS) -
-                                                          user_host_buff;
+  user_host_len= make_user_name(thd, user_host_buff);
 
   current_time= my_time(0);
+
+  mysql_audit_general_log(thd, current_time,
+                          user_host_buff, user_host_len,
+                          command_name[(uint) command].str,
+                          command_name[(uint) command].length,
+                          query, query_length);
+                        
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
