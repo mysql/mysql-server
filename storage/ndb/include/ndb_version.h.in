@@ -335,7 +335,7 @@ ndb_delayed_copy_active_req(Uint32 x)
   {
     const Uint32 major = (x >> 16) & 0xFF;
 
-    if (major >= 6)
+    if (major == 6)
     {
       return x >= NDBD_DELAYED_COPY_ACTIVEREQ_63;
     }
@@ -360,7 +360,7 @@ ndb_suma_not_started_ref(Uint32 x)
   {
     const Uint32 major = (x >> 16) & 0xFF;
 
-    if (major >= 6)
+    if (major == 6)
     {
       return x >= NDBD_SUMA_NOTSTARTED_REF_63;
     }
