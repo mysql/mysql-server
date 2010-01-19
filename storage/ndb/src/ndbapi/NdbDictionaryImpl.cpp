@@ -21,20 +21,6 @@
 #include <NdbOut.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
-#include <signaldata/GetTabInfo.hpp>
-#include <signaldata/DictTabInfo.hpp>
-#include <signaldata/CreateTable.hpp>
-#include <signaldata/CreateIndx.hpp>
-#include <signaldata/CreateEvnt.hpp>
-#include <signaldata/SumaImpl.hpp>
-#include <signaldata/DropTable.hpp>
-#include <signaldata/AlterTable.hpp>
-#include <signaldata/DropIndx.hpp>
-#include <signaldata/ListTables.hpp>
-#include <signaldata/DropFilegroup.hpp>
-#include <signaldata/CreateFilegroup.hpp>
-#include <signaldata/SchemaTrans.hpp>
-#include <signaldata/WaitGCP.hpp>
 #include <SimpleProperties.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
@@ -49,7 +35,6 @@
 #include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
-#include <signaldata/CreateHashMap.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2

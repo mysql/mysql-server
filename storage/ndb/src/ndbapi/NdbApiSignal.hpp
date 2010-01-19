@@ -40,6 +40,22 @@
 #define CAST_PTR(X,Y) reinterpret_cast<X*>(Y)
 #define CAST_CONSTPTR(X,Y) reinterpret_cast<const X*>(Y)
 
+#include <signaldata/GetTabInfo.hpp>
+#include <signaldata/DictTabInfo.hpp>
+#include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateIndx.hpp>
+#include <signaldata/CreateEvnt.hpp>
+#include <signaldata/SumaImpl.hpp>
+#include <signaldata/DropTable.hpp>
+#include <signaldata/AlterTable.hpp>
+#include <signaldata/DropIndx.hpp>
+#include <signaldata/ListTables.hpp>
+#include <signaldata/DropFilegroup.hpp>
+#include <signaldata/CreateFilegroup.hpp>
+#include <signaldata/WaitGCP.hpp>
+#include <signaldata/SchemaTrans.hpp>
+#include <signaldata/CreateHashMap.hpp>
+
 /**
  * A NdbApiSignal : public SignalHeader
  *
@@ -102,7 +118,29 @@ private:
   /**
    * Only used when creating a signal in the api
    */
-  Uint32 theData[MaxSignalWords];
+  union {
+    Uint32 theData[MaxSignalWords];
+    WaitGCPReq _WaitGCPReq;
+    GetTabInfoReq _GetTabInfoReq;
+    ListTablesReq _ListTablesReq;
+    CreateTableReq _CreateTableReq;
+    AlterTableReq _AlterTableReq;
+    CreateIndxReq _CreateIndxReq;
+    DropTableReq _DropTableReq;
+    DropIndxReq _DropIndxReq;
+    CreateFileReq _CreateFileReq;
+    CreateFilegroupReq _CreateFilegroupReq;
+    DropFilegroupReq _DropFilegroupReq;
+    DropFileReq _DropFileReq;
+    SubStartReq _SubStartReq;
+    SubStopReq _SubStopReq;
+    CreateEvntReq _CreateEvntReq;
+    DropEvntReq _DropEvntReq;
+    SubGcpCompleteAck _SubGcpCompleteAck;
+    CreateHashMapReq _CreateHashMapReq;
+    SchemaTransBeginReq _SchemaTransBeginReq;
+    SchemaTransEndReq _SchemaTransEndReq;
+  };
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };
