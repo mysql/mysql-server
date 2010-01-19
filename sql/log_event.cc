@@ -3275,7 +3275,18 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
 
 compare_errors:
 
-     /*
+    /*
+      In the slave thread, we may sometimes execute some DROP / * 40005
+      TEMPORARY * / TABLE that come from parts of binlogs (likely if we
+      use RESET SLAVE or CHANGE MASTER TO), while the temporary table
+      has already been dropped. To ignore such irrelevant "table does
+      not exist errors", we silently clear the error if TEMPORARY was used.
+    */
+    if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
+        thd->is_error() && thd->stmt_da->sql_errno() == ER_BAD_TABLE_ERROR &&
+        !expected_error)
+      thd->stmt_da->reset_diagnostics_area();
+    /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
@@ -8047,10 +8058,10 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     plus one or three bytes (see pack.c:net_store_length) for number of 
     elements in the field metadata array.
   */
-  if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 3; 
-  else
+  if (m_field_metadata_size < 251)
     m_data_size+= m_field_metadata_size + 1; 
+  else
+    m_data_size+= m_field_metadata_size + 3; 
 
   bzero(m_null_bits, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
@@ -8843,6 +8854,24 @@ static bool record_compare(TABLE *table)
     }
   }
 
+  /**
+    Check if we are using MyISAM.
+
+    If this is a myisam table, then we cannot do a memcmp
+    right away because some NULL fields can still contain 
+    an old value in the row - they are not shown to the user
+    because the null bit is set, however, the contents are
+    not cleared. As such, plain memory comparison cannot be 
+    assured to work. See: BUG#49482 and BUG#49481.
+
+    On top of this, we do not store field contents for null 
+    fields in the binlog, so this is extra important when
+    comparing records fetched from binlog and from storage
+    engine.
+  */
+  if (table->file->ht->db_type == DB_TYPE_MYISAM)
+    goto record_compare_field_by_field;
+
   if (table->s->blob_fields + table->s->varchar_fields == 0)
   {
     result= cmp_record(table,record[1]);
@@ -8858,14 +8887,33 @@ static bool record_compare(TABLE *table)
     goto record_compare_exit;
   }
 
+record_compare_field_by_field:
+
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
-    if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+    Field *f= *ptr;
+
+    /* if just one of the fields is null then there is no match */
+    if ((f->is_null_in_record(table->record[0])) ==
+         !(f->is_null_in_record(table->record[1])))
     {
       result= TRUE;
       goto record_compare_exit;
     }
+
+    /* if both fields are not null then we can compare */
+    if (!(f->is_null_in_record(table->record[0])) &&
+        !(f->is_null_in_record(table->record[1])))
+    {
+      if (f->cmp_binary_offset(table->s->rec_buff_length))
+      {
+        result= TRUE;
+        goto record_compare_exit;
+      }
+    }
+
+    /* if both fields are null then there is a match. compare next field */
   }
 
 record_compare_exit:

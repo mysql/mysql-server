@@ -15,6 +15,7 @@
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
 enable_query_log;
 
 create table t1 (a int not null auto_increment primary key, b int, key(b));
@@ -34,8 +35,8 @@ INSERT INTO t1 (a) SELECT null FROM t1;
 INSERT INTO t1 (a) SELECT null FROM t1;
 save_master_pos;
 # a few updates to force OPTIMIZE to do something
-update t1 set b=(a/2*rand());
 --disable_warnings
+update t1 set b=(a/2*rand());
 delete from t1 order by b limit 10000;
 --enable_warnings
 
