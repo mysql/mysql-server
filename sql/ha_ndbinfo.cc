@@ -255,8 +255,7 @@ int ha_ndbinfo::rnd_init(bool scan)
     DBUG_RETURN(err2mysql(err));
 
   /* Read all columns specified in read_set */
-  TABLE_SHARE *table_share = table->s;
-  for (uint i = 0; i < table_share->fields; i++)
+  for (uint i = 0; i < table->s->fields; i++)
   {
     Field *field = table->field[i];
     if (bitmap_is_set(table->read_set, i))
@@ -352,8 +351,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
   DBUG_ENTER("ha_ndbinfo::unpack_record");
   my_ptrdiff_t dst_offset = dst_row - table->record[0];
 
-  TABLE_SHARE *table_share = table->s;
-  for (uint i = 0; i < table_share->fields; i++)
+  for (uint i = 0; i < table->s->fields; i++)
   {
     Field *field = table->field[i];
     const NdbInfoRecAttr* record = m_impl.m_columns[i];
