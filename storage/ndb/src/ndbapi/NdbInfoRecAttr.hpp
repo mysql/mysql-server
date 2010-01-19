@@ -21,14 +21,20 @@
 
 class NdbInfoRecAttr {
 public:
+  const void* ptr() const {
+    return m_data;
+  }
+
   Uint32 u_32_value() const {
     assert(m_len == sizeof(Uint32));
     return *((Uint32 *) m_data);
   }
 
   Uint64 u_64_value() const {
+    Uint64 val;
     assert(m_len == sizeof(Uint64));
-    return *((Uint64 *) m_data);
+    memcpy(&val, m_data, sizeof(Uint64));
+    return val;
   }
 
   const char* c_str() const {
