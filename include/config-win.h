@@ -318,8 +318,11 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#define HAVE_SNPRINTF		/* Gave link error */
+#define HAVE_SNPRINTF 1
 #define snprintf _snprintf
+
+#define HAVE_SETENV 1
+#define setenv(VAR,VAL,X)       _putenv_s(VAR,VAL)
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */

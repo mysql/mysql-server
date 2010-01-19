@@ -1,0 +1,90 @@
+set @save_binlog_format= @@global.binlog_format;
+create table t1 (a int) engine= myisam;
+create table t2 (a int) engine= innodb;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+SET AUTOCOMMIT=1;
+# Test that the session variable 'binlog_format' 
+# is writable outside a transaction.
+set @@session.binlog_format= statement;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+STATEMENT
+begin;
+# Test that the session variable 'binlog_format' is read-only
+# inside a transaction with no preceding updates.
+set @@session.binlog_format= mixed;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+insert into t2 values (1);
+# Test that the session variable 'binlog_format' is read-only
+# inside a transaction with preceding transactional updates.
+set @@session.binlog_format= row;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+commit;
+begin;
+insert into t1 values (2);
+# Test that the session variable 'binlog_format' is read-only
+# inside a transaction with preceding non-transactional updates.
+set @@session.binlog_format= statement;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+commit;
+# Test that the session variable 'binlog_format' is writable 
+# when AUTOCOMMIT=0, before a transaction has started.
+set AUTOCOMMIT=0;
+set @@session.binlog_format= row;
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+insert into t1 values (4);
+# Test that the session variable 'binlog_format' is read-only inside an
+# AUTOCOMMIT=0 transaction with preceding non-transactional updates.
+set @@session.binlog_format= statement;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+commit;
+insert into t2 values (5);
+# Test that the session variable 'binlog_format' is read-only inside an
+# AUTOCOMMIT=0 transaction with preceding transactional updates.
+set @@session.binlog_format= row;
+ERROR HY000: Cannot modify @@session.binlog_format inside a transaction
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+commit;
+begin;
+insert into t2 values (6);
+# Test that the global variable 'binlog_format' is writable
+# inside a transaction.
+SELECT @@global.binlog_format;
+@@global.binlog_format
+ROW
+set @@global.binlog_format= statement;
+SELECT @@global.binlog_format;
+@@global.binlog_format
+STATEMENT
+commit;
+set @@global.binlog_format= @save_binlog_format;
+create table t3(a int, b int) engine= innodb;
+create table t4(a int) engine= innodb;
+create table t5(a int) engine= innodb;
+create trigger tr2 after insert on t3 for each row begin
+insert into t4(a) values(1);
+set @@session.binlog_format= statement; 
+insert into t4(a) values(2);
+insert into t5(a) values(3);
+end |
+# Test that the session variable 'binlog_format' is read-only
+# in sub-statements.
+insert into t3(a,b) values(1,1);
+ERROR HY000: Cannot change the binary logging format inside a stored function or trigger
+SELECT @@session.binlog_format;
+@@session.binlog_format
+ROW
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;

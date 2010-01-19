@@ -56,7 +56,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	item_geofunc.cc item_subselect.cc item_row.cc\
 	item_xmlfunc.cc \
 	key.cc lock.cc log.cc sql_state.c \
-	log_event.cc rpl_record.cc \
+	log_event.cc rpl_record.cc rpl_utility.cc \
 	log_event_old.cc rpl_record_old.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
@@ -155,8 +155,8 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES) $(storageobj
 if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
-		-rm -f libmysqld.a
-		if test "$(host_os)" = "netware" ; \
+	-rm -f libmysqld.a
+	if test "$(host_os)" = "netware" ; \
 		then \
 		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
 		else \

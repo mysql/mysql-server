@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,8 @@ public:
   LEX_CSTRING name;
   enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
                    READONLY=1024, ALLOCATED=2048 };
+  static const int PARSE_EARLY= 1;
+  static const int PARSE_NORMAL= 2;
   /**
     Enumeration type to indicate for a system variable whether
     it will be written to the binlog or not.
@@ -68,6 +70,7 @@ protected:
   typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
 
   int flags;            ///< or'ed flag_enum values
+  int m_parse_flag;     ///< either PARSE_EARLY or PARSE_NORMAL.
   const SHOW_TYPE show_val_type; ///< what value_ptr() returns for sql_show.cc
   my_option option;     ///< min, max, default values are stored here
   PolyLock *guard;      ///< *second* lock that protects the variable
@@ -83,7 +86,7 @@ public:
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute);
+          uint deprecated_version, const char *substitute, int parse_flag);
   /**
     The instance should only be destroyed on shutdown, as it doesn't unlink
     itself from the chain.
@@ -122,8 +125,11 @@ public:
     }
     return true; // keep gcc happy
   }
-  bool register_option(DYNAMIC_ARRAY *array)
-  { return option.id != -1 && insert_dynamic(array, (uchar*)&option); }
+  bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
+  {
+    return (option.id != -1) && (m_parse_flag & parse_flags) &&
+           insert_dynamic(array, (uchar*)&option);
+  }
 
 private:
   virtual bool do_check(THD *thd, set_var *var) = 0;
@@ -289,7 +295,8 @@ extern sys_var *Sys_autocommit_ptr;
 
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 
-int sys_var_init(DYNAMIC_ARRAY *long_options);
+int sys_var_init();
+int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags);
 void sys_var_end(void);
 
 #endif

@@ -1,0 +1,100 @@
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# The query result are not re producible,
+# due to variations in platforms and plugins
+# We still execute the select statement, for:
+# - code coverage
+# - make sure it does not crash
+# - valgrind coverage
+
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS;
+--enable_result_log
+
+# DEBUG_SYNC::mutex is dependent on the build (DEBUG only)
+
+select * from performance_schema.SETUP_INSTRUMENTS
+  where name like 'Wait/Synch/Mutex/sql/%'
+  and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
+  order by name limit 10;
+
+select * from performance_schema.SETUP_INSTRUMENTS
+  where name like 'Wait/Synch/Rwlock/sql/%'
+  order by name limit 10;
+
+# COND_handler_count is dependent on the build (Windows only)
+# DEBUG_SYNC::cond is dependent on the build (DEBUG only)
+
+select * from performance_schema.SETUP_INSTRUMENTS
+  where name like 'Wait/Synch/Cond/sql/%'
+  and name not in (
+    'wait/synch/cond/sql/COND_handler_count',
+    'wait/synch/cond/sql/DEBUG_SYNC::cond')
+  order by name limit 10;
+
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS
+  where name='Wait';
+--enable_result_log
+
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS
+  where enabled='YES';
+--enable_result_log
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.SETUP_INSTRUMENTS
+  set name='FOO', enabled='YES', timed='YES';
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.SETUP_INSTRUMENTS
+  set name='FOO';
+
+update performance_schema.SETUP_INSTRUMENTS
+  set enabled='NO';
+
+update performance_schema.SETUP_INSTRUMENTS
+  set timed='NO';
+
+--disable_result_log
+select * from performance_schema.SETUP_INSTRUMENTS;
+--enable_result_log
+
+update performance_schema.SETUP_INSTRUMENTS
+  set enabled='YES', timed='YES';
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.SETUP_INSTRUMENTS;
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.SETUP_INSTRUMENTS
+  where name like 'Wait/Synch/%';
+
+LOCK TABLES performance_schema.SETUP_INSTRUMENTS READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.SETUP_INSTRUMENTS WRITE;
+UNLOCK TABLES;
+

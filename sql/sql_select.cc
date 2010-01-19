@@ -6347,7 +6347,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown)
+	  if (thd->variables.optimizer_switch &
+              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map);
@@ -10630,6 +10631,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   share->blob_field= blob_field;
   share->fields= field_count;
   share->blob_ptr_size= portable_sizeof_char_ptr;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
@@ -10692,6 +10694,18 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
         {
           ++null_pos;
           null_bit= 1;
+        }
+      }
+      if (cur_field->type() == MYSQL_TYPE_BIT &&
+          cur_field->key_type() == HA_KEYTYPE_BIT)
+      {
+        /* This is a Field_bit since key_type is HA_KEYTYPE_BIT */
+        static_cast<Field_bit*>(cur_field)->set_bit_ptr(null_pos, null_bit);
+        null_bit+= cur_field->field_length & 7;
+        if (null_bit > 7)
+        {
+          null_pos++;
+          null_bit-= 8;
         }
       }
       cur_field->reset();
@@ -16630,7 +16644,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
 
-            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            if ((thd->variables.optimizer_switch &
+                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));
