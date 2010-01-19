@@ -73,7 +73,7 @@
 #define QUERY_REAP_FLAG  2
 
 #ifndef HAVE_SETENV
-static int setenv(const char *name, const char *value, int overwrite)
+static int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 enum {
