@@ -377,6 +377,10 @@ test
 test2
 test3
 test4
+outer
+true-inner
+true-inner again
+true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
 1

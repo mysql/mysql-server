@@ -132,6 +132,7 @@ struct st_block
   int             line; /* Start line of block */
   my_bool         ok;   /* Should block be executed */
   enum block_cmd  cmd;  /* Command owning the block */
+  char            delim[MAX_DELIMITER_LENGTH];  /* Delimiter before block */
 };
 
 static struct st_block block_stack[32];
@@ -5142,6 +5143,12 @@ int do_done(struct st_command *command)
   }
   else
   {
+    if (*cur_block->delim) 
+    {
+      /* Restore "old" delimiter after false if block */
+      strcpy (delimiter, cur_block->delim);
+      delimiter_length= strlen(delimiter);
+    }
     /* Pop block from stack, goto next line */
     cur_block--;
     parser.current_line++;
@@ -5200,6 +5207,7 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
+    cur_block->delim[0]= '\0';
     DBUG_VOID_RETURN;
   }
 
@@ -5236,6 +5244,15 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (not_expr)
     cur_block->ok = !cur_block->ok;
 
+  if (cur_block->ok) 
+  {
+    cur_block->delim[0]= '\0';
+  } else
+  {
+    /* Remember "old" delimiter if entering a false if block */
+    strcpy (cur_block->delim, delimiter);
+  }
+  
   DBUG_PRINT("info", ("OK: %d", cur_block->ok));
 
   var_free(&v);
@@ -7798,7 +7815,8 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    my_bool ok_to_do= cur_block->ok;
+    /* delimiter needs to be executed so we can continue to parse */
+    my_bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
