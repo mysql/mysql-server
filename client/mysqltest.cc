@@ -2662,6 +2662,10 @@ void do_exec(struct st_command *command)
 #endif
 #endif
 
+  /* exec command is interpreted externally and will not take newlines */
+  while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
+    ;
+  
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
 
