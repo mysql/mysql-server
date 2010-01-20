@@ -421,6 +421,9 @@ mysqltest: At line 1: Wrong number of arguments to replace_column in 'replace_co
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a b'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
+select "LONG_STRING" as x;
+x
+LONG_STRING
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
