@@ -88,6 +88,30 @@ my_bool my_thread_basic_global_init(void)
     return 0;
   my_thread_basic_global_init_done= 1;
 
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "fast" a.k.a "adaptive"
+
+    In this case the thread may steal the mutex from some other thread
+    that is waiting for the same mutex.  This will save us some
+    context switches but may cause a thread to 'starve forever' while
+    waiting for the mutex (not likely if the code within the mutex is
+    short).
+  */
+  pthread_mutexattr_init(&my_fast_mutexattr);
+  pthread_mutexattr_settype(&my_fast_mutexattr,
+                            PTHREAD_MUTEX_ADAPTIVE_NP);
+#endif
+
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+  /*
+    Set mutex type to "errorcheck"
+  */
+  pthread_mutexattr_init(&my_errorcheck_mutexattr);
+  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
+                            PTHREAD_MUTEX_ERRORCHECK);
+#endif
+
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
@@ -189,29 +213,6 @@ my_bool my_thread_global_init(void)
       (void)pthread_join(dummy_thread, NULL);
   }
 #endif /* TARGET_OS_LINUX */
-
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "fast" a.k.a "adaptive"
-
-    In this case the thread may steal the mutex from some other thread
-    that is waiting for the same mutex.  This will save us some
-    context switches but may cause a thread to 'starve forever' while
-    waiting for the mutex (not likely if the code within the mutex is
-    short).
-  */
-  pthread_mutexattr_init(&my_fast_mutexattr);
-  pthread_mutexattr_settype(&my_fast_mutexattr,
-                            PTHREAD_MUTEX_ADAPTIVE_NP);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "errorcheck"
-  */
-  pthread_mutexattr_init(&my_errorcheck_mutexattr);
-  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
-                            PTHREAD_MUTEX_ERRORCHECK);
-#endif
 
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_isam, &THR_LOCK_isam, MY_MUTEX_INIT_SLOW);
