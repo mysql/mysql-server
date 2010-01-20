@@ -485,7 +485,7 @@ protected:
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 
-  bool try_lock(void);
+  bool try_lock(bool use_timeout= FALSE);
   void lock(void);
   void lock_and_suspend(void);
   void unlock(void);

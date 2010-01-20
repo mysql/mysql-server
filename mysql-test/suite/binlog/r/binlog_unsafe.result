@@ -3188,4 +3188,87 @@ master-bin.000001	3004	Write_rows	1	3042	table_id: 209
 master-bin.000001	3042	Write_rows	1	3076	table_id: 208 flags: STMT_END_F
 master-bin.000001	3076	Query	1	3145	COMMIT
 DROP TABLE t1,t2,t3;
+SET SESSION binlog_format = STATEMENT;
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (FOUND_ROWS());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (ROW_COUNT());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (SESSION_USER());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (SLEEP(1));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (SYSDATE());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (SYSTEM_USER());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (USER());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (UUID());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (UUID_SHORT());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (VERSION());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+DELETE FROM t1;
+SET TIMESTAMP=1000000;
+INSERT INTO t1 VALUES
+(CURDATE()),
+(CURRENT_DATE()),
+(CURRENT_TIME()),
+(CURRENT_TIMESTAMP()),
+(CURTIME()),
+(LOCALTIME()),
+(LOCALTIMESTAMP()),
+(NOW()),
+(UNIX_TIMESTAMP()),
+(UTC_DATE()),
+(UTC_TIME()),
+(UTC_TIMESTAMP());
+SELECT * FROM t1;
+a
+1970-01-12
+1970-01-12
+16:46:40
+1970-01-12 16:46:40
+16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1000000
+1970-01-12
+13:46:40
+1970-01-12 13:46:40
+DROP TABLE t1;
 "End of tests"

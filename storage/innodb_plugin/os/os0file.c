@@ -323,6 +323,13 @@ os_file_get_last_error(
 				"InnoDB: The error means that there are no"
 				" sufficient system resources or quota to"
 				" complete the operation.\n");
+		} else if (err == ERROR_OPERATION_ABORTED) {
+			fprintf(stderr,
+				"InnoDB: The error means that the I/O"
+				" operation has been aborted\n"
+				"InnoDB: because of either a thread exit"
+				" or an application request.\n"
+				"InnoDB: Retry attempt is made.\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -347,6 +354,8 @@ os_file_get_last_error(
 	} else if (err == ERROR_WORKING_SET_QUOTA
 		   || err == ERROR_NO_SYSTEM_RESOURCES) {
 		return(OS_FILE_INSUFFICIENT_RESOURCE);
+	} else if (err == ERROR_OPERATION_ABORTED) {
+		return(OS_FILE_OPERATION_ABORTED);
 	} else {
 		return(100 + err);
 	}
@@ -466,6 +475,10 @@ os_file_handle_error_cond_exit(
 		os_thread_sleep(10000000);  /* 10 sec */
 		return(TRUE);
 	} else if (err == OS_FILE_INSUFFICIENT_RESOURCE) {
+
+		os_thread_sleep(100000);	/* 100 ms */
+		return(TRUE);
+	} else if (err == OS_FILE_OPERATION_ABORTED) {
 
 		os_thread_sleep(100000);	/* 100 ms */
 		return(TRUE);
@@ -3029,6 +3042,34 @@ os_aio_array_create(
 	return(array);
 }
 
+/************************************************************************//**
+Frees an aio wait array. */
+static
+void
+os_aio_array_free(
+/*==============*/
+	os_aio_array_t*	array)	/*!< in, own: array to free */
+{
+#ifdef WIN_ASYNC_IO
+	ulint	i;
+
+	for (i = 0; i < array->n_slots; i++) {
+		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
+		os_event_free(slot->event);
+	}
+#endif /* WIN_ASYNC_IO */
+
+#ifdef __WIN__
+	ut_free(array->native_events);
+#endif /* __WIN__ */
+	os_mutex_free(array->mutex);
+	os_event_free(array->not_full);
+	os_event_free(array->is_empty);
+
+	ut_free(array->slots);
+	ut_free(array);
+}
+
 /***********************************************************************
 Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
@@ -3097,6 +3138,35 @@ os_aio_init(
 
 	os_last_printout = time(NULL);
 
+}
+
+/***********************************************************************
+Frees the asynchronous io system. */
+UNIV_INTERN
+void
+os_aio_free(void)
+/*=============*/
+{
+	ulint	i;
+
+	os_aio_array_free(os_aio_ibuf_array);
+	os_aio_ibuf_array = NULL;
+	os_aio_array_free(os_aio_log_array);
+	os_aio_log_array = NULL;
+	os_aio_array_free(os_aio_read_array);
+	os_aio_read_array = NULL;
+	os_aio_array_free(os_aio_write_array);
+	os_aio_write_array = NULL;
+	os_aio_array_free(os_aio_sync_array);
+	os_aio_sync_array = NULL;
+
+	for (i = 0; i < os_aio_n_segments; i++) {
+		os_event_free(os_aio_segment_wait_events[i]);
+	}
+
+	ut_free(os_aio_segment_wait_events);
+	os_aio_segment_wait_events = 0;
+	os_aio_n_segments = 0;
 }
 
 #ifdef WIN_ASYNC_IO
@@ -3709,6 +3779,7 @@ os_aio_windows_handle(
 	ibool		ret_val;
 	BOOL		ret;
 	DWORD		len;
+	BOOL		retry		= FALSE;
 
 	if (segment == ULINT_UNDEFINED) {
 		array = os_aio_sync_array;
@@ -3762,13 +3833,51 @@ os_aio_windows_handle(
 			ut_a(TRUE == os_file_flush(slot->file));
 		}
 #endif /* UNIV_DO_FLUSH */
+	} else if (os_file_handle_error(slot->name, "Windows aio")) {
+
+		retry = TRUE;
 	} else {
-		os_file_handle_error(slot->name, "Windows aio");
 
 		ret_val = FALSE;
 	}
 
 	os_mutex_exit(array->mutex);
+
+	if (retry) {
+		/* retry failed read/write operation synchronously.
+		No need to hold array->mutex. */
+
+		switch (slot->type) {
+		case OS_FILE_WRITE:
+			ret = WriteFile(slot->file, slot->buf,
+					slot->len, &len,
+					&(slot->control));
+
+			break;
+		case OS_FILE_READ:
+			ret = ReadFile(slot->file, slot->buf,
+				       slot->len, &len,
+				       &(slot->control));
+
+			break;
+		default:
+			ut_error;
+		}
+
+		if (!ret && GetLastError() == ERROR_IO_PENDING) {
+			/* aio was queued successfully!
+			We want a synchronous i/o operation on a
+			file where we also use async i/o: in Windows
+			we must use the same wait mechanism as for
+			async i/o */
+
+			ret = GetOverlappedResult(slot->file,
+						  &(slot->control),
+						  &len, TRUE);
+		}
+
+		ret_val = ret && len == slot->len;
+	}
 
 	os_aio_array_free_slot(array, slot);
 

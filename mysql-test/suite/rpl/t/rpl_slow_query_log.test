@@ -24,7 +24,9 @@
 #   row format slow queries do not get slow query logged. 
 
 source include/master-slave.inc;
-source include/have_binlog_format_mixed_or_statement.inc;
+source include/have_binlog_format_statement.inc;
+
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 
 
 # Prepare slave for different long_query_time we need to stop the slave 

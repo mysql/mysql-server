@@ -224,8 +224,8 @@ struct st_vio
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
   OVERLAPPED pipe_overlapped;
-  DWORD read_timeout_millis;
-  DWORD write_timeout_millis;
+  DWORD read_timeout_ms;
+  DWORD write_timeout_ms;
 #endif
 };
 #endif /* vio_violite_h_ */
