@@ -582,7 +582,7 @@ can_convert_field_to(Field *field,
   String field_type(field_type_buf, sizeof(field_type_buf), field->charset());
   field->sql_type(field_type);
   DBUG_PRINT("enter", ("field_type: %s, target_type: %d, source_type: %d, source_metadata: 0x%x",
-                       field_type.c_ptr(), field->real_type(), source_type, metadata));
+                       field_type.c_ptr_safe(), field->real_type(), source_type, metadata));
 #endif
   /*
     If the real type is the same, we need to check the metadata to
@@ -590,6 +590,19 @@ can_convert_field_to(Field *field,
    */
   if (field->real_type() == source_type)
   {
+    if (metadata == 0) // Metadata can only be zero if no metadata was provided
+    {
+      /*
+        If there is no metadata, we either have an old event where no
+        metadata were supplied, or a type that does not require any
+        metadata. In either case, conversion can be done but no
+        conversion table is necessary.
+       */
+      DBUG_PRINT("debug", ("Base types are identical, but there is no metadata"));
+      *order_var= 0;
+      DBUG_RETURN(true);
+    }
+
     DBUG_PRINT("debug", ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
       DBUG_RETURN(is_conversion_ok(*order_var, rli));
@@ -816,7 +829,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
                   ER(ER_SLAVE_CONVERSION_FAILED),
                   col, db_name, tbl_name,
-                  source_type.c_ptr(), target_type.c_ptr());
+                  source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }
   }
@@ -836,7 +849,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
         DBUG_PRINT("debug", ("Field %s - conversion required."
                              " Source type: '%s', Target type: '%s'",
                              tmp_table->field[col]->field_name,
-                             source_type.c_ptr(), target_type.c_ptr()));
+                             source_type.c_ptr_safe(), target_type.c_ptr_safe()));
       }
   }
 #endif
@@ -920,7 +933,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     field_def->init_for_tmp_table(type(col),
                                   max_length,
                                   decimals,
-                                  maybe_null(col), // maybe_null
+                                  TRUE,         // maybe_null
                                   FALSE,        // unsigned_flag
                                   pack_length);
     field_def->charset= target_table->field[col]->charset();
@@ -977,6 +990,7 @@ table_def::table_def(unsigned char *types, ulong size,
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_DOUBLE:
       case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_GEOMETRY:
       {
         /*
           These types store a single byte.

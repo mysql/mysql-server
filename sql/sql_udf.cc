@@ -437,8 +437,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE FUNCTION command.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  if (thd->is_current_stmt_binlog_format_row())
+    thd->clear_current_stmt_binlog_format_row();
 
   rw_wrlock(&THR_LOCK_udf);
   if ((hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
@@ -540,8 +540,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for DROP FUNCTION command.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  if (thd->is_current_stmt_binlog_format_row())
+    thd->clear_current_stmt_binlog_format_row();
 
   rw_wrlock(&THR_LOCK_udf);  
   if (!(udf=(udf_func*) hash_search(&udf_hash,(uchar*) udf_name->str,

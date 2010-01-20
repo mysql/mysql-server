@@ -1,3 +1,4 @@
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1, t2, t3;
 CREATE TABLE t1 (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t2 (b INT, c INT) ENGINE=BLACKHOLE;
@@ -7,18 +8,26 @@ SET SESSION BINLOG_FORMAT=STATEMENT;
 INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 START TRANSACTION;
 INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
 COMMIT;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2)
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2)
 mysqld-bin.000001	#	Query	#	#	COMMIT
+mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c
+mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	BEGIN
 mysqld-bin.000001	#	Query	#	#	use `test`; INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2)
 mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f
