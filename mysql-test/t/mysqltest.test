@@ -605,6 +605,15 @@ echo ;
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
 
+# Multi-line exec
+exec $MYSQL
+    test -e "select 1";
+exec $MYSQL test -e "select
+    2";
+let $query = select 3
+    as X;
+exec $MYSQL test -e "$query";
+
 # ----------------------------------------------------------------------------
 # Test let command
 # ----------------------------------------------------------------------------
@@ -1006,6 +1015,37 @@ echo test3stop
 --delimiter ;
 echo test4;
 
+# ----------------------------------------------------------------------------
+# Test that delimiter within if() works in in various combinations
+# ----------------------------------------------------------------------------
+
+if (0)
+{
+  delimiter ||;
+  echo false-inner||
+  if (0)
+  {
+    delimiter *||
+    echo false-innerer*
+    delimiter ||*
+  }
+  echo false-inner again||
+}
+echo outer;
+if (1)
+{
+  delimiter /;
+  echo true-inner/
+  if (0)
+  {
+    delimiter %/
+    echo true-innerer%
+  }
+  echo true-inner again/
+}
+echo true-outer/
+delimiter ;/
+
 
 # ----------------------------------------------------------------------------
 # Test if
@@ -1285,6 +1325,17 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "--replace_column 1 b c " | $MYSQL_TEST 2>&1
 
+let $long_rep= 1234567890123456789012345678901234567890;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+
+# This tests from strings > 1024 (here 1311)
+
+--replace_result $long_rep LONG_STRING
+eval select "$long_rep" as x;
 
 # ----------------------------------------------------------------------------
 # Test sync_with_master
