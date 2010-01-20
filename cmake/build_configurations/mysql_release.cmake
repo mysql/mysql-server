@@ -70,6 +70,10 @@ IF(UNIX)
   
   # Solaris flags
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    IF(CMAKE_SYSTEM_VERSION VERSION_GREATER "5.9")
+      # Link mysqld with mtmalloc on Solaris 10 and later
+      SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
+    ENDIF()
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         IF(CMAKE_SIZEOF_VOIDP EQUAL 4)
