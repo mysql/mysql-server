@@ -5727,7 +5727,8 @@ enum options_mysqld
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
-  OPT_IGNORE_BUILTIN_INNODB
+  OPT_IGNORE_BUILTIN_INNODB,
+  OPT_BINLOG_DIRECT_NON_TRANS_UPDATE
 };
 
 
@@ -7071,6 +7072,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
+  {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+   "Causes updates to non-transactional engines using statement format to be written directly to binary log. Before using this option make sure that there are no dependencies between transactional and non-transactional tables such as in the statement INSERT INTO t_myisam SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
+   (uchar**) &global_system_variables.binlog_direct_non_trans_update, (uchar**) &max_system_variables.binlog_direct_non_trans_update, 0, GET_BOOL, NO_ARG, 0,
+    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

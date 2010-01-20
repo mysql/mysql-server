@@ -181,6 +181,8 @@ static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
+static sys_var_thd_bool sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
+                                                           &SV::binlog_direct_non_trans_update);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
