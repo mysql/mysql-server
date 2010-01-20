@@ -143,7 +143,7 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
     pthread_mutex_lock(&tokudb_mutex);
     length = (uint) strlen(table_name);
 
-    if (!(share = (TOKUDB_SHARE *) hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
+    if (!(share = (TOKUDB_SHARE *) my_hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
         char *tmp_name;
 
         //
@@ -240,7 +240,7 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         }
         
 
-        hash_delete(&tokudb_open_tables, (uchar *) share);
+        my_hash_delete(&tokudb_open_tables, (uchar *) share);
         thr_lock_delete(&share->lock);
         pthread_mutex_destroy(&share->mutex);
         my_free((uchar *) share, MYF(0));
