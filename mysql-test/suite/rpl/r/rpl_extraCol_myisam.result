@@ -9,6 +9,8 @@ call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
 *** On Slave ***
 STOP SLAVE;
 RESET SLAVE;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00', 
 e CHAR(4) DEFAULT 'TEST') 
@@ -32,6 +34,7 @@ a	b	c	d	e
 1	2	TEXAS	2	TEST
 2	1	AUSTIN	2	TEST
 3	4	QA	2	TEST
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 *** Drop t1  ***
 DROP TABLE t1;
 *** Create t2 on slave  ***
@@ -54,47 +57,7 @@ a	b	c
 3	4	QA TESTING
 *** Start Slave ***
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -121,49 +84,9 @@ set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t3  ***
@@ -185,49 +108,9 @@ START SLAVE;
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 (30000.22,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t4  ***
@@ -249,49 +132,9 @@ START SLAVE;
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 (2,'JOE',300.01,0,'b2b2',1.0000009);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t5  ***
@@ -312,49 +155,9 @@ START SLAVE;
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 (2,'JOE',300.01,0);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
 DROP TABLE t6;
@@ -450,49 +253,9 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t10  ***
@@ -500,7 +263,7 @@ DROP TABLE t10;
 *** Create t11 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
-CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+CREATE TABLE t11 (a INT KEY, b BLOB, f INT,
 c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='MyISAM';
 *** Create t11 on Master ***
 CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
@@ -513,49 +276,9 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Drop t11  ***
@@ -767,47 +490,7 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************
 *** Expect slave to fail with Error 1060 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1060
-Last_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1060
-Last_SQL_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1060
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 *** Try to insert in master ****
@@ -907,49 +590,9 @@ START SLAVE;
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+Slave failed with Error 1677
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 ** DROP table t17 ***
