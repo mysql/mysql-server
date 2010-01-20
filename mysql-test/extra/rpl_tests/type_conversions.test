@@ -12,6 +12,142 @@ connection slave;
 let $if_is_lossy = `SELECT FIND_IN_SET('ALL_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
 let $if_is_non_lossy = `SELECT FIND_IN_SET('ALL_NON_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
 
+# TINYBLOB
+
+let $source_type  = TINYBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= TINYBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# BLOB
+
+let $source_type  = BLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= BLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# MEDIUMBLOB
+
+let $source_type  = MEDIUMBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= MEDIUMBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_non_lossy;
+source extra/rpl_tests/check_type.inc;
+
+# LONGBLOB
+
+let $source_type  = LONGBLOB;
+let $target_type  = TINYBLOB;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert   = $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= BLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= MEDIUMBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= $if_is_lossy;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type= LONGBLOB;
+let $target_type= LONGBLOB;
+let $source_value= 'aaa';
+let $target_value= 'aaa';
+let $can_convert= 1;
+source extra/rpl_tests/check_type.inc;
+
+# BUG#49836 (additional tests - GEOMETRY TYPE)
+
+let $source_type  = GEOMETRY;
+let $target_type  = BLOB;
+let $source_value = PointFromText('POINT(10 10)');
+let $target_value = PointFromText('POINT(10 10)');
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
+let $source_type  = BLOB;
+let $target_type  = GEOMETRY;
+let $source_value = 'aaa';
+let $target_value = 'aaa';
+let $can_convert  = 0;
+source extra/rpl_tests/check_type.inc;
+
 let $source_type  = GEOMETRY;
 let $target_type  = GEOMETRY;
 let $source_value = PointFromText('POINT(10 10)');
@@ -738,6 +874,7 @@ let $source_value= b'101100111000';
 let $target_value= b'11111';
 let $can_convert = $if_is_lossy;
 source extra/rpl_tests/check_type.inc;
+
 
 disable_warnings;
 source include/reset_master_and_slave.inc;

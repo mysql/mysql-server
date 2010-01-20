@@ -1817,10 +1817,6 @@ public:
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
   geometry_type get_geometry_type() { return geom_type; };
-  uint pack_length_from_metadata(uint field_metadata)
-  {
-    return pack_length_no_ptr();
-  }
 };
 #endif /*HAVE_SPATIAL*/
 

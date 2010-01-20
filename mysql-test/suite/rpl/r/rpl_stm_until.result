@@ -113,7 +113,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=746;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=891;
 select * from t2;
 n
 1
@@ -144,7 +144,7 @@ Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	Relay
 Until_Log_File	slave-relay-bin.000004
-Until_Log_Pos	746
+Until_Log_Pos	891
 Master_SSL_Allowed	No
 Master_SSL_CA_File	
 Master_SSL_CA_Path	
