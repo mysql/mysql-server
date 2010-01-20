@@ -205,7 +205,9 @@ let $wait_condition=
    WHERE variable_name like 'Not_flushed_delayed_rows';
 --source include/wait_condition.inc
 --echo Asynchronous execute
-let $my_select= SELECT COUNT(*) = 22 FROM t1;
+# Due to performance and server behaveiour the test observes values between 6 and 22.
+# In any case the value must not be outside of that range.
+let $my_select= SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
 send;
 eval $my_select;
 
