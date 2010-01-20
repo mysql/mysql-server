@@ -100,19 +100,19 @@ INSERT DELAYED INTO t1 VALUES('21');
 INSERT DELAYED INTO t1 VALUES('22');|
 ** Connection con0 **
 Asynchronous execute
-SELECT COUNT(*) = 22 FROM t1;
+SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
 ** Connection default **
 ** Wait till con0 is blocked **
 UNLOCK TABLES;
 ** Connection con1 **
 ** Connection con0 **
 Asynchronous "reap" result
-COUNT(*) = 22
+COUNT(*) BETWEEN 6 AND 22
 1
 ** Connection default**
 Checking if the delayed insert gives the same result afterwards
-SELECT COUNT(*) = 22 FROM t1;
-COUNT(*) = 22
+SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
+COUNT(*) BETWEEN 6 AND 22
 1
 ** Connection default**
 DROP TABLE t1;
