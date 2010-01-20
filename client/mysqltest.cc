@@ -7664,7 +7664,14 @@ int main(int argc, char **argv)
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
-  var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
+  var_set_string("MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
+  var_set_string("MYSQL_SYSTEM_TYPE", SYSTEM_TYPE);
+  var_set_string("MYSQL_MACHINE_TYPE", MACHINE_TYPE);
+  if (sizeof(void *) == 8) {
+    var_set_string("MYSQL_SYSTEM_ARCHITECTURE", "64");
+  } else {
+    var_set_string("MYSQL_SYSTEM_ARCHITECTURE", "32");
+  }
 
   memset(&master_pos, 0, sizeof(master_pos));
 
