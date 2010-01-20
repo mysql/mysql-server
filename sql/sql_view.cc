@@ -663,7 +663,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
     int errcode= query_error_code(thd, TRUE);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
+                      buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode);
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1306,8 +1306,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       If the view's body needs row-based binlogging (e.g. the VIEW is created
       from SELECT UUID()), the top statement also needs it.
     */
-    if (lex->is_stmt_unsafe())
-      old_lex->set_stmt_unsafe();
+    old_lex->set_stmt_unsafe_flags(lex->get_stmt_unsafe_flags());
+
     view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                         lex->can_be_merged());
 

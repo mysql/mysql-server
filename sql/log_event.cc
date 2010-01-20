@@ -664,9 +664,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-  cache_stmt=	using_trans;
+  cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+               ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+               Log_event::EVENT_STMT_CACHE);
 }
-
 
 /**
   This minimal constructor is for when you are not even sure that there
@@ -676,8 +677,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 */
 
 Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0), cache_stmt(0),
-   thd(0)
+  :temp_buf(0), exec_time(0), flags(0),
+  cache_type(Log_event::EVENT_INVALID_CACHE), thd(0)
 {
   server_id=	::server_id;
   /*
@@ -696,7 +697,7 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), cache_stmt(0)
+  :temp_buf(0), cache_type(Log_event::EVENT_INVALID_CACHE)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -2360,7 +2361,7 @@ Query_log_event::Query_log_event()
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool suppress_use, int errcode)
+				 bool direct, bool suppress_use, int errcode)
 
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
@@ -2439,6 +2440,95 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
   else
     time_zone_len= 0;
+
+  /*
+    In what follows, we decide whether to write to the binary log or to use a
+    cache.
+  */
+  LEX *lex= thd->lex;
+  bool implicit_commit= FALSE;
+  cache_type= Log_event::EVENT_INVALID_CACHE;
+  switch (lex->sql_command)
+  {
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_DROP_FUNCTION:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_INSTALL_PLUGIN:
+    case SQLCOM_UNINSTALL_PLUGIN:
+    case SQLCOM_ALTER_TABLESPACE:
+      implicit_commit= TRUE;
+      break;
+    case SQLCOM_DROP_TABLE:
+      implicit_commit= !(lex->drop_temporary && thd->in_multi_stmt_transaction());
+      break;
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_CREATE_TABLE:
+      implicit_commit= !((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+                   thd->in_multi_stmt_transaction()) &&
+                  !(lex->select_lex.item_list.elements &&
+                   thd->is_current_stmt_binlog_format_row());
+      break;
+    case SQLCOM_SET_OPTION:
+      implicit_commit= (lex->autocommit ? TRUE : FALSE);
+      break;
+    /*
+      Replace what follows after CF_AUTO_COMMIT_TRANS is backported by:
+
+      default:
+        implicit_commit= ((sql_command_flags[lex->sql_command] &
+                      CF_AUTO_COMMIT_TRANS));
+      break;
+    */
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_TRUNCATE:
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB_UPGRADE:
+    case SQLCOM_RENAME_TABLE:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_CREATE_VIEW:
+    case SQLCOM_DROP_VIEW:
+    case SQLCOM_CREATE_TRIGGER:
+    case SQLCOM_DROP_TRIGGER:
+    case SQLCOM_CREATE_EVENT:
+    case SQLCOM_ALTER_EVENT:
+    case SQLCOM_DROP_EVENT:
+    case SQLCOM_REPAIR:
+    case SQLCOM_OPTIMIZE:
+    case SQLCOM_ANALYZE:
+    case SQLCOM_CREATE_USER:
+    case SQLCOM_DROP_USER:
+    case SQLCOM_RENAME_USER:
+    case SQLCOM_REVOKE_ALL:
+    case SQLCOM_REVOKE:
+    case SQLCOM_GRANT:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_ALTER_PROCEDURE:
+    case SQLCOM_ALTER_FUNCTION:
+    case SQLCOM_ASSIGN_TO_KEYCACHE:
+    case SQLCOM_PRELOAD_KEYS:
+    case SQLCOM_FLUSH:
+    case SQLCOM_CHECK:
+      implicit_commit= TRUE;
+      break;
+    default:
+      implicit_commit= FALSE;
+      break;
+  }
+
+  if (implicit_commit || direct)
+  {
+    cache_type= Log_event::EVENT_NO_CACHE;
+  }
+  else
+  {
+    cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+                 ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                 Log_event::EVENT_STMT_CACHE);
+  }
+  DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
                      (ulong) flags2, sql_mode));
 }
@@ -6704,9 +6794,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              ulong query_length_arg, uint fn_pos_start_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
-                             bool using_trans, bool suppress_use,
+                             bool using_trans, bool direct, bool suppress_use,
                              int errcode):
-  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans,
+  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, direct,
                   suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
@@ -7275,7 +7365,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       We also call the mysql_reset_thd_for_next_command(), since this
       is the logical start of the next "statement". Note that this
-      call might reset the value of current_stmt_binlog_row_based, so
+      call might reset the value of current_stmt_binlog_format, so
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
@@ -7287,16 +7377,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     thd->transaction.stmt.modified_non_trans_table= FALSE;
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
-    {
-      thd->set_current_stmt_binlog_row_based();
-    }
-
+    thd->lex->set_stmt_row_injection();
 
     /*
       There are a few flags that are replicated with each row event.
@@ -7545,7 +7631,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       error= 0;
     }
 
-    if (!cache_stmt)
+    if (!use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->options|= OPTION_KEEP_LOG;
@@ -7564,7 +7650,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
                              get_type_str(),
                              RPL_LOG_NAME, (ulong) log_pos);
-    thd->reset_current_stmt_binlog_row_based();
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_format_row() from here.
+
+      Note: this applies to log_event_old.cc too.
+      /Sven
+    */
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -7625,7 +7718,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -7648,7 +7741,17 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       event flushed.
     */
 
-    thd->reset_current_stmt_binlog_row_based();
+    /*
+      @todo We should probably not call
+      reset_current_stmt_binlog_format_row() from here.
+
+      Note: this applies to log_event_old.cc too
+
+      Btw, the previous comment about transactional engines does not
+      seem related to anything that happens here.
+      /Sven
+    */
+    thd->reset_current_stmt_binlog_format_row();
 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
   }
@@ -7871,7 +7974,7 @@ int Table_map_log_event::save_field_metadata()
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                          bool is_transactional)
-  : Log_event(thd, 0, true),
+  : Log_event(thd, 0, is_transactional),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),

@@ -8,7 +8,9 @@ insert into t1 select * from t2;
 ERROR 23000: Duplicate entry '2' for key 'a'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 select * from t2
+master-bin.000001	#	Query	#	#	COMMIT
 select * from t1;
 a
 1
