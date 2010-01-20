@@ -38,9 +38,9 @@ public:
   Filename theFileName;
   Request *m_current_request, *m_last_request;
 
-  void set_buffer(Ptr<GlobalPage> ptr, Uint32 cnt);
+  void set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt);
   bool has_buffer() const;
-  void clear_buffer(Ptr<GlobalPage> & ptr, Uint32 & cnt);
+  void clear_buffer(Uint32 &rg, Ptr<GlobalPage> & ptr, Uint32 & cnt);
 
   AsyncIoThread* getThread() const { return m_thread;}
 private:
@@ -100,6 +100,7 @@ protected:
   /**
    * file buffers
    */
+  Uint32 m_resource_group;
   Uint32 m_page_cnt;
   Ptr<GlobalPage> m_page_ptr;
 
@@ -112,9 +113,10 @@ public:
 
 inline
 void
-AsyncFile::set_buffer(Ptr<GlobalPage> ptr, Uint32 cnt)
+AsyncFile::set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt)
 {
   assert(!has_buffer());
+  m_resource_group = rg;
   m_page_ptr = ptr;
   m_page_cnt = cnt;
   theWriteBuffer = (char*)ptr.p;
@@ -130,16 +132,17 @@ AsyncFile::has_buffer() const
 
 inline
 void
-AsyncFile::clear_buffer(Ptr<GlobalPage> & ptr, Uint32 & cnt)
+AsyncFile::clear_buffer(Uint32 & rg, Ptr<GlobalPage> & ptr, Uint32 & cnt)
 {
   assert(has_buffer());
+  rg = m_resource_group;
   ptr = m_page_ptr;
   cnt = m_page_cnt;
+  m_resource_group = RNIL;
   m_page_cnt = 0;
   m_page_ptr.setNull();
   theWriteBuffer = 0;
   theWriteBufferSize = 0;
 }
-
 
 #endif
