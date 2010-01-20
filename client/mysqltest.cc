@@ -140,6 +140,7 @@ struct st_block
   int             line; /* Start line of block */
   my_bool         ok;   /* Should block be executed */
   enum block_cmd  cmd;  /* Command owning the block */
+  char            delim[MAX_DELIMITER_LENGTH];  /* Delimiter before block */
 };
 
 static struct st_block block_stack[32];
@@ -2711,6 +2712,10 @@ void do_exec(struct st_command *command)
 #endif
 #endif
 
+  /* exec command is interpreted externally and will not take newlines */
+  while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
+    ;
+  
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
 
@@ -5170,6 +5175,12 @@ int do_done(struct st_command *command)
   }
   else
   {
+    if (*cur_block->delim) 
+    {
+      /* Restore "old" delimiter after false if block */
+      strcpy (delimiter, cur_block->delim);
+      delimiter_length= strlen(delimiter);
+    }
     /* Pop block from stack, goto next line */
     cur_block--;
     parser.current_line++;
@@ -5228,6 +5239,7 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
+    cur_block->delim[0]= '\0';
     DBUG_VOID_RETURN;
   }
 
@@ -5264,6 +5276,15 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (not_expr)
     cur_block->ok = !cur_block->ok;
 
+  if (cur_block->ok) 
+  {
+    cur_block->delim[0]= '\0';
+  } else
+  {
+    /* Remember "old" delimiter if entering a false if block */
+    strcpy (cur_block->delim, delimiter);
+  }
+  
   DBUG_PRINT("info", ("OK: %d", cur_block->ok));
 
   var_free(&v);
@@ -7719,7 +7740,14 @@ int main(int argc, char **argv)
                    1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
-  var_set_string("$MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
+  var_set_string("MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
+  var_set_string("MYSQL_SYSTEM_TYPE", SYSTEM_TYPE);
+  var_set_string("MYSQL_MACHINE_TYPE", MACHINE_TYPE);
+  if (sizeof(void *) == 8) {
+    var_set_string("MYSQL_SYSTEM_ARCHITECTURE", "64");
+  } else {
+    var_set_string("MYSQL_SYSTEM_ARCHITECTURE", "32");
+  }
 
   memset(&master_pos, 0, sizeof(master_pos));
 
@@ -7850,7 +7878,8 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
-    my_bool ok_to_do= cur_block->ok;
+    /* delimiter needs to be executed so we can continue to parse */
+    my_bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
@@ -9538,7 +9567,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
   if (pa->length+length >= pa->max_length)
   {
     if (!(new_pos= (uchar*) my_realloc((uchar*) pa->str,
-				      (uint) (pa->max_length+PS_MALLOC),
+                                      (uint) (pa->length+length+PS_MALLOC),
 				      MYF(MY_WME))))
       DBUG_RETURN(1);
     if (new_pos != pa->str)
@@ -9549,7 +9578,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 					      char*);
       pa->str=new_pos;
     }
-    pa->max_length+=PS_MALLOC;
+    pa->max_length= pa->length+length+PS_MALLOC;
   }
   if (pa->typelib.count >= pa->max_count-1)
   {
