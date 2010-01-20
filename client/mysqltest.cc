@@ -9677,7 +9677,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 static int setenv(const char *name, const char *value, int overwrite)
 {
   size_t buflen= strlen(name) + strlen(value) + 2;
-  char *envvar= malloc(buflen);
+  char *envvar= (char *)malloc(buflen);
   if(!envvar)
     return ENOMEM;
   strcpy(envvar, name);
