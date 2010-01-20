@@ -1285,6 +1285,17 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "--replace_column 1 b c " | $MYSQL_TEST 2>&1
 
+let $long_rep= 1234567890123456789012345678901234567890;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+
+# This tests from strings > 1024 (here 1311)
+
+--replace_result $long_rep LONG_STRING
+eval select "$long_rep" as x;
 
 # ----------------------------------------------------------------------------
 # Test sync_with_master
