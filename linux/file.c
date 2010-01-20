@@ -96,6 +96,23 @@ toku_os_full_write (int fd, const void *buf, size_t len) {
     assert(len == 0);
 }
 
+ssize_t
+toku_os_write (int fd, const void *buf, size_t len) {
+    while (len > 0) {
+        ssize_t r;
+        if (t_write) {
+            r = t_write(fd, buf, len);
+        } else {
+            r = write(fd, buf, len);
+        }
+        if (r <= 0)
+            return r;
+        len           -= r;
+        buf           += r;
+    }
+    return 0;
+}
+
 static uint64_t get_tnow(void) {
     struct timeval tv;
     int r = gettimeofday(&tv, NULL); assert(r == 0);

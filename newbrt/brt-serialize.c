@@ -590,10 +590,9 @@ static void *decompress_worker(void *arg) {
 
 #define DO_TOKU_TRACE 0
 #if DO_TOKU_TRACE
-static int toku_trace_fd = -1;
-
+const int toku_trace_fd = -1;
 static inline void do_toku_trace(const char *cp, int len) {
-    write(toku_trace_fd, cp, len);
+    toku_os_write(toku_trace_fd, cp, len);
 }
 #define toku_trace(a)  do_toku_trace(a, strlen(a))
 #else
@@ -832,7 +831,6 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 	toku_free(rb->buf);
         rb->buf = NULL;
     }
-    toku_trace("deserial done");
     *brtnode = result;
     //toku_verify_counts(result);
     return 0;
@@ -845,9 +843,9 @@ verify_decompressed_brtnode_checksum (struct rbuf *rb) {
     if (rb->size >= 4) {
         uint32_t verify_size = rb->size - 4; //Not counting the checksum
 
-        toku_trace("x1764 start");
-        uint32_t crc = x1764_memory(rb->buf, verify_size);
         toku_trace("x1764");
+        uint32_t crc = x1764_memory(rb->buf, verify_size);
+        toku_trace("x1764 done");
 
         uint32_t *crcp = (uint32_t*)(((uint8_t*)rb->buf) + verify_size);
         uint32_t storedcrc = toku_dtoh32(*crcp);
@@ -863,6 +861,7 @@ verify_decompressed_brtnode_checksum (struct rbuf *rb) {
 
 static int
 decompress_brtnode_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+    toku_trace("decompress");
     int r;
     int i;
     // get the number of compressed sub blocks
@@ -983,17 +982,13 @@ deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u
 // Read brt node from file into struct.  Perform version upgrade if necessary.
 int
 toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h) {
+    toku_trace("deserial start");
+
     int r;
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
     if (h->panic) return h->panic;
-
-#if DO_TOKU_TRACE
-    if (toku_trace_fd == -1) 
-        toku_trace_fd = open(DEV_NULL_FILE, O_WRONLY);
-    toku_trace("deserial start");
-#endif
 
     // get the file offset and block size for the block
     DISKOFF offset, size;
@@ -1026,6 +1021,8 @@ toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BR
 
     //TODO: #1924 verify some form of checksum during 'deserialization'???
     r = deserialize_brtnode_from_rbuf_versioned(layout_version, blocknum, fullhash, brtnode, h, &rb);
+
+    toku_trace("deserial done");
 
 cleanup:
     if (rb.buf) toku_free(rb.buf);
