@@ -216,6 +216,12 @@ source database
 echo message echo message
 
 mysqltest: At line 1: Missing argument in exec
+1
+1
+2
+2
+X
+3
 MySQL
 "MySQL"
 MySQL: The
@@ -377,6 +383,10 @@ test
 test2
 test3
 test4
+outer
+true-inner
+true-inner again
+true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
 1
@@ -417,6 +427,9 @@ mysqltest: At line 1: Wrong number of arguments to replace_column in 'replace_co
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a b'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
+select "LONG_STRING" as x;
+x
+LONG_STRING
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
