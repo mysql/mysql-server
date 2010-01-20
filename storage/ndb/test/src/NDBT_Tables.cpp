@@ -451,10 +451,10 @@ struct NDBT_IndexList {
 static
 const
 NDBT_IndexList indexes[] = {
-  "I1", I1_Indexes, 
-  "I2", I2_Indexes, 
-  "I3", I3_Indexes,
-  0, 0
+  { "I1", I1_Indexes }, 
+  { "I2", I2_Indexes }, 
+  { "I3", I3_Indexes },
+  { 0, 0 }
 };
 
 static
