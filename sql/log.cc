@@ -4284,12 +4284,20 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 #if defined(USING_TRANSACTIONS) 
     /*
       Should we write to the binlog cache or to the binlog on disk?
+
       Write to the binlog cache if:
-      - it is already not empty (meaning we're in a transaction; note that the
-     present event could be about a non-transactional table, but still we need
-     to write to the binlog cache in that case to handle updates to mixed
-     trans/non-trans table types the best possible in binlogging)
-      - or if the event asks for it (cache_stmt == TRUE).
+      1 - a transactional engine/table is updated (stmt_has_updated_trans_table == TRUE);
+      2 - or the event asks for it (cache_stmt == TRUE);
+      3 - or the cache is already not empty (meaning we're in a transaction;
+      note that the present event could be about a non-transactional table, but
+      still we need to write to the binlog cache in that case to handle updates
+      to mixed trans/non-trans table types).
+      
+      Write to the binlog on disk if only a non-transactional engine is
+      updated and:
+      1 - the binlog cache is empty or;
+      2 - --binlog-direct-non-transactional-updates is set and we are about to
+      use the statement format. When using the row format (cache_stmt == TRUE).
     */
     if (opt_using_transactions && thd)
     {
@@ -4300,8 +4308,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
-      if (event_info->get_cache_stmt() || trans_log_pos != 0 ||
-          stmt_has_updated_trans_table(thd))
+      if (event_info->get_cache_stmt() || stmt_has_updated_trans_table(thd) ||
+          (!thd->variables.binlog_direct_non_trans_update &&
+            trans_log_pos != 0))
       {
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
