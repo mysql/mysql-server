@@ -92,6 +92,33 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
+/**
+  SLAVE_TYPE_CONVERSIONS variable.
+
+  Definition is equivalent to
+  @code
+  SET('ALL_NON_LOSSY', 'ALL_LOSSY')
+  @endcode
+ */
+const char *slave_type_conversions_type_name[]= {
+  "ALL_LOSSY",
+  "ALL_NON_LOSSY",
+  NullS
+};
+
+unsigned int slave_type_conversions_type_length[]= {
+  sizeof("ALL_LOSSY")-1,
+  sizeof("ALL_NON_LOSSY")-1,
+  0
+};
+
+TYPELIB slave_type_conversions_typelib=
+{
+  array_elements(slave_type_conversions_type_name)-1, "",
+  slave_type_conversions_type_name,
+  slave_type_conversions_type_length
+};
+
 const char *slave_exec_mode_names[]=
 { "STRICT", "IDEMPOTENT", NullS };
 static const unsigned int slave_exec_mode_names_len[]=
@@ -577,6 +604,12 @@ static sys_var_set_slave_mode slave_exec_mode(&vars,
                                               &slave_exec_mode_options,
                                               &slave_exec_mode_typelib,
                                               0);
+static sys_var_set slave_type_conversions(&vars,
+                                          "slave_type_conversions",
+                                          &slave_type_conversions_options,
+                                          &slave_type_conversions_typelib,
+                                          0);
+
 static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
 static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",
@@ -1263,7 +1296,6 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
     result= check_log_update(thd, var);
   return result;
 }
-
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {

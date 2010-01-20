@@ -867,6 +867,31 @@ SELECT
 DROP TABLE t1, t2, t3;
 
 
+--echo #
+--echo # Bug #42760: Select doesn't return desired results when we have null
+--echo # values
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  c INT,
+  UNIQUE KEY a_c (a,c),
+  KEY (a));
+
+INSERT INTO t1 VALUES (1, 10), (2, NULL);
+
+--echo # Must use ref-or-null on the a_c index
+EXPLAIN
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+--echo # Must return 1 row
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests
+
+
 #
 # Bug #35206: select query result different if the key is indexed or not
 #

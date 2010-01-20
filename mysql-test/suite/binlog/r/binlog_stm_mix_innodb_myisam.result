@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
@@ -245,6 +246,8 @@ create table t0 (n int);
 insert t0 select * from t1;
 set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);

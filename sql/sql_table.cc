@@ -5331,12 +5331,20 @@ binlog:
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=)
-          store_create_info(thd, table, &query,
-                            create_info, FALSE /* show_database */);
+       /*
+         The condition avoids a crash as described in BUG#48506. Other
+         binlogging problems related to CREATE TABLE IF NOT EXISTS LIKE
+         when the existing object is a view will be solved by BUG 47442.
+       */
+        if (!table->view)
+        {
+          IF_DBUG(int result=)
+            store_create_info(thd, table, &query,
+                              create_info, FALSE /* show_database */);
 
-        DBUG_ASSERT(result == 0); // store_create_info() always return 0
-        write_bin_log(thd, TRUE, query.ptr(), query.length());
+          DBUG_ASSERT(result == 0); // store_create_info() always return 0
+          write_bin_log(thd, TRUE, query.ptr(), query.length());
+        }
       }
       else                                      // Case 1
         write_bin_log(thd, TRUE, thd->query(), thd->query_length());

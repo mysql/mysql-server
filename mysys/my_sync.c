@@ -103,11 +103,11 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
 int my_sync_dir(const char *dir_name, myf my_flags)
 {
 #ifdef NEED_EXPLICIT_SYNC_DIR
-  DBUG_ENTER("my_sync_dir");
-  DBUG_PRINT("my",("Dir: '%s'  my_flags: %d", dir_name, my_flags));
   File dir_fd;
   int res= 0;
   const char *correct_dir_name;
+  DBUG_ENTER("my_sync_dir");
+  DBUG_PRINT("my",("Dir: '%s'  my_flags: %d", dir_name, my_flags));
   /* Sometimes the path does not contain an explicit directory */
   correct_dir_name= (dir_name[0] == 0) ? cur_dir_name : dir_name;
   /*

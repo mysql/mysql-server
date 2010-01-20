@@ -44,14 +44,12 @@ sess_t*
 sess_open(void);
 /*============*/
 /*********************************************************************//**
-Closes a session, freeing the memory occupied by it, if it is in a state
-where it should be closed.
-@return	TRUE if closed */
+Closes a session, freeing the memory occupied by it. */
 UNIV_INTERN
-ibool
-sess_try_close(
-/*===========*/
-	sess_t*		sess);	/*!< in, own: session object */
+void
+sess_close(
+/*=======*/
+	sess_t*		sess);		/* in, own: session object */
 
 /* The session handle. All fields are protected by the kernel mutex */
 struct sess_struct{
