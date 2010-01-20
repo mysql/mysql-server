@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 include/stop_slave.inc
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE';
@@ -14,6 +15,8 @@ include/start_slave.inc
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 values(1, 1);
 INSERT INTO t1 values(1, sleep(3));
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 TRUNCATE mysql.slow_log;
 SELECT 1, sleep(3);
 1	sleep(3)

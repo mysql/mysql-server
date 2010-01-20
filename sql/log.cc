@@ -4126,11 +4126,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
-  Table_map_log_event::flag_set const
-    flags= Table_map_log_event::TM_NO_FLAGS;
-
   Table_map_log_event
-    the_event(this, table, table->s->table_map_id, is_transactional, flags);
+    the_event(this, table, table->s->table_map_id, is_transactional);
 
   if (binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
@@ -6003,9 +6000,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
                                       sizeof(xev->xid));
-      if (! x)
+      if (!x || my_hash_insert(&xids, x))
         goto err2;
-      my_hash_insert(&xids, x);
     }
     delete ev;
   }

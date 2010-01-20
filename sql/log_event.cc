@@ -29,7 +29,6 @@
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
-#include "rpl_utility.h"
 #include "rpl_record.h"
 #include <my_dir.h>
 
@@ -37,6 +36,7 @@
 
 #include <base64.h>
 #include <my_bitmap.h>
+#include "rpl_utility.h"
 
 #define log_cs	&my_charset_latin1
 
@@ -1571,37 +1571,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
         /* a long CHAR() field: see #37426 */
         length= byte1 | (((byte0 & 0x30) ^ 0x30) << 4);
         type= byte0 | 0x30;
-        goto beg;
       }
-
-      switch (byte0)
-      {
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_STRING:
-          type= byte0;
-          length= byte1;
-          break;
-
-        default:
-
-        {
-          char tmp[5];
-          my_snprintf(tmp, sizeof(tmp), "%04X", meta);
-          my_b_printf(file,
-                      "!! Don't know how to handle column type=%d meta=%d (%s)",
-                      type, meta, tmp);
-          return 0;
-        }
-      }
+      else
+        length = meta & 0xFF;
     }
     else
       length= meta;
   }
 
-
-beg:
-  
   switch (type) {
   case MYSQL_TYPE_LONG:
     {
@@ -1738,6 +1715,33 @@ beg:
       return 3;
     }
     
+  case MYSQL_TYPE_NEWDATE:
+    {
+      uint32 tmp= uint3korr(ptr);
+      int part;
+      char buf[10];
+      char *pos= &buf[10];
+
+      /* Copied from field.cc */
+      *pos--=0;					// End NULL
+      part=(int) (tmp & 31);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 5 & 15);
+      *pos--= (char) ('0'+part%10);
+      *pos--= (char) ('0'+part/10);
+      *pos--= ':';
+      part=(int) (tmp >> 9);
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos--= (char) ('0'+part%10); part/=10;
+      *pos=   (char) ('0'+part);
+      my_b_printf(file , "'%s'", buf);
+      my_snprintf(typestr, typestr_length, "DATE");
+      return 3;
+    }
+    
   case MYSQL_TYPE_DATE:
     {
       uint i32= uint3korr(ptr);
@@ -1756,7 +1760,7 @@ beg:
     }
   
   case MYSQL_TYPE_ENUM:
-    switch (length) { 
+    switch (meta & 0xFF) {
     case 1:
       my_b_printf(file, "%d", (int) *ptr);
       my_snprintf(typestr, typestr_length, "ENUM(1 byte)");
@@ -1769,15 +1773,15 @@ beg:
         return 2;
       }
     default:
-      my_b_printf(file, "!! Unknown ENUM packlen=%d", length); 
+      my_b_printf(file, "!! Unknown ENUM packlen=%d", meta & 0xFF); 
       return 0;
     }
     break;
     
   case MYSQL_TYPE_SET:
-    my_b_write_bit(file, ptr , length * 8);
-    my_snprintf(typestr, typestr_length, "SET(%d bytes)", length);
-    return length;
+    my_b_write_bit(file, ptr , (meta & 0xFF) * 8);
+    my_snprintf(typestr, typestr_length, "SET(%d bytes)", meta & 0xFF);
+    return meta & 0xFF;
   
   case MYSQL_TYPE_BLOB:
     switch (meta) {
@@ -7457,11 +7461,18 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
 
     {
+      DBUG_PRINT("debug", ("Checking compability of tables to lock - tables_to_lock: %p",
+                           rli->tables_to_lock));
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                             ptr->table, &conv_table))
         {
+          DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
+                               ptr->table->s->db.str,
+                               ptr->table->s->table_name.str));
           /*
             We should not honour --slave-skip-errors at this point as we are
             having severe errors which should not be skiped.
@@ -7472,12 +7483,17 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+                             " - conv_table: %p",
+                             ptr->table->s->db.str,
+                             ptr->table->s->table_name.str, conv_table));
+        ptr->m_conv_table= conv_table;
       }
     }
 
     /*
-      ... and then we add all the tables to the table map and remove
-      them from tables to lock.
+      ... and then we add all the tables to the table map and but keep
+      them in the tables to lock list.
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
@@ -7972,7 +7988,10 @@ int Table_map_log_event::save_field_metadata()
   DBUG_ENTER("Table_map_log_event::save_field_metadata");
   int index= 0;
   for (unsigned int i= 0 ; i < m_table->s->fields ; i++)
+  {
+    DBUG_PRINT("debug", ("field_type: %d", m_coltype[i]));
     index+= m_table->s->field[i]->save_field_metadata(&m_field_metadata[index]);
+  }
   DBUG_RETURN(index);
 }
 #endif /* !defined(MYSQL_CLIENT) */
@@ -7984,7 +8003,7 @@ int Table_map_log_event::save_field_metadata()
  */
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
-                                         bool is_transactional, uint16 flags)
+                                         bool is_transactional)
   : Log_event(thd, 0, is_transactional),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
@@ -7994,7 +8013,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_colcnt(tbl->s->fields),
     m_memory(NULL),
     m_table_id(tid),
-    m_flags(flags),
+    m_flags(TM_BIT_LEN_EXACT_F),
     m_data_size(0),
     m_field_metadata(0),
     m_field_metadata_size(0),
@@ -8252,8 +8271,10 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       inside Relay_log_info::clear_tables_to_lock() by calling the
       table_def destructor explicitly.
     */
-    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt, 
-         m_field_metadata, m_field_metadata_size, m_null_bits);
+    new (&table_list->m_tabledef)
+      table_def(m_coltype, m_colcnt,
+                m_field_metadata, m_field_metadata_size,
+                m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
 
     /*

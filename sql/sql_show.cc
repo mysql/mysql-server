@@ -719,7 +719,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     thd->push_internal_handler(&view_error_suppressor);
     bool error= open_normal_and_derived_tables(thd, table_list, 0);
     thd->pop_internal_handler();
-    if (error && thd->main_da.is_error())
+    if (error && (thd->killed || thd->main_da.is_error()))
       DBUG_RETURN(TRUE);
   }
 

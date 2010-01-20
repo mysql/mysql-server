@@ -19,7 +19,6 @@
 
 static my_bool     ssl_algorithms_added    = FALSE;
 static my_bool     ssl_error_strings_loaded= FALSE;
-static int      verify_depth = 0;
 
 static unsigned char dh512_p[]=
 {

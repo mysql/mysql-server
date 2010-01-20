@@ -31,8 +31,6 @@ select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
 set global innodb_file_format_check=default;
-Warnings:
-Warning	1210	Ignoring SET innodb_file_format=on
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda

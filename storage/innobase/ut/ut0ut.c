@@ -19,6 +19,7 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0sort.h"
 #include "trx0trx.h"
 #include "ha_prototypes.h"
+#include "mysql_com.h" /* NAME_LEN */
 
 ibool	ut_always_false	= FALSE;
 
@@ -484,26 +485,17 @@ ut_print_namel(
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
-#ifdef UNIV_HOTBACKUP
-	fwrite(name, 1, namelen, f);
-#else
-	if (table_id) {
-		char*	slash = memchr(name, '/', namelen);
-		if (!slash) {
+	/* 2 * NAME_LEN for database and table name,
+	and some slack for the #mysql50# prefix and quotes */
+	char		buf[3 * NAME_LEN];
+	const char*	bufend;
 
-			goto no_db_name;
-		}
+	bufend = innobase_convert_name(buf, sizeof buf,
+				       name, namelen,
+				       trx ? trx->mysql_thd : NULL,
+				       table_id);
 
-		/* Print the database name and table name separately. */
-		innobase_print_identifier(f, trx, TRUE, name, slash - name);
-		putc('.', f);
-		innobase_print_identifier(f, trx, TRUE, slash + 1,
-					  namelen - (slash - name) - 1);
-	} else {
-no_db_name:
-		innobase_print_identifier(f, trx, table_id, name, namelen);
-	}
-#endif
+	fwrite(buf, 1, bufend - buf, f);
 }
 
 /**************************************************************************
