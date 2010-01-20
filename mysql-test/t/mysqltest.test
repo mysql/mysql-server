@@ -1006,6 +1006,37 @@ echo test3stop
 --delimiter ;
 echo test4;
 
+# ----------------------------------------------------------------------------
+# Test that delimiter within if() works in in various combinations
+# ----------------------------------------------------------------------------
+
+if (0)
+{
+  delimiter ||;
+  echo false-inner||
+  if (0)
+  {
+    delimiter *||
+    echo false-innerer*
+    delimiter ||*
+  }
+  echo false-inner again||
+}
+echo outer;
+if (1)
+{
+  delimiter /;
+  echo true-inner/
+  if (0)
+  {
+    delimiter %/
+    echo true-innerer%
+  }
+  echo true-inner again/
+}
+echo true-outer/
+delimiter ;/
+
 
 # ----------------------------------------------------------------------------
 # Test if
