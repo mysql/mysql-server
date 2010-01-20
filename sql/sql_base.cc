@@ -3955,7 +3955,8 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           Validating routine version is unnecessary, since CALL
           does not affect the prepared statement prelocked list.
         */
-        sp_cache_routine(thd, rt, FALSE, &sp);
+        if (sp_cache_routine(thd, rt, FALSE, &sp))
+          DBUG_RETURN(TRUE);
       }
     }
     break;
