@@ -9477,7 +9477,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
   if (pa->length+length >= pa->max_length)
   {
     if (!(new_pos= (uchar*) my_realloc((uchar*) pa->str,
-				      (uint) (pa->max_length+PS_MALLOC),
+                                      (uint) (pa->length+length+PS_MALLOC),
 				      MYF(MY_WME))))
       DBUG_RETURN(1);
     if (new_pos != pa->str)
@@ -9488,7 +9488,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 					      char*);
       pa->str=new_pos;
     }
-    pa->max_length+=PS_MALLOC;
+    pa->max_length= pa->length+length+PS_MALLOC;
   }
   if (pa->typelib.count >= pa->max_count-1)
   {
