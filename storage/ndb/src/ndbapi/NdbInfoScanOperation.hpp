@@ -44,6 +44,7 @@ private:
   int receive(void);
   bool find_next_node();
 
+  struct NdbInfoScanOperationImpl& m_impl;
   const NdbInfo& m_info;
   enum State { Undefined, Initial, Prepared,
                MoreData, End, Error } m_state;
