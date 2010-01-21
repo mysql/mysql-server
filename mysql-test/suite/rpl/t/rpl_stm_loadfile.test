@@ -16,5 +16,9 @@
 -- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 -- source extra/rpl_tests/rpl_loadfile.test
 
