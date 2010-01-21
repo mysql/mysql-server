@@ -2639,7 +2639,7 @@ txn_note_doing_work(TOKUTXN txn) {
 }
 
 int
-toku_brt_log_put_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
+toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) {
     int r = 0;
     assert(txn);
     assert(num_brts > 0);
@@ -2651,9 +2651,11 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
         for (i = 0; i < num_brts; i++) {
             fnums[i] = toku_cachefile_filenum(brts[i]->cf);
         }
-        BYTESTRING rowbs = {.len=row->size, .data=row->data};
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, filenums, xid, rowbs);
+        FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
+        r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
     }
     return r;
 }
@@ -2705,7 +2707,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 }
 
 int
-toku_brt_log_del_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
+toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) {
     int r = 0;
     assert(txn);
     assert(num_brts > 0);
@@ -2717,9 +2719,11 @@ toku_brt_log_del_multiple (TOKUTXN txn, BRT *brts, int num_brts, DBT *row) {
         for (i = 0; i < num_brts; i++) {
             fnums[i] = toku_cachefile_filenum(brts[i]->cf);
         }
-        BYTESTRING rowbs = {.len=row->size, .data=row->data};
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, filenums, xid, rowbs);
+        FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
+        r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
     }
     return r;
 }

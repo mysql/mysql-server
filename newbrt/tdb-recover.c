@@ -35,7 +35,7 @@ int recovery_main (int argc, const char *argv[]) {
 	return(1);
     }
 
-    int r = tokudb_recover(data_dir, log_dir, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+    int r = tokudb_recover(data_dir, log_dir, NULL, NULL, NULL, NULL, 0);
     if (r!=0) {
 	fprintf(stderr, "Recovery failed\n");
 	return(1);

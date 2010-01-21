@@ -386,6 +386,7 @@ is_filenum_reserved(CACHETABLE ct, FILENUM filenum) {
 static void
 reserve_filenum(CACHETABLE ct, FILENUM filenum) {
     int r;
+    assert(filenum.fileid != FILENUM_NONE.fileid);
 
     uint32_t index;
     r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, NULL, &index, NULL);
@@ -477,6 +478,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     CACHEFILE extant;
     struct fileid fileid;
     
+    if (with_filenum) assert(filenum.fileid != FILENUM_NONE.fileid);
     if (reserved) assert(with_filenum);
     r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
@@ -530,6 +532,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     } else {
         // find an unused fileid and use it
     try_again:
+        assert(next_filenum_to_use.fileid != FILENUM_NONE.fileid);
         for (extant = ct->cachefiles; extant; extant=extant->next) {
             if (next_filenum_to_use.fileid==extant->filenum.fileid) {
                 next_filenum_to_use.fileid++;

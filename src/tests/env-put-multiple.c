@@ -13,35 +13,37 @@ char names_single[MAX_DBS][sizeof("dbs_0xFFF")];
 char names_multiple[MAX_DBS][sizeof("dbm_0xFFF")];
 uint32_t num_dbs;
 uint32_t flags[MAX_DBS];
+uint32_t ids[MAX_DBS];
 uint32_t kbuf[MAX_DBS][MAX_KEY/4];
 uint32_t vbuf[MAX_DBS][MAX_VAL/4];
+DBT dest_keys[MAX_DBS];
+DBT dest_vals[MAX_DBS];
 
 #define CKERRIFNOT0(r)           do { if (num_dbs>0) { CKERR(r); } else { CKERR2(r, EINVAL); } } while (0)
 #define CKERR2IFNOT0(r, rexpect) do { if (num_dbs>0) { CKERR2(r, rexpect); } else { CKERR2(r, EINVAL); } } while (0)
 
 static int
-put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **UU(dbs_in), DBT *keys, DBT *vals, void *extra) {
-    assert(num_dbs_in > 0);
-    assert(num_dbs_in == num_dbs);
-    assert(extra==&num_dbs); //Verifying extra gets set right.
-    assert(row->size == 4);
-    uint32_t which;
-    for (which = 0; which < num_dbs_in; which++) {
-        kbuf[which][0] = *(uint32_t*)row->data;
-        kbuf[which][1] = which;
-        vbuf[which][0] = which;
-        vbuf[which][1] = *(uint32_t*)row->data;
-        keys[which].data = kbuf[which];
-        keys[which].size = sizeof(kbuf[which]);
-        vals[which].data = vbuf[which];
-        vals[which].size = sizeof(vbuf[which]);
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+    if (extra == NULL) {
+        assert(src_db == dbs_multiple[0]);
     }
-    return 0;
-}
+    else {
+        assert(src_db == NULL);
+        assert(extra==&num_dbs); //Verifying extra gets set right.
+    }
+    uint32_t which = *(uint32_t*)dest_db->app_private;
+    assert(which < MAX_DBS);
 
-static int
-put_multiple_clean(DBT *UU(row), uint32_t UU(num_dbs_in), DB **UU(dbs_in), DBT *UU(keys), DBT *UU(vals), void *extra) {
-    assert(extra==&num_dbs); //Verifying extra gets set right.
+    assert(src_key->size == 4);
+    assert(src_val->size == 4);
+    kbuf[which][0] = *(uint32_t*)src_key->data;
+    kbuf[which][1] = which;
+    vbuf[which][0] = which;
+    vbuf[which][1] = *(uint32_t*)src_val->data;
+    dest_key->data = kbuf[which];
+    dest_key->size = sizeof(kbuf[which]);
+    dest_val->data = vbuf[which];
+    dest_val->size = sizeof(vbuf[which]);
     return 0;
 }
 
@@ -55,9 +57,7 @@ static void run_test (void) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->set_multiple_callbacks(env,
-                                    put_multiple_generate, put_multiple_clean,
-                                    NULL, NULL);
+    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
@@ -69,11 +69,13 @@ static void run_test (void) {
         CKERR(r);
         DB *db;
         for (which = 0; which < num_dbs; which++) {
+            ids[which] = which;
             r = db_create(&dbs_multiple[which], env, 0);
             CKERR(r);
             db = dbs_multiple[which];
             r = db->open(db, txn, names_multiple[which], NULL, DB_BTREE, DB_CREATE, 0666);
             CKERR(r);
+            db->app_private = &ids[which];
             r = db_create(&dbs_single[which], env, 0);
             CKERR(r);
             db = dbs_single[which];
@@ -95,8 +97,10 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);
         CKERR(r);
 
-        DBT rowdbt={.data=&magic, .size=sizeof(magic)};
-        r = env->put_multiple(env, txn, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        uint32_t magic2 = ~magic;
+        DBT keydbt = {.data=&magic, .size=sizeof(magic)};
+        DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
+        r = env->put_multiple(env, dbs_multiple[0], txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, NULL);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -116,8 +120,10 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);
         CKERR(r);
 
-        DBT rowdbt={.data=&magic, .size=sizeof(magic)};
-        r = env->put_multiple(env, txn, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        uint32_t magic2 = ~magic;
+        DBT keydbt = {.data=&magic, .size=sizeof(magic)};
+        DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -137,8 +143,10 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);
         CKERR(r);
 
-        DBT rowdbt={.data=&magic, .size=sizeof(magic)};
-        r = env->put_multiple(env, txn, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        uint32_t magic2 = ~magic;
+        DBT keydbt = {.data=&magic, .size=sizeof(magic)};
+        DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERR2IFNOT0(r, DB_KEYEXIST);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -161,8 +169,10 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txna, 0);
         CKERR(r);
 
-        DBT rowdbt={.data=&magic, .size=sizeof(magic)};
-        r = env->put_multiple(env, txna, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        uint32_t magic2 = ~magic;
+        DBT keydbt = {.data=&magic, .size=sizeof(magic)};
+        DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
+        r = env->put_multiple(env, NULL, txna, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -177,7 +187,7 @@ static void run_test (void) {
         CKERR(r);
 
         //Lock should fail
-        r = env->put_multiple(env, txnb, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERR2IFNOT0(r, DB_LOCK_NOTGRANTED);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -189,7 +199,7 @@ static void run_test (void) {
         r = txna->commit(txna, 0);
 
         //Should succeed this time.
-        r = env->put_multiple(env, txnb, &rowdbt, num_dbs, dbs_multiple, flags, &num_dbs);
+        r = env->put_multiple(env, NULL, txnb, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
@@ -259,6 +269,8 @@ int test_main (int argc, char *argv[]) {
     for (which = 0; which < MAX_DBS; which++) {
         sprintf(names_multiple[which], "dbm_0x%02X", which);
         sprintf(names_single[which], "dbs_0x%02X", which);
+        dbt_init(&dest_keys[which], NULL, 0);
+        dbt_init(&dest_vals[which], NULL, 0);
     }
     for (num_dbs = 0; num_dbs < 4; num_dbs++) {
         run_test();

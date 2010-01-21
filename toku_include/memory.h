@@ -94,7 +94,7 @@ void *toku_memdup (const void *v, size_t len);
 char *toku_strdup (const char *s)   __attribute__((__visibility__("default")));
 
 /* Copy memory.  Analogous to strdup() Crashes instead of returning NULL */
-void *toku_xmemdup (const void *v, size_t len);
+void *toku_xmemdup (const void *v, size_t len) __attribute__((__visibility__("default")));
 /* Toku-version of strdup.  Use this so that it calls toku_xmalloc()  Crashes instead of returning NULL */
 char *toku_xstrdup (const char *s)   __attribute__((__visibility__("default")));
 

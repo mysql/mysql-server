@@ -100,10 +100,15 @@ check-no-rolltmp: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) --env no-rolltmp.dir --singlex --nolog --check_small_rolltmp $(SUMMARIZE_CMD)
 
 # Check to make sure that if we make a file that's bigger than 4GB that we can read the file back out and get all the rows.
+ifeq ($(SKIP_4G),1)
+check-4G:
+	@echo SKIPPED SLOW TEST $@
+else
 check-4G: $(TARGET_TDB)  $(SCANSCAN_TDB)
 	( ./$(TARGET_TDB) $(VERBVERBOSE) --env 4g.dir --norandom --compressibility 1 --valsize 10000 1 && \
           ./$(SCANSCAN_TDB) --env 4g.dir --lwc --prelock --prelockflag --nox > 4g.out && \
           fgrep "(1048576 rows)" 4g.out > /dev/null ) $(SUMMARIZE_CMD)
+endif
 
 clean:
 	rm -f $(TARGETS) 4g.out
