@@ -410,7 +410,7 @@ bool Log_to_csv_event_handler::
   bool need_rnd_end= FALSE;
   uint field_index;
   Silence_log_table_errors error_handler;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   ulonglong save_thd_options;
   bool save_time_zone_used;
 
@@ -572,7 +572,7 @@ bool Log_to_csv_event_handler::
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
   Silence_log_table_errors error_handler;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
@@ -727,7 +727,7 @@ int Log_to_csv_event_handler::
   TABLE *table;
   LEX_STRING *UNINIT_VAR(log_name);
   int result;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
 
   DBUG_ENTER("Log_to_csv_event_handler::activate_log");
 

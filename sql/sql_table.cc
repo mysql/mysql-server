@@ -2207,22 +2207,26 @@ err:
       locked. Additional check for 'non_temp_tables_count' is to avoid
       leaving LOCK TABLES mode if we have dropped only temporary tables.
     */
-    if (thd->locked_tables_mode &&
-        thd->lock && thd->lock->table_count == 0 && non_temp_tables_count > 0)
+    if (! thd->locked_tables_mode)
+      unlock_table_names(thd);
+    else
     {
-      thd->locked_tables_list.unlock_locked_tables(thd);
-      goto end;
-    }
-    for (table= tables; table; table= table->next_local)
-    {
-      if (table->mdl_request.ticket)
+      if (thd->lock && thd->lock->table_count == 0 && non_temp_tables_count > 0)
       {
-        /*
-          Under LOCK TABLES we may have several instances of table open
-          and locked and therefore have to remove several metadata lock
-          requests associated with them.
-        */
-        thd->mdl_context.release_all_locks_for_name(table->mdl_request.ticket);
+        thd->locked_tables_list.unlock_locked_tables(thd);
+        goto end;
+      }
+      for (table= tables; table; table= table->next_local)
+      {
+        if (table->mdl_request.ticket)
+        {
+          /*
+            Under LOCK TABLES we may have several instances of table open
+            and locked and therefore have to remove several metadata lock
+            requests associated with them.
+          */
+          thd->mdl_context.release_all_locks_for_name(table->mdl_request.ticket);
+        }
       }
     }
   }
@@ -4350,6 +4354,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!(table= table_list->table))
   {
     /*
+      If the table didn't exist, we have a shared metadata lock
+      on it that is left from mysql_admin_table()'s attempt to 
+      open it. Release the shared metadata lock before trying to
+      acquire the exclusive lock to satisfy MDL asserts and avoid
+      deadlocks.
+    */
+    thd->mdl_context.release_transactional_locks();
+    /*
       Attempt to do full-blown table open in mysql_admin_table() has failed.
       Let us try to open at least a .FRM for this table.
     */
@@ -4360,6 +4372,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  MDL_EXCLUSIVE);
+
+    MDL_request mdl_global_request;
+    mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+
+    if (thd->mdl_context.acquire_global_intention_exclusive_lock(
+               &mdl_global_request))
+      DBUG_RETURN(0);
+
     if (thd->mdl_context.acquire_exclusive_lock(&table_list->mdl_request))
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
@@ -4491,7 +4511,7 @@ end:
   }
   /* In case of a temporary table there will be no metadata lock. */
   if (error && has_mdl_lock)
-    thd->mdl_context.release_lock(table_list->mdl_request.ticket);
+    thd->mdl_context.release_transactional_locks();
 
   DBUG_RETURN(error);
 }
@@ -6544,6 +6564,13 @@ view_err:
       {
         target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
                                 MDL_EXCLUSIVE);
+        /*
+          Global intention exclusive lock must have been already acquired when
+          table to be altered was open, so there is no need to do it here.
+        */
+        DBUG_ASSERT(thd->
+                    mdl_context.is_global_lock_owner(MDL_INTENTION_EXCLUSIVE));
+
         if (thd->mdl_context.try_acquire_exclusive_lock(&target_mdl_request))
           DBUG_RETURN(TRUE);
         if (target_mdl_request.ticket == NULL)

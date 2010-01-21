@@ -543,7 +543,7 @@ disconnect flush;
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1, t0;
 --enable_warnings
 create table t1 (c1 int);
 --echo connection: default
@@ -552,31 +552,31 @@ handler t1 read first;
 connect (flush,localhost,root,,);
 connection flush;
 --echo connection: flush
---send rename table t1 to t2;
+--send rename table t1 to t0;
 connection waiter;
 --echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table" and info = "rename table t1 to t0";
 --source include/wait_condition.inc
 connection default;
 --echo connection: default
 --echo #
 --echo # RENAME placed two pending locks and waits.
---echo # When HANDLER t2 OPEN does open_tables(), it calls
+--echo # When HANDLER t0 OPEN does open_tables(), it calls
 --echo # mysql_ha_flush(), which in turn closes the open HANDLER for t1.
 --echo # RENAME TABLE gets unblocked. If it gets scheduled quickly
 --echo # and manages to complete before open_tables()
---echo # of HANDLER t2 OPEN, open_tables() and therefore the whole
---echo # HANDLER t2 OPEN succeeds. Otherwise open_tables() 
+--echo # of HANDLER t0 OPEN, open_tables() and therefore the whole
+--echo # HANDLER t0 OPEN succeeds. Otherwise open_tables() 
 --echo # notices a pending or active exclusive metadata lock on t2
---echo # and the whole HANDLER t2 OPEN fails with ER_LOCK_DEADLOCK
+--echo # and the whole HANDLER t0 OPEN fails with ER_LOCK_DEADLOCK
 --echo # error.
 --echo #
 --error 0, ER_LOCK_DEADLOCK
-handler t2 open;
+handler t0 open;
 --error 0, ER_UNKNOWN_TABLE
-handler t2 close;
+handler t0 close;
 --echo connection: flush
 connection flush;
 reap;
@@ -585,7 +585,7 @@ handler t1 read next;
 --error ER_UNKNOWN_TABLE
 handler t1 close;
 connection default;
-drop table t2;
+drop table t0;
 connection flush;
 disconnect flush;
 --source include/wait_until_disconnected.inc
@@ -972,35 +972,29 @@ connection default;
 --echo #
 create table t1 (a int, key a (a));
 insert into t1 (a) values (1), (2), (3), (4), (5);
-create table t2 (a int, key a (a));
-insert into t2 (a) values (1), (2), (3), (4), (5);
+create table t0 (a int, key a (a));
+insert into t0 (a) values (1), (2), (3), (4), (5);
 begin;
 select * from t1;
---echo # --> connection con1
-connection con1;
-lock table t2 read;
 --echo # --> connection con2 
 connection con2;
 --echo # Sending:
-send rename table t2 to t3, t1 to t2, t3 to t1;
+send rename table t0 to t3, t1 to t0, t3 to t1;
 --echo # --> connection con1 
 connection con1;
 --echo # Waiting for 'rename table ...' to get blocked...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='rename table t2 to t3, t1 to t2, t3 to t1';
+where state='Waiting for table' and info='rename table t0 to t3, t1 to t0, t3 to t1';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
 --error ER_LOCK_DEADLOCK
-handler t2 open;
+handler t0 open;
 --error ER_LOCK_DEADLOCK
-select * from t2;
+select * from t0;
 handler t1 open;
 commit;
 handler t1 close;
---echo # --> connection con1
-connection con1;
-unlock tables;
 --echo # --> connection con2
 connection con2;
 --echo # Reaping 'rename table ...'...
@@ -1010,7 +1004,7 @@ connection default;
 handler t1 open;
 handler t1 read a prev;
 handler t1 close;
-drop table t2;
+drop table t0;
 --echo #
 --echo # Originally there was a deadlock error in this test.
 --echo # With implementation of deadlock detector

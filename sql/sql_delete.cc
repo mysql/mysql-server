@@ -1100,7 +1100,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error= TRUE;
   uint path_length;
-  MDL_request mdl_request;
+  MDL_request mdl_global_request, mdl_request;
   /*
     Is set if we're under LOCK TABLES, and used
     to downgrade the exclusive lock after the
@@ -1207,10 +1207,21 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         the table can be re-created as an empty table with TRUNCATE
         TABLE, even if the data or index files have become corrupted.
       */
+
+      mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
       mdl_request.init(MDL_key::TABLE, table_list->db, table_list->table_name,
                        MDL_EXCLUSIVE);
-      if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+      if (thd->mdl_context.acquire_global_intention_exclusive_lock(
+                             &mdl_global_request))
         DBUG_RETURN(TRUE);
+      if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+      {
+        /*
+          We rely on that close_thread_tables() to release global lock
+          in this case.
+        */
+        DBUG_RETURN(TRUE);
+      }
       has_mdl_lock= TRUE;
       pthread_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
@@ -1250,7 +1261,7 @@ end:
       my_ok(thd);		// This should return record count
     }
     if (has_mdl_lock)
-      thd->mdl_context.release_lock(mdl_request.ticket);
+      thd->mdl_context.release_transactional_locks();
     if (mdl_ticket)
       mdl_ticket->downgrade_exclusive_lock();
   }

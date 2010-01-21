@@ -949,7 +949,10 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 {
   MDL_request_list mdl_requests;
+  MDL_request global_request;
   TABLE_LIST *lock_table;
+
+  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
@@ -958,8 +961,15 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
                                  MDL_EXCLUSIVE);
     mdl_requests.push_front(&lock_table->mdl_request);
   }
-  if (thd->mdl_context.acquire_exclusive_locks(&mdl_requests))
+
+  if (thd->mdl_context.acquire_global_intention_exclusive_lock(&global_request))
     return 1;
+
+  if (thd->mdl_context.acquire_exclusive_locks(&mdl_requests))
+  {
+    thd->mdl_context.release_lock(global_request.ticket);
+    return 1;
+  }
   return 0;
 }
 
@@ -1009,6 +1019,7 @@ bool lock_routine_name(THD *thd, bool is_function,
   MDL_key::enum_mdl_namespace mdl_type= (is_function ?
                                          MDL_key::FUNCTION :
                                          MDL_key::PROCEDURE);
+  MDL_request global_request;
   MDL_request mdl_request;
 
   if (thd->locked_tables_mode)
@@ -1021,10 +1032,17 @@ bool lock_routine_name(THD *thd, bool is_function,
   DBUG_ASSERT(name);
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
+  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
   mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
 
-  if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+  if (thd->mdl_context.acquire_global_intention_exclusive_lock(&global_request))
     return TRUE;
+
+  if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
+  {
+    thd->mdl_context.release_lock(global_request.ticket);
+    return TRUE;
+  }
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return FALSE;

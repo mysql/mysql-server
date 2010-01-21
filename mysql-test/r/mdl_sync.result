@@ -23,7 +23,7 @@ SET DEBUG_SYNC= 'RESET';
 # Test coverage for basic deadlock detection in metadata
 # locking subsystem.
 #
-drop tables if exists t1, t2, t3, t4;
+drop tables if exists t0, t1, t2, t3, t4, t5;
 create table t1 (i int);
 create table t2 (j int);
 create table t3 (k int);
@@ -90,7 +90,7 @@ commit;
 #
 # Switching to connection 'deadlock_con1'.
 begin;
-insert into t1 values (2);
+insert into t2 values (2);
 #
 # Switching to connection 'default'.
 # Send:
@@ -98,11 +98,11 @@ rename table t2 to t0, t1 to t2, t0 to t1;;
 #
 # Switching to connection 'deadlock_con1'.
 # Wait until the above RENAME TABLE is blocked because it has to wait
-# for 'deadlock_con1' which holds shared metadata lock on 't1'.
+# for 'deadlock_con1' which holds shared metadata lock on 't2'.
 # 
 # The below statement should not wait as doing so will cause deadlock.
 # Instead it should fail and emit ER_LOCK_DEADLOCK statement.
-select * from t2;
+select * from t1;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 #
 # Let us check that failure of the above statement has not released
@@ -141,7 +141,7 @@ select * from t2;;
 # for an exclusive metadata lock to go away.
 # Send RENAME TABLE statement that will deadlock with the
 # SELECT statement and thus should abort the latter.
-rename table t1 to t0, t2 to t1, t0 to t2;;
+rename table t1 to t5, t2 to t1, t5 to t2;;
 #
 # Switching to connection 'deadlock_con1'.
 # Since the latest RENAME TABLE entered in deadlock with SELECT
@@ -156,15 +156,17 @@ ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 # Commit transaction to unblock this RENAME TABLE.
 commit;
 #
-# Switching to connection 'deadlock_con3'.
-# Reap RENAME TABLE t1 TO t0 ... .
-#
 # Switching to connection 'deadlock_con2'.
 # Commit transaction to unblock the first RENAME TABLE.
 commit;
 #
 # Switching to connection 'default'.
 # Reap RENAME TABLE t2 TO t0 ... .
+#
+# Switching to connection 'deadlock_con3'.
+# Reap RENAME TABLE t1 TO t5 ... .
+#
+# Switching to connection 'default'.
 drop tables t1, t2, t3, t4;
 #
 # Now, test case which shows that deadlock detection empiric

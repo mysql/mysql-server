@@ -2871,7 +2871,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                                            due to metadata locks, so to avoid
                                            them we should not wait in case if
                                            conflicting lock is present.
-  @param[in]      open_tables_state_backup pointer to Open_tables_state object
+  @param[in]      open_tables_state_backup pointer to Open_tables_backup object
                                            which is used to save|restore original
                                            status of variables related to
                                            open tables state
@@ -2885,7 +2885,7 @@ static int
 fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                               ST_SCHEMA_TABLE *schema_table,
                               bool can_deadlock,
-                              Open_tables_state *open_tables_state_backup)
+                              Open_tables_backup *open_tables_state_backup)
 {
   LEX *lex= thd->lex;
   bool res;
@@ -2941,7 +2941,8 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                            table, res, db_name,
                                            table_name));
    thd->temporary_tables= 0;
-   close_tables_for_reopen(thd, &show_table_list, NULL);
+   close_tables_for_reopen(thd, &show_table_list,
+                           open_tables_state_backup->mdl_system_tables_svp);
    DBUG_RETURN(error);
 }
 
@@ -3236,8 +3237,12 @@ end_share:
 
 end_unlock:
   pthread_mutex_unlock(&LOCK_open);
+  /*
+    Don't release the MDL lock, it can be part of a transaction.
+    If it is not, it will be released by the call to
+    MDL_context::rollback_to_savepoint() in the caller.
+  */
 
-  thd->mdl_context.release_lock(table_list.mdl_request.ticket);
   thd->clear_error();
   return res;
 }
@@ -3281,7 +3286,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   COND *partial_cond= 0;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
-  Open_tables_state open_tables_state_backup;
+  Open_tables_backup open_tables_state_backup;
   bool save_view_prepare_mode= lex->view_prepare_mode;
   Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3500,7 +3505,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               res= schema_table->process_table(thd, show_table_list, table,
                                                res, &orig_db_name,
                                                &tmp_lex_string);
-              close_tables_for_reopen(thd, &show_table_list, NULL);
+              close_tables_for_reopen(thd, &show_table_list,
+                                      open_tables_state_backup.mdl_system_tables_svp);
             }
             DBUG_ASSERT(!lex->query_tables_own_last);
             if (res)
@@ -4302,7 +4308,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   bool full_access;
   char definer[USER_HOST_BUFF_SIZE];
-  Open_tables_state open_tables_state_backup;
+  Open_tables_backup open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
   strxmov(definer, thd->security_ctx->priv_user, "@",

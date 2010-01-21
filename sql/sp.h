@@ -128,6 +128,6 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
   Routines which allow open/lock and close mysql.proc table even when
   we already have some tables open and locked.
 */
-TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
 
 #endif /* _SP_H_ */
