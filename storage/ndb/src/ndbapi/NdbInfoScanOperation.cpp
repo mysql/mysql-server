@@ -71,8 +71,14 @@ NdbInfoScanOperation::init(Uint32 id)
   for (unsigned i = 0; i < m_table->columns(); i++)
     m_recAttrs.push_back(NULL);
 
- for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
-   m_impl.m_nodes_to_scan.set(i);
+  /*
+    Build a bitmask of nodes that will be scanned if
+    connected and have been API_REGCONFed. Don't include
+    own node since it will always be "connected"
+  */
+  for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+    m_impl.m_nodes_to_scan.set(i);
+  m_impl.m_nodes_to_scan.clear(refToNode(m_result_ref));
 
   m_state = Initial;
   DBUG_RETURN(true);
