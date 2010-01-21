@@ -58,6 +58,8 @@ $(DBCXX):
 
 clean:
 	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db dir.test.db.assoc3 test_reverse_compare_fun.cpp.dir *.tdb.clean *.tdb.dirty
+	rm -rf *.dir
+	rm -rf *.out
 	rm -rf \
 		cdd_tdb_0_b.tokudb                                                 \
 		check_db_create_DSM_tdb_main_0_b.tokudb                            \
@@ -68,6 +70,7 @@ clean:
 		test_cursor_count_cpp_tdb_0_b.tokudb                               \
 		check_db_create_tdb_main_0_b.tokudb                                \
 		tokudb.directory                                                   \
+		test_no_env                                                        \
 #this line left blank
 
 
