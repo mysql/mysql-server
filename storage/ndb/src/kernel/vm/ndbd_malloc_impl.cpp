@@ -49,6 +49,8 @@ struct InitChunk
 
 #include <NdbOut.hpp>
 
+extern void ndbd_alloc_touch_mem(void * p, size_t sz);
+
 static
 bool
 do_malloc(Uint32 pages, InitChunk* chunk)
@@ -127,6 +129,8 @@ retry:
     chunk->m_cnt--;
     chunk->m_ptr = (Alloc_page*)((UintPtr(ptr) + align) & ~align);
   }
+
+  ndbd_alloc_touch_mem(chunk->m_ptr, chunk->m_cnt * sizeof(Alloc_page));
 
 #ifdef UNIT_TEST
   ndbout_c("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);

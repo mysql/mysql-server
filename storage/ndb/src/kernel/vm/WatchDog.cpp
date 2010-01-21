@@ -217,3 +217,9 @@ WatchDog::shutdownSystem(const char *last_stuck_action){
 			     __FILE__,
 			     NST_Watchdog);
 }
+
+void
+do_refresh_watch_dog(Uint32 place)
+{
+  globalData.incrementWatchDogCounter(place);
+}
