@@ -6311,3 +6311,8 @@ ER_WRONG_NATIVE_TABLE_STRUCTURE
 
 ER_WRONG_PERFSCHEMA_USAGE
         eng "Invalid performance_schema usage."
+
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
+ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot change the binlog direct flag inside a stored function or trigger"
