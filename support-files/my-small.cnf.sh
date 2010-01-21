@@ -51,6 +51,13 @@ server-id	= 1
 # binary logging format - mixed recommended
 #binlog_format=mixed
 
+# Causes updates to non-transactional engines using statement format to be
+# written directly to binary log. Before using this option make sure that
+# there are no dependencies between transactional and non-transactional
+# tables such as in the statement INSERT INTO t_myisam SELECT * FROM
+# t_innodb; otherwise, slaves may diverge from the master.
+#binlog_direct_non_transactional_updates=TRUE
+
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:10M:autoextend
