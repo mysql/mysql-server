@@ -25,6 +25,21 @@
 #include <stdio.h>
 #endif
 
+extern void do_refresh_watch_dog(Uint32 place);
+
+void
+ndbd_alloc_touch_mem(void *p, size_t sz)
+{
+  unsigned char * ptr = (unsigned char*)p;
+  while (sz >= 4096)
+  {
+    * ptr = 0;
+    ptr += 4096;
+    sz -= 4096;
+    do_refresh_watch_dog(9);
+  }
+}
+
 #ifdef TRACE_MALLOC
 static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
 {
@@ -41,6 +56,9 @@ void *ndbd_malloc(size_t size)
   if (p)
   {
     g_allocated_memory += size;
+
+    ndbd_alloc_touch_mem(p, size);
+
 #ifdef TRACE_MALLOC
     {
       size_t s_m, s_k, s_b;
