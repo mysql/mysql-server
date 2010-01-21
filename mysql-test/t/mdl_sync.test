@@ -78,7 +78,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo # locking subsystem.
 --echo #
 --disable_warnings
-drop tables if exists t1, t2, t3, t4;
+drop tables if exists t0, t1, t2, t3, t4, t5;
 --enable_warnings
 
 connect(deadlock_con1,localhost,root,,);
@@ -189,7 +189,7 @@ connection default;
 --echo # Switching to connection 'deadlock_con1'.
 connection deadlock_con1;
 begin;
-insert into t1 values (2);
+insert into t2 values (2);
 
 --echo #
 --echo # Switching to connection 'default'.
@@ -201,7 +201,7 @@ connection default;
 --echo # Switching to connection 'deadlock_con1'.
 connection deadlock_con1;
 --echo # Wait until the above RENAME TABLE is blocked because it has to wait
---echo # for 'deadlock_con1' which holds shared metadata lock on 't1'.
+--echo # for 'deadlock_con1' which holds shared metadata lock on 't2'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and info = "rename table t2 to t0, t1 to t2, t0 to t1";
@@ -210,7 +210,7 @@ let $wait_condition=
 --echo # The below statement should not wait as doing so will cause deadlock.
 --echo # Instead it should fail and emit ER_LOCK_DEADLOCK statement.
 --error ER_LOCK_DEADLOCK
-select * from t2;
+select * from t1;
 
 --echo #
 --echo # Let us check that failure of the above statement has not released
@@ -276,7 +276,7 @@ let $wait_condition=
 
 --echo # Send RENAME TABLE statement that will deadlock with the
 --echo # SELECT statement and thus should abort the latter.
---send rename table t1 to t0, t2 to t1, t0 to t2;
+--send rename table t1 to t5, t2 to t1, t5 to t2;
 
 --echo #
 --echo # Switching to connection 'deadlock_con1'.
@@ -294,16 +294,10 @@ connection deadlock_con1;
 --echo # is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t0, t2 to t1, t0 to t2";
+  where state = "Waiting for table" and info = "rename table t1 to t5, t2 to t1, t5 to t2";
 --source include/wait_condition.inc
 --echo # Commit transaction to unblock this RENAME TABLE.
 commit;
-
---echo #
---echo # Switching to connection 'deadlock_con3'.
-connection deadlock_con3;
---echo # Reap RENAME TABLE t1 TO t0 ... .
---reap;
 
 --echo #
 --echo # Switching to connection 'deadlock_con2'.
@@ -316,6 +310,16 @@ commit;
 connection default;
 --echo # Reap RENAME TABLE t2 TO t0 ... .
 --reap
+
+--echo #
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Reap RENAME TABLE t1 TO t5 ... .
+--reap;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
 
 drop tables t1, t2, t3, t4;
 

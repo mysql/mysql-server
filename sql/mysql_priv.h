@@ -1689,13 +1689,13 @@ void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 
 /* Functions to work with system tables. */
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                                 Open_tables_state *backup);
-void close_system_tables(THD *thd, Open_tables_state *backup);
+                                 Open_tables_backup *backup);
+void close_system_tables(THD *thd, Open_tables_backup *backup);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 
 TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                                     Open_tables_state *backup);
-void close_performance_schema_table(THD *thd, Open_tables_state *backup);
+                                     Open_tables_backup *backup);
+void close_performance_schema_table(THD *thd, Open_tables_backup *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
                          bool wait_for_refresh);

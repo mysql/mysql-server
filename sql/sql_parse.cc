@@ -6502,7 +6502,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
-              thd->handler_tables_hash.records);
+              thd->handler_tables_hash.records ||
+              thd->global_read_lock);
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too

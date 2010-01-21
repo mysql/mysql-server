@@ -978,9 +978,6 @@ public:
     Flags with information about the open tables state.
   */
   uint state_flags;
-
-  MDL_context mdl_context;
-
   /**
      This constructor initializes Open_tables_state instance which can only
      be used as backup storage. To prepare Open_tables_state instance for
@@ -1010,19 +1007,27 @@ public:
     locked_tables_mode= LTM_NONE;
     state_flags= 0U;
     m_reprepare_observer= NULL;
-    mdl_context.init(thd);
   }
-  void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
-  {
-    DBUG_ASSERT(locked_tables_mode == LTM_NONE);
-    mdl_context.set_lt_or_ha_sentinel();
-    locked_tables_mode= mode_arg;
-  }
-  void leave_locked_tables_mode()
-  {
-    locked_tables_mode= LTM_NONE;
-    mdl_context.clear_lt_or_ha_sentinel();
-  }
+};
+
+
+/**
+  Storage for backup of Open_tables_state. Must
+  be used only to open system tables (TABLE_CATEGORY_SYSTEM
+  and TABLE_CATEGORY_LOG).
+*/
+
+class Open_tables_backup: public Open_tables_state
+{
+public:
+  /**
+    When we backup the open tables state to open a system
+    table or tables, points at the last metadata lock
+    acquired before the backup. Is used to release
+    metadata locks on system tables after they are
+    no longer used.
+  */
+  MDL_ticket *mdl_system_tables_svp;
 };
 
 /**
@@ -1308,6 +1313,9 @@ public:
   {
     return m_start_of_statement_svp;
   }
+
+  MDL_request *get_global_mdl_request(THD *thd);
+
 private:
   /** List of requests for all locks taken so far. Used for waiting on locks. */
   MDL_request_list m_mdl_requests;
@@ -1320,6 +1328,11 @@ private:
     and we can't safely do back-off (and release them).
   */
   bool m_has_locks;
+  /**
+    Request object for global intention exclusive lock which is acquired during
+    opening tables for statements which take upgradable shared metadata locks.
+  */
+  MDL_request *m_global_mdl_request;
 };
 
 
@@ -1426,6 +1439,8 @@ class THD :public Statement,
            public Open_tables_state
 {
 public:
+  MDL_context mdl_context;
+
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
 
@@ -2314,8 +2329,8 @@ public:
   void set_status_var_init();
   bool is_context_analysis_only()
     { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
-  void reset_n_backup_open_tables_state(Open_tables_state *backup);
-  void restore_backup_open_tables_state(Open_tables_state *backup);
+  void reset_n_backup_open_tables_state(Open_tables_backup *backup);
+  void restore_backup_open_tables_state(Open_tables_backup *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
@@ -2567,6 +2582,19 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+  void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
+  {
+    DBUG_ASSERT(locked_tables_mode == LTM_NONE);
+    DBUG_ASSERT(! mdl_context.lt_or_ha_sentinel() ||
+                mdl_context.is_global_lock_owner(MDL_SHARED));
+    mdl_context.set_lt_or_ha_sentinel();
+    locked_tables_mode= mode_arg;
+  }
+  void leave_locked_tables_mode()
+  {
+    locked_tables_mode= LTM_NONE;
+    mdl_context.clear_lt_or_ha_sentinel();
+  }
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;

@@ -260,7 +260,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
     \#	Pointer to TABLE object of mysql.proc
 */
 
-TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 {
   TABLE_LIST table;
 
@@ -382,7 +382,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
   ulong sql_mode, saved_mode= thd->variables.sql_mode;
-  Open_tables_state open_tables_state_backup;
+  Open_tables_backup open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
 
   DBUG_ENTER("db_find_routine");
@@ -1432,7 +1432,7 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  Open_tables_state open_tables_state_backup;
+  Open_tables_backup open_tables_state_backup;
 
   if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
     ret= SP_OPEN_TABLE_FAILED;

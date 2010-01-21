@@ -560,36 +560,36 @@ c1
 handler t1 close;
 handler t2 close;
 drop table t1,t2;
-drop table if exists t1,t2;
+drop table if exists t1, t0;
 create table t1 (c1 int);
 connection: default
 handler t1 open;
 handler t1 read first;
 c1
 connection: flush
-rename table t1 to t2;;
+rename table t1 to t0;;
 connection: waiter 
 connection: default
 #
 # RENAME placed two pending locks and waits.
-# When HANDLER t2 OPEN does open_tables(), it calls
+# When HANDLER t0 OPEN does open_tables(), it calls
 # mysql_ha_flush(), which in turn closes the open HANDLER for t1.
 # RENAME TABLE gets unblocked. If it gets scheduled quickly
 # and manages to complete before open_tables()
-# of HANDLER t2 OPEN, open_tables() and therefore the whole
-# HANDLER t2 OPEN succeeds. Otherwise open_tables() 
+# of HANDLER t0 OPEN, open_tables() and therefore the whole
+# HANDLER t0 OPEN succeeds. Otherwise open_tables() 
 # notices a pending or active exclusive metadata lock on t2
-# and the whole HANDLER t2 OPEN fails with ER_LOCK_DEADLOCK
+# and the whole HANDLER t0 OPEN fails with ER_LOCK_DEADLOCK
 # error.
 #
-handler t2 open;
-handler t2 close;
+handler t0 open;
+handler t0 close;
 connection: flush
 handler t1 read next;
 ERROR 42S02: Unknown table 't1' in HANDLER
 handler t1 close;
 ERROR 42S02: Unknown table 't1' in HANDLER
-drop table t2;
+drop table t0;
 drop table if exists t1;
 create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
 insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
@@ -989,8 +989,8 @@ handler t1 close;
 #
 create table t1 (a int, key a (a));
 insert into t1 (a) values (1), (2), (3), (4), (5);
-create table t2 (a int, key a (a));
-insert into t2 (a) values (1), (2), (3), (4), (5);
+create table t0 (a int, key a (a));
+insert into t0 (a) values (1), (2), (3), (4), (5);
 begin;
 select * from t1;
 a
@@ -999,23 +999,19 @@ a
 3
 4
 5
-# --> connection con1
-lock table t2 read;
 # --> connection con2 
 # Sending:
-rename table t2 to t3, t1 to t2, t3 to t1;
+rename table t0 to t3, t1 to t0, t3 to t1;
 # --> connection con1 
 # Waiting for 'rename table ...' to get blocked...
 # --> connection default
-handler t2 open;
+handler t0 open;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-select * from t2;
+select * from t0;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 handler t1 open;
 commit;
 handler t1 close;
-# --> connection con1
-unlock tables;
 # --> connection con2
 # Reaping 'rename table ...'...
 # --> connection default
@@ -1024,7 +1020,7 @@ handler t1 read a prev;
 a
 5
 handler t1 close;
-drop table t2;
+drop table t0;
 #
 # Originally there was a deadlock error in this test.
 # With implementation of deadlock detector

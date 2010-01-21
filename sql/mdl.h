@@ -36,11 +36,13 @@ class MDL_ticket;
     (because of that their acquisition involves implicit
      acquisition of global intention-exclusive lock).
 
-  @see Comments for can_grant_lock() and can_grant_global_lock() for details.
+  @sa Comments for MDL_object_lock::can_grant_lock() and
+  MDL_global_lock::can_grant_lock() for details.
 */
 
 enum enum_mdl_type {MDL_SHARED=0, MDL_SHARED_HIGH_PRIO,
-                    MDL_SHARED_UPGRADABLE, MDL_EXCLUSIVE};
+                    MDL_SHARED_UPGRADABLE, MDL_INTENTION_EXCLUSIVE,
+                    MDL_EXCLUSIVE};
 
 
 /** States which a metadata lock ticket can have. */
@@ -78,7 +80,8 @@ public:
   enum enum_mdl_namespace { TABLE=0,
                             FUNCTION,
                             PROCEDURE,
-                            TRIGGER };
+                            TRIGGER,
+                            GLOBAL };
 
   const uchar *ptr() const { return (uchar*) m_ptr; }
   uint length() const { return m_length; }
@@ -93,7 +96,8 @@ public:
   { return (enum_mdl_namespace)(m_ptr[0]); }
 
   /**
-    Construct a metadata lock key from a triplet (mdl_namespace, database and name).
+    Construct a metadata lock key from a triplet (mdl_namespace,
+    database and name).
 
     @remark The key for a table is <mdl_namespace>+<database name>+<table name>
 
@@ -102,11 +106,12 @@ public:
     @param  name          Name of of the object
     @param  key           Where to store the the MDL key.
   */
-  void mdl_key_init(enum_mdl_namespace mdl_namespace, const char *db, const char *name)
+  void mdl_key_init(enum_mdl_namespace mdl_namespace,
+                    const char *db, const char *name)
   {
     m_ptr[0]= (char) mdl_namespace;
-    m_db_name_length= (uint) (strmov(m_ptr + 1, db) - m_ptr - 1);
-    m_length= (uint) (strmov(m_ptr + m_db_name_length + 2, name) - m_ptr + 1);
+    m_db_name_length= (uint16) (strmov(m_ptr + 1, db) - m_ptr - 1);
+    m_length= (uint16) (strmov(m_ptr + m_db_name_length + 2, name) - m_ptr + 1);
   }
   void mdl_key_init(const MDL_key *rhs)
   {
@@ -119,20 +124,34 @@ public:
     return (m_length == rhs->m_length &&
             memcmp(m_ptr, rhs->m_ptr, m_length) == 0);
   }
+  /**
+    Compare two MDL keys lexicographically.
+  */
+  int cmp(const MDL_key *rhs) const
+  {
+    /*
+      The key buffer is always '\0'-terminated. Since key
+      character set is utf-8, we can safely assume that no
+      character starts with a zero byte.
+    */
+    return memcmp(m_ptr, rhs->m_ptr, min(m_length, rhs->m_length)+1);
+  }
+
   MDL_key(const MDL_key *rhs)
   {
     mdl_key_init(rhs);
   }
-  MDL_key(enum_mdl_namespace namespace_arg, const char *db_arg, const char *name_arg)
+  MDL_key(enum_mdl_namespace namespace_arg,
+          const char *db_arg, const char *name_arg)
   {
     mdl_key_init(namespace_arg, db_arg, name_arg);
   }
   MDL_key() {} /* To use when part of MDL_request. */
 
 private:
+  uint16 m_length;
+  uint16 m_db_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
-  uint m_length;
-  uint m_db_name_length;
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
   MDL_key &operator=(const MDL_key &);          /* not implemented */
@@ -198,7 +217,7 @@ public:
     DBUG_ASSERT(ticket == NULL);
     type= type_arg;
   }
-  bool is_shared() const { return type < MDL_EXCLUSIVE; }
+  bool is_shared() const { return type < MDL_INTENTION_EXCLUSIVE; }
 
   static MDL_request *create(MDL_key::enum_mdl_namespace mdl_namespace,
                              const char *db, const char *name,
@@ -243,6 +262,17 @@ typedef void (*mdl_cached_object_release_hook)(void *);
 
   @note Multiple shared locks on a same object are represented by a
         single ticket. The same does not apply for other lock types.
+
+  @note There are two groups of MDL_ticket members:
+        - "Externally accessible". These members can be accessed from
+          threads/contexts different than ticket owner in cases when
+          ticket participates in some list of granted or waiting tickets
+          for a lock. Therefore one should change these members before
+          including then to waiting/granted lists or while holding lock
+          protecting those lists.
+        - "Context private". Such members are private to thread/context
+          owning this ticket. I.e. they should not be accessed from other
+          threads/contexts.
 */
 
 class MDL_ticket
@@ -250,12 +280,13 @@ class MDL_ticket
 public:
   /**
     Pointers for participating in the list of lock requests for this context.
+    Context private.
   */
   MDL_ticket *next_in_context;
   MDL_ticket **prev_in_context;
   /**
     Pointers for participating in the list of satisfied/pending requests
-    for the lock.
+    for the lock. Externally accessible.
   */
   MDL_ticket *next_in_lock;
   MDL_ticket **prev_in_lock;
@@ -265,8 +296,8 @@ public:
   void *get_cached_object();
   void set_cached_object(void *cached_object,
                          mdl_cached_object_release_hook release_hook);
-  const MDL_context *get_ctx() const { return m_ctx; }
-  bool is_shared() const { return m_type < MDL_EXCLUSIVE; }
+  MDL_context *get_ctx() const { return m_ctx; }
+  bool is_shared() const { return m_type < MDL_INTENTION_EXCLUSIVE; }
   bool is_upgradable_or_exclusive() const
   {
     return m_type == MDL_SHARED_UPGRADABLE || m_type == MDL_EXCLUSIVE;
@@ -275,6 +306,8 @@ public:
   void downgrade_exclusive_lock();
 private:
   friend class MDL_context;
+  friend class MDL_global_lock;
+  friend class MDL_object_lock;
 
   MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg)
    : m_type(type_arg),
@@ -283,31 +316,31 @@ private:
      m_lock(NULL)
   {}
 
-
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg);
   static void destroy(MDL_ticket *ticket);
 private:
-  /** Type of metadata lock. */
+  /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
-  /** State of the metadata lock ticket. */
+  /** State of the metadata lock ticket. Context private. */
   enum enum_mdl_state m_state;
 
-  /** Context of the owner of the metadata lock ticket. */
+  /**
+    Context of the owner of the metadata lock ticket. Externally accessible.
+  */
   MDL_context *m_ctx;
 
-  /** Pointer to the lock object for this lock ticket. */
+  /** Pointer to the lock object for this lock ticket. Context private. */
   MDL_lock *m_lock;
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
-
-  bool has_pending_conflicting_lock_impl() const;
 };
 
 
 typedef I_P_List<MDL_request, I_P_List_adapter<MDL_request,
                  &MDL_request::next_in_list,
-                 &MDL_request::prev_in_list> >
+                 &MDL_request::prev_in_list>,
+                 I_P_List_counter>
         MDL_request_list;
 
 /**
@@ -326,21 +359,19 @@ public:
 
   typedef Ticket_list::Iterator Ticket_iterator;
 
-  void init(THD *thd);
+  MDL_context();
   void destroy();
 
   bool try_acquire_shared_lock(MDL_request *mdl_request);
   bool acquire_exclusive_lock(MDL_request *mdl_request);
   bool acquire_exclusive_locks(MDL_request_list *requests);
   bool try_acquire_exclusive_lock(MDL_request *mdl_request);
-  bool acquire_global_shared_lock();
   bool clone_ticket(MDL_request *mdl_request);
 
   bool wait_for_locks(MDL_request_list *requests);
 
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
-  void release_global_shared_lock();
 
   bool is_exclusive_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                                const char *db,
@@ -368,7 +399,6 @@ public:
 
   void set_lt_or_ha_sentinel()
   {
-    DBUG_ASSERT(m_lt_or_ha_sentinel == NULL);
     m_lt_or_ha_sentinel= mdl_savepoint();
   }
   MDL_ticket *lt_or_ha_sentinel() const { return m_lt_or_ha_sentinel; }
@@ -385,16 +415,35 @@ public:
   bool can_wait_lead_to_deadlock() const;
 
   inline THD *get_thd() const { return m_thd; }
-  
-  bool is_waiting_in_mdl() const { return m_is_waiting_in_mdl; }
+
+  /**
+    Wake up context which is waiting for a change of MDL_lock state.
+  */
+  void awake()
+  {
+    pthread_cond_signal(&m_ctx_wakeup_cond);
+  }
+
+  bool try_acquire_global_intention_exclusive_lock(MDL_request *mdl_request);
+  bool acquire_global_intention_exclusive_lock(MDL_request *mdl_request);
+
+  bool acquire_global_shared_lock();
+  void release_global_shared_lock();
+
+  /**
+    Check if this context owns global lock of particular type.
+  */
+  bool is_global_lock_owner(enum_mdl_type type_arg)
+  {
+    MDL_request mdl_request;
+    bool not_used;
+    mdl_request.init(MDL_key::GLOBAL, "", "", type_arg);
+    return find_ticket(&mdl_request, &not_used);
+  }
+
+  void init(THD *thd_arg) { m_thd= thd_arg; }
 private:
   Ticket_list m_tickets;
-  bool m_has_global_shared_lock;
-  /**
-    Indicates that the owner of this context is waiting in
-    wait_for_locks() method.
-  */
-  bool m_is_waiting_in_mdl;
   /**
     This member has two uses:
     1) When entering LOCK TABLES mode, remember the last taken
@@ -406,12 +455,27 @@ private:
   */
   MDL_ticket *m_lt_or_ha_sentinel;
   THD *m_thd;
+  /**
+    Condvar which is used for waiting until this context's pending
+    request can be satisfied or this thread has to perform actions
+    to resolve potential deadlock (we subscribe for such notification
+    by adding ticket corresponding to the request to an appropriate
+    queue of waiters).
+  */
+  pthread_cond_t m_ctx_wakeup_cond;
 private:
-  void release_ticket(MDL_ticket *ticket);
-  bool can_wait_lead_to_deadlock_impl() const;
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_lt_or_ha);
   void release_locks_stored_before(MDL_ticket *sentinel);
+
+  bool try_acquire_lock_impl(MDL_request *mdl_request);
+  bool acquire_lock_impl(MDL_request *mdl_request);
+  bool acquire_exclusive_lock_impl(MDL_request *mdl_request);
+
+  friend bool MDL_ticket::upgrade_shared_lock_to_exclusive();
+private:
+  MDL_context(const MDL_context &rhs);          /* not implemented */
+  MDL_context &operator=(MDL_context &rhs);     /* not implemented */
 };
 
 
