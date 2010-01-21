@@ -6355,9 +6355,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
                   {
-                    mysql_file_close(fd, MYF(0));
-                    fd= -1;
-                    mysql_file_delete(0, fname, MYF(0));
+                    my_delete_allow_opened(fname, MYF(0));
                   });
 
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
