@@ -658,22 +658,22 @@ NdbEventOperationImpl::stop()
   DBUG_RETURN(r);
 }
 
-const bool NdbEventOperationImpl::tableNameChanged() const
+bool NdbEventOperationImpl::tableNameChanged() const
 {
   return (bool)AlterTableReq::getNameFlag(m_change_mask);
 }
 
-const bool NdbEventOperationImpl::tableFrmChanged() const
+bool NdbEventOperationImpl::tableFrmChanged() const
 {
   return (bool)AlterTableReq::getFrmFlag(m_change_mask);
 }
 
-const bool NdbEventOperationImpl::tableFragmentationChanged() const
+bool NdbEventOperationImpl::tableFragmentationChanged() const
 {
   return (bool)AlterTableReq::getFragDataFlag(m_change_mask);
 }
 
-const bool NdbEventOperationImpl::tableRangeListChanged() const
+bool NdbEventOperationImpl::tableRangeListChanged() const
 {
   return (bool)AlterTableReq::getRangeListFlag(m_change_mask);
 }
