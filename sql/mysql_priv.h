@@ -1039,7 +1039,8 @@ struct Query_cache_query_flags
 #endif /*HAVE_QUERY_CACHE*/
 
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length);
+                  char const *query, ulong query_length,
+                  bool is_trans= FALSE);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1578,7 +1579,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
-int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(handlerton *base, char *path);
@@ -2024,6 +2024,7 @@ extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern uint slave_exec_mode_options;
+extern ulonglong slave_type_conversions_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
@@ -2061,7 +2062,7 @@ extern mysql_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
-extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
+extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -2070,7 +2071,7 @@ extern mysql_cond_t COND_server_started;
 extern int mysqld_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-extern pthread_cond_t COND_thread_count;
+extern mysql_cond_t COND_thread_count;
 extern mysql_cond_t COND_refresh, COND_manager;
 extern mysql_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
@@ -2432,9 +2433,9 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 
 inline ulong sql_rnd_with_mutex()
 {
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   return tmp;
 }
 
@@ -2682,7 +2683,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages;
+  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages,
+  key_LOCK_thread_count;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -2700,7 +2702,8 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
-  key_TABLE_SHARE_cond, key_user_level_lock_cond;
+  key_TABLE_SHARE_cond, key_user_level_lock_cond,
+  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_kill_server, key_thread_main,

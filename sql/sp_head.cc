@@ -1,4 +1,4 @@
-/* Copyright 2002-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2002-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -511,7 +511,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_recursion_level(0), m_next_cached_sp(0),
+   m_flags(0), unsafe_flags(0), m_recursion_level(0), m_next_cached_sp(0),
    m_cont_level(0)
 {
   const LEX_STRING str_reset= { NULL, 0 };
@@ -1708,7 +1708,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     each substatement be binlogged its way.
   */
   need_binlog_call= mysql_bin_log.is_open() &&
-    (thd->variables.option_bits & OPTION_BIN_LOG) && !thd->current_stmt_binlog_row_based;
+                    (thd->variables.option_bits & OPTION_BIN_LOG) &&
+                    !thd->is_current_stmt_binlog_format_row();
 
   /*
     Remember the original arguments for unrolled replication of functions
@@ -1767,9 +1768,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     q= global_query_id;
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1797,7 +1798,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     {
       int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
+                            thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
@@ -2145,13 +2146,10 @@ sp_head::restore_lex(THD *thd)
 
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
-  /*
-    If this substatement needs row-based, the entire routine does too (we
-    cannot switch from statement-based to row-based only for this
-    substatement).
-  */
-  if (sublex->is_stmt_unsafe())
-    m_flags|= BINLOG_ROW_BASED_IF_MIXED;
+  /* If this substatement is unsafe, the entire routine is too. */
+  DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags: 0x%x",
+                      thd->lex->get_stmt_unsafe_flags()));
+  unsafe_flags|= sublex->get_stmt_unsafe_flags();
 
   /*
     Add routines which are used by statement to respective set for

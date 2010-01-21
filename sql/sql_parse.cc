@@ -556,11 +556,11 @@ end:
   delete thd;
 
 #ifndef EMBEDDED_LIBRARY
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
   in_bootstrap= FALSE;
-  (void) pthread_cond_broadcast(&COND_thread_count);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -5655,21 +5655,26 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 
 
 /**
- Reset THD part responsible for command processing state.
+  Reset the part of THD responsible for the state of command
+  processing.
 
-   This needs to be called before execution of every statement
-   (prepared or conventional).
-   It is not called by substatements of routines.
+  This needs to be called before execution of every statement
+  (prepared or conventional).  It is not called by substatements of
+  routines.
 
-  @todo
-   Make it a method of THD and align its name with the rest of
-   reset/end/start/init methods.
-  @todo
-   Call it after we use THD for queries, not before.
+  @todo Remove mysql_reset_thd_for_next_command and only use the
+  member function.
+
+  @todo Call it after we use THD for queries, not before.
 */
-
 void mysql_reset_thd_for_next_command(THD *thd)
 {
+  thd->reset_for_next_command();
+}
+
+void THD::reset_for_next_command()
+{
+  THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
@@ -5713,15 +5718,12 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
 
-  /*
-    Because we come here only for start of top-statements, binlog format is
-    constant inside a complex statement (using stored functions) etc.
-  */
-  thd->reset_current_stmt_binlog_row_based();
+  thd->reset_current_stmt_binlog_format_row();
+  thd->binlog_unsafe_warning_flags= 0;
 
   DBUG_PRINT("debug",
-             ("current_stmt_binlog_row_based: %d",
-              thd->current_stmt_binlog_row_based));
+             ("is_current_stmt_binlog_format_row(): %d",
+              thd->is_current_stmt_binlog_format_row()));
 
   DBUG_VOID_RETURN;
 }
@@ -6856,6 +6858,30 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tables.
     */
 
+    options|= REFRESH_BINARY_LOG;
+    options|= REFRESH_RELAY_LOG;
+    options|= REFRESH_SLOW_LOG;
+    options|= REFRESH_GENERAL_LOG;
+    options|= REFRESH_ENGINE_LOG;
+    options|= REFRESH_ERROR_LOG;
+  }
+
+  if (options & REFRESH_ERROR_LOG)
+    if (flush_error_log())
+      result= 1;
+
+  if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
+    logger.flush_slow_log();
+
+  if ((options & REFRESH_GENERAL_LOG) && opt_log)
+    logger.flush_general_log();
+
+  if (options & REFRESH_ENGINE_LOG)
+    if (ha_flush_logs(NULL))
+      result= 1;
+
+  if (options & REFRESH_BINARY_LOG)
+  {
     /*
       Writing this command to the binlog may result in infinite loops
       when doing mysqlbinlog|mysql, and anyway it does not really make
@@ -6863,23 +6889,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       than it would help them)
     */
     tmp_write_to_binlog= 0;
-    if( mysql_bin_log.is_open() )
-    {
+    if (mysql_bin_log.is_open())
       mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
-    }
+  }
+  if (options & REFRESH_RELAY_LOG)
+  {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
-
-    /* flush slow and general logs */
-    logger.flush_logs(thd);
-
-    if (ha_flush_logs(NULL))
-      result=1;
-    if (flush_error_log())
-      result=1;
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
@@ -7003,7 +7022,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
@@ -7015,7 +7034,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (tmp)
   {
 

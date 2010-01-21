@@ -1,6 +1,8 @@
 -- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 let $engine_type = InnoDB;
 
 -- source include/commit.inc

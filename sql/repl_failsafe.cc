@@ -83,9 +83,9 @@ static int init_failsafe_rpl_thread(THD* thd)
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   if (init_thr_lock() || thd->store_globals())
   {
@@ -180,11 +180,18 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   get_object(p,si->host, "Failed to register slave: too long 'report-host'");
   get_object(p,si->user, "Failed to register slave: too long 'report-user'");
   get_object(p,si->password, "Failed to register slave; too long 'report-password'");
-  /*6 is the total length of port and master_id*/
-  if (p+6 != p_end)
+  if (p+10 > p_end)
     goto err;
   si->port= uint2korr(p);
   p += 2;
+  /* 
+     We need to by pass the bytes used in the fake rpl_recovery_rank
+     variable. It was removed in patch for BUG#13963. But this would 
+     make a server with that patch unable to connect to an old master.
+     See: BUG#49259
+  */
+  // si->rpl_recovery_rank= uint4korr(p);
+  p += 4;
   if (!(si->master_id= uint4korr(p)))
     si->master_id= server_id;
   si->thd= thd;
@@ -413,9 +420,9 @@ mi_inited:
 err:
   mysql_mutex_unlock(log_lock);
   end_io_cache(&log);
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     mysql_file_close(file, MYF(MY_WME));
   if (last_file >= 0 && last_file != file)
