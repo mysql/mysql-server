@@ -67,6 +67,8 @@ struct InitChunk
 
 #include <NdbOut.hpp>
 
+extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
+
 static
 bool
 do_malloc(Uint32 pages, InitChunk* chunk, Uint32 *watchCounter = 0)
@@ -148,6 +150,8 @@ retry:
     chunk->m_cnt--;
     chunk->m_ptr = (Alloc_page*)((UintPtr(ptr) + align) & ~align);
   }
+
+  ndbd_alloc_touch_mem(chunk->m_ptr, chunk->m_cnt * sizeof(Alloc_page), watchCounter);
 
 #ifdef UNIT_TEST
   ndbout_c("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);
@@ -315,13 +319,9 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   Uint32 allocated = 0;
   while (cnt < MAX_CHUNKS && allocated < pages)
   {
-    InitChunk chunk; 
-    LINT_INIT(chunk.m_start);
+    InitChunk chunk;
+    bzero(&chunk, sizeof(chunk));
     
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-    memset((char*) &chunk, 0 , sizeof(chunk));
-#endif
-
     if (do_malloc(pages - allocated, &chunk, watchCounter))
     {
       if (watchCounter)
