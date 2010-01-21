@@ -4766,6 +4766,13 @@ loop:
 	     || lock->trx->conc_state == TRX_PREPARED
 	     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 
+# ifdef UNIV_SYNC_DEBUG
+	/* Only validate the record queues when this thread is not
+	holding a space->latch.  Deadlocks are possible due to
+	latching order violation when UNIV_DEBUG is defined while
+	UNIV_SYNC_DEBUG is not. */
+	if (!sync_thread_levels_contains(SYNC_FSP))
+# endif /* UNIV_SYNC_DEBUG */
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
 		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
