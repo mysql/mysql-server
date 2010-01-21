@@ -1519,25 +1519,23 @@ void close_thread_tables(THD *thd)
   if (thd->open_tables)
     close_open_tables(thd);
 
-  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL)
+  /*
+    - If inside a multi-statement transaction,
+    defer the release of metadata locks until the current
+    transaction is either committed or rolled back. This prevents
+    other statements from modifying the table for the entire
+    duration of this transaction.  This provides commit ordering
+    and guarantees serializability across multiple transactions.
+    - If closing a system table, defer the release of metadata locks
+    to the caller. We have no sentinel in MDL subsystem to guard
+    transactional locks from system tables locks, so don't know
+    which locks are which here.
+    - If in autocommit mode, or outside a transactional context,
+    automatically release metadata locks of the current statement.
+  */
+  if (! thd->in_multi_stmt_transaction() &&
+      ! (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
-    /* We can't have an open HANDLER in the backup open tables state. */
-    DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
-    /*
-      Due to the above assert, this is guaranteed to release *all* locks
-      in the context.
-    */
-    thd->mdl_context.release_transactional_locks();
-  }
-  else if (! thd->in_multi_stmt_transaction())
-  {
-    /*
-      Defer the release of metadata locks until the current transaction
-      is either committed or rolled back. This prevents other statements
-      from modifying the table for the entire duration of this transaction.
-      This provides commitment ordering for guaranteeing serializability
-      across multiple transactions.
-    */
     thd->mdl_context.release_transactional_locks();
   }
 
@@ -2336,10 +2334,9 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
                         Open_table_context *ot_ctx,
                         uint flags)
 {
-  ot_ctx->add_request(mdl_request);
-
   if (table_list->lock_strategy)
   {
+    MDL_request *global_request;
     /*
       In case of CREATE TABLE .. If NOT EXISTS .. SELECT, the table
       may not yet exist. Let's acquire an exclusive lock for that
@@ -2349,10 +2346,24 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
       shared locks. This invariant is preserved here and is also
       enforced by asserts in metadata locking subsystem.
     */
+
     mdl_request->set_type(MDL_EXCLUSIVE);
     DBUG_ASSERT(! thd->mdl_context.has_locks() ||
-                thd->handler_tables_hash.records);
+                thd->handler_tables_hash.records ||
+                thd->global_read_lock);
 
+    if (!(global_request= ot_ctx->get_global_mdl_request(thd)))
+      return 1;
+
+    if (! global_request->ticket)
+    {
+      ot_ctx->add_request(global_request);
+      if (thd->mdl_context.acquire_global_intention_exclusive_lock(
+                             global_request))
+      return 1;
+    }
+
+    ot_ctx->add_request(mdl_request);
     if (thd->mdl_context.acquire_exclusive_lock(mdl_request))
       return 1;
   }
@@ -2371,8 +2382,29 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     if (flags & MYSQL_LOCK_IGNORE_FLUSH)
       mdl_request->set_type(MDL_SHARED_HIGH_PRIO);
 
+    if (mdl_request->type == MDL_SHARED_UPGRADABLE)
+    {
+      MDL_request *global_request;
+
+      if (!(global_request= ot_ctx->get_global_mdl_request(thd)))
+        return 1;
+      if (! global_request->ticket)
+      {
+        ot_ctx->add_request(global_request);
+        if (thd->mdl_context.try_acquire_global_intention_exclusive_lock(
+                               global_request))
+          return 1;
+        if (! global_request->ticket)
+          goto failure;
+      }
+    }
+
+    ot_ctx->add_request(mdl_request);
+
     if (thd->mdl_context.try_acquire_shared_lock(mdl_request))
       return 1;
+
+failure:
     if (mdl_request->ticket == NULL)
     {
       if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
@@ -2919,8 +2951,6 @@ err_unlock:
   release_table_share(share);
 err_unlock2:
   pthread_mutex_unlock(&LOCK_open);
-  if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
-    thd->mdl_context.release_lock(mdl_ticket);
 
   DBUG_RETURN(TRUE);
 }
@@ -3713,8 +3743,31 @@ Open_table_context::Open_table_context(THD *thd)
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
    m_has_locks((thd->in_multi_stmt_transaction() ||
                 thd->mdl_context.lt_or_ha_sentinel()) &&
-               thd->mdl_context.has_locks())
+               thd->mdl_context.has_locks()),
+   m_global_mdl_request(NULL)
 {}
+
+
+/**
+  Get MDL_request object for global intention exclusive lock which
+  is acquired during opening tables for statements which take
+  upgradable shared metadata locks.
+*/
+
+MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
+{
+  if (! m_global_mdl_request)
+  {
+    char *buff;
+    if ((buff= (char*)thd->alloc(sizeof(MDL_request))))
+    {
+      m_global_mdl_request= new (buff) MDL_request();
+      m_global_mdl_request->init(MDL_key::GLOBAL, "", "",
+                                 MDL_INTENTION_EXCLUSIVE);
+    }
+  }
+  return m_global_mdl_request;
+}
 
 
 /**
@@ -3777,6 +3830,11 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
                          TABLE_LIST *table)
 {
   bool result= FALSE;
+  /*
+    Remove reference to released ticket from MDL_request.
+  */
+  if (m_global_mdl_request)
+    m_global_mdl_request->ticket= NULL;
   /* Execute the action. */
   switch (m_action)
   {
@@ -3787,11 +3845,26 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
       break;
     case OT_DISCOVER:
       {
+        MDL_request mdl_global_request;
         MDL_request mdl_xlock_request(mdl_request);
+
+        mdl_global_request.init(MDL_key::GLOBAL, "", "",
+                                MDL_INTENTION_EXCLUSIVE);
         mdl_xlock_request.set_type(MDL_EXCLUSIVE);
+
+
+        if ((result= thd->mdl_context.acquire_global_intention_exclusive_lock(
+                                        &mdl_global_request)))
+          break;
+
         if ((result=
              thd->mdl_context.acquire_exclusive_lock(&mdl_xlock_request)))
+        {
+          /*
+            We rely on close_thread_tables() to release global lock eventually.
+          */
           break;
+        }
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         pthread_mutex_lock(&LOCK_open);
@@ -3805,16 +3878,30 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
 
         thd->warning_info->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
-        thd->mdl_context.release_lock(mdl_xlock_request.ticket);
+        thd->mdl_context.release_transactional_locks();
         break;
       }
     case OT_REPAIR:
       {
+        MDL_request mdl_global_request;
         MDL_request mdl_xlock_request(mdl_request);
+
+        mdl_global_request.init(MDL_key::GLOBAL, "", "",
+                                MDL_INTENTION_EXCLUSIVE);
         mdl_xlock_request.set_type(MDL_EXCLUSIVE);
+
+        if ((result= thd->mdl_context.acquire_global_intention_exclusive_lock(
+                                        &mdl_global_request)))
+          break;
+
         if ((result=
              thd->mdl_context.acquire_exclusive_lock(&mdl_xlock_request)))
+        {
+          /*
+            We rely on close_thread_tables() to release global lock eventually.
+          */
           break;
+        }
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         pthread_mutex_lock(&LOCK_open);
@@ -3824,7 +3911,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
         pthread_mutex_unlock(&LOCK_open);
 
         result= auto_repair_table(thd, table);
-        thd->mdl_context.release_lock(mdl_xlock_request.ticket);
+        thd->mdl_context.release_transactional_locks();
         break;
       }
     default:
@@ -3921,6 +4008,13 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           mdl_type != MDL_key::PROCEDURE)
       {
         ot_ctx->add_request(&rt->mdl_request);
+
+        /*
+          Since we acquire only shared lock on routines we don't
+          need to care about global intention exclusive locks.
+        */
+        DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
+
         if (thd->mdl_context.try_acquire_shared_lock(&rt->mdl_request))
           DBUG_RETURN(TRUE);
 
@@ -8784,7 +8878,7 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
 
 bool
 open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                            Open_tables_state *backup)
+                            Open_tables_backup *backup)
 {
   Query_tables_list query_tables_list_backup;
   LEX *lex= thd->lex;
@@ -8830,13 +8924,13 @@ error:
   SYNOPSIS
     close_system_tables()
       thd     Thread context
-      backup  Pointer to Open_tables_state instance which holds
+      backup  Pointer to Open_tables_backup instance which holds
               information about tables which were open before we
               decided to access system tables.
 */
 
 void
-close_system_tables(THD *thd, Open_tables_state *backup)
+close_system_tables(THD *thd, Open_tables_backup *backup)
 {
   close_thread_tables(thd);
   thd->restore_backup_open_tables_state(backup);
@@ -8887,7 +8981,7 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
 */
 TABLE *
 open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                              Open_tables_state *backup)
+                              Open_tables_backup *backup)
 {
   uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
@@ -8936,51 +9030,9 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
   @param thd The current thread
   @param backup [in] the context to restore.
 */
-void close_performance_schema_table(THD *thd, Open_tables_state *backup)
+void close_performance_schema_table(THD *thd, Open_tables_backup *backup)
 {
-  bool found_old_table;
-
-  /*
-    If open_performance_schema_table() fails,
-    this function should not be called.
-  */
-  DBUG_ASSERT(thd->lock != NULL);
-
-  /*
-    Note:
-    We do not create explicitly a separate transaction for the
-    performance table I/O, but borrow the current transaction.
-    lock + unlock will autocommit the change done in the
-    performance schema table: this is the expected result.
-    The current transaction should not be affected by this code.
-    TODO: Note that if a transactional engine is used for log tables,
-    this code will need to be revised, as a separate transaction
-    might be needed.
-  */
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-
-  pthread_mutex_lock(&LOCK_open);
-
-  found_old_table= false;
-  /*
-    Note that we need to hold LOCK_open while changing the
-    open_tables list. Another thread may work on it.
-    (See: notify_thread_having_shared_lock())
-  */
-  while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
-
-  if (found_old_table)
-    broadcast_refresh();
-
-  pthread_mutex_unlock(&LOCK_open);
-
-  /* We can't have an open HANDLER in the backup context. */
-  DBUG_ASSERT(thd->mdl_context.lt_or_ha_sentinel() == NULL);
-  thd->mdl_context.release_transactional_locks();
-
-  thd->restore_backup_open_tables_state(backup);
+  close_system_tables(thd, backup);
 }
 
 /**

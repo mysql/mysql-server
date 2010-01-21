@@ -18,7 +18,8 @@
 
 #include <my_global.h>
 
-template <typename T, typename B> class I_P_List_iterator;
+template <typename T, typename B, typename C> class I_P_List_iterator;
+class I_P_List_null_counter;
 
 
 /**
@@ -47,10 +48,14 @@ template <typename T, typename B> class I_P_List_iterator;
                  return &el->prev;
                }
              };
+   @param C  Policy class specifying how counting of elements in the list
+             should be done. Instance of this class is also used as a place
+             where information about number of list elements is stored.
+             @sa I_P_List_null_counter, I_P_List_counter
 */
 
-template <typename T, typename B>
-class I_P_List
+template <typename T, typename B, typename C = I_P_List_null_counter>
+class I_P_List : public C
 {
   T *first;
 
@@ -61,7 +66,7 @@ class I_P_List
   */
 public:
   I_P_List() : first(NULL) { };
-  inline void empty()      { first= NULL; }
+  inline void empty()      { first= NULL; C::reset(); }
   inline bool is_empty() const { return (first == NULL); }
   inline void push_front(T* a)
   {
@@ -70,6 +75,7 @@ public:
       *B::prev_ptr(first)= B::next_ptr(a);
     first= a;
     *B::prev_ptr(a)= &first;
+    C::inc();
   }
   inline void push_back(T *a)
   {
@@ -107,21 +113,23 @@ public:
     if (next)
       *B::prev_ptr(next)= *B::prev_ptr(a);
     **B::prev_ptr(a)= next;
+    C::dec();
   }
   inline T* front() { return first; }
   inline const T *front() const { return first; }
-  void swap(I_P_List<T,B> &rhs)
+  void swap(I_P_List<T, B, C> &rhs)
   {
     swap_variables(T *, first, rhs.first);
     if (first)
       *B::prev_ptr(first)= &first;
     if (rhs.first)
       *B::prev_ptr(rhs.first)= &rhs.first;
+    C::swap(rhs);
   }
 #ifndef _lint
-  friend class I_P_List_iterator<T, B>;
+  friend class I_P_List_iterator<T, B, C>;
 #endif
-  typedef I_P_List_iterator<T, B> Iterator;
+  typedef I_P_List_iterator<T, B, C> Iterator;
 };
 
 
@@ -129,15 +137,15 @@ public:
    Iterator for I_P_List.
 */
 
-template <typename T, typename B>
+template <typename T, typename B, typename C = I_P_List_null_counter>
 class I_P_List_iterator
 {
-  const I_P_List<T, B> *list;
+  const I_P_List<T, B, C> *list;
   T *current;
 public:
-  I_P_List_iterator(const I_P_List<T, B> &a) : list(&a), current(a.first) {}
-  I_P_List_iterator(const I_P_List<T, B> &a, T* current_arg) : list(&a), current(current_arg) {}
-  inline void init(I_P_List<T, B> &a)
+  I_P_List_iterator(const I_P_List<T, B, C> &a) : list(&a), current(a.first) {}
+  I_P_List_iterator(const I_P_List<T, B, C> &a, T* current_arg) : list(&a), current(current_arg) {}
+  inline void init(const I_P_List<T, B, C> &a)
   {
     list= &a;
     current= a.first;
@@ -158,6 +166,41 @@ public:
   {
     current= list->first;
   }
+};
+
+
+/**
+  Element counting policy class for I_P_List to be used in
+  cases when no element counting should be done.
+*/
+
+class I_P_List_null_counter
+{
+protected:
+  void reset() {}
+  void inc() {}
+  void dec() {}
+  void swap(I_P_List_null_counter &rhs) {}
+};
+
+
+/**
+  Element counting policy class for I_P_List which provides
+  basic element counting.
+*/
+
+class I_P_List_counter
+{
+  uint m_counter;
+protected:
+  I_P_List_counter() : m_counter (0) {}
+  void reset() {m_counter= 0;}
+  void inc() {m_counter++;}
+  void dec() {m_counter--;}
+  void swap(I_P_List_counter &rhs)
+  { swap_variables(uint, m_counter, rhs.m_counter); }
+public:
+  uint elements() const { return m_counter; }
 };
 
 #endif

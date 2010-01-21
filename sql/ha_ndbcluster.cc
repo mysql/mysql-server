@@ -7285,14 +7285,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     code below will try to obtain exclusive metadata lock on some table
     while holding shared meta-data lock on other tables. This might lead to
     a deadlock, and therefore is disallowed by assertions of the metadata
-    locking subsystem. In order to temporarily make the code work, we must
-    reset and backup the open tables state, thus hide the existing locks
-    from MDL asserts. But in the essence this is violation of metadata
+    locking subsystem. This is violation of metadata
     locking protocol which has to be closed ASAP.
+    XXX: the scenario described above is not covered with any test.
   */
-  Open_tables_state open_tables_state_backup;
-  thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
-
   if (!global_read_lock)
   {
     // Delete old files
@@ -7315,8 +7311,6 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       thd->clear_error();
     }
   }
-
-  thd->restore_backup_open_tables_state(&open_tables_state_backup);
 
   /* Lock mutex before creating .FRM files. */
   pthread_mutex_lock(&LOCK_open);

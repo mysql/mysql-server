@@ -770,7 +770,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 bool
 Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   Event_timed et;
   bool ret;
 
@@ -826,7 +826,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 {
   char *db= NULL;
   int ret;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   DBUG_ENTER("Events::fill_schema_events");
 
   if (check_if_system_tables_error())

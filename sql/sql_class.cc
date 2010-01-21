@@ -471,6 +471,7 @@ THD::THD()
 {
   ulong tmp;
 
+  mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that
     the destructor works OK in case of an error. The main_mem_root
@@ -1007,7 +1008,8 @@ void THD::cleanup(void)
   */
   DBUG_ASSERT(open_tables == NULL);
   /* All HANDLERs must have been closed by now. */
-  DBUG_ASSERT(mdl_context.lt_or_ha_sentinel() == NULL);
+  DBUG_ASSERT(mdl_context.lt_or_ha_sentinel() == NULL ||
+              global_read_lock);
   /*
     Due to the above assert, this is guaranteed to release *all* in
     this session.
@@ -3024,19 +3026,21 @@ bool Security_context::user_matches(Security_context *them)
   access to mysql.proc table to find definitions of stored routines.
 ****************************************************************************/
 
-void THD::reset_n_backup_open_tables_state(Open_tables_state *backup)
+void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
 {
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
+  backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
   reset_open_tables_state(this);
   state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
 
 
-void THD::restore_backup_open_tables_state(Open_tables_state *backup)
+void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 {
   DBUG_ENTER("restore_backup_open_tables_state");
+  mdl_context.rollback_to_savepoint(backup->mdl_system_tables_svp);
   /*
     Before we will throw away current open tables state we want
     to be sure that it was properly cleaned up.
@@ -3046,7 +3050,6 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
               m_reprepare_observer == NULL);
-  mdl_context.destroy();
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
