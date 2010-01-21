@@ -6235,8 +6235,6 @@ ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
 ER_MESSAGE_AND_STATEMENT
   eng "%s Statement: %s"
 
-ER_SLAVE_IGNORE_SERVER_IDS
-  eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
 ER_DEBUG_SYNC_TIMEOUT
   eng "debug sync point wait timed out"
   ger "Debug Sync Point Wartezeit überschritten"
