@@ -702,9 +702,9 @@ int main() {
 #
 INCLUDE(TestBigEndian)
 IF(APPLE)
-  # Can'r run endian test on universal PPC/Intel binaries 
+  # Cannot  run endian test on universal PPC/Intel binaries 
   # would return inconsistent result.
-  SET(WORDS_BIGENDIAN __BIG_ENDIAN CACHE INTERNAL "big endian test")
+  # config.h.cmake includes a special #ifdef for Darwin
 ELSE()
   TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 ENDIF()
