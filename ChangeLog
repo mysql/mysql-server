@@ -1,3 +1,9 @@
+2010-01-21	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Do not merge buffered inserts to compressed pages before
+	the redo log has been applied in crash recovery.
+
 2010-01-13	The InnoDB Team
 
 	* row/row0sel.c:

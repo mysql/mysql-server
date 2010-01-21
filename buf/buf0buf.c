@@ -2239,7 +2239,7 @@ wait_until_unfixed:
 		while not holding buf_pool_mutex or block->mutex. */
 		success = buf_zip_decompress(block, srv_use_checksums);
 
-		if (UNIV_LIKELY(success)) {
+		if (UNIV_LIKELY(success && !recv_no_ibuf_operations)) {
 			ibuf_merge_or_delete_for_page(block, space, offset,
 						      zip_size, TRUE);
 		}
