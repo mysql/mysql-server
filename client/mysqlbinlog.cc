@@ -41,6 +41,7 @@
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
+
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
 
@@ -1060,7 +1061,7 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    (uchar**) &port, (uchar**) &port, 0, GET_INT, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"position", 'j', "Deprecated. Use --start-position instead.",
+  {"position", OPT_POSITION, "Deprecated. Use --start-position instead.",
    (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
    REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
    /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
@@ -1103,7 +1104,7 @@ static struct my_option my_long_options[] =
    "(you should probably use quotes for your shell to set it properly).",
    (uchar**) &start_datetime_str, (uchar**) &start_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"start-position", OPT_START_POSITION,
+  {"start-position", 'j',
    "Start reading the binlog at position N. Applies to the first binlog "
    "passed on the command line.",
    (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
@@ -1313,6 +1314,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'R':
     remote_opt= 1;
+    break;
+  case OPT_POSITION:
+    WARN_DEPRECATED(VER_CELOSIA, "--position", "--start-position");
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,

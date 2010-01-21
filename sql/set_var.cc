@@ -4139,7 +4139,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, VER_CELOSIA, "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 
