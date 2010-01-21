@@ -473,23 +473,17 @@ let $status_var_comparsion= >;
 # Circular replication
 --echo *** Circular replication ***
 # Configure circular replication
---connection master
-RESET MASTER;
-let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
-CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
---sync_slave_with_master
+--source include/master-slave-reset.inc
+--connection slave
 --source include/stop_slave.inc
-RESET MASTER;
 let $slave_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
-RESET SLAVE;
---replace_result $MASTER_MYPORT MASTER_PORT $master_binlog MASTER_BINLOG
-eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1, MASTER_LOG_FILE='$master_binlog';
 --connection master
-RESET SLAVE;
 --replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
 --source include/start_slave.inc
+
 # Insert data on master and on slave and make sure that it replicated for both directions
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');
 --save_master_pos
 --connection slave
