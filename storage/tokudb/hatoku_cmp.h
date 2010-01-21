@@ -238,7 +238,7 @@ u_int32_t pack_clustering_val_from_desc(
     uchar* buf,
     void* row_desc,
     u_int32_t row_desc_size,
-    DBT* pk_val
+    const DBT* pk_val
     );
 
 u_int32_t get_max_secondary_key_pack_desc_size(
@@ -275,8 +275,8 @@ u_int32_t pack_key_from_desc(
     uchar* buf,
     void* row_desc,
     u_int32_t row_desc_size,
-    DBT* pk_key,
-    DBT* pk_val
+    const DBT* pk_key,
+    const DBT* pk_val
     );
 
 
