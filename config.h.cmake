@@ -428,7 +428,13 @@
 #endif
 #define STRUCT_RLIMIT struct rlimit
 
-#cmakedefine WORDS_BIGENDIAN 1
+#ifdef __APPLE__
+  #if __BIG_ENDIAN
+    #define WORDS_BIGENDIAN 1
+  #endif
+#else
+#cmakedefine WORDS_BIGENDIAN 1 
+#endif
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler calls
    it, or to nothing if 'inline' is not supported under any name.  */
