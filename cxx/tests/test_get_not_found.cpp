@@ -4,8 +4,11 @@
 
 #include <db_cxx.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <memory.h>
 
-const char *test_file_name = "test_get_not_found.tdb";
+#define DIR __FILE__ ".dir"
+#define fname "foo.tdb"
 
 void db_put(Db *db, int k, int v) {
     Dbt key(&k, sizeof k);
@@ -33,12 +36,21 @@ void db_get(Db *db, int k, int v, int expectr) {
     }
 }
 
-void test_not_found() {
-    int r;
+DbEnv *env = NULL;
+void reset_env (void) {
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
+    if (env) delete env;
+    env = new DbEnv(DB_CXX_NO_EXCEPTIONS);
+    int r = env->open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777);
+    assert(r == 0);
+}
 
-    unlink(test_file_name);
-    Db *db = new Db(0, DB_CXX_NO_EXCEPTIONS); assert(db);
-    r = db->open(0, test_file_name, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+void test_not_found(void) {
+    int r;
+    reset_env();
+    Db *db = new Db(env, DB_CXX_NO_EXCEPTIONS); assert(db);
+    r = db->open(0, fname, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     db_put(db, 1, 2);
     db_get(db, 1, 2, 0);
     db_del(db, 1);
@@ -47,12 +59,12 @@ void test_not_found() {
     delete db;
 }
 
-void test_exception_not_found() {
+void test_exception_not_found(void) {
     int r;
     
-    unlink(test_file_name);
-    Db *db = new Db(0, 0); assert(db);
-    r = db->open(0, test_file_name, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    reset_env();
+    Db *db = new Db(env, 0); assert(db);
+    r = db->open(0, fname, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     db_put(db, 1, 2);
     db_get(db, 1, 2, 0);
     db_del(db, 1);
@@ -68,5 +80,6 @@ void test_exception_not_found() {
 int main(int argc, char *argv[]) {
     test_not_found();
     test_exception_not_found();
+    if (env) delete env;
     return 0;
 }
