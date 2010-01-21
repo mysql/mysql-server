@@ -492,6 +492,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     DBUG_RETURN(0); /* successfully do nothing */
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   mysql_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
+  mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
 
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
@@ -503,6 +504,22 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
+
+    mysql_mutex_lock(log_lock);
+
+    DBUG_PRINT("info",("Flushing relay log and master info file."));
+    if (current_thd)
+      thd_proc_info(current_thd, "Flushing relay log and master info files.");
+    if (flush_master_info(mi, TRUE /* flush relay log */))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    if (my_sync(mi->fd, MYF(MY_WME)))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    mysql_mutex_unlock(log_lock);
   }
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
@@ -514,8 +531,21 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
+
+    mysql_mutex_lock(log_lock);
+
+    DBUG_PRINT("info",("Flushing relay-log info file."));
+    if (current_thd)
+      thd_proc_info(current_thd, "Flushing relay-log info file.");
+    if (flush_relay_log_info(&mi->rli))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    
+    if (my_sync(mi->rli.info_fd, MYF(MY_WME)))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    mysql_mutex_unlock(log_lock);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(0); 
 }
 
 
@@ -1633,6 +1663,12 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   pos= net_store_data(pos, (uchar*) report_user, report_user_len);
   pos= net_store_data(pos, (uchar*) report_password, report_password_len);
   int2store(pos, (uint16) report_port); pos+= 2;
+  /* 
+    Fake rpl_recovery_rank, which was removed in BUG#13963,
+    so that this server can register itself on old servers,
+    see BUG#49259.
+   */
+  int4store(pos, /* rpl_recovery_rank */ 0);    pos+= 4;
   /* The master will fill in master_id */
   int4store(pos, 0);                    pos+= 4;
 
@@ -1969,9 +2005,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -2669,9 +2705,9 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
@@ -2968,10 +3004,10 @@ err:
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   close_thread_tables(thd);
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->io_thd= 0;
@@ -3086,9 +3122,9 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   /*
     We are going to set slave_running to 1. Assuming slave I/O thread is
     alive and connected, this is going to make Seconds_Behind_Master be 0
@@ -3332,10 +3368,10 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
   set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and
@@ -4247,8 +4283,9 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
     rli                 Relay log information
 
   NOTES
-    - As this is only called by the slave thread, we don't need to
-      have a lock on this.
+    - As this is only called by the slave thread or on STOP SLAVE, with the
+      log_lock grabbed and the slave thread stopped, we don't need to have 
+      a lock here.
     - If there is an active transaction, then we don't update the position
       in the relay log.  This is to ensure that we re-execute statements
       if we die in the middle of an transaction that was rolled back.
@@ -4299,7 +4336,10 @@ bool flush_relay_log_info(Relay_log_info* rli)
       error=1;
     rli->sync_counter= 0;
   }
-  /* Flushing the relay log is done by the slave I/O thread */
+  /* 
+    Flushing the relay log is done by the slave I/O thread 
+    or by the user on STOP SLAVE. 
+   */
   DBUG_RETURN(error);
 }
 

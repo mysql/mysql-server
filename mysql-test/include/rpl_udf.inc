@@ -55,11 +55,13 @@ connection master;
 --echo "Running on the master"
 --enable_info
 eval CREATE TABLE t1(sum INT, price FLOAT(24)) ENGINE=$engine_type;
+--disable_warnings
 INSERT INTO t1 VALUES(myfunc_int(100), myfunc_double(50.00));
 INSERT INTO t1 VALUES(myfunc_int(10), myfunc_double(5.00));
 INSERT INTO t1 VALUES(myfunc_int(200), myfunc_double(25.00));
 INSERT INTO t1 VALUES(myfunc_int(1), myfunc_double(500.00));
 SELECT * FROM t1 ORDER BY sum;
+--enable_warnings
 --disable_info
 
 sync_slave_with_master;

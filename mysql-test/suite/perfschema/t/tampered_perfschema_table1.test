@@ -1,0 +1,44 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+# This test uses error injection,
+# see PFS_engine_table_share::check_all_tables()
+
+# Verify that the server starts even when a performance schema table
+# is corrupted, with an incompatible change.
+# Verify that using that table nicely fails.
+# Verify that other tables are not affected.
+
+--source include/have_debug.inc
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# The message prints 'mysql.SETUP_INSTRUMENTS'
+# instead of 'performance_schema.SETUP_INSTRUMENTS',
+# due to Bug#46792
+
+call mtr.add_suppression(
+"Column count of mysql.SETUP_INSTRUMENTS is wrong. "
+"Expected 4, found 3. The table is probably corrupted");
+
+--error ER_WRONG_NATIVE_TABLE_STRUCTURE
+select * from performance_schema.SETUP_INSTRUMENTS limit 1;
+
+--disable_result_log
+select * from performance_schema.SETUP_CONSUMERS limit 1;
+--enable_result_log
+

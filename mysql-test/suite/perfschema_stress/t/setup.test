@@ -1,0 +1,64 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+if (`SELECT VERSION() LIKE '%embedded%'`)
+{
+   --skip This test cannot run with the embedded server.
+}
+
+--source suite/perfschema_stress/include/settings.inc
+
+--disable_query_log
+--disable_result_log
+
+if (`SELECT LENGTH('$engine_type') = 0`) {
+  let $engine_type= $default_engine_type;
+}
+if (`SELECT '$engine_type' = 'Falcon'`) {
+  --source include/have_falcon.inc
+}
+
+--replace_result $engine_type <engine_type>
+eval CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
+     ENGINE=$engine_type;
+
+# Need something to start with
+INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+# Bulk load the correct number of rows
+while (`SELECT MAX(id) < $num_stress_rows FROM t1`)
+{
+   SELECT MAX(id) FROM t1 INTO @max;
+--replace_result $num_stress_rows <num_stress_rows>
+   eval INSERT INTO t1(id) SELECT id + @max FROM t1
+        WHERE id + @max <= $num_stress_rows;
+}
+
+# Turn on some instruments
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET TIMED = 'YES';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'NO';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'YES'
+WHERE NAME IN ('wait/io/file/sql/FRM',
+               'thread/sql/Connection',
+               'wait/synch/cond/sql/COND_mdl',
+               'wait/synch/rwlock/sql/LOCK_sys_init_connect',
+               'wait/synch/mutex/sql/LOCK_mdl');
+
+UPDATE performance_schema.SETUP_CONSUMERS SET ENABLED = 'YES';
+
+--enable_result_log
+--enable_query_log
