@@ -5603,6 +5603,7 @@ enum options_mysqld
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+  OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
   OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
@@ -5683,6 +5684,7 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_DEFAULT_COLLATION_OLD,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
   OPT_LC_TIME_NAMES,
@@ -5857,7 +5859,7 @@ struct my_option my_long_options[] =
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation (deprecated option, use --collation-server instead).",
+  {"default-collation", OPT_DEFAULT_COLLATION_OLD, "Set the default collation (deprecated option, use --collation-server instead).",
    (uchar**) &default_collation_name, (uchar**) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
@@ -5988,7 +5990,7 @@ each time the SQL thread starts.",
     compatibility; the behaviour was also changed to apply only to functions
     (and triggers). In a future release this old name could be removed.
   */
-  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
    "(deprecated) Use log-bin-trust-function-creators.",
    (uchar**) &trust_function_creators, (uchar**) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7905,6 +7907,9 @@ mysqld_get_one_option(int optid,
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
+  case '0':
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-long-format", "--log-short-format");
+    break;
   case 'a':
     global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
@@ -7913,6 +7918,7 @@ mysqld_get_one_option(int optid,
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case 'C':
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--default-character-set", "--character-set-server");
     if (default_collation_name == compiled_default_collation_name)
       default_collation_name= 0;
     break;
@@ -7934,6 +7940,9 @@ mysqld_get_one_option(int optid,
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
+    break;
+  case 'O':
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--set-variable", "--variable-name=value");
     break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
@@ -7968,6 +7977,15 @@ mysqld_get_one_option(int optid,
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;
+    break;
+  case (int) OPT_DEFAULT_COLLATION_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--default-collation", "--collation-server");
+    break;
+  case (int) OPT_SAFE_SHOW_DB:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--safe-show-database", "GRANT SHOW DATABASES");
+    break;
+  case (int) OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-bin-trust-routine-creators", "--log-bin-trust-function-creators");
     break;
   case (int) OPT_BIG_TABLES:
     thd_startup_options|=OPTION_BIG_TABLES;

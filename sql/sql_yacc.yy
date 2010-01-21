@@ -8932,7 +8932,7 @@ interval_time_stamp:
                                     implementation without changing its
                                     resolution.
                                   */
-                                  WARN_DEPRECATED(yythd, "6.2", "FRAC_SECOND", "MICROSECOND");
+                                  WARN_DEPRECATED(yythd, VER_CELOSIA, "FRAC_SECOND", "MICROSECOND");
                                 }
 	;
 
