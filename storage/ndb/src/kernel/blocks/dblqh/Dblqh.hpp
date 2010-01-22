@@ -3109,19 +3109,19 @@ public:
       };
       const size_t num = sizeof(vars)/sizeof(vars[0]);
 
-      signal->theData[0] = NDB_LE_TransReportCounters;
+      signal->theData[0] = NDB_LE_OperationReportCounters;
 
       // Read old values from signal
       for (size_t i = 0; i < num ; i++)
       {
         vars[i].old =
-          (signal->theData[1+num+1] | (Uint64(signal->theData[1+num]) << 32));
+          (signal->theData[1+(2*i)+1] |(Uint64(signal->theData[1+(2*i)])<< 32));
       }
 
       // Write difference back to signal
       for (size_t i = 0; i < num ; i++)
       {
-        signal->theData[i] = (Uint32)(*vars[i].ptr - vars[i].old);
+        signal->theData[1 + i] = (Uint32)(*vars[i].ptr - vars[i].old);
       }
       return 1 + num;
     }
