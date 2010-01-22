@@ -1426,6 +1426,12 @@ inline bool is_schema_db(const char *name, size_t len)
                          INFORMATION_SCHEMA_NAME.str, name));  
 }
 
+inline bool is_schema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
+
 /* sql_prepare.cc */
 
 void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
