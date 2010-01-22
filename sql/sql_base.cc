@@ -107,10 +107,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              char *cache_key, uint cache_key_length,
 			     MEM_ROOT *mem_root, uint flags);
 static void free_cache_entry(TABLE *entry);
-static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
-                         uint db_stat, uint prgflag,
-                         uint ha_open_flags, TABLE *outparam,
-                         TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
 static bool
@@ -8505,7 +8501,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     mem_root	  temporary MEM_ROOT for parsing
 */
 
-static bool
+bool
 open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
              uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
