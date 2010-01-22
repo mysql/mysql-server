@@ -3,20 +3,38 @@ dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
-AC_INIT(sql/mysqld.cc)
-AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.41-ndb-7.0.11)
+# To support global Automake options, we need to switch from the old form
+#   AC_INIT(sql/mysqld.cc)
+#   AM_INIT_AUTOMAKE(mysql, 5.1.39-ndb-6.3.28)
+# to the modern single-argument form; see
+#   http://www.gnu.org/software/automake/manual/automake.html#Public-Macros
+#
+AC_INIT([mysql], [5.1.41-ndb-7.1.0])
+AC_CONFIG_SRCDIR([sql/mysqld.cc])
+AC_CANONICAL_SYSTEM
+
+# Global Automake Options:
+# - tar format to use when generating tarballs with ‘make dist’;
+#   see http://www.gnu.org/software/automake/manual/automake.html#Options
+#   and http://www.gnu.org/software/tar/manual/tar.html#SEC125
+#   - tar-ustar (Uniform Standard Tape Archive) selects the format defined
+#     by POSIX 1003.1-1988; believed to be old enough to be portable; fully
+#     supports empty directories and file names with up to 256 characters,
+#     provided that the file name can be split at directory separator in two
+#     parts, first of them being at most 155 bytes long.
+#   Some NDB Java file paths exceed the 99 character limit, hence using ustar.
+AM_INIT_AUTOMAKE([tar-ustar])
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=7
-NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=11
-NDB_VERSION_STATUS=""
+NDB_VERSION_MINOR=1
+NDB_VERSION_BUILD=0
+NDB_VERSION_STATUS="beta"
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
