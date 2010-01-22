@@ -618,7 +618,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
-  if (is_schema_db(db, strlen(db)))
+  if (is_schema_db(db))
   {
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
     DBUG_RETURN(-1);

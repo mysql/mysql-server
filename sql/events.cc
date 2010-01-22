@@ -871,8 +871,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_schema_db(thd->lex->select_lex.db,   // There is no events in I_S
-                      strlen(thd->lex->select_lex.db)) &&
+    if (!is_schema_db(thd->lex->select_lex.db) &&    // There is no events in I_S
         check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0, 0))
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;

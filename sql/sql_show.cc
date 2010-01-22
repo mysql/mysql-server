@@ -826,7 +826,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (is_schema_db(dbname, strlen(dbname)))
+  if (is_schema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;

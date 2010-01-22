@@ -2852,7 +2852,7 @@ end_with_restore_list:
 		       &first_table->grant.privilege, 0, 0,
                        test(first_table->schema_table)) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0,
-                       is_schema_db(select_lex->db, strlen(select_lex->db)))||
+                       is_schema_db(select_lex->db))||
 	  check_merge_table_access(thd, first_table->db,
 				   (TABLE_LIST *)
 				   create_info.merge_list.first))
@@ -3865,7 +3865,7 @@ end_with_restore_list:
 		     first_table ? 0 : 1, 0,
                      first_table ? (bool) first_table->schema_table :
                      select_lex->db ?
-                     is_schema_db(select_lex->db, strlen(select_lex->db)) : 0))
+                     is_schema_db(select_lex->db) : 0))
       goto error;
 
     if (thd->security_ctx->user)              // If not replication
@@ -5304,7 +5304,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     if (check_access(thd, SELECT_ACL, dst_db_name,
                      &thd->col_access, FALSE, FALSE,
-                     is_schema_db(dst_db_name, strlen(dst_db_name))))
+                     is_schema_db(dst_db_name)))
       return TRUE;
 
     if (!thd->col_access && check_grant_db(thd, dst_db_name))
