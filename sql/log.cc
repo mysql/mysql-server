@@ -3532,7 +3532,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       break;
   }
 
-  DBUG_EXECUTE_IF("crash_purge_before_update_index", abort(););
+  DBUG_EXECUTE_IF("crash_purge_before_update_index", DBUG_ABORT(););
 
   if ((error= sync_purge_index_file()))
   {
