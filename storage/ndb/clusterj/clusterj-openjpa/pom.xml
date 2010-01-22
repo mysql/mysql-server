@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (C) 2009 Sun Microsystems, Inc.
+   All rights reserved. Use is subject to license terms.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+<!-- 
+    Please keep the project tag on one line to avoid confusing 
+    the release plugin.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mysql.clusterj</groupId>
+  <artifactId>clusterj-openjpa</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>bundle</packaging>
+  <name>ClusterJ OpenJPA Integration</name>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>2.0.6</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>1.5</version>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>1.4.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Export-Package>com.mysql.clusterj.openjpa.*</Export-Package>
+            <Import-Package>com.mysql.clusterj, com.mysql.clusterj.core, com.mysql.clusterj.core.metadata, com.mysql.clusterj.core.query, com.mysql.clusterj.core.spi, com.mysql.clusterj.core.store, com.mysql.clusterj.core.util, com.mysql.clusterj.query, org.apache.openjpa.enhance, org.apache.openjpa.kernel, org.apache.openjpa.kernel.exps, org.apache.openjpa.conf, org.apache.openjpa.jdbc.conf, org.apache.openjpa.jdbc.kernel, org.apache.openjpa.jdbc.meta, org.apache.openjpa.jdbc.schema, org.apache.openjpa.jdbc.sql, org.apache.openjpa.lib.conf, org.apache.openjpa.meta, org.apache.openjpa.jdbc.meta.strats, org.apache.openjpa.util</Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <forkmode>once</forkmode>
+          <argLine>-Djava.library.path=${ndbjtie.lib}</argLine>
+<!-- The following line is for debugging
+          <argLine>-javaagent:/Users/clr/.m2/repository/org/apache/openjpa/openjpa/2.0.0-SNAPSHOT/openjpa-2.0.0-SNAPSHOT.jar</argLine>
+          <argLine>-Djava.library.path=${ndbj.jnilib} -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8787</argLine>
+          -->
+          <systemProperties>
+            <property>
+              <name>java.util.logging.config.file</name>
+              <value>${logging.properties}</value>
+            </property>
+            <property>
+              <name>com.mysql.clusterj.jpa.PersistenceUnit</name>
+              <value>${com.mysql.clusterj.jpa.PersistenceUnit}</value>
+            </property>
+          </systemProperties>
+            <!-- The following doesn't work because system properties are set
+             ! only after the vm is forked, which is too late for the
+             ! property java.library.path.
+          <systemProperties>
+            <property>
+              <name>java.library.path</name>
+              <value>/Users/clr/ndb/clusterj/trunk/clusterj/target/classes/.libs</value>
+            </property>
+          </systemProperties>
+          <argValue>-Djava.util.logging.config.file=${logging.properties}</argValue>
+          !-->
+        </configuration>
+      </plugin>
+    </plugins>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+    </testResources>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-jpatest</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-api</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-core</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-tie</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ndbjtie</groupId>
+      <artifactId>ndbjtie</artifactId>
+      <version>0.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>jtie</groupId>
+      <artifactId>jtie</artifactId>
+      <version>0.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.openjpa</groupId>
+      <artifactId>openjpa</artifactId>
+      <version>1.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>driver</artifactId>
+      <version>5.1.10</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+  <licenses>
+    <license>
+      <name>GPLv2</name>
+      <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
+    </license>
+  </licenses>
+</project>

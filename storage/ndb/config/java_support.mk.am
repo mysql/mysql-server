@@ -1,0 +1,67 @@
+# Copyright (C) 2009 Sun Microsystems, Inc.
+# All rights reserved. Use is subject to license terms.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+## ----------------------------------------------------------------------
+## This file provides basic build support for Java
+
+## The built-in Java support offered by Automake is rudimentary and has
+## shortcomings making it unusable for standard Java development purposes.
+##
+## The _JAVA primary provides for rules generating .class targets but:
+## - apparently, does not recognize the noinst_ prefix
+## - tries to install .class files
+## - expects .class files in '.' ("*.class: No such file or directory"),
+##   which breaks with basic Java conventions and build tools (IDEs)
+## - stamp-based, single touched source file recompiles all
+##
+## For consistency, we do not use any of the pre-defined variables (@...@):
+## JAVAROOT -- passed to the `-d' option to javac (default: `$(top_builddir)')
+## JAVAC -- the name of the Java compiler (default: `javac')
+## JAVACFLAGS -- user variable, the flags to pass to the compiler
+## AM_JAVACFLAGS -- more flags to pass to the Java compiler
+## CLASSPATH_ENV -- an sh expression used to set the CLASSPATH environment
+## (In the future we will probably handle class path setting differently.) 
+
+## Since the Java build process is quite simple (and mostly vendor-neutral),
+## the subsequent variables and rules are sufficient and better suited than
+## automake's built-in support for building Java in subprojects.
+
+## provide an empty default, append in subprojects by +=
+CLASSPATH =
+
+# JAVAC = <autoconfed> 
+JAVACFLAGS = -g
+
+# JAVAH = <autoconfed> 
+JAVAHFLAGS = -jni -force
+
+# JAR = <autoconfed>
+
+COMPILE.JAVA = $(JAVAC) $(JAVACFLAGS) -classpath $(CLASSPATH)
+
+COMPILE.JAVAH = $(JAVAH) $(JAVAHFLAGS) -classpath $(CLASSPATH)
+
+## probably redundant
+SUFFIXES = .java .class
+
+## compile a Java source
+##   while gnu make's pattern rules would be more general and clearer
+## %.class: %.java
+##   portable make rules can only use the old double-suffix syntax
+.java.class:
+	$(COMPILE.JAVA) $<
+
+## ----------------------------------------------------------------------

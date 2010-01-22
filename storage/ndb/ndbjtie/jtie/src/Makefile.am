@@ -1,0 +1,79 @@
+# Copyright (C) 2009 Sun Microsystems, Inc.
+# All rights reserved. Use is subject to license terms.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+include $(top_srcdir)/storage/ndb/config/common.mk.am
+include $(top_srcdir)/storage/ndb/config/java_support.mk.am
+
+## ----------------------------------------------------------------------
+
+## list of jar files to install
+##   cannot use _LIBRARIES primary, which does not recognize .jar files;
+##   with _DATA, prefix dist_ is needed to add files to the distribution;
+##   with _DATA, prefix noinst_ seems not applicable.
+jtiejar_DATA = $(JTIE_JAR)
+
+## where to install the jar file(s)
+jtiejardir = $(ndbjardir)
+
+## create a versioned link
+install-data-hook:
+	cd $(DESTDIR)$(jtiejardir) && \
+	$(LN_CP_F) -f jtie-@JAVA_NDB_VERSION@.jar jtie.jar
+
+## dependencies
+CLASSPATH_ENV = CLASSPATH=.
+
+JAVAROOT=$(srcdir)/target/classes
+
+## jar file to be created
+JTIE_JAR = jtie-@JAVA_NDB_VERSION@.jar
+
+## java top-level class files
+JTIE_DIR = $(srcdir)/com/mysql/jtie
+JTIE_java = $(JTIE_DIR)/Wrapper.java
+
+classjtie.stamp: $(JTIE_java)
+	mkdir -p $(JAVAROOT)
+	if test -n "$?"; then \
+          echo '$(CLASSPATH_ENV) $(JAVAC) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $?' ; \
+          $(CLASSPATH_ENV) $(JAVAC) -d $(JAVAROOT) \
+            $(AM_JAVACFLAGS) $(JAVACFLAGS) $?; \
+        fi
+	echo timestamp > classjtie.stamp
+
+$(JTIE_JAR): classjtie.stamp $(MANIFEST)
+	rm -f $@; @JAR@ cvf $@  \
+          -C $(JAVAROOT) com/mysql/jtie
+	$(LN_CP_F) -f $(JTIE_JAR) jtie.jar
+
+
+## files to be distributed and not covered in the automatic rules
+EXTRA_DIST = $(JTIE_DIR)/*.java
+
+## generate JNI header files (for development only)
+javah: $(MYJAPI_CLASSES)
+	$(COMPILE.JAVAH) com.mysql.jtie.Wrapper
+
+## ----------------------------------------------------------------------
+
+## cleanup lists
+MOSTLYCLEANFILES = $(JTIE_DIR)/*.class *.h
+CLEANFILES = classjtie.stamp $(JTIE_JAR) jtie.jar
+
+mostlyclean-local: 
+	rm -rf $(top_srcdir)/storage/ndb/ndbjtie/jtie/src/target
+
+## ----------------------------------------------------------------------
