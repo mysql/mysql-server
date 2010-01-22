@@ -56,9 +56,9 @@ select reverse_lookup();
 --disable_result_log
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
+select reverse_lookup("localhost");
 --enable_result_log
 
-select reverse_lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select avgcost();
 --error ER_CANT_INITIALIZE_UDF
