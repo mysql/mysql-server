@@ -5015,7 +5015,7 @@ ER_WARN_HOSTNAME_WONT_WORK
         por "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar"
         spa "MySQL esta inicializado en modo --skip-name-resolve. Usted necesita reinicializarlo sin esta opción para este derecho funcionar"
 ER_UNKNOWN_STORAGE_ENGINE 42000 
-        eng "Unknown table engine '%s'"
+        eng "Unknown storage engine '%s'"
         ger "Unbekannte Speicher-Engine '%s'"
         por "Motor de tabela desconhecido '%s'"
         spa "Desconocido motor de tabla '%s'"
