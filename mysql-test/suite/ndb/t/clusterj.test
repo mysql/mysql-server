@@ -1,0 +1,46 @@
+#
+# Run the Cluster/J JUnit tests from MTR
+#
+--source include/have_ndb.inc
+--source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_java.inc
+--source suite/ndb/include/have_junit.inc
+--source suite/ndb/include/have_ndbjtie.inc
+--source suite/ndb/include/have_clusterj.inc
+
+--let $JAVA_CLASSPATH=-classpath $CLUSTERJ_TEST_JAR:$CLUSTERJ_JAR:$CONNECTORJ_JAR:$NDBJTIE_JAR:$JUNIT_JAR
+--let $JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
+--let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let $JAVA_CLASS= testsuite.clusterj.AllTests
+--let $JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
+
+--source suite/ndb/include/run_java.inc
+
+--echo Clean up tables used in the JUnit tests.
+DROP TABLE a;
+DROP TABLE allprimitives;
+DROP TABLE b0;
+DROP TABLE binarytypes;
+DROP TABLE bittypes;
+DROP TABLE blobtypes;
+DROP TABLE bytestype;
+DROP TABLE charsetlatin1;
+DROP TABLE charsetutf8;
+DROP TABLE datetimetypes;
+DROP TABLE datetypes;
+DROP TABLE decimaltypes;
+DROP TABLE dn2id;
+DROP TABLE doubletypes;
+DROP TABLE floattypes;
+DROP TABLE longintstringfk;
+DROP TABLE longintstringpk;
+DROP TABLE longlongstringfk;
+DROP TABLE longlongstringpk;
+DROP TABLE nullvalues;
+DROP TABLE stringtype;
+DROP TABLE t_basic;
+DROP TABLE timestamptypes;
+DROP TABLE timetypes;
+DROP TABLE yeartypes;
+
+exit;

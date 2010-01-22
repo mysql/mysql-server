@@ -1,0 +1,137 @@
+NDBAPI.java:    // MMM! support <MySQL server type> or design replacement: public final native struct charset_info_st;
+NDBAPI.java:    // MMM! support <MySQL server type> or design replacement: public final native typedef struct charset_info_st CHARSET_INFO;
+NdbDictionary.java:        // MMM! support <MySQL server type> or design replacement: CHARSET_INFO * getCharset() /*_const_*/;
+NdbDictionary.java:        // MMM! support <MySQL server type> or design replacement: public final native CHARSET_INFO * getCharset() /*_const_*/;
+NdbDictionary.java:        // MMM! support <MySQL server type> or design replacement: public final native void setCharset(CHARSET_INFO * cs);
+
+Ndb.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ ptr();
+Ndb.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_const void *_*/ ptr();
+
+NdbDictionary.java:    // MMM! support <out:BB> or check if needed: static public final native char * getValuePtr(NdbRecordConst/*_const NdbRecord *_*/ record, char * row, int/*_Uint32_*/ attrId);
+
+NdbDictionary.java:            // MMM! support <out:Object[]> or design replacement: Element[]/*_Element *_*/elements();
+NdbDictionary.java:            // MMM! support <out:Object[]> or design replacement: public final native Element[]/*_Element *_*/elements();
+NdbDictionary.java:            // MMM! support <out:Object[]> or design replacement: public final native elements(Element[]/*_Element *_*/ p0);
+NdbDictionary.java:        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(TableConst/*_const Table *_*/ table, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+NdbDictionary.java:        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, TableConst/*_const Table *_*/ table, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+NdbDictionary.java:        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_void *_*/ appStorage();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ appStorage();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native void appStorage(ByteBuffer/*_void *_*/ p0);
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ value();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_const void *_*/ value();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native void value(ByteBuffer/*_const void *_*/ p0);
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: GetValueSpec[]/*_GetValueSpec *_*/ extraGetValues();
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: SetValueSpecConst[]/*_const SetValueSpec *_*/ extraSetValues();
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native GetValueSpec[]/*_GetValueSpec *_*/ extraGetValues();
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native SetValueSpecConst[]/*_const SetValueSpec *_*/ extraSetValues();
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ customData();
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraGetValues(GetValueSpec[]/*_GetValueSpec *_*/ p0);
+NdbOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraSetValues(SetValueSpecConst[]/*_const SetValueSpec *_*/ p0);
+NdbOperation.java:        // MMM! support <out:BB> or check if needed: public final native public final native void customData(ByteBuffer/*_void *_*/ p0);
+NdbRecAttr.java:    // MMM! support <out:BB> or check if needed: public final native char * aRef() /*_const_*/;
+NdbRecAttr.java:    // MMM! nameclash with Java's Object version: public final native NdbRecAttr/*_NdbRecAttr *_*/ clone/*_clone_*/() /*_const_*/;
+NdbRecAttr.java:    // MMM! nameclash with Java's Object version: static public final native void delete(NdbRecAttr p0);
+NdbRecAttrConst.java:    // MMM! support <out:BB> or check if needed: char * aRef() /*_const_*/;
+NdbRecAttrConst.java:    // MMM! nameclash with Java's Object version: NdbRecAttr/*_NdbRecAttr *_*/ clone/*_clone_*/() /*_const_*/;
+NdbScanOperation.java:        // MMM! support <out:Object[]> or check if needed: NdbOperation.GetValueSpec[]/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: ByteBuffer/*_void *_*/ customData();
+NdbScanOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native NdbOperation.GetValueSpec[]/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ customData();
+NdbScanOperation.java:        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraGetValues(NdbOperation.GetValueSpec/*_NdbOperation.GetValueSpec *_*/ p0);
+NdbScanOperation.java:        // MMM! support <out:BB> or check if needed: public final native void customData(ByteBuffer/*_void *_*/ p0);
+NdbScanOperation.java:    // MMM! support <out:char *> or check if needed: public final native int nextResult(const char * * out_row_ptr, boolean fetchAllowed, boolean forceSend);
+
+
+
+NdbBlob.java:    // MMM no need to map: public final native typedef int ActiveHook(NdbBlob/*_NdbBlob *_*/ me, ByteBuffer/*_void *_*/ arg);
+NdbBlob.java:    // MMM no need to map: public final native int setActiveHook(ActiveHook/*_ActiveHook *_*/ activeHook, ByteBuffer/*_void *_*/ arg);
+NdbDictionary.java:    static public native NdbDictionary create(); // MMM non-final, support for derivation
+NdbDictionary.java:    static public /*_virtual_*/ native void delete(NdbDictionary p0); // MMM non-final, support for derivation
+NdbDictionary.java:        // MMM abstract class: static public native Object create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Object p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native ObjectId create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(ObjectId p0); // MMM non-final, support for derivation
+NdbDictionary.java:    public interface ColumnConst // MMM does not extend ObjectConst
+NdbDictionary.java:        ColumnConst/*_const Column *_*/ getColumnC(String/*_const char *_*/ name) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        ColumnConst/*_const Column *_*/ getColumnC(int attributeId) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native ColumnConst/*_const Column *_*/ getColumnC(String/*_const char *_*/ name) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native ColumnConst/*_const Column *_*/ getColumnC(int attributeId) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        static public native Table create(String/*_const char *_*/ name /*_= ""_*/); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Table create(TableConst/*_const Table &_*/ table); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Table p0); // MMM non-final, support for derivation
+NdbDictionary.java:        // public final native Table & operator= (const Table & table); // MMM no need to map assignment operator to Java
+NdbDictionary.java:        public final native Column/*_Column *_*/ getColumn(int attributeId); // MMM nameclash with const version
+NdbDictionary.java:        public final native Column/*_Column *_*/ getColumn(String/*_const char *_*/ name); // MMM nameclash with const version
+NdbDictionary.java:        int/*_Type_*/ getType() /*_const_*/; // MMM type nameclash, meant Index.Type
+NdbDictionary.java:        public final native int/*_Type_*/ getType() /*_const_*/; // MMM type nameclash, meant Index.Type
+NdbDictionary.java:        static public native Index create(String/*_const char *_*/ name /*_= ""_*/); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Index p0); // MMM non-final, support for derivation
+NdbDictionary.java:        public final native void setType(int/*_Type_*/ type); // MMM type nameclash, meant Index.Type
+NdbDictionary.java:        static public native Event create(String/*_const char *_*/ name); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Event create(String/*_const char *_*/ name, NdbDictionary.TableConst/*_const NdbDictionary.Table &_*/ table); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Event p0); // MMM non-final, support for derivation
+NdbDictionary.java:    // MMM convenience function, marked with NDBAPI_SKIP: static public final native const unsigned char * getEmptyBitmask();
+NdbDictionary.java:        static public native LogfileGroup create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native LogfileGroup create(LogfileGroupConst/*_const LogfileGroup &_*/ p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(LogfileGroup p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Tablespace create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Tablespace create(TablespaceConst/*_const Tablespace &_*/ p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Tablespace p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Datafile create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Datafile create(DatafileConst/*_const Datafile &_*/ p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Datafile p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Undofile create(); // MMM non-final, support for derivation
+NdbDictionary.java:        static public native Undofile create(UndofileConst/*_const Undofile &_*/ p0); // MMM non-final, support for derivation
+NdbDictionary.java:        static public /*_virtual_*/ native void delete(Undofile p0); // MMM non-final, support for derivation
+NdbDictionary.java:                String/*_char *_*/ database(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                String/*_char *_*/ schema(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                String/*_char *_*/ name(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native String/*_char *_*/ database(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native String/*_char *_*/ schema(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native String/*_char *_*/ name(); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native void database(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native void schema(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
+NdbDictionary.java:                public final native void name(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
+NdbDictionary.java:        int listObjectsC(List/*_List &_*/ list, int/*_Object.Type_*/ type /*_= Object.TypeUndefined_*/) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        int listIndexesC(List/*_List &_*/ list, String/*_const char *_*/ tableName) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        int listEventsC(List/*_List &_*/ list) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native int listObjectsC(List/*_List &_*/ list, int/*_Object.Type_*/ type /*_= Object.TypeUndefined_*/) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native int listIndexesC(List/*_List &_*/ list, String/*_const char *_*/ tableName) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native int listEventsC(List/*_List &_*/ list) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbDictionary.java:        public final native int listObjects(List/*_List &_*/ list, int/*_Object.Type_*/ type /*_= Object.TypeUndefined_*/); // MMM nameclash with const version
+NdbDictionary.java:        public final native int listIndexes(List/*_List &_*/ list, String/*_const char *_*/ tableName); // MMM nameclash with const version
+NdbDictionary.java:        public final native int listEvents(List/*_List &_*/ list); // MMM nameclash with const version
+NdbError.java:    public final native String/*_char *_*/ details)(); // MMM confirmed as null-terminated C string
+NdbError.java:public final native void details(String/*_char *_*/); // MMM confirmed as null-terminated C string
+NdbError.java:    // MMM c'tor not part of the public API: static public final native NdbError create();
+NdbError.java:    // MMM c'tor not part of the public API: static public final native void delete(NdbError p0);
+NdbErrorConst.java:    String/*_char *_*/ details(); // MMM confirmed as null-terminated C string
+NdbOperation.java:    public /*_virtual_*/ native NdbBlob/*_NdbBlob *_*/ getBlobHandleC(String/*_const char *_*/ anAttrName) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbOperation.java:    public /*_virtual_*/ native NdbBlob/*_NdbBlob *_*/ getBlobHandleC(int/*_Uint32_*/ anAttrId) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbOperation.java:    public final native int getNdbErrorLineC() /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbOperation.java:    public final native int equalS(String/*_const char *_*/ anAttrName, int/*_Int32_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int equalU(String/*_const char *_*/ anAttrName, int/*_Uint32_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int equalS(String/*_const char *_*/ anAttrName, long/*_Int64_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int equalU(String/*_const char *_*/ anAttrName, long/*_Uint64_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int equalS(int/*_Uint32_*/ anAttrId, int/*_Int32_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int equalU(int/*_Uint32_*/ anAttrId, int/*_Uint32_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int equalS(int/*_Uint32_*/ anAttrId, long/*_Int64_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int equalU(int/*_Uint32_*/ anAttrId, long/*_Uint64_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int setValueS(String/*_const char *_*/ anAttrName, int/*_Int32_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int setValueU(String/*_const char *_*/ anAttrName, int/*_Uint32_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int setValueS(String/*_const char *_*/ anAttrName, long/*_Int64_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int setValueU(String/*_const char *_*/ anAttrName, long/*_Uint64_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int setValueS(int/*_Uint32_*/ anAttrId, int/*_Int32_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int setValueU(int/*_Uint32_*/ anAttrId, int/*_Uint32_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public final native int setValueS(int/*_Uint32_*/ anAttrId, long/*_Int64_*/ aValue); // MMM renamed due to nameclash with unsigned version
+NdbOperation.java:    public final native int setValueU(int/*_Uint32_*/ anAttrId, long/*_Uint64_*/ aValue); // MMM renamed due to nameclash with signed version
+NdbOperation.java:    public /*_virtual_*/ native NdbBlob/*_NdbBlob *_*/ getBlobHandle(String/*_const char *_*/ anAttrName); // MMM nameclash with const version
+NdbOperation.java:    public /*_virtual_*/ native NdbBlob/*_NdbBlob *_*/ getBlobHandle(int/*_Uint32_*/ anAttrId); // MMM nameclash with const version
+NdbOperation.java:    public final native int getNdbErrorLine(); // MMM nameclash with const version
+NdbOperation.java:        // MMM ByteBuffer/*_void *_*/ customData();
+NdbOperationConst.java:    /*_virtual_*/ NdbBlob/*_NdbBlob *_*/ getBlobHandleC(String/*_const char *_*/ anAttrName) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbOperationConst.java:    /*_virtual_*/ NdbBlob/*_NdbBlob *_*/ getBlobHandleC(int/*_Uint32_*/ anAttrId) /*_const_*/; // MMM renamed due to nameclash with non-const version
+NdbOperationConst.java:    int getNdbErrorLineC() /*_const_*/; // MMM renamed due to nameclash with non-const version
+
+
