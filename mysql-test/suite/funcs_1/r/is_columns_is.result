@@ -125,6 +125,21 @@ def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	10	NULL	YES	varc
 def	information_schema	KEY_COLUMN_USAGE	TABLE_CATALOG	4		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 def	information_schema	KEY_COLUMN_USAGE	TABLE_NAME	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	KEY_COLUMN_USAGE	TABLE_SCHEMA	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	CHARACTER_SET_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	COLLATION_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	DATA_TYPE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	DTD_IDENTIFIER	14	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	PARAMETER_MODE	5	NULL	YES	varchar	5	15	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select	
+def	information_schema	PARAMETERS	PARAMETER_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	ROUTINE_TYPE	15		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
+def	information_schema	PARAMETERS	SPECIFIC_CATALOG	1		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
+def	information_schema	PARAMETERS	SPECIFIC_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	PARAMETERS	SPECIFIC_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARTITIONS	AVG_ROW_LENGTH	14	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
@@ -179,29 +194,36 @@ def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	4		NO	v
 def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-def	information_schema	ROUTINES	COLLATION_CONNECTION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-def	information_schema	ROUTINES	CREATED	16	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-def	information_schema	ROUTINES	DATABASE_COLLATION	23		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-def	information_schema	ROUTINES	DEFINER	20		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
-def	information_schema	ROUTINES	DTD_IDENTIFIER	6	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	10	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	EXTERNAL_NAME	9	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	IS_DETERMINISTIC	12		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
-def	information_schema	ROUTINES	LAST_ALTERED	17	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-def	information_schema	ROUTINES	PARAMETER_STYLE	11		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
-def	information_schema	ROUTINES	ROUTINE_BODY	7		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
+def	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	CHARACTER_SET_CLIENT	28		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
+def	information_schema	ROUTINES	CHARACTER_SET_NAME	11	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	COLLATION_CONNECTION	29		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
+def	information_schema	ROUTINES	COLLATION_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	CREATED	23	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
+def	information_schema	ROUTINES	DATABASE_COLLATION	30		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
+def	information_schema	ROUTINES	DATA_TYPE	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	DEFINER	27		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
+def	information_schema	ROUTINES	DTD_IDENTIFIER	13	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	17	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	EXTERNAL_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	IS_DETERMINISTIC	19		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+def	information_schema	ROUTINES	LAST_ALTERED	24	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
+def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	NUMERIC_SCALE	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	PARAMETER_STYLE	18		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
+def	information_schema	ROUTINES	ROUTINE_BODY	14		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 def	information_schema	ROUTINES	ROUTINE_CATALOG	2		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
-def	information_schema	ROUTINES	ROUTINE_COMMENT	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-def	information_schema	ROUTINES	ROUTINE_DEFINITION	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+def	information_schema	ROUTINES	ROUTINE_COMMENT	26	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+def	information_schema	ROUTINES	ROUTINE_DEFINITION	15	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 def	information_schema	ROUTINES	ROUTINE_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	ROUTINES	ROUTINE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	ROUTINES	ROUTINE_TYPE	5		NO	varchar	9	27	NULL	NULL	utf8	utf8_general_ci	varchar(9)			select	
-def	information_schema	ROUTINES	SECURITY_TYPE	15		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
+def	information_schema	ROUTINES	SECURITY_TYPE	22		NO	varchar	7	21	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select	
 def	information_schema	ROUTINES	SPECIFIC_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	SQL_DATA_ACCESS	13		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	ROUTINES	SQL_MODE	18		NO	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)			select	
-def	information_schema	ROUTINES	SQL_PATH	14	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	SQL_DATA_ACCESS	20		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	ROUTINES	SQL_MODE	25		NO	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)			select	
+def	information_schema	ROUTINES	SQL_PATH	21	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	SCHEMATA	CATALOG_NAME	1		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 def	information_schema	SCHEMATA	DEFAULT_CHARACTER_SET_NAME	3		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 def	information_schema	SCHEMATA	DEFAULT_COLLATION_NAME	4		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
@@ -489,6 +511,21 @@ NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	bigint	NU
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	PARAMETERS	SPECIFIC_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
+3.0000	information_schema	PARAMETERS	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	PARAMETERS	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	PARAMETERS	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(21)
+3.0000	information_schema	PARAMETERS	PARAMETER_MODE	varchar	5	15	utf8	utf8_general_ci	varchar(5)
+3.0000	information_schema	PARAMETERS	PARAMETER_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	PARAMETERS	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	PARAMETERS	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
+3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+1.0000	information_schema	PARAMETERS	DTD_IDENTIFIER	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+3.0000	information_schema	PARAMETERS	ROUTINE_TYPE	varchar	9	27	utf8	utf8_general_ci	varchar(9)
 3.0000	information_schema	PARTITIONS	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	PARTITIONS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARTITIONS	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -548,7 +585,14 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	ROUTINES	ROUTINE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_TYPE	varchar	9	27	utf8	utf8_general_ci	varchar(9)
-3.0000	information_schema	ROUTINES	DTD_IDENTIFIER	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	ROUTINES	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	ROUTINES	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	ROUTINES	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
+3.0000	information_schema	ROUTINES	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	ROUTINES	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+1.0000	information_schema	ROUTINES	DTD_IDENTIFIER	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	ROUTINES	ROUTINE_BODY	varchar	8	24	utf8	utf8_general_ci	varchar(8)
 1.0000	information_schema	ROUTINES	ROUTINE_DEFINITION	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	ROUTINES	EXTERNAL_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)

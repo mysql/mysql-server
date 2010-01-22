@@ -477,6 +477,7 @@ public:
     DBUG_VOID_RETURN;
   }
 
+  sp_pcontext *get_parse_context() { return m_pcont; }
 
 private:
 
