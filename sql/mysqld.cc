@@ -3345,6 +3345,16 @@ static int init_common_variables()
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
+    The default-storage-engine entry in my_long_options should have a
+    non-null default value. It was earlier intialized as
+    (longlong)"MyISAM" in my_long_options but this triggered a
+    compiler error in the Sun Studio 12 compiler. As a work-around we
+    set the def_value member to 0 in my_long_options and initialize it
+    to the correct value here.
+  */
+  default_storage_engine="MyISAM";
+
+  /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
     Later, in plugin_init, and mysql_install_plugin
@@ -5961,9 +5971,12 @@ struct my_option my_long_options[]=
   {"default-collation", 0, "Set the default collation (deprecated option, use --collation-server instead).",
    (uchar**) &default_collation_name, (uchar**) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  /* default-storage-engine should have "MyISAM" as def_value. Instead
+     of initializing it here it is done in init_common_variables() due
+     to a compiler bug in Sun Studio compiler. */
   {"default-storage-engine", 0, "The default storage engine for new tables",
    (uchar**) &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
-   (longlong)"MyISAM", 0, 0, 0, 0, 0 },
+   0, 0, 0, 0, 0, 0 },
   {"default-time-zone", 0, "Set the default time zone.",
    (uchar**) &default_tz_name, (uchar**) &default_tz_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
