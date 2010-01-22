@@ -15,7 +15,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SUBDIRS = src tools . include swig @ndb_opt_subdirs@
-DIST_SUBDIRS = src tools include test docs swig
+DIST_SUBDIRS = src tools include test docs swig ndbjtie clusterj
 EXTRA_DIST = config ndbapi-examples plug.in CMakeLists.txt
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
