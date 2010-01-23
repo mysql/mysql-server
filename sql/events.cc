@@ -415,7 +415,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+                   is_schema_db(parse_data->dbname.str,
+                                parse_data->dbname.length)))
     DBUG_RETURN(TRUE);
 
   if (check_db_dir_existence(parse_data->dbname.str))
@@ -526,7 +527,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+                   is_schema_db(parse_data->dbname.str,
+                                parse_data->dbname.length)))
     DBUG_RETURN(TRUE);
 
   if (new_dbname)                               /* It's a rename */
@@ -548,7 +550,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       access it.
     */
     if (check_access(thd, EVENT_ACL, new_dbname->str, 0, 0, 0,
-                     is_schema_db(new_dbname->str)))
+                     is_schema_db(new_dbname->str, new_dbname->length)))
       DBUG_RETURN(TRUE);
 
     /* Check that the target database exists */
@@ -653,7 +655,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+                   is_schema_db(dbname.str, dbname.length)))
     DBUG_RETURN(TRUE);
 
   /*
@@ -811,7 +813,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+                   is_schema_db(dbname.str, dbname.length)))
     DBUG_RETURN(TRUE);
 
   /*
@@ -869,7 +871,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_schema_db(thd->lex->select_lex.db) &&  // There is no events in I_S
+    if (!is_schema_db(thd->lex->select_lex.db) &&    // There is no events in I_S
         check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0, 0))
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;

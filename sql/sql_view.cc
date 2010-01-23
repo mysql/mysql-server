@@ -268,11 +268,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     table (i.e. user will not get some privileges by view creation)
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
+                    0, 0, is_schema_db(view->db, view->db_length)) ||
        check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
+                     0, 0, is_schema_db(view->db, view->db_length)) ||
         check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
     goto err;
 
