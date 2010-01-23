@@ -5132,11 +5132,11 @@ ER_SP_BADSTATEMENT 0A000
         eng "%s is not allowed in stored procedures"
         ger "%s ist in gespeicherten Prozeduren nicht erlaubt"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert"
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert. Diese Option wird in MySQL 5.6 entfernt."
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt"
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN. This option will be removed in MySQL 5.6."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt. Diese Option wird in MySQL 5.6 entfernt."
 ER_QUERY_INTERRUPTED 70100 
         eng "Query execution was interrupted"
         ger "Ausführung der Abfrage wurde unterbrochen"
@@ -6240,7 +6240,8 @@ ER_UNKNOWN_LOCALE
 
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
-
+ER_QUERY_CACHE_DISABLED
+  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
 ER_SAME_NAME_PARTITION_FIELD
   eng "Duplicate partition field name '%-.192s'"
 ER_PARTITION_COLUMN_LIST_ERROR

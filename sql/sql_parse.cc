@@ -1324,8 +1324,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     table_list.alias= table_list.table_name= conv_name.str;
     packet= arg_end + 1;
 
-    if (!my_strcasecmp(system_charset_info, table_list.db,
-                       INFORMATION_SCHEMA_NAME.str))
+    if (is_schema_db(table_list.db, table_list.db_length))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -1387,7 +1386,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
-                       is_schema_db(db.str)))
+                       is_schema_db(db.str, db.length)))
 	break;
       general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
@@ -1406,7 +1405,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
 	break;
       }
-      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0, is_schema_db(db.str)))
+      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0,
+                            is_schema_db(db.str, db.length)))
 	break;
       if (thd->locked_tables || thd->active_transaction())
       {
@@ -2703,6 +2703,8 @@ case SQLCOM_PREPARE:
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        /* Base table and temporary table are not in the same name space. */
+        create_table->skip_temporary= 1;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3727,7 +3729,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,CREATE_ACL,lex->name.str, 0, 1, 0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
                               lex->name.str), &create_info, 0);
@@ -3762,7 +3764,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,DROP_ACL,lex->name.str,0,1,0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3796,9 +3798,12 @@ end_with_restore_list:
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
     {
       res= 1;
       break;
@@ -3841,7 +3846,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3997,7 +4003,8 @@ end_with_restore_list:
 		     first_table ? &first_table->grant.privilege : 0,
 		     first_table ? 0 : 1, 0,
                      first_table ? (bool) first_table->schema_table :
-                     select_lex->db ? is_schema_db(select_lex->db) : 0))
+                     select_lex->db ?
+                     is_schema_db(select_lex->db) : 0))
       goto error;
 
     if (thd->security_ctx->user)              // If not replication
@@ -4340,7 +4347,8 @@ end_with_restore_list:
     }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
-                     is_schema_db(lex->sphead->m_db.str)))
+                     is_schema_db(lex->sphead->m_db.str,
+                                  lex->sphead->m_db.length)))
       goto create_sp_error;
 
     if (end_active_trans(thd))
@@ -6502,8 +6510,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      INFORMATION_SCHEMA_NAME.str))
+  if (!ptr->derived && is_schema_db(ptr->db, ptr->db_length))
   {
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
@@ -7208,7 +7215,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  /*
    If the query was killed then this function must fail.
  */
- return result || thd->killed;
+ return result || (thd ? thd->killed : 0);
 }
 
 

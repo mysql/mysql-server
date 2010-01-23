@@ -748,8 +748,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (!my_strcasecmp(system_charset_info, dbname,
-                     INFORMATION_SCHEMA_NAME.str))
+  if (is_schema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
@@ -2703,8 +2702,8 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
   */
   if (lookup_field_vals->db_value.str)
   {
-    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
-                       lookup_field_vals->db_value.str))
+    if (is_schema_db(lookup_field_vals->db_value.str, 
+                     lookup_field_vals->db_value.length))
     {
       *with_i_schema= 1;
       if (files->push_back(i_s_name_copy))
@@ -5333,7 +5332,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
       check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
-                   is_schema_db(et.dbname.str)))
+                   is_schema_db(et.dbname.str, et.dbname.length)))
     DBUG_RETURN(0);
 
   sch_table->field[ISE_EVENT_CATALOG]->store(STRING_WITH_LEN("def"), scs);
