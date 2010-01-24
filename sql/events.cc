@@ -476,7 +476,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       }
       /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
          will be written into the binary log as the definer for the SQL thread. */
-      write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -598,7 +598,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                                   new_element);
       /* Binlog the alter event. */
       DBUG_ASSERT(thd->query() && thd->query_length());
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -673,7 +673,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
     DBUG_ASSERT(thd->query() && thd->query_length());
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);
