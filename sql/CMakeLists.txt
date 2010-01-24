@@ -100,7 +100,7 @@ ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE})
+MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR})
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -231,11 +231,11 @@ ADD_CUSTOM_TARGET(dist
 
 
 
+IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
 # We need to create empty directories (data/test) the installation.  
 # This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
 # Avoid completely empty directories and install dummy file instead.
-
 SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
 FILE(WRITE ${DUMMY_FILE} "")
 INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test)
@@ -271,3 +271,5 @@ ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
 ENDIF()
+ENDIF()
+

@@ -361,6 +361,9 @@ then
   if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
   then
     ledir="$MY_BASEDIR_VERSION/libexec"
+  elif test -x "$MY_BASEDIR_VERSION/sbin/mysqld"
+  then
+    ledir="$MY_BASEDIR_VERSION/sbin"
   else
     ledir="$MY_BASEDIR_VERSION/bin"
   fi
@@ -373,6 +376,10 @@ elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
 then
   MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
   ledir="$MY_PWD/libexec"		# Where mysqld is
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/sbin/mysqld"
+then
+  MY_BASEDIR_VERSION="$MY_PWD"		# Where sbin, share and var are
+  ledir="$MY_PWD/sbin"			# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
   MY_BASEDIR_VERSION='@prefix@'

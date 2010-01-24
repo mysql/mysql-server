@@ -66,7 +66,7 @@ INSTALL(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
-  DESTINATION share
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}
 )
 
 # TCMalloc hacks
@@ -137,13 +137,23 @@ ENDIF(UNIX)
 # i.e. makes access relative the current directory. This matches
 # the documentation, so better not change this.
 
-SET(prefix .)
-SET(bindir ./bin)
-SET(sbindir ./bin)
-SET(scriptdir ./bin)
-SET(libexecdir ./bin)
-SET(pkgdatadir ./share)
-SET(localstatedir ./data)
+IF(INSTALL_LAYOUT MATCHES "STANDALONE")
+  SET(prefix ".")
+ELSE()
+  SET(prefix "${CMAKE_INSTALL_PREFIX}")
+ENDIF()
+
+SET(bindir ${prefix}/${INSTALL_BINDIR})
+SET(sbindir ${prefix}/${INSTALL_SBINDIR})
+SET(scriptdir ${prefix}/${INSTALL_BINDIR})
+SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
+SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
+IF(INSTALL_LAYOUT MATCHES "STANDALONE")
+  SET(localstatedir ${prefix}/data)
+ELSE()
+  SET(localstatedir ${MYSQL_DATADIR})
+ENDIF()
+
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
    ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
 
@@ -158,15 +168,16 @@ INSTALL(FILES
 
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
-SET(bindir ${prefix}/bin)
-SET(libexecdir ${prefix}/bin)
-SET(scriptdir ${prefix}/bin)
-SET(datadir ${prefix}/share)
-SET(pkgdatadir ${prefix}/share)
-SET(pkgincludedir ${prefix}/include)
-SET(pkglibdir ${prefix}/lib)
-SET(pkgplugindir ${prefix}/lib/plugin)
-SET(localstatedir ${prefix}/data)
+SET(bindir ${prefix}/${INSTALL_BINDIR})
+SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
+SET(scriptdir ${prefix}/${INSTALL_BINDIR})
+SET(datadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
+SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
+SET(pkgincludedir ${prefix}/${INSTALL_INCLUDEDIR})
+SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
+SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
+SET(localstatedir ${MYSQL_DATADIR})
+
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(TARGET_LINUX 1)
@@ -242,7 +253,7 @@ IF(WIN32)
       ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
 	 
     INSTALL(FILES
-      "CMAKE_CURRENT_BINARY_DIR}/${file}.pl"
+      ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl
       DESTINATION scripts
       PERMISSIONS OWNER_READ OWNER_WRITE 
       OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
@@ -254,7 +265,7 @@ IF(WIN32)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh
        ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
     INSTALL(FILES
-      "${CMAKE_CURRENT_BINARY_DIR}/${file}.pl"
+      ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl
       DESTINATION scripts
       PERMISSIONS OWNER_READ OWNER_WRITE 
       OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
@@ -279,6 +290,7 @@ ELSE()
     mysqld_multi
     mysqlaccess
     mysqlaccess.conf
+    mysqld_safe
   )
   FOREACH(file ${BIN_SCRIPTS})
     IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh)
@@ -291,38 +303,18 @@ ELSE()
       MESSAGE(FATAL_ERROR "Can not find ${file}.sh or ${file} in "
         "${CMAKE_CURRENT_SOURCE_DIR}" )
     ENDIF()
-
    INSTALL(FILES 
     ${CMAKE_CURRENT_BINARY_DIR}/${file}
-    DESTINATION bin
+    DESTINATION ${INSTALL_BINDIR}
     PERMISSIONS OWNER_READ OWNER_WRITE 
     OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
     WORLD_READ WORLD_EXECUTE 
    )
   ENDFOREACH()
-
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqld_safe.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/mysqld_safe  @ONLY)
-
-  INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/mysqld_safe" 
-    DESTINATION bin 
-    PERMISSIONS OWNER_READ OWNER_WRITE 
-    OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
-    WORLD_READ WORLD_EXECUTE 
-  )
-
-  # For some reason, mysqld_safe needs to be also in scripts directory
-  INSTALL(FILES 
-    "${CMAKE_CURRENT_BINARY_DIR}/mysqld_safe"
-     DESTINATION scripts
-     PERMISSIONS OWNER_READ OWNER_WRITE 
-     OWNER_EXECUTE GROUP_READ GROUP_EXECUTE 
-     WORLD_READ WORLD_EXECUTE 
-    )
 ENDIF()
 
 # Install libgcc as  mylibgcc.a
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_FLAGS MATCHES "-static")
   EXECUTE_PROCESS (
    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1}
      ${CMAKE_CXX_FLAGS} --print-libgcc
@@ -332,7 +324,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
      ERROR_QUIET
   )
   IF(${RESULT} EQUAL 0 AND EXISTS ${LIBGCC_LOCATION})
-    INSTALL(FILES "${LIBGCC_LOCATION}" DESTINATION lib)
+    INSTALL(FILES "${LIBGCC_LOCATION}" DESTINATION ${INSTALL_LIBDIR})
   ENDIF()
 ENDIF()
 
