@@ -818,12 +818,14 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 #ifdef _WIN32
 #define FN_LIBCHAR	'\\'
+#define FN_LIBCHAR2	'/'
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
 #else
 #define FN_LIBCHAR	'/'
+#define FN_LIBCHAR2	'/'
 #define FN_ROOTDIR	"/"
 #endif
 
