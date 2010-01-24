@@ -21,4 +21,5 @@ EXTRA_DIST = \
 	merge_archives_unix.cmake.in \
 	dtrace_prelink.cmake \
 	versioninfo.rc.in \
-	mysql_add_executable.cmake
+	mysql_add_executable.cmake  \
+	install_layout.cmake
