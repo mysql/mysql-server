@@ -11,7 +11,6 @@ my $srcdir = dirname(dirname(abs_path($0)));
 
 foreach my $option (@ARGV)
 {
-
   if (substr ($option, 0, 2) == "--")
   {
     $option = substr($option, 2);
@@ -83,6 +82,12 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DWITH_CHARSETS=complex"; 
     next;
   }
+  if ($option =~ /localstatedir=/)
+  {
+    $cmakeargs = $cmakeargs." -DMYSQL_DATADIR=".substr($option,14); 
+    next;
+  }
+
   $option = uc($option);
   $option =~ s/-/_/g;
   $cmakeargs = $cmakeargs." -D".$option."=1";
