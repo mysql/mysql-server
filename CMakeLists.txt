@@ -61,6 +61,11 @@ ENDIF()
 
 PROJECT(MySQL)
 
+# Following autotools tradition, add preprocessor definitions
+# specified in environment variable CPPFLAGS
+IF(DEFINED ENV{CPPFLAGS})
+  ADD_DEFINITIONS($ENV{CPPFLAGS})
+ENDIF()
 
 IF(CYGWIN)
   SET(WIN32 0)
