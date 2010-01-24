@@ -1464,7 +1464,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
     {
       if (trx_data->has_incident())
-        mysql_bin_log.write_incident(thd, TRUE);
+        error= mysql_bin_log.write_incident(thd, TRUE);
       trx_data->reset();
     }
     else                                        // ...statement
@@ -4710,7 +4710,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   Incident_log_event ev(thd, incident, write_error_msg);
   if (lock)
     pthread_mutex_lock(&LOCK_log);
-  ev.write(&log_file);
+  error= ev.write(&log_file);
   if (lock)
   {
     if (!error && !(error= flush_and_sync()))
