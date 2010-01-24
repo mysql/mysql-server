@@ -1036,8 +1036,8 @@ check_and_unset_inject_value(int value)
 
 #endif
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
