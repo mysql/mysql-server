@@ -364,6 +364,9 @@ void Cmvmi::sendSTTORRY(Signal* signal)
 }//Cmvmi::sendSTTORRY
 
 
+static Uint32 f_accpages = 0;
+extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
+
 void 
 Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -394,6 +397,8 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
   }
 
+  f_accpages = compute_acc_32kpages(p);
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -403,11 +408,6 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   c_memusage_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
                             &c_memusage_report_frequency);
-  
-  signal->theData[0] = ZREPORT_MEMORY_USAGE;
-  signal->theData[1] = 0;
-  signal->theData[2] = 3;
-  execCONTINUEB(signal);
 }
 
 void Cmvmi::execSTTOR(Signal* signal)
@@ -450,6 +450,14 @@ void Cmvmi::execSTTOR(Signal* signal)
       ndbrequire(db_watchdog_interval);
       update_watch_dog_timer(db_watchdog_interval);
     }
+
+    /**
+     * Start auto-mem reporting
+     */
+    signal->theData[0] = ZREPORT_MEMORY_USAGE;
+    signal->theData[1] = 0;
+    signal->theData[2] = 3;
+    execCONTINUEB(signal);
     
     sendSTTORRY(signal);
     return;
@@ -1115,8 +1123,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else
     {
       if (rl.m_min || rl.m_curr || rl.m_max)
-	infoEvent("Resource %d min: %d max: %d curr: %d",
-		  id, rl.m_min, rl.m_max, rl.m_curr);
+      {
+        infoEvent("Resource %d min: %d max: %d curr: %d",
+                  id, rl.m_min, rl.m_max, rl.m_curr);
+      }
     }
 
     if (len == 3)
@@ -2185,6 +2195,13 @@ Cmvmi::execCONTINUEB(Signal* signal)
     Resource_limit rl;
     m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
 
+    /**
+     * The world is not (yet) ready for unified Index/Data memory
+     */
+    rl.m_min -= f_accpages;
+    rl.m_max -= f_accpages;
+    rl.m_curr -= f_accpages;
+
     Uint32 tmp = rl.m_min;
     Uint32 now = tmp ? (rl.m_curr * 100)/tmp : 0;
     static const Uint32 thresholds[] = { 100, 90, 80, 0 };
@@ -2230,6 +2247,13 @@ Cmvmi::reportDMUsage(Signal* signal, int incDec)
   Resource_limit rl;
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
   
+  /**
+   * The world is not (yet) ready for unified Index/Data memory
+   */
+  rl.m_min -= f_accpages;
+  rl.m_max -= f_accpages;
+  rl.m_curr -= f_accpages;
+
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(GlobalPage);

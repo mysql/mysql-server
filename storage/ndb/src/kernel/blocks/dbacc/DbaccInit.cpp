@@ -53,12 +53,50 @@ void Dbacc::initData()
 
 void Dbacc::initRecords() 
 {
-  // Records with dynamic sizes
-  page8 = (Page8*)allocRecord("Page8",
-			      sizeof(Page8), 
-			      cpagesize,
-			      false,
-            CFG_DB_INDEX_MEM);
+  {
+    AllocChunk chunks[16];
+    const Uint32 pages = (cpagesize + 3) / 4;
+    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBTUP_PAGE, pages,
+                                        CFG_DB_INDEX_MEM);
+
+    /**
+     * Set base ptr
+     */
+    Ptr<GlobalPage> pagePtr;
+    m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+    page8 = (Page8*)pagePtr.p;
+
+    /**
+     * 1) Build free-list per chunk
+     * 2) Add chunks to cfirstfreepage-list
+     */
+    cfirstfreepage = RNIL;
+    for (Int32 i = chunkcnt - 1; i >= 0; i--)
+    {
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+      const Uint32 cnt = 4 * chunks[i].cnt; // 4 8k per 32k
+      Page8* base = (Page8*)pagePtr.p;
+      ndbrequire(base >= page8);
+      const Uint32 ptrI = base - page8;
+      for (Uint32 j = 0; j < cnt; j++)
+      {
+        refresh_watch_dog();
+        base[j].word32[0] = ptrI + j + 1;
+      }
+
+      if (cfirstfreepage == RNIL)
+      {
+        base[cnt-1].word32[0] = RNIL;
+        cfirstfreepage = ptrI;
+      }
+      else
+      {
+        base[cnt-1].word32[0] = cfirstfreepage;
+        cfirstfreepage = ptrI;
+      }
+    }
+  }
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
 					    sizeof(Operationrec),
@@ -212,10 +250,6 @@ Dbacc::~Dbacc()
 		sizeof(OverflowRecord),
 		coverflowrecsize);
 
-  deallocRecord((void **)&page8, "Page8",
-		sizeof(Page8), 
-		cpagesize);
-  
   deallocRecord((void **)&scanRec, "ScanRec",
 		sizeof(ScanRec), 
 		cscanRecSize);
