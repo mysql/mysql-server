@@ -372,13 +372,47 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
 
   Uint32 tupmem = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
+
+  Uint64 accmem = 0;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_INDEX_MEM, &accmem);
+  if (accmem)
+  {
+    accmem /= GLOBAL_PAGE_SIZE;
+    accmem += (32 / 4); // Added as safty in Configuration.cpp
+    tupmem += accmem;
+  }
+
   if (tupmem)
   {
     Resource_limit rl;
     rl.m_min = tupmem;
     rl.m_max = tupmem;
-    rl.m_resource_id = 3;
+    rl.m_resource_id = RG_DATAMEM;
     m_ctx.m_mm.set_resource_limit(rl);
+  }
+
+  {
+    Uint32 redomem = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,
+                              &redomem);
+
+    if (redomem)
+    {
+      redomem /= GLOBAL_PAGE_SIZE;
+      Uint32 tmp = redomem & 15;
+      if (tmp != 0)
+      {
+        redomem += (16 - tmp);
+      }
+
+      Resource_limit rl;
+      rl.m_min = redomem;
+      rl.m_max = redomem;
+      rl.m_resource_id = RG_FILE_BUFFERS;
+      m_ctx.m_mm.set_resource_limit(rl);
+
+      shared_mem += redomem;
+    }
   }
 
   if (shared_mem+tupmem)
@@ -1140,8 +1174,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else
     {
       if (rl.m_min || rl.m_curr || rl.m_max)
-	infoEvent("Resource %d min: %d max: %d curr: %d",
-		  id, rl.m_min, rl.m_max, rl.m_curr);
+      {
+        infoEvent("Resource %d min: %d max: %d curr: %d",
+                  id, rl.m_min, rl.m_max, rl.m_curr);
+      }
     }
 
     if (len == 3)

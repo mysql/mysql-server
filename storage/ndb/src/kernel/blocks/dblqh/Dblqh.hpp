@@ -2724,7 +2724,6 @@ private:
   UintR clfoFileSize;
 
   LogPageRecord *logPageRecord;
-  void *logPageRecordUnaligned;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
   UintR clogPageFileSize;
