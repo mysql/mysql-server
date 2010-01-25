@@ -2852,7 +2852,7 @@ end_with_restore_list:
 		       &first_table->grant.privilege, 0, 0,
                        test(first_table->schema_table)) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0,
-                       is_schema_db(select_lex->db, strlen(select_lex->db)))||
+                       is_schema_db(select_lex->db))||
 	  check_merge_table_access(thd, first_table->db,
 				   (TABLE_LIST *)
 				   create_info.merge_list.first))
@@ -2987,7 +2987,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3019,7 +3019,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3042,7 +3042,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3159,7 +3159,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        mysql_bin_log.write(&ev);
+        (void) mysql_bin_log.write(&ev);        /* error is ignored */
         mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
@@ -3865,7 +3865,7 @@ end_with_restore_list:
 		     first_table ? 0 : 1, 0,
                      first_table ? (bool) first_table->schema_table :
                      select_lex->db ?
-                     is_schema_db(select_lex->db, strlen(select_lex->db)) : 0))
+                     is_schema_db(select_lex->db) : 0))
       goto error;
 
     if (thd->security_ctx->user)              // If not replication
@@ -3988,7 +3988,8 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+          break;
       }
       my_ok(thd);
     } 
@@ -4566,12 +4567,12 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
-	  res= FALSE;
-	  my_ok(thd);
+          if (!res)
+            my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -5304,7 +5305,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     if (check_access(thd, SELECT_ACL, dst_db_name,
                      &thd->col_access, FALSE, FALSE,
-                     is_schema_db(dst_db_name, strlen(dst_db_name))))
+                     is_schema_db(dst_db_name)))
       return TRUE;
 
     if (!thd->col_access && check_grant_db(thd, dst_db_name))

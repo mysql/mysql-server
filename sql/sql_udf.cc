@@ -507,8 +507,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
   rw_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
-  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-
+  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  {
+    /* Restore the state of binlog format */
+    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_RETURN(1);
+  }
   /* Restore the state of binlog format */
   thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(0);
@@ -587,8 +591,12 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   rw_unlock(&THR_LOCK_udf);
 
   /* Binlog the drop function. */
-  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-
+  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  {
+    /* Restore the state of binlog format */
+    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_RETURN(1);
+  }
   /* Restore the state of binlog format */
   thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(0);
