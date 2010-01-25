@@ -139,6 +139,36 @@ ha_ndbinfo::~ha_ndbinfo()
   delete &m_impl;
 }
 
+enum ndbinfo_error_codes {
+  ERR_INCOMPAT_TABLE_DEF = 40001
+};
+
+struct error_message {
+  int error;
+  const char* message;
+} error_messages[] = {
+  { ERR_INCOMPAT_TABLE_DEF, "Incompatible table definitions" },
+  { HA_ERR_NO_CONNECTION, "Connection to NDB failed" },
+
+  { 0, 0 }
+};
+
+static
+const char* find_error_message(int error)
+{
+  struct error_message* err = error_messages;
+  while (err->error && err->message)
+  {
+    if (err->error == error)
+    {
+      assert(err->message);
+      return err->message;
+    }
+    err++;
+  }
+  return NULL;
+}
+
 static int err2mysql(int error)
 {
   DBUG_ENTER("err2mysql");
@@ -158,6 +188,88 @@ static int err2mysql(int error)
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                       ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+}
+
+bool ha_ndbinfo::get_error_message(int error, String *buf)
+{
+  DBUG_ENTER("ha_ndbinfo::get_error_message");
+  DBUG_PRINT("enter", ("error: %d", error));
+
+  const char* message = find_error_message(error);
+  if (!message)
+    DBUG_RETURN(false);
+
+  buf->set(message, strlen(message), &my_charset_bin);
+  DBUG_PRINT("exit", ("message: %s", buf->ptr()));
+  DBUG_RETURN(false);
+}
+
+static void
+generate_sql(const NdbInfo::Table* ndb_tab, BaseString& sql)
+{
+  sql.appfmt("'CREATE TABLE `%s`.`%s%s` (",
+             ndbinfo_dbname, table_prefix, ndb_tab->getName());
+
+  const char* separator = "";
+  for (unsigned i = 0; i < ndb_tab->columns(); i++)
+  {
+    const NdbInfo::Column* col = ndb_tab->getColumn(i);
+
+    sql.appfmt("%s", separator);
+    separator = ", ";
+
+    sql.appfmt("`%s` ", col->m_name.c_str());
+
+    switch(col->m_type)
+    {
+    case NdbInfo::Column::Number:
+      sql.appfmt("INT UNSIGNED");
+      break;
+    case NdbInfo::Column::Number64:
+      sql.appfmt("BIGINT UNSIGNED");
+      break;
+    case NdbInfo::Column::String:
+      sql.appfmt("VARCHAR(512)");
+      break;
+    default:
+      sql.appfmt("UNKNOWN");
+      assert(false);
+      break;
+    }
+  }
+  sql.appfmt(") ENGINE=NDBINFO'");
+}
+
+/*
+  Push a warning with explanation of the problem as well as the
+  proper SQL so the user can regenerate the table definition
+*/
+
+static void
+warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
+             const char* format, ...)
+{
+  BaseString msg;
+  DBUG_ENTER("warn_incompatible");
+  DBUG_PRINT("enter",("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
+  DBUG_ASSERT(format != NULL);
+
+  va_list args;
+  char explanation[128];
+  va_start(args,format);
+  my_vsnprintf(explanation, sizeof(explanation), format, args);
+  va_end(args);
+
+  msg.assfmt("Table '%s%s' is defined differently in NDB, %s. The "
+             "SQL to regenerate is: ",
+             table_prefix, ndb_tab->getName(), explanation);
+  generate_sql(ndb_tab, msg);
+
+  const MYSQL_ERROR::enum_warning_level level =
+    (fatal ? MYSQL_ERROR::WARN_LEVEL_ERROR : MYSQL_ERROR::WARN_LEVEL_WARN);
+  push_warning(current_thd, level, ERR_INCOMPAT_TABLE_DEF, msg.c_str());
+
+  DBUG_VOID_RETURN;
 }
 
 int ha_ndbinfo::create(const char *name, TABLE *form,
@@ -198,12 +310,6 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(0);
   }
 
-  /* Increase "ref_length" to allow a whole row to be stored in "ref" */
-  ref_length = 0;
-  for (uint i = 0; i < table->s->fields; i++)
-    ref_length += table->field[i]->pack_length();
-  DBUG_PRINT("info", ("ref_length: %u", ref_length));
-
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err)
   {
@@ -211,6 +317,63 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
       DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
     DBUG_RETURN(err2mysql(err));
   }
+
+  DBUG_PRINT("info", ("Comparing MySQL's table def against NDB"));
+  const NdbInfo::Table* ndb_tab = m_impl.m_table;
+  for (uint i = 0; i < table->s->fields; i++)
+  {
+    const Field* field = table->field[i];
+    const NdbInfo::Column* col = ndb_tab->getColumn(field->field_name);
+    if (!col)
+    {
+      // The column didn't exist
+      warn_incompatible(ndb_tab, true,
+                        "column '%s' does not exist",
+                        field->field_name);
+      DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
+    }
+
+    bool compatible = false;
+    switch(col->m_type)
+    {
+    case NdbInfo::Column::Number:
+      if (field->type() == MYSQL_TYPE_LONG)
+        compatible = true;
+      break;
+    case NdbInfo::Column::Number64:
+      if (field->type() == MYSQL_TYPE_LONGLONG)
+        compatible = true;
+      break;
+    case NdbInfo::Column::String:
+      if (field->type() == MYSQL_TYPE_VARCHAR)
+        compatible = true;
+      break;
+    default:
+      assert(false);
+      break;
+    }
+    if (!compatible)
+    {
+      // The column type is not compatible
+      warn_incompatible(ndb_tab, true,
+                        "column '%s' is not compatible",
+                        field->field_name);
+      DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
+    }
+  }
+
+  if (table->s->fields < ndb_tab->columns())
+  {
+    // There are more columns available in NDB
+    warn_incompatible(ndb_tab, false,
+                      "there are more columns available");
+  }
+
+  /* Increase "ref_length" to allow a whole row to be stored in "ref" */
+  ref_length = 0;
+  for (uint i = 0; i < table->s->fields; i++)
+    ref_length += table->field[i]->pack_length();
+  DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
   DBUG_RETURN(0);
 }

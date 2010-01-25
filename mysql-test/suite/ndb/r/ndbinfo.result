@@ -104,6 +104,9 @@ ERROR HY000: Table 'ndb$tables' is read only
 DELETE FROM ndb$tables WHERE table_id > 1;
 ERROR HY000: Table 'ndb$tables' is read only
 
+ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
+ERROR HY000: Table 'ndb$test' is read only
+
 FLUSH TABLES;
 SELECT table_id FROM ndb$tables;
 table_id
@@ -163,4 +166,65 @@ ERROR HY000: Variable 'ndbinfo_database' is a read only variable
 SELECT count(*) >= 20 FROM blocks;
 count(*) >= 20
 1
+
+## 1) More columns in NDB -> allowed, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int unsigned) ENGINE = ndbinfo;
+SELECT node_id != 0 FROM ndb$test LIMIT 1;
+node_id != 0
+1
+Warnings:
+Warning	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+
+## 2) Column does not exist in NDB -> error, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int, non_existing int) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Error	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+
+## 3) Incompatible column type -> error, with warning
+## 3a) int instead of bigint
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (counter2 int) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Error	40001	Table 'ndb$test' is defined differently in NDB, column 'counter2' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+## 3b) bigint instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id bigint) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Error	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+## 3c) varchar instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id varchar(255)) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Error	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+DROP TABLE ndb$test;
+
+## 4) Table with primary key/indexes not supported
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+ERROR 42000: Too many keys specified; max 0 keys allowed
+
+## 5) Table with blobs not supported
+CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+
+## 6) Table with autoincrement not supported
+CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
+ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
 
