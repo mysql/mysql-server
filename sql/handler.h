@@ -1142,6 +1142,10 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
 
+namespace AQP{
+  class Query_plan;
+};
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1830,8 +1834,7 @@ public:
    If possible, push join sequence down to the table handler.
    Returns #tables included in generated pushed join.
   */
-  virtual uint make_pushed_join(struct st_join_table* join_tabs, 
-                                int count)
+  virtual uint make_pushed_join(const AQP::Query_plan& plan)
   { return 0; }
 
   /**
@@ -2326,3 +2329,4 @@ public:
   int lock(int no_queue= 0) { return 0; }
 };
 #endif
+

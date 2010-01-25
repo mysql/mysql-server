@@ -79,7 +79,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	debug_sync.cc \
 	sql_tablespace.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
-	sql_servers.cc event_parse_data.cc
+	sql_servers.cc event_parse_data.cc abstract_query_plan.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
@@ -126,6 +126,9 @@ ha_ndbinfo.o: ha_ndbinfo.cc
 
 # Until we can remove dependency on ha_ndbcluster.h
 handler.o:	handler.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+abstract_query_plan.o: abstract_query_plan.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # We need rules to compile these as no good way

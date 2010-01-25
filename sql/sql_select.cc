@@ -34,6 +34,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
+#include "abstract_query_plan.h"
 
 #include <m_ctype.h>
 #include <my_bit.h>
@@ -1629,7 +1630,8 @@ make_pushed_join(JOIN *join)
     }
     else              // Try to start a pushed join from current join_tab
     {
-      pushed = table->file->make_pushed_join(tab, join->tables-i);
+      AQP::Query_plan plan(tab, join->tables-i);
+      pushed = table->file->make_pushed_join(plan);
     }
     pushed--;
   }

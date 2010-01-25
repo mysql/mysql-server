@@ -50,6 +50,10 @@ class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
 
+namespace AQP{
+  class Query_plan;
+};
+
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
@@ -538,10 +542,12 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
+  virtual uint make_pushed_join(const AQP::Query_plan& plan);
+
   int push_flag(enum ha_push_flag flag);
+
   bool test_push_flag(enum ha_push_flag flag) const;
 
-  uint make_pushed_join(struct st_join_table* join_tabs, int count);
   uint has_pushed_joins() const;
 
   bool prefer_index() const;
