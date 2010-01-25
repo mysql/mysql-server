@@ -36,19 +36,19 @@ SHOW PROCEDURE STATUS LIKE 'p4'|
 --echo
 --echo
 
---replace_column 16 CREATED 17 ALTERED
+--replace_column 23 CREATED 24 ALTERED
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p1'|
 
 --echo
---replace_column 16 CREATED 17 ALTERED
+--replace_column 23 CREATED 24 ALTERED
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p2'|
 
 --echo
---replace_column 16 CREATED 17 ALTERED
+--replace_column 23 CREATED 24 ALTERED
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p3'|
 
 --echo
---replace_column 16 CREATED 17 ALTERED
+--replace_column 23 CREATED 24 ALTERED
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p4'|
 
 #   - Initialize the used variables (actual values don't matter);
