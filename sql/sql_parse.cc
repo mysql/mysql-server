@@ -28,6 +28,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "sql_audit.h"
 #include "sql_prepare.h"
 #include "probes_mysql.h"
 #include "set_var.h"
@@ -1494,6 +1495,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->proc_info= "closing tables";
   /* Free tables */
   close_thread_tables(thd);
+
+  if (!thd->is_error() && !thd->killed_errno())
+    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
   log_slow_statement(thd);
 
