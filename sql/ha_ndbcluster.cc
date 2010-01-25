@@ -7466,7 +7466,6 @@ static int connect_callback()
 }
 
 extern int ndb_dictionary_is_mysqld;
-extern mysql_mutex_t LOCK_plugin;
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -7558,13 +7557,6 @@ static int ndbcluster_init(void *p)
 #ifdef HAVE_PSI_INTERFACE
   init_ndbcluster_psi_keys();
 #endif
-
-  /*
-    Below we create new THD's. They'll need LOCK_plugin, but it's taken now by
-    plugin initialization code. Release it to avoid deadlocks.  It's safe, as
-    there're no threads that may concurrently access plugin control structures.
-  */
-  mysql_mutex_unlock(&LOCK_plugin);
 
   mysql_mutex_init(key_ndbcluster_mutex,
                    &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
@@ -7722,8 +7714,6 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
-  mysql_mutex_lock(&LOCK_plugin);
-
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -7735,8 +7725,6 @@ ndbcluster_init_error:
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
-
-  mysql_mutex_lock(&LOCK_plugin);
 
   DBUG_RETURN(TRUE);
 }
