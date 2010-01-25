@@ -194,3 +194,21 @@ start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 Warnings:
 Note	1254	Slave is already running
+stop slave;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+flush logs;
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+reset slave;
+start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
+show tables /* t1 must exist */;
+Tables_in_test
+t1
+drop table t1;
+stop slave;
+reset slave;
+reset master;
