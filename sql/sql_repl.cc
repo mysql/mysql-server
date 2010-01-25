@@ -828,11 +828,11 @@ impossible position";
           {
             if (coord)
             {
-              DBUG_ASSERT(heartbeat_ts && heartbeat_period != LL(0));
+              DBUG_ASSERT(heartbeat_ts && heartbeat_period != 0);
               set_timespec_nsec(*heartbeat_ts, heartbeat_period);
             }
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);
-            DBUG_ASSERT(ret == 0 || heartbeat_period != LL(0) && coord != NULL);
+            DBUG_ASSERT(ret == 0 || (heartbeat_period != 0 && coord != NULL));
             if (ret == ETIMEDOUT || ret == ETIME)
             {
 #ifndef DBUG_OFF

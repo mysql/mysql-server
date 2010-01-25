@@ -324,7 +324,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
     return true;
   if (var->type == OPT_GLOBAL ||
       (thd->variables.binlog_direct_non_trans_update ==
-       var->save_result.ulonglong_value))
+       static_cast<my_bool>(var->save_result.ulonglong_value)))
     return false;
 
   return false;
