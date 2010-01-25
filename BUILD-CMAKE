@@ -14,7 +14,7 @@ line needs to be modified to e.g "yum install" on Fedora or "zypper install"
 on OpenSUSE.
 
 OpenSolaris:
-shell> pfexec pkgadd install SUNWCMake
+shell> pfexec pkgadd install SUNWcmake
 
 Windows and Mac OSX:
 Download and install the latest distribution from 
@@ -199,8 +199,8 @@ FOR PROGRAMMERS: WRITING PLATFORM CHECKS
 --------------------------------------------------------------
 If you modify MySQL source and want to add a new platform check,please read 
 http://www.vtk.org/Wiki/CMake_HowToDoPlatformChecks first. In MySQL, most of 
-the platform tests are implemented in config.cmake and the template header file
-is config.h.cmake
+the platform tests are implemented in configure.cmake and the template header 
+file is config.h.cmake
 
 Bigger chunks of functionality, for example non-trivial macros are implemented 
 in files <src-root>/cmake subdirectory.
