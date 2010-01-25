@@ -478,9 +478,14 @@ void Cmvmi::execSTTOR(Signal* signal)
        */
       refresh_watch_dog(9);
       int res = NdbMem_MemLockAll(0);
-      if(res != 0){
-        g_eventLogger->warning("Failed to memlock pages");
-	warningEvent("Failed to memlock pages");
+      if (res != 0)
+      {
+        char buf[100];
+        BaseString::snprintf(buf, sizeof(buf), 
+                             "Failed to memlock pages, error: %d (%s)",
+                             errno, strerror(errno));
+        g_eventLogger->warning("%s", buf);
+        warningEvent("%s", buf);
       }
     }
     
@@ -851,7 +856,6 @@ void Cmvmi::execSTOP_ORD(Signal* signal)
 
 void
 Cmvmi::execSTART_ORD(Signal* signal) {
-
   StartOrd * const startOrd = (StartOrd *)&signal->theData[0];
   jamEntry();
   
@@ -918,8 +922,12 @@ Cmvmi::execSTART_ORD(Signal* signal) {
       int res = NdbMem_MemLockAll(1);
       if(res != 0)
       {
-        g_eventLogger->warning("Failed to memlock pages");
-	warningEvent("Failed to memlock pages");
+        char buf[100];
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Failed to memlock pages, error: %d (%s)",
+                             errno, strerror(errno));
+        g_eventLogger->warning("%s", buf);
+        warningEvent("%s", buf);
       }
       else
       {
