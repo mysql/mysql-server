@@ -3074,3 +3074,4 @@ libmysqld/rpl_handler.cc
 dbug/tests
 libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
+client/dtoa.c
