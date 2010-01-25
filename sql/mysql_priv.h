@@ -1036,8 +1036,8 @@ check_and_unset_inject_value(int value)
 
 #endif
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1424,6 +1424,12 @@ inline bool is_schema_db(const char *name, size_t len)
   return (INFORMATION_SCHEMA_NAME.length == len &&
           !my_strcasecmp(system_charset_info,
                          INFORMATION_SCHEMA_NAME.str, name));  
+}
+
+inline bool is_schema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
 }
 
 /* sql_prepare.cc */
