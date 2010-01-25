@@ -191,7 +191,9 @@ our $opt_experimental;
 our $experimental_test_cases;
 
 my $baseport;
+# $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
+my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
 my $opt_record;
@@ -837,6 +839,7 @@ sub command_line_setup {
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
+	     'port-base|mtr-port-base=i'       => \$opt_port_base,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -1097,6 +1100,16 @@ sub command_line_setup {
   if (IS_WINDOWS and defined $opt_mem) {
     mtr_report("--mem not supported on Windows, ignored");
     $opt_mem= undef;
+  }
+
+  if ($opt_port_base ne "auto")
+  {
+    if (my $rem= $opt_port_base % 10)
+    {
+      mtr_warning ("Port base $opt_port_base rounded down to multiple of 10");
+      $opt_port_base-= $rem;
+    }
+    $opt_build_thread= $opt_port_base / 10 - 1000;
   }
 
   # --------------------------------------------------------------------------
@@ -1786,11 +1799,11 @@ sub environment_setup {
     {
       push(@ld_library_paths, "$basedir/libmysql/.libs/",
 	   "$basedir/libmysql_r/.libs/",
-	   "$basedir/zlib.libs/");
+	   "$basedir/zlib/.libs/");
     }
     else
     {
-      push(@ld_library_paths, "$basedir/lib");
+      push(@ld_library_paths, "$basedir/lib", "$basedir/lib/mysql");
     }
   }
 
@@ -5373,6 +5386,11 @@ Options to control what test suites or cases to run
 
 Options that specify ports
 
+  mtr-port-base=#       Base for port numbers, ports from this number to
+  port-base=#           number+9 are reserved. Should be divisible by 10;
+                        if not it will be rounded down. May be set with
+                        environment variable MTR_PORT_BASE. If this value is
+                        set and is not "auto", it overrides build-thread.
   mtr-build-thread=#    Specify unique number to calculate port number(s) from.
   build-thread=#        Can be set in environment variable MTR_BUILD_THREAD.
                         Set  MTR_BUILD_THREAD="auto" to automatically aquire
