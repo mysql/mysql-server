@@ -3887,7 +3887,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
           break;
       }
       my_ok(thd);
