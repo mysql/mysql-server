@@ -1092,6 +1092,64 @@ SimulatedBlock::deallocRecord(void ** ptr,
   }
 }
 
+int
+SimulatedBlock::sortchunks(const void * _e0, const void * _e1)
+{
+  const AllocChunk *p0 = (const AllocChunk*)_e0;
+  const AllocChunk *p1 = (const AllocChunk*)_e1;
+
+  if (p0->ptrI > p1->ptrI)
+    return 1;
+  if (p0->ptrI < p1->ptrI)
+    return -1;
+  return 0;
+}
+
+Uint32
+SimulatedBlock::allocChunks(AllocChunk dst[],
+                            Uint32 arraysize,
+                            Uint32 rg,
+                            Uint32 pages,
+                            Uint32 paramId)
+{
+  const Uint32 save = pages; // For fail
+  Uint32 i = 0;
+  for (; i<arraysize && pages > 0; i++)
+  {
+    Uint32 cnt = pages;
+    m_ctx.m_mm.alloc_pages(rg, &dst[i].ptrI, &cnt, 1);
+    if (unlikely(cnt == 0))
+      goto fail;
+    pages -= cnt;
+    dst[i].cnt = cnt;
+  }
+  if (unlikely(pages != 0))
+    goto fail;
+
+  qsort(dst, i, sizeof(dst[0]), sortchunks);
+  return i;
+
+fail:
+  char buf1[255];
+  char buf2[255];
+  struct ndb_mgm_param_info param_info;
+  size_t size = sizeof(ndb_mgm_param_info);
+
+  if (ndb_mgm_get_db_parameter_info(paramId, &param_info, &size) != 0)
+  {
+    ndbassert(false);
+    param_info.m_name = "<unknown>";
+  }
+
+  BaseString::snprintf(buf1, sizeof(buf1),
+                       "%s could not allocate memory for parameter %s",
+                       getBlockName(number()), param_info.m_name);
+  BaseString::snprintf(buf2, sizeof(buf2), "Requested: %llu bytes",
+                       Uint64(save) * sizeof(GlobalPage));
+  ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, buf1, buf2);
+  return 0;
+}
+
 void
 SimulatedBlock::refresh_watch_dog(Uint32 place)
 {

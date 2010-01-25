@@ -53,7 +53,6 @@ void Dblqh::initData()
   logFileRecord = 0;
   logFileOperationRecord = 0;
   logPageRecord = 0;
-  logPageRecordUnaligned= 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcConnectionrec = 0;
@@ -120,13 +119,50 @@ void Dblqh::initRecords()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
 
-  logPageRecord =
-    (LogPageRecord*)allocRecordAligned("LogPageRecord",
-                                       sizeof(LogPageRecord),
-                                       clogPageFileSize,
-                                       &logPageRecordUnaligned,
-                                       NDB_O_DIRECT_WRITE_ALIGNMENT,
-                                       false);
+  {
+    AllocChunk chunks[16];
+    const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
+                                        clogPageFileSize, CFG_DB_REDO_BUFFER);
+
+    {
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+      logPageRecord = (LogPageRecord*)pagePtr.p;
+    }
+
+    cfirstfreeLogPage = RNIL;
+    for (Int32 i = chunkcnt - 1; i >= 0; i--)
+    {
+      const Uint32 cnt = chunks[i].cnt;
+      ndbrequire(cnt != 0);
+
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+      LogPageRecord * base = (LogPageRecord*)pagePtr.p;
+      ndbrequire(base >= logPageRecord);
+      const Uint32 ptrI = base - logPageRecord;
+
+      for (Uint32 j = 0; j<cnt; j++)
+      {
+        refresh_watch_dog();
+        base[j].logPageWord[ZNEXT_PAGE] = ptrI + j + 1;
+        base[j].logPageWord[ZPOS_IN_FREE_LIST]= 1;
+        base[j].logPageWord[ZPOS_IN_WRITING]= 0;
+      }
+
+      if (cfirstfreeLogPage == RNIL)
+      {
+        base[cnt-1].logPageWord[ZNEXT_PAGE] = RNIL;
+        cfirstfreeLogPage = ptrI;
+      }
+      else
+      {
+        base[cnt-1].logPageWord[ZNEXT_PAGE] = cfirstfreeLogPage;
+        cfirstfreeLogPage = ptrI;
+      }
+    }
+    cnoOfLogPages = clogPageFileSize;
+  }
 
 #ifndef NO_REDO_PAGE_CACHE
   m_redo_page_cache.m_pool.set((RedoCacheLogPageRecord*)logPageRecord,
@@ -424,11 +460,6 @@ Dblqh::~Dblqh()
 		sizeof(LogFileOperationRecord), 
 		clfoFileSize);
   
-  deallocRecord((void**)&logPageRecordUnaligned,
-		"LogPageRecord",
-		sizeof(LogPageRecord),
-		clogPageFileSize);
-
   deallocRecord((void**)&pageRefRecord,
 		"PageRefRecord",
 		sizeof(PageRefRecord),

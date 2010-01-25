@@ -43,10 +43,15 @@
 #define RG_DATAMEM              3
 
 /**
+ * File-thread buffers
+ */
+#define RG_FILE_BUFFERS         5
+
+/**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                4
+#define RG_COUNT                6
 
 /**
  * Record types

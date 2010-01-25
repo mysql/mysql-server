@@ -3354,8 +3354,11 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
 	     currentBlockIndex);
 #endif
     
-    cntr.sendSignal(ref, GSN_READ_CONFIG_REQ, signal, 
-		    ReadConfigReq::SignalLength, JBB);
+    /**
+     * send delayed so that alloc gets "time-sliced"
+     */
+    cntr.sendSignalWithDelay(ref, GSN_READ_CONFIG_REQ, signal,
+                             1, ReadConfigReq::SignalLength);
     return;
   }
   
