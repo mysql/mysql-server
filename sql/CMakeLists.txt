@@ -41,7 +41,8 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DHAVE_EVENT_SCHEDULER)
 
 
 SET (SQL_SOURCE
-               ../sql-common/client.c derror.cc des_key_file.cc
+               ../sql-common/client.c derror.cc abstract_query_plan.cc 
+	       des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
                ha_partition.cc
