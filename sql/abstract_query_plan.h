@@ -61,19 +61,19 @@ namespace AQP
      * join.
      * @param access_count Length of array.
      */
-    explicit Query_plan(const JOIN_TAB* join_tab, int access_count );
+    explicit Query_plan(const JOIN_TAB* join_tab, int32 access_count );
 
     /**
      * Get the n'th table access operation.
      * @param access_no The index of the table access operation to fetch.
      * @return The access_no'th table access operation.
      */
-    const Table_access get_table_access(int access_no) const;      
+    const Table_access get_table_access(int32 access_no) const;      
 
     /**
      * @return The number of table access operations in the nested loop join.
      */
-    int get_access_count() const
+    int32 get_access_count() const
     { return m_access_count; }
 
     /**
@@ -86,7 +86,7 @@ namespace AQP
 
   private:
     /** Number of table access operations.*/
-    const int m_access_count;
+    const int32 m_access_count;
     
     /** Array of the JOIN_TABs that are the internal representation of table
      * access operations.
@@ -94,7 +94,7 @@ namespace AQP
     const JOIN_TAB* m_join_tabs;
 
     /** Get the JOIN_TAB of the n'th table access operation.*/
-    const JOIN_TAB& get_join_tab(int join_tab_no) const;
+    const JOIN_TAB& get_join_tab(int32 join_tab_no) const;
 
   }; // class Query_plan
 
@@ -192,21 +192,21 @@ namespace AQP
      * to call this method on an operation that is not an index lookup
      * operation.
      */
-    int get_no_of_key_fields() const;
+    int32 get_no_of_key_fields() const;
 
     /** 
      * Get the field_no'th key values for this operation. It is an error
      * to call this method on an operation that is not an index lookup
      * operation.
      */
-    const Item& get_key_field(int field_no) const; 
+    const Item& get_key_field(int32 field_no) const; 
 
     /** 
      * Get the field_no'th KEY_PART_INFO for this operation. It is an error
      * to call this method on an operation that is not an index lookup
      * operation.
      */
-    const KEY_PART_INFO& get_key_part_info(int field_no) const;
+    const KEY_PART_INFO& get_key_part_info(int32 field_no) const;
 
     /**
      * Get the name of the table that this operation accesses.
@@ -221,7 +221,7 @@ namespace AQP
     /**
      * Get the number of the index to use for this access operation.
      */
-    int get_index_no() const
+    int32 get_index_no() const
     { 
       DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
 		  m_access_type == AT_UniqueIndexLookup ||
@@ -251,7 +251,7 @@ namespace AQP
      * @param root_tab The first access operation in the plan.
      * @param tab_no This operation corresponds to root_tab[tab_no].
      */
-    explicit Table_access(const JOIN_TAB* root_tab, int tab_no);
+    explicit Table_access(const JOIN_TAB* root_tab, int32 tab_no);
 
     /** Get the JOIN_TAB object that corresponds to this operation.*/
     const JOIN_TAB& get_join_tab() const; 
@@ -260,13 +260,13 @@ namespace AQP
     const JOIN_TAB* m_root_tab;
 
     /** This operation corresponds to m_root_tab[m_tab_no].*/
-    int m_tab_no;
+    int32 m_tab_no;
 
     /** The type of this operation.*/
     Access_type m_access_type;
 
     /** The index to use for this operation (if applicable )*/
-    int m_index_no;
+    int32 m_index_no;
   }; // class Table_access
 
 
