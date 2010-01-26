@@ -346,11 +346,18 @@ Configuration::setupConfiguration(){
   iter.get(CFG_DB_REALTIME_SCHEDULER, &_realtimeScheduler);
 
   const char * mask;
+  Uint32 mtthreads = 0;
+  iter.get(CFG_DB_MT_THREADS, &mtthreads);
+
   if(iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
   {
     if (_executeLockCPU.parseMask(mask) < 0)
     {
       _executeLockCPU.clear();
+    }
+    if (mtthreads > _executeLockCPU.count())
+    {
+      g_eventLogger->warning("MaxNoOfExecutionThreads (%d) > LockExecuteThreadToCPU count (%u), this could cause contention", mtthreads, _executeLockCPU.count());
     }
   }
 
