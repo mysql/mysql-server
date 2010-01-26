@@ -26,4 +26,7 @@ EXTRA_DIST = \
 	build_configurations/mysql_release.cmake \
 	os/Windows.cmake \ 
 	os/Linux.cmake \
-	os/SunOS.cmake
+	os/SunOS.cmake \
+	os/Darwin.cmake
+
+
