@@ -1,0 +1,23 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 50_mysql-test__db_test.dpatch by Christian Hammers <ch@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Patch 33_scripts__mysql_create_system_tables__no_test removes the
+## DP: rights for anybody to connect to the test database but the test
+## DP: suite depends on them.
+
+@DPATCH@
+
+--- old/mysql-test/mysql-test-run.pl	2009-06-16 14:24:09.000000000 +0200
++++ new/mysql-test/mysql-test-run.pl	2009-07-04 00:03:34.000000000 +0200
+@@ -2717,6 +2717,10 @@
+     mtr_appendfile_to_file("$sql_dir/mysql_system_tables_data.sql",
+                           $bootstrap_sql_file);
+ 
++    mtr_tofile($bootstrap_sql_file, "-- Debian removed the default privileges on the 'test' database\n");
++    mtr_tofile($bootstrap_sql_file, "INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');\n");
++    
++
+     # Add test data for timezone - this is just a subset, on a real
+     # system these tables will be populated either by mysql_tzinfo_to_sql
+     # or by downloading the timezone table package from our website

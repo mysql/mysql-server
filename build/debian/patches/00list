@@ -1,0 +1,6 @@
+33_scripts__mysql_create_system_tables__no_test.dpatch
+38_scripts__mysqld_safe.sh__signals.dpatch
+41_scripts__mysql_install_db.sh__no_test.dpatch
+44_scripts__mysql_config__libs.dpatch
+50_mysql-test__db_test.dpatch
+60_percona_support.dpatch
