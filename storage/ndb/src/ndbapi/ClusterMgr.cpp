@@ -327,7 +327,9 @@ ClusterMgr::threadMain( ){
 
 
 ClusterMgr::Node::Node()
-  : m_state(NodeState::SL_NOTHING) { 
+  : m_state(NodeState::SL_NOTHING),
+    hbFrequency(0), hbCounter(0)
+ {
   compatible = nfCompleteRep = true;
   m_connected = defined = m_alive = m_api_reg_conf = false;
   m_state.m_connected_nodes.clear();

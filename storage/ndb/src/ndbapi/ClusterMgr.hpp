@@ -89,11 +89,11 @@ public:
       m_connected = connected;
     }
     bool is_connected(void) const {
-      bool connected = m_connected;
+      const bool connected = m_connected;
       // Must be defined if connected
       assert(!connected ||
              (connected && defined));
-      return m_connected;
+      return connected;
     }
 
     void set_confirmed(bool confirmed) {
@@ -101,7 +101,7 @@ public:
       m_api_reg_conf = confirmed;
     }
     bool is_confirmed(void) const {
-      bool confirmed = m_api_reg_conf;
+      const bool confirmed = m_api_reg_conf;
       assert(!confirmed ||
              (confirmed && is_connected()));
       return confirmed;
