@@ -44,14 +44,8 @@ IF(UNIX)
 ENDIF()
 
 
-#
-# Tests for OS
-#
-IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(TARGET_OS_LINUX 1)
-  SET(HAVE_NPTL 1)
-  SET(_GNU_SOURCE 1)
-ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET(TARGET_OS_SOLARIS 1)
 ENDIF()
 
@@ -66,6 +60,8 @@ ENDIF()
 
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
+  # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
+  # ABI and cannot be simply removed. 
   SET(CMAKE_CXX_FLAGS 
     "${CMAKE_CXX_FLAGS} -fno-implicit-templates -fno-exceptions -fno-rtti")
   IF(CMAKE_CXX_FLAGS)
@@ -74,6 +70,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     IF (NO_IMPLICIT_TEMPLATES)
       SET(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION TRUE)
     ENDIF()
+  ENDIF()
+
+  IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
+     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
+     SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
+     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
   ENDIF()
   IF(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
     # Workaround linker problems  on OSX 10.4
@@ -90,29 +92,13 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX")
   SET(_LARGEFILE64_SOURCE 1)
   SET(_FILE_OFFSET_BITS 64)
 ENDIF()
-IF(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "SunOS" )
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS" )
   SET(_FILE_OFFSET_BITS 64)
 ENDIF()
 IF(CMAKE_SYSTEM_NAME MATCHES "AIX" OR CMAKE_SYSTEM_NAME MATCHES "OS400")
   SET(_LARGE_FILES 1)
 ENDIF()
 
-
-IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
-    # VS2003 has a bug that prevents linking mysqld with module definition file 
-    # (/DEF option for linker). Linker would incorrectly complain about multiply
-    # defined symbols. Workaround is to disable dynamic plugins, so /DEF is not
-    # used.
-    MESSAGE(
-   "Warning: Building MySQL with Visual Studio 2003.NET is no more supported.")
-    MESSAGE("Please use a newer version of Visual Studio.")
-    SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
-	
-    # VS2003 needs the /Op compiler option to disable floating point 
-    # optimizations
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Op")
-    SET(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /Op")
-ENDIF()
 
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" )
@@ -129,18 +115,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" )
   ENDIF()
 ENDIF()
 
-# Ensure we have clean build for shared libraries
-# without extra dependencies and without unresolved symbols
-# (on system that support it)
-IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  FOREACH(LANG C CXX)
-  STRING(REPLACE "-rdynamic" "" 
-    CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS
-    ${CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS}  
-  )
-  ENDFOREACH()
-  SET(LINK_FLAG_NO_UNDEFINED "--Wl,--no-undefined")
-ENDIF()
 
 #Some OS specific hacks
 IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
@@ -389,13 +363,6 @@ CHECK_FUNCTION_EXISTS_UNIX (compress HAVE_COMPRESS)
 CHECK_FUNCTION_EXISTS_UNIX (crypt HAVE_CRYPT)
 CHECK_FUNCTION_EXISTS_UNIX (dlerror HAVE_DLERROR)
 CHECK_FUNCTION_EXISTS_UNIX (dlopen HAVE_DLOPEN)
-IF (CMAKE_COMPILER_IS_GNUCC)
- IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
-     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
-   SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
-   SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
- ENDIF()
-ENDIF()
 CHECK_FUNCTION_EXISTS_UNIX (fchmod HAVE_FCHMOD)
 CHECK_FUNCTION_EXISTS_UNIX (fcntl HAVE_FCNTL)
 CHECK_FUNCTION_EXISTS_UNIX (fconvert HAVE_FCONVERT)
@@ -1005,14 +972,7 @@ CHECK_CXX_SOURCE_COMPILES_UNIX("
     }"
     HAVE_GETHOSTBYNAME_R_RETURN_INT)
 
-IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
- CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h  HAVE_DECL_SHM_HUGETLB)
- IF(HAVE_DECL_SHM_HUGETLB)
-   SET(HAVE_LARGE_PAGES 1)
-   SET(HUGETLB_USE_PROC_MEMINFO 1)
-   SET(HAVE_LARGE_PAGE_OPTION 1)
-  ENDIF()
-ENDIF()
+
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
  CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_DECL_MHA_MAPSIZE_VA)
