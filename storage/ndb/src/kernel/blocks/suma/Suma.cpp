@@ -4331,31 +4331,39 @@ found:
           m_gcp_complete_rep_count--;
 	  ndbout_c("handover");
 	}
-        else if (state & Bucket::BUCKET_CREATED)
+        else if (state & Bucket::BUCKET_CREATED_MASK)
         {
           jam();
           Uint32 cnt = state >> 8;
-	  c_buckets[i].m_state &= ~(Uint32(Bucket::BUCKET_CREATED) |(cnt << 8));
+          Uint32 mask = Uint32(Bucket::BUCKET_CREATED_MASK) | (cnt << 8);
+	  c_buckets[i].m_state &= ~mask;
           flags |= SubGcpCompleteRep::ADD_CNT;
           flags |= (cnt << 16);
-          ndbout_c("add %u", cnt);
-          if (get_responsible_node(i) == getOwnNodeId())
+          ndbout_c("add %u %s", cnt, 
+                   state & Bucket::BUCKET_CREATED_SELF ? "self" : "other");
+          if (state & Bucket::BUCKET_CREATED_SELF &&
+              get_responsible_node(i) == getOwnNodeId())
           {
             jam();
             m_active_buckets.set(i);
             m_gcp_complete_rep_count++;
           }
         }
-        else if (state & Bucket::BUCKET_DROPPED)
+        else if (state & Bucket::BUCKET_DROPPED_MASK)
         {
           jam();
           Uint32 cnt = state >> 8;
-	  c_buckets[i].m_state &= ~(Uint32(Bucket::BUCKET_DROPPED) |(cnt << 8));
+          Uint32 mask = Uint32(Bucket::BUCKET_DROPPED_MASK) | (cnt << 8);
+	  c_buckets[i].m_state &= ~mask;
           flags |= SubGcpCompleteRep::SUB_CNT;
           flags |= (cnt << 16);
-          ndbout_c("sub %u", cnt);
-          m_active_buckets.clear(i);
-          drop = true;
+          ndbout_c("sub %u %s", cnt, 
+                   state & Bucket::BUCKET_DROPPED_SELF ? "self" : "other");
+          if (state & Bucket::BUCKET_DROPPED_SELF)
+          {
+            m_active_buckets.clear(i);
+            drop = true;
+          }
         }
       }
     }
@@ -6000,6 +6008,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     Uint64 gci = (Uint64(req->gci_hi) << 32) | req->gci_lo;
     ndbrequire(gci > m_last_complete_gci);
 
+    Uint32 state;
     if (c_nodeGroup != RNIL)
     {
       jam();
@@ -6008,7 +6017,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       ndbrequire(check.isclear());
       ndbrequire(c_nodeGroup != group);
       ndbrequire(cnt == c_nodes_in_nodegroup_mask.count());
-      break;
+      state = Bucket::BUCKET_CREATED_OTHER;
     }
     else
     {
@@ -6016,15 +6025,15 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       c_nodeGroup = group;
       c_nodes_in_nodegroup_mask.assign(tmp);
       fix_nodegroup();
-      for (Uint32 i = 0; i<c_no_of_buckets; i++)
-      {
-        jam();
-        m_switchover_buckets.set(i);
-        c_buckets[i].m_switchover_gci = gci - 1; // start from gci
-        c_buckets[i].m_state = Bucket::BUCKET_CREATED | (c_no_of_buckets << 8);
-      }
+      state = Bucket::BUCKET_CREATED_SELF;
     }
-    break;
+    for (Uint32 i = 0; i<c_no_of_buckets; i++)
+    {
+      jam();
+      m_switchover_buckets.set(i);
+      c_buckets[i].m_switchover_gci = gci - 1; // start from gci
+      c_buckets[i].m_state = state | (c_no_of_buckets << 8);
+    }
   }
 
   {
@@ -6079,31 +6088,35 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
     Uint64 gci = (Uint64(req->gci_hi) << 32) | req->gci_lo;
     ndbrequire(gci > m_last_complete_gci);
 
+    Uint32 state;
     if (c_nodeGroup != group)
     {
       jam();
+      state = Bucket::BUCKET_DROPPED_OTHER;
       break;
     }
     else
     {
       jam();
-      for (Uint32 i = 0; i<c_no_of_buckets; i++)
+      state = Bucket::BUCKET_DROPPED_SELF;
+    }
+
+    for (Uint32 i = 0; i<c_no_of_buckets; i++)
+    {
+      jam();
+      m_switchover_buckets.set(i);
+      if (c_buckets[i].m_state != 0)
       {
-        jam();
-        m_switchover_buckets.set(i);
-        if (c_buckets[i].m_state != 0)
-        {
-          jamLine(c_buckets[i].m_state);
-          ndbout_c("c_buckets[%u].m_state: %u", i, c_buckets[i].m_state);
-        }
-        ndbrequire(c_buckets[i].m_state == 0); // XXX todo
-        c_buckets[i].m_switchover_gci = gci - 1; // start from gci
-        c_buckets[i].m_state = Bucket::BUCKET_DROPPED | (c_no_of_buckets << 8);
+        jamLine(c_buckets[i].m_state);
+        ndbout_c("c_buckets[%u].m_state: %u", i, c_buckets[i].m_state);
       }
+      ndbrequire(c_buckets[i].m_state == 0); // XXX todo
+      c_buckets[i].m_switchover_gci = gci - 1; // start from gci
+      c_buckets[i].m_state = state | (c_no_of_buckets << 8);
     }
     break;
   }
-
+  
   {
     DropNodegroupImplConf* conf =
       (DropNodegroupImplConf*)signal->getDataPtrSend();
