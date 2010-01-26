@@ -1294,6 +1294,25 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
   bool result= sys_var_thd_enum::check(thd, var);
   if (!result)
     result= check_log_update(thd, var);
+  /*
+    If RBR and open temporary tables, their CREATE TABLE may not be in the
+    binlog, so we can't toggle to SBR in this connection.
+
+    If binlog_format=MIXED, there are open temporary tables, and an unsafe
+    statement is executed, then subsequent statements are logged in row
+    format and hence changes to temporary tables may be lost. So we forbid
+    switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
+    open temp tables and we are logging in row format.
+  */
+  if (thd->temporary_tables && var->type == OPT_SESSION &&
+      var->save_result.ulong_value == BINLOG_FORMAT_STMT &&
+      ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+        thd->is_current_stmt_binlog_format_row()) ||
+       thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+  {
+    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
+    return 1;
+  }
   return result;
 }
 
@@ -1303,23 +1322,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     Under certain circumstances, the variable is read-only (unchangeable):
   */
   THD *thd= current_thd;
-  /*
-    If RBR and open temporary tables, their CREATE TABLE may not be in the
-    binlog, so we can't toggle to SBR in this connection.
-    The test below will also prevent SET GLOBAL, well it was not easy to test
-    if global or not here.
-    And this test will also prevent switching from RBR to RBR (a no-op which
-    should not happen too often).
-
-    If we don't have row-based replication compiled in, the variable
-    is always read-only.
-  */
-  if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
-      thd->temporary_tables)
-  {
-    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
-    return 1;
-  }
   /*
     if in a stored function/trigger, it's too late to change mode
   */
