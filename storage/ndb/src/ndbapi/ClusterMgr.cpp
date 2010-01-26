@@ -127,7 +127,8 @@ ClusterMgr::configure(const ndb_mgm_configuration* config){
   /* Init own node info */
   Node &node= theNodes[theFacade.ownId()];
   assert(node.defined);
-  node.m_api_reg_conf= true;
+  node.set_connected(true);
+  node.set_confirmed(true);
 
 #if 0
   print_nodes("init");
@@ -285,7 +286,7 @@ ClusterMgr::threadMain( ){
       if (!theNode.defined)
 	continue;
 
-      if (theNode.connected == false){
+      if (theNode.is_connected() == false){
 	theFacade.doConnect(nodeId);
 	continue;
       }
@@ -328,7 +329,7 @@ ClusterMgr::threadMain( ){
 ClusterMgr::Node::Node()
   : m_state(NodeState::SL_NOTHING) { 
   compatible = nfCompleteRep = true;
-  connected = defined = m_alive = m_api_reg_conf = false; 
+  m_connected = defined = m_alive = m_api_reg_conf = false;
   m_state.m_connected_nodes.clear();
 }
 
@@ -349,7 +350,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
 
   Node & node = theNodes[nodeId];
   assert(node.defined == true);
-  assert(node.connected == true);
+  assert(node.is_connected() == true);
 
   if(node.m_info.m_version != apiRegReq->version){
     node.m_info.m_version = apiRegReq->version;
@@ -378,7 +379,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->nodeState= node.m_state;
 
   if (theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
-    node.m_api_reg_conf= true;
+    node.set_confirmed(true);
 }
 
 void
@@ -394,7 +395,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   
   Node & node = theNodes[nodeId];
   assert(node.defined == true);
-  assert(node.connected == true);
+  assert(node.is_connected() == true);
 
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
@@ -410,7 +411,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
 					      node.m_info.m_version);
   }
 
-  node.m_api_reg_conf = true;
+  node.set_confirmed(true);
 
   if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
   {
@@ -466,7 +467,7 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
   assert(nodeId > 0 && nodeId < MAX_NODES);
 
   Node & node = theNodes[nodeId];
-  assert(node.connected == true);
+  assert(node.is_connected() == true);
   assert(node.defined == true);
   /* Only DB nodes will send API_REGREF */
   assert(node.m_info.getType() == NodeInfo::DB);
@@ -528,7 +529,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
   noOfConnectedNodes++;
 
   Node & theNode = theNodes[nodeId];
-  theNode.connected = true;
+  theNode.set_connected(true);
   theNode.m_info.m_heartbeat_cnt = 0;
   theNode.hbCounter = 0;
 
@@ -553,8 +554,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
   assert(noOfConnectedNodes > 0);
 
   noOfConnectedNodes--;
-  theNodes[nodeId].connected = false;
-  theNodes[nodeId].m_api_reg_conf = false;
+  theNodes[nodeId].set_confirmed(false);
+  theNodes[nodeId].set_connected(false);
   theNodes[nodeId].m_state.m_connected_nodes.clear();
 
   reportNodeFailed(nodeId, true);
@@ -570,7 +571,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
   set_node_alive(theNode, false);
   theNode.m_info.m_connectCount ++;
   
-  if(theNode.connected)
+  if(theNode.is_connected())
   {
     theFacade.doDisconnect(nodeId);
   }
@@ -625,11 +626,11 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
       continue;
     out << "node: " << n << endl;
     out << " -";
-    out << " connected: " << node.connected;
+    out << " connected: " << node.is_connected();
     out << ", compatible: " << node.compatible;
     out << ", nf_complete_rep: " << node.nfCompleteRep;
     out << ", alive: " << node.m_alive;
-    out << ", api_reg_conf: " << node.m_api_reg_conf;
+    out << ", confirmed: " << node.is_confirmed();
     out << endl;
 
     out << " - " << node.m_info << endl;
