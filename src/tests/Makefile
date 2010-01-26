@@ -126,6 +126,8 @@ BDB_DONTRUN_TESTS = \
 	recover-fclose-in-checkpoint \
 	recover-delboth-checkpoint \
 	recover-delboth-after-checkpoint \
+	loader-reference-test \
+	loader-stress-test \
 	recover-lsn-filter-multiple \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \
@@ -391,6 +393,8 @@ endif
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CFLAGS+= -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1
 %.tdb$(BINSUF) %.tdbt$(BINSUF): CPPFLAGS+=-I$(TOKUROOT)include
+loader-stress-test: CPPFLAGS+=-I$(TOKUROOT)include -DENVDIR=\"dir.$<\"
+loader-stress-test: LOADLIBES+=-L.. -ltokudb -Wl,-rpath,..
 
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
 	$(CC) $< $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)

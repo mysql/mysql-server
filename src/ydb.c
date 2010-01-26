@@ -30,6 +30,8 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "dlmalloc.h"
 #include "checkpoint.h"
 #include "key.h"
+#include "loader.h"
+#include "ydb_load.h"
 
 
 #ifdef TOKUTRACE
@@ -1518,6 +1520,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(txn_stat);
     result->txn_begin = locked_txn_begin;
 #undef SENV
+    result->create_loader = toku_loader_create_loader;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
@@ -3956,13 +3959,21 @@ create_iname_hint(const char *dname, char *hint) {
     *hint = '\0';
 }
 
+
+// n >= 0 means to include "_L_" with hex value of n in iname
+// (intended for use by loader, which will create many inames using one txnid).
 static char *
-create_iname(DB_ENV *env, u_int64_t id, char *hint) {
+create_iname(DB_ENV *env, u_int64_t id, char *hint, int n) {
+    int bytes;
     char inamebase[strlen(hint) +
-		   8 +  // hex version
-		   16 + // hex id
-		   sizeof("__.tokudb")]; // extra pieces
-    int bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION);
+		   8 +  // hex file format version
+		   16 + // hex id (normally the txnid)
+		   8  + // hex value of n if non-neg
+		   sizeof("_L___.tokudb")]; // extra pieces
+    if (n < 0)
+	bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION);
+    else
+	bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32"_L_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION, n);
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);
     char *rval;
@@ -4055,7 +4066,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 	if (using_txns)
 	    id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
 	create_iname_hint(dname, hint);
-        iname = create_iname(db->dbenv, id, hint);  // allocated memory for iname
+        iname = create_iname(db->dbenv, id, hint, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE for performance only, avoid unnecessary query
     }
@@ -5228,4 +5239,71 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
     int r = autotxn_db_get(directory, NULL, dname_dbt, iname_dbt, DB_PRELOCKED); // allocates memory for iname
     return r;
 }
+
+/* Following functions (ydb_load_xxx()) are used by loader:
+ */
+
+
+// When the loader is created, it makes this call.
+// For each dictionary to be loaded, replace old iname in directory
+// with a newly generated iname.  This will also take a write lock
+// on the directory entries.  The write lock will be released when
+// the transaction of the loader is completed.
+// If the transaction commits, the new inames are in place.
+// If the transaction aborts, the old inames will be restored.
+// The new inames are returned to the caller.  
+// It is the caller's responsibility to free them.
+// Return 0 on success (could fail if write lock not available).
+int
+ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames[N]) {
+    int rval;
+    int i;
+    
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    DB_TXN * child = NULL;
+    u_int64_t xid = 0;
+    DBT dname_dbt;  // holds dname
+    DBT iname_dbt;  // holds new iname
+    
+    // begin child (unless transactionless)
+    if (using_txns) {
+	rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1);
+	assert(rval == 0);
+	xid = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
+    }
+    for (i = 0; i < N; i++) {
+	char * dname = dbs[i]->i->dname;
+	toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
+	// now create new iname
+	char hint[strlen(dname) + 1];
+	create_iname_hint(dname, hint);
+	char * new_iname = create_iname(env, xid, hint, i);
+	new_inames[i] = new_iname;
+        toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);
+        rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
+	if (rval) break;
+    }
+	
+    if (using_txns) {
+	// close txn
+	if (rval == 0) {  // all well so far, commit child
+	    rval = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    assert(rval==0);
+	}
+	else {         // abort child
+	    int r2 = toku_txn_abort(child);
+	    assert(r2==0);
+	    for (i=0; i<N; i++) {
+		if (new_inames[i]) {
+		    toku_free(new_inames[i]);
+		    new_inames[i] = NULL;
+		}
+	    }
+	}
+    }
+
+    return rval;
+}
+
+
 

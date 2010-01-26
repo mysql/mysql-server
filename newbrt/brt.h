@@ -30,6 +30,9 @@ typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, byte
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
+int toku_redirect_brt (const char *fname_in_env, BRT brt, TOKUTXN txn);
+// See the brt.c file for what this toku_redirect_brt does
+
 u_int32_t toku_serialize_descriptor_size(struct descriptor *desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);

@@ -570,6 +570,22 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     return r;
 }
 
+static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
+
+int toku_cachetable_redirect (CACHEFILE cf, int fd, const char *fname_in_env) {
+    CACHETABLE ct = cf->cachetable;
+    if (cf->fname_relative_to_env) toku_free(cf->fname_relative_to_env);
+    cf->fname_relative_to_env = toku_strdup(fname_in_env);
+    int r = cachetable_flush_cachefile(ct, cf);
+    assert(r==0);
+    assert(cf->closefd_waiting == 0); // cannot handle it if something else is waiting
+    r = close(cf->fd);
+    assert(r==0);
+    cf->fd = fd;
+    return 0;
+
+}
+
 //TEST_ONLY_FUNCTION
 int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname, const char *fname_relative_to_env, int flags, mode_t mode) {
     int fd = open(fname, flags+O_BINARY, mode);
@@ -656,8 +672,6 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
     ct->cachefiles = remove_cf_from_list_locked(cf, ct->cachefiles);
     cachefiles_unlock(ct);
 }
-
-static int cachetable_flush_cachefile (CACHETABLE, CACHEFILE cf);
 
 int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN oplsn) {
 
@@ -1865,8 +1879,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 	    {
 		LSN begin_lsn={.lsn=-1}; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
 		int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, 0);
-		ct->lsn_of_checkpoint_in_progress = begin_lsn;
 		assert(r==0);
+		ct->lsn_of_checkpoint_in_progress = begin_lsn;
 	    }
 	    // Log all the open transactions
 	    {

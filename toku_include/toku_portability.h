@@ -122,9 +122,9 @@ ssize_t  write(int, const void *, size_t)           __attribute__((__deprecated_
 ssize_t  pwrite(int, const void *, size_t, off_t)   __attribute__((__deprecated__));
 #endif
 #    ifndef DONT_DEPRECATE_MALLOC
-void *malloc(size_t)                    __attribute__((__deprecated__));
-void free(void*)                        __attribute__((__deprecated__));
-void *realloc(void*, size_t)            __attribute__((__deprecated__));
+extern void *malloc(size_t)                    __THROW __attribute__((__deprecated__)) ;
+extern void free(void*)                        __THROW __attribute__((__deprecated__));
+extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecated__));
 #    endif
 #   endif
 #endif
