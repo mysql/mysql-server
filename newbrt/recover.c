@@ -801,13 +801,8 @@ static int toku_recover_backward_fassociate (struct logtype_fassociate *l, RECOV
 static int toku_recover_xstillopen (struct logtype_xstillopen *UU(l), RECOVER_ENV UU(renv)) {
     switch (renv->ss.ss) {
     case FORWARD_OLDER_CHECKPOINT_BEGIN:
-        return 0;
     case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END:
     case FORWARD_NEWER_CHECKPOINT_END: {
-        // assert that the transaction exists
-        TOKUTXN txn = NULL;
-        int r = toku_txnid2txn(renv->logger, l->txnid, &txn);
-        assert(r == 0 && txn != NULL);
         return 0;
     }
     default:
