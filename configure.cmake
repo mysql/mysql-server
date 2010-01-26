@@ -46,6 +46,7 @@ ENDIF()
 
 #
 # Tests for OS
+#
 IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(TARGET_OS_LINUX 1)
   SET(HAVE_NPTL 1)
@@ -54,17 +55,8 @@ ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET(TARGET_OS_SOLARIS 1)
 ENDIF()
 
-
-# OS display name (version_compile_os etc).
-# Used by the test suite to ignore bugs on some platforms, 
-# typically on Windows.
-IF(WIN32)
- IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
-   SET(SYSTEM_TYPE "Win64")
- ELSE()
-   SET(SYSTEM_TYPE "Win32")
- ENDIF()
-ELSE()
+# System type affects version_compile_os variable 
+IF(NOT SYSTEM_TYPE)
   IF(PLATFORM)
     SET(SYSTEM_TYPE ${PLATFORM})
   ELSE()
@@ -72,12 +64,6 @@ ELSE()
   ENDIF()
 ENDIF()
 
-
-# Intel compiler is almost Visual C++
-# (same compile flags etc). Set MSVC flag
-IF(WIN32 AND CMAKE_C_COMPILER MATCHES "icl")
- SET(MSVC TRUE)
-ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS 
@@ -88,10 +74,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     IF (NO_IMPLICIT_TEMPLATES)
       SET(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION TRUE)
     ENDIF()
-  ENDIF()
-  IF(MINGW AND CMAKE_SIZEOF_VOIDP EQUAL 4)
-   # mininal architecture flags, i486 enables GCC atomics
-   ADD_DEFINITIONS(-march=i486)
   ENDIF()
   IF(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
     # Workaround linker problems  on OSX 10.4
@@ -115,16 +97,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "AIX" OR CMAKE_SYSTEM_NAME MATCHES "OS400")
   SET(_LARGE_FILES 1)
 ENDIF()
 
-
-
-  
-IF(MSVC)
-# Enable debug info also in Release build, and create PDB to be able to analyze 
-# crashes
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
-  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
-  SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /debug")
-ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
     # VS2003 has a bug that prevents linking mysqld with module definition file 
@@ -181,69 +153,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   ADD_DEFINITIONS(-DHAVE_RWLOCK_T)
 ENDIF()
 
-# Disable warnings in Visual Studio 8 and above
-IF(MSVC AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7")
-  #TODO: update the code and remove the disabled warnings
-  ADD_DEFINITIONS(/wd4800 /wd4805)
-  ADD_DEFINITIONS(/wd4996)
-ENDIF()
-
-
-# Settings for Visual Studio 7 and above.  
-IF(MSVC)
-    # replace /MDd with /MTd
-    STRING(REPLACE "/MD"  "/MT"  CMAKE_C_FLAGS_RELEASE          ${CMAKE_C_FLAGS_RELEASE})
-    STRING(REPLACE "/MD"  "/MT"  CMAKE_C_FLAGS_RELWITHDEBINFO   ${CMAKE_C_FLAGS_RELWITHDEBINFO})
-    STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG            ${CMAKE_C_FLAGS_DEBUG})
-    STRING(REPLACE "/MDd" "/MTd" CMAKE_C_FLAGS_DEBUG_INIT       ${CMAKE_C_FLAGS_DEBUG_INIT})
-
-    STRING(REPLACE "/MD"  "/MT"  CMAKE_CXX_FLAGS_RELEASE        ${CMAKE_CXX_FLAGS_RELEASE})
-    STRING(REPLACE "/MD"  "/MT"  CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-    STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG          ${CMAKE_CXX_FLAGS_DEBUG})
-    STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG_INIT     ${CMAKE_CXX_FLAGS_DEBUG_INIT})
-
-    # generate map files, set stack size (see bug#20815)
-    SET(thread_stack_size 1048576)
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:${thread_stack_size}")
-    ADD_DEFINITIONS(-DPTHREAD_STACK_MIN=${thread_stack_size})
-
-    # remove support for Exception handling
-    STRING(REPLACE "/GX"   "" CMAKE_CXX_FLAGS            ${CMAKE_CXX_FLAGS})
-    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS            ${CMAKE_CXX_FLAGS})
-    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_INIT       ${CMAKE_CXX_FLAGS_INIT})
-    STRING(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS_DEBUG_INIT ${CMAKE_CXX_FLAGS_DEBUG_INIT})
-    
-    # Mark 32 bit executables large address aware so they can 
-    # use > 2GB address space
-    IF(CMAKE_SIZEOF_VOID_P MATCHES 4)
-      SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-    ENDIF(CMAKE_SIZEOF_VOID_P MATCHES 4)
-ENDIF(MSVC)
-
-IF(WIN32)
-  ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
-  ADD_DEFINITIONS("-D_WIN32_WINNT=0x0501")
-  # Speed up build process excluding unused header files
-  ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
-  IF (MSVC_VERSION GREATER 1400)
-    # Speed up multiprocessor build
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-  ENDIF()
-
-  # default to x86 platform.  We'll check for X64 in a bit
-  SET (PLATFORM X86)
-  IF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
-    # _WIN64 is defined by the compiler itself. 
-    # Yet, we define it here again   to work around a bug with  Intellisense 
-    # described here: http://tinyurl.com/2cb428. 
-    # Syntax highlighting is important for proper debugger functionality.
-    ADD_DEFINITIONS("-D_WIN64")
-    SET (PLATFORM X64)
-  ENDIF()
-ENDIF()
-
-
 
 # Figure out what engines to build and how (statically or dynamically),
 # add preprocessor defines for storage engines.
@@ -251,15 +160,6 @@ IF(WITHOUT_DYNAMIC_PLUGINS)
   MESSAGE("Dynamic plugins are disabled.")
 ENDIF(WITHOUT_DYNAMIC_PLUGINS)
 
-
-# Perform machine tests on posix platforms only
-IF(WIN32)
- SET(SYSTEM_LIBS ws2_32)
- SET(CMAKE_REQUIRED_INCLUDES "winsock2.h;ws2tcpip.h")
- SET(CMAKE_REQUIRED_DEFINITONS "-D_WIN32_WINNT=0x0501")
- SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ws2_32)
- LINK_LIBRARIES(ws2_32)
-ENDIF()
 
 # Searches function in libraries
 # if function is found, sets output parameter result to the name of the library
@@ -345,43 +245,12 @@ IF(CMAKE_OSX_SYSROOT)
  SET(ENV{MACOSX_DEPLOYMENT_TARGET} ${OSX_DEPLOYMENT_TARGET})
 ENDIF()
 
-# This macro is used only on Windows at the moment
-# Some standard functions exist there under different
-# names (e.g popen is _popen or strok_r is _strtok_s)
-# If a replacement function exists, HAVE_FUNCTION is
-# defined to 1. CMake variable <function_name> will also
-# be defined to the replacement name.
-# So for example, CHECK_FUNCTION_REPLACEMENT(popen _popen)
-# will define HAVE_POPEN to 1 and set variable named popen
-# to _popen. If the header template, one needs to have
-# cmakedefine popen @popen@ which will expand to 
-# define popen _popen after CONFIGURE_FILE
 
-MACRO(CHECK_FUNCTION_REPLACEMENT function replacement)
-  STRING(TOUPPER ${function} function_upper)
-  CHECK_FUNCTION_EXISTS(${function} HAVE_${function_upper})
-  IF(NOT HAVE_${function_upper})
-    CHECK_FUNCTION_EXISTS(${replacement}  HAVE_${replacement})
-    IF(HAVE_${replacement})
-      SET(HAVE_${function_upper} 1 )
-      SET(${function} ${replacement})
-    ENDIF()
-  ENDIF()
-ENDMACRO()
-
-MACRO(CHECK_SYMBOL_REPLACEMENT symbol replacement header)
-  STRING(TOUPPER ${symbol} symbol_upper)
-  CHECK_SYMBOL_EXISTS(${symbol} ${header} HAVE_${symbol_upper})
-  IF(NOT HAVE_${symbol_upper})
-    CHECK_SYMBOL_EXISTS(${replacement} ${header} HAVE_${replacement})
-    IF(HAVE_${replacement})
-      SET(HAVE_${symbol_upper} 1)
-      SET(${symbol} ${replacement})
-    ENDIF()
-  ENDIF()
-ENDMACRO()
-
-
+# System check macros that do nothing on Windows.
+# Very often, it is known that some function is not available
+# on Windows. In such cases it makes sense to use these macros
+# as build  with Visual Studio is considerably faster if irrelevant
+# checks are omitted.
 MACRO(CHECK_INCLUDE_FILES_UNIX INCLUDES VAR)
 IF(UNIX)
   CHECK_INCLUDE_FILES ("${INCLUDES}" ${VAR})
@@ -1333,52 +1202,3 @@ CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_IN
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_namlen "dirent.h"  STRUCT_DIRENT_HAS_D_NAMLEN)
 SET(SPRINTF_RETURNS_INT 1)
 
-IF(WIN32)
-  SET(SIGNAL_WITH_VIO_CLOSE 1)
-  CHECK_SYMBOL_REPLACEMENT(S_IROTH _S_IREAD sys/stat.h)
-  CHECK_SYMBOL_REPLACEMENT(S_IFIFO _S_IFIFO sys/stat.h)
-  CHECK_SYMBOL_REPLACEMENT(SIGQUIT SIGTERM signal.h)
-  CHECK_SYMBOL_REPLACEMENT(SIGPIPE SIGINT signal.h)
-  CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
-  CHECK_SYMBOL_REPLACEMENT(finite _finite float.h)
-  CHECK_FUNCTION_REPLACEMENT(popen _popen)
-  CHECK_FUNCTION_REPLACEMENT(pclose _pclose)
-  CHECK_FUNCTION_REPLACEMENT(access _access)
-  CHECK_FUNCTION_REPLACEMENT(strcasecmp _stricmp)
-  CHECK_FUNCTION_REPLACEMENT(strncasecmp _strnicmp)
-  CHECK_FUNCTION_REPLACEMENT(snprintf _snprintf)
-  CHECK_FUNCTION_REPLACEMENT(strtok_r strtok_s)
-  CHECK_FUNCTION_REPLACEMENT(strtoll _strtoi64)
-  CHECK_FUNCTION_REPLACEMENT(strtoull _strtoui64)
-  CHECK_TYPE_SIZE(ssize_t SIZE_OF_SSIZE_T)
-  IF(NOT SIZE_OF_SSIZE_T)
-    SET(ssize_t SSIZE_T)
-  ENDIF()
-
-
-  # IPv6 definition (appeared in Vista SDK first)
-  CHECK_C_SOURCE_COMPILES("
-  #include <winsock2.h>
-  int main()
-  {
-    return IPPROTO_IPV6;
-  }"
-  HAVE_IPPROTO_IPV6)
-  
-  CHECK_C_SOURCE_COMPILES("
-  #include <winsock2.h>
-  #include <ws2ipdef.h>
-  int main()
-  {
-    return IPV6_V6ONLY;
-  }"
-  HAVE_IPV6_V6ONLY)
-
-  IF(NOT HAVE_IPPROTO_IPV6)
-    SET(HAVE_IPPROTO_IPV6 41)
-  ENDIF()
-  IF(NOT HAVE_IPV6_V6ONLY)
-    SET(IPV6_V6ONLY 27)
-  ENDIF()
-
-ENDIF(WIN32)
