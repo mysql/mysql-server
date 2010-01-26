@@ -29,4 +29,4 @@ EXTRA_LIBRARIES=	libadtnull.a
 noinst_LIBRARIES=	@plugin_audit_null_static_target@
 libadtnull_a_SOURCES=	audit_null.c
 
-EXTRA_DIST=		plug.in
+EXTRA_DIST=		plug.in CMakeLists.txt
