@@ -23,6 +23,8 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 EXTRA_DIST = $(TEST_DIR)/*.java \
 	ndbjtie_unit_tests-t
 
+NDBJTIE = ../src
+
 ## list of jar files to install
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
 ##   with _DATA, prefix dist_ is needed to add files to the distribution;
