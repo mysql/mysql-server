@@ -111,10 +111,9 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
-      ${target} CACHE INTERNAL "")
+      ${target} CACHE INTERNAL "" FORCE)
 
-  
-    IF(ARG_STORAGE_ENGINE)
+    IF(NOT ARG_MANDATORY)
       SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
         FORCE)
     ENDIF()

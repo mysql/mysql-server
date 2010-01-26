@@ -182,7 +182,6 @@ IF(UNIX)
     ENDIF()
   ENDIF()
 ENDIF()
-s
 
 # System check macros that do nothing on Windows.
 # Very often, it is known that some function is not available
