@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -119,6 +119,13 @@ public class PropertyImpl implements PredicateOperand {
         return (Predicate) new LessEqualPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
+    public Predicate in(PredicateOperand other) {
+        if (!(other instanceof ParameterImpl)) {
+            throw new ClusterJUserException(
+                    local.message("ERR_Only_Parameters", "in"));
+        }
+        return (Predicate) new InPredicateImpl(dobj, this, (ParameterImpl)other);
+    }
     void markLowerBound(CandidateIndexImpl[] candidateIndices, PredicateImpl predicate, boolean strict) {
         fmd.markLowerBounds(candidateIndices, predicate, strict);
     }

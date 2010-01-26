@@ -144,6 +144,11 @@ class ScanFilterImpl implements ScanFilter {
         handleError(returnCode, ndbScanFilter);
     }
 
+    public void isNull(Column storeColumn) {
+        int returnCode = ndbScanFilter.isnull(storeColumn.getColumnId());
+        handleError(returnCode, ndbScanFilter);
+    }
+
     public void end() {
         int returnCode = ndbScanFilter.end();
         handleError(returnCode, ndbScanFilter);
@@ -171,6 +176,10 @@ class ScanFilterImpl implements ScanFilter {
         switch(group) {
             case GROUP_AND:
                 return NdbScanFilter.Group.AND;
+            case GROUP_NAND:
+                return NdbScanFilter.Group.NAND;
+            case GROUP_OR:
+                return NdbScanFilter.Group.OR;
             default:
                 throw new ClusterJFatalInternalException(
                         local.message("ERR_Implementation_Should_Not_Occur"));

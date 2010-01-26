@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -72,5 +72,13 @@ public interface PredicateOperand {
      * @return a new Predicate
      */
     Predicate between(PredicateOperand lower, PredicateOperand upper);
+
+    /** Return a Predicate representing comparing this to a collection of
+     * values using "in" semantics.
+     *
+     * @param other another PredicateOperand
+     * @return a new Predicate
+     */
+    Predicate in(PredicateOperand other);
 
 }

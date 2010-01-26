@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -104,6 +104,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     }
 
     public QueryDefinition<T> where(Predicate predicate) {
+        if (predicate == null) {
+            throw new ClusterJUserException(
+                    local.message("ERR_Query_Where_Must_Not_Be_Null"));
+        }
         if (!(predicate instanceof PredicateImpl)) {
             throw new UnsupportedOperationException(
                     local.message("ERR_NotImplemented"));
@@ -127,6 +131,14 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             parameters.put(parameterName, result);
             return result;
         }
+    }
+
+    /** Convenience method to negate a predicate.
+     * @param predicate the predicate to negate
+     * @return the inverted predicate
+     */
+    public Predicate not(Predicate predicate) {
+        return predicate.not();
     }
 
     /** Query.getResultList delegates to this method.
@@ -164,6 +176,9 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
 	    }
 	    session.endAutoTransaction();
 	    return resultList;
+        } catch (ClusterJException ex) {
+            session.failAutoTransaction();
+            throw ex;
         } catch (Exception ex) {
             session.failAutoTransaction();
             throw new ClusterJException(
@@ -185,7 +200,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         // if no where clause, scan the entire table
         index = where==null?
             CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex();
+            where.getBestCandidateIndex(context);
         int scanType = index.getScanType();
 
         switch (scanType) {
@@ -214,6 +229,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 domainTypeHandler.operationGetValues(op);
                 // set the bounds into the operation
                 index.operationSetBounds(context, op);
+                // set additional filter conditions
+                where.filterCmpValue(context, op);
                 // execute the scan and get results
                 ResultData rs = op.resultData();
                 return rs;

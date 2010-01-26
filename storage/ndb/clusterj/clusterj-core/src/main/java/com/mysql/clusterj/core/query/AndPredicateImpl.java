@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -18,9 +18,11 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 import com.mysql.clusterj.ClusterJException;
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.query.Predicate;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,12 @@ public class AndPredicateImpl extends PredicateImpl {
             return this;
         } else if (predicate instanceof AndPredicateImpl) {
             predicates.addAll(((AndPredicateImpl)predicate).predicates);
+            return this;
+        } else if (predicate instanceof OrPredicateImpl) {
+            predicates.add((PredicateImpl)predicate);
+            return this;
+        } else if (predicate instanceof InPredicateImpl) {
+            predicates.add((PredicateImpl)predicate);
             return this;
         } else {
             throw new UnsupportedOperationException(
@@ -95,15 +103,42 @@ public class AndPredicateImpl extends PredicateImpl {
         }
     }
 
+    /** Set the keys into the operation for each predicate.
+     * Each predicate must be an equal predicate for a primary or unique key.
+     */
+    public void operationEqual(QueryExecutionContextImpl context,
+            Operation op) {
+        for (PredicateImpl predicate: predicates) {
+            if (!(predicate instanceof EqualPredicateImpl)) {
+                throw new ClusterJFatalInternalException(
+                        local.message("ERR_Implementation_Should_Not_Occur"));
+            }
+            predicate.operationEqual(context, op);
+        }
+    }
+
     /** Get the best index for the operation. Delegate to the method
      * in the superclass, passing the array of predicates.
      *
      * @return the best index
      */
     @Override
-    public CandidateIndexImpl getBestCandidateIndex() {
-        return getBestCandidateIndexFor(predicates.toArray(
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContextImpl context) {
+        return getBestCandidateIndexFor(context, predicates.toArray(
                 new PredicateImpl[predicates.size()]));
     }
 
+    /** Get the number of conditions in the top level predicate.
+     * This is used to determine whether a hash index can be used. If there
+     * are exactly the number of conditions as index columns, then the
+     * hash index might be used.
+     * For AND predicates, there is one condition for each predicate included
+     * in the AND.
+     * AndPredicateImpl overrides this method.
+     * @return the number of conditions
+     */
+    @Override
+    protected int getNumberOfConditionsInPredicate() {
+        return predicates.size();
+    }
 }

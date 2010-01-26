@@ -57,6 +57,9 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/QueryDomainTypeImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/QueryExecutionContextImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/QueryImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/InPredicateImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/NotPredicateImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/OrPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/SessionFactoryImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/SessionFactoryServiceImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/SessionImpl.java \
@@ -89,7 +92,7 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/JDK14LoggerImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/Logger.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactory.java \
-  $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactoryService.java
+  $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactoryService.java 
 
 clusterj_core_DATA = $(clusterj_core_version_JAR) 
 

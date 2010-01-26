@@ -32,7 +32,11 @@ public class GreaterEqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+        if (param.getParameterValue(context) == null) {
+            // null parameters cannot be used with indexes
+            return;
+        }
         property.markLowerBound(candidateIndices, this, false);
     }
 

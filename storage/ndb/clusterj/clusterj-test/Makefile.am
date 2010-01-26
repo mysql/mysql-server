@@ -86,6 +86,14 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TransactionStateTest.java \
   $(clusterj_test_src)/testsuite/clusterj/UpdateTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/PartitionKeyTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryExtraConditionsTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryInTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryNotNullTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryNotTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryNullTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryOrTest.java \
   $(clusterj_test_src)/testsuite/clusterj/domaintypehandler/CrazyDomainTypeHandlerFactoryImpl.java \
   $(clusterj_test_src)/testsuite/clusterj/model/AllPrimitives.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BadEmployeeNoPrimaryKeyAnnotationOnClass.java \
@@ -125,8 +133,8 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/TimeAsUtilDateTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsSqlTimestampTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsUtilDateTypes.java \
-  $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java 
-
+  $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringPK.java
 
 EXTRA_DIST = \
   src/main/resources/clusterj.properties \
