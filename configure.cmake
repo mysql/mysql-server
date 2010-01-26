@@ -45,10 +45,6 @@ ENDIF()
 
 
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  SET(TARGET_OS_SOLARIS 1)
-ENDIF()
-
 # System type affects version_compile_os variable 
 IF(NOT SYSTEM_TYPE)
   IF(PLATFORM)
@@ -92,9 +88,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "HP-UX")
   SET(_LARGEFILE64_SOURCE 1)
   SET(_FILE_OFFSET_BITS 64)
 ENDIF()
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS" )
-  SET(_FILE_OFFSET_BITS 64)
-ENDIF()
 IF(CMAKE_SYSTEM_NAME MATCHES "AIX" OR CMAKE_SYSTEM_NAME MATCHES "OS400")
   SET(_LARGE_FILES 1)
 ENDIF()
@@ -123,10 +116,6 @@ ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX" AND CMAKE_SYSTEM MATCHES "11")
   ADD_DEFINITIONS(-DHPUX11)
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  ADD_DEFINITIONS(-DHAVE_RWLOCK_T)
-ENDIF()
-
 
 # Figure out what engines to build and how (statically or dynamically),
 # add preprocessor defines for storage engines.
@@ -139,6 +128,10 @@ ENDIF(WITHOUT_DYNAMIC_PLUGINS)
 # if function is found, sets output parameter result to the name of the library
 # if function is found in libc, result will be empty 
 FUNCTION(MY_SEARCH_LIBS func libs result)
+  IF(${${result}})
+    # Library is already found or was predefined
+    RETURN()
+  ENDIF()
   CHECK_FUNCTION_EXISTS(${func} HAVE_${func}_IN_LIBC)
   IF(HAVE_${func}_IN_LIBC)
     SET(${result} "" PARENT_SCOPE)
@@ -158,13 +151,6 @@ IF(UNIX)
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
-  
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-   # On  Solaris, use of intrinsics will screw the lib search logic
-   # Force using -lm, so rint etc are found.
-   SET(LIBM m)
-  ENDIF()
-
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
@@ -175,13 +161,6 @@ IF(UNIX)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
   ENDIF()
   FIND_PACKAGE(Threads)
-
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    # CMake defined -lthread as thread flag 
-    # This crashes in dlopen when trying to load plugins 
-    # Workaround with -lpthread
-    SET(CMAKE_THREADS_LIBS_INIT -lpthread)
-  ENDIF()
 
   SET(CMAKE_REQUIRED_LIBRARIES 
     ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
@@ -973,15 +952,6 @@ CHECK_CXX_SOURCE_COMPILES_UNIX("
     HAVE_GETHOSTBYNAME_R_RETURN_INT)
 
 
-
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
- CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_DECL_MHA_MAPSIZE_VA)
- IF(HAVE_DECL_MHA_MAPSIZE_VA)
-   SET(HAVE_SOLARIS_LARGE_PAGES 1)
-   SET(HAVE_LARGE_PAGE_OPTION 1)
-  ENDIF()
-ENDIF()
-
 # Use of ALARMs to wakeup on timeout on sockets
 #
 # This feature makes use of a mutex and is a scalability hog we
@@ -1085,36 +1055,6 @@ instructions for multi-processor or uniprocessor
 configuration. By default gcc built-in sync functions are used,
 if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
-
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
- CHECK_C_SOURCE_RUNS(
- "
- #include  <atomic.h>
-  int main()
-  {
-    int foo = -10; int bar = 10;
-    int64_t foo64 = -10; int64_t bar64 = 10;
-    if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
-      return -1;
-    bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
-    if (bar || foo != 10)
-     return -1;
-    bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
-    if (bar)
-      return -1;
-    if (atomic_add_64_nv((volatile uint64_t *)&foo64, bar64) || foo64)
-      return -1;
-    bar64 = atomic_swap_64((volatile uint64_t *)&foo64, (uint64_t)bar64);
-    if (bar64 || foo64 != 10)
-      return -1;
-    bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
-    if (bar64)
-      return -1;
-    atomic_or_64((volatile uint64_t *)&bar64, 0);
-    return 0;
-  }
-"  HAVE_SOLARIS_ATOMIC)
-ENDIF()
 
 #--------------------------------------------------------------------
 # Check for IPv6 support
