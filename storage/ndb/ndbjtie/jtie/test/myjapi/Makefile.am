@@ -77,7 +77,8 @@ classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 $(MYJAPI_JAR): classmyjapi.stamp
 	rm -f $@; @JAR@ cvf $@  \
           -C $(top_srcdir)/storage/ndb/ndbjtie/jtie/src/target/classes com/mysql/jtie \
-          -C $(JAVAROOT) myjapi
+          -C $(JAVAROOT) myjapi \
+          -C $(JAVAROOT) test
 	$(LN_CP_F) -f $(MYJAPI_JAR) jtie-test-myjapi.jar
 
 ## generate JNI header files (for development only)
