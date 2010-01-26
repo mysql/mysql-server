@@ -20,7 +20,7 @@
 #
 # We use gcc specific preprocessing command and sed/diff, so it will 
 # only be run  on Unix and only if gcc is used.
-IF(CMAKE_COMPILER_IS_GNUCC AND Linux)
+IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
   IF(CMAKE_C_COMPILER MATCHES "ccache$")
     SET(COMPILER ${CMAKE_C_COMPILER_ARG1})
     STRING(REGEX REPLACE "^ " "" COMPILER ${COMPILER})
