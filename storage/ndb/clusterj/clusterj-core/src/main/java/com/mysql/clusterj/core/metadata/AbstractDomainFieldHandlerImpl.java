@@ -138,10 +138,20 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     }
 
     public void filterCompareValue(Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
+        if (value == null) {
+            if (ScanFilter.BinaryCondition.COND_EQ.equals(condition)) {
+                filter.isNull(storeColumn);
+                return;
+            } else {
+                throw new ClusterJUserException(
+                        local.message("ERR_Null_Values_Can_Only_Be_Filtered_Equal",
+                                domainTypeHandler.getName(), name, condition));
+            }
+        }
         try {
             objectOperationHandlerDelegate.filterCompareValue(this, value, condition, filter);
         } catch (Exception ex) {
-            throw new ClusterJDatastoreException(local.message("ERR_Filter_Value", name, columnName, objectOperationHandlerDelegate.handler(), value.toString()), ex);
+            throw new ClusterJDatastoreException(local.message("ERR_Filter_Value", name, columnName, objectOperationHandlerDelegate.handler(), value), ex);
         }
     }
 
@@ -1492,7 +1502,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
-            throw new UnsupportedOperationException(local.message("ERR_NotImplemented"));
+            filter.cmpInt(condition, fmd.storeColumn, ((Integer) value).intValue());
         }
 
         public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
@@ -1554,7 +1564,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
-            throw new UnsupportedOperationException(local.message("ERR_NotImplemented"));
+            filter.cmpLong(condition, fmd.storeColumn, ((Number) value).longValue());
         }
 
         public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
@@ -1612,7 +1622,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
-            throw new UnsupportedOperationException(local.message("ERR_NotImplemented"));
+            filter.cmpString(condition, fmd.storeColumn, (String)value);
         }
 
         public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {

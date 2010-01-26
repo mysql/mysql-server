@@ -63,7 +63,11 @@ public class BetweenPredicateImpl extends PredicateImpl {
 //    }
 //
     @Override
-    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+        if (lower.getParameterValue(context) == null || upper.getParameterValue(context) == null) {
+            // null parameters cannot be used with index scans
+            return;
+        }
         property.markLowerBound(candidateIndices, this, false);
         property.markUpperBound(candidateIndices, this, false);
     }

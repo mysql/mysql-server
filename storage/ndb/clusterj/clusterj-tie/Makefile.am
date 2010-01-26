@@ -18,6 +18,7 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
 clusterj_tie_src = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/main/java
+clusterj_tie_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/test/java
 
 clusterj_tie_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/main/resources
 
@@ -52,6 +53,15 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/TableImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/PartitionKeyImpl.java
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/LongIntStringPKTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/PartitionKeyTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryExtraConditionsTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryInTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNotNullTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNotTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNullTest.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryOrTest.java 
 
 clusterj_tie_DATA = $(clusterj_tie_version_JAR) 
 
@@ -59,6 +69,7 @@ EXTRA_DIST = \
   src/main/resources/META-INF \
   src/main/resources/com/mysql/clusterj/tie/Bundle.properties \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/*.java \
+  $(clusterj_tie_test)/testsuite/clusterj/tie/*.java \
   pom.xml
 
 $(MANIFEST):

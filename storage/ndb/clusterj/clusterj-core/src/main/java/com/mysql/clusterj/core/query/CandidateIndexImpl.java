@@ -297,4 +297,18 @@ public class CandidateIndexImpl {
         return storeIndex;
     }
 
+    /** Determine whether this index supports exactly the number of conditions.
+     * For ordered indexes, any number of conditions are supported via filters.
+     * For hash indexes, only the number of columns in the index are supported.
+     * @param numberOfConditions the number of conditions in the query predicate
+     * @return if this index supports exactly the number of conditions
+     */
+    public boolean supportsConditionsOfLength(int numberOfConditions) {
+        if (hash) {
+            return numberOfConditions == candidateColumns.length;
+        } else {
+            return true;
+        }
+    }
+
 }

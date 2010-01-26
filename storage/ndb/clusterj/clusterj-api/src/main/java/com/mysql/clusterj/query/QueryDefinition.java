@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009-2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -36,5 +36,11 @@ public interface QueryDefinition<E> {
      * @return the PredicateOperand representing the parameter
      */
     PredicateOperand param(String parameterName);
+
+    /** Convenience method to negate a predicate.
+     * @param predicate the predicate to negate
+     * @return the inverted predicate
+     */
+    public Predicate not(Predicate predicate);
 
 }

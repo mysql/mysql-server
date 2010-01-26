@@ -56,8 +56,10 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     public Predicate or(Predicate other) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        assertPredicateImpl(other);
+        PredicateImpl otherPredicateImpl = (PredicateImpl)other;
+        assertIdenticalDomainObject(otherPredicateImpl, "or");
+        return new OrPredicateImpl(this.dobj, this, otherPredicateImpl);
     }
 
     public Predicate and(Predicate other) {
@@ -73,14 +75,13 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     public Predicate not() {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        return new NotPredicateImpl(this);
     }
 
 
-    void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+    void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public void operationSetBounds(QueryExecutionContextImpl context,
@@ -91,6 +92,8 @@ public abstract class PredicateImpl implements Predicate {
 
     public void operationSetLowerBound(QueryExecutionContextImpl context,
             IndexScanOperation op) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public void operationSetUpperBound(QueryExecutionContextImpl context,
@@ -101,20 +104,20 @@ public abstract class PredicateImpl implements Predicate {
 
     public void operationEqual(QueryExecutionContextImpl context,
             Operation op) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public void operationEqualFor(QueryExecutionContextImpl context,
             Operation op, String indexName) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public void objectSetValuesFor(QueryExecutionContextImpl context,
             Object row, String indexName) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     /** Create a filter for the operation. Set the condition into the
@@ -129,6 +132,8 @@ public abstract class PredicateImpl implements Predicate {
             filter.begin();
             filterCmpValue(context, op, filter);
             filter.end();
+        } catch (ClusterJException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new ClusterJException(
                     local.message("ERR_Get_NdbFilter"), ex);
@@ -137,8 +142,8 @@ public abstract class PredicateImpl implements Predicate {
 
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op, ScanFilter filter) {
-            throw new UnsupportedOperationException(
-                    local.message("ERR_NotImplemented"));
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
     public void assertIdenticalDomainObject(PredicateImpl other, String venue) {
@@ -171,8 +176,8 @@ public abstract class PredicateImpl implements Predicate {
         return dobj;
     }
 
-    public CandidateIndexImpl getBestCandidateIndex() {
-        return getBestCandidateIndexFor(this);
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContextImpl context) {
+        return getBestCandidateIndexFor(context, this);
     }
 
     /** Get the best candidate index for the query, considering all indices
@@ -180,32 +185,52 @@ public abstract class PredicateImpl implements Predicate {
      * @param predicates the predicates
      * @return the best index for the query
      */
-    protected CandidateIndexImpl getBestCandidateIndexFor(PredicateImpl... predicates) {
+    protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContextImpl context,
+            PredicateImpl... predicates) {
         // Create CandidateIndexImpl to decide how to scan.
         CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();
         // Iterate over predicates and have each one register with
         // candidate indexes.
         for (PredicateImpl predicateImpl : predicates) {
-            predicateImpl.markBoundsForCandidateIndices(candidateIndices);
+            predicateImpl.markBoundsForCandidateIndices(context, candidateIndices);
         }
         // Iterate over candidate indices to find one that is usable.
         int highScore = 0;
         // Holder for the best index; default to the index for null where clause
         CandidateIndexImpl bestCandidateIndexImpl = 
                 CandidateIndexImpl.getIndexForNullWhereClause();
+        // Hash index operations require the predicates to have no extra conditions
+        // beyond the index columns.
+        int numberOfConditions = getNumberOfConditionsInPredicate();
         for (CandidateIndexImpl candidateIndex : candidateIndices) {
-            // opportunity for a user-defined plugin to evaluate indices
-            int score = candidateIndex.getScore();
-            if (logger.isDetailEnabled()) {
-                logger.detail("Score: " + score + " from " + candidateIndex);
-            }
-            if (score > highScore) {
-                bestCandidateIndexImpl = candidateIndex;
-                highScore = score;
+            if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
+                // opportunity for a user-defined plugin to evaluate indices
+                int score = candidateIndex.getScore();
+                if (logger.isDetailEnabled()) {
+                    logger.detail("Score: " + score + " from " + candidateIndex);
+                }
+                if (score > highScore) {
+                    bestCandidateIndexImpl = candidateIndex;
+                    highScore = score;
+                }
             }
         }
-        if (logger.isDetailEnabled()) logger.detail("High score: " + highScore + " from " + bestCandidateIndexImpl.getIndexName());
+        if (logger.isDetailEnabled()) logger.detail("High score: " + highScore
+                + " from " + bestCandidateIndexImpl.getIndexName());
         return bestCandidateIndexImpl;
+    }
+
+    /** Get the number of conditions in the top level predicate.
+     * This is used to determine whether a hash index can be used. If there
+     * are exactly the number of conditions as index columns, then the
+     * hash index might be used.
+     * By default (for equal, greaterThan, lessThan, greaterEqual, lessEqual)
+     * there is one condition.
+     * AndPredicateImpl overrides this method.
+     * @return the number of conditions
+     */
+    protected int getNumberOfConditionsInPredicate() {
+        return 1;
     }
 
 }
