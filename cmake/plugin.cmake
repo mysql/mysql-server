@@ -113,9 +113,12 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} CACHE INTERNAL "" FORCE)
 
-    IF(NOT ARG_MANDATORY)
+    IF(ARG_MANDATORY)
+      SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
+       FORCE)
+    ELSE()	
       SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
-        FORCE)
+       FORCE)
     ENDIF()
 
     IF(ARG_MANDATORY)
