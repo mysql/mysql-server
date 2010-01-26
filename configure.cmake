@@ -1,3 +1,4 @@
+
 # Copyright (C) 2009 Sun Microsystems,Inc
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -72,12 +73,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
      OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
      SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
      SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
-  ENDIF()
-  IF(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
-    # Workaround linker problems  on OSX 10.4
-    IF(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "10.5")
-      ADD_DEFINITIONS(-fno-common)
-    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -189,15 +184,7 @@ IF(UNIX)
     ENDIF()
   ENDIF()
 ENDIF()
-
-# Workaround for CMake bug#9051
-IF(CMAKE_OSX_SYSROOT)
- SET(ENV{CMAKE_OSX_SYSROOT} ${CMAKE_OSX_SYSROOT})
-ENDIF()
-IF(CMAKE_OSX_SYSROOT)
- SET(ENV{MACOSX_DEPLOYMENT_TARGET} ${OSX_DEPLOYMENT_TARGET})
-ENDIF()
-
+s
 
 # System check macros that do nothing on Windows.
 # Very often, it is known that some function is not available
@@ -517,7 +504,7 @@ int main() {
 #
 INCLUDE(TestBigEndian)
 IF(APPLE)
-  # Cannot  run endian test on universal PPC/Intel binaries 
+  # Cannot run endian test on universal PPC/Intel binaries 
   # would return inconsistent result.
   # config.h.cmake includes a special #ifdef for Darwin
 ELSE()
@@ -550,6 +537,8 @@ IF(HAVE_STDINT_H)
 ENDIF(HAVE_STDINT_H)
 
 IF(NOT APPLE)
+  # Prevent some checks on OSX, they return ambigious results
+  # on universal 32/64 bit binariess
   CHECK_TYPE_SIZE("char *" SIZEOF_CHARP)
   CHECK_TYPE_SIZE(long SIZEOF_LONG)
   CHECK_TYPE_SIZE(size_t SIZEOF_SIZE_T)
