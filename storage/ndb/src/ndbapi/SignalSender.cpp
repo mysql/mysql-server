@@ -365,7 +365,7 @@ SignalSender::find_node(const NodeBitmask& mask, T & t)
 class FindConfirmedNode {
 public:
   bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
-    return node.m_api_reg_conf;
+    return node.is_confirmed();
   }
 };
 
@@ -381,7 +381,7 @@ SignalSender::find_confirmed_node(const NodeBitmask& mask)
 class FindConnectedNode {
 public:
   bool found_ok(const SignalSender& ss, const ClusterMgr::Node & node){
-    return node.connected;
+    return node.is_connected();
   }
 };
 
