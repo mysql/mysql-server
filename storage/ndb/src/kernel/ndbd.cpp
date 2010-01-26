@@ -102,7 +102,7 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
     
     accmem += lqhInstances * (32 / 4); // Added as safty in Configuration.cpp
   }
-  return accmem;
+  return Uint32(accmem);
 }
 
 static int
