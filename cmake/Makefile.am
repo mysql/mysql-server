@@ -22,4 +22,6 @@ EXTRA_DIST = \
 	dtrace_prelink.cmake \
 	versioninfo.rc.in \
 	mysql_add_executable.cmake  \
-	install_layout.cmake
+	install_layout.cmake \
+	build_configurations/mysql_release.cmake \
+	os/Windows.cmake
