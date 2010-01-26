@@ -52,16 +52,9 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ScanResultDataImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/TableImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java \
-  $(clusterj_tie_src)/com/mysql/clusterj/tie/PartitionKeyImpl.java
-  $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/LongIntStringPKTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/PartitionKeyTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryExtraConditionsTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryInTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNotNullTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNotTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryNullTest.java \
-  $(clusterj_tie_test)/testsuite/clusterj/tie/QueryOrTest.java 
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/PartitionKeyImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java 
+
 
 clusterj_tie_DATA = $(clusterj_tie_version_JAR) 
 
