@@ -155,8 +155,10 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
       ENDIF()
     ENDIF()
   ENDFOREACH()
-  LIST(REMOVE_DUPLICATES OSLIBS)
-  TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+  IF(OSLIBS)
+    LIST(REMOVE_DUPLICATES OSLIBS)
+    TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+  ENDIF()
 
   # Make the generated dummy source file depended on all static input
   # libs. If input lib changes,the source file is touched
