@@ -301,7 +301,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
   bool multiple_parents= false;
 
   parent= NULL;
-  for (int key_part_no= 0; 
+  for (int32 key_part_no= 0; 
        key_part_no < table_access.get_no_of_key_fields(); 
        key_part_no++)
   {
@@ -413,7 +413,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
     // 1) Parent should be first table found in 'all_linked_parents'
     TABLE* new_parent = NULL;
 
-    for(int access_no = 0; access_no < plan.get_access_count(); access_no++)
+    for(int32 access_no = 0; access_no < plan.get_access_count(); access_no++)
     {
       if (all_linked_parents.contains(plan.get_table_access(access_no)))
       {
@@ -429,7 +429,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
     parent = new_parent;
 
     // 2) Update join_items[] not already refering new_parent
-    for (int key_part_no = 0; 
+    for (int32 key_part_no = 0; 
          key_part_no < table_access.get_no_of_key_fields(); 
          key_part_no++)
     {
@@ -557,7 +557,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
    */
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
   const NdbQueryOperationDef* operation_defs[MAX_PUSHED_JOINS];
-  const int max_joins = plan.get_access_count()>MAX_PUSHED_JOINS ?
+  const int32 max_joins = plan.get_access_count()>MAX_PUSHED_JOINS ?
     MAX_PUSHED_JOINS :
     plan.get_access_count();
 
@@ -631,7 +631,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
   if (unlikely(!operation_defs[0]))
     DBUG_RETURN(0);
 
-  int join_cnt;
+  int32 join_cnt;
   for (join_cnt = 1; join_cnt<max_joins; join_cnt++)
   {
     const AQP::Table_access join_tab = plan.get_table_access(join_cnt);
@@ -667,7 +667,9 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     // Find common parent operation for all 'ref.key_parts'
     // Key may refer any of the preceeding parent tables
     const NdbQueryOperationDef* parent= NULL;
-    for (int access_no = plan.get_access_count() - 1; access_no>=0; access_no--)
+    for (int32 access_no = plan.get_access_count() - 1; 
+         access_no>=0; 
+         access_no--)
     {
       if (join_parent == &plan.get_table_access(access_no).get_table())
       {
@@ -678,12 +680,12 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
 
     KEY *key= &handler.table->key_info[join_tab.get_index_no()];
     DBUG_ASSERT(join_tab.get_no_of_key_fields() ==
-                static_cast<int>(key->key_parts));
+                static_cast<int32>(key->key_parts));
 
     const NdbRecord* key_record= 
       handler.m_index[join_tab.get_index_no()].ndb_unique_record_key;
     const NdbQueryOperand* linked_key[MAX_LINKED_KEYS] = {NULL};
-    for (uint i = 0; i < key->key_parts; i++)
+    for (uint32 i = 0; i < key->key_parts; i++)
     {
       const Item* item = join_items[i];
       linked_key[i]= NULL;

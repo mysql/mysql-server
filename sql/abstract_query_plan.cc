@@ -41,7 +41,7 @@ namespace AQP
    * Query_plan methods.
    *************/
   
-  Query_plan::Query_plan(const JOIN_TAB* join_tab, int access_count)
+  Query_plan::Query_plan(const JOIN_TAB* join_tab, int32 access_count)
     :m_access_count(access_count),
      m_join_tabs(join_tab)
   { 
@@ -54,14 +54,14 @@ namespace AQP
                 || (m_join_tabs[0].select->quick == NULL));
   }
 
-  const Table_access Query_plan::get_table_access(int access_no) const      
+  const Table_access Query_plan::get_table_access(int32 access_no) const      
   { 
     DBUG_ASSERT(m_join_tabs != NULL);
     DBUG_ASSERT(access_no < m_access_count);
     return Table_access(m_join_tabs, access_no);
   }
 
-  const JOIN_TAB& Query_plan::get_join_tab(int join_tab_no) const
+  const JOIN_TAB& Query_plan::get_join_tab(int32 join_tab_no) const
   {
     DBUG_ASSERT(join_tab_no < m_access_count);
     return m_join_tabs[join_tab_no];
@@ -73,7 +73,7 @@ namespace AQP
     DBUG_ENTER("Query_plan::get_referred_table_access");
     DBUG_ASSERT(field_item.type() == Item::FIELD_ITEM);
 
-    int i = 0;
+    int32 i = 0;
     while(i < get_access_count() 
           && get_join_tab(i).table->map != field_item.field->table->map)
     {
@@ -88,14 +88,14 @@ namespace AQP
    * Table_access methods.
    *************/
 
-  int Table_access::get_no_of_key_fields() const
+  int32 Table_access::get_no_of_key_fields() const
   {
     DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
                 m_access_type == AT_UniqueIndexLookup);
     return get_join_tab().ref.key_parts;
   }
 
-  const Item& Table_access::get_key_field(int field_no) const
+  const Item& Table_access::get_key_field(int32 field_no) const
   {
     DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
                 m_access_type == AT_UniqueIndexLookup);
@@ -103,7 +103,7 @@ namespace AQP
     return *get_join_tab().ref.items[field_no];
   } 
   
-  const KEY_PART_INFO& Table_access::get_key_part_info(int field_no) const
+  const KEY_PART_INFO& Table_access::get_key_part_info(int32 field_no) const
   {
     DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
                 m_access_type == AT_UniqueIndexLookup);
@@ -172,7 +172,7 @@ namespace AQP
     }
   } // Table_access::dbug_print()
 
-  Table_access::Table_access(const JOIN_TAB* root_tab, int tab_no)
+  Table_access::Table_access(const JOIN_TAB* root_tab, int32 tab_no)
     :m_root_tab(root_tab), 
      m_tab_no(tab_no)
   {
@@ -183,7 +183,7 @@ namespace AQP
     case JT_CONST:
       m_index_no = get_join_tab().ref.key;
 
-      if (m_index_no == (int)get_join_tab().table->s->primary_key)
+      if (m_index_no == (int32)get_join_tab().table->s->primary_key)
       {
         DBUG_PRINT("info", ("Operation %d is a primary key lookup.", m_tab_no));
         m_access_type = AT_PrimaryKeyLookup;
