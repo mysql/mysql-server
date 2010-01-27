@@ -12383,11 +12383,11 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
   if ((startFlag == 1) &&
-      ((regApiPtr->apiConnectstate == CS_CONNECTED ||
-        (regApiPtr->apiConnectstate == CS_STARTED && 
-         regApiPtr->firstTcConnect == RNIL)) ||
-       (regApiPtr->apiConnectstate == CS_ABORTING && 
-        regApiPtr->abortState == AS_IDLE))) {
+      (regApiPtr->apiConnectstate == CS_CONNECTED ||
+       (regApiPtr->apiConnectstate == CS_STARTED && 
+	regApiPtr->firstTcConnect == RNIL)) ||
+      (regApiPtr->apiConnectstate == CS_ABORTING && 
+       regApiPtr->abortState == AS_IDLE)) {
     jam();
     // This is a newly started transaction, clean-up
     releaseAllSeizedIndexOperations(regApiPtr);
