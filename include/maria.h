@@ -462,7 +462,7 @@ void maria_versioning(MARIA_HA *info, my_bool versioning);
 void maria_ignore_trids(MARIA_HA *info);
 
 /* fulltext functions */
-FT_INFO *maria_ft_init_search(uint,void *, uint, uchar *, uint,
+FT_INFO *maria_ft_init_search(uint,void *, uint, uchar *, size_t,
                               CHARSET_INFO *, uchar *);
 
 /* 'Almost-internal' Maria functions */
