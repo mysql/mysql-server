@@ -50,6 +50,8 @@ insert into t1 (id) values (1), (2), (3), (4), (5), (6), (7), (8);
 
 # Stop recording data, so the select below don't add noise.
 update performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO';
+# Disable all consumers, for long standing waits
+update performance_schema.SETUP_CONSUMERS set enabled = 'NO';
 
 # Helper to debug
 set @dump_all=FALSE;
