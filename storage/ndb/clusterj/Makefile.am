@@ -56,19 +56,19 @@ $(MANIFEST):
 	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
 
 $(clusterj_version_JAR) : $(SUBDIRS) $(MANIFEST)
-	rm -f $@; CLASS_DIRS=; for i in $(BASE_DIRS); do \
+	rm -f $@; @JAR@ cvfm $@ $(MANIFEST); \
+	for i in $(BASE_DIRS); do \
 	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
-	  CLASS_DIRS="$$CLASS_DIRS -C $$i/target/classes com/mysql/clusterj"; \
+	  @JAR@ uvf $@ -C $$i/target/classes com/mysql/clusterj; \
 	  if test -x $$i/src/main/resources/META-INF/services; then \
-	    CLASS_DIRS="$$CLASS_DIRS -C $$i/src/main/resources META-INF/services"; \
+	    @JAR@ uvf $@ -C $$i/src/main/resources META-INF/services; \
 	  fi; \
-	  BUNDLE=$$i/src/main/resources/com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
+	 BUNDLE=$$i/src/main/resources/com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
 	  if test -e $$BUNDLE; then \
-	    CLASS_DIRS="$$CLASS_DIRS -C $$i/src/main/resources com/mysql/clusterj/$$BASE_NAME/Bundle.properties"; \
+	    @JAR@ uvf $@ -C $$i/src/main/resources com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
 	  fi; \
 	done; \
 	echo $$CLASS_DIRS; \
-	@JAR@ cvfm $@ $(MANIFEST); @JAR@ uvf $@ $$CLASS_DIRS
 	$(LN_CP_F) -f $(clusterj_version_JAR) $(clusterj_JAR)
 
 ## create a versioned link
