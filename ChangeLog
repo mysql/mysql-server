@@ -1,3 +1,10 @@
+2010-01-27	The InnoDB Team
+
+	* include/row0mysql.h, log/log0recv.c, row/row0mysql.c:
+	Drop temporary tables at startup.
+	This addresses the third aspect of
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+
 2010-01-21	The InnoDB Team
 
 	* buf/buf0buf.c:
