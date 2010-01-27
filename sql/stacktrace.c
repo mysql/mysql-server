@@ -227,7 +227,7 @@ stack trace is much more helpful in diagnosing the problem, so please do \n\
 resolve it\n");
 }
 
-#elif defined(__sun)
+#elif defined(HAVE_PRINTSTACK)
 
 /* Use Solaris' symbolic stack trace routine. */
 #include <ucontext.h>
