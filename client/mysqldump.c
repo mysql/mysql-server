@@ -268,7 +268,7 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
-   "Allows utilization of the new, much faster INSERT syntax.",
+   "Use multiple-row INSERT syntax that include several VALUES lists.",
    (uchar**) &extended_insert, (uchar**) &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
