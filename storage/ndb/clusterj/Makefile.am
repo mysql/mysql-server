@@ -17,24 +17,13 @@
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
-if COND_OPENJPA_OPT 
-  OPENJPA_OPT=clusterj-openjpa 
-  OPENJPA_EXPORT=,com.mysql.clusterj.openjpa
-endif
-
-if COND_CLUSTERJ_TESTS
-  CLUSTERJ_OPT_TEST=clusterj-test
-endif
-if COND_OPENJPA_TESTS
-  OPENJPA_OPT_TEST=clusterj-jpatest
-endif
-
+OPENJPA_EXPORT=com.mysql.clusterj.openjpa
 
 CLUSTERJ_EXPORT=com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation, com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie
 
 BASE_DIRS = clusterj-api clusterj-core clusterj-tie $(OPENJPA_OPT)
 
-SUBDIRS = $(BASE_DIRS) $(OPENJPA_OPT_TEST) $(CLUSTERJ_OPT_TEST) $(OPENJPA_OPT_TEST)
+SUBDIRS = $(BASE_DIRS) $(OPENJPA_OPT) $(CLUSTERJ_TESTS) 
 
 DIST_SUBDIRS = clusterj-api clusterj-core clusterj-tie clusterj-openjpa clusterj-test clusterj-jpatest
 
@@ -51,7 +40,11 @@ EXTRA_DIST = pom.xml
 
 $(MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(MANIFEST)
-	echo "Export-Package: $(CLUSTERJ_EXPORT)$(OPENJPA_EXPORT)"  >> $(MANIFEST)
+	if test x"$(OPENJPA_OPT)" == x; then \
+	  echo "Export-Package: $(CLUSTERJ_EXPORT)"  >> $(MANIFEST); \
+	else \
+	  echo "Export-Package: $(CLUSTERJ_EXPORT),$(OPENJPA_EXPORT)"  >> $(MANIFEST); \
+	fi
 	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
 	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
 

@@ -369,9 +369,28 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     fi
   fi
 
-  AM_CONDITIONAL([COND_OPENJPA_OPT], [test x"$have_openjpa" != xno])
-  AM_CONDITIONAL([COND_CLUSTERJ_TESTS], [test x"$have_classpath" != xno])
-  AM_CONDITIONAL([COND_OPENJPA_TESTS], [test X"$have_openjpa" != Xno && test x"$have_classpath" != xno])
+  if test x"$have_openjpa" != xno
+  then
+    OPENJPA_OPT=clusterj-openjpa
+  fi
+
+  if test x"$have_classpath" != xno 
+  then
+    CLUSTERJ_TESTS=clusterj-test
+  fi
+
+  if test X"$have_openjpa" != Xno && test x"$have_classpath" != xno
+  then
+    CLUSTERJ_TESTS=$CLUSTERJ_TESTS clusterj-jpatest
+  fi
+
+  AC_SUBST(CLUSTERJ_TESTS)
+  AC_DEFINE_UNQUOTED([CLUSTERJ_TESTS], ["$CLUSTERJ_TESTS"],
+                     [Compile ClusterJ tests])
+
+  AC_SUBST(OPENJPA_OPT)
+  AC_DEFINE_UNQUOTED([OPENJPA_OPT], ["$OPENJPA_OPT"],
+                     [Compile OpenJPA plugin])
 
   AC_MSG_RESULT([done.])
 ])
