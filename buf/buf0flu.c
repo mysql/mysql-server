@@ -1271,7 +1271,7 @@ buf_flush_LRU_recommendation(void)
 
 	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
 		have_LRU_mutex = TRUE;
-
+retry:
 	//buf_pool_mutex_enter();
 	if (have_LRU_mutex)
 		mutex_enter(&LRU_list_mutex);
@@ -1313,6 +1313,10 @@ buf_flush_LRU_recommendation(void)
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
 		return(0);
+	} else if (!have_LRU_mutex) {
+		/* confirm it again with LRU_mutex for exactness */
+		have_LRU_mutex = TRUE;
+		goto retry;
 	}
 
 	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
