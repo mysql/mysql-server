@@ -3264,6 +3264,8 @@ recv_recovery_from_checkpoint_finish(void)
 
 	/* Drop partially created indexes. */
 	row_merge_drop_temp_indexes();
+	/* Drop temporary tables. */
+	row_mysql_drop_temp_tables();
 
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
