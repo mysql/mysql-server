@@ -109,6 +109,7 @@
 %define ndbug_comment MySQL Community Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define debug_comment MySQL Community Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define commercial 0
+%define YASSL_BUILD 1
 %define EMBEDDED_BUILD 0
 %define PARTITION_BUILD 1
 %define CLUSTER_BUILD 0
