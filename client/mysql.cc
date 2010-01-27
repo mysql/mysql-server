@@ -1630,7 +1630,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       init_tee(argument);
     break;
   case OPT_NOTEE:
-    printf("WARNING: option deprecated; use --disable-tee instead.\n");
+    WARN_DEPRECATED(VER_CELOSIA, "--no-tee", "--disable-tee");
     if (opt_outfile)
       end_tee();
     break;
