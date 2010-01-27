@@ -1077,13 +1077,15 @@ sub command_line_setup () {
 
   if ( ! $opt_testcase_timeout )
   {
-    $opt_testcase_timeout= $default_testcase_timeout;
+    $opt_testcase_timeout=
+      $ENV{MTR_TESTCASE_TIMEOUT} || $default_testcase_timeout;
     $opt_testcase_timeout*= 10 if $opt_valgrind;
   }
 
   if ( ! $opt_suite_timeout )
   {
-    $opt_suite_timeout= $default_suite_timeout;
+    $opt_suite_timeout=
+      $ENV{MTR_SUITE_TIMEOUT} || $default_suite_timeout;
     $opt_suite_timeout*= 6 if $opt_valgrind;
   }
 
