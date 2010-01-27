@@ -25,10 +25,8 @@ INCLUDE (CheckCSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
-# Sometimes it is handy to know if PIC option
-# is set, to avoid recompilation of the same source 
-# for shared libs. We also allow it as an option for
-# fast compile.
+# WITH_PIC options.Not of much use, PIC is taken care of on platforms
+# where it makes sense anyway.
 IF(UNIX)
   IF(APPLE)  
     # OSX  executable are always PIC
@@ -76,18 +74,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   ENDIF()
 ENDIF()
 
-
-# Large files
-SET(_LARGEFILE_SOURCE  1)
-IF(CMAKE_SYSTEM_NAME MATCHES "AIX" OR CMAKE_SYSTEM_NAME MATCHES "OS400")
-  SET(_LARGE_FILES 1)
-ENDIF()
-
-# Figure out what engines to build and how (statically or dynamically),
-# add preprocessor defines for storage engines.
 IF(WITHOUT_DYNAMIC_PLUGINS)
   MESSAGE("Dynamic plugins are disabled.")
 ENDIF(WITHOUT_DYNAMIC_PLUGINS)
+
+# Large files, common flag
+SET(_LARGEFILE_SOURCE  1)
 
 
 # Searches function in libraries
@@ -112,6 +104,7 @@ FUNCTION(MY_SEARCH_LIBS func libs result)
   ENDFOREACH()
 ENDFUNCTION()
 
+# Find out which libraries to use.
 IF(UNIX)
   MY_SEARCH_LIBS(floor m LIBM)
   IF(NOT LIBM)
@@ -955,22 +948,6 @@ SET(NO_ALARM "${HAVE_SOCKET_TIMEOUT}" CACHE BOOL
    "No need to use alarm to implement socket timeout")
 MARK_AS_ADVANCED(NO_ALARM)
 
-IF(CMAKE_SYSTEM_NAME STREQUAL "AIX" OR CMAKE_SYSTEM_NAME STREQUAL "OS400")
-  # xlC oddity - it complains about same inline function defined multiple times
-  # in different compilation units
-  INCLUDE(CheckCXXCompilerFlag)
-  CHECK_CXX_COMPILER_FLAG("-qstaticinline" HAVE_QSTATICINLINE)
-  IF(HAVE_QSTATICINLINE)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qstaticinline")
-  ENDIF()
-
-  # The following is required to export all symbols 
-  # (also with leading underscore)
-  STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS
-          ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
-  STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS
-          ${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS})
-ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
 IF(WITH_ATOMIC_OPS STREQUAL "up")

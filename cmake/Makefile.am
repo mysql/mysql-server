@@ -28,5 +28,9 @@ EXTRA_DIST = \
 	os/Linux.cmake \
 	os/SunOS.cmake \
 	os/Darwin.cmake \
-	os/HP-UX.cmake 
+	os/HP-UX.cmake \
+	os/AIX.cmake \
+	os/OS400.cmake \
+	os/Cygwin.cmake
+	
 
