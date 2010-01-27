@@ -48,6 +48,7 @@ show create table t3;
 let $count=12;
 --echo $count inserts;
 --disable_query_log
+SET TIME_ZONE= '+03:00';
 begin;
 while ($count)
 {

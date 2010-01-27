@@ -3457,6 +3457,8 @@ sub run_testcase ($$) {
   my $timezone= timezone($tinfo);
   if ($timezone ne 'DEFAULT') {
     $ENV{'TZ'}= $timezone;
+  } else {
+    delete($ENV{'TZ'});
   }
   mtr_verbose("Setting timezone: $timezone");
 
