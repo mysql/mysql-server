@@ -15059,18 +15059,17 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
 	alive = true;
 	break;
       }
-
-      if (!alive)
-      {
-        char buf[255];
-        BaseString::snprintf
-          (buf, sizeof(buf), 
-           "Illegal initial start, no alive node in nodegroup %u", i);
-        progError(__LINE__, 
-                  NDBD_EXIT_INSUFFICENT_NODES,
-                  buf);
-        
-      }
+    }
+    
+    if (!alive)
+    {
+      char buf[255];
+      BaseString::snprintf
+        (buf, sizeof(buf), 
+         "Illegal initial start, no alive node in nodegroup %u", i);
+      progError(__LINE__, 
+                NDBD_EXIT_INSUFFICENT_NODES,
+                buf);
     }
   }
 }//Dbdih::makeNodeGroups()
