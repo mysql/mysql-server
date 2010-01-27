@@ -62,6 +62,15 @@ update mysql.ndb_replication set binlog_type=2;
 --let col_type = int unsigned
 --source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
 
+--echo *** Test 4 ***********************************************************
+--echo * test with FULL rows and "USE_UPDATE" flag
+--echo * ********************************************************************
+--connection master
+set global ndb_log_update_as_write=0;
+update mysql.ndb_replication set binlog_type=7;
+--let col_type = int unsigned
+--source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
+
 --echo *** test cleanup
 --disable_query_log
 --connection master
