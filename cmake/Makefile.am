@@ -27,6 +27,6 @@ EXTRA_DIST = \
 	os/Windows.cmake \ 
 	os/Linux.cmake \
 	os/SunOS.cmake \
-	os/Darwin.cmake
-
+	os/Darwin.cmake \
+	os/HP-UX.cmake 
 
