@@ -690,6 +690,25 @@ protected:
   void deallocRecord(void **, const char * type, size_t s, size_t n);
   
   /**
+   * Allocate memory from global pool,
+   *   returns #chunks used
+   *
+   * Typically used by part of code, not converted to use global pool
+   *   directly, but allocates everything during startup
+   */
+  struct AllocChunk
+  {
+    Uint32 ptrI;
+    Uint32 cnt;
+  };
+  Uint32 allocChunks(AllocChunk dst[], Uint32 /* size of dst */ arraysize,
+                     Uint32 /* resource group */ rg,
+                     Uint32 /* no of pages to allocate */ pages,
+                     Uint32 paramId /* for error message if failing */);
+
+  static int sortchunks(const void*, const void*);
+
+  /**
    * General info event (sent to cluster log)
    */
   void infoEvent(const char * msg, ...) const

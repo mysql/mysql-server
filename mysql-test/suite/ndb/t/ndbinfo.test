@@ -61,6 +61,9 @@ DELETE FROM ndb$tables WHERE 1=0;
 --error ER_OPEN_AS_READONLY
 DELETE FROM ndb$tables WHERE table_id > 1;
 
+--error ER_OPEN_AS_READONLY
+ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
+
 FLUSH TABLES;
 SELECT table_id FROM ndb$tables;
 
@@ -92,6 +95,61 @@ set @@ndbinfo_database="somethingelse";
 
 # Check that block table has been created and contain data
 SELECT count(*) >= 20 FROM blocks;
+
+# Test incompatible table definition between NDB and MySQL Server
+# using the ndb$test table which originally looks like
+# CREATE TABLE `ndb$test` (
+#   `node_id` int unsigned DEFAULT NULL,
+#   `block_number` int unsigned DEFAULT NULL,
+#   `block_instance` int unsigned DEFAULT NULL,
+#   `counter` int unsigned DEFAULT NULL,
+#   `counter2` bigint unsigned DEFAULT NULL
+# ) ENGINE=NDBINFO COMMENT='for testing'
+
+## 1) More columns in NDB -> allowed, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int unsigned) ENGINE = ndbinfo;
+SELECT node_id != 0 FROM ndb$test LIMIT 1;
+
+## 2) Column does not exist in NDB -> error, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int, non_existing int) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+
+## 3) Incompatible column type -> error, with warning
+## 3a) int instead of bigint
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (counter2 int) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+## 3b) bigint instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id bigint) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+## 3c) varchar instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id varchar(255)) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+
+## 4) Table with primary key/indexes not supported
+--error ER_TOO_MANY_KEYS
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+
+## 5) Table with blobs not supported
+--error ER_TABLE_CANT_HANDLE_BLOB
+CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
+
+## 6) Table with autoincrement not supported
+--error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
+CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 {

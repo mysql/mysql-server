@@ -21149,7 +21149,8 @@ Dbdict::execCREATE_NODEGROUP_REQ(Signal* signal)
     }
 
     impl_req->nodegroupId = req->nodegroupId;
-    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && i<NDB_ARRAY_SIZE(impl_req->nodes); i++)
+    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && 
+           i<NDB_ARRAY_SIZE(impl_req->nodes); i++)
     {
       impl_req->nodes[i] = req->nodes[i];
     }
@@ -21216,6 +21217,12 @@ Dbdict::createNodegroup_parse(Signal* signal, bool master,
   impl_req->senderRef = reference();
   impl_req->senderData = op_ptr.p->op_key;
   impl_req->nodegroupId = signal->theData[1];
+
+  /**
+   * createNodegroup blocks gcp
+   *   so trans_ptr can *not* do this (endless loop)
+   */
+  trans_ptr.p->m_wait_gcp_on_commit = false; 
 }
 
 void
@@ -21643,7 +21650,6 @@ void
 Dbdict::createNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
@@ -21785,6 +21791,12 @@ Dbdict::dropNodegroup_parse(Signal* signal, bool master,
 
   impl_req->senderRef = reference();
   impl_req->senderData = op_ptr.p->op_key;
+
+  /**
+   * dropNodegroup blocks gcp
+   *   so trans_ptr can *not* do this (endless loop)
+   */
+  trans_ptr.p->m_wait_gcp_on_commit = false; 
 }
 
 void
@@ -24432,7 +24444,7 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     jam();
     trans_commit_mutex_locked(signal, trans_ptr.i, 0);
   }
-  else
+  else if (trans_ptr.p->m_wait_gcp_on_commit)
   {
     jam();
 
@@ -24450,6 +24462,16 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     signal->theData[2] = gci_hi;
     signal->theData[3] = gci_lo;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+  }
+  else
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+    Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+    
+    // Todo should alloc mutex on SCHEMA_BEGIN
+    bool ok = mutex.lock(c);
+    ndbrequire(ok);
   }
 }
 

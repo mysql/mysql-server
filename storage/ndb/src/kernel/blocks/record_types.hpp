@@ -61,7 +61,7 @@
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                6
+#define RG_COUNT                7
 
 /**
  * Record types

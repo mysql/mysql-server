@@ -77,7 +77,7 @@ bool NdbInfo::load_hardcoded_tables(void)
     if (!cols.addColumn(Column("table_id", 0, Column::Number)) ||
         !cols.addColumn(Column("column_id", 1, Column::Number)) ||
         !cols.addColumn(Column("column_name", 2, Column::String)) ||
-        !cols.addColumn(Column("column_type", 3, Column::String)) ||
+        !cols.addColumn(Column("column_type", 3, Column::Number)) ||
         !cols.addColumn(Column("comment", 4, Column::String)))
       return false;
 

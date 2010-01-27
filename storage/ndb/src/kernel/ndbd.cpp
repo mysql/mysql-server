@@ -85,6 +85,26 @@ systemInfo(const Configuration & config, const LogLevel & logLevel)
 }
 
 
+Uint32
+compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
+{
+  Uint64 accmem = 0;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_INDEX_MEM, &accmem);
+  if (accmem)
+  {
+    accmem /= GLOBAL_PAGE_SIZE;
+    
+    Uint32 lqhInstances = 1;
+    if (globalData.isNdbMtLqh)
+    {
+      lqhInstances = globalData.ndbMtLqhWorkers;
+    }
+    
+    accmem += lqhInstances * (32 / 4); // Added as safty in Configuration.cpp
+  }
+  return Uint32(accmem);
+}
+
 static int
 init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
 {
@@ -107,6 +127,14 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     return -1;
   }
 
+  {
+    /**
+     * IndexMemory
+     */
+    Uint32 accpages = compute_acc_32kpages(p);
+    tupmem += accpages; // Add to RG_DATAMEM
+  }
+  
   if (tupmem)
   {
     Resource_limit rl;
@@ -120,6 +148,33 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
   Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
 
+  {
+    /**
+     * RedoBuffer
+     */
+    Uint32 redomem = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,
+                              &redomem);
+
+    if (redomem)
+    {
+      redomem /= GLOBAL_PAGE_SIZE;
+      Uint32 tmp = redomem & 15;
+      if (tmp != 0)
+      {
+        redomem += (16 - tmp);
+      }
+
+      Uint32 lqhInstances = 1;
+      if (globalData.isNdbMtLqh)
+      {
+        lqhInstances = globalData.ndbMtLqhWorkers;
+      }
+      
+      filepages += lqhInstances * redomem; // Add to RG_FILE_BUFFERS
+    }
+  }
+  
   if (filepages)
   {
     Resource_limit rl;
