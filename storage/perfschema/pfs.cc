@@ -1081,6 +1081,13 @@ static void delete_current_thread_v1(void)
   }
 }
 
+static void delete_thread_v1(PSI_thread *thread)
+{
+  PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (pfs != NULL)
+    destroy_thread(pfs);
+}
+
 static PSI_mutex_locker*
 get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
 {
@@ -2007,6 +2014,7 @@ PSI_v1 PFS_v1=
   get_thread_v1,
   set_thread_v1,
   delete_current_thread_v1,
+  delete_thread_v1,
   get_thread_mutex_locker_v1,
   get_thread_rwlock_locker_v1,
   get_thread_cond_locker_v1,
