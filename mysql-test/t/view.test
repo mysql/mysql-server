@@ -3869,6 +3869,18 @@ ALTER TABLE v1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#47734: Assertion failed: ! is_set() when locking a view with non-existing definer
+--echo #
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
+--error ER_NO_SUCH_USER
+LOCK TABLES v1 READ;
+DROP VIEW v1;
 
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
