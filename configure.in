@@ -2128,7 +2128,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr strtol \
-  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr printstack)
 
 #
 #
