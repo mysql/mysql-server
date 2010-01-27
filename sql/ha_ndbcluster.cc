@@ -3830,15 +3830,16 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
                                       uchar *new_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(new_data, code);
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 
@@ -3848,9 +3849,9 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
                                      uchar *data,
                                      NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(data, code);
   case CFT_NDB_OLD:
     /*
@@ -3861,6 +3862,7 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif
@@ -3870,7 +3872,6 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
                                       const uchar *old_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
     /*
@@ -3879,11 +3880,23 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
       on the old data.
     */
     return row_conflict_fn_old(old_data, code);
+  case CFT_NDB_MAX_DEL_WIN:
+  {
+    /**
+     * let delete always win
+     */
+    int r = code->interpret_exit_ok();
+    DBUG_ASSERT(r == 0);
+    r = code->finalise();
+    DBUG_ASSERT(r == 0);
+    return r;
+  }
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif /* HAVE_NDB_BINLOG */
