@@ -7001,7 +7001,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  /*
    If the query was killed then this function must fail.
  */
- return result || thd->killed;
+ return result || (thd ? thd->killed : 0);
 }
 
 
