@@ -820,7 +820,8 @@ public:
     thread writes the relay log, it augments the Query_log_event with a
     Q_MASTER_DATA_WRITTEN_CODE status_var that holds the original event
     length. This field is initialized to non-zero in the SQL thread when
-    it reads this augmented event.
+    it reads this augmented event. SQL thread does not write 
+    Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
   uint32 master_data_written;
 
