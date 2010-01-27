@@ -1762,6 +1762,7 @@ int ha_partition::copy_partitions(ulonglong * const copied,
   }
   DBUG_RETURN(FALSE);
 error:
+  m_reorged_file[reorg_part]->ha_rnd_end();
   DBUG_RETURN(result);
 }
 
