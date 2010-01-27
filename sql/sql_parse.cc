@@ -2496,6 +2496,8 @@ case SQLCOM_PREPARE:
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        /* Base table and temporary table are not in the same name space. */
+        create_table->skip_temporary= 1;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
