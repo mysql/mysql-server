@@ -11,7 +11,8 @@
  *   a REFERENCE IMPLEMENTATION of the loader
  */
 
-#include "includes.h"
+#include <stdio.h>
+#include <string.h>
 #include "ydb-internal.h"
 #include "loader.h"
 
