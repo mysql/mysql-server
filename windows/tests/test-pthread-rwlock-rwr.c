@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void *f(void *arg) {
+static void *f(void *arg) {
     int r;
     toku_pthread_rwlock_t *mylock = arg;
     printf("%s:%d\n", __FUNCTION__, __LINE__); fflush(stdout);
@@ -15,7 +15,7 @@ void *f(void *arg) {
     return arg;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc  __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
     int r;
     toku_pthread_rwlock_t rwlock;
     toku_pthread_t tid;

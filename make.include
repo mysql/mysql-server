@@ -1,0 +1,227 @@
+SYSTEM = $(shell uname -s | tr [:upper:] [:lower:])
+ARCH = $(shell uname -m | tr [:upper:] [:lower:])
+
+ifeq ($(CYGWIN),)
+    OS=$(SYSTEM)
+else ifneq ($(CC),icc)
+    OS=$(SYSTEM)
+else
+    OS=windows
+endif
+
+ifeq ($(CC),icc)
+    COMPILER=icc
+else
+    COMPILER=gcc
+endif
+
+OEXT_linux_gcc  =o
+OEXT_windows_icc=obj
+OEXT=$(OEXT_$(OS)_$(COMPILER))
+
+AEXT_linux_gcc  =a
+AEXT_windows_icc=lib
+AEXT=$(AEXT_$(OS)_$(COMPILER))
+
+COMBINE_C_windows_icc = -Qipo-c
+COMBINE_C_linux_icc   = -ipo-c
+COMBINE_C_linux_gcc   = -combine -c
+COMBINE_C = $(COMBINE_C_$(OS)_$(COMPILER))
+
+# Need XOPEN_SOURCE=600 to get strtoll()
+ifeq ($(SYSTEM),linux)
+CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+endif
+ifeq ($(SYSTEM),sunos)
+CPPFLAGS+=-D_SVID_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
+endif
+
+WALL      = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+W64       =
+ifeq ($(CC),icc)
+        W64 = -Wport #-Wp64 
+endif
+ifeq ($(SYSTEM),freebsd)
+WERROR    =
+else
+WERROR    = -Werror
+endif
+ifneq ($(CYGWIN),)
+   ifeq ($(CC),icc)
+	#Cygwin icc only
+	WERROR = -WX # Windows icc version of -Werror
+	WERROR += -Qdiag-error:167,266,810 # Workarounds for -WX not being complete on windows icc
+   endif
+endif
+FORMAT    = -Wmissing-format-attribute #-Wformat=2 #Stronger printf warnings once logger.c cleaned up
+ifeq ($(CC),icc)
+    FORMAT= #No argument for extra format warnings.
+endif
+ifneq ($(CYGWIN),)
+ ifneq ($(CC),icc)
+        FORMAT = -Wno-format # cygwin gcc only
+ endif
+endif
+
+ifeq ($(SYSTEM),sunos)
+VISIBILITY=
+else
+VISIBILITY= -fvisibility=hidden
+endif
+ifneq ($(CYGWIN),)
+    VISIBILITY=#Not supported
+endif
+FPICFLAGS = -fPIC
+ifneq ($(CYGWIN),)
+    FPICFLAGS=#FPIC is default and not allowed as an option.
+endif
+SHADOW    = -Wshadow
+ifneq ($(CYGWIN),)
+    SHADOW=#Not supported
+endif
+ifneq ($(CC),icc)
+ifeq ($(ARCH),i686)
+ARCHFLAGS = -march=$(ARCH)
+endif
+endif
+
+ifeq ($(CC),icc)
+    #icc only:
+    OPT_OPTFLAGS = -O3 -ip -ipo1
+    DBG_OPTFLAGS = -O0
+else
+    ifneq ($(CYGWIN),)
+      #cygwin icc
+      OPT_OPTFLAGS = -Ox -Qip -Qipo1
+      DBG_OPTFLAGS = -Od
+    else
+      #linux icc
+      OPT_OPTFLAGS = -O3 -finline-functions
+      DBG_OPTFLAGS = -O0
+    endif
+endif
+
+AR=ar
+DBG_ARFLAGS=cr
+OPT_ARFLAGS=cr
+
+foo:
+	echo $(DEBUG)
+ifneq ($(DEBUG),1)
+    OPTFLAGS = $(OPT_OPTFLAGS)
+    ARFLAGS  = $(OPT_ARFLAGS)
+else
+    OPTFLAGS = $(DBG_OPTFLAGS)
+    ARFLAGS  = $(DBG_ARFLAGS)
+endif
+
+ifneq ($(GCOV),)
+    GCOV_FLAGS = -fprofile-arcs -ftest-coverage -DGCOV
+endif
+ifneq ($(PROF),)
+    PROF_FLAGS = -pg
+endif
+
+ifeq ($(CC),icc)
+  SYMBOLS= -g -debug all -inline-debug-info
+else
+  ifneq ($(CYGWIN),)
+    SYMBOLS= -Zi -debug:all -Qinline-debug-info
+  else
+    SYMBOLS   = -g3 -ggdb3
+  endif
+endif
+
+SKIP_WARNING=
+ifeq ($(CC),icc)
+    ifneq ($(CYGWIN),)
+	#Cygwin
+        ICC_NOWARN=-Qdiag-disable:
+        SKIP_WARNING += $(ICC_NOWARN)869    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+        SKIP_WARNING += $(ICC_NOWARN)593    # Don't complain about unused variables (since we defined __attribute__ to be nothing.)
+        SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about multi-file optimization
+        SKIP_WARNING += $(ICC_NOWARN)11000  # Disable message about single-file optimization
+        SKIP_WARNING += $(ICC_NOWARN)11005  # Disable message about creating object file
+        SKIP_WARNING += $(ICC_NOWARN)188    # Disable message about 0 used for enum
+        SKIP_WARNING += $(ICC_NOWARN)1011   # Disable message about missing return with an abort
+    else
+	#Linux
+        ICC_NOWARN=-diag-disable #Need the space
+    endif
+    SKIP_WARNING += $(ICC_NOWARN)810     # Remove warnings about losing precision
+    SKIP_WARNING += $(ICC_NOWARN)94      # Allow arrays of length 0
+    SKIP_WARNING += $(ICC_NOWARN)118     # Allow void functions to return void functions
+    SKIP_WARNING += $(ICC_NOWARN)177     # Don't complain about static variables that are not used.
+    #SKIP_WARNING += $(ICC_NOWARN)188     # Don't complain about enumerated type mixed with another type.
+    SKIP_WARNING += $(ICC_NOWARN)589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+    SKIP_WARNING += $(ICC_NOWARN)981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+    SKIP_WARNING += $(ICC_NOWARN)1324    # Don't complain about rdtsc clobbering its registers more than once.
+endif
+
+C99       = -std=c99
+ifneq ($(CYGWIN),)
+    ifeq ($(CC),icc)
+        C99       = -Qstd=c99 -Qvc9
+    endif
+endif
+
+CCQUIET=
+ifneq ($(CYGWIN),)
+    ifeq ($(CC),icc)
+        CCQUIET=-nologo
+    endif
+endif
+ifeq ($(GCCVERSION),4.4.2)
+ CC_VERSION_SPECIFIC_FLAGS = -Wno-deprecated 
+endif
+CFLAGS = $(WALL) $(W64) $(WERROR) $(FORMAT) $(VISIBILITY) $(FPICFLAGS) $(SHADOW) $(ARCHFLAGS) \
+         $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) \
+         $(SYMBOLS) $(SKIP_WARNING) $(C99) $(CCQUIET) $(CC_VERSION_SPECIFIC_FLAGS)
+
+OOUTPUT   = -o
+ifneq ($(CYGWIN),)
+    ifeq ($(CC),icc)
+        OOUTPUT=-Fo
+    endif
+endif
+
+# TODO: 1398 Get rid of this hack.
+CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
+
+CPPFLAGS+=-Itoku_include -I$(OS)
+
+ifeq ($(TOKU_SKIP_CXX),1)
+    SRCDIRS_CXX =
+else
+    SRCDIRS_CXX = cxx db-benchmark-test-cxx
+endif
+
+//SRCDIRS = $(OS) newbrt src utils db-benchmark-test $(SRCDIRS_CXX)
+SRCDIRS = $(OS) buildheader newbrt
+
+%.$(OEXT):%.c
+	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
+
+%.$(AEXT):
+	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
+
+VALGRIND=valgrind
+SUPPRESSIONS=no
+VGRIND=$(VALGRIND) --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes \
+       --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
+       --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
+       --gen-suppressions=$(SUPPRESSIONS)
+
+#Testing tools
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+SUMMARIZE_SHOULD_FAIL= ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
+INVERTER=;test $$? -ne 0
+else
+SUMMARIZE_CMD =
+endif
+
+include $(patsubst %,%/make.include,$(SRCDIRS))
+
+build: buildheader/build $(OS)/build
+check: $(OS)/check

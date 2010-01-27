@@ -82,7 +82,6 @@ BRT_O_FILES = $(patsubst %,%.$(OEXT),$(BRT_SOURCES))
 newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
 	$(CC) -c $(BRT_C_FILES) $(COMBINE_C) $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 
-
 ifneq ($(CYGWIN),)
 NEWBRT_O_FILES = $(BRT_O_FILES)
 else ifeq ($(CC),icc)
@@ -112,7 +111,7 @@ log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 ##	./logformat
 # So we do it this way
 log_code.c: logformat$(BINSUF)
-	./logformat
+	./logformat .
 log_print.c log_header.h: log_code.c
 	test 1 = 1
 

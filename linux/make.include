@@ -1,0 +1,11 @@
+include linux/tests/make.include
+LIBPORTABILITY = lib/libtokuportability.$(AEXT)
+linux/build: $(LIBPORTABILITY)
+
+LINUX_SRCS = $(wildcard linux/*.c)
+LINUX_OBJS = $(patsubst %.c,%.$(OEXT),$(LINUX_SRCS))
+
+$(LINUX_OBJS): CFLAGS += -DTOKU_ALLOW_DEPRECATED -D_GNU_SOURCE
+$(LIBPORTABILITY): $(LINUX_OBJS)
+
+linux/check: linux/tests/check

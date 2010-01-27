@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-void test_stat(char *dirname, int result, int ex_errno) {
+static void test_stat(char *dirname, int result, int ex_errno) {
     int r;
     toku_struct_stat buf;
     r = toku_stat(dirname, &buf);

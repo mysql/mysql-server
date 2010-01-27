@@ -71,6 +71,7 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->set_duplicate_callback = toku_loader_set_duplicate_callback;
     loader->put                    = toku_loader_put;
     loader->close                  = toku_loader_close;
+    loader->abort                  = toku_loader_abort;
 
     *blp = loader;
 
