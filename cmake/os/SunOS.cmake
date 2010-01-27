@@ -15,7 +15,7 @@
 
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
-
+INCLUDE(CheckCSourceCompiles) 
 
 SET(TARGET_OS_SOLARIS 1)
 # Enable 64 bit file offsets
@@ -69,3 +69,28 @@ CHECK_C_SOURCE_RUNS(
   }
 "  HAVE_SOLARIS_ATOMIC)
 
+
+# Check is special processor flag needs to be set on older GCC
+#that defaults to v8 sparc . Code here is taken from my_rdtsc.c 
+IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SIZEOF_VOID_P EQUAL 4
+  AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  SET(SOURCE
+  "
+  int main()
+  {
+     long high\;
+     long low\;
+    __asm __volatile__ (\"rd %%tick,%1\; srlx %1,32,%0\" : \"=r\" ( high), \"=r\" (low))\;
+    return 0\;
+  } ")
+  CHECK_C_SOURCE_COMPILES(${SOURCE}  HAVE_SPARC32_TICK)
+  IF(NOT HAVE_SPARC32_TICK)
+    SET(CMAKE_REQUIRED_FLAGS "-mcpu=v9")
+    CHECK_C_SOURCE_COMPILES(${SOURCE}  HAVE_SPARC32_TICK_WITH_V9)
+    SET(CMAKE_REQUIRED_FLAGS)
+    IF(HAVE_SPARC32_TICK_WITH_V9)
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=v9")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=v9")
+    ENDIF()
+  ENDIF()
+ENDIF()
