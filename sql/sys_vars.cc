@@ -299,6 +299,17 @@ static Sys_var_enum Sys_binlog_format(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
 
+static Sys_var_mybool Sys_binlog_direct(
+       "binlog_direct_non_transactional_updates",
+       "Causes updates to non-transactional engines using statement format to "
+       "be written directly to binary log. Before using this option make sure "
+       "that there are no dependencies between transactional and "
+       "non-transactional tables such as in the statement INSERT INTO t_myisam "
+       "SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
+       SESSION_VAR(binlog_direct_non_trans_update),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
        "insert optimisation. Note that this is a limit per thread!",
