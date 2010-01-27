@@ -91,6 +91,9 @@ retry:
     ptr = 0;
     while (ptr == 0)
     {
+      if (watchCounter)
+        *watchCounter = 9;
+
       ptr = sbrk(sizeof(Alloc_page) * sz);
       
       if (ptr == (void*)-1)
@@ -119,6 +122,9 @@ retry:
     ptr = 0;
     while (ptr == 0)
     {
+      if (watchCounter)
+        *watchCounter = 9;
+
       ptr = malloc(sizeof(Alloc_page) * sz);
       if (ptr == 0)
       {

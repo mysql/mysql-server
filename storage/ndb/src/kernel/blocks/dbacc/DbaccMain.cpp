@@ -482,8 +482,6 @@ void Dbacc::initialiseOverflowRec(Signal* signal)
 void Dbacc::initialisePageRec(Signal* signal) 
 {
   ndbrequire(cpagesize > 0);
-  cfreepage = 0;
-  cfirstfreepage = RNIL;
   cnoOfAllocatedPages = 0;
   cnoOfAllocatedPagesMax = 0;
 }//Dbacc::initialisePageRec()
@@ -5068,8 +5066,8 @@ void Dbacc::allocOverflowPage(Signal* signal)
   Uint32 taopTmp3;
 
   tresult = 0;
-  if ((cfirstfreepage == RNIL) &&
-      (cfreepage >= cpagesize)) {
+  if (cfirstfreepage == RNIL)
+  {
     jam();  
     zpagesize_error("Dbacc::allocOverflowPage");
     tresult = ZPAGESIZE_ERROR;
@@ -5292,16 +5290,14 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfirstfreepage == RNIL) {
-    if (cfreepage >= cpagesize) {
-      jam();
-      /*--------------------------------------------------------------*/
-      /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
-      /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
-      /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
-      /*--------------------------------------------------------------*/
-      return;
-    }//if
+  if (cfirstfreepage == RNIL)
+  {
+    /*--------------------------------------------------------------*/
+    /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
+    /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
+    /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
+    /*--------------------------------------------------------------*/
+    return;
   }//if
   if (checkScanExpand(signal) == 1) {
     jam();
@@ -5846,16 +5842,15 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfirstfreepage == RNIL) {
-    if (cfreepage >= cpagesize) {
-      jam();
-      /*--------------------------------------------------------------*/
-      /* WE HAVE TO STOP THE SHRINK PROCESS SINCE THERE ARE NO FREE   */
-      /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
-      /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
-      /*--------------------------------------------------------------*/
-      return;
-    }//if
+  if (cfirstfreepage == RNIL)
+  {
+    jam();
+    /*--------------------------------------------------------------*/
+    /* WE HAVE TO STOP THE SHRINK PROCESS SINCE THERE ARE NO FREE   */
+    /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
+    /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
+    /*--------------------------------------------------------------*/
+    return;
   }//if
   if (checkScanShrink(signal) == 1) {
     jam();
@@ -8141,7 +8136,6 @@ void Dbacc::zpagesize_error(const char* where){
   DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
 	<< "  cfirstfreepage=" << cfirstfreepage << endl
-	<< "  cfreepage=" <<cfreepage<<endl
 	<< "  cpagesize=" <<cpagesize<<endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);
 }
@@ -8153,19 +8147,14 @@ void Dbacc::zpagesize_error(const char* where){
 void Dbacc::seizePage(Signal* signal) 
 {
   tresult = 0;
-  if (cfirstfreepage == RNIL) {
-    if (cfreepage < cpagesize) {
-      jam();
-      spPageptr.i = cfreepage;
-      ptrCheckGuard(spPageptr, cpagesize, page8);
-      cfreepage++;
-      cnoOfAllocatedPages++;
-    } else {
-      jam();
-      zpagesize_error("Dbacc::seizePage");
-      tresult = ZPAGESIZE_ERROR;
-    }//if
-  } else {
+  if (cfirstfreepage == RNIL)
+  {
+    jam();
+    zpagesize_error("Dbacc::seizePage");
+    tresult = ZPAGESIZE_ERROR;
+  }
+  else
+  {
     jam();
     spPageptr.i = cfirstfreepage;
     ptrCheckGuard(spPageptr, cpagesize, page8);

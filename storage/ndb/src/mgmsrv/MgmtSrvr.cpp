@@ -797,7 +797,7 @@ int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond)
     return WRONG_PROCESS_TYPE;
   // Check if we have contact with it
   if(unCond){
-    if(theFacade->theClusterMgr->getNodeInfo(nodeId).m_api_reg_conf)
+    if(theFacade->theClusterMgr->getNodeInfo(nodeId).is_confirmed())
       return 0;
   }
   else if (theFacade->get_node_alive(nodeId) == true)
@@ -877,7 +877,7 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
     ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
-    if(node.connected)
+    if(node.is_connected())
     {
       version= node.m_info.m_version;
       mysql_version = node.m_info.m_mysql_version;
@@ -1682,7 +1682,7 @@ MgmtSrvr::status(int nodeId,
   const ClusterMgr::Node node = 
     theFacade->theClusterMgr->getNodeInfo(nodeId);
 
-  if(!node.connected){
+  if(!node.is_connected()){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
     return 0;
   }
@@ -1786,7 +1786,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
         continue;
       if (okToSendTo(nodeId, true))
       {
-        if (theFacade->theClusterMgr->getNodeInfo(nodeId).connected  == false)
+        if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
         {
           // node not connected we can safely skip this one
           continue;
@@ -1813,7 +1813,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
     {
       if (nodeTypes[nodeId] != NODE_TYPE_DB)
         continue;
-      if (theFacade->theClusterMgr->getNodeInfo(nodeId).connected  == false)
+      if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
         continue; // node is not connected, skip
       if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
         nodes.set(nodeId);
@@ -2561,7 +2561,7 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
   {
     const ClusterMgr::Node &node=
       theFacade->theClusterMgr->getNodeInfo(node_id);
-    if (node.connected)
+    if (node.is_connected())
     {
       m_connect_address[node_id]=
 	theFacade->theTransporterRegistry->get_connect_address(node_id);

@@ -476,8 +476,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  loops *= (restarter.getNumDbNodes() > 2 ? 2 : restarter.getNumDbNodes());
-  if (loops < restarter.getNumDbNodes())
+  if (loops > restarter.getNumDbNodes())
     loops = restarter.getNumDbNodes();
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
@@ -572,7 +571,6 @@ TESTCASE("TestTable",
  * TODO NdbRestarter does not work on windoze
  */
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
-  TC_PROPERTY("Sleep0", 10000); // Between restarts(miliseconds)
   STEP(runRestarter);
   STEPS(runTestTableUntilStopped, 1);
 }

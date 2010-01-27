@@ -18856,23 +18856,9 @@ void Dblqh::initialiseLogFile(Signal* signal)
 /* ========================================================================= */
 void Dblqh::initialiseLogPage(Signal* signal) 
 {
-  if (clogPageFileSize != 0) {
-    for (logPagePtr.i = 0; logPagePtr.i < clogPageFileSize; logPagePtr.i++) {
-      refresh_watch_dog();
-      ptrAss(logPagePtr, logPageRecord);
-      logPagePtr.p->logPageWord[ZNEXT_PAGE] = logPagePtr.i + 1;
-      logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST]= 1;
-      logPagePtr.p->logPageWord[ZPOS_IN_WRITING]= 0;
-    }//for
-    logPagePtr.i = clogPageFileSize - 1;
-    ptrAss(logPagePtr, logPageRecord);
-    logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
-    cfirstfreeLogPage = 0;
-  } else {
-    jam();
-    cfirstfreeLogPage = RNIL;
-  }//if
-  cnoOfLogPages = clogPageFileSize;
+  /**
+   * Moved into initRecords()
+   */
 }//Dblqh::initialiseLogPage()
 
 /* ========================================================================= 
