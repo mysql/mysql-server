@@ -5711,6 +5711,9 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_DIR,
+  OPT_SYMBOLIC_LINKS,
+  OPT_WARNINGS,
+  OPT_RECORD_BUFFER_OLD,
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_PROFILING,
@@ -6532,7 +6535,7 @@ log and this option does nothing anymore.",
   {"transaction-isolation", OPT_TX_ISOLATION,
    "Default transaction isolation level.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
-  {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
+  {"use-symbolic-links", OPT_SYMBOLIC_LINKS, "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
    (uchar**) &my_use_symdir, (uchar**) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
@@ -6542,7 +6545,7 @@ log and this option does nothing anymore.",
    0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"warnings", 'W', "Deprecated; use --log-warnings instead.",
+  {"warnings", OPT_WARNINGS, "Deprecated; use --log-warnings instead.",
    (uchar**) &global_system_variables.log_warnings,
    (uchar**) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG,
    1, 0, ULONG_MAX, 0, 0, 0},
@@ -6795,7 +6798,8 @@ The minimum value for this variable is 4096.",
    (uchar**) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
    6, 2, 7, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Deprecated option",
+   "This is a deprecated option that does nothing anymore.  It will be removed in MySQL " 
+   VER_CELOSIA,
    (uchar**) &global_system_variables.myisam_max_extra_sort_file_size,
    (uchar**) &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
@@ -6952,8 +6956,8 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
    INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"record_buffer", OPT_RECORD_BUFFER,
-   "Alias for read_buffer_size",
+  {"record_buffer", OPT_RECORD_BUFFER_OLD,
+   "Alias for read_buffer_size. This variable is deprecated and will be removed in a future release.",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
@@ -7966,6 +7970,9 @@ mysqld_get_one_option(int optid,
     print_version();
     exit(0);
 #endif /*EMBEDDED_LIBRARY*/
+  case OPT_WARNINGS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--warnings", "--log-warnings");
+    /* Note: fall-through to 'W' */
   case 'W':
     if (!argument)
       global_system_variables.log_warnings++;
@@ -7987,6 +7994,9 @@ mysqld_get_one_option(int optid,
   case (int) OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD:
     WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-bin-trust-routine-creators", "--log-bin-trust-function-creators");
     break;
+  case (int) OPT_ENABLE_LOCK:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--enable-locking", "--external-locking");
+    break;
   case (int) OPT_BIG_TABLES:
     thd_startup_options|=OPTION_BIG_TABLES;
     break;
@@ -7997,6 +8007,7 @@ mysqld_get_one_option(int optid,
     opt_myisam_log=1;
     break;
   case (int) OPT_UPDATE_LOG:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-update", "--log-bin");
     opt_update_log=1;
     break;
   case (int) OPT_BIN_LOG:
@@ -8164,7 +8175,17 @@ mysqld_get_one_option(int optid,
                       "give threads different priorities.");
     break;
   case (int) OPT_SKIP_LOCK:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--skip-locking", "--skip-external-locking");
     opt_external_locking=0;
+    break;
+  case (int) OPT_SQL_BIN_UPDATE_SAME:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--sql-bin-update-same", "the binary log");
+    break;
+  case (int) OPT_RECORD_BUFFER_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "record_buffer", "read_buffer_size");
+    break;
+  case (int) OPT_SYMBOLIC_LINKS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--use-symbolic-links", "--symbolic-links");
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -8191,6 +8212,7 @@ mysqld_get_one_option(int optid,
     test_flags|=TEST_NO_STACKTRACE;
     break;
   case (int) OPT_SKIP_SYMLINKS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--skip-symlink", "--skip-symbolic-links");
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
@@ -8266,6 +8288,9 @@ mysqld_get_one_option(int optid,
     server_id_supplied = 1;
     break;
   case OPT_DELAY_KEY_WRITE_ALL:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
+                    "--delay-key-write-for-all-tables",
+                    "--delay-key-write=ALL");
     if (argument != disabled_my_option)
       argument= (char*) "ALL";
     /* Fall through */
@@ -8280,6 +8305,11 @@ mysqld_get_one_option(int optid,
       type= find_type_or_exit(argument, &delay_key_write_typelib, opt->name);
       delay_key_write_options= (uint) type-1;
     }
+    break;
+  case OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE:
+    sql_print_warning("--myisam_max_extra_sort_file_size is deprecated and "
+                      "does nothing in this version.  It will be removed in "
+                      "a future release.");
     break;
   case OPT_CHARSETS_DIR:
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir)-1);
