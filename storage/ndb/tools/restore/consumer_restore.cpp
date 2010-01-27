@@ -266,16 +266,18 @@ BackupRestore::rebuild_indexes(const TableS& table)
   for(size_t i = 0; i<indexes.size(); i++)
   {
     NdbDictionary::Index * idx = indexes[i];
-    err << "Rebuilding index " << idx->getName() << " on table "
+    info << "Rebuilding index " << idx->getName() << " on table "
         << tab->getName() << " ..." << flush;
     if (dict->createIndex(* idx, 1) != 0)
     {
-      err << "FAIL!" << endl;
+      info << "FAIL!" << endl;
+      err << "Rebuilding index " << idx->getName() << " on table "
+        << tab->getName() <<" failed: ";
       err << dict->getNdbError() << endl;
 
       return false;
     }
-    err << "OK" << endl;
+    info << "OK" << endl;
   }
 
   return true;
@@ -1442,7 +1444,7 @@ BackupRestore::endOfTables(){
       int res = dict->dropIndex(idx->getName(), prim->getName());
       if (res == 0)
       {
-        err << "Dropped index `" << split_idx[3].c_str()
+        info << "Dropped index `" << split_idx[3].c_str()
             << "` on `" << split[2].c_str() << "`" << endl;
       }
     }
