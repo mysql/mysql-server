@@ -342,8 +342,10 @@ private:
    */
   FragStack m_fullFrags;
 
-  /** Number of root fragments for which the final batch (with tcPtrI=RNIL)
-   * has been received.
+  /** Number of root fragments for which confirmation for the final batch 
+   * (with tcPtrI=RNIL) has been received. Observe that even if 
+   * m_finalBatchFrags==m_rootFragCount, all tuples for the final batches may
+   * still not have been received (i.e. m_pendingFrags>0).
    */
   Uint32 m_finalBatchFrags;
 
@@ -411,6 +413,9 @@ private:
   /** Get the number of fragments to be read for the root operation.*/
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
+
+  /** Check if batch is complete (no outstanding messages).*/
+  bool isBatchComplete() const;
 
 }; // class NdbQueryImpl
 
@@ -504,6 +509,10 @@ public:
 
   const NdbReceiver& getReceiver(Uint32 rootFragNo) const;
 
+  /** Verify magic number.*/
+  bool checkMagicNumber() const
+  { return m_magic == MAGIC; }
+
 private:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -592,13 +601,6 @@ private:
    * NdbReceiver::m_query_operation_impl here.*/
   Uint32 getIdOfReceiver() const;
   
-  /** Verify magic number.*/
-  bool checkMagicNumber() const
-  { return m_magic == MAGIC; }
-
-  /** Check if batch is complete for this operation.*/
-  bool isBatchComplete() const;
-
   /** 
    * If the operation has a scan filter, append the corresponding
    * interpreter code to a buffer.

@@ -372,12 +372,15 @@ private:
 
 void 
 NdbResultStream::TupleIdMap::put(Uint16 tupleId, Uint16 num){
+  assert(tupleId != tupleNotFound); 
+  assert(num != tupleNotFound); 
   const Pair p = {tupleId, num};
   m_vector.push_back(p);
 }
 
 Uint16
 NdbResultStream::TupleIdMap::get(Uint16 tupleId) const {
+  assert(tupleId != tupleNotFound); 
   for(Uint32 i=0; i<m_vector.size(); i++){
     if(m_vector[i].m_tupleId == tupleId){
       return m_vector[i].m_tupleNum;
@@ -1316,7 +1319,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
        * but have not yet been moved (under mutex protection) to 
        * m_applFrags.*/
       if(m_fullFrags.top()==NULL){
-        if(getRoot().isBatchComplete()){
+        if(isBatchComplete()){
           // Request another scan batch, may already be at EOF
           const int sent = sendFetchMore(m_transaction.getConnectedNodeId());
           if (sent==0) {  // EOF reached?
@@ -1344,7 +1347,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
          for and example of a query that causes it to fail.
       */
       // Assert: No spurious wakeups w/ neither resultdata, nor EOF:
-      //assert (m_fullFrags.top()!=NULL || getRoot().isBatchComplete() || m_error.code);
+      //assert (m_fullFrags.top()!=NULL || isBatchComplete() || m_error.code);
       /* Move full fragments from receiver thread's container to application 
        *  thread's container.*/
       while (m_fullFrags.top()!=NULL) {
@@ -1362,7 +1365,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
          for and example of a query that causes it to fail.
       */
       // Only expect to end up here if another ::sendFetchMore() is required
-      // assert (getRoot().isBatchComplete() || m_error.code);
+      // assert (isBatchComplete() || m_error.code);
     } // while(likely(m_error.code==0))
 
     // 'while' terminated by m_error.code
@@ -1432,7 +1435,7 @@ NdbQueryImpl::close(bool forceSend)
   assert (m_state >= Initial && m_state < Destructed);
   Ndb* const ndb = m_transaction.getNdb();
 
-  if (m_tcState != Inactive && m_finalBatchFrags < getRootFragCount())
+  if (m_tcState != Inactive)
   {
     /* We have started a scan, but we have not yet received the last batch
      * for all root fragments. We must therefore close the scan to release 
@@ -2073,7 +2076,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
                        ndb->theNdbBlockNumber);
 
   /* Wait for outstanding scan results from current batch fetch */
-  while (!getRoot().isBatchComplete() && m_error.code==0)
+  while (!isBatchComplete() && m_error.code==0)
   {
     const FetchResult waitResult = static_cast<FetchResult>
           (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
@@ -2173,6 +2176,24 @@ NdbQueryImpl::sendClose(int nodeId)
 } // NdbQueryImpl::sendClose()
 
 
+bool 
+NdbQueryImpl::isBatchComplete() const {
+#ifndef NDEBUG
+  Uint32 count = 0;
+  for(Uint32 i = 0; i < getRootFragCount(); i++){
+    if(!m_rootFrags[i].isFragBatchComplete()){
+      count++;
+    }
+  }
+  assert(count == m_pendingFrags);
+#endif
+  return m_pendingFrags == 0;
+}
+
+/****************
+ * NdbQueryImpl::FragStack methods.
+ ***************/
+
 NdbQueryImpl::FragStack::FragStack():
   m_capacity(0),
   m_current(-1),
@@ -2199,6 +2220,10 @@ NdbQueryImpl::FragStack::push(NdbRootFragment& frag){
   assert(m_current<m_capacity);
   m_array[m_current] = &frag; 
 }
+
+/****************
+ * NdbQueryImpl::OrderedFragSet methods.
+ ***************/
 
 NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_capacity(0),
@@ -3178,6 +3203,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF()" << endl;
   }
+  assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
   assert(&getRoot() == this);
   assert(m_operationDef.isScanOperation());
@@ -3215,7 +3241,8 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
      * under mutex protection.*/
     m_queryImpl.m_fullFrags.push(rootFrag);
     // Don't awake before we have data, or query batch completed.
-    ret = resultStream.getReceiver().hasResults() || isBatchComplete();
+    ret = resultStream.getReceiver().hasResults() || 
+      m_queryImpl.isBatchComplete();
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
@@ -3339,22 +3366,6 @@ NdbQueryOperationImpl::prepareScanFilter(Uint32Buffer& attrInfo) const
 Uint32 
 NdbQueryOperationImpl::getIdOfReceiver() const {
   return m_resultStreams[0]->getReceiver().getId();
-}
-
-bool 
-NdbQueryOperationImpl::isBatchComplete() const {
-  assert(m_resultStreams!=NULL);
-  assert(this == &getRoot());
-#ifndef NDEBUG
-  Uint32 count = 0;
-  for(Uint32 i = 0; i < m_queryImpl.getRootFragCount(); i++){
-    if(!m_queryImpl.m_rootFrags[i].isFragBatchComplete()){
-      count++;
-    }
-  }
-  assert(count == getQuery().m_pendingFrags);
-#endif
-  return getQuery().m_pendingFrags == 0;
 }
 
 

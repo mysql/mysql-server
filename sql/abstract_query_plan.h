@@ -284,11 +284,14 @@ namespace AQP
 
     /** Add 'table_access' to the set.*/
     void add(const Table_access& table_access)
-    { m_map |=  1<<table_access.m_tab_no; }
+    { m_map |=  static_cast<table_map>(1) << table_access.m_tab_no; }
 
     /** Check if the set cointains 'table_access'.*/
     bool contains(const Table_access& table_access) const
-    { return (m_map & 1<<table_access.m_tab_no) != 0; }
+    { 
+      return (m_map & (static_cast<table_map>(1) << table_access.m_tab_no)) 
+	!= 0; 
+    }
 
     /** Check if the set is empty.*/
     bool is_empty() const

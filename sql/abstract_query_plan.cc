@@ -141,25 +141,27 @@ namespace AQP
 
   void Table_access::dbug_print() const
   {
-    const JOIN* const join = get_join_tab().join; 
     DBUG_PRINT("info", ("type:%d", get_join_tab().type));
     DBUG_PRINT("info", ("ref.key:%d", get_join_tab().ref.key));
     DBUG_PRINT("info", ("ref.key_parts:%d", get_join_tab().ref.key_parts));
     DBUG_PRINT("info", ("ref.key_length:%d", get_join_tab().ref.key_length));
     
-    DBUG_PRINT("info", ("order:%p", join->order));
-    DBUG_PRINT("info", ("skip_sort_order:%d", join->skip_sort_order));
-    DBUG_PRINT("info", ("no_order:%d", join->no_order));
-    DBUG_PRINT("info", ("simple_order:%d", join->simple_order));
+    DBUG_PRINT("info", ("order:%p", get_join_tab().join->order));
+    DBUG_PRINT("info", ("skip_sort_order:%d", 
+                        get_join_tab().join->skip_sort_order));
+    DBUG_PRINT("info", ("no_order:%d", get_join_tab().join->no_order));
+    DBUG_PRINT("info", ("simple_order:%d", get_join_tab().join->simple_order));
     
-    DBUG_PRINT("info", ("group:%d", join->group));
-    DBUG_PRINT("info", ("group_list:%p", join->group_list));
-    DBUG_PRINT("info", ("simple_group:%d", join->simple_group));
-    DBUG_PRINT("info", ("group_optimized_away:%d", join->group_optimized_away));
+    DBUG_PRINT("info", ("group:%d", get_join_tab().join->group));
+    DBUG_PRINT("info", ("group_list:%p", get_join_tab().join->group_list));
+    DBUG_PRINT("info", ("simple_group:%d", get_join_tab().join->simple_group));
+    DBUG_PRINT("info", ("group_optimized_away:%d", 
+                        get_join_tab().join->group_optimized_away));
     
-    DBUG_PRINT("info", ("full_join:%d", join->full_join));
-    DBUG_PRINT("info", ("need_tmp:%d", join->need_tmp));
-    DBUG_PRINT("info", ("select_distinct:%d", join->select_distinct));
+    DBUG_PRINT("info", ("full_join:%d", get_join_tab().join->full_join));
+    DBUG_PRINT("info", ("need_tmp:%d", get_join_tab().join->need_tmp));
+    DBUG_PRINT("info", ("select_distinct:%d", 
+                        get_join_tab().join->select_distinct));
     
     DBUG_PRINT("info", ("use_quick:%d", get_join_tab().use_quick));
     DBUG_PRINT("info", ("index:%d", get_join_tab().index));
