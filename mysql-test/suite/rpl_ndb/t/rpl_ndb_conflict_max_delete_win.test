@@ -32,16 +32,16 @@ create table `test`.`t1$EX`
 --enable_query_log
 
 --echo *** Test 1 ********************************************************
---echo * test native NDB\$MAX() conflict resolution
+--echo * test native NDB\$MAX_DELETE_WIN() conflict resolution
 --echo * test with both allowed "conflict column" types, uint32 and uint64
 --echo *******************************************************************
 --connection master
-insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX_DELETE_WIN(X)");
 --let col_type = int unsigned
 --source suite/rpl_ndb/t/rpl_ndb_conflict_1.inc
 
 --echo *** Test 2 ********************************************************
---echo * test native NDB\$MAX() conflict resolution
+--echo * test native NDB\$MAX_DELETE_WIN() conflict resolution
 --echo * test with both allowed "conflict column" types, uint32 and uint64
 --echo * test that setting binlog update option via table works equally well
 --echo *******************************************************************

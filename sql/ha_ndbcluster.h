@@ -128,6 +128,7 @@ enum enum_conflict_fn_type
   CFT_NDB_UNDEF = 0
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
+  ,CFT_NDB_MAX_DEL_WIN
 };
 
 /* NdbOperation custom data which points out handler and record. */
