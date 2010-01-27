@@ -5,10 +5,10 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 *** Test 1 ********************************************************
-* test native NDB$MAX() conflict resolution
+* test native NDB$MAX_DELETE_WIN() conflict resolution
 * test with both allowed "conflict column" types, uint32 and uint64
 *******************************************************************
-insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX_DELETE_WIN(X)");
 create table t1 (a int, b varchar(32), X int unsigned, d varchar(9), primary key (a, d)) engine ndb;
 create table t2 (a int key, b varchar(32), c int unsigned, d varchar(9)) engine ndb;
 ************************************************
@@ -221,7 +221,7 @@ a	b	c	d
 3	Master t2 a=3 at c=13	13	111222333
 drop table t1, t2;
 *** Test 2 ********************************************************
-* test native NDB$MAX() conflict resolution
+* test native NDB$MAX_DELETE_WIN() conflict resolution
 * test with both allowed "conflict column" types, uint32 and uint64
 * test that setting binlog update option via table works equally well
 *******************************************************************
@@ -857,13 +857,11 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 3
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
-1
+0
 SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
-2	1	#	-9	#	#
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-2	1	#	#	4	111222333
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 SELECT * FROM `t2$EX` ORDER BY a, d;
 *** slave - check update some data that causes conflicts
@@ -872,7 +870,6 @@ a	b	X	d
 1	Slave t1 a=1 at X=12	12	111
 2	Slave t1 a=2 at X=12	12	111222
 3	Slave t1 a=3 at X=12	12	111222333
-4	Slave t1 a=4 at X=12	12	111222333
 select * from t2 order by a, d;
 a	b	c	d
 1	Master t2 a=1 at c=11	11	111
@@ -896,13 +893,11 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 3
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
-1
+0
 SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
-2	1	#	-9	#	#
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
-2	1	#	#	4	111222333
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 SELECT * FROM `t2$EX` ORDER BY a, d;
 *** slave - check higer timestamp
