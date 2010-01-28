@@ -1562,6 +1562,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
     int sleepInterval = 50;
     int lockCount = lockTime / sleepInterval;
     int commitCount = 0;
+    bool tempErr = false;
     do {
       check = pTrans->execute(NoCommit, AbortOnError);   
       if( check == -1) {
@@ -1571,8 +1572,9 @@ HugoTransactions::lockRecords(Ndb* pNdb,
 	  ERR(err);
 	  closeTransaction(pNdb);
 	  NdbSleep_MilliSleep(50);
-	  retryAttempt++;
-	  continue;
+	  tempErr = true;
+          retryAttempt++;
+          break;
 	}
 	ERR(err);
 	closeTransaction(pNdb);
@@ -1587,6 +1589,9 @@ HugoTransactions::lockRecords(Ndb* pNdb,
       commitCount++;
       NdbSleep_MilliSleep(sleepInterval);
     } while (commitCount < lockCount);
+
+    if (tempErr)
+      continue; /* Retry lock attempt */
     
     // Really commit the trans, puuh!
     check = pTrans->execute(Commit, AbortOnError);   

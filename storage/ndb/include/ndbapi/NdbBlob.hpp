@@ -50,7 +50,7 @@ class NdbEventOperationImpl;
  *
  * - prepared: before the operation is executed
  * - active: after execute or next result but before transaction commit
- * - closed: after transaction commit
+ * - closed: after blob handle is closed or after transaction commit
  * - invalid: after rollback or transaction close
  *
  * NdbBlob supports 3 styles of data access:
@@ -87,8 +87,10 @@ class NdbEventOperationImpl;
  *   nullable blob in the row.
  *
  * - readTuple or scan readTuples with lock mode LM_CommittedRead is
- *   automatically upgraded to lock mode LM_Read if any blob attributes
- *   are accessed (to guarantee consistent view)
+ *   temporarily upgraded to lock mode LM_Read if any blob attributes
+ *   are accessed (to guarantee consistent view).  After the Blob 
+ *   handle is closed, the LM_Read lock is removed on the next
+ *   execute() call.
  *
  * - readTuple (with any lock mode) can only read blob value
  *
@@ -284,6 +286,37 @@ public:
    * Get next blob in list. Initialize with blobsFirstBlob().
    */
   NdbBlob* blobsNextBlob();
+  /**
+   * Close the BlobHandle
+   *
+   * The BlobHandle can be closed to release internal 
+   * resources before transaction commit / abort time.
+   *
+   * The close method can only be called when the Blob is in
+   * Active state.
+   *
+   * If execPendingBlobOps = true then pending Blob operations
+   * will be flushed before the Blob handle is closed.
+   * If execPendingBlobOps = false then the Blob handle must
+   * have no pending read or write operations.
+   * 
+   * Read operations and locks
+   * 
+   * Where a Blob handle is created on a read operation using
+   * lockmode LM_Read or LM_Exclusive, the read operation can
+   * only be unlocked after all Blob handles created on the 
+   * operation are closed.
+   *
+   * Where a row containing Blobs has been read with lockmode
+   * LM_CommittedRead, the lockmode is automatically upgraded to 
+   * LM_Read to ensure consistency.
+   * In this case, when all the BlobHandles for the row have been 
+   * close()d, an unlock operation for the row is automatically 
+   * issued by the close() call, adding a pending 'write' operation
+   * to the Blob.
+   * After the next execute() call, the upgraded lock is released.
+   */
+  int close(bool execPendingBlobOps = true);
 
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

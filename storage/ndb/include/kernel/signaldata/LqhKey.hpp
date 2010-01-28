@@ -47,6 +47,8 @@ public:
   STATIC_CONST( KeyInfoSectionNum = 0 );
   STATIC_CONST( AttrInfoSectionNum = 1 );
 
+  STATIC_CONST( UnlockKeyLen = 2 );
+
 private:
 
   /**
@@ -606,7 +608,14 @@ private:
   Uint32 connectPtr;
   Uint32 opPtr;
   Uint32 userRef;
-  Uint32 readLen;
+  union {
+    /**
+     * For read operations this variable contains the number of bytes read
+     * For unlock operations this variable contains the unlocked op's TC REF
+     */
+    Uint32 readLen;
+    Uint32 unlockTcRef;
+  };
   Uint32 transId1;
   Uint32 transId2;
   Uint32 noFiredTriggers;

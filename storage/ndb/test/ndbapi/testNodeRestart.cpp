@@ -235,6 +235,68 @@ err:
   return NDBT_OK;
 }
 
+int runPkReadPkUpdatePkUnlockUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  int i = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i++ << ": ";
+    int rows = (rand()%records)+1;
+    int batch = (rand()%rows)+1;
+    int row = (records - rows) ? rand() % (records - rows) : 0;
+    
+    int j,k;
+    for(j = 0; j<rows; j += batch)
+    {
+      k = batch;
+      if(j+k > rows)
+	k = rows - j;
+      
+      Vector<const NdbLockHandle*> lockHandles;
+
+      if(hugoOps.startTransaction(pNdb) != 0)
+	goto err;
+      
+      if(hugoOps.pkReadRecordLockHandle(pNdb, lockHandles, row+j, k, NdbOperation::LM_Exclusive) != 0)
+	goto err;
+
+      if(hugoOps.execute_NoCommit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.pkUpdateRecord(pNdb, row+j, k, rand()) != 0)
+	goto err;
+
+      if(hugoOps.execute_NoCommit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.pkUnlockRecord(pNdb, lockHandles) != 0)
+        goto err;
+
+      if(hugoOps.execute_Commit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.closeTransaction(pNdb) != 0)
+	return NDBT_FAILED;
+    }
+    
+    continue;
+err:
+    NdbConnection* pCon = hugoOps.getTransaction();
+    if(pCon == 0)
+      continue;
+    NdbError error = pCon->getNdbError();
+    hugoOps.closeTransaction(pNdb);
+    if (error.status == NdbError::TemporaryError){
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    return NDBT_FAILED;    
+  }
+  return NDBT_OK;
+}
+
 int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
@@ -4385,6 +4447,16 @@ TESTCASE("Bug48474", "")
   STEP(runBug48474);
   STEP(runScanUpdateUntilStopped);
   FINALIZER(cleanupBug48474);
+}
+TESTCASE("MixReadUnlockRestart",
+         "Run mixed read+unlock and update transactions"){
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runPkReadPkUpdateUntilStopped);
+  STEP(runPkReadPkUpdatePkUnlockUntilStopped);
+  STEP(runPkReadPkUpdatePkUnlockUntilStopped);
+  STEP(runRestarter);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

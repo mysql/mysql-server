@@ -1884,6 +1884,154 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+#define check(b, e) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << ": " << e.getNdbError() << endl; return NDBT_FAILED; }
+
+int runUnlocker(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int batchSize = ctx->getProperty("Batchsize", 1);
+  int doubleUnlock = ctx->getProperty("DoubleUnlock", (Uint32)0);
+  int lm = ctx->getProperty("LockMode", NdbOperation::LM_Read);
+  int i = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* ndb = GETNDB(step);
+
+  g_err << "Unlocker : ";
+  g_err << "Loops = " << loops << " Records = " << records << " Batchsize = " 
+        << batchSize << endl;
+
+  while(i++ < loops) 
+  {
+    g_err << i << " ";
+
+    check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+
+    const int maxRetries = 10;
+    int retryAttempt = 0;
+    int r = records;
+    Vector<const NdbLockHandle*> lockHandles;
+
+    while(r > 0)
+    {
+      int batchContents = MIN(r, batchSize);
+
+      check(hugoOps.pkReadRecordLockHandle(ndb,
+                                           lockHandles,
+                                           records - r,
+                                           batchContents,
+                                           (NdbOperation::LockMode)lm) == 0, 
+            hugoOps);
+
+      r-= batchContents;
+
+      if (hugoOps.execute_NoCommit(ndb) != 0)
+      {
+        NdbError err = hugoOps.getNdbError();
+        if ((err.status == NdbError::TemporaryError) &&
+            retryAttempt < maxRetries){
+          ERR(err);
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          lockHandles.clear();
+          check(hugoOps.closeTransaction(ndb) == 0,
+                hugoOps);
+          check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+          continue;
+        }
+        ERR(err);
+        return NDBT_FAILED;
+      }
+
+      check(hugoOps.pkUnlockRecord(ndb,
+                                  lockHandles) == 0, 
+            hugoOps);
+      
+      check(hugoOps.execute_NoCommit(ndb) == 0, 
+            hugoOps);
+
+      if (doubleUnlock)
+      {
+        NdbOperation::AbortOption ao;
+        switch(rand() % 2)
+        {
+        case 0:
+          ao = NdbOperation::AbortOnError;
+          break;
+        case 1:
+        default:
+          ao = NdbOperation::AO_IgnoreError;
+          break;
+        }
+
+        g_err << "Double unlock, abort option is "
+              << ao << endl;
+
+        /* Failure scenario */
+        check(hugoOps.pkUnlockRecord(ndb,
+                                     lockHandles,
+                                     0,    // offset
+                                     ~(0), // NumRecords
+                                     ao) == 0, 
+              hugoOps);
+        
+        check(hugoOps.execute_NoCommit(ndb,
+                                       DefaultAbortOption) != 0, 
+              hugoOps);
+
+        /* 417 = Bad operation reference */
+        check(hugoOps.getNdbError().code == 417,
+              hugoOps);
+
+        
+        if (ao == NdbOperation::AbortOnError)
+        {
+          /* Restart transaction and continue with next loop iteration */
+          r = 0;
+          lockHandles.clear();
+          check(hugoOps.closeTransaction(ndb) == 0,
+                hugoOps);
+          check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+          
+          continue;
+        }
+        /* Otherwise, IgnoreError, so let's attempt to
+         * continue
+         */
+      }
+      
+      check(hugoOps.releaseLockHandles(ndb,
+                                       lockHandles) == 0,
+            hugoOps);
+      
+      lockHandles.clear();
+    }
+    
+    switch(rand() % 3)
+    {
+    case 0:
+      check(hugoOps.execute_Commit(ndb) == 0,
+            hugoOps);
+      break;
+    case 1:
+      check(hugoOps.execute_Rollback(ndb) == 0,
+            hugoOps);
+      break;
+    default:
+      /* Do nothing, just close */
+      break;
+    }
+    
+    check(hugoOps.closeTransaction(ndb) == 0,
+          hugoOps);
+
+  }
+
+  g_err << endl;
+
+  return NDBT_OK;
+}
+
 template class Vector<NdbRecAttr*>;
 
 NDBT_TESTSUITE(testBasic);
@@ -2190,6 +2338,32 @@ TESTCASE("Bug34348",
          "Test fragment directory range full in ACC.\n"
          "NOTE: If interrupted, must clear error insert 3002 manually"){
   STEP(runBug34348);
+}
+TESTCASE("UnlockBatch",
+         "Test that batched unlock operations work ok"){
+  TC_PROPERTY("Batchsize", 33);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  FINALIZER(runClearTable);
+}
+TESTCASE("DoubleUnlock",
+         "Test that batched unlock operations work ok"){
+  TC_PROPERTY("DoubleUnlock", 1);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  FINALIZER(runClearTable);
+}
+TESTCASE("UnlockUpdateBatch",
+         "Test Unlock mixed with Update"){
+  TC_PROPERTY("Batchsize", 32);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  STEP(runUnlocker);
+  STEP(runLocker);
+  STEP(runPkUpdate);
+  STEP(runPkUpdate);
+  STEP(runPkRead);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testBasic);
 
