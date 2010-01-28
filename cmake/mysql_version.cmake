@@ -97,53 +97,8 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 
-
-# Use meaningful package name for the binary package
-IF(NOT CPACK_PACKAGE_FILE_NAME)
-  IF( NOT SYSTEM_NAME_AND_PROCESSOR)
-    IF(WIN32)
-     # CMake does not set CMAKE_SYSTEM_PROCESSOR correctly on Win64
-     # (uses x86). Besides, we try to be compatible with existing naming
-     IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-       SET(SYSTEM_NAME_AND_PROCESSOR "winx64")
-     ELSE()
-       SET(SYSTEM_NAME_AND_PROCESSOR "win32")
-     ENDIF()
-    ELSE()
-    IF(NOT PLATFORM)
-      SET(PLATFORM ${CMAKE_SYSTEM_NAME})
-    ENDIF()
-    IF(NOT MACHINE)
-      SET(MACHINE ${CMAKE_SYSTEM_PROCESSOR})
-      IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT ${MACHINE} MATCHES "ia64")
-        # On almost every 64 bit machine (except IA64) it is possible
-        # to build 32 bit packages. Add -64bit suffix to differentiate 
-        # between 32 and 64 bit packages.
-        SET(MACHINE ${MACHINE}-64bit)
-      ENDIF()
-    ENDIF()
-      SET(SYSTEM_NAME_AND_PROCESSOR "${PLATFORM}-${MACHINE}")
-    ENDIF()
-  ENDIF()
-
-  IF(SHORT_PRODUCT_TAG)
-    SET(PRODUCT_TAG "-${SHORT_PRODUCT_TAG}")
-  ELSEIF(MYSQL_SERVER_SUFFIX)
-    SET(PRODUCT_TAG "${MYSQL_SERVER_SUFFIX}")  # Already has a leading dash
-  ELSE()
-    SET(PRODUCT_TAG)
-  ENDIF()
-
-  SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
-  
-  # Sometimes package suffix is added (something like "-icc-glibc23")
-  IF(PACKAGE_SUFFIX)
-    SET(package_name "${package_name}${PACKAGE_SUFFIX}")
-  ENDIF()
-  STRING(TOLOWER ${package_name} package_name)
-  SET(CPACK_PACKAGE_FILE_NAME ${package_name})
-ENDIF()
-
+INCLUDE(package_name)
+GET_PACKAGE_FILE_NAME(CPACK_PACKAGE_FILE_NAME)
 
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
   SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")

@@ -121,10 +121,13 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
     ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
- 
+    SET(_PLATFORM x86)
+    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      SET(_PLATFORM  x64)
+    ENDIF()
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
-      COMMAND echo ${PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-                  ${PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+      COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+                  ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     ADD_DEPENDENCIES(sql GenError)
   ENDIF()

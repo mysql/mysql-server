@@ -102,14 +102,12 @@ IF(MSVC)
     ADD_DEFINITIONS(/wd4996)
   ENDIF()
 
-  SET (PLATFORM X86)
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 
     # Yet, we define it here again   to work around a bug with  Intellisense 
     # described here: http://tinyurl.com/2cb428. 
     # Syntax highlighting is important for proper debugger functionality.
     ADD_DEFINITIONS("-D_WIN64")
-    SET (PLATFORM X64)
   ENDIF()
 ENDIF()
 
