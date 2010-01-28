@@ -40,6 +40,7 @@ run_test()
         echo "File not executable or missing '`pwd`/$script_name':" >> "$log" 2>&1
     else
       ./$script_name >> "$log" 2>&1
+      s=""
       if [ "$?" -ne "0" ]; then
         s="not "
       fi
