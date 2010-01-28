@@ -140,9 +140,7 @@ EXTRA_DIST = \
   src/main/resources/clusterj.properties \
   src/main/resources/META-INF \
   src/main/resources/schema.sql \
-  src/main/java/testsuite/clusterj/*.java \
-  src/main/java/testsuite/clusterj/model/*.java \
-  src/main/java/testsuite/clusterj/domaintypehandler/*.java \
+  $(clusterj_test_java) \
   pom.xml
 
 $(MANIFEST):

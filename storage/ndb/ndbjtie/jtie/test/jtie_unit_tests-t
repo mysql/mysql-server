@@ -20,43 +20,39 @@ log="`pwd`/jtie_unit_tests-t.log"
 rm -f "$log"
 touch "$log"
 
-# run test
-( cd myapi;
-    echo "running test from directory:" >> "$log" 2>&1
-    echo "  `pwd`" >> "$log" 2>&1
-    if ! ./test_myapi.sh >> "$log" 2>&1; then
-	s="not "
-    fi
-    status="${s}ok 1 - test_myapi"
-    echo "$status" >> "$log" 2>&1
-    echo "" >> "$log" 2>&1
-    echo "$status"
-)
+test_counter=0
 
-# run test
-( cd myjapi;
-    echo "running test from directory:" >> "$log" 2>&1
-    echo "  `pwd`" >> "$log" 2>&1
-    if ! ./test_myjapi.sh >> "$log" 2>&1; then
-	s="not "
-    fi
-    status="${s}ok 2 - test_myjapi"
-    echo "$status" >> "$log" 2>&1
-    echo "" >> "$log" 2>&1
-    echo "$status"
-)
+#
+# Run a simpler shell script test, and report it as TAP
+#
+# Arguments:
+#   shell script hame
+#
+run_test()
+{
+    test_name=$1;
+    test_counter=$(expr $test_counter + 1)
+    script_name="test_$test_name.sh"
 
-# run test
-( cd unload;
-    echo "running test from directory:" >> "$log" 2>&1
-    echo "  `pwd`" >> "$log" 2>&1
-    if ! ./test_unload.sh >> "$log" 2>&1; then
-	s="not "
-    fi
-    status="${s}ok 3 - test_unload"
+    cd $test_name
+    echo "running test '`pwd`/$test_name':" >> "$log" 2>&1
+    if [ ! -x "$script_name" ]; then
+        echo "File not executable or missing '`pwd`/$test_name':" >> "$log" 2>&1
+    else
+      ./$script_name >> "$log" 2>&1
+      if [ "$?" -ne "0" ]; then
+        s="not "
+      fi
+      status="${s}ok $test_counter - $test_name"
+    fi;
     echo "$status" >> "$log" 2>&1
     echo "" >> "$log" 2>&1
     echo "$status"
-)
+    cd ..
+}
+
+run_test "myapi"
+run_test "myjapi"
+run_test "unload"
 
 echo "done." >> "$log" 2>&1
