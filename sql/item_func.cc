@@ -490,12 +490,12 @@ Field *Item_func::tmp_table_field(TABLE *table)
   return field;
 }
 
-
+/*
 bool Item_func::is_expensive_processor(uchar *arg)
 {
   return is_expensive();
 }
-
+*/
 
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {

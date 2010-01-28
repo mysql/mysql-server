@@ -158,7 +158,7 @@ static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
 end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static enum_nested_loop_state
+enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
@@ -166,7 +166,7 @@ static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static enum_nested_loop_state
+enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
 static int test_if_group_changed(List<Cached_item> &list);
@@ -192,11 +192,14 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
-static COND *make_cond_for_table(COND *cond,table_map table,
-				 table_map used_table);
-static COND *make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+static COND *make_cond_for_table(Item *cond,table_map table,
+				 table_map used_table,
+                                 bool exclude_expensive_cond);
+static COND *make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                                            table_map tables,
-                                           table_map used_table);
+                                           table_map used_table,
+                                           bool exclude_expensive_cond);
+
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
@@ -707,8 +710,7 @@ JOIN::prepare(Item ***rref_pointer_array,
         // psergey-todo: duplicated_subselect_card_check: where it's done?
         if (in_subs->is_top_level_item() &&                             // 4
             !in_subs->is_correlated &&                                  // 5
-            in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED  // 6
-            && FALSE ) // psergey-merge: disable non-sj materialization
+            in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
           in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
       }
 
@@ -1501,7 +1503,7 @@ JOIN::optimize()
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
       error= 0;
-      DBUG_RETURN(0);
+      goto setup_subq_exit;
     }
   }
 
@@ -1543,7 +1545,7 @@ JOIN::optimize()
 	zero_result_cause= "No matching min/max row";
         tables= 0;
 	error=0;
-	DBUG_RETURN(0);
+        goto setup_subq_exit;
       }
       if (res > 1)
       {
@@ -1557,7 +1559,7 @@ JOIN::optimize()
         zero_result_cause= "No matching min/max row";
         tables= 0;
         error=0;
-        DBUG_RETURN(0);
+        goto setup_subq_exit;
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
@@ -1575,13 +1577,14 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, FALSE);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
                                  QT_ORDINARY););
         conds= table_independent_conds;
       }
+      goto setup_subq_exit;
     }
   }
   if (!tables_list)
@@ -1619,7 +1622,7 @@ JOIN::optimize()
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     error= 0;
-    DBUG_RETURN(0);
+    goto setup_subq_exit;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
       best_read > (double) thd->variables.max_join_size &&
@@ -1690,7 +1693,7 @@ JOIN::optimize()
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
-    DBUG_RETURN(0);				// error == 0
+    goto setup_subq_exit;
   }
 
   error= -1;					/* if goto err */
@@ -1920,6 +1923,10 @@ JOIN::optimize()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
+  /* Create all structures needed for materialized subquery execution. */
+  if (setup_subquery_materialization())
+    DBUG_RETURN(1);
+
   /*
     is this simple IN subquery?
   */
@@ -2033,7 +2040,7 @@ JOIN::optimize()
       for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
       {
         Item *item= *tmp_order->item;
-        if (item->walk(&Item::is_expensive_processor, 0, (uchar*)0))
+        if (item->is_expensive())
         {
           /* Force tmp table without sort */
           need_tmp=1; simple_order=simple_group=0;
@@ -2183,6 +2190,18 @@ JOIN::optimize()
       DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
+  error= 0;
+  DBUG_RETURN(0);
+
+setup_subq_exit:
+  /*
+    Even with zero matching rows, subqueries in the HAVING clause may
+    need to be evaluated if there are aggregate functions in the
+    query. If we have planned to materialize the subquery, we need to
+    set it up properly before prematurely leaving optimize().
+  */
+  if (setup_subquery_materialization())
+    DBUG_RETURN(1);
   error= 0;
   DBUG_RETURN(0);
 }
@@ -2746,7 +2765,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables);
+						 used_tables, FALSE);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -2773,7 +2792,7 @@ JOIN::exec()
                                          QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
-						   ~used_tables);
+						   ~used_tables, FALSE);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
                                          "having after sort",
                                          QT_ORDINARY););
@@ -3656,7 +3675,6 @@ skip_conversion:
 bool JOIN::setup_subquery_materialization()
 {
   //psergey-merge: we don't have materialization so dont need that:
-#if 0 
   for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit(); un;
        un= un->next_unit())
   {
@@ -3673,7 +3691,6 @@ bool JOIN::setup_subquery_materialization()
       }
     }
   }
-#endif
   return FALSE;
 }
 
@@ -8685,7 +8702,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         COND *const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
-                              (table_map) 0);
+                              (table_map) 0, TRUE);
         DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
@@ -8695,7 +8712,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             JOIN_TAB *cond_tab= tab->first_inner;
             COND *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
-                                         (  table_map) 0);
+                                         (  table_map) 0, FALSE);
             if (!tmp)
               continue;
             tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -8783,7 +8800,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
       tmp= NULL;
       if (cond)
-        tmp= make_cond_for_table(cond,used_tables,current_map);
+        tmp= make_cond_for_table(cond, used_tables, current_map, FALSE);
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
@@ -8839,7 +8856,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map);
+              make_cond_for_table(tmp, current_map, current_map, FALSE);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -8968,7 +8985,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                 (tmp=make_cond_for_table(cond,
 					 join->const_table_map |
 					 current_map,
-					 current_map)))
+					 current_map, FALSE)))
 	    {
               DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
 	      tab->cache_select=(SQL_SELECT*)
@@ -8998,7 +9015,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           JOIN_TAB *cond_tab= join_tab->first_inner;
           COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
                                          join->const_table_map,
-                                         (table_map) 0);
+                                         (table_map) 0, FALSE);
           if (!tmp)
             continue;
           tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -9033,7 +9050,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           current_map= tab->table->map;
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
-                                             current_map);
+                                              current_map, FALSE);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
@@ -13299,7 +13316,17 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       return (COND*) 0;
     }
   }
-  else if (cond->const_item())
+  else if (cond->const_item() && !cond->is_expensive())
+  /*
+    DontEvaluateMaterializedSubqueryTooEarly:
+    TODO: 
+    Excluding all expensive functions is too restritive we should exclude only
+    materialized IN subquery predicates because they can't yet be evaluated
+    here (they need additional initialization that is done later on).
+
+    The proper way to exclude the subqueries would be to walk the cond tree and
+    check for materialized subqueries there.
+  */
   {
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
     return (COND*) 0;
@@ -16164,6 +16191,8 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   int error;
   SJ_TMP_TABLE::TAB *tab= sjtbl->tabs;
   SJ_TMP_TABLE::TAB *tab_end= sjtbl->tabs_end;
+  uchar *ptr;
+  uchar *nulls_ptr;
 
   DBUG_ENTER("do_sj_dups_weedout");
 
@@ -16171,15 +16200,13 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   {
     if (sjtbl->have_confluent_row) 
       DBUG_RETURN(1);
-    else
-    {
-      sjtbl->have_confluent_row= TRUE;
-      DBUG_RETURN(0);
-    }
+
+    sjtbl->have_confluent_row= TRUE;
+    DBUG_RETURN(0);
   }
 
-  uchar *ptr= sjtbl->tmp_table->record[0] + 1;
-  uchar *nulls_ptr= ptr;
+  ptr= sjtbl->tmp_table->record[0] + 1;
+  nulls_ptr= ptr;
 
   /* Put the the rowids tuple into table->record[0]: */
 
@@ -17196,7 +17223,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 	/* ARGSUSED */
-static enum_nested_loop_state
+enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records)
 {
@@ -17504,7 +17531,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 	/* ARGSUSED */
-static enum_nested_loop_state
+enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		bool end_of_records)
 {
@@ -17724,17 +17751,33 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
     Extracted condition
 */
 
-static COND *
-make_cond_for_table(COND *cond, table_map tables, table_map used_table)
+static Item *
+make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+                    bool exclude_expensive_cond)
 {
-  return make_cond_for_table_from_pred(cond, cond, tables, used_table);
+  return make_cond_for_table_from_pred(cond, cond, tables, used_table,
+                                       exclude_expensive_cond);
 }
                
-static COND *
-make_cond_for_table_from_pred(COND *root_cond, COND *cond,
-                              table_map tables, table_map used_table)
+static Item *
+make_cond_for_table_from_pred(Item *root_cond, Item *cond,
+                              table_map tables, table_map used_table,
+                              bool exclude_expensive_cond)
+
 {
-  if (used_table && !(cond->used_tables() & used_table))
+  if (used_table && !(cond->used_tables() & used_table) &&
+      /*
+        Exclude constant conditions not checked at optimization time if
+        the table we are pushing conditions to is the first one.
+        As a result, such conditions are not considered as already checked
+        and will be checked at execution time, attached to the first table.
+
+        psergey: TODO: "used_table & 1" doesn't make sense in nearly any
+        context. Look at setup_table_map(), table bits reflect the order 
+        the tables were encountered by the parser. Check what we should
+        replace this condition with.
+      */
+      !((used_table & 1) && cond->is_expensive()))
     return (COND*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
@@ -17748,7 +17791,9 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item, tables, used_table);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
+                                                tables, used_table,
+                                                exclude_expensive_cond);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -17778,7 +17823,9 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item, tables, 0L);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item,
+                                                tables, 0L,
+                                                exclude_expensive_cond);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -17799,8 +17846,12 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
     table_count times, we mark each item that we have examined with the result
     of the test
   */
-
-  if (cond->marker == 3 || (cond->used_tables() & ~tables))
+  if (cond->marker == 3 || (cond->used_tables() & ~tables) ||
+      /*
+        When extracting constant conditions, treat expensive conditions as
+        non-constant, so that they are not evaluated at optimization time.
+      */
+      (!used_table && exclude_expensive_cond && cond->is_expensive()))
     return (COND*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
@@ -18937,7 +18988,8 @@ static bool fix_having(JOIN *join, Item **having)
   table_map used_tables= join->const_table_map | table->table->map;
 
   DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
-  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
+  Item* sort_table_cond=make_cond_for_table(*having, used_tables, used_tables,
+                                            FALSE);
   if (sort_table_cond)
   {
     if (!table->select)
@@ -18955,7 +19007,7 @@ static bool fix_having(JOIN *join, Item **having)
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having",
                                      QT_ORDINARY););
-    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
+    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables, FALSE);
     DBUG_EXECUTE("where",
                  print_where(*having,"having after make_cond", QT_ORDINARY););
   }
@@ -20027,7 +20079,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Cached_item *tmp=new_Cached_item(join->thd, *group->item);
+      Cached_item *tmp=new_Cached_item(join->thd, *group->item, FALSE);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -20035,6 +20087,38 @@ alloc_group_fields(JOIN *join,ORDER *group)
   join->sort_and_group=1;			/* Mark for do_select */
   return FALSE;
 }
+
+
+
+/*
+  Test if a single-row cache of items changed, and update the cache.
+
+  @details Test if a list of items that typically represents a result
+  row has changed. If the value of some item changed, update the cached
+  value for this item.
+  
+  @param list list of <item, cached_value> pairs stored as Cached_item.
+
+  @return -1 if no item changed
+  @return index of the first item that changed
+*/
+
+int test_if_item_cache_changed(List<Cached_item> &list)
+{
+  DBUG_ENTER("test_if_item_cache_changed");
+  List_iterator<Cached_item> li(list);
+  int idx= -1,i;
+  Cached_item *buff;
+
+  for (i=(int) list.elements-1 ; (buff=li++) ; i--)
+  {
+    if (buff->cmp())
+      idx=i;
+  }
+  DBUG_PRINT("info", ("idx: %d", idx));
+  DBUG_RETURN(idx);
+}
+
 
 
 static int

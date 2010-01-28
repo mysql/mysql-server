@@ -878,6 +878,9 @@ public:
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
+  /* Cache of the result of is_expensive(). */
+  int8 is_expensive_cache;
+  
   virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
     return (this->*processor)(arg);
@@ -1081,6 +1084,29 @@ public:
   */
   virtual bool result_as_longlong() { return FALSE; }
   bool is_datetime();
+
+  /*
+    Test whether an expression is expensive to compute. Used during
+    optimization to avoid computing expensive expressions during this
+    phase. Also used to force temp tables when sorting on expensive
+    functions.
+    TODO:
+    Normally we should have a method:
+      cost Item::execution_cost(),
+    where 'cost' is either 'double' or some structure of various cost
+    parameters.
+
+    NOTE
+      This function is now used to prevent evaluation of materialized IN
+      subquery predicates before it is allowed. grep for 
+      DontEvaluateMaterializedSubqueryTooEarly to see the uses.
+  */
+  virtual bool is_expensive()
+  {
+    if (is_expensive_cache < 0)
+      is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
+    return test(is_expensive_cache);
+  }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
@@ -2842,9 +2868,10 @@ class Cached_item_field :public Cached_item
   uint length;
 
 public:
-  Cached_item_field(Item_field *item)
+  Cached_item_field(Field *arg_field) : field(arg_field)
   {
-    field= item->field;
+    field= arg_field;
+    /* TODO: take the memory allocation below out of the constructor. */
     buff= (uchar*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
@@ -3271,7 +3298,8 @@ void mark_select_range_as_dependent(THD *thd,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
-extern Cached_item *new_Cached_item(THD *thd, Item *item);
+extern Cached_item *new_Cached_item(THD *thd, Item *item,
+                                    bool use_result_field);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(Field *field, Item *item);

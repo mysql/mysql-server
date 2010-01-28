@@ -192,8 +192,8 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
+ // bool is_expensive_processor(uchar *arg);
+ // virtual bool is_expensive() { return 0; }
   inline double fix_result(double value)
   {
     if (isfinite(value))
@@ -1053,6 +1053,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1676,6 +1677,9 @@ private:
   bool execute();
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
+
+protected:
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   
 public:
 

@@ -39,12 +39,13 @@ inline Item * and_items(Item* cond, Item *item)
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), in_fix_fields(0), engine_changed(0), changed(0), is_correlated(FALSE)
+  const_item_cache(1), in_fix_fields(0), engine_changed(0), changed(0),
+  is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();
   /*
-    item value is NULL if select_subselect not changed this value
+    Item value is NULL if select_result_interceptor didn't change this value
     (i.e. some rows will be found returned)
   */
   null_value= 1;
@@ -52,7 +53,7 @@ Item_subselect::Item_subselect():
 
 
 void Item_subselect::init(st_select_lex *select_lex,
-			  select_subselect *result)
+			  select_result_interceptor *result)
 {
   /*
     Please see Item_singlerow_subselect::invalidate_and_restore_select_lex(),
@@ -130,6 +131,21 @@ void Item_singlerow_subselect::cleanup()
   DBUG_VOID_RETURN;
 }
 
+
+void Item_in_subselect::cleanup()
+{
+  DBUG_ENTER("Item_in_subselect::cleanup");
+  if (left_expr_cache)
+  {
+    left_expr_cache->delete_elements();
+    delete left_expr_cache;
+    left_expr_cache= NULL;
+  }
+  first_execution= TRUE;
+  Item_subselect::cleanup();
+  DBUG_VOID_RETURN;
+}
+
 Item_subselect::~Item_subselect()
 {
   delete engine;
@@ -166,6 +182,15 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
   if (!res)
   {
+    // all transformation is done (used by prepared statements)
+    changed= 1;
+
+    /*
+      Substitute the current item with an Item_in_optimizer that was
+      created by Item_in_subselect::select_in_like_transformer and
+      call fix_fields for the substituted item which in turn calls
+      engine->prepare for the subquery predicate.
+    */
     if (substitution)
     {
       int ret= 0;
@@ -296,6 +321,50 @@ bool Item_subselect::exec()
   return (res);
 }
 
+
+/*
+  Compute the IN predicate if the left operand's cache changed.
+*/
+
+bool Item_in_subselect::exec()
+{
+  DBUG_ENTER("Item_in_subselect::exec");
+  DBUG_ASSERT(exec_method != MATERIALIZATION ||
+              (exec_method == MATERIALIZATION &&
+               engine->engine_type() == subselect_engine::HASH_SJ_ENGINE));
+  /*
+    Initialize the cache of the left predicate operand. This has to be done as
+    late as now, because Cached_item directly contains a resolved field (not
+    an item, and in some cases (when temp tables are created), these fields
+    end up pointing to the wrong field. One solution is to change Cached_item
+    to not resolve its field upon creation, but to resolve it dynamically
+    from a given Item_ref object.
+    TODO: the cache should be applied conditionally based on:
+    - rules - e.g. only if the left operand is known to be ordered, and/or
+    - on a cost-based basis, that takes into account the cost of a cache
+      lookup, the cache hit rate, and the savings per cache hit.
+  */
+  if (!left_expr_cache && exec_method == MATERIALIZATION)
+    init_left_expr_cache();
+
+  /* If the new left operand is already in the cache, reuse the old result. */
+  if (left_expr_cache && test_if_item_cache_changed(*left_expr_cache) < 0)
+  {
+    /* Always compute IN for the first row as the cache is not valid for it. */
+    if (!first_execution)
+      DBUG_RETURN(FALSE);
+    first_execution= FALSE;
+  }
+
+  /*
+    The exec() method below updates item::value, and item::null_value, thus if
+    we don't call it, the next call to item::val_int() will return whatever
+    result was computed by its previous call.
+  */
+  DBUG_RETURN(Item_subselect::exec());
+}
+
+
 Item::Type Item_subselect::type() const
 {
   return SUBSELECT_ITEM;
@@ -339,9 +408,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str, enum_query_type query_type)
 {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 
@@ -450,8 +524,9 @@ void Item_singlerow_subselect::reset()
 Item_subselect::trans_res
 Item_singlerow_subselect::select_transformer(JOIN *join)
 {
+  DBUG_ENTER("Item_singlerow_subselect::select_transformer");
   if (changed)
-    return RES_OK;
+    DBUG_RETURN(RES_OK);
 
   SELECT_LEX *select_lex= join->select_lex;
   Query_arena *arena= thd->stmt_arena;
@@ -494,15 +569,17 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     */
     substitution->walk(&Item::remove_dependence_processor, 0,
 		       (uchar *) select_lex->outer_select());
-    return RES_REDUCE;
+    DBUG_RETURN(RES_REDUCE);
   }
-  return RES_OK;
+  DBUG_RETURN(RES_OK);
 }
 
 
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
+  //psergey-merge: can do without that: row[i]->cache_value();
+  //psergey-backport-timours: ^ really, without that ^ 
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -685,8 +762,9 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), optimizer(0), transformed(0),
-  pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
+  Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+  optimizer(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
+  upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -706,7 +784,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 					     bool all_arg)
   :Item_in_subselect(), func_creator(fc), all(all_arg)
 {
-  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
   init(select_lex, new select_exists_subselect(this));
@@ -962,10 +1040,10 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
           HAVING trigcond(<is_not_null_test>(ie))
 
   RETURN
-    RES_OK     - OK, either subquery was transformed, or appopriate
-                 predicates where injected into it.
-    RES_REDUCE - The subquery was reduced to non-subquery
-    RES_ERROR  - Error
+    RES_OK     Either subquery was transformed, or appopriate
+                       predicates where injected into it.
+    RES_REDUCE The subquery was reduced to non-subquery
+    RES_ERROR  Error
 */
 
 Item_subselect::trans_res
@@ -979,6 +1057,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     Check that the right part of the subselect contains no more than one
     column. E.g. in SELECT 1 IN (SELECT * ..) the right part is (SELECT * ...)
   */
+  // psergey: duplicated_subselect_card_check
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
@@ -1084,10 +1163,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     thd->lex->current_select= current;
 
-    //psergey-merge-jan11:
     /* We will refer to upper level cache array => we have to save it for SP */
     optimizer->keep_top_level_cache();
-    //:psergey-merge-jan11
 
     /*
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
@@ -1100,12 +1177,67 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
     master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
+
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
   {
     if (!(pushed_cond_guards= (bool*)join->thd->alloc(sizeof(bool))))
       DBUG_RETURN(RES_ERROR);
     pushed_cond_guards[0]= TRUE;
   }
+
+  /*
+    If this IN predicate can be computed via materialization, do not
+    perform the IN -> EXISTS transformation.
+  */
+  if (exec_method == MATERIALIZATION)
+    DBUG_RETURN(RES_OK);
+
+  /* Perform the IN=>EXISTS transformation. */
+  DBUG_RETURN(single_value_in_to_exists_transformer(join, func));
+}
+
+
+/**
+  Transofrm an IN predicate into EXISTS via predicate injection.
+
+  @details The transformation injects additional predicates into the subquery
+  (and makes the subquery correlated) as follows.
+
+  - If the subquery has aggregates, GROUP BY, or HAVING, convert to
+
+    SELECT ie FROM ...  HAVING subq_having AND 
+                               trigcond(oe $cmp$ ref_or_null_helper<ie>)
+                                   
+    the addition is wrapped into trigger only when we want to distinguish
+    between NULL and FALSE results.
+
+  - Otherwise (no aggregates/GROUP BY/HAVING) convert it to one of the
+    following:
+
+    = If we don't need to distinguish between NULL and FALSE subquery:
+        
+      SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
+
+    = If we need to distinguish between those:
+
+      SELECT 1 FROM ...
+        WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
+        HAVING trigcond(<is_not_null_test>(ie))
+
+    @param join  Join object of the subquery (i.e. 'child' join).
+    @param func  Subquery comparison creator
+
+    @retval RES_OK     Either subquery was transformed, or appopriate
+                       predicates where injected into it.
+    @retval RES_REDUCE The subquery was reduced to non-subquery
+    @retval RES_ERROR  Error
+*/
+
+Item_subselect::trans_res
+Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creator *func)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
@@ -1286,19 +1418,21 @@ Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
   SELECT_LEX *select_lex= join->select_lex;
-  Item *having_item= 0;
   uint cols_num= left_expr->cols();
-  bool is_having_used= (join->having || select_lex->with_sum_func ||
-                        select_lex->group_list.first ||
-                        !select_lex->table_list.elements);
+
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
+  // psergey: duplicated_subselect_card_check
   if (select_lex->item_list.elements != left_expr->cols())
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
     DBUG_RETURN(RES_ERROR);
   }
 
+  /*
+    Wrap the current IN predicate in an Item_in_optimizer. The actual
+    substitution in the Item tree takes place in Item_subselect::fix_fields.
+  */
   if (!substitution)
   {
     //first call for this unit
@@ -1330,6 +1464,48 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     }
   }
 
+  /*
+    If this IN predicate can be computed via materialization, do not
+    perform the IN -> EXISTS transformation.
+  */
+  if (exec_method == MATERIALIZATION)
+    DBUG_RETURN(RES_OK);
+
+  /* Perform the IN=>EXISTS transformation. */
+  DBUG_RETURN(row_value_in_to_exists_transformer(join));
+}
+
+
+/**
+  Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
+
+  @todo
+  The IF-ELSE below can be refactored so that there is no duplication of the
+  statements that create the new conditions. For this we have to invert the IF
+  and the FOR statements as this:
+  for (each left operand)
+    create the equi-join condition
+    if (is_having_used || !abort_on_null)
+      create the "is null" and is_not_null_test items
+    if (is_having_used)
+      add the equi-join and the null tests to HAVING
+    else
+      add the equi-join and the "is null" to WHERE
+      add the is_not_null_test to HAVING
+*/
+
+Item_subselect::trans_res
+Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  Item *having_item= 0;
+  uint cols_num= left_expr->cols();
+  bool is_having_used= (join->having || select_lex->with_sum_func ||
+                        select_lex->group_list.first ||
+                        !select_lex->table_list.elements);
+
+  DBUG_ENTER("Item_in_subselect::row_value_in_to_exists_transformer");
+
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (is_having_used)
   {
@@ -1350,7 +1526,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     for (uint i= 0; i < cols_num; i++)
     {
       DBUG_ASSERT((left_expr->fixed &&
-                   select_lex->ref_pointer_array[i]->fixed) ||
+                  select_lex->ref_pointer_array[i]->fixed) ||
                   (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
                    ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
                     Item_ref::OUTER_REF));
@@ -1428,7 +1604,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     {
       Item *item, *item_isnull;
       DBUG_ASSERT((left_expr->fixed &&
-                   select_lex->ref_pointer_array[i]->fixed) ||
+                  select_lex->ref_pointer_array[i]->fixed) ||
                   (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
                    ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
                     Item_ref::OUTER_REF));
@@ -1573,9 +1749,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   }
 
   if (changed)
-  {
     DBUG_RETURN(RES_OK);
-  }
 
   thd->where= "IN/ALL/ANY subquery";
 
@@ -1583,6 +1757,8 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     In some optimisation cases we will not need this Item_in_optimizer
     object, but we can't know it here, but here we need address correct
     reference on left expresion.
+
+    //psergey: he means confluent cases like "... IN (SELECT 1)"
   */
   if (!optimizer)
   {
@@ -1610,7 +1786,6 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (exec_method == NOT_TRANSFORMED)
     exec_method= IN_TO_EXISTS;
-  transformed= 1;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
@@ -1644,7 +1819,7 @@ err:
 
 void Item_in_subselect::print(String *str, enum_query_type query_type)
 {
-  if (transformed)
+  if (exec_method == IN_TO_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -1658,7 +1833,10 @@ void Item_in_subselect::print(String *str, enum_query_type query_type)
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
-  
+
+  if (exec_method == SEMI_JOIN)
+    return !( (*ref)= new Item_int(1));
+
   if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
@@ -1666,20 +1844,188 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 }
 
 
+/**
+  Try to create an engine to compute the subselect via materialization,
+  and if this fails, revert to execution via the IN=>EXISTS transformation.
+
+  @details
+    The purpose of this method is to hide the implementation details
+    of this Item's execution. The method creates a new engine for
+    materialized execution, and initializes the engine.
+
+    If this initialization fails
+    - either because it wasn't possible to create the needed temporary table
+      and its index,
+    - or because of a memory allocation error,
+    then we revert back to execution via the IN=>EXISTS tranformation.
+
+    The initialization of the new engine is divided in two parts - a permanent
+    one that lives across prepared statements, and one that is repeated for each
+    execution.
+
+  @returns
+    @retval TRUE  memory allocation error occurred
+    @retval FALSE an execution method was chosen successfully
+*/
+
+bool Item_in_subselect::setup_engine()
+{
+  subselect_hash_sj_engine *new_engine= NULL;
+  bool res= FALSE;
+
+  DBUG_ENTER("Item_in_subselect::setup_engine");
+
+  if (engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE)
+  {
+    /* Create/initialize objects in permanent memory. */
+    subselect_single_select_engine *old_engine;
+    Query_arena *arena= thd->stmt_arena, backup;
+
+    old_engine= (subselect_single_select_engine*) engine;
+
+    if (arena->is_conventional())
+      arena= 0;
+    else
+      thd->set_n_backup_active_arena(arena, &backup);
+
+    if (!(new_engine= new subselect_hash_sj_engine(thd, this,
+                                                   old_engine)) ||
+        new_engine->init_permanent(unit->get_unit_column_types()))
+    {
+      Item_subselect::trans_res trans_res;
+      /*
+        If for some reason we cannot use materialization for this IN predicate,
+        delete all materialization-related objects, and apply the IN=>EXISTS
+        transformation.
+      */
+      delete new_engine;
+      new_engine= NULL;
+      exec_method= NOT_TRANSFORMED;
+      if (left_expr->cols() == 1)
+        trans_res= single_value_in_to_exists_transformer(old_engine->join,
+                                                         &eq_creator);
+      else
+        trans_res= row_value_in_to_exists_transformer(old_engine->join);
+      res= (trans_res != Item_subselect::RES_OK);
+    }
+    if (new_engine)
+      engine= new_engine;
+
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+  }
+  else
+  {
+    DBUG_ASSERT(engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
+    new_engine= (subselect_hash_sj_engine*) engine;
+  }
+
+  /* Initilizations done in runtime memory, repeated for each execution. */
+  if (new_engine)
+  {
+    /*
+      Reset the LIMIT 1 set in Item_exists_subselect::fix_length_and_dec.
+      TODO:
+      Currently we set the subquery LIMIT to infinity, and this is correct
+      because we forbid at parse time LIMIT inside IN subqueries (see
+      Item_in_subselect::test_limit). However, once we allow this, here
+      we should set the correct limit if given in the query.
+    */
+    unit->global_parameters->select_limit= NULL;
+    if ((res= new_engine->init_runtime()))
+      DBUG_RETURN(res);
+  }
+
+  DBUG_RETURN(res);
+}
+
+
+/**
+  Initialize the cache of the left operand of the IN predicate.
+
+  @note This method has the same purpose as alloc_group_fields(),
+  but it takes a different kind of collection of items, and the
+  list we push to is dynamically allocated.
+
+  @retval TRUE  if a memory allocation error occurred or the cache is
+                not applicable to the current query
+  @retval FALSE if success
+*/
+
+bool Item_in_subselect::init_left_expr_cache()
+{
+  JOIN *outer_join;
+  Next_select_func end_select;
+  bool use_result_field= FALSE;
+
+  outer_join= unit->outer_select()->join;
+  /*
+    An IN predicate might be evaluated in a query for which all tables have
+    been optimzied away.
+  */ 
+  if (!outer_join || !outer_join->tables || !outer_join->tables_list)
+    return TRUE;
+  /*
+    If we use end_[send | write]_group to handle complete rows of the outer
+    query, make the cache of the left IN operand use Item_field::result_field
+    instead of Item_field::field.  We need this because normally
+    Cached_item_field uses Item::field to fetch field data, while
+    copy_ref_key() that copies the left IN operand into a lookup key uses
+    Item::result_field. In the case end_[send | write]_group result_field is
+    one row behind field.
+  */
+  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
+  if (end_select == end_send_group || end_select == end_write_group)
+    use_result_field= TRUE;
+
+  if (!(left_expr_cache= new List<Cached_item>))
+    return TRUE;
+
+  for (uint i= 0; i < left_expr->cols(); i++)
+  {
+    Cached_item *cur_item_cache= new_Cached_item(thd,
+                                                 left_expr->element_index(i),
+                                                 use_result_field);
+    if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Callback to test if an IN predicate is expensive.
+
+  @details
+    IN predicates are considered expensive only if they will be executed via
+    materialization. The return value affects the behavior of
+    make_cond_for_table() in such a way that it is unchanged when we use
+    the IN=>EXISTS transformation to compute IN.
+
+  @retval TRUE  if the predicate is expensive
+  @retval FALSE otherwise
+*/
+
+bool Item_in_subselect::is_expensive_processor(uchar *arg)
+{
+  return exec_method == MATERIALIZATION;
+}
+
+
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
-  transformed= 1;
+  DBUG_ENTER("Item_allany_subselect::select_transformer");
   exec_method= IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
-  return select_in_like_transformer(join, func);
+  DBUG_RETURN(select_in_like_transformer(join, func));
 }
 
 
 void Item_allany_subselect::print(String *str, enum_query_type query_type)
 {
-  if (transformed)
+  if (exec_method == IN_TO_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -1702,11 +2048,10 @@ void subselect_engine::set_thd(THD *thd_arg)
 
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
-			       select_subselect *result_arg,
+			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg),
-   prepared(0), optimized(0), executed(0),
-   select_lex(select), join(0)
+   prepared(0), executed(0), select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -1715,7 +2060,7 @@ subselect_single_select_engine(st_select_lex *select,
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= optimized= executed= 0;
+  prepared= executed= 0;
   join= 0;
   result->cleanup();
   DBUG_VOID_RETURN;
@@ -1758,6 +2103,7 @@ bool subselect_union_engine::no_rows()
   return test(!unit->fake_select_lex->join->send_records);
 }
 
+
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
@@ -1770,7 +2116,7 @@ void subselect_uniquesubquery_engine::cleanup()
 
 
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
-					       select_subselect *result_arg,
+					       select_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg)
 {
@@ -1780,6 +2126,32 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
   unit->item= item_arg;
 }
 
+
+/**
+  Create and prepare the JOIN object that represents the query execution
+  plan for the subquery.
+
+  @detail
+  This method is called from Item_subselect::fix_fields. For prepared
+  statements it is called both during the PREPARE and EXECUTE phases in the
+  following ways:
+  - During PREPARE the optimizer needs some properties
+    (join->fields_list.elements) of the JOIN to proceed with preparation of
+    the remaining query (namely to complete ::fix_fields for the subselect
+    related classes. In the end of PREPARE the JOIN is deleted.
+  - When we EXECUTE the query, Item_subselect::fix_fields is called again, and
+    the JOIN object is re-created again, prepared and executed. In the end of
+    execution it is deleted.
+  In all cases the JOIN is created in runtime memory (not in the permanent
+  memory root).
+
+  @todo
+  Re-check what properties of 'join' are needed during prepare, and see if
+  we can avoid creating a JOIN during JOIN::prepare of the outer join.
+
+  @retval 0  if success
+  @retval 1  if error
+*/
 
 int subselect_single_select_engine::prepare()
 {
@@ -1818,8 +2190,8 @@ int subselect_union_engine::prepare()
 
 int subselect_uniquesubquery_engine::prepare()
 {
-  //this never should be called
-  DBUG_ASSERT(0);
+  /* Should never be called. */
+  DBUG_ASSERT(FALSE);
   return 1;
 }
 
@@ -1866,6 +2238,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
+ //psergey-backport-timours:   row[i]->store(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
@@ -1913,11 +2286,10 @@ int subselect_single_select_engine::exec()
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
-  if (!optimized)
+  if (!join->optimized)
   {
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
-    optimized= 1;
     unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
@@ -2262,7 +2634,8 @@ int subselect_uniquesubquery_engine::exec()
 subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
 {
   /* Tell handler we don't need the index anymore */
-  tab->table->file->ha_index_end();
+  //psergey-merge-todo: the following was gone in 6.0:
+ //psergey-merge: don't need this after all: tab->table->file->ha_index_end();
 }
 
 
@@ -2270,7 +2643,7 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
   Index-lookup subselect 'engine' - run the subquery
 
   SYNOPSIS
-    subselect_uniquesubquery_engine:exec()
+    subselect_indexsubquery_engine:exec()
       full_scan 
 
   DESCRIPTION
@@ -2494,10 +2867,20 @@ void subselect_union_engine::print(String *str, enum_query_type query_type)
 void subselect_uniquesubquery_engine::print(String *str,
                                             enum_query_type query_type)
 {
+  char *table_name= tab->table->s->table_name.str;
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
+  if (tab->table->s->table_category == TABLE_CATEGORY_TEMPORARY)
+  {
+    /*
+      Temporary tables' names change across runs, so they can't be used for
+      EXPLAIN EXTENDED.
+    */
+    str->append(STRING_WITH_LEN("<temporary table>"));
+  }
+  else
+    str->append(table_name, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
@@ -2509,6 +2892,29 @@ void subselect_uniquesubquery_engine::print(String *str,
   str->append(')');
 }
 
+/*
+TODO:
+The above ::print method should be changed as below. Do it after
+all other tests pass.
+
+void subselect_uniquesubquery_engine::print(String *str)
+{
+  KEY *key_info= tab->table->key_info + tab->ref.key;
+  str->append(STRING_WITH_LEN("<primary_index_lookup>("));
+  for (uint i= 0; i < key_info->key_parts; i++)
+    tab->ref.items[i]->print(str);
+  str->append(STRING_WITH_LEN(" in "));
+  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
+  str->append(STRING_WITH_LEN(" on "));
+  str->append(key_info->name);
+  if (cond)
+  {
+    str->append(STRING_WITH_LEN(" where "));
+    cond->print(str);
+  }
+  str->append(')');
+}
+*/
 
 void subselect_indexsubquery_engine::print(String *str,
                                            enum_query_type query_type)
@@ -2548,7 +2954,7 @@ void subselect_indexsubquery_engine::print(String *str,
 */
 
 bool subselect_single_select_engine::change_result(Item_subselect *si,
-                                                 select_subselect *res)
+                                                 select_result_interceptor *res)
 {
   item= si;
   result= res;
@@ -2569,7 +2975,7 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 */
 
 bool subselect_union_engine::change_result(Item_subselect *si,
-                                         select_subselect *res)
+                                           select_result_interceptor *res)
 {
   item= si;
   int rc= unit->change_result(res, result);
@@ -2591,7 +2997,7 @@ bool subselect_union_engine::change_result(Item_subselect *si,
 */
 
 bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
-                                                  select_subselect *res)
+                                                    select_result_interceptor *res)
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -2660,4 +3066,335 @@ bool subselect_uniquesubquery_engine::no_tables()
 {
   /* returning value is correct, but this method should never be called */
   return 0;
+}
+
+
+/******************************************************************************
+  WL#1110 - Implementation of class subselect_hash_sj_engine
+******************************************************************************/
+
+
+/**
+  Create all structures needed for IN execution that can live between PS
+  reexecution.
+
+  @detail
+  - Create a temporary table to store the result of the IN subquery. The
+    temporary table has one hash index on all its columns.
+  - Create a new result sink that sends the result stream of the subquery to
+    the temporary table,
+  - Create and initialize a new JOIN_TAB, and TABLE_REF objects to perform
+    lookups into the indexed temporary table.
+
+  @notice:
+    Currently Item_subselect::init() already chooses and creates at parse
+    time an engine with a corresponding JOIN to execute the subquery.
+
+  @retval TRUE  if error
+  @retval FALSE otherwise
+*/
+
+bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
+{
+  /* The result sink where we will materialize the subquery result. */
+  select_union  *tmp_result_sink;
+  /* The table into which the subquery is materialized. */
+  TABLE         *tmp_table;
+  KEY           *tmp_key; /* The only index on the temporary table. */
+  uint          tmp_key_parts; /* Number of keyparts in tmp_key. */
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+
+  DBUG_ENTER("subselect_hash_sj_engine::init_permanent");
+
+  /* 1. Create/initialize materialization related objects. */
+
+  /*
+    Create and initialize a select result interceptor that stores the
+    result stream in a temporary table. The temporary table itself is
+    managed (created/filled/etc) internally by the interceptor.
+  */
+  if (!(tmp_result_sink= new select_union))
+    DBUG_RETURN(TRUE);
+  if (tmp_result_sink->create_result_table(
+                         thd, tmp_columns, TRUE,
+                         thd->options | TMP_TABLE_ALL_COLUMNS,
+                         "materialized subselect"))
+    DBUG_RETURN(TRUE);
+
+  tmp_table= tmp_result_sink->table;
+  tmp_key= tmp_table->key_info;
+  tmp_key_parts= tmp_key->key_parts;
+
+  /*
+     If the subquery has blobs, or the total key lenght is bigger than some
+     length, then the created index cannot be used for lookups and we
+     can't use hash semi join. If this is the case, delete the temporary
+     table since it will not be used, and tell the caller we failed to
+     initialize the engine.
+  */
+  if (tmp_table->s->keys == 0)
+  {
+#ifndef DBUG_OFF
+    handlerton *tmp_table_hton= tmp_table->s->db_type();
+#ifdef USE_MARIA_FOR_TMP_TABLES 
+    DBUG_ASSERT(tmp_table_hton == maria_hton);
+#else
+    DBUG_ASSERT(tmp_table_hton == myisam_hton);
+#endif
+#endif
+    DBUG_ASSERT(
+      tmp_table->s->uniques ||
+      tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
+      tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
+    free_tmp_table(thd, tmp_table);
+    delete result;
+    result= NULL;
+    DBUG_RETURN(TRUE);
+  }
+  result= tmp_result_sink;
+
+  /*
+    Make sure there is only one index on the temp table, and it doesn't have
+    the extra key part created when s->uniques > 0.
+  */
+  DBUG_ASSERT(tmp_table->s->keys == 1 && tmp_columns->elements == tmp_key_parts);
+
+
+  /* 2. Create/initialize execution related objects. */
+
+  /*
+    Create and initialize the JOIN_TAB that represents an index lookup
+    plan operator into the materialized subquery result. Notice that:
+    - this JOIN_TAB has no corresponding JOIN (and doesn't need one), and
+    - here we initialize only those members that are used by
+      subselect_uniquesubquery_engine, so these objects are incomplete.
+  */ 
+  if (!(tab= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
+    DBUG_RETURN(TRUE);
+  tab->table= tmp_table;
+  tab->ref.key= 0; /* The only temp table index. */
+  tab->ref.key_length= tmp_key->key_length;
+  if (!(tab->ref.key_buff=
+        (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
+      !(tab->ref.key_copy=
+        (store_key**) thd->alloc((sizeof(store_key*) *
+                                  (tmp_key_parts + 1)))) ||
+      !(tab->ref.items=
+        (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
+    DBUG_RETURN(TRUE);
+
+  KEY_PART_INFO *cur_key_part= tmp_key->key_part;
+  store_key **ref_key= tab->ref.key_copy;
+  uchar *cur_ref_buff= tab->ref.key_buff;
+
+  /*
+    Create an artificial condition to post-filter those rows matched by index
+    lookups that cannot be distinguished by the index lookup procedure, e.g.
+    because of truncation. Prepared statements execution requires that
+    fix_fields is called for every execution. In order to call fix_fields we
+    need to create a Name_resolution_context and a corresponding TABLE_LIST
+    for the temporary table for the subquery, so that all column references
+    to the materialized subquery table can be resolved correctly.
+  */
+  DBUG_ASSERT(cond == NULL);
+  if (!(cond= new Item_cond_and))
+    DBUG_RETURN(TRUE);
+  /*
+    Table reference for tmp_table that is used to resolve column references
+    (Item_fields) to columns in tmp_table.
+  */
+  TABLE_LIST *tmp_table_ref;
+  if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
+    DBUG_RETURN(TRUE);
+
+  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->table= tmp_table;
+
+  /* Name resolution context for all tmp_table columns created below. */
+  Name_resolution_context *context= new Name_resolution_context;
+  context->init();
+  context->first_name_resolution_table=
+    context->last_name_resolution_table= tmp_table_ref;
+  
+  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+  {
+    Item_func_eq *eq_cond; /* New equi-join condition for the current column. */
+    /* Item for the corresponding field from the materialized temp table. */
+    Item_field *right_col_item;
+    int null_count= test(cur_key_part->field->real_maybe_null());
+    tab->ref.items[i]= item_in->left_expr->element_index(i);
+
+    if (!(right_col_item= new Item_field(thd, context, cur_key_part->field)) ||
+        !(eq_cond= new Item_func_eq(tab->ref.items[i], right_col_item)) ||
+        ((Item_cond_and*)cond)->add(eq_cond))
+    {
+      delete cond;
+      cond= NULL;
+      DBUG_RETURN(TRUE);
+    }
+
+    *ref_key= new store_key_item(thd, cur_key_part->field,
+                                 /* TODO:
+                                    the NULL byte is taken into account in
+                                    cur_key_part->store_length, so instead of
+                                    cur_ref_buff + test(maybe_null), we could
+                                    use that information instead.
+                                 */
+                                 cur_ref_buff + null_count,
+                                 null_count ? tab->ref.key_buff : 0,
+                                 cur_key_part->length, tab->ref.items[i]);
+    cur_ref_buff+= cur_key_part->store_length;
+  }
+  *ref_key= NULL; /* End marker. */
+  tab->ref.key_err= 1;
+  tab->ref.key_parts= tmp_key_parts;
+
+  if (cond->fix_fields(thd, &cond))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Initialize members of the engine that need to be re-initilized at each
+  execution.
+
+  @retval TRUE  if a memory allocation error occurred
+  @retval FALSE if success
+*/
+
+bool subselect_hash_sj_engine::init_runtime()
+{
+  /*
+    Create and optimize the JOIN that will be used to materialize
+    the subquery if not yet created.
+  */
+  materialize_engine->prepare();
+  /*
+    Repeat name resolution for 'cond' since cond is not part of any
+    clause of the query, and it is not 'fixed' during JOIN::prepare.
+  */
+  if (cond && !cond->fixed && cond->fix_fields(thd, &cond))
+    return TRUE;
+  /* Let our engine reuse this query plan for materialization. */
+  materialize_join= materialize_engine->join;
+  materialize_join->change_result(result);
+  return FALSE;
+}
+
+
+subselect_hash_sj_engine::~subselect_hash_sj_engine()
+{
+  delete result;
+  if (tab)
+    free_tmp_table(thd, tab->table);
+}
+
+
+/**
+  Cleanup performed after each PS execution.
+
+  @detail
+  Called in the end of JOIN::prepare for PS from Item_subselect::cleanup.
+*/
+
+void subselect_hash_sj_engine::cleanup()
+{
+  is_materialized= FALSE;
+  result->cleanup(); /* Resets the temp table as well. */
+  materialize_engine->cleanup();
+  subselect_uniquesubquery_engine::cleanup();
+}
+
+
+/**
+  Execute a subquery IN predicate via materialization.
+
+  @detail
+  If needed materialize the subquery into a temporary table, then
+  copmpute the predicate via a lookup into this table.
+
+  @retval TRUE  if error
+  @retval FALSE otherwise
+*/
+
+int subselect_hash_sj_engine::exec()
+{
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+
+  DBUG_ENTER("subselect_hash_sj_engine::exec");
+
+  /*
+    Optimize and materialize the subquery during the first execution of
+    the subquery predicate.
+  */
+  if (!is_materialized)
+  {
+    int res= 0;
+    SELECT_LEX *save_select= thd->lex->current_select;
+    thd->lex->current_select= materialize_engine->select_lex;
+    if ((res= materialize_join->optimize()))
+      goto err; /* purecov: inspected */
+    materialize_join->exec();
+    if ((res= test(materialize_join->error || thd->is_fatal_error)))
+      goto err;
+
+    /*
+      TODO:
+      - Unlock all subquery tables as we don't need them. To implement this
+        we need to add new functionality to JOIN::join_free that can unlock
+        all tables in a subquery (and all its subqueries).
+      - The temp table used for grouping in the subquery can be freed
+        immediately after materialization (yet it's done together with
+        unlocking).
+     */
+    is_materialized= TRUE;
+    /*
+      If the subquery returned no rows, the temporary table is empty, so we know
+      directly that the result of IN is FALSE. We first update the table
+      statistics, then we test if the temporary table for the query result is
+      empty.
+    */
+    tab->table->file->info(HA_STATUS_VARIABLE);
+    if (!tab->table->file->stats.records)
+    {
+      empty_result_set= TRUE;
+      item_in->value= FALSE;
+      /* TODO: check we need this: item_in->null_value= FALSE; */
+      DBUG_RETURN(FALSE);
+    }
+    /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
+    tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);
+    if (tmp_param && !tmp_param->copy_field)
+      tmp_param= NULL;
+
+err:
+    thd->lex->current_select= save_select;
+    if (res)
+      DBUG_RETURN(res);
+  }
+
+  /*
+    Lookup the left IN operand in the hash index of the materialized subquery.
+  */
+  DBUG_RETURN(subselect_uniquesubquery_engine::exec());
+}
+
+
+/**
+  Print the state of this engine into a string for debugging and views.
+*/
+
+void subselect_hash_sj_engine::print(String *str, enum_query_type query_type)
+{
+  str->append(STRING_WITH_LEN(" <materialize> ("));
+  materialize_engine->print(str, query_type);
+  str->append(STRING_WITH_LEN(" ), "));
+  if (tab)
+    subselect_uniquesubquery_engine::print(str, query_type);
+  else
+    str->append(STRING_WITH_LEN(
+           "<the access method for lookups is not yet created>"
+         ));
 }
