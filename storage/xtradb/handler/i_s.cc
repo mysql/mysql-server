@@ -2992,7 +2992,7 @@ i_s_innodb_admin_command_fill(
 	char**	query_str;
 	char*	ptr;
 	char	quote	= '\0';
-	char*	command_head = "XTRA_";
+	const char*	command_head = "XTRA_";
 
 	DBUG_ENTER("i_s_innodb_admin_command_fill");
 

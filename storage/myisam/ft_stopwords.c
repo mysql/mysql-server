@@ -21,7 +21,7 @@
 typedef struct st_ft_stopwords
 {
   const char * pos;
-  uint   len;
+  size_t len;
 } FT_STOPWORD;
 
 static TREE *stopwords3=NULL;

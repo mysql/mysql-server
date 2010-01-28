@@ -2704,7 +2704,7 @@ static void init_signals(void)
   {
     /* Change limits so that we will get a core file */
     STRUCT_RLIMIT rl;
-    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+    rl.rlim_cur = rl.rlim_max = (rlim_t) RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }

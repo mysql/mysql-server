@@ -304,7 +304,7 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
 }
 
 
-int ft_parse(TREE *wtree, const uchar *doc, int doclen,
+int ft_parse(TREE *wtree, const uchar *doc, mysql_ft_size_t doclen,
              struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {

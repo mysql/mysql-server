@@ -76,10 +76,10 @@ inline void _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
 					block->page.offset, DPAH_SIZE << 3);
 	block_hash_byte = block_hash >> 3;
 	block_hash_offset = (byte) block_hash & 0x07;
-	if (block_hash_byte < 0 || block_hash_byte >= DPAH_SIZE)
-		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", block_hash_byte, block_hash_offset);
-	if (block_hash_offset < 0 || block_hash_offset > 7)
-		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", block_hash_byte, block_hash_offset);
+	if (block_hash_byte >= DPAH_SIZE)
+          fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", (unsigned long) block_hash_byte, (unsigned long) block_hash_offset);
+	if (block_hash_offset > 7)
+          fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", (unsigned long) block_hash_byte, (unsigned long) block_hash_offset);
 	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
 		trx->distinct_page_access++;
 	trx->distinct_page_access_hash[block_hash_byte] |= (byte) 0x01 << block_hash_offset;
