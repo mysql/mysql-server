@@ -84,6 +84,11 @@ public:
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
 
+    /**
+     * Min db version reported by this node
+     */
+    Uint32 minDbVersion; // Minimum Db version known to node at API_REGCONF
+
     void set_connected(bool connected) {
       assert(defined);
       m_connected = connected;
@@ -121,6 +126,7 @@ private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
+  Uint32        minDbVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
@@ -166,6 +172,7 @@ private:
   }
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
+  void recalcMinDbVersion();
 };
 
 inline

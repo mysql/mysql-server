@@ -138,6 +138,9 @@
 #define ZNOTUNIQUE 893
 
 #define ZINVALID_KEY 290
+#define ZUNLOCKED_IVAL_TOO_HIGH 294
+#define ZUNLOCKED_OP_HAS_BAD_STATE 295 
+#define ZBAD_DIST_KEY 298
 #endif
 
 class Dbtc: public SimulatedBlock {
@@ -910,6 +913,7 @@ public:
       UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
     
       Uint8  m_special_hash; // collation or distribution key
+      Uint8  m_no_hash;      // Hash not required for LQH (special variant)
       Uint8  m_no_disk_flag; 
       Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
     
@@ -929,6 +933,7 @@ public:
       Uint32 scanInfo;
     
       Uint32 scanTakeOverInd;
+      Uint32 unlockNodeId;     /* NodeId for unlock operation */
     /* End of TCKEYREQ/TCINDXREQ only fields */
 
   };

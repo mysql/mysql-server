@@ -65,3 +65,28 @@ NdbCall::NdbCall(Ndb*) :
 NdbCall::~NdbCall()
 {
 }
+
+
+NdbLockHandle::NdbLockHandle(Ndb*)
+{
+}
+
+NdbLockHandle::~NdbLockHandle()
+{
+}
+
+void
+NdbLockHandle::init()
+{
+  m_state = ALLOCATED;
+  m_table = NULL;
+  m_lockRef[0] = 0;
+  m_openBlobCount = 0;
+  thePrev = NULL;
+}
+
+void
+NdbLockHandle::release(Ndb* ndb)
+{
+  m_state = FREE;
+}

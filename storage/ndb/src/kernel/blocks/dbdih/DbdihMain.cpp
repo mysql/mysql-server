@@ -8688,7 +8688,23 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
 
-  if (tabPtr.p->method == TabRecord::HASH_MAP)
+  /* When distr key indicator is set, regardless
+   * of distribution algorithm in use, hashValue 
+   * IS fragment id.
+   */
+  if (req->distr_key_indicator)
+  {
+    fragId = hashValue;
+    
+    if (unlikely(fragId >= tabPtr.p->totalfragments))
+    {
+      jam();
+      conf->zero= 1; //Indicate error;
+      signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
+      return;
+    }
+  }
+  else if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
     jam();
     Ptr<Hash2FragmentMap> ptr;
@@ -8725,14 +8741,11 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   {
     jam();
     ndbassert(tabPtr.p->method == TabRecord::USER_DEFINED);
-    fragId= hashValue;
-    if (fragId >= tabPtr.p->totalfragments || !req->distr_key_indicator)
-    {
-      jam();
-      conf->zero= 1; //Indicate error;
-      signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
-      return;
-    }
+
+    /* User defined partitioning, but no distribution key passed */
+    conf->zero= 1; //Indicate error;
+    signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
+    return;
   }
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 nodeCount = extractNodeInfo(fragPtr.p, conf->nodes);

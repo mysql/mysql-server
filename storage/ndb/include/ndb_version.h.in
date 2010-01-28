@@ -371,4 +371,6 @@ ndb_suma_not_started_ref(Uint32 x)
   }
 }
 
+#define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,11)
+
 #endif

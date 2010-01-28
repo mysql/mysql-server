@@ -62,6 +62,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   m_max_api_reg_req_interval(~0),
   noOfAliveNodes(0),
   noOfConnectedNodes(0),
+  minDbVersion(0),
   theClusterMgrThread(NULL),
   waitingForHB(false),
   m_cluster_state(CS_waiting_for_clean_cache)
@@ -333,6 +334,72 @@ ClusterMgr::Node::Node()
   compatible = nfCompleteRep = true;
   m_connected = defined = m_alive = m_api_reg_conf = false;
   m_state.m_connected_nodes.clear();
+  minDbVersion = 0;
+}
+
+/**
+ * recalcMinDbVersion
+ *
+ * This method is called whenever the 'minimum DB node
+ * version' data for the connected DB nodes changes
+ * It calculates the minimum version of all the connected
+ * DB nodes.
+ * This information is cached by Ndb object instances.
+ * This information is useful when implementing API compatibility
+ * with older DB nodes
+ */
+void
+ClusterMgr::recalcMinDbVersion()
+{
+  Uint32 newMinDbVersion = ~ (Uint32) 0;
+  
+  for (Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    Node& node = theNodes[i];
+
+    if (node.is_connected() &&
+        node.is_confirmed() &&
+        node.m_info.getType() == NodeInfo::DB)
+    {
+      /* Include this node in the set of nodes used to
+       * compute the lowest current DB node version
+       */
+      assert(node.m_info.m_version);
+
+      if (node.minDbVersion < newMinDbVersion)
+      {
+        newMinDbVersion = node.minDbVersion;
+      }
+    }
+  }
+
+  /* Now update global min Db version if we have one.
+   * Otherwise set it to 0
+   */
+  newMinDbVersion = (newMinDbVersion == ~ (Uint32) 0) ?
+    0 :
+    newMinDbVersion;
+
+//#ifdef DEBUG_MINVER
+
+#ifdef DEBUG_MINVER
+  if (newMinDbVersion != minDbVersion)
+  {
+    ndbout << "Previous min Db node version was "
+           << NdbVersion(minDbVersion)
+           << " new min is "
+           << NdbVersion(newMinDbVersion)
+           << endl;
+  }
+  else
+  {
+    ndbout << "MinDbVersion recalculated, but is same : "
+           << NdbVersion(minDbVersion)
+           << endl;
+  }
+#endif
+
+  minDbVersion = newMinDbVersion;
 }
 
 /******************************************************************************
@@ -414,6 +481,12 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   }
 
   node.set_confirmed(true);
+
+  if (node.minDbVersion != apiRegConf->minDbVersion)
+  {
+    node.minDbVersion = apiRegConf->minDbVersion;
+    recalcMinDbVersion();
+  }
 
   if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
   {
@@ -545,6 +618,8 @@ ClusterMgr::reportConnected(NodeId nodeId){
   theNode.compatible = true;
   theNode.nfCompleteRep = true;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
+
+  theNode.minDbVersion = 0;
   
   theFacade.ReportNodeAlive(nodeId);
   DBUG_VOID_RETURN;
@@ -577,6 +652,9 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect){
   {
     theFacade.doDisconnect(nodeId);
   }
+
+  if (theNode.m_info.getType() == NodeInfo::DB)
+    recalcMinDbVersion();
   
   const bool report = (theNode.m_state.startLevel != NodeState::SL_NOTHING);  
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
