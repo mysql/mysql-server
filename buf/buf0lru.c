@@ -347,20 +347,34 @@ scan_again:
 
 	all_freed = TRUE;
 
+rescan:
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (bpage != NULL) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 		buf_page_t*	prev_bpage;
 
 		ut_a(buf_page_in_file(bpage));
 
-		mutex_enter(block_mutex);
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
-		if (buf_page_get_space(bpage) == id) {
-			if (bpage->buf_fix_count > 0
-			    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+		/* bpage->space and bpage->io_fix are protected by
+		buf_pool_mutex and block_mutex.  It is safe to check
+		them while holding buf_pool_mutex only. */
+
+		if (buf_page_get_space(bpage) != id) {
+			/* Skip this block, as it does not belong to
+			the space that is being invalidated. */
+		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+			/* We cannot remove this page during this scan
+			yet; maybe the system is currently reading it
+			in, or flushing the modifications to the file */
+
+			all_freed = FALSE;
+		} else {
+			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+			mutex_enter(block_mutex);
+
+			if (bpage->buf_fix_count > 0) {
 
 				/* We cannot remove this page during
 				this scan yet; maybe the system is
@@ -423,12 +437,12 @@ scan_again:
 				buf_buddy_free() may have relocated
 				prev_bpage.  Rescan the LRU list. */
 
-				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-				continue;
+				goto rescan;
 			}
-		}
 next_page:
-		mutex_exit(block_mutex);
+			mutex_exit(block_mutex);
+		}
+
 		bpage = prev_bpage;
 	}
 
