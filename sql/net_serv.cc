@@ -286,7 +286,12 @@ void net_clear(NET *net, my_bool clear_buffer)
 #endif
   DBUG_ENTER("net_clear");
 
-#if !defined(EMBEDDED_LIBRARY)
+/*
+  We don't do a clear in case of DBUG_OFF to catch bugs
+  in the protocol handling
+*/
+
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
   if (clear_buffer)
   {
     while ((ready= net_data_is_ready(net->vio->sd)) > 0)
