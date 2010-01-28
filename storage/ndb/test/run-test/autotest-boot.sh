@@ -32,11 +32,13 @@ build=yes
 tag0=
 tag1=
 conf=
+clonename=
 extra_args=
 extra_clone0=
 extra_clone1=
 install_dir0=
 install_dir1=
+RUN=
 
 LOCK=$HOME/.autotest-lock
 
@@ -58,8 +60,9 @@ do
 	        --tag=*) tag0=`echo $1 | sed s/--tag=//`;;
 	        --tag0=*) tag0=`echo $1 | sed s/--tag0=//`;;
 	        --tag1=*) tag1=`echo $1 | sed s/--tag1=//`;;
+	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
 	        --*) echo "Unknown arg: $1";;
-                *) RUN=$*;;
+                *) RUN="$RUN $1";;
         esac
         shift
 done
@@ -176,6 +179,11 @@ else
     dst_place1=${build_dir}/clone1-$tag1-$DATE.$$
     extra_args="$extra_args --clone1=$tag1"
     extra_clone1="-r$tag1"
+fi
+
+if [ "$clonename" ]
+then
+    extra_args="$extra_args --clonename=$clonename"
 fi
 
 #########################################
