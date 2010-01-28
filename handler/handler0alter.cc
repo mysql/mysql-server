@@ -764,6 +764,10 @@ err_exit:
 
 	ut_ad(error == DB_SUCCESS);
 
+	/* We will need to rebuild index translation table. Set
+	valid index entry count in the translation table to zero */
+	share->idx_trans_tbl.index_count = 0;
+
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
 	MySQL crashes while creating a new primary key inside
@@ -1197,6 +1201,10 @@ ha_innobase::final_drop_index(
 	     index; index = dict_table_get_next_index(index)) {
 		ut_a(!index->to_be_dropped);
 	}
+
+	/* We will need to rebuild index translation table. Set
+	valid index entry count in the translation table to zero */
+	share->idx_trans_tbl.index_count = 0;
 
 #ifdef UNIV_DEBUG
 	dict_table_check_for_dup_indexes(prebuilt->table);
