@@ -380,6 +380,7 @@ INSERT INTO t1 VALUES (VERSION());
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 DELETE FROM t1;
+SET TIME_ZONE= '+03:00';
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES
 (CURDATE()),
