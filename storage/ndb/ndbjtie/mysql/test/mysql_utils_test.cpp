@@ -84,6 +84,7 @@ int main()
     */    
     printf("UTF-8 charset num: %d     UTF-16 or UCS-2 charset num:  %d\n",
            utf8_num, utf16_num);
+    printf("MySQL must be build with UTF-8 and either UCS-2 or UTF-16");
     if((utf8_num == 0) || (utf16_num == 0)) exit(1);
 
     /* test csmap.getName()
@@ -175,4 +176,8 @@ int main()
     assert(rr5 == CharsetMap::RECODE_BAD_SRC);
 
     CharsetMap::unload();
+
+    exit(0);
+
+    return 0;
 }
