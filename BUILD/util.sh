@@ -16,6 +16,8 @@
 
 # Setting cpu options.
 get_cpuopt () {
+    case "$(uname -o)" in
+      *Linux*)
 	case "$(gcc -dumpmachine)" in
           x86_64-*)
                 # gcc barfs on -march=... on x64
@@ -26,7 +28,13 @@ get_cpuopt () {
                 CPUOPT="-m32 -march=i586 -mtune=generic"
                 ;;
 	esac
-	return 0
+	;;
+      *Solaris*)
+	# ToDo: handle 32-bit build? For now default to 64-bit.
+	CPUOPT="-D__sun -m64 -mtune=athlon64"
+	;;
+    esac
+    return 0
 }
 
 # Default to a parallel build, but only if AM_MAKEFLAGS is not set.
