@@ -149,41 +149,6 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-# System check macros that do nothing on Windows.
-# Very often, it is known that some function is not available
-# on Windows. In such cases it makes sense to use these macros
-# as build  with Visual Studio is considerably faster if irrelevant
-# checks are omitted.
-MACRO(CHECK_INCLUDE_FILES INCLUDES VAR)
-IF(UNIX)
-  CHECK_INCLUDE_FILES ("${INCLUDES}" ${VAR})
-ENDIF()
-ENDMACRO()
-
-MACRO(CHECK_C_SOURCE_COMPILES_UNIX SRC VAR)
-IF(UNIX)
-  CHECK_C_SOURCE_COMPILES("${SRC}" ${VAR})
-ENDIF()
-ENDMACRO()
-
-MACRO(CHECK_CXX_SOURCE_COMPILES SRC VAR)
-IF(UNIX)
-  CHECK_CXX_SOURCE_COMPILES("${SRC}" ${VAR})
-ENDIF()
-ENDMACRO()
-
-MACRO(CHECK_FUNCTION_EXISTS FUNC VAR)
-IF(UNIX)
-  CHECK_FUNCTION_EXISTS("${FUNC}" ${VAR})
-ENDIF()
-ENDMACRO()
-
-MACRO (CHECK_SYMBOL_EXISTS SYM HEADER VAR)
-IF(UNIX)
-  CHECK_SYMBOL_EXISTS("${SYM}" "${HEADER}" ${VAR})
-ENDIF()
-ENDMACRO()
-
 #
 # Tests for header files
 #
@@ -582,7 +547,7 @@ HAVE_SELECT)
 # Check if timespec has ts_sec and ts_nsec fields
 #
 
-CHECK_C_SOURCE_COMPILES_UNIX("
+CHECK_C_SOURCE_COMPILES("
 #include <pthread.h>
 
 int main(int ac, char **av)
@@ -760,7 +725,7 @@ CHECK_INCLUDE_FILES(sys/ioctl.h HAVE_SYS_IOCTL 1)
 #
 # Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
 #
-CHECK_C_SOURCE_COMPILES_UNIX("
+CHECK_C_SOURCE_COMPILES("
   #include <signal.h>
   int main(int ac, char **av)
   {
@@ -773,7 +738,7 @@ CHECK_C_SOURCE_COMPILES_UNIX("
   HAVE_POSIX_SIGNALS)
 
 IF(NOT HAVE_POSIX_SIGNALS)
- CHECK_C_SOURCE_COMPILES_UNIX("
+ CHECK_C_SOURCE_COMPILES("
   #include <signal.h>
   int main(int ac, char **av)
   {
@@ -782,7 +747,7 @@ IF(NOT HAVE_POSIX_SIGNALS)
   }"
   HAVE_BSD_SIGNALS)
   IF (NOT HAVE_BSD_SIGNALS)
-    CHECK_C_SOURCE_COMPILES_UNIX("
+    CHECK_C_SOURCE_COMPILES("
     #include <signal.h>
     void foo() { }
     int main(int ac, char **av)
@@ -816,7 +781,7 @@ IF(HAVE_ABI_CXA_DEMANGLE)
 ENDIF()
 ENDIF()
 
-CHECK_C_SOURCE_COMPILES_UNIX("
+CHECK_C_SOURCE_COMPILES("
   int main(int argc, char **argv) 
   {
     extern char *__bss_start;
@@ -824,7 +789,7 @@ CHECK_C_SOURCE_COMPILES_UNIX("
   }"
 HAVE_BSS_START)
 
-CHECK_C_SOURCE_COMPILES_UNIX("
+CHECK_C_SOURCE_COMPILES("
     int main()
     {
       extern void __attribute__((weak)) foo(void);
