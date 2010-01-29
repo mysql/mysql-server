@@ -526,6 +526,9 @@ struct trx_struct{
 					/* 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock */
+	unsigned	deadlock_mark:1;/*!< a mark field used in deadlock
+					checking algorithm. Always protected
+					by the kernel_mutex. */
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
@@ -640,11 +643,6 @@ struct trx_struct{
 			wait_thrs;	/*!< query threads belonging to this
 					trx that are in the QUE_THR_LOCK_WAIT
 					state */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm.  This must be
-					in its own machine word, because
-					it can be changed by other
-					threads while holding kernel_mutex. */
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/*!< memory heap for the locks of the
 					transaction */
