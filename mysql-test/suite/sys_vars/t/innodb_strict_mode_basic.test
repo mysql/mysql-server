@@ -1,0 +1,84 @@
+
+
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_strict_mode;
+SELECT @start_global_value;
+
+#
+# exists as global and session 
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_strict_mode in (0, 1);
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode in (0, 1);
+select @@session.innodb_strict_mode;
+show global variables like 'innodb_strict_mode';
+show session variables like 'innodb_strict_mode';
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+
+#
+# show that it's writable
+#
+set global innodb_strict_mode='OFF';
+set session innodb_strict_mode='OFF';
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode;
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+set @@global.innodb_strict_mode=1;
+set @@session.innodb_strict_mode=1;
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode;
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+set global innodb_strict_mode=0;
+set session innodb_strict_mode=0;
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode;
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+set @@global.innodb_strict_mode='ON';
+set @@session.innodb_strict_mode='ON';
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode;
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_strict_mode=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session innodb_strict_mode=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_strict_mode=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session innodb_strict_mode=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_strict_mode=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set session innodb_strict_mode=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_strict_mode='AUTO';
+--error ER_WRONG_VALUE_FOR_VAR
+set session innodb_strict_mode='AUTO';
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_strict_mode=-3;
+set session innodb_strict_mode=-7;
+select @@global.innodb_strict_mode;
+select @@session.innodb_strict_mode;
+select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_strict_mode = @start_global_value;
+SELECT @@global.innodb_strict_mode;
