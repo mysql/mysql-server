@@ -71,11 +71,9 @@ public:
   struct Node {
     Node();
     bool defined;
-    bool connected;     // Transporter connected
     bool compatible;    // Version is compatible
     bool nfCompleteRep; // NF Complete Rep has arrived
     bool m_alive;       // Node is alive
-    bool m_api_reg_conf;// API_REGCONF has arrived
     
     NodeInfo  m_info;
     NodeState m_state;
@@ -85,6 +83,32 @@ public:
      */
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
+
+    void set_connected(bool connected) {
+      assert(defined);
+      m_connected = connected;
+    }
+    bool is_connected(void) const {
+      const bool connected = m_connected;
+      // Must be defined if connected
+      assert(!connected ||
+             (connected && defined));
+      return connected;
+    }
+
+    void set_confirmed(bool confirmed) {
+      assert(is_connected()); // Must be connected to change confirmed
+      m_api_reg_conf = confirmed;
+    }
+    bool is_confirmed(void) const {
+      const bool confirmed = m_api_reg_conf;
+      assert(!confirmed ||
+             (confirmed && is_connected()));
+      return confirmed;
+    }
+private:
+    bool m_connected;     // Transporter connected
+    bool m_api_reg_conf;// API_REGCONF has arrived
   };
   
   const Node &  getNodeInfo(NodeId) const;

@@ -407,6 +407,7 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
     const NdbInfoRecAttr* blockNumber= scanOp->getValue("block_number");
     const NdbInfoRecAttr* blockInstance= scanOp->getValue("block_instance");
     const NdbInfoRecAttr* counter= scanOp->getValue("counter");
+    const NdbInfoRecAttr* counter2= scanOp->getValue("counter2");
 
     if(scanOp->execute() != 0)
     {
@@ -425,6 +426,7 @@ int runTestTable(NDBT_Context* ctx, NDBT_Step* step)
        (void)blockNumber->u_32_value(); 
        (void)blockInstance->u_32_value(); 
        (void)counter->u_32_value(); 
+       (void)counter2->u_64_value();
     }
     ndbinfo.releaseScanOperation(scanOp);
     if (ret != 0)
@@ -474,8 +476,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  loops *= (restarter.getNumDbNodes() > 2 ? 2 : restarter.getNumDbNodes());
-  if (loops < restarter.getNumDbNodes())
+  if (loops > restarter.getNumDbNodes())
     loops = restarter.getNumDbNodes();
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
@@ -570,7 +571,6 @@ TESTCASE("TestTable",
  * TODO NdbRestarter does not work on windoze
  */
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
-  TC_PROPERTY("Sleep0", 10000); // Between restarts(miliseconds)
   STEP(runRestarter);
   STEPS(runTestTableUntilStopped, 1);
 }

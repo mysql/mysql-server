@@ -1216,13 +1216,13 @@ Ndb::sendPrepTrans(int forceSend)
     NdbTransaction * a_con = thePreparedTransactionsArray[i];
     thePreparedTransactionsArray[i] = NULL;
     Uint32 node_id = a_con->getConnectedNodeId();
-    if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-         tp->get_node_alive(node_id) ||
-         (tp->get_node_stopping(node_id) && 
-         ((a_con->theSendStatus == NdbTransaction::sendABORT) ||
-          (a_con->theSendStatus == NdbTransaction::sendABORTfail) ||
-          (a_con->theSendStatus == NdbTransaction::sendCOMMITstate) ||
-          (a_con->theSendStatus == NdbTransaction::sendCompleted)))) {
+    if (((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
+         tp->get_node_alive(node_id)) ||
+        ((tp->get_node_stopping(node_id) && 
+          ((a_con->theSendStatus == NdbTransaction::sendABORT) ||
+           (a_con->theSendStatus == NdbTransaction::sendABORTfail) ||
+           (a_con->theSendStatus == NdbTransaction::sendCOMMITstate) ||
+           (a_con->theSendStatus == NdbTransaction::sendCompleted))))) {
       /*
       We will send if
       1) Node is alive and sequences are correct OR

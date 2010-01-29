@@ -460,11 +460,11 @@ bool check_random_str(char *str)
   for(p = str; *p; p++)
   {
     bool tmp1 = false, tmp2 = false;
-    if(tmp1 = check_op(*p))
+    if ((tmp1 = check_op(*p)))
       op_num++;
-    if(tmp2 = check_end(*p))
+    if ((tmp2 = check_end(*p)))
       end_num++;
-    if(!(tmp1 || tmp2 || check_col(*p)))   //there are illegal letters
+    if (!(tmp1 || tmp2 || check_col(*p)))   //there are illegal letters
       return false;
   }
 

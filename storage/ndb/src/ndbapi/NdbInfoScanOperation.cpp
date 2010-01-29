@@ -27,10 +27,16 @@
 #define CAST_PTR(X,Y) static_cast<X*>(static_cast<void*>(Y))
 #define CAST_CONSTPTR(X,Y) static_cast<const X*>(static_cast<const void*>(Y))
 
+struct NdbInfoScanOperationImpl
+{
+  NodeBitmask m_nodes_to_scan;
+};
+
 NdbInfoScanOperation::NdbInfoScanOperation(const NdbInfo& info,
                                            Ndb_cluster_connection* connection,
                                            const NdbInfo::Table* table,
                                            Uint32 max_rows, Uint32 max_bytes) :
+  m_impl(*new NdbInfoScanOperationImpl),
   m_info(info),
   m_state(Undefined),
   m_connection(connection),
@@ -65,6 +71,15 @@ NdbInfoScanOperation::init(Uint32 id)
   for (unsigned i = 0; i < m_table->columns(); i++)
     m_recAttrs.push_back(NULL);
 
+  /*
+    Build a bitmask of nodes that will be scanned if
+    connected and have been API_REGCONFed. Don't include
+    own node since it will always be "connected"
+  */
+  for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+    m_impl.m_nodes_to_scan.set(i);
+  m_impl.m_nodes_to_scan.clear(refToNode(m_result_ref));
+
   m_state = Initial;
   DBUG_RETURN(true);
 
@@ -74,6 +89,7 @@ NdbInfoScanOperation::~NdbInfoScanOperation()
 {
   close();
   delete m_signal_sender;
+  delete &m_impl;
 }
 
 int
@@ -117,22 +133,18 @@ bool
 NdbInfoScanOperation::find_next_node()
 {
   DBUG_ENTER("NdbInfoScanOperation::find_next_node");
-  NodeId next = m_node_id;
 
-  next++;
-  while(!m_signal_sender->get_node_alive(next) &&
-        next < MAX_NDB_NODES)
-     next++;
-
-  assert(m_node_id != next);
-  m_node_id = next;
-  m_nodes++;
-
-  if (next == MAX_NDB_NODES)
+  const NodeId next =
+    m_signal_sender->find_confirmed_node(m_impl.m_nodes_to_scan);
+  if (next == 0)
   {
     DBUG_PRINT("info", ("no more alive nodes"));
     DBUG_RETURN(false);
   }
+  assert(m_node_id != next);
+  m_impl.m_nodes_to_scan.clear(next);
+  m_node_id = next;
+  m_nodes++;
 
   // Check if number of nodes to scan is limited
   DBUG_PRINT("info", ("nodes: %d, max_nodes: %d", m_nodes, m_max_nodes));

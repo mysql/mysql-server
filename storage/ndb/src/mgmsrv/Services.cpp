@@ -428,7 +428,7 @@ MgmApiSession::runSession()
         // Send result to client
         m_output->println("result: %s, '%s'",
                           msg, ctx.m_currentToken);
-        m_output->println("");
+        m_output->print("\n");
       }
     }
 
@@ -490,7 +490,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   if(endian 
      && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
     m_output->println("result: Node does not have the same endianness as the management server.");
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
 
@@ -505,7 +505,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     break;
   default:
     m_output->println("result: unknown nodetype %d", nodetype);
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
 
@@ -516,7 +516,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     m_output->println("result: getpeername(" MY_SOCKET_FORMAT   \
                       ") failed, err= %d",
                       MY_SOCKET_FORMAT_VALUE(m_socket), r);
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
 
@@ -557,7 +557,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
       /* only use error_code protocol if client knows about it */
       if (log_event_version)
         m_output->println("error_code: %d", error_code);
-      m_output->println("");
+      m_output->println("%s", "");
       return;
     }
   }    
@@ -567,14 +567,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     m_output->println(cmd);
     m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
 		      NDB_VERSION, version);
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
 #endif
   
   m_output->println("nodeid: %u", tmp);
   m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
   m_allocated_resources->reserve_node(tmp, timeout*1000);
   
   if (name)
@@ -603,7 +603,7 @@ MgmApiSession::getConfig(Parser_t::Context &,
                                   pack64, error))
   {
     m_output->println("result: %s", error.c_str());
-    m_output->println("");
+    m_output->print("\n");
     return;
   }
 
@@ -652,7 +652,7 @@ MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -670,7 +670,7 @@ MgmApiSession::setTrace(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -685,7 +685,7 @@ MgmApiSession::getVersion(Parser<MgmApiSession>::Context &,
   m_output->println("mysql_major: %d", getMajor(NDB_MYSQL_VERSION_D));
   m_output->println("mysql_minor: %d", getMinor(NDB_MYSQL_VERSION_D));
   m_output->println("mysql_build: %d", getBuild(NDB_MYSQL_VERSION_D));
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -717,7 +717,7 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
     if (completed)
       m_output->println("id: %d", backupId);
   }
-  m_output->println("");
+  m_output->println("%s", "");
   DBUG_VOID_RETURN;
 }
 
@@ -735,7 +735,7 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 /*****************************************************************************/
@@ -755,7 +755,7 @@ MgmApiSession::dumpState(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -800,7 +800,7 @@ MgmApiSession::getClusterLogLevel(Parser<MgmApiSession>::Context &			, Propertie
     category = (LogLevel::EventCategory) i;
     m_output->println("%s: %d", names[i], m_mgmsrv.m_event_listner[0].m_logLevel.getLogLevel(category));
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -819,7 +819,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 
   if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("result: Invalid loglevel %d", level);
-    m_output->println("");
+    m_output->println("%s", "");
     DBUG_VOID_RETURN;
   }
 
@@ -830,7 +830,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   if (m_mgmsrv.m_event_listner[0].m_logLevel.setLogLevel(category,level))
   {
     m_output->println("result: Invalid category %d", category);
-    m_output->println("");
+    m_output->println("%s", "");
     m_mgmsrv.m_event_listner.unlock();
     DBUG_VOID_RETURN;
   }
@@ -842,7 +842,7 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   }
 
   m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
   DBUG_VOID_RETURN;
 }
 
@@ -860,7 +860,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   if(level > NDB_MGM_MAX_LOGLEVEL) {
     m_output->println("set loglevel reply");
     m_output->println("result: Invalid loglevel: %s", errorString.c_str());
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
 
@@ -875,7 +875,7 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 
   m_output->println("set loglevel reply");
   m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -892,7 +892,7 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -944,7 +944,7 @@ MgmApiSession::restart(Properties const &args, int version) {
   m_output->println("restarted: %d", restarted);
   if(version>1)
     m_output->println("disconnect: %d", (m_stopSelf)?1:0);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -968,7 +968,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 static void
@@ -1046,7 +1046,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
     SLEEP_ERROR_INSERTED(int(7+i));
     printNodeStatus(m_output, m_mgmsrv, types[i]);
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -1073,7 +1073,7 @@ MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
                       names[i],
                       isEventLogFilterEnabled(i));
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1099,7 +1099,7 @@ MgmApiSession::stop(Properties const &args, int version) {
   {
     m_output->println("stop reply");
     m_output->println("result: empty node list");
-    m_output->println("");
+    m_output->println("%s", "");
     return;
   }
   args.get("abort", &abort);
@@ -1124,7 +1124,7 @@ MgmApiSession::stop(Properties const &args, int version) {
   m_output->println("stopped: %d", stopped);
   if(version>1)
     m_output->println("disconnect: %d", (m_stopSelf)?1:0);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1157,7 +1157,7 @@ MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
   m_output->println("stopped: %d", stopped[0]+stopped[1]);
   if(ver >1)
     m_output->println("disconnect: %d", (m_stopSelf)?1:0);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1176,7 +1176,7 @@ MgmApiSession::enterSingleUser(Parser<MgmApiSession>::Context &,
   else {
     m_output->println("result: Ok");
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1189,7 +1189,7 @@ MgmApiSession::exitSingleUser(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -1207,7 +1207,7 @@ MgmApiSession::startSignalLog(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1252,7 +1252,7 @@ MgmApiSession::logSignals(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1269,7 +1269,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1285,7 +1285,7 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   m_output->println("start reply");
   m_output->println("result: Ok");
   m_output->println("started: %d", started);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -1323,7 +1323,7 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 #ifdef NOT_USED
@@ -1526,7 +1526,7 @@ MgmApiSession::setParameter(Parser_t::Context &,
   m_output->println("set parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %d", ret);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1549,7 +1549,7 @@ MgmApiSession::setConnectionParameter(Parser_t::Context &ctx,
   m_output->println("set connection parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %s", (ret>0)?"Ok":"Failed");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1573,7 +1573,7 @@ MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
   m_output->println("get connection parameter reply");
   m_output->println("value: %d", value);
   m_output->println("result: %s", (ret>0)?"Ok":result.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1639,7 +1639,7 @@ done:
   m_output->println("result: %d", result);
   if(result != 0)
     m_output->println("msg: %s", msg.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 
   if(result==0)
   {
@@ -1692,7 +1692,7 @@ MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
   if (str.length() > 0)
     m_output->println("purged:%s",str.c_str());
   m_output->println("result: Ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1704,7 +1704,7 @@ MgmApiSession::check_connection(Parser_t::Context &ctx,
   SLEEP_ERROR_INSERTED(2);
   m_output->println("result: Ok");
   SLEEP_ERROR_INSERTED(3);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1742,7 +1742,7 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
   m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());
   SLEEP_ERROR_INSERTED(1);
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1767,7 +1767,7 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
   m_mgmsrv.eventReport(data, length);
   m_output->println("report event reply");
   m_output->println("result: ok");
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1810,7 +1810,7 @@ MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
   {
     m_output->println("result: Ok");
   }
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1831,7 +1831,7 @@ MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
 //end:
   m_output->println("drop nodegroup reply");
   m_output->println("result: %s", result.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1881,7 +1881,7 @@ MgmApiSession::listSessions(Parser_t::Context &ctx,
                             Properties const &args) {
   m_mgmsrv.get_socket_server()->foreachSession(list_session,(void*)this);
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -1889,7 +1889,7 @@ MgmApiSession::getSessionId(Parser_t::Context &ctx,
                                  Properties const &args) {
   m_output->println("get session id reply");
   m_output->println("id: %llu",m_session_id);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 struct get_session_param {
@@ -1948,7 +1948,7 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
   if(p.found==false)
     m_output->println("id: 0");
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2057,7 +2057,7 @@ done:
 
   m_output->println("set config reply");
   m_output->println("result: %s", result.c_str());
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2075,7 +2075,7 @@ void MgmApiSession::showConfig(Parser_t::Context &ctx, Properties const &args)
   m_output->println("show config reply");
   m_mgmsrv.print_config(section, nodeid, name,
                         socket_out);
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2101,7 +2101,7 @@ MgmApiSession::reloadConfig(Parser_t::Context &,
   else
     m_output->println("result: Ok");
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 
@@ -2112,8 +2112,7 @@ MgmApiSession::show_variables(Parser_t::Context &,
   m_output->println("show variables reply");
   NdbOut socket_out(*m_output, false /* turn off autoflush */);
   m_mgmsrv.show_variables(socket_out);
-  m_output->println("");
-
+  m_output->println("%s", "");
 }
 
 

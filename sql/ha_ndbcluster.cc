@@ -2558,10 +2558,12 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
+    {
       if (ignore_error)
         m_index[i].index= m_index[i].unique_index= NULL;
       else
         break;
+    }
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
@@ -4815,15 +4817,16 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
                                       uchar *new_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(new_data, code);
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 
@@ -4833,9 +4836,9 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
                                      uchar *data,
                                      NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(data, code);
   case CFT_NDB_OLD:
     /*
@@ -4846,6 +4849,7 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif
@@ -4855,7 +4859,6 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
                                       const uchar *old_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
     /*
@@ -4864,11 +4867,23 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
       on the old data.
     */
     return row_conflict_fn_old(old_data, code);
+  case CFT_NDB_MAX_DEL_WIN:
+  {
+    /**
+     * let delete always win
+     */
+    int r = code->interpret_exit_ok();
+    DBUG_ASSERT(r == 0);
+    r = code->finalise();
+    DBUG_ASSERT(r == 0);
+    return r;
+  }
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif /* HAVE_NDB_BINLOG */
@@ -9030,8 +9045,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+    if ((m_skip_auto_increment &&
+         ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, 
                                    Uint32(m_autoincrement_prefetch), 
                                    increment, offset))
