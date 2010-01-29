@@ -12813,7 +12813,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
-  my_bool on_primary_key= FALSE;
+  my_bool on_pk_suffix= FALSE;
   DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
@@ -12835,11 +12835,12 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         key as a suffix to the secondary keys. If it has continue to check
         the primary key as a suffix.
       */
-      if (!on_primary_key &&
+      if (!on_pk_suffix &&
           (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-          table->s->primary_key != MAX_KEY)
+          table->s->primary_key != MAX_KEY &&
+          table->s->primary_key != idx)
       {
-        on_primary_key= TRUE;
+        on_pk_suffix= TRUE;
         key_part= table->key_info[table->s->primary_key].key_part;
         key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
@@ -12871,7 +12872,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  if (on_primary_key)
+  if (on_pk_suffix)
   {
     uint used_key_parts_secondary= table->key_info[idx].key_parts;
     uint used_key_parts_pk=
@@ -13360,8 +13361,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             select_limit= table_records;
           if (group)
           {
-            rec_per_key= used_key_parts ? keyinfo->rec_per_key[used_key_parts-1]
-                                        : 1;
+            /* 
+              Used_key_parts can be larger than keyinfo->key_parts
+              when using a secondary index clustered with a primary 
+              key (e.g. as in Innodb). 
+              See Bug #28591 for details.
+            */  
+            rec_per_key= used_key_parts &&
+                         used_key_parts <= keyinfo->key_parts ?
+                         keyinfo->rec_per_key[used_key_parts-1] : 1;
             set_if_bigger(rec_per_key, 1);
             /*
               With a grouping query each group containing on average
