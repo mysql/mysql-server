@@ -96,6 +96,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
   theCommitAckSignal = NULL;
+  theCachedMinDbNodeVersion = 0;
   
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {

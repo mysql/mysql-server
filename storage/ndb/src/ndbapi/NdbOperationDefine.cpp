@@ -1072,6 +1072,42 @@ NdbOperation::setAbortOption(AbortOption ao)
 }
 
 
+int
+NdbOperation::prepareGetLockHandleNdbRecord()
+{
+  /* This method is used to perform the correct actions
+   * when the OO_LOCKHANDLE flag is set on an NdbRecord
+   * operation.
+   */
+  assert(theLockHandle == NULL);
+  theLockHandle = theNdbCon->getLockHandle();
+  if (!theLockHandle)
+  {
+    return 4000; /* Memory allocation issue */
+  }
+
+  assert(! theLockHandle->isLockRefValid());
+
+  assert(m_attribute_record);
+  theLockHandle->m_table = m_attribute_record->table;
+  assert(theLockHandle->m_table);
+  
+  NdbRecAttr* ra = 
+    getValue_NdbRecord(&NdbColumnImpl::getImpl(*NdbDictionary::Column::LOCK_REF),
+                       (char*) &theLockHandle->m_lockRef);
+  
+  if (!ra)
+  {
+    /* Assume error code set */
+    assert(theError.code);
+    return theError.code;
+  }
+
+  theLockHandle->m_state = NdbLockHandle::PREPARED;
+
+  return 0;
+}
+
 /*
  * handleOperationOptions
  * static member for setting operation options
@@ -1265,10 +1301,13 @@ NdbOperation::handleOperationOptions (const OperationType type,
        * takeover operation 
        */
     }
-    /* Only allowed for pk ops on user defined partitioned tables */
-    if (unlikely( ! ((op->m_attribute_record->flags & 
-                      NdbRecord::RecHasUserDefinedPartitioning) &&
-                     (op->m_key_record->table->m_index == NULL))))
+    /* Only allowed for pk ops on user defined partitioned tables
+     * or when defining an unlock operation
+     */
+    if (unlikely( ! (((op->m_attribute_record->flags & 
+                       NdbRecord::RecHasUserDefinedPartitioning) &&
+                      (op->m_key_record->table->m_index == NULL)) ||
+                     (type == UnlockRequest))))
     {
       /* Explicit partitioning info not allowed for table and operation*/
       return 4546;
@@ -1321,6 +1360,36 @@ NdbOperation::handleOperationOptions (const OperationType type,
   {
     /* Set the operation's customData ptr */
     op->m_customData = opts->customData;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
+  {
+    if (unlikely(op->theNdb->getMinDbNodeVersion() <
+                 NDBD_UNLOCK_OP_SUPPORTED))
+    {
+      /* Function not implemented yet */
+      return 4003;
+    }
+
+    /* Check that this is a pk read with a lock 
+     * No need to worry about Blob lock upgrade issues as
+     * Blobs have not been handled at this stage
+     */
+    if (((type != ReadRequest) &&
+         (type != ReadExclusive)) ||
+        (op->m_key_record &&
+         (op->m_key_record->flags & NdbRecord::RecIsIndex)) ||
+        ((op->theLockMode != LM_Read) &&
+         (op->theLockMode != LM_Exclusive)))
+    {
+      return 4549; /* getLockHandle only supported for primary key read with a lock */
+    }
+
+    int prepareRc = op->prepareGetLockHandleNdbRecord();      
+    if (prepareRc != 0)
+    {
+      return prepareRc;
+    }    
   }
 
   return 0;

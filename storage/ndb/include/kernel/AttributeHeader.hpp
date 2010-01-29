@@ -53,6 +53,8 @@ public:
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   STATIC_CONST( READ_LCP     = 0xFFEF );
+  STATIC_CONST( LOCK_REF     = 0xFFEE ); // Operation lock reference
+  STATIC_CONST( OP_ID        = 0xFFED ); // Operation runtime identity
 
   // Extents * sizeof(Extent) allocated to fragment
   STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
