@@ -71,7 +71,7 @@ NdbOut::operator<<(double val){ m_out->print("%f", val); return * this; }
 NdbOut& NdbOut::endline()
 {
   isHex = 0; // Reset hex to normal, if user forgot this
-  m_out->println("");
+  m_out->println("%s", "");
   if (m_autoflush)
     m_out->flush();
   return *this;

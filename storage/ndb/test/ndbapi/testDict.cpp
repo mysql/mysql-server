@@ -3378,13 +3378,13 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
       NdbError err= pDict->getNdbError();
       if( (int) err.classification == (int) ndberror_cl_none)
       {
-        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
+        ndbout << __LINE__ << endl;
         return NDBT_FAILED;
       }
 
       if (pDict->createLogfileGroup(lg) != 0)
       {
-        ndbout << __LINE__ << endl;
+        ndbout << __LINE__ << " : " << pDict->getNdbError() << endl;
         return NDBT_FAILED;
       }
     }

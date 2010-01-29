@@ -31,7 +31,7 @@ my_long_options[] =
     "Name of the database used by ndbinfo",
     (uchar**) &opt_ndbinfo_db, (uchar**) &opt_ndbinfo_db, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "database", 'd',
+  { "prefix", 256,
     "Prefix to use for all virtual tables loaded from NDB",
     (uchar**) &opt_table_prefix, (uchar**) &opt_table_prefix, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -159,7 +159,7 @@ size_t num_views = sizeof(views)/sizeof(views[0]);
 
 #include "../src/mgmsrv/ConfigInfo.cpp"
 static ConfigInfo g_info;
-static void fill_config_params(void)
+static void fill_config_params(BaseString& sql)
 {
   const char* separator = "";
   const ConfigInfo::ParamInfo* pinfo= NULL;
@@ -170,20 +170,20 @@ static void fill_config_params(void)
     if (pinfo->_paramId == 0 || // KEY_INTERNAL
         pinfo->_status != ConfigInfo::CI_USED)
       continue;
-    printf("%s(%u, \"%s\")", separator, pinfo->_paramId, pinfo->_fname); 
+    sql.appfmt("%s(%u, \"%s\")", separator, pinfo->_paramId, pinfo->_fname);
     separator = ", ";
   }
 }
 
 
 #include "../src/common/debugger/BlockNames.cpp"
-static void fill_blocks(void)
+static void fill_blocks(BaseString& sql)
 {
   const char* separator = "";
   for (BlockNumber i = 0; i < NO_OF_BLOCK_NAMES; i++)
   {
     const BlockName& bn = BlockNames[i];
-    printf("%s(%u, \"%s\")", separator, bn.number, bn.name);
+    sql.appfmt("%s(%u, \"%s\")", separator, bn.number, bn.name);
     separator = ", ";
   }
 }
@@ -191,7 +191,7 @@ static void fill_blocks(void)
 struct lookup {
   const char* name;
   const char* columns;
-  void (*fill)(void);
+  void (*fill)(BaseString&);
 } lookups[] =
 {
   { "blocks",
@@ -256,40 +256,69 @@ BaseString replace_tags(const char* str)
   return result;
 }
 
+static void
+print_conditional_sql(const BaseString& sql)
+{
+  printf("SET @str=IF(@have_ndbinfo,'%s','SET @dummy = 0');\n",
+         sql.c_str());
+  printf("PREPARE stmt FROM @str;\n");
+  printf("EXECUTE stmt;\n");
+  printf("DROP PREPARE stmt;\n\n");
+}
 
 int main(int argc, char** argv){
 
+  BaseString sql;
   if ((handle_options(&argc, &argv, my_long_options, NULL)))
     return 2;
 
   printf("#\n");
-  printf("# SQL commands for creating the tables in MySQL Server which \n");
-  printf("# are used by the NDBINFO storage engine to access system \n");
+  printf("# SQL commands for creating the tables in MySQL Server which\n");
+  printf("# are used by the NDBINFO storage engine to access system\n");
   printf("# information and statistics from MySQL Cluster\n");
   printf("#\n");
 
-  printf("CREATE DATABASE IF NOT EXISTS `%s`;\n\n", opt_ndbinfo_db);
-
-  printf("# Only create tables if NDBINFO is enabled\n");
+  printf("# Only create objects if NDBINFO is supported\n");
   printf("SELECT @have_ndbinfo:= COUNT(*) FROM "
                   "information_schema.engines WHERE engine='NDBINFO' "
                   "AND support IN ('YES', 'DEFAULT');\n\n");
 
-  printf("# drop any old views in %s\n", opt_ndbinfo_db);
+  printf("# Only create objects if version >= 7.1\n");
+  sql.assfmt("SELECT @have_ndbinfo:="
+             " (@@ndbinfo_version >= (7 << 16) | (1 << 8)) || @ndbinfo_skip_version_check");
+  print_conditional_sql(sql);
+
+  printf("# Only create objects if ndbinfo namespace is free\n");
+  sql.assfmt("SET @@ndbinfo_show_hidden=TRUE");
+  print_conditional_sql(sql);
+  sql.assfmt("SELECT @have_ndbinfo:= COUNT(*) = 0"
+             " FROM information_schema.tables WHERE"
+             " table_schema = @@ndbinfo_database AND"
+             " LEFT(table_name, LENGTH(@@ndbinfo_table_prefix)) ="
+             " @@ndbinfo_table_prefix AND"
+             " engine != \"ndbinfo\"");
+  print_conditional_sql(sql);
+  sql.assfmt("SET @@ndbinfo_show_hidden=default");
+  print_conditional_sql(sql);
+
+  sql.assfmt("CREATE DATABASE IF NOT EXISTS `%s`", opt_ndbinfo_db);
+  print_conditional_sql(sql);
+
+  printf("# Drop any old views in %s\n", opt_ndbinfo_db);
   for (size_t i = 0; i < num_views; i++)
   {
-    printf("DROP VIEW IF EXISTS %s.%s;\n",
-            opt_ndbinfo_db, views[i].name);
+    sql.assfmt("DROP VIEW IF EXISTS %s.%s",
+               opt_ndbinfo_db, views[i].name);
+    print_conditional_sql(sql);
   }
-  printf("\n");
 
-  printf("# drop any old lookup tables in %s\n", opt_ndbinfo_db);
+  printf("# Drop any old lookup tables in %s\n", opt_ndbinfo_db);
   for (size_t i = 0; i < num_lookups; i++)
   {
-    printf("DROP TABLE IF EXISTS %s.%s;\n",
-            opt_ndbinfo_db, lookups[i].name);
+    sql.assfmt("DROP TABLE IF EXISTS %s.%s",
+               opt_ndbinfo_db, lookups[i].name);
+    print_conditional_sql(sql);
   }
-  printf("\n");
 
   for (int i = 0; i < Ndbinfo::getNumTables(); i++)
   {
@@ -299,16 +328,11 @@ int main(int argc, char** argv){
             opt_ndbinfo_db, opt_table_prefix, table.m.name);
 
     /* Drop the table if it exists */
-    printf("SET @str=IF(@have_ndbinfo,"
-                    "'DROP TABLE IF EXISTS `%s`.`%s%s`',"
-                    "'SET @dummy = 0');\n",
-            opt_ndbinfo_db, opt_table_prefix, table.m.name);
-    printf("PREPARE stmt FROM @str;\n");
-    printf("EXECUTE stmt;\n");
-    printf("DROP PREPARE stmt;\n\n");
+    sql.assfmt("DROP TABLE IF EXISTS `%s`.`%s%s`",
+               opt_ndbinfo_db, opt_table_prefix, table.m.name);
+    print_conditional_sql(sql);
 
     /* Create the table */
-    BaseString sql;
     sql.assfmt("CREATE TABLE `%s`.`%s%s` (",
                opt_ndbinfo_db, opt_table_prefix, table.m.name);
 
@@ -344,15 +368,11 @@ int main(int argc, char** argv){
 
     }
 
-    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO;", table.m.comment);
+    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO", table.m.comment);
 
-    printf("SET @str=IF(@have_ndbinfo,'%s','SET @dummy = 0');\n", sql.c_str());
-    printf("PREPARE stmt FROM @str;\n");
-    printf("EXECUTE stmt;\n");
-    printf("DROP PREPARE stmt;\n\n");
+    print_conditional_sql(sql);
 
   }
-
 
   for (size_t i = 0; i < num_lookups; i++)
   {
@@ -360,21 +380,16 @@ int main(int argc, char** argv){
     printf("# %s.%s\n", opt_ndbinfo_db, l.name);
 
     /* Create lookup table */
-    printf("CREATE TABLE `%s`.`%s` (%s);\n",
-           opt_ndbinfo_db, l.name, l.columns);
+    sql.assfmt("CREATE TABLE `%s`.`%s` (%s)",
+               opt_ndbinfo_db, l.name, l.columns);
+    print_conditional_sql(sql);
 
     /* Insert data */
-    printf("INSERT INTO `%s`.`%s` VALUES ",
-           opt_ndbinfo_db, l.name);
-    l.fill();
-    printf(";\n");
-
+    sql.assfmt("INSERT INTO `%s`.`%s` VALUES ",
+               opt_ndbinfo_db, l.name);
+    l.fill(sql);
+    print_conditional_sql(sql);
   }
-  printf("\n");
-
-  printf("#\n");
-  printf("# %s views\n", opt_ndbinfo_db);
-  printf("#\n\n");
 
   for (size_t i = 0; i < num_views; i++)
   {
@@ -386,15 +401,10 @@ int main(int argc, char** argv){
 
     /* Create or replace the view */
     BaseString sql;
-    sql.assfmt("CREATE OR REPLACE DEFINER=`root@localhost` "
+    sql.assfmt("CREATE OR REPLACE "
                "SQL SECURITY INVOKER VIEW `%s`.`%s` AS %s",
                opt_ndbinfo_db, v.name, view_sql.c_str());
-
-    printf("SET @str=IF(@have_ndbinfo,'%s','SET @dummy = 0');\n",
-           sql.c_str());
-    printf("PREPARE stmt FROM @str;\n");
-    printf("EXECUTE stmt;\n");
-    printf("DROP PREPARE stmt;\n\n");
+    print_conditional_sql(sql);
   }
 
   return 0;

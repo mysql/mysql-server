@@ -399,7 +399,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       return;
     }
     m_shared_page_pool.getPtr(page_ptr);
-    file->set_buffer(page_ptr, cnt);
+    file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
   } 
   else if (fsOpenReq->fileFlags & FsOpenReq::OM_WRITE_BUFFER)
   {
@@ -407,8 +407,9 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     Uint32 cnt = NDB_FILE_BUFFER_SIZE / GLOBAL_PAGE_SIZE; // 256k
     Ptr<GlobalPage> page_ptr;
     m_ctx.m_mm.alloc_pages(RT_FILE_BUFFER, &page_ptr.i, &cnt, 1);
-    if(cnt == 0)
+    if (cnt == 0)
     {
+      jam();
       file->m_page_ptr.setNull();
       file->m_page_cnt = 0;
 
@@ -420,7 +421,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       return;
     }
     m_shared_page_pool.getPtr(page_ptr);
-    file->set_buffer(page_ptr, cnt);
+    file->set_buffer(RT_FILE_BUFFER, page_ptr, cnt);
   }
   else
   {
@@ -918,7 +919,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   }
 
   m_shared_page_pool.getPtr(page_ptr);
-  file->set_buffer(page_ptr, cnt);
+  file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
 
   memcpy(&request->par.build.m_req, req, sizeof(* req));
   request->action = Request::buildindx;
@@ -1050,27 +1051,18 @@ Ndbfs::report(Request * request, Signal* signal)
   signal->setTrace(request->theTrace);
   const BlockReference ref = request->theUserReference;
 
-  if(request->file->has_buffer())
+  if (request->file->has_buffer())
   {
-    Uint32 cnt;
-    Ptr<GlobalPage> ptr;
-    if (request->file->m_open_flags & FsOpenReq::OM_WRITE_BUFFER)
+    if ((request->action == Request::open && request->error) ||
+        request->action == Request::close ||
+        request->action == Request::closeRemove ||
+        request->action == Request::buildindx)
     {
-      jam();
-      if ((request->action == Request::open && request->error) ||
-          (request->action == Request::close ||
-           request->action == Request::closeRemove))
-      {
-        jam();
-        request->file->clear_buffer(ptr, cnt);
-        m_ctx.m_mm.release_pages(RT_FILE_BUFFER, ptr.i, cnt);
-      }
-    }
-    else
-    {
-      jam();
-      request->file->clear_buffer(ptr, cnt);
-      m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, ptr.i, cnt);
+      Uint32 rg;
+      Uint32 cnt;
+      Ptr<GlobalPage> ptr;
+      request->file->clear_buffer(rg, ptr, cnt);
+      m_ctx.m_mm.release_pages(rg, ptr.i, cnt);
     }
   }
   

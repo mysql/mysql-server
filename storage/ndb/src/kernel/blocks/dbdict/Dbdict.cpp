@@ -291,149 +291,149 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_attributeRecordPool.getSize(),
         c_attributeRecordPool.getEntrySize(),
         c_attributeRecordPool.getUsedHi(),
-        CFG_DB_NO_ATTRIBUTES,0,0,0 },
+        { CFG_DB_NO_ATTRIBUTES,0,0,0 }},
       { "Table Record",
         c_tableRecordPool.getUsed(),
         c_tableRecordPool.getSize(),
         c_tableRecordPool.getEntrySize(),
         c_tableRecordPool.getUsedHi(),
-        CFG_DB_NO_TABLES,0,0,0 },
+        { CFG_DB_NO_TABLES,0,0,0 }},
       { "Trigger Record",
         c_triggerRecordPool.getUsed(),
         c_triggerRecordPool.getSize(),
         c_triggerRecordPool.getEntrySize(),
         c_triggerRecordPool.getUsedHi(),
-        CFG_DB_NO_TRIGGERS,0,0,0 },
+        { CFG_DB_NO_TRIGGERS,0,0,0 }},
       { "FS Connect Record",
         c_fsConnectRecordPool.getUsed(),
         c_fsConnectRecordPool.getSize(),
         c_fsConnectRecordPool.getEntrySize(),
         c_fsConnectRecordPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "DictObject",
         c_obj_pool.getUsed(),
         c_obj_pool.getSize(),
         c_obj_pool.getEntrySize(),
         c_obj_pool.getUsedHi(),
-        CFG_DB_NO_TABLES,
-        CFG_DB_NO_ORDERED_INDEXES,
-        CFG_DB_NO_UNIQUE_HASH_INDEXES,
-        CFG_DB_NO_TRIGGERS },
+        { CFG_DB_NO_TABLES,
+          CFG_DB_NO_ORDERED_INDEXES,
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,
+          CFG_DB_NO_TRIGGERS }},
       { "Schema Operation",
         c_schemaOpPool.getUsed(),
         c_schemaOpPool.getSize(),
         c_schemaOpPool.getEntrySize(),
         c_schemaOpPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Schema Transaction",
         c_schemaTransPool.getUsed(),
         c_schemaTransPool.getSize(),
         c_schemaTransPool.getEntrySize(),
         c_schemaTransPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Transaction Handle",
         c_txHandlePool.getUsed(),
         c_txHandlePool.getSize(),
         c_txHandlePool.getEntrySize(),
         c_txHandlePool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create Table Record",
         c_createTableRecPool.getUsed(),
         c_createTableRecPool.getSize(),
         c_createTableRecPool.getEntrySize(),
         c_createTableRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Drop Table Record",
         c_dropTableRecPool.getUsed(),
         c_dropTableRecPool.getSize(),
         c_dropTableRecPool.getEntrySize(),
         c_dropTableRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Alter Table Record",
         c_alterTableRecPool.getUsed(),
         c_alterTableRecPool.getSize(),
         c_alterTableRecPool.getEntrySize(),
         c_alterTableRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create Index Record",
         c_createIndexRecPool.getUsed(),
         c_createIndexRecPool.getSize(),
         c_createIndexRecPool.getEntrySize(),
         c_createIndexRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Drop Index Record",
         c_dropIndexRecPool.getUsed(),
         c_dropIndexRecPool.getSize(),
         c_dropIndexRecPool.getEntrySize(),
         c_dropIndexRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Alter Index Record",
         c_alterIndexRecPool.getUsed(),
         c_alterIndexRecPool.getSize(),
         c_alterIndexRecPool.getEntrySize(),
         c_alterIndexRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Build Index Record",
         c_buildIndexRecPool.getUsed(),
         c_buildIndexRecPool.getSize(),
         c_buildIndexRecPool.getEntrySize(),
         c_buildIndexRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create Hash Map Record",
         c_createHashMapRecPool.getUsed(),
         c_createHashMapRecPool.getSize(),
         c_createHashMapRecPool.getEntrySize(),
         c_createHashMapRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Copy Data Record",
         c_copyDataRecPool.getUsed(),
         c_copyDataRecPool.getSize(),
         c_copyDataRecPool.getEntrySize(),
         c_copyDataRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create Trigger Record",
         c_createTriggerRecPool.getUsed(),
         c_createTriggerRecPool.getSize(),
         c_createTriggerRecPool.getEntrySize(),
         c_createTriggerRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Drop Trigger Record",
         c_dropTriggerRecPool.getUsed(),
         c_dropTriggerRecPool.getSize(),
         c_dropTriggerRecPool.getEntrySize(),
         c_dropTriggerRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create Filegroup Record",
         c_createFilegroupRecPool.getUsed(),
         c_createFilegroupRecPool.getSize(),
         c_createFilegroupRecPool.getEntrySize(),
         c_createFilegroupRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Create File Record",
         c_createFileRecPool.getUsed(),
         c_createFileRecPool.getSize(),
         c_createFileRecPool.getEntrySize(),
         c_createFileRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Drop Filegroup Record",
         c_dropFilegroupRecPool.getUsed(),
         c_dropFilegroupRecPool.getSize(),
         c_dropFilegroupRecPool.getEntrySize(),
         c_dropFilegroupRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Drop File Record",
         c_dropFileRecPool.getUsed(),
         c_dropFileRecPool.getSize(),
         c_dropFileRecPool.getEntrySize(),
         c_dropFileRecPool.getUsedHi(),
-        0,0,0,0 },
+        { 0,0,0,0 }},
       { "Operation Record",
         c_opRecordPool.getUsed(),
         c_opRecordPool.getSize(),
         c_opRecordPool.getEntrySize(),
         c_opRecordPool.getUsedHi(),
-        0,0,0,0 },
-      { NULL, 0,0,0,0,0,0,0,0}
+        { 0,0,0,0 }},
+      { NULL, 0,0,0,0,{0,0,0,0}}
     };
 
     const size_t num_config_params =
@@ -21149,7 +21149,8 @@ Dbdict::execCREATE_NODEGROUP_REQ(Signal* signal)
     }
 
     impl_req->nodegroupId = req->nodegroupId;
-    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && i<NDB_ARRAY_SIZE(impl_req->nodes); i++)
+    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && 
+           i<NDB_ARRAY_SIZE(impl_req->nodes); i++)
     {
       impl_req->nodes[i] = req->nodes[i];
     }
@@ -21216,6 +21217,12 @@ Dbdict::createNodegroup_parse(Signal* signal, bool master,
   impl_req->senderRef = reference();
   impl_req->senderData = op_ptr.p->op_key;
   impl_req->nodegroupId = signal->theData[1];
+
+  /**
+   * createNodegroup blocks gcp
+   *   so trans_ptr can *not* do this (endless loop)
+   */
+  trans_ptr.p->m_wait_gcp_on_commit = false; 
 }
 
 void
@@ -21643,7 +21650,6 @@ void
 Dbdict::createNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
@@ -21785,6 +21791,12 @@ Dbdict::dropNodegroup_parse(Signal* signal, bool master,
 
   impl_req->senderRef = reference();
   impl_req->senderData = op_ptr.p->op_key;
+
+  /**
+   * dropNodegroup blocks gcp
+   *   so trans_ptr can *not* do this (endless loop)
+   */
+  trans_ptr.p->m_wait_gcp_on_commit = false; 
 }
 
 void
@@ -22451,20 +22463,21 @@ Dbdict::getOpInfo(SchemaOpPtr op_ptr)
 bool
 Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
 {
-  if (ERROR_INSERTED(6111) && (
-      info.m_impl_req_gsn == GSN_CREATE_TAB_REQ ||
-      info.m_impl_req_gsn == GSN_DROP_TAB_REQ ||
-      info.m_impl_req_gsn == GSN_ALTER_TAB_REQ) ||
-      ERROR_INSERTED(6112) && (
-      info.m_impl_req_gsn == GSN_CREATE_INDX_IMPL_REQ ||
-      info.m_impl_req_gsn == GSN_DROP_INDX_IMPL_REQ) ||
-      ERROR_INSERTED(6113) && (
-      info.m_impl_req_gsn == GSN_ALTER_INDX_IMPL_REQ) ||
-      ERROR_INSERTED(6114) && (
-      info.m_impl_req_gsn == GSN_CREATE_TRIG_IMPL_REQ ||
-      info.m_impl_req_gsn == GSN_DROP_TRIG_IMPL_REQ) ||
-      ERROR_INSERTED(6116) && (
-      info.m_impl_req_gsn == GSN_BUILD_INDX_IMPL_REQ)) {
+  if ((ERROR_INSERTED(6111) && 
+       (info.m_impl_req_gsn == GSN_CREATE_TAB_REQ ||
+        info.m_impl_req_gsn == GSN_DROP_TAB_REQ ||
+        info.m_impl_req_gsn == GSN_ALTER_TAB_REQ)) ||
+      (ERROR_INSERTED(6112) && 
+       (info.m_impl_req_gsn == GSN_CREATE_INDX_IMPL_REQ ||
+        info.m_impl_req_gsn == GSN_DROP_INDX_IMPL_REQ)) ||
+      (ERROR_INSERTED(6113) && 
+       (info.m_impl_req_gsn == GSN_ALTER_INDX_IMPL_REQ)) ||
+      (ERROR_INSERTED(6114) && 
+       (info.m_impl_req_gsn == GSN_CREATE_TRIG_IMPL_REQ ||
+        info.m_impl_req_gsn == GSN_DROP_TRIG_IMPL_REQ)) ||
+      (ERROR_INSERTED(6116) && 
+       (info.m_impl_req_gsn == GSN_BUILD_INDX_IMPL_REQ))) 
+  {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     op_ptr.setNull();
@@ -24431,7 +24444,7 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     jam();
     trans_commit_mutex_locked(signal, trans_ptr.i, 0);
   }
-  else
+  else if (trans_ptr.p->m_wait_gcp_on_commit)
   {
     jam();
 
@@ -24449,6 +24462,16 @@ Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
     signal->theData[2] = gci_hi;
     signal->theData[3] = gci_lo;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 4);
+  }
+  else
+  {
+    jam();
+    Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+    Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+    
+    // Todo should alloc mutex on SCHEMA_BEGIN
+    bool ok = mutex.lock(c);
+    ndbrequire(ok);
   }
 }
 

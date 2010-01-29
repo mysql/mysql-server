@@ -365,6 +365,10 @@ public:
      */
     CHARSET_INFO* getCharset() const;
 
+    /**
+     * Returns mysql's internal number for the column's character set.
+     */
+    int getCharsetNumber() const;
 
     /**
      * For blob, get "inline size" i.e. number of initial bytes

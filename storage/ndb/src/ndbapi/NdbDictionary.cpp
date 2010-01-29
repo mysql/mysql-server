@@ -257,6 +257,12 @@ NdbDictionary::Column::getCharset() const
 }
 
 int
+NdbDictionary::Column::getCharsetNumber() const
+{
+  return m_impl.m_cs->number;
+}
+
+int
 NdbDictionary::Column::getInlineSize() const
 {
   return m_impl.m_precision;

@@ -568,8 +568,12 @@ private:
       ,BUCKET_HANDOVER = 0x2 // On running node
       ,BUCKET_TAKEOVER = 0x4 // On takeing over node
       ,BUCKET_RESEND   = 0x8 // On takeing over node
-      ,BUCKET_CREATED  = 0x10 // New nodegroup (me)
-      ,BUCKET_DROPPED  = 0x20 // New nodegroup (me) uses hi 8 bit for cnt
+      ,BUCKET_CREATED_SELF  = 0x10 // New nodegroup (me)
+      ,BUCKET_CREATED_OTHER = 0x20 // New nodegroup (not me)
+      ,BUCKET_CREATED_MASK  = (BUCKET_CREATED_SELF | BUCKET_CREATED_OTHER)
+      ,BUCKET_DROPPED_SELF  = 0x40 // New nodegroup (me) uses hi 8 bit for cnt
+      ,BUCKET_DROPPED_OTHER = 0x80 // New nodegroup (not me)
+      ,BUCKET_DROPPED_MASK  = (BUCKET_DROPPED_SELF | BUCKET_DROPPED_OTHER)
     };
     Uint16 m_state;
     Uint16 m_switchover_node;

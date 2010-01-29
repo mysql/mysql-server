@@ -36,6 +36,7 @@ AsyncFile::AsyncFile(SimulatedBlock& fs) :
 {
   m_thread = 0;
 
+  m_resource_group = RNIL;
   m_page_cnt = 0;
   m_page_ptr.setNull();
   theWriteBuffer = 0;

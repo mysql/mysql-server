@@ -32,6 +32,7 @@ export RSYNC_RSH
 verbose=0
 report=yes
 nolock=
+clonename=
 RUN="daily-basic"
 conf=autotest.conf
 LOCK=$HOME/.autotest-lock
@@ -55,6 +56,7 @@ do
 	        --clone0=*) clone0=`echo $1 | sed s/--clone0=//`;;
 	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
 	        --nolock) nolock=true;;
+	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
         esac
         shift
 done
@@ -282,6 +284,16 @@ echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
 echo "host=$HOST" >> info.txt
+if [ "$clone1" ]
+then
+    echo "clone1=$clone1" >> info.txt
+fi
+if [ "$clonename" ]
+then
+    echo "clonename=$clonename" >> info.txt
+else
+    echo "clonename=$clone0" >> info.txt
+fi
 find . | xargs chmod ugo+r
 
 cd ..

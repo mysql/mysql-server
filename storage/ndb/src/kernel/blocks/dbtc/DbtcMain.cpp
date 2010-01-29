@@ -437,6 +437,7 @@ void Dbtc::execTAB_COMMITREQ(Signal* signal)
   ndbrequire(tabptr.p->get_prepared() == true);
   ndbrequire(tabptr.p->get_enabled() == false);
   tabptr.p->set_enabled(true);
+  tabptr.p->set_prepared(false);
   tabptr.p->set_dropping(false);
 
   signal->theData[0] = senderData;
@@ -486,6 +487,7 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
   }
   
   tabPtr.p->set_dropping(true);
+  tabPtr.p->set_prepared(false);
 
   PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
@@ -535,6 +537,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
   }
   
   tabPtr.p->set_enabled(false);
+  tabPtr.p->set_prepared(false);
   tabPtr.p->set_dropping(false);
   
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
@@ -12425,47 +12428,47 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         c_theDefinedTriggerPool.getSize(),
         c_theDefinedTriggerPool.getEntrySize(),
         c_theDefinedTriggerPool.getUsedHi(),
-        CFG_DB_NO_TRIGGERS,0,0,0 },
+        { CFG_DB_NO_TRIGGERS,0,0,0 }},
       { "Fired Trigger",
         c_theFiredTriggerPool.getUsed(),
         c_theFiredTriggerPool.getSize(),
         c_theFiredTriggerPool.getEntrySize(),
         c_theFiredTriggerPool.getUsedHi(),
-        CFG_DB_NO_TRIGGER_OPS,0,0,0 },
+        { CFG_DB_NO_TRIGGER_OPS,0,0,0 }},
       { "Index",
         c_theIndexPool.getUsed(),
         c_theIndexPool.getSize(),
         c_theIndexPool.getEntrySize(),
         c_theIndexPool.getUsedHi(),
-        CFG_DB_NO_TABLES,
-        CFG_DB_NO_ORDERED_INDEXES,
-        CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        { CFG_DB_NO_TABLES,
+          CFG_DB_NO_ORDERED_INDEXES,
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
       { "Scan Fragment",
         c_scan_frag_pool.getUsed(),
         c_scan_frag_pool.getSize(),
         c_scan_frag_pool.getEntrySize(),
         c_scan_frag_pool.getUsedHi(),
-        CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
       { "Commit ACK Marker",
         m_commitAckMarkerPool.getUsed(),
         m_commitAckMarkerPool.getSize(),
         m_commitAckMarkerPool.getEntrySize(),
         m_commitAckMarkerPool.getUsedHi(),
-        CFG_DB_NO_TRANSACTIONS,0,0,0 },
+        { CFG_DB_NO_TRANSACTIONS,0,0,0 }},
       { "Index Op",
         c_theIndexOperationPool.getUsed(),
         c_theIndexOperationPool.getSize(),
         c_theIndexOperationPool.getEntrySize(),
         c_theIndexOperationPool.getUsedHi(),
-        CFG_DB_NO_INDEX_OPS,0,0,0 },
+        { CFG_DB_NO_INDEX_OPS,0,0,0 }},
       { "Operations",
         c_counters.cconcurrentOp,
         ctcConnectFilesize,
         sizeof(TcConnectRecord),
         0,
-        CFG_DB_NO_TRANSACTIONS,
-        CFG_DB_NO_OPS,0,0 },
-      { NULL, 0,0,0,0,0,0,0,0 }
+        { CFG_DB_NO_TRANSACTIONS,
+          CFG_DB_NO_OPS,0,0 }},
+      { NULL, 0,0,0,0,{0,0,0,0} }
     };
 
    const size_t num_config_params =

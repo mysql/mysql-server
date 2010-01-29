@@ -282,6 +282,10 @@ max-time: 600
 cmd: testIndex
 args: -n Bug46069 T1
 
+max-time: 600
+cmd: testIndex
+args: -n Bug50118 T1
+
 #
 # SCAN TESTS
 #
@@ -480,6 +484,10 @@ args: -n ScanReadError8081 T1 D1 D2
 max-time: 500
 cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
+
+max-time: 500
+cmd: testScan
+args: -n Bug48700 T1
 
 max-time: 500
 cmd: testScan
@@ -1495,10 +1503,11 @@ cmd: testPartitioning
 args: --forceshortreqs
 
 # End of short (signal train) handling tests
-
 max-time: 300
 cmd: testIndex
 args: -n ConstraintDetails
 
-
+max-time: 500
+cmd: testNdbinfo
+args:
 

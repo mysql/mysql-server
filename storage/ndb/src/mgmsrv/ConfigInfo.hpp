@@ -133,7 +133,7 @@ public:
   /**
    * section type is stored in _default
    */
-  static const Uint32 getSectionType(const ParamInfo& p) {
+  static Uint32 getSectionType(const ParamInfo& p) {
     assert(p._type == CI_SECTION);
     return Uint32(reinterpret_cast<UintPtr>(p._default));
   }

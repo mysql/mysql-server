@@ -27,41 +27,41 @@ static const struct  {                   \
 
 
 DECLARE_NDBINFO_TABLE(TABLES,3) =
-{ "tables", 3, 0, "metadata for tables available through ndbinfo",
+{ { "tables", 3, 0, "metadata for tables available through ndbinfo" },
   {
     {"table_id",  Ndbinfo::Number, ""},
 
     {"table_name",Ndbinfo::String, ""},
-    {"comment",   Ndbinfo::String, ""},
+    {"comment",   Ndbinfo::String, ""}
   }
 };
 
 DECLARE_NDBINFO_TABLE(COLUMNS,5) =
-{ "columns", 5, 0, "metadata for columns available through ndbinfo ",
+{ { "columns", 5, 0, "metadata for columns available through ndbinfo " },
   {
     {"table_id",    Ndbinfo::Number, ""},
     {"column_id",   Ndbinfo::Number, ""},
 
     {"column_name", Ndbinfo::String, ""},
     {"column_type", Ndbinfo::Number, ""},
-    {"comment",     Ndbinfo::String, ""},
+    {"comment",     Ndbinfo::String, ""}
   }
 };
 
 DECLARE_NDBINFO_TABLE(TEST,5) =
-{ "test", 5, 0, "for testing",
+{ { "test", 5, 0, "for testing" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
     {"block_instance",     Ndbinfo::Number, ""},
 
     {"counter",            Ndbinfo::Number, ""},
-    {"counter2",           Ndbinfo::Number64, ""},
+    {"counter2",           Ndbinfo::Number64, ""}
   }
 };
 
 DECLARE_NDBINFO_TABLE(POOLS,12) =
-{ "pools", 12, 0, "pool usage",
+{ { "pools", 12, 0, "pool usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -75,22 +75,22 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
     {"config_param1",      Ndbinfo::Number, "config param 1 affecting pool"},
     {"config_param2",      Ndbinfo::Number, "config param 2 affecting pool"},
     {"config_param3",      Ndbinfo::Number, "config param 3 affecting pool"},
-    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"},
+    {"config_param4",      Ndbinfo::Number, "config param 4 affecting pool"}
   }
 };
 
 DECLARE_NDBINFO_TABLE(TRANSPORTERS, 3) =
-{ "transporters", 3, 0, "transporter status",
+{ { "transporters", 3, 0, "transporter status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"remote_node_id",     Ndbinfo::Number, ""},
 
-    {"connection_status",  Ndbinfo::Number, ""},
+    {"connection_status",  Ndbinfo::Number, ""}
   }
 };
 
 DECLARE_NDBINFO_TABLE(LOGSPACES, 7) =
-{ "logspaces", 7, 0, "logspace usage",
+{ { "logspaces", 7, 0, "logspace usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
@@ -104,7 +104,7 @@ DECLARE_NDBINFO_TABLE(LOGSPACES, 7) =
 };
 
 DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
-{ "logbuffers", 7, 0, "logbuffer usage",
+{ { "logbuffers", 7, 0, "logbuffer usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
@@ -113,12 +113,12 @@ DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
 
     {"total",              Ndbinfo::Number64, "total allocated"},
     {"used",               Ndbinfo::Number64, "currently in use"},
-    {"high",               Ndbinfo::Number64, "in use high water mark"},
+    {"high",               Ndbinfo::Number64, "in use high water mark"}
   }
 };
 
 DECLARE_NDBINFO_TABLE(RESOURCES,6) =
-{ "resources", 6, 0, "resources usage (a.k.a superpool)",
+{ { "resources", 6, 0, "resources usage (a.k.a superpool)" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"resource_id",        Ndbinfo::Number, ""},
@@ -126,12 +126,12 @@ DECLARE_NDBINFO_TABLE(RESOURCES,6) =
     {"reserved",           Ndbinfo::Number, "reserved for this resource"},
     {"used",               Ndbinfo::Number, "currently in use"},
     {"max",                Ndbinfo::Number, "max available"},
-    {"high",               Ndbinfo::Number, "in use high water mark"},
+    {"high",               Ndbinfo::Number, "in use high water mark"}
   }
 };
 
 DECLARE_NDBINFO_TABLE(COUNTERS,5) =
-{ "counters", 5, 0, "monotonic counters",
+{ { "counters", 5, 0, "monotonic counters" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"block_number",       Ndbinfo::Number, ""},
@@ -143,17 +143,17 @@ DECLARE_NDBINFO_TABLE(COUNTERS,5) =
 };
 
 DECLARE_NDBINFO_TABLE(NODES,4) =
-{ "nodes", 4, 0, "node status",
+{ { "nodes", 4, 0, "node status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
 
     {"uptime",             Ndbinfo::Number64, "time in seconds that node has been running"},
     {"status",             Ndbinfo::Number, "starting/started/stopped etc."},
-    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"},
+    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"}
   }
 };
 
-#define DBINFOTBL(x) Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x
+#define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
 struct ndbinfo_table_list_entry {
@@ -171,7 +171,7 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(LOGBUFFERS),
   DBINFOTBL(RESOURCES),
   DBINFOTBL(COUNTERS),
-  DBINFOTBL(NODES),
+  DBINFOTBL(NODES)
 };
 
 static int no_ndbinfo_tables =

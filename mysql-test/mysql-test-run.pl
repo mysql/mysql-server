@@ -1782,11 +1782,11 @@ sub environment_setup {
     {
       push(@ld_library_paths, "$basedir/libmysql/.libs/",
 	   "$basedir/libmysql_r/.libs/",
-	   "$basedir/zlib.libs/");
+	   "$basedir/zlib/.libs/");
     }
     else
     {
-      push(@ld_library_paths, "$basedir/lib");
+      push(@ld_library_paths, "$basedir/lib", "$basedir/lib/mysql");
     }
   }
 

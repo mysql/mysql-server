@@ -513,10 +513,9 @@ NDB_COMMAND(testOdbcDriver, "testDeadlock", "testDeadlock", "testDeadlock", 6553
   }
   g_cluster_connection= &con;
   
-  if (
-      strchr(g_opt.m_scan, 't') != 0 && wl1822_main('t') == -1 ||
-      strchr(g_opt.m_scan, 'x') != 0 && wl1822_main('x') == -1
-      ) {
+  if ((strchr(g_opt.m_scan, 't') != 0 && wl1822_main('t') == -1) ||
+      (strchr(g_opt.m_scan, 'x') != 0 && wl1822_main('x') == -1))
+  {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   return NDBT_ProgramExit(NDBT_OK);

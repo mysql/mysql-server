@@ -1844,6 +1844,7 @@ private:
     bool m_flush_commit;
     bool m_flush_complete;
     bool m_flush_end;
+    bool m_wait_gcp_on_commit;
 
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70002 };
@@ -1868,6 +1869,7 @@ private:
       m_flush_commit = false;
       m_flush_complete = false;
       m_flush_end = false;
+      m_wait_gcp_on_commit = true;
     }
 
     SchemaTrans(Uint32 the_trans_key) {

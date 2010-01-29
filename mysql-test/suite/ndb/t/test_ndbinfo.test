@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 let NDBAPITEST_NAME=testNdbinfo;
 --source suite/ndb/include/run_ndbapitest.inc
 
