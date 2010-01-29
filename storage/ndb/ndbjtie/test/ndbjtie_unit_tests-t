@@ -37,7 +37,7 @@ run_test()
     echo "running test '`pwd`/$script_name':" >> "$log" 2>&1
     if [ ! -x "$script_name" ];
     then
-        echo "File not executable or missing '`pwd`/$script_name':" >> "$log" 2>&1
+      status="ok $test_counter # skip $test_name due to missing test file"
     else
       ./$script_name >> "$log" 2>&1
       s=""
