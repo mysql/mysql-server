@@ -160,7 +160,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
-
+	IF(NOT ARG_MODULE_ONLY)
+      # set cached variable, e.g with checkbox in GUI
+      SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server" 
+       FORCE)
+	ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
     # Install dynamic library
