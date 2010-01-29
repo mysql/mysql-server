@@ -39,6 +39,7 @@ enum Operation_t {
 #if 0
   ,ZREAD_CONSISTENT = 6
 #endif
+  ,ZUNLOCK  = 7
 };
 
 /**

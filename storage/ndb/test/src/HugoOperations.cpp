@@ -263,6 +263,115 @@ rand_lock_mode:
   return NDBT_OK;
 }
 
+int HugoOperations::pkReadRecordLockHandle(Ndb* pNdb,
+                                           Vector<const NdbLockHandle*>& lockHandles,
+                                           int recordNo,
+                                           int numRecords,
+                                           NdbOperation::LockMode lm,
+                                           NdbOperation::LockMode *lmused){
+  if (idx)
+  {
+    g_err << "ERROR : Cannot call pkReadRecordLockHandle on an index"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  /* If something other than LM_Read or LM_Exclusive is 
+   * passed in then we'll choose, and PkReadRecord
+   * will update lm_used
+   */
+  while (lm != NdbOperation::LM_Read &&
+         lm != NdbOperation::LM_Exclusive)
+  {
+    lm = (NdbOperation::LockMode)((rand() >> 16) & 1);
+  }
+
+  const NdbOperation* prevOp = pTrans->getLastDefinedOperation();
+
+  int readRc = pkReadRecord(pNdb,
+                            recordNo,
+                            numRecords,
+                            lm,
+                            lmused);
+
+  if (readRc == NDBT_OK)
+  {
+    /* Now traverse operations added, requesting
+     * LockHandles
+     */
+    const NdbOperation* definedOp = (prevOp)? prevOp->next() : 
+      pTrans->getFirstDefinedOperation();
+    
+    while (definedOp)
+    {
+      /* Look away now */
+      const NdbLockHandle* lh = 
+        (const_cast<NdbOperation*>(definedOp))->getLockHandle();
+      
+      if (lh == NULL)
+      {
+        ERR(definedOp->getNdbError());
+        setNdbError(definedOp->getNdbError());
+        return NDBT_FAILED;
+      }
+
+      lockHandles.push_back(lh);
+      definedOp = definedOp->next();
+    }
+  }
+
+  return readRc;
+}
+
+int HugoOperations::pkUnlockRecord(Ndb* pNdb,
+                                   Vector<const NdbLockHandle*>& lockHandles,
+                                   int offset,
+                                   int numRecords,
+                                   NdbOperation::AbortOption ao)
+{
+  if (numRecords == ~(0))
+  {
+    numRecords = lockHandles.size() - offset;
+  }
+
+  if (lockHandles.size() < (unsigned)(offset + numRecords))
+  {
+    g_err << "ERROR : LockHandles size is "
+          << lockHandles.size()
+          << " offset (" 
+          << offset
+          << ") and/or numRecords ("
+          << numRecords
+          << ") too large." << endl;
+    return NDBT_FAILED;
+  }
+  
+  for (int i = 0; i < numRecords; i++)
+  {
+    const NdbLockHandle* lh = lockHandles[offset + i];
+    if (lh != NULL)
+    {
+      const NdbOperation* unlockOp = pTrans->unlock(lh, ao);
+      
+      if (unlockOp == NULL)
+      {
+        ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      g_err << "ERROR : LockHandle number "
+            << i+offset << " is NULL. "
+            << " offset is " << offset << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
 int HugoOperations::pkUpdateRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
@@ -959,6 +1068,57 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   return 0;
 }
 
+int
+HugoOperations::releaseLockHandles(Ndb* pNdb,
+                                   Vector<const NdbLockHandle*>& lockHandles,
+                                   int offset,
+                                   int numRecords)
+{
+  int totalSize = lockHandles.size();
+  if (numRecords == ~(0))
+  {
+    numRecords = totalSize - offset;
+  }
+
+  if (totalSize < (offset + numRecords))
+  {
+    g_err << "ERROR : LockHandles size is "
+          << lockHandles.size()
+          << " offset (" 
+          << offset
+          << ") and/or numRecords ("
+          << numRecords
+          << ") too large." << endl;
+    return NDBT_FAILED;
+  }
+
+  for (int i = 0; i < numRecords; i++)
+  {
+    const NdbLockHandle* lh = lockHandles[offset + i];
+    if (lh != NULL)
+    {
+      if (pTrans->releaseLockHandle(lh) != 0)
+      {
+        ERR(pTrans->getNdbError());
+        setNdbError(pTrans->getNdbError());
+        return NDBT_FAILED;
+      }
+      const NdbLockHandle* nullPtr = NULL;
+      //lockHandles.set(nullPtr, offset + i, nullPtr);
+    }
+    else
+    {
+      g_err << "ERROR : LockHandle number "
+            << i+offset << " is NULL. "
+            << " offset is " << offset << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+
+}
+
 static void
 update(const NdbError & _err)
 {
@@ -982,3 +1142,4 @@ HugoOperations::setNdbError(const NdbError& error)
 }
 
 template class Vector<HugoOperations::RsPair>;
+template class Vector<const NdbLockHandle*>;

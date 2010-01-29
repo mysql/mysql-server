@@ -587,6 +587,8 @@ public:
     static const Column * ROW_GCI;
     static const Column * ANY_VALUE;
     static const Column * COPY_ROWID;
+    static const Column * LOCK_REF;
+    static const Column * OP_ID;
     static const Column * OPTIMIZE;
     static const Column * FRAGMENT_EXTENT_SPACE;
     static const Column * FRAGMENT_FREE_EXTENT_SPACE;

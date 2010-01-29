@@ -64,7 +64,20 @@ public:
                        int numRecords = 1,
                        NdbOperation::LockMode lm = NdbOperation::LM_Read,
                        NdbOperation::LockMode * lmused = 0);
+
+  int pkReadRecordLockHandle(Ndb*,
+                             Vector<const NdbLockHandle*>& lockHandles,
+                             int record,
+                             int numRecords = 1,
+                             NdbOperation::LockMode lm = NdbOperation::LM_Read,
+                             NdbOperation::LockMode * lmused = 0);
   
+  int pkUnlockRecord(Ndb*,
+                     Vector<const NdbLockHandle*>& lockHandles,
+                     int offset = 0,
+                     int numRecords = ~(0),
+                     NdbOperation::AbortOption ao = NdbOperation::AbortOnError);
+
   int pkUpdateRecord(Ndb*,
 		     int recordNo,
 		     int numRecords = 1,
@@ -125,6 +138,11 @@ public:
   int execute_async_prepare(Ndb*, NdbTransaction::ExecType, NdbOperation::AbortOption = NdbOperation::AbortOnError);
   
   int wait_async(Ndb*, int timeout = -1);
+
+  int releaseLockHandles(Ndb*,
+                         Vector<const NdbLockHandle*>& lockHandles,
+                         int offset = 0,
+                         int numRecords = ~(0));
 
   const NdbError& getNdbError() const;
   void setQuiet() { m_quiet = true; }

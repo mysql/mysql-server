@@ -1150,6 +1150,40 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     }
   }
 
+  if (!ha->m_active_cursor)
+  {
+    /* Non-scan, Blob reads have been issued
+     * execute them and then close the Blob 
+     * handles
+     */
+    for (uint i= 0; i < ha->table->s->fields; i++)
+    {
+      Field *field= ha->table->field[i];
+      if (! (field->flags & BLOB_FLAG))
+        continue;
+      NdbValue value= ha->m_value[i];
+      if (value.blob == NULL)
+      {
+        DBUG_PRINT("info",("[%u] skipped", i));
+        continue;
+      }
+      NdbBlob *ndb_blob= value.blob;
+    
+      assert(ndb_blob->getState() == NdbBlob::Active);
+
+      /* Call close() with execPendingBlobOps == true
+       * For LM_CommittedRead access, this will enqueue
+       * an unlock operation, which the Blob framework 
+       * code invoking this callback will execute before
+       * returning control to the caller of execute()
+       */
+      if (ndb_blob->close(true) != 0)
+      {
+        ERR_RETURN(ndb_blob->getNdbError());
+      }
+    }
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -2147,8 +2181,7 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type,
 {
   if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
-  if (type ==  TL_READ_WITH_SHARED_LOCKS ||
-      (column_bitmap != NULL && uses_blob_value(column_bitmap)))
+  if (type ==  TL_READ_WITH_SHARED_LOCKS)
     return NdbOperation::LM_Read;
   return NdbOperation::LM_CommittedRead;
 }

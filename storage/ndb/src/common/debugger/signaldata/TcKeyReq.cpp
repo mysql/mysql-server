@@ -35,7 +35,8 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
 	  sig->getOperationType(requestInfo) == ZUPDATE  ? "Update" :
 	  sig->getOperationType(requestInfo) == ZINSERT  ? "Insert" :
 	  sig->getOperationType(requestInfo) == ZDELETE  ? "Delete" :
-	  sig->getOperationType(requestInfo) == ZWRITE   ? "Write" :
+	  sig->getOperationType(requestInfo) == ZWRITE   ? "Write"  :
+          sig->getOperationType(requestInfo) == ZUNLOCK  ? "Unlock" :
 	  "Unknown");
   {
     if(sig->getDirtyFlag(requestInfo)){
