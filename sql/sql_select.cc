@@ -539,13 +539,26 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if (order)
   {
+    bool real_order= FALSE;
     ORDER *ord;
     for (ord= order; ord; ord= ord->next)
     {
       Item *item= *ord->item;
+      /*
+        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
+        there. Such fields don't contain any data to sort.
+      */
+      if (!real_order &&
+          (item->type() != Item::Item::FIELD_ITEM ||
+           ((Item_field *) item)->field->maybe_null() ||
+           ((Item_field *) item)->field->sort_length()))
+        real_order= TRUE;
+
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
         item->split_sum_func(thd, ref_pointer_array, all_fields);
     }
+    if (!real_order)
+      order= NULL;
   }
 
   if (having && having->with_sum_func)
