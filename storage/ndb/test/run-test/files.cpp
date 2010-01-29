@@ -1,6 +1,7 @@
 #include "atrt.hpp"
 #include <sys/types.h>
 #include <NdbDir.hpp>
+#include <NdbSleep.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -386,11 +387,30 @@ remove_dir(const char * path, bool inclusive)
 {
   if (access(path, 0))
     return true;
-  if (!NdbDir::remove_recursive(path, !inclusive)) {
-    g_logger.warning("Couldn't remove %s", path);
-    return false;
+
+  g_logger.info("remove_dir");
+
+  const int max_retries = 20;
+  int attempt = 0;
+
+  while(true)
+  {
+    if (NdbDir::remove_recursive(path, !inclusive))
+      return true;
+
+    attempt++;
+    if (attempt > max_retries)
+    {
+      g_logger.error("Failed to remove directory '%s'!", path);
+      return false;
+    }
+
+    g_logger.warning(" - attempt %d to remove directory '%s' failed "
+                     ", retrying...", attempt, path);
+
+    NdbSleep_MilliSleep(100);
   }
-  else {
-    return true;
-  }
+
+  abort(); // Never reached
+  return false;
 }
