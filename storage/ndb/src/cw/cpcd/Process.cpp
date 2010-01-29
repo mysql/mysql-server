@@ -130,14 +130,16 @@ CPCD::Process::isRunning() {
 #ifdef _WIN32
   HANDLE proc;
 
-  if (!(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid))) {
-    logger.debug("Cannot OpenProcess on %d\n", m_pid);
+  if (!(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid)))
+  {
+    logger.debug("Cannot OpenProcess with pid: %d, error: %d",
+                 m_pid, GetLastError());
     return false;
   }
 
-  BOOL result;
   DWORD exitcode;
-  if (result = GetExitCodeProcess(proc, &exitcode) && exitcode != STILL_ACTIVE) {
+  if (GetExitCodeProcess(proc, &exitcode) && exitcode != STILL_ACTIVE)
+  {
     CloseHandle(proc);
     return false;
   }
@@ -433,19 +435,76 @@ CPCD::Process::do_exec() {
   logger.error("Exec failed: %s\n", strerror(errno));
   /* NOTREACHED */
 #else
-  BaseString cmd;
-  cmd.assfmt("'%s %s'", m_path.c_str(), m_args.c_str());
-  const char *sh_argv[] = {"sh", "-c", cmd.c_str(), 0};
-  BaseString shcmd;
-  shcmd.assfmt("sh -c '%s'", cmd.c_str());
-  logger.critical(shcmd.c_str());
 
-  HANDLE proc = (HANDLE)_spawnvp(_P_NOWAIT, "sh", sh_argv);
+  // Get full path to cygwins shell
+  FILE *fpipe = _popen("sh -c 'cygpath -w `which sh`'", "rt");
+  char buf[MAX_PATH];
+
+  require(fgets(buf, MAX_PATH - 1, fpipe));
+  fclose(fpipe);
+
+  BaseString sh;
+  sh.assign(buf);
+  sh.trim("\n");
+  sh.append(".exe");
+
+  BaseString shcmd;
+  shcmd.assfmt("%s -c '%s %s'", sh.c_str(), m_path.c_str(), m_args.c_str());
+
+  PROCESS_INFORMATION pi = {0};
+  STARTUPINFO si = {sizeof(STARTUPINFO), 0};
+
+  si.dwFlags   |=  STARTF_USESTDHANDLES;
+  si.hStdInput  = (HANDLE)_get_osfhandle(0);
+  si.hStdOutput = (HANDLE)_get_osfhandle(1);
+  si.hStdError  = (HANDLE)_get_osfhandle(2);
+
+  if(!CreateProcessA(sh.c_str(),
+                     (LPSTR)shcmd.c_str(),
+                     NULL,
+                     NULL,
+                     TRUE,
+                     CREATE_SUSPENDED, // Resumed after assigned to Job
+                     NULL,
+                     NULL,
+                     &si,
+                     &pi))
+  {
+    char* message;
+    DWORD err = GetLastError();
+
+    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                  FORMAT_MESSAGE_FROM_SYSTEM |
+                  FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL,
+                  err,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPTSTR)&message,
+                  0, NULL );
+
+    logger.error("CreateProcess failed, error: %d, message: '%s'",
+                 err, message);
+    LocalFree(message);
+
+  }
+
+  HANDLE proc = pi.hProcess;
+  require(proc);
+
+  // Job control
+  require(m_job = CreateJobObject(0, 0));
+  require(AssignProcessToJobObject(m_job, proc));
+
+  // Resum process after it has been added to Job
+  ResumeThread(pi.hThread);
+  CloseHandle(pi.hThread);
+
+
   // go back up to original cwd
   if(chdir(cwd))
   {
     logger.critical("Couldn't go back to saved cwd after spawn()");
-    logger.critical("%s", strerror(errno));
+    logger.critical("errno: %d, strerror: %s", errno, strerror(errno));
   }
   free(cwd);
 
@@ -459,22 +518,23 @@ CPCD::Process::do_exec() {
     putenv(saved[i].c_str());
   }
 
+  logger.debug("'%s' has been started", shcmd.c_str());
+
   DWORD exitcode;
   BOOL result = GetExitCodeProcess(proc, &exitcode);
   //maybe a short running process
   if (result && exitcode != 259) {
     m_status = STOPPED;
-    logger.warning("Process terminated\n");
+    logger.warning("Process terminated early");
   }
 
   int pid = GetProcessId(proc);
-  CloseHandle(proc);
-  if (!pid) {
-    logger.critical("Couldn't get process ID");
-  } else {
-    logger.debug("new pid: %d\n", pid);
-  }
+  if (!pid)
+    logger.critical("GetProcessId failed, error: %d!", GetLastError());
 
+  logger.debug("new pid %d", pid);
+
+  CloseHandle(proc);
   m_status = RUNNING;
   writePid(pid);
 #endif
@@ -604,127 +664,6 @@ CPCD::Process::start() {
   return -1;
 }
 
-
-#ifdef _WIN32
-#include <tlhelp32.h>
-/*
-   fill pids with pairs:
-    - all valid pids ordered as (child, parent)
-*/
-struct Pair
-{
-  pid_t child, parent;
-};
-
-typedef Vector<struct Pair> Pairs;
-
-static void get_processes(Pairs & pairs)
-{
-  HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  PROCESSENTRY32 pe = { 0 };
-
-  pairs.clear();
-  pe.dwSize = sizeof(PROCESSENTRY32);
-  if(Process32First(h, &pe))
-  {
-    do
-    {
-      struct Pair pr;
-      pr.child  = pe.th32ProcessID;
-      pr.parent = pe.th32ParentProcessID;
-      pairs.push_back(pr);
-    } while(Process32Next(h, &pe));
-  }
-  CloseHandle(h);
-}
-
-/*
-   will kill pid after killing it's children.
-   last two parameters come from get_processes()
-*/
-static int kill_tree(pid_t pid, Pairs & pairs)
-{
-  size_t i, j, k, new_count;
-  Vector<pid_t> parents, new_parents;
-
-  parents.push_back(pid);
-  do
-  {
-    for(i = 0; i < pairs.size(); i++)
-    {
-      for(j = 0; j < parents.size(); j++)
-      {
-        if(pairs[i].parent == parents[j])
-        {
-          bool already_a_parent = false;
-          for(size_t x = 0; x < parents.size(); x++)
-          {
-            if(parents[x] == pairs[i].child)
-            {
-              already_a_parent = true;
-              break;
-            }
-          }
-          if (!already_a_parent)
-          {
-            new_parents.push_back(pairs[i].child);
-          }
-        }
-      }
-    }
-
-    new_count = new_parents.size();
-    for(k = 0; k < new_count; k++)
-    {
-      parents.push_back(new_parents[k]);
-    }
-    new_parents.clear();
-  } while(new_count);
-
-  logger.debug("killing processes in order: ");
-  for(long i = (long)parents.size() - 1; i >= 0; i--)
-  {
-    logger.debug(" %d", parents[i]);
-  }
-  logger.debug(".\n");
-
-  for(long i = (long)parents.size() - 1; i >= 0; i--)
-  {
-    pid_t pid = parents[i];
-    HANDLE proc = OpenProcess(PROCESS_TERMINATE, 0, pid);
-    if (!proc)
-    {
-      logger.info("Cannot open process %d (during a kill_tree)\n", pid);
-      return 1;
-    }
-
-    BOOL tp = TerminateProcess(proc, -1);
-    CloseHandle(proc);
-
-    if(!tp)
-    {
-      return 2;
-    }
-  }
-  return 0;
-}
-
-/*
-  function to kill pid and children processes
-*/
-static int kill_process_tree(pid_t pid)
-{
-  Pairs pairs;
-
-  get_processes(pairs);
-  if(!pairs.size())
-  {
-    return 1;
-  }
-  return kill_tree(pid, pairs);
-}
-#endif
-
 void
 CPCD::Process::stop() {
 
@@ -772,7 +711,15 @@ CPCD::Process::stop() {
 #else
   if(isRunning())
   {
-    kill_process_tree(m_pid);
+    BOOL truth;
+    HANDLE proc;
+    require(proc = OpenProcess(PROCESS_QUERY_INFORMATION, 0, m_pid));
+    require(IsProcessInJob(proc, m_job,  &truth));
+    require(truth == TRUE);
+    require(CloseHandle(proc));
+    // Terminate process with exit code 37
+    require(TerminateJobObject(m_job, 37));
+    require(CloseHandle(m_job));
   }
 #endif
 
