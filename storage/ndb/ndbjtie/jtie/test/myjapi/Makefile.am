@@ -63,7 +63,7 @@ TEST_java = \
 		$(TEST_DIR)/MyJapiTest.java
 
 ## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = $(MYJAPI_DIR)/*.java  $(TEST_DIR)/*.java
+EXTRA_DIST = $(MYJAPI_DIR)/*.java  $(TEST_DIR)/*.java *.hpp
 
 classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 	mkdir -p $(JAVAROOT)
