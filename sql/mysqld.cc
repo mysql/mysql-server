@@ -1173,11 +1173,14 @@ static void __cdecl kill_server(int sig_ptr)
   /*
    Send event to smem_event_connect_request for aborting
    */
-  if (!SetEvent(smem_event_connect_request))
+  if (opt_enable_shared_memory)
   {
-    DBUG_PRINT("error",
-               ("Got error: %ld from SetEvent of smem_event_connect_request",
-                GetLastError()));
+    if (!SetEvent(smem_event_connect_request))
+    {
+      DBUG_PRINT("error",
+                 ("Got error: %ld from SetEvent of smem_event_connect_request",
+                  GetLastError()));
+    }
   }
 #endif
 

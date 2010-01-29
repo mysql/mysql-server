@@ -1940,7 +1940,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #if defined(HAVE_SMEM)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
-      (!host || !strcmp(host,LOCAL_HOST)))
+      (!host || !strcmp(host,LOCAL_HOST)) &&
+      mysql->options.shared_memory_base_name)
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
 	INVALID_HANDLE_VALUE)
@@ -1949,7 +1950,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		 ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
 		  host ? host : "<null>",
 		  unix_socket ? unix_socket : "<null>",
-		  (int) mysql->options.shared_memory_base_name,
+		  mysql->options.shared_memory_base_name,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
@@ -2752,6 +2753,13 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
 }
 
 
+/*
+  Close a MySQL connection and free all resources attached to it.
+
+  This function is coded in such that it can be called multiple times
+  (As some clients call this after mysql_real_connect() fails)
+*/
+
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -2785,10 +2793,16 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
 #endif
     if (mysql != mysql->master)
+    {
       mysql_close(mysql->master);
+      mysql->master= 0;
+    }
 #ifndef MYSQL_SERVER
     if (mysql->thd)
+    {
       (*mysql->methods->free_embedded_thd)(mysql);
+      mysql->thd= 0;
+    }
 #endif
     if (mysql->free_me)
       my_free((uchar*) mysql,MYF(0));
