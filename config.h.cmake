@@ -540,6 +540,7 @@
 #cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine vsnprintf @vsnprintf@
 #if (_MSC_VER > 1310)
 #define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)

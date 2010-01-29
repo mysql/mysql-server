@@ -26,6 +26,7 @@ EXTRA_DIST = \
 	install_layout.cmake \
 	build_configurations/mysql_release.cmake \
 	os/Windows.cmake \ 
+	os/WindowsCache.cmake \
 	os/Linux.cmake \
 	os/SunOS.cmake \
 	os/Darwin.cmake \
