@@ -1863,6 +1863,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		error_string[1024];
   char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -2331,9 +2332,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslconnect(ssl_fd, mysql->net.vio,
-                   (long) (mysql->options.connect_timeout)))
+                   (long) (mysql->options.connect_timeout),
+                   error_string))
     {
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                               unknown_sqlstate,
+                               "SSL error: %s",
+                               error_string[0] ? error_string :
+                               ER(CR_SSL_CONNECTION_ERROR));
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change done!"));

@@ -219,7 +219,7 @@ my_bool net_realloc(NET *net, size_t length)
     -1   Don't know if data is ready or not
 */
 
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
 
 static int net_data_is_ready(my_socket sd)
 {
@@ -280,7 +280,7 @@ static int net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net, my_bool clear_buffer)
 {
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
   size_t count;
   int ready;
 #endif
