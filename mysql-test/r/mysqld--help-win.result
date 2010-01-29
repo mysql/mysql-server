@@ -37,7 +37,7 @@ The following options may be given as the first argument:
                       binary log during a transaction. If you often use big,
                       multi-statement transactions you can increase this to get
                       more performance
-  --binlog-direct-non-transactional-updates
+  --binlog-direct-non-transactional-updates 
                       Causes updates to non-transactional engines using
                       statement format to be written directly to binary log.
                       Before using this option make sure that there are no
