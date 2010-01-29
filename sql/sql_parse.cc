@@ -1252,12 +1252,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       ha_maria::implicit_commit(thd, FALSE);
 #endif
 
-      net_end_statement(thd);
-      query_cache_end_of_result(thd);
       /*
         Multiple queries exits, execute them individually
       */
       close_thread_tables(thd);
+
+      net_end_statement(thd);
+      query_cache_end_of_result(thd);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -1645,12 +1647,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   ha_maria::implicit_commit(thd, FALSE);
 #endif
 
-  net_end_statement(thd);
-  query_cache_end_of_result(thd);
-
+  if (!(sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA))
+  {
+    /* No changes in data;  We can send ok at once to the client */
+    net_end_statement(thd);
+    query_cache_end_of_result(thd);
+  }
   thd->proc_info= "closing tables";
   /* Free tables */
   close_thread_tables(thd);
+
+  if (sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA)
+  {
+    net_end_statement(thd);
+    query_cache_end_of_result(thd);
+  }
 
   log_slow_statement(thd);
 

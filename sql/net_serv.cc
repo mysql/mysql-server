@@ -219,7 +219,7 @@ my_bool net_realloc(NET *net, size_t length)
     -1   Don't know if data is ready or not
 */
 
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
 
 static int net_data_is_ready(my_socket sd)
 {
@@ -280,13 +280,18 @@ static int net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net, my_bool clear_buffer)
 {
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
   size_t count;
   int ready;
 #endif
   DBUG_ENTER("net_clear");
 
-#if !defined(EMBEDDED_LIBRARY)
+/*
+  We don't do a clear in case of DBUG_OFF to catch bugs
+  in the protocol handling
+*/
+
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
   if (clear_buffer)
   {
     while ((ready= net_data_is_ready(net->vio->sd)) > 0)

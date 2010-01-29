@@ -413,7 +413,6 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
   }
 
   mtr_print_line();
@@ -425,6 +424,10 @@ sub main {
 
   mtr_report_stats($fail, $completed, $extra_warnings);
 
+  if ( @$completed != $num_tests)
+  {
+    mtr_error("Not all tests completed");
+  }
   exit(0);
 }
 

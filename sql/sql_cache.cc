@@ -377,9 +377,11 @@ TODO list:
 
 static void debug_wait_for_kill(const char *info)
 {
-  DBUG_ENTER("debug_wait_for_kill");
   const char *prev_info;
   THD *thd;
+  char buff[1024];
+  DBUG_ENTER("debug_wait_for_kill");
+
   thd= current_thd;
   prev_info= thd->proc_info;
   thd->proc_info= info;
@@ -387,8 +389,16 @@ static void debug_wait_for_kill(const char *info)
   while(!thd->killed)
     my_sleep(1000);
   thd->killed= THD::NOT_KILLED;
+  /*
+    Remove the set debug variable, to ensure we don't get stuck on it again
+    This is needed as for MyISAM, invalidate_table() may be called twice
+    (Once from mysql_delete() and once from mi_update_status())
+  */
+  sprintf(buff, "-d,%s", info);
+  DBUG_SET(buff);
   sql_print_information("Exit debug_wait_for_kill");
   thd->proc_info= prev_info;
+
   DBUG_VOID_RETURN;
 }
 
@@ -914,15 +924,18 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 
 void query_cache_abort(NET *net)
 {
+  THD *thd;
   DBUG_ENTER("query_cache_abort");
-  THD *thd= current_thd;
 
   /* See the comment on double-check locking usage above. */
   if (net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   if (query_cache.try_lock())
+  {
+    net->query_cache_query = 0;
     DBUG_VOID_RETURN;
+  }
 
   /*
     While we were waiting another thread might have changed the status
@@ -932,6 +945,7 @@ void query_cache_abort(NET *net)
                                    net->query_cache_query);
   if (query_block)
   {
+    thd= current_thd;
     thd_proc_info(thd, "storing result in query cache");
     DUMP(&query_cache);
     BLOCK_LOCK_WR(query_block);
@@ -941,6 +955,7 @@ void query_cache_abort(NET *net)
     DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
   }
 
+  DBUG_ASSERT(!net->query_cache_query);
   query_cache.unlock();
   DBUG_VOID_RETURN;
 }
@@ -970,8 +985,12 @@ void query_cache_end_of_result(THD *thd)
 #endif
 
   if (query_cache.try_lock())
+  {
+    thd->net.query_cache_query= 0;
     DBUG_VOID_RETURN;
+  }
 
+  /* thd->net.query_cache_query may have changed during resize */
   query_block= ((Query_cache_block*) thd->net.query_cache_query);
   if (query_block)
   {
@@ -997,8 +1016,8 @@ void query_cache_end_of_result(THD *thd)
         to this function. In the release version that query should be ignored
         and removed from QC.
       */
-      DBUG_ASSERT(0);
       query_cache.free_query(query_block);
+      thd->net.query_cache_query= 0;
       query_cache.unlock();
       DBUG_VOID_RETURN;
     }

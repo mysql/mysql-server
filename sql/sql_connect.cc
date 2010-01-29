@@ -798,6 +798,7 @@ static int check_connection(THD *thd)
   DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
+    char error_string[1024];
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
     {
@@ -806,7 +807,7 @@ static int check_connection(THD *thd)
       return 1;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, error_string))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
