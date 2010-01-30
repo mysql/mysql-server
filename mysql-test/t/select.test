@@ -3841,6 +3841,46 @@ EXPLAIN EXTENDED SELECT x.a, y.a, z.a FROM t1 x
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
+--echo # column is used for ORDER BY
+--echo #
+SET @old_sort_buffer_size= @@session.sort_buffer_size;
+SET @@sort_buffer_size= 40000;
+
+CREATE TABLE t1(a CHAR(0) NOT NULL);
+--disable_warnings
+INSERT INTO t1 VALUES (0), (0), (0);
+--enable_warnings
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+--disable_result_log
+SELECT a FROM t1 ORDER BY a;
+--enable_result_log
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
+--disable_warnings
+INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
+--enable_warnings
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
+SELECT a FROM t1 ORDER BY a LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+
+SET @@sort_buffer_size= @old_sort_buffer_size;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 #

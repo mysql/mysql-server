@@ -112,8 +112,8 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 {
    DBUG_ENTER("injector::transaction::write_row(...)");
  
-   int error= 0;
-   if (error= check_state(ROW_STATE))
+   int error= check_state(ROW_STATE);
+   if (error)
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
@@ -131,8 +131,8 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 {
    DBUG_ENTER("injector::transaction::delete_row(...)");
 
-   int error= 0;
-   if (error= check_state(ROW_STATE))
+   int error= check_state(ROW_STATE);
+   if (error)
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
@@ -150,8 +150,8 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 {
    DBUG_ENTER("injector::transaction::update_row(...)");
 
-   int error= 0;
-   if (error= check_state(ROW_STATE))
+   int error= check_state(ROW_STATE);
+   if (error)
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
