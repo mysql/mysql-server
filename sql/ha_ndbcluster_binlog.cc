@@ -3498,7 +3498,9 @@ struct st_conflict_fn_def
 };
 static struct st_conflict_fn_def conflict_fns[]=
 {
-   { "NDB$MAX", CFT_NDB_MAX,   CFAT_COLUMN_NAME }
+   { "NDB$MAX_DELETE_WIN", CFT_NDB_MAX_DEL_WIN, CFAT_COLUMN_NAME }
+  ,{ NULL,                 CFT_NDB_MAX_DEL_WIN, CFAT_END }
+  ,{ "NDB$MAX", CFT_NDB_MAX,   CFAT_COLUMN_NAME }
   ,{ NULL,      CFT_NDB_MAX,   CFAT_END }
   ,{ "NDB$OLD", CFT_NDB_OLD,   CFAT_COLUMN_NAME }
   ,{ NULL,      CFT_NDB_OLD,   CFAT_END }
@@ -3662,6 +3664,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
     {
     case CFT_NDB_MAX:
     case CFT_NDB_OLD:
+    case CFT_NDB_MAX_DEL_WIN:
       if (args[0].fieldno == (uint32)-1)
         break;
       if (slave_set_resolve_fn(thd, share, ndbtab, args[0].fieldno,

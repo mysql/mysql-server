@@ -85,6 +85,8 @@ void Dblqh::initData()
   c_last_force_lcp_time = 0;
   c_free_mb_force_lcp_limit = 16;
   c_free_mb_tail_problem_limit = 4;
+
+  cTotalLqhKeyReqCount = 0;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

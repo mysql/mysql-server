@@ -93,6 +93,9 @@ Ndb::init(int aMaxNoOfTransactions)
   
   theNdbBlockNumber = tBlockNo;
 
+  /* Init cached min node version */
+  theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();
+
   theFacade->unlock_mutex();
   
   theDictionary->setTransporter(this, theFacade);
@@ -353,6 +356,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   const Uint32 tLen = aSignal->getLength();
   void * tFirstDataPtr;
   NdbWaiter *t_waiter;
+
+  /* Update cached Min Db node version */
+  theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
 
   /*
     In order to support 64 bit processes in the application we need to use
@@ -1172,6 +1178,7 @@ Ndb::sendPrepTrans(int forceSend)
   */
   Uint32 i;
   TransporterFacade* tp = theImpl->m_transporter_facade;
+  theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
   Uint32 no_of_prep_trans = theNoOfPreparedTransactions;
   for (i = 0; i < no_of_prep_trans; i++) {
     NdbTransaction * a_con = thePreparedTransactionsArray[i];

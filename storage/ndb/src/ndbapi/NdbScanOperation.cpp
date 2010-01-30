@@ -2706,6 +2706,17 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
     setErrorCodeAbort(4340);
     return NULL;
   }
+  if (m_blob_lock_upgraded)
+  {
+    /* This was really a CommittedRead scan, which does not support
+     * lock takeover
+     */
+    /* takeOverScanOp, to take over a scanned row one must explicitly 
+     * request keyinfo on readTuples call
+     */
+    setErrorCodeAbort(4604);
+    return NULL;
+  }
 
   NdbOperation *op= pTrans->getNdbOperation(record->table, NULL, true);
   if (!op)

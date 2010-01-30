@@ -106,6 +106,9 @@ public:
    */
   class Process {
     pid_t m_pid;
+#ifdef _WIN32
+    HANDLE m_job;
+#endif
   public:
     /** 
      * @brief Constructs and empty Process
