@@ -25,7 +25,7 @@ master-bin.000001	#	Query	#	#	use `d1`; create table t (s1 int) engine=innodb
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `d1`; insert into t values (1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; grant select on t to x@y
+master-bin.000001	#	Query	#	#	use `d1`; grant select on t to 'x'@'y'
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -45,10 +45,10 @@ master-bin.000001	#	Query	#	#	use `d1`; create table t (s1 int) engine=innodb
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `d1`; insert into t values (1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; grant select on t to x@y
+master-bin.000001	#	Query	#	#	use `d1`; grant select on t to 'x'@'y'
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `d1`; insert into t values (2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; revoke select on t from x@y
+master-bin.000001	#	Query	#	#	use `d1`; revoke select on t from 'x'@'y'
 drop user x@y;
 drop database d1;

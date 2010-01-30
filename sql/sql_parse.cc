@@ -3260,9 +3260,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->variables.option_bits |
+			(select_lex->options | thd->variables.option_bits |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->is_error();
       MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
@@ -3883,7 +3883,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
           break;
       }
       my_ok(thd);
