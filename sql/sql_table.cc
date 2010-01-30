@@ -6608,7 +6608,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         thd->clear_error();
         Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                               0, FALSE, 0);
-        if (error= mysql_bin_log.write(&qinfo))
+        if ((error= mysql_bin_log.write(&qinfo)))
           goto view_err_unlock;
       }
       my_ok(thd);

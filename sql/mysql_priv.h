@@ -134,7 +134,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
                         (Old), (Ver), (New));                                        \
     else                                                                             \
       sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+                        "in a future release. Please use %s instead.", (Old), (New)); \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;

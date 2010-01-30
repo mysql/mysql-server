@@ -231,6 +231,22 @@ unpack_row(Relay_log_info const *rli,
         {
           DBUG_PRINT("debug", ("Was NULL; null mask: 0x%x; null bits: 0x%x",
                                null_mask, null_bits));
+          /** 
+            Calling reset just in case one is unpacking on top a 
+            record with data. 
+
+            This could probably go into set_null() but doing so, 
+            (i) triggers assertion in other parts of the code at 
+            the moment; (ii) it would make us reset the field,
+            always when setting null, which right now doesn't seem 
+            needed anywhere else except here.
+
+            TODO: maybe in the future we should consider moving 
+                  the reset to make it part of set_null. But then
+                  the assertions triggered need to be 
+                  addressed/revisited.
+           */
+          f->reset();
           f->set_null();
         }
         else
@@ -366,7 +382,6 @@ int prepare_record(TABLE *const table,
   */
   for (Field **field_ptr= table->field+skip; *field_ptr; ++field_ptr)
   {
-    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
     if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
         (f->real_type() != MYSQL_TYPE_ENUM))
