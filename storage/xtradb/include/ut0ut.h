@@ -34,6 +34,11 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0ut_h
 
 #include "univ.i"
+
+#ifndef UNIV_HOTBACKUP
+# include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#endif /* UNIV_HOTBACKUP */
+
 #include <time.h>
 #ifndef MYSQL_SERVER
 #include <ctype.h>
@@ -47,7 +52,8 @@ Created 1/20/1994 Heikki Tuuri
 /** Time stamp */
 typedef time_t	ib_time_t;
 
-#if defined(IB_HAVE_PAUSE_INSTRUCTION)
+#ifndef UNIV_HOTBACKUP
+#if defined(HAVE_IB_PAUSE_INSTRUCTION)
 #  ifdef WIN32
      /* In the Win32 API, the x86 PAUSE instruction is executed by calling
      the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
@@ -84,6 +90,7 @@ do {								\
 		os_thread_sleep(2000 /* 2 ms */);		\
 	}							\
 } while (0)
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************//**
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
@@ -216,6 +223,7 @@ UNIV_INTERN
 ib_time_t
 ut_time(void);
 /*=========*/
+#ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
@@ -239,6 +247,16 @@ ullint
 ut_time_us(
 /*=======*/
 	ullint*	tloc);	/*!< out: us since epoch, if non-NULL */
+/**********************************************************//**
+Returns the number of milliseconds since some epoch.  The
+value may wrap around.  It should only be used for heuristic
+purposes.
+@return	ms since epoch */
+UNIV_INTERN
+ulint
+ut_time_ms(void);
+/*============*/
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
 Returns the difference of two times in seconds.

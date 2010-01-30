@@ -891,9 +891,9 @@ typedef struct {
   ulonglong delete_length;
   ha_rows records;
   ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;
+  time_t check_time;
+  time_t update_time;
   ulonglong check_sum;
 } PARTITION_INFO;
 
@@ -1060,9 +1060,9 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;			/* When table was created */
+  time_t check_time;
+  time_t update_time;
   uint block_size;			/* index block size */
 
   ha_statistics():

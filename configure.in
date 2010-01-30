@@ -9,14 +9,15 @@ AC_CANONICAL_SYSTEM
 # remember to also update version.c in ndb
 #
 # When changing major version number please also check switch statement
-# in mysqlbinlog.cc / check_master_version().
-#
-# When merging new MySQL releases, update the version number to match the
-# MySQL version number.
-#
-# Note: the following line must be parseable by win/configure.js:GetVersion()
-AM_INIT_AUTOMAKE(mysql, 5.1.41-MariaDB-rc)
+# in mysqlbinlog::check_master_version().
+AM_INIT_AUTOMAKE(mysql, 5.1.42-MariaDB)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
+
+# Request support for automake silent-rules if available.
+# Default to verbose output. One can use the configure-time
+# option --enable-silent-rules or make V=0 to activate
+# silent rules.
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
@@ -222,14 +223,6 @@ fi
 if test "$CXX" = "sgi++"
 then
   GXX="no"
-fi
-
-if test "$ac_cv_prog_gcc" = "yes"
-then
-  AS="$CC -c"
-  AC_SUBST(AS)
-else
-  AC_PATH_PROG(AS, as, as)
 fi
 
 # Still need ranlib for readline; local static use only so no libtool.
@@ -688,7 +681,7 @@ AC_ARG_ENABLE(assembler,
 
 AC_MSG_CHECKING(if we should use assembler functions)
 # For now we only support assembler on i386 and sparc systems
-AM_CONDITIONAL(ASSEMBLER_x86, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "i386" && $AS strings/strings-x86.s -o checkassembler >/dev/null 2>&1 && test -f checkassembler && (rm -f checkassembler; exit 0;))
+AM_CONDITIONAL(ASSEMBLER_x86, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "i386" && $CCAS $CCASFLAGS -c strings/strings-x86.s -o checkassembler >/dev/null 2>&1 && test -f checkassembler && (rm -f checkassembler; exit 0;))
 AM_CONDITIONAL(ASSEMBLER_sparc32, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "sparc")
 AM_CONDITIONAL(ASSEMBLER_sparc64, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "sparcv9")
 AM_CONDITIONAL(ASSEMBLER, test "$ASSEMBLER_x86_TRUE" = "" -o "$ASSEMBLER_sparc32_TRUE" = "")

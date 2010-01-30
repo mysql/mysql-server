@@ -97,8 +97,8 @@
 
 typedef struct st_ft_word {
   const uchar *pos;
-  uint	 len;
   double weight;
+  size_t len;
 } FT_WORD;
 
 int is_stopword(const uchar *word, size_t len);
@@ -111,7 +111,8 @@ uchar ft_simple_get_word(CHARSET_INFO *, const uchar **, const uchar *,
                          FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
-  uint        num, len;
+  uint        num;
+  mysql_ft_size_t len;
   HA_KEYSEG  *seg;
   const uchar *rec, *pos;
 } FT_SEG_ITERATOR;
@@ -128,8 +129,9 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const uchar *, MEM_ROOT *);
 uint _mi_ft_parse(TREE *, MI_INFO *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, uint, uint, uchar *);
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, uint, CHARSET_INFO *);
+FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, mysql_ft_size_t, uint,
+                            uchar *);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, mysql_ft_size_t, CHARSET_INFO *);
 
 extern const struct _ft_vft _ft_vft_nlq;
 int ft_nlq_read_next(FT_INFO *, char *);

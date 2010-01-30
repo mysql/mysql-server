@@ -991,3 +991,15 @@
    fun:_dl_allocate_tls
    fun:pthread_create*
 }
+
+#
+# Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
+# Fixed in latest Glibc, but suppressed here for running tests on hosts
+# with older Glibc version.
+#
+{
+   Glibc bug in __libc_res_nsend
+   Memcheck:Cond
+   fun:__libc_res_nsend
+   fun:__libc_res_nquery
+}

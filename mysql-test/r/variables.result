@@ -19,8 +19,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
 set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
@@ -215,7 +213,6 @@ storage_engine	MRG_MYISAM
 select * from information_schema.global_variables where variable_name like 'storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
 STORAGE_ENGINE	MRG_MYISAM
-set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
@@ -423,8 +420,6 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'storage_engine';
 Variable_name	Value
 storage_engine	MEMORY
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set GLOBAL storage_engine=DEFAULT;
 ERROR 42000: Variable 'storage_engine' doesn't have a default value
 set character_set_client=UNKNOWN_CHARACTER_SET;
@@ -529,9 +524,6 @@ Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -1047,8 +1039,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;

@@ -36,6 +36,10 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
 #include "mysql_priv.h"
 
+#ifdef __WIN__
+#include <psapi.h>
+#endif
+
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -165,6 +169,10 @@ private:
   char *status;
 #ifdef HAVE_GETRUSAGE
   struct rusage rusage;
+#elif defined(__WIN__)
+  FILETIME ftKernel, ftUser;
+  IO_COUNTERS io_count;
+  PROCESS_MEMORY_COUNTERS mem_count;
 #endif
 
   char *function;

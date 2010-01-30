@@ -317,7 +317,7 @@ my_bool my_thread_init(void)
   /*
     Skip initialization if the thread specific variable is already initialized
   */
-  if (THR_KEY_mysys.id)
+  if (THR_KEY_mysys.init)
     goto end;
   tmp= &THR_KEY_mysys;
 #endif

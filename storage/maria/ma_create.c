@@ -772,7 +772,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     share.base.min_block_length= share.base.pack_reclength;
 
   if (! (flags & HA_DONT_TOUCH_DATA))
-    share.state.create_time= (long) time((time_t*) 0);
+    share.state.create_time= time((time_t*) 0);
 
   pthread_mutex_lock(&THR_LOCK_maria);
 

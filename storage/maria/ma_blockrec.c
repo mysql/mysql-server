@@ -1688,7 +1688,8 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     if (!page_link.changed)
       goto crashed;
 
-    DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
+    DBUG_ASSERT((uint) (res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) ==
+                page_type);
     if (!(dir= find_free_position(page_type == HEAD_PAGE ? info : 0,
                                   res->buff, block_size, &res->rownr,
                                   &res->length, &res->empty_space)))

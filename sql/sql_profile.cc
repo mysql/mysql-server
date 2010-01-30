@@ -131,6 +131,23 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
 #define RUSAGE_USEC(tv)  ((tv).tv_sec*1000*1000 + (tv).tv_usec)
 #define RUSAGE_DIFF_USEC(tv1, tv2) (RUSAGE_USEC((tv1))-RUSAGE_USEC((tv2)))
 
+#ifdef __WIN__
+inline ULONGLONG FileTimeToQuadWord(FILETIME *ft)
+{
+  ULONGLONG nrv = 0;
+  nrv |= ft->dwHighDateTime;
+  nrv <<= 32;
+  nrv |= ft->dwLowDateTime;
+  return nrv;
+}
+
+
+// Get time difference between to FILETIME objects in seconds.
+inline double GetTimeDiffInSeconds(FILETIME *a, FILETIME *b)
+{
+  return ((FileTimeToQuadWord(a) - FileTimeToQuadWord(b)) / 1e7);
+}
+#endif /* __WIN__ */
 
 PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char
                                    *status_arg)
@@ -221,6 +238,11 @@ void PROF_MEASUREMENT::collect()
   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
 #ifdef HAVE_GETRUSAGE
   getrusage(RUSAGE_SELF, &rusage);
+#elif defined(__WIN__)
+  FILETIME ftDummy;
+  GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
+  GetProcessIoCounters(GetCurrentProcess(), &io_count);
+  GetProcessMemoryInfo(GetCurrentProcess(), &mem_count, sizeof(mem_count));
 #endif
 }
 
@@ -590,6 +612,23 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
       table->field[5]->store_decimal(&cpu_stime_decimal);
       table->field[4]->set_notnull();
       table->field[5]->set_notnull();
+#elif defined(__WIN__)
+      my_decimal cpu_utime_decimal, cpu_stime_decimal;
+
+      double2my_decimal(E_DEC_FATAL_ERROR,
+                        GetTimeDiffInSeconds(&entry->ftUser,
+                                             &previous->ftUser),
+                        &cpu_utime_decimal);
+      double2my_decimal(E_DEC_FATAL_ERROR,
+                        GetTimeDiffInSeconds(&entry->ftKernel,
+                                             &previous->ftKernel),
+                        &cpu_stime_decimal);
+
+      // Store the result.
+      table->field[4]->store_decimal(&cpu_utime_decimal);
+      table->field[5]->store_decimal(&cpu_stime_decimal);
+      table->field[4]->set_notnull();
+      table->field[5]->set_notnull();
 #else
       /* TODO: Add CPU-usage info for non-BSD systems */
 #endif
@@ -611,6 +650,17 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
       table->field[8]->set_notnull();
       table->field[9]->store((uint32)(entry->rusage.ru_oublock -
                              previous->rusage.ru_oublock));
+      table->field[9]->set_notnull();
+#elif defined(__WIN__)
+      ULONGLONG reads_delta = entry->io_count.ReadOperationCount - 
+                              previous->io_count.ReadOperationCount;
+      ULONGLONG writes_delta = entry->io_count.WriteOperationCount - 
+                              previous->io_count.WriteOperationCount;
+
+      table->field[8]->store((uint32)reads_delta);
+      table->field[8]->set_notnull();
+
+      table->field[9]->store((uint32)writes_delta);
       table->field[9]->set_notnull();
 #else
       /* TODO: Add block IO info for non-BSD systems */
@@ -634,6 +684,13 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
       table->field[13]->store((uint32)(entry->rusage.ru_minflt -
                              previous->rusage.ru_minflt), true);
       table->field[13]->set_notnull();
+#elif defined(__WIN__)
+      /* Windows APIs don't easily distinguish between hard and soft page
+         faults, so we just fill the 'major' column and leave the second NULL.
+      */
+      table->field[12]->store((uint32)(entry->mem_count.PageFaultCount -
+                             previous->mem_count.PageFaultCount), true);
+      table->field[12]->set_notnull();
 #else
       /* TODO: Add page fault info for non-BSD systems */
 #endif

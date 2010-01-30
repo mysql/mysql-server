@@ -413,7 +413,6 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
   }
 
   mtr_print_line();
@@ -425,6 +424,10 @@ sub main {
 
   mtr_report_stats($fail, $completed, $extra_warnings);
 
+  if ( @$completed != $num_tests)
+  {
+    mtr_error("Not all tests completed");
+  }
   exit(0);
 }
 
@@ -3425,7 +3428,7 @@ sub restart_forced_by_test
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
-  return $tinfo->{timezone} || "GMT-3";
+  return $tinfo->{timezone} || "DEFAULT";
 }
 
 
@@ -3455,7 +3458,11 @@ sub run_testcase ($$) {
   # Init variables that can change between each test case
   # -------------------------------------------------------
   my $timezone= timezone($tinfo);
-  $ENV{'TZ'}= $timezone;
+  if ($timezone ne 'DEFAULT') {
+    $ENV{'TZ'}= $timezone;
+  } else {
+    delete($ENV{'TZ'});
+  }
   mtr_verbose("Setting timezone: $timezone");
 
   if ( ! using_extern() )

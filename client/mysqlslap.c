@@ -292,6 +292,25 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 }
 #endif
 
+void set_mysql_connect_options(MYSQL *mysql)
+{
+  if (opt_compress)
+    mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+                  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+}
+
+
 int main(int argc, char **argv)
 {
   MYSQL mysql;
@@ -323,20 +342,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   mysql_init(&mysql);
-  if (opt_compress)
-    mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-#endif
-  if (opt_protocol)
-    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
-  if (shared_memory_base_name)
-    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  set_mysql_connect_options(&mysql);
 
   if (!opt_only_print) 
   {
@@ -1815,6 +1821,7 @@ pthread_handler_t run_task(void *p)
             my_progname, mysql_error(mysql));
     exit(0);
   }
+  set_mysql_connect_options(mysql);
 
   if (mysql_thread_init())
   {
@@ -1855,7 +1862,6 @@ limit_not_met:
                   my_progname, mysql_error(mysql));
           exit(0);
         }
-
         if (slap_connect(mysql))
           goto end;
       }
@@ -2223,6 +2229,7 @@ slap_connect(MYSQL *mysql)
   int x, connect_error= 1;
   for (x= 0; x < 10; x++)
   {
+    set_mysql_connect_options(mysql);
     if (mysql_real_connect(mysql, host, user, opt_password,
                            create_schema_string,
                            opt_mysql_port,

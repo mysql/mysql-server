@@ -55,6 +55,9 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "trx0sys.h"
+#include "trx0trx.h"
+#include "log0recv.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -88,7 +91,9 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
-#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_HOTBACKUP
+# define os_aio_use_native_aio	FALSE
+#else /* UNIV_HOTBACKUP */
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
@@ -235,7 +240,7 @@ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 /** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static volatile ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
 UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
@@ -352,6 +357,19 @@ os_file_get_last_error(
 				" software or another instance\n"
 				"InnoDB: of MySQL."
 				" Please close it to get rid of this error.\n");
+		} else if (err == ERROR_WORKING_SET_QUOTA
+			   || err == ERROR_NO_SYSTEM_RESOURCES) {
+			fprintf(stderr,
+				"InnoDB: The error means that there are no"
+				" sufficient system resources or quota to"
+				" complete the operation.\n");
+		} else if (err == ERROR_OPERATION_ABORTED) {
+			fprintf(stderr,
+				"InnoDB: The error means that the I/O"
+				" operation has been aborted\n"
+				"InnoDB: because of either a thread exit"
+				" or an application request.\n"
+				"InnoDB: Retry attempt is made.\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -373,6 +391,11 @@ os_file_get_last_error(
 	} else if (err == ERROR_SHARING_VIOLATION
 		   || err == ERROR_LOCK_VIOLATION) {
 		return(OS_FILE_SHARING_VIOLATION);
+	} else if (err == ERROR_WORKING_SET_QUOTA
+		   || err == ERROR_NO_SYSTEM_RESOURCES) {
+		return(OS_FILE_INSUFFICIENT_RESOURCE);
+	} else if (err == ERROR_OPERATION_ABORTED) {
+		return(OS_FILE_OPERATION_ABORTED);
 	} else {
 		return(100 + err);
 	}
@@ -490,6 +513,14 @@ os_file_handle_error_cond_exit(
 	} else if (err == OS_FILE_SHARING_VIOLATION) {
 
 		os_thread_sleep(10000000);  /* 10 sec */
+		return(TRUE);
+	} else if (err == OS_FILE_INSUFFICIENT_RESOURCE) {
+
+		os_thread_sleep(100000);	/* 100 ms */
+		return(TRUE);
+	} else if (err == OS_FILE_OPERATION_ABORTED) {
+
+		os_thread_sleep(100000);	/* 100 ms */
 		return(TRUE);
 	} else {
 		if (name) {
@@ -854,6 +885,23 @@ next_file:
 	ret = stat(full_path, &statinfo);
 
 	if (ret) {
+
+		if (errno == ENOENT) {
+			/* readdir() returned a file that does not exist,
+			it must have been deleted in the meantime. Do what
+			would have happened if the file was deleted before
+			readdir() - ignore and go to the next entry.
+			If this is the last entry then info->name will still
+			contain the name of the deleted file when this
+			function returns, but this is not an issue since the
+			caller shouldn't be looking at info when end of
+			directory is returned. */
+
+			ut_free(full_path);
+
+			goto next_file;
+		}
+
 		os_file_handle_error_no_exit(full_path, "stat");
 
 		ut_free(full_path);
@@ -1282,6 +1330,7 @@ try_again:
 		}
 #endif
 #ifdef UNIV_NON_BUFFERED_IO
+# ifndef UNIV_HOTBACKUP
 		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
@@ -1290,10 +1339,14 @@ try_again:
 			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
-#endif
+# else /* !UNIV_HOTBACKUP */
+		attributes = attributes | FILE_FLAG_NO_BUFFERING;
+# endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_NON_BUFFERED_IO */
 	} else if (purpose == OS_FILE_NORMAL) {
 		attributes = 0;
 #ifdef UNIV_NON_BUFFERED_IO
+# ifndef UNIV_HOTBACKUP
 		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
@@ -1302,7 +1355,10 @@ try_again:
 			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
-#endif
+# else /* !UNIV_HOTBACKUP */
+		attributes = attributes | FILE_FLAG_NO_BUFFERING;
+# endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_NON_BUFFERED_IO */
 	} else {
 		attributes = 0;
 		ut_error;
@@ -2046,20 +2102,30 @@ os_file_flush(
 /*******************************************************************//**
 Does a synchronous read operation in Posix.
 @return	number of bytes read, -1 if error */
+#define os_file_pread(file, buf, n, offset, offset_high)        \
+		_os_file_pread(file, buf, n, offset, offset_high, NULL);
+
 static
 ssize_t
-os_file_pread(
+_os_file_pread(
 /*==========*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	ulint		n,	/*!< in: number of bytes to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
 				offset from where to read */
-	ulint		offset_high) /*!< in: most significant 32 bits of
+	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
+	trx_t*		trx)
 {
 	off_t	offs;
+#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	ssize_t	n_bytes;
+#endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2080,6 +2146,15 @@ os_file_pread(
 
 	os_n_file_reads++;
 
+	if (innobase_get_slow_log() && trx && trx->take_stats)
+	{
+	        trx->io_reads++;
+		trx->io_read += n;
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
@@ -2093,21 +2168,32 @@ os_file_pread(
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
 
+	if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+	{
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+	}
+
 	return(n_bytes);
 #else
 	{
 		off_t	ret_offset;
 		ssize_t	ret;
+#ifndef UNIV_HOTBACKUP
 		ulint	i;
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
 		os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 		/* Protect the seek / read operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 		os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		ret_offset = lseek(file, offs, SEEK_SET);
 
@@ -2117,11 +2203,20 @@ os_file_pread(
 			ret = read(file, buf, (ssize_t)n);
 		}
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		os_mutex_exit(os_file_count_mutex);
+
+		if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+		{
+			ut_usectime(&sec, &ms);
+			finish_time = (ib_uint64_t)sec * 1000000 + ms;
+			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+		}
 
 		return(ret);
 	}
@@ -2195,16 +2290,20 @@ os_file_pwrite(
 #else
 	{
 		off_t	ret_offset;
+# ifndef UNIV_HOTBACKUP
 		ulint	i;
+# endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes++;
 		os_mutex_exit(os_file_count_mutex);
 
+# ifndef UNIV_HOTBACKUP
 		/* Protect the seek / write operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 		os_mutex_enter(os_file_seek_mutexes[i]);
+# endif /* UNIV_HOTBACKUP */
 
 		ret_offset = lseek(file, offs, SEEK_SET);
 
@@ -2230,7 +2329,9 @@ os_file_pwrite(
 # endif /* UNIV_DO_FLUSH */
 
 func_exit:
+# ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+# endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
@@ -2247,7 +2348,7 @@ Requests a synchronous positioned read operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_read(
+_os_file_read(
 /*=========*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
@@ -2255,7 +2356,8 @@ os_file_read(
 				offset where to read */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		n)	/*!< in: number of bytes to read */
+	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx)
 {
 #ifdef __WIN__
 	BOOL		ret;
@@ -2264,7 +2366,9 @@ os_file_read(
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2283,16 +2387,20 @@ try_again:
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
@@ -2303,7 +2411,9 @@ try_again:
 
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2312,14 +2422,14 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else
+#else /* __WIN__ */
 	ibool	retry;
 	ssize_t	ret;
 
 	os_bytes_read_since_printout += n;
 
 try_again:
-	ret = os_file_pread(file, buf, n, offset, offset_high);
+	ret = _os_file_pread(file, buf, n, offset, offset_high, trx);
 
 	if ((ulint)ret == n) {
 
@@ -2331,7 +2441,7 @@ try_again:
 		"InnoDB: Was only able to read %ld.\n",
 		(ulong)n, (ulong)offset_high,
 		(ulong)offset, (long)ret);
-#endif
+#endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
 #endif
@@ -2380,7 +2490,9 @@ os_file_read_no_error_handling(
 	DWORD		low;
 	DWORD		high;
 	ibool		retry;
+#ifndef UNIV_HOTBACKUP
 	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2399,16 +2511,20 @@ try_again:
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
@@ -2419,7 +2535,9 @@ try_again:
 
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2428,7 +2546,7 @@ try_again:
 	if (ret && len == n) {
 		return(TRUE);
 	}
-#else
+#else /* __WIN__ */
 	ibool	retry;
 	ssize_t	ret;
 
@@ -2441,7 +2559,7 @@ try_again:
 
 		return(TRUE);
 	}
-#endif
+#endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
 #endif
@@ -2500,9 +2618,11 @@ os_file_write(
 	DWORD		ret2;
 	DWORD		low;
 	DWORD		high;
-	ulint		i;
 	ulint		n_retries	= 0;
 	ulint		err;
+#ifndef UNIV_HOTBACKUP
+	ulint		i;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
@@ -2519,16 +2639,20 @@ retry:
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
+#ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
 	os_mutex_enter(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
+#ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
@@ -2562,7 +2686,9 @@ retry:
 	}
 # endif /* UNIV_DO_FLUSH */
 
+#ifndef UNIV_HOTBACKUP
 	os_mutex_exit(os_file_seek_mutexes[i]);
+#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
@@ -2988,6 +3114,34 @@ os_aio_array_create(
 	return(array);
 }
 
+/************************************************************************//**
+Frees an aio wait array. */
+static
+void
+os_aio_array_free(
+/*==============*/
+	os_aio_array_t*	array)	/*!< in, own: array to free */
+{
+#ifdef WIN_ASYNC_IO
+	ulint	i;
+
+	for (i = 0; i < array->n_slots; i++) {
+		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
+		os_event_free(slot->event);
+	}
+#endif /* WIN_ASYNC_IO */
+
+#ifdef __WIN__
+	ut_free(array->native_events);
+#endif /* __WIN__ */
+	os_mutex_free(array->mutex);
+	os_event_free(array->not_full);
+	os_event_free(array->is_empty);
+
+	ut_free(array->slots);
+	ut_free(array);
+}
+
 /***********************************************************************
 Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
@@ -3059,6 +3213,35 @@ os_aio_init(
 
 	os_last_printout = time(NULL);
 
+}
+
+/***********************************************************************
+Frees the asynchronous io system. */
+UNIV_INTERN
+void
+os_aio_free(void)
+/*=============*/
+{
+	ulint	i;
+
+	os_aio_array_free(os_aio_ibuf_array);
+	os_aio_ibuf_array = NULL;
+	os_aio_array_free(os_aio_log_array);
+	os_aio_log_array = NULL;
+	os_aio_array_free(os_aio_read_array);
+	os_aio_read_array = NULL;
+	os_aio_array_free(os_aio_write_array);
+	os_aio_write_array = NULL;
+	os_aio_array_free(os_aio_sync_array);
+	os_aio_sync_array = NULL;
+
+	for (i = 0; i < os_aio_n_segments; i++) {
+		os_event_free(os_aio_segment_wait_events[i]);
+	}
+
+	ut_free(os_aio_segment_wait_events);
+	os_aio_segment_wait_events = 0;
+	os_aio_n_segments = 0;
 }
 
 #ifdef WIN_ASYNC_IO
@@ -3211,7 +3394,8 @@ os_aio_array_reserve_slot(
 				offset */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		len)	/*!< in: length of the block to read or write */
+	ulint		len,	/*!< in: length of the block to read or write */
+	trx_t*		trx)
 {
 	os_aio_slot_t*	slot;
 #ifdef WIN_ASYNC_IO
@@ -3432,8 +3616,20 @@ void
 os_aio_simulated_put_read_threads_to_sleep(void)
 /*============================================*/
 {
+
+/* The idea of putting background IO threads to sleep is only for
+Windows when using simulated AIO. Windows XP seems to schedule
+background threads too eagerly to allow for coalescing during
+readahead requests. */
+#ifdef __WIN__
 	os_aio_array_t*	array;
 	ulint		g;
+
+	if (os_aio_use_native_aio) {
+		/* We do not use simulated aio: do nothing */
+
+		return;
+	}
 
 	os_aio_recommend_sleep_for_read_threads	= TRUE;
 
@@ -3445,6 +3641,7 @@ os_aio_simulated_put_read_threads_to_sleep(void)
 			os_event_reset(os_aio_segment_wait_events[g]);
 		}
 	}
+#endif /* __WIN__ */
 }
 
 /*******************************************************************//**
@@ -3482,10 +3679,11 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2)/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	trx_t*		trx)
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -3524,8 +3722,8 @@ os_aio(
 		wait in the Windows case. */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read(file, buf, offset,
-					    offset_high, n));
+			return(_os_file_read(file, buf, offset,
+					    offset_high, n, trx));
 		}
 
 		ut_a(type == OS_FILE_WRITE);
@@ -3558,8 +3756,13 @@ try_again:
 		ut_error;
 	}
 
+	if (trx && type == OS_FILE_READ)
+	{
+		trx->io_reads++;
+		trx->io_read += n;
+	}
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
-					 name, buf, offset, offset_high, n);
+					 name, buf, offset, offset_high, n, trx);
 	if (type == OS_FILE_READ) {
 		if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
@@ -3679,6 +3882,7 @@ os_aio_windows_handle(
 	ibool		ret_val;
 	BOOL		ret;
 	DWORD		len;
+	BOOL		retry		= FALSE;
 
 	if (segment == ULINT_UNDEFINED) {
 		array = os_aio_sync_array;
@@ -3732,13 +3936,51 @@ os_aio_windows_handle(
 			ut_a(TRUE == os_file_flush(slot->file));
 		}
 #endif /* UNIV_DO_FLUSH */
+	} else if (os_file_handle_error(slot->name, "Windows aio")) {
+
+		retry = TRUE;
 	} else {
-		os_file_handle_error(slot->name, "Windows aio");
 
 		ret_val = FALSE;
 	}
 
 	os_mutex_exit(array->mutex);
+
+	if (retry) {
+		/* retry failed read/write operation synchronously.
+		No need to hold array->mutex. */
+
+		switch (slot->type) {
+		case OS_FILE_WRITE:
+			ret = WriteFile(slot->file, slot->buf,
+					slot->len, &len,
+					&(slot->control));
+
+			break;
+		case OS_FILE_READ:
+			ret = ReadFile(slot->file, slot->buf,
+				       slot->len, &len,
+				       &(slot->control));
+
+			break;
+		default:
+			ut_error;
+		}
+
+		if (!ret && GetLastError() == ERROR_IO_PENDING) {
+			/* aio was queued successfully!
+			We want a synchronous i/o operation on a
+			file where we also use async i/o: in Windows
+			we must use the same wait mechanism as for
+			async i/o */
+
+			ret = GetOverlappedResult(slot->file,
+						  &(slot->control),
+						  &len, TRUE);
+		}
+
+		ret_val = ret && len == slot->len;
+	}
 
 	os_aio_array_free_slot(array, slot);
 
@@ -4016,6 +4258,18 @@ consecutive_loop:
 				  consecutive_ios[i]->len);
 			offs += consecutive_ios[i]->len;
 		}
+	}
+
+	if (srv_recovery_stats && recv_recovery_is_on() && n_consecutive) {
+		mutex_enter(&(recv_sys->mutex));
+		if (slot->type == OS_FILE_READ) {
+			recv_sys->stats_read_io_pages += n_consecutive;
+			recv_sys->stats_read_io_consecutive[n_consecutive - 1]++;
+		} else if (slot->type == OS_FILE_WRITE) {
+			recv_sys->stats_write_io_pages += n_consecutive;
+			recv_sys->stats_write_io_consecutive[n_consecutive - 1]++;
+		}
+		mutex_exit(&(recv_sys->mutex));
 	}
 
 	os_mutex_enter(array->mutex);

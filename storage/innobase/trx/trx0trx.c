@@ -1652,9 +1652,7 @@ trx_mark_sql_stat_end(
 
 /**************************************************************************
 Prints info about a transaction to the given file. The caller must own the
-kernel mutex and must have called
-innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
-or InnoDB cannot meanwhile change the info printed here. */
+kernel mutex. */
 
 void
 trx_print(

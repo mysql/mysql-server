@@ -317,7 +317,7 @@ struct dict_foreign_struct{
 	char*		id;		/*!< id of the constraint as a
 					null-terminated string */
 	unsigned	n_fields:10;	/*!< number of indexes' first fields
-					for which the the foreign key
+					for which the foreign key
 					constraint is defined: we allow the
 					indexes to contain more fields than
 					mentioned in the constraint, as long

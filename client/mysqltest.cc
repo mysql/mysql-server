@@ -657,7 +657,9 @@ public:
     }
 
     while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      fwrite(buf, 1, bytes, stderr);
+      if (fwrite(buf, 1, bytes, stderr))
+        die("Failed to write to '%s', errno: %d",
+            m_file_name, errno);
 
     if (!lines)
     {

@@ -30,6 +30,9 @@
 --disable_warnings
 drop table if exists t5 ;
 --enable_warnings
+--disable_query_log
+SET TIME_ZONE= '+03:00';
+--enable_query_log
 set @arg01= 8;
 set @arg02= 8.0;
 set @arg03= 80.00000000000e-1;

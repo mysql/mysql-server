@@ -475,16 +475,18 @@ mem_heap_block_free(
 	len = block->len;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
+#ifndef UNIV_HOTBACKUP
+	if (!srv_use_sys_malloc) {
 #ifdef UNIV_MEM_DEBUG
-	/* In the debug version we set the memory to a random combination
-	of hex 0xDE and 0xAD. */
+		/* In the debug version we set the memory to a random
+		combination of hex 0xDE and 0xAD. */
 
-	mem_erase_buf((byte*)block, len);
+		mem_erase_buf((byte*)block, len);
 #else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ASSERT_AND_FREE(block, len);
+		UNIV_MEM_ASSERT_AND_FREE(block, len);
 #endif /* UNIV_MEM_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
+	}
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(!buf_block);
@@ -495,6 +497,14 @@ mem_heap_block_free(
 		buf_block_free(buf_block);
 	}
 #else /* !UNIV_HOTBACKUP */
+#ifdef UNIV_MEM_DEBUG
+	/* In the debug version we set the memory to a random
+	combination of hex 0xDE and 0xAD. */
+
+	mem_erase_buf((byte*)block, len);
+#else /* UNIV_MEM_DEBUG */
+	UNIV_MEM_ASSERT_AND_FREE(block, len);
+#endif /* UNIV_MEM_DEBUG */
 	ut_free(block);
 #endif /* !UNIV_HOTBACKUP */
 }

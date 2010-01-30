@@ -1,5 +1,8 @@
 --source include/have_log_bin.inc
---source include/have_binlog_format_row_or_statement.inc
+# Test sets its own binlog_format, so we restrict it to run only once
+--source include/have_binlog_format_row.inc
+
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 
 # Get rid of previous tests binlog
 --disable_query_log

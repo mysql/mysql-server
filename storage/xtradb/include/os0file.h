@@ -53,6 +53,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "trx0types.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -157,6 +158,8 @@ log. */
 						to become available again */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
+#define	OS_FILE_INSUFFICIENT_RESOURCE	78
+#define	OS_FILE_OPERATION_ABORTED	79
 /* @} */
 
 /** Types for aio operations @{ */
@@ -497,9 +500,12 @@ os_file_get_last_error(
 /*******************************************************************//**
 Requests a synchronous read operation.
 @return	TRUE if request was successful, FALSE if fail */
+#define os_file_read(file, buf, offset, offset_high, n)         \
+		_os_file_read(file, buf, offset, offset_high, n, NULL)
+
 UNIV_INTERN
 ibool
-os_file_read(
+_os_file_read(
 /*=========*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
@@ -507,7 +513,8 @@ os_file_read(
 				offset where to read */
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
-	ulint		n);	/*!< in: number of bytes to read */
+	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx);
 /*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -619,6 +626,13 @@ os_aio_init(
 	ulint	n_write_segs,	/*<! in: number of writer threads */
 	ulint	n_slots_sync);	/*<! in: number of slots in the sync aio
 				array */
+/***********************************************************************
+Frees the asynchronous io system. */
+UNIV_INTERN
+void
+os_aio_free(void);
+/*=============*/
+
 /*******************************************************************//**
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
@@ -654,10 +668,11 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2);/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	trx_t*		trx);
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */

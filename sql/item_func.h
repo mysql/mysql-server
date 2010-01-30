@@ -124,17 +124,6 @@ public:
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
-  /*
-    This method is used for debug purposes to print the name of an
-    item to the debug log. The second use of this method is as
-    a helper function of print(), where it is applicable.
-    To suit both goals it should return a meaningful,
-    distinguishable and sintactically correct string.  This method
-    should not be used for runtime type identification, use enum
-    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
-    instead.
-  */
-  virtual const char *func_name() const= 0;
   virtual bool const_item() const { return const_item_cache; }
   inline Item **arguments() const { return args; }
   void set_arguments(List<Item> &list);
