@@ -1753,7 +1753,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   */
   if (cache_mngr->stmt_cache.has_incident())
   {
-    mysql_bin_log.write_incident(thd, TRUE);
+    error= mysql_bin_log.write_incident(thd, TRUE);
     cache_mngr->reset_cache(&cache_mngr->stmt_cache);
   }
   else if (!cache_mngr->stmt_cache.empty())
