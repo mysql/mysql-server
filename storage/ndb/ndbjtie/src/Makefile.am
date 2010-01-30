@@ -93,6 +93,8 @@ EXTRA_DIST = \
 		mgmapi_jtie.hpp \
 		ndbapi_jtie.hpp \
 		gccsup_lib.hpp \
+		ndbjtie_defs.hpp \
+		ndbapi_wrapper.hpp \
 		CMakeLists.txt
 
 classndbjtie.stamp: $(NDBAPI_java) $(MGMAPI_java) $(MYSQL_java)
