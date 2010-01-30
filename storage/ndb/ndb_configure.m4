@@ -119,18 +119,25 @@ AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
   AC_CHECK_HEADERS(jni.h)
   CPPFLAGS="$CPPFLAGS_save"
 
-  AC_PATH_PROG(JAVAC, javac, no, ${NDB_JAVA_BIN})
-  AC_PATH_PROG(JAVAH, javah, no, ${NDB_JAVA_BIN})
-  AC_PATH_PROG(JAR, jar, no, ${NDB_JAVA_BIN})
-  AC_SUBST(JNI_INCLUDE_DIRS)
-
   ndb_java_supported=no
-  if test X"$JAVAC" != Xno &&
-     test X"$JAVAH" != Xno && 
-     test X"$JAR" != Xno && 
-     test X"$ac_cv_header_jni_h" = Xyes
+
+  if test X$NDB_JAVA_BIN != X
   then
-     ndb_java_supported=yes
+
+    AC_PATH_PROG(JAVAC, javac, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAVAH, javah, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAR, jar, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAVA, java, no, ${NDB_JAVA_BIN})
+    AC_SUBST(JNI_INCLUDE_DIRS)
+
+    if test X"$JAVAC" != Xno &&
+      test X"$JAVAH" != Xno && 
+      test X"$JAR" != Xno && 
+      test X"$JAVA" != Xno && 
+      test X"$ac_cv_header_jni_h" = Xyes
+    then
+       ndb_java_supported=yes
+    fi
   fi
 ])
 
@@ -371,26 +378,21 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
 
   if test x"$have_openjpa" != xno
   then
-    OPENJPA_OPT=clusterj-openjpa
+    OPENJPA_OPT="clusterj-openjpa"
   fi
 
   if test x"$have_classpath" != xno 
   then
-    CLUSTERJ_TESTS=clusterj-test
+    CLUSTERJ_TESTS="clusterj-test"
   fi
 
   if test X"$have_openjpa" != Xno && test x"$have_classpath" != xno
   then
-    CLUSTERJ_TESTS=$CLUSTERJ_TESTS clusterj-jpatest
+    CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
 
   AC_SUBST(CLUSTERJ_TESTS)
-  AC_DEFINE_UNQUOTED([CLUSTERJ_TESTS], ["$CLUSTERJ_TESTS"],
-                     [Compile ClusterJ tests])
-
   AC_SUBST(OPENJPA_OPT)
-  AC_DEFINE_UNQUOTED([OPENJPA_OPT], ["$OPENJPA_OPT"],
-                     [Compile OpenJPA plugin])
 
   AC_MSG_RESULT([done.])
 ])
