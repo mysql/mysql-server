@@ -3075,3 +3075,4 @@ dbug/tests
 libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
+libmysqld/sql_audit.cc
