@@ -61,6 +61,8 @@ libmysqlutils_la_LDFLAGS = -no-undefined ## build self-contained library
 
 ## ----------------------------------------------------------------------
 
+EXTRA_DIST = CharsetMapImpl.h
+
 ## cleanup
 #MOSTLYCLEANFILES =
 #CLEANFILES =
