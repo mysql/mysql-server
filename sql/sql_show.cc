@@ -750,8 +750,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (!my_strcasecmp(system_charset_info, dbname,
-                     INFORMATION_SCHEMA_NAME.str))
+  if (is_infoschema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
@@ -2686,8 +2685,8 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
   */
   if (lookup_field_vals->db_value.str)
   {
-    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
-                       lookup_field_vals->db_value.str))
+    if (is_infoschema_db(lookup_field_vals->db_value.str,
+                         lookup_field_vals->db_value.length))
     {
       *with_i_schema= 1;
       if (files->push_back(i_s_name_copy))
