@@ -1868,6 +1868,7 @@ void multi_update::abort()
         into repl event.
       */
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      /* the error of binary logging is ignored */
       (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
                         thd->query(), thd->query_length(),
                         transactional_tables, FALSE, FALSE, errcode);
