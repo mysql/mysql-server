@@ -91,7 +91,7 @@ test_myapi.sh: Makefile
 
 ## ----------------------------------------------------------------------
 
-EXTRA_DIST = *.hpp
+EXTRA_DIST = myapi.hpp
 
 ## cleanup
 MOSTLYCLEANFILES = *.log
