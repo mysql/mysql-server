@@ -28,6 +28,7 @@
 #include "TransporterFacade.hpp"
 #include "API.hpp"
 #include "NdbBlob.hpp"
+#include "NdbUtil.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
@@ -83,7 +84,9 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
-  thePendingBlobOps(0)
+  thePendingBlobOps(0),
+  m_theFirstLockHandle(NULL),
+  m_theLastLockHandle(NULL)
 {
   theListState = NotInList;
   theError.code = 0;
@@ -155,6 +158,8 @@ NdbTransaction::init()
   //
   theBlobFlag = false;
   thePendingBlobOps = 0;
+  m_theFirstLockHandle    = NULL;
+  m_theLastLockHandle     = NULL;
   if (theId == NdbObjectIdMap::InvalidId)
   {
     theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
@@ -1028,6 +1033,7 @@ Remark:         Release all operations.
 void 
 NdbTransaction::release(){
   releaseOperations();
+  releaseLockHandles();
   if ( (theTransactionIsStarted == true) &&
        ((theCommitStatus != Committed) &&
 	(theCommitStatus != Aborted))) {
@@ -1173,6 +1179,24 @@ NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
   }
   
   return false;
+}
+
+void
+NdbTransaction::releaseLockHandles()
+{
+  NdbLockHandle* lh = m_theFirstLockHandle;
+
+  while (lh)
+  {
+    NdbLockHandle* next = lh->next();
+    lh->next(NULL);
+    
+    theNdb->releaseLockHandle(lh);
+    lh = next;
+  }
+
+  m_theFirstLockHandle = NULL;
+  m_theLastLockHandle = NULL;
 }
 
 /*****************************************************************************
@@ -1993,6 +2017,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
       case NdbOperation::InsertRequest:
       case NdbOperation::DeleteRequest:
       case NdbOperation::WriteRequest:
+      case NdbOperation::UnlockRequest:
 	tOp = tOp->next();
 	break;
       case NdbOperation::ReadRequest:
@@ -2266,7 +2291,8 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
                               const char *attribute_row,
                               const unsigned char *mask,
                               const NdbOperation::OperationOptions *opts,
-                              Uint32 sizeOfOptions)
+                              Uint32 sizeOfOptions,
+                              const NdbLockHandle* lh)
 {
   NdbOperation *op;
   
@@ -2312,6 +2338,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   op->m_attribute_row= attribute_row;
   attribute_record->copyMask(op->m_read_mask, mask);
   op->m_abortOption=default_ao;
+  op->theLockHandle = const_cast<NdbLockHandle*>(lh);
   
   /*
    * Handle options
@@ -2342,9 +2369,10 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
                                           (attribute_row != NULL)) == -1)
       return NULL;
   }
-  else if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
+  else if (unlikely((attribute_record->flags & NdbRecord::RecHasBlob) &&
+                    (type != NdbOperation::UnlockRequest)))
   {
-    /* Create blob handles for non-delete operations */
+    /* Create blob handles for non-delete, non-unlock operations */
     if (op->getBlobHandlesNdbRecord(this) == -1)
       return NULL;
   }
@@ -2743,5 +2771,196 @@ NdbTransaction::report_node_failure(Uint32 id){
       return 1;
     }
   }
+  return 0;
+}
+
+NdbLockHandle*
+NdbTransaction::getLockHandle()
+{
+  NdbLockHandle* lh;
+
+  /* Get a LockHandle object from the Ndb pool and
+   * link it into our transaction
+   */
+  lh = theNdb->getLockHandle();
+
+  if (lh)
+  {
+    lh->thePrev = m_theLastLockHandle;
+    if (m_theLastLockHandle == NULL)
+    {
+      m_theFirstLockHandle = lh;
+      m_theLastLockHandle = lh;
+    }
+    else
+    {
+      lh->next(NULL);
+      m_theLastLockHandle->next(lh);
+      m_theLastLockHandle = lh;
+    }
+  }
+
+  return lh;
+}
+
+const NdbOperation*
+NdbTransaction::unlock(const NdbLockHandle* lockHandle,
+                       NdbOperation::AbortOption ao)
+{
+  switch(lockHandle->m_state)
+  {
+  case NdbLockHandle::FREE:
+    /* LockHandle already released */
+    setErrorCode(4551);
+    return NULL;
+  case NdbLockHandle::PREPARED:
+    if (likely(lockHandle->isLockRefValid()))
+    {
+      /* Looks ok */
+      break;
+    }
+    /* Fall through */
+  case NdbLockHandle::ALLOCATED:
+    /* NdbLockHandle original operation not executed successfully */
+    setErrorCode(4553);
+    return NULL;
+  default:
+    abort();
+    return NULL;
+  }
+
+  if (m_theFirstLockHandle == NULL)
+  {
+    /* NdbLockHandle does not belong to transaction */
+    setErrorCode(4552);
+    return NULL;
+  }
+
+#ifdef VM_TRACE
+  /* Check that this transaction 'owns' this lockhandle */
+  {
+    NdbLockHandle* tmp = m_theLastLockHandle;
+    while (tmp && (tmp != lockHandle))
+    {
+      tmp = tmp->thePrev;
+    }
+    
+    if (tmp != lockHandle)
+    {
+      /* NdbLockHandle does not belong to transaction */
+      setErrorCode(4552);
+      return NULL;
+    }
+  }
+#endif
+
+  assert(theSimpleState == 0);
+
+  /* Use the first work of the Lock reference as the unlock
+   * operation's partition id
+   * The other two words form the key.
+   */
+  NdbOperation::OperationOptions opts;
+
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_PARTITION_ID;
+  opts.partitionId = lockHandle->getDistKey();
+
+  if (ao != NdbOperation::DefaultAbortOption)
+  {
+    /* User supplied a preference, pass it on */
+    opts.optionsPresent |= NdbOperation::OperationOptions::OO_ABORTOPTION;
+    opts.abortOption = ao;
+  }
+
+  NdbOperation* unlockOp = setupRecordOp(NdbOperation::UnlockRequest,
+                                         NdbOperation::LM_CommittedRead,
+                                         NdbOperation::AbortOnError, // Default
+                                         lockHandle->m_table->m_ndbrecord,
+                                         NULL, // key_row
+                                         lockHandle->m_table->m_ndbrecord,
+                                         NULL,             // attr_row
+                                         NULL,             // mask
+                                         &opts,            // opts,
+                                         sizeof(opts),     // sizeOfOptions
+                                         lockHandle);
+  
+  return unlockOp;
+}
+
+int
+NdbTransaction::releaseLockHandle(const NdbLockHandle* lockHandle)
+{
+  NdbLockHandle* prev = lockHandle->thePrev;
+  NdbLockHandle* next = lockHandle->theNext;
+
+  switch(lockHandle->m_state)
+  {
+  case NdbLockHandle::FREE:
+    /* NdbLockHandle already released */
+    setErrorCode(4551);
+    return -1;
+  case NdbLockHandle::PREPARED:
+    if (! lockHandle->isLockRefValid())
+    {
+      /* It's not safe to release the lockHandle after it's
+       * defined and before the operation's executed.
+       * The lockhandle memory is needed to receive the
+       * Lock Reference during execution
+       */
+      /* Cannot releaseLockHandle until operation executed */
+      setErrorCode(4550);
+      return -1;
+    }
+    /* Fall through */
+  case NdbLockHandle::ALLOCATED:
+    /* Ok to release */
+    break;
+  default:
+    /* Bad state */
+    abort();
+    return -1;
+  }
+
+#ifdef VM_TRACE
+  /* Check lockhandle is known to this transaction */
+  NdbLockHandle* tmp = m_theFirstLockHandle;
+  while (tmp &&
+         (tmp != lockHandle))
+  {
+    tmp = tmp->next();
+  }
+
+  if (tmp != lockHandle)
+  {
+    abort();
+    return -1;
+  }
+#endif
+
+  /* Repair list around lock handle */
+  if (prev)
+    prev->next(next);
+  
+  if (next)
+    next->thePrev = prev;
+  
+  /* Repair list head and tail ptrs */
+  if (lockHandle == m_theFirstLockHandle)
+  {
+    m_theFirstLockHandle = next;
+  }
+  if (lockHandle == m_theLastLockHandle)
+  {
+    m_theLastLockHandle = prev;
+  }
+  
+  /* Now return it to the Ndb's freelist */
+  NdbLockHandle* lh = const_cast<NdbLockHandle*>(lockHandle);
+
+  lh->thePrev = NULL;
+  lh->theNext = NULL;
+  
+  theNdb->releaseLockHandle(lh);
+
   return 0;
 }

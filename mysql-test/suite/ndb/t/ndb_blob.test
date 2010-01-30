@@ -588,3 +588,95 @@ select sha1(giga) from t1;
 select (giga = repeat(@stuff, 2000)) from t1 where a=0;
 
 drop table t1;
+
+--echo Test that automatic lock upgrade on Blobs behaves as expected
+--echo w.r.t other operations on the table.
+connection con1;
+
+create table t1 (a int primary key, b longblob, c int, unique(c)) engine=ndb;
+
+insert into t1 values (1, repeat('1', 256), 1);
+insert into t1 values (2, repeat('2', 2256), 2);
+insert into t1 values (3, repeat('3', 4256), 3);
+insert into t1 values (4, repeat('4', 8256), 4);
+insert into t1 values (5, repeat('5', 20000), 5);
+
+--echo No Deadlock scenarios
+--echo Transaction 1 reading PK with no lock.  Transaction 2 reading PK with EX lock
+begin;
+select a, length(b) from t1 where a=2;
+
+connection con2;
+select a, length(b) from t1 where a=2 FOR UPDATE;
+
+--echo Transaction 2 scanning with EX lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a FOR UPDATE;
+
+connection con1;
+commit;
+
+--echo Transaction1 reading PK with SH lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=3 LOCK IN SHARE MODE;
+
+connection con2;
+select a, length(b) from t1 where a=3;
+
+--echo Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a;
+
+connection con1;
+commit;
+
+--echo Transaction1 reading PK with SH lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+
+connection con2;
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+
+--echo Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a LOCK IN SHARE MODE;
+
+connection con1;
+commit;
+
+--echo Deadlock scenarios on PK access : 
+connection con1;
+--echo Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=5 FOR UPDATE;
+
+connection con2;
+--error 1205
+select a, length(b) from t1 where a=5;
+
+connection con1;
+commit;
+
+connection con1;
+--echo Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=1 FOR UPDATE;
+
+connection con2;
+--error 1205
+select a, length(b) from t1 where a=1 LOCK IN SHARE MODE;
+
+connection con1;
+commit;
+--echo Verify that Nolock Unique index access still deadlocks
+--echo as unique index accesses always upgrade to SH
+
+begin;
+select a, length(b) from t1 where c=2;
+
+connection con2;
+--error 1205
+select a, length(b) from t1 FOR UPDATE;
+
+connection con1;
+commit;
+
+connection con1;
+drop table t1;

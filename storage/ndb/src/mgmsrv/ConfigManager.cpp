@@ -35,6 +35,7 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   MgmtThread("ConfigManager"),
   m_opts(opts),
   m_facade(NULL),
+  m_ss(NULL),
   m_config_mutex(NULL),
   m_config(NULL),
   m_new_config(NULL),
@@ -58,6 +59,8 @@ ConfigManager::~ConfigManager()
   delete m_config;
   delete m_new_config;
   delete m_prepared_config;
+  if (m_ss)
+    delete m_ss;
   NdbMutex_Destroy(m_config_mutex);
 }
 

@@ -143,6 +143,7 @@ operator<<(NdbOut& out, Operation_t op)
   case ZUPDATE: out << "UPDATE"; break;
   case ZDELETE: out << "DELETE"; break;
   case ZWRITE: out << "WRITE"; break;
+  case ZUNLOCK: out << "UNLOCK"; break;
   }
   return out;
 }
@@ -2841,7 +2842,7 @@ Dblqh::check_tabstate(Signal * signal, const Tablerec * tablePtrP, Uint32 op)
   if (tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY)
   {
     jam();
-    if (op == ZREAD || op == ZREAD_EX)
+    if (op == ZREAD || op == ZREAD_EX || op == ZUNLOCK)
     {
       jam();
       return 0;
@@ -3147,10 +3148,13 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   regTcPtr.i = signal->theData[0];
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   
-  if (signal->theData[1] == AttributeHeader::RANGE_NO) {
+  switch(signal->theData[1])
+  {
+  case AttributeHeader::RANGE_NO:
     signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
-  }
-  else if (signal->theData[1] != AttributeHeader::RECORDS_IN_RANGE)
+    break;
+  case AttributeHeader::ROW_COUNT:
+  case AttributeHeader::COMMIT_COUNT:
   {
     jam();
     FragrecordPtr regFragptr;
@@ -3159,8 +3163,9 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     
     signal->theData[0] = regFragptr.p->accFragptr;
     EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
+    break;
   }
-  else
+  case AttributeHeader::RECORDS_IN_RANGE:
   {
     jam();
     // scanptr gets reset somewhere within the timeslice
@@ -3169,6 +3174,29 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     c_scanRecordPool.getPtr(tmp);
     signal->theData[0] = tmp.p->scanAccPtr;
     EXECUTE_DIRECT(DBTUX, GSN_READ_PSEUDO_REQ, signal, 2);
+    break;
+  }
+  case AttributeHeader::LOCK_REF:
+  {
+    /* Return 3x 32-bit words
+     *  - LQH instance info
+     *  - TC operation index
+     *  - Bottom 32-bits of LQH-local key-request id (for uniqueness)
+     */
+    jam();
+    signal->theData[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid; 
+    signal->theData[1] = regTcPtr.p->tcOprec;
+    signal->theData[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
+    break;
+  }
+  case AttributeHeader::OP_ID:
+  {
+    jam();
+    memcpy(signal->theData, &regTcPtr.p->lqhKeyReqId, 8);
+    break;
+  }
+  default:
+    ndbrequire(false);
   }
 }
 
@@ -3959,7 +3987,7 @@ bool Dblqh::checkTransporterOverloaded(Signal* signal,
   if (tc_node < MAX_NODES) // not worth to crash here
     mask.set(tc_node);
   const Uint8 op = LqhKeyReq::getOperation(req->requestInfo);
-  if (op == ZREAD || op == ZREAD_EX) {
+  if (op == ZREAD || op == ZREAD_EX || op == ZUNLOCK) {
     // the receiver
     Uint32 api_node = refToNode(req->variableData[0]);
     if (api_node < MAX_NODES) // not worth to crash here
@@ -4101,6 +4129,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }
   
+  cTotalLqhKeyReqCount++;
   c_Counters.operations++;
 
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
@@ -4108,6 +4137,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;
   regTcPtr->storedProcId = ZNIL;
+  regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->m_flags= 0;
   bool isLongReq= false;
   if (handle.m_cnt > 0)
@@ -4234,7 +4264,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     regTcPtr->operation = (Operation_t) op == ZREAD_EX ? ZREAD : (Operation_t) op;
     regTcPtr->lockType = 
-      op == ZREAD_EX ? ZUPDATE : (Operation_t) op == ZWRITE ? ZINSERT : (Operation_t) op;
+      op == ZREAD_EX ? ZUPDATE : 
+      (Operation_t) op == ZWRITE ? ZINSERT : 
+      (Operation_t) op == ZUNLOCK ? ZREAD : // lockType not relevant for unlock req
+      (Operation_t) op;
   }
 
   if (regTcPtr->dirtyOp)
@@ -4431,7 +4464,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   else if(op == ZREAD || op == ZREAD_EX || op == ZUPDATE)
     regTcPtr->m_disk_table &= !LqhKeyReq::getNoDiskFlag(Treqinfo);
   
-  if (op == ZREAD || op == ZREAD_EX)
+  if (op == ZREAD || op == ZREAD_EX || op == ZUNLOCK)
     tabptr.p->usageCountR++;
   else
     tabptr.p->usageCountW++;
@@ -4534,7 +4567,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   bool attrInfoToPropagate= 
     (regTcPtr->totReclenAi != 0) &&
     (regTcPtr->operation != ZREAD) &&
-    (regTcPtr->operation != ZDELETE);
+    (regTcPtr->operation != ZDELETE) &&
+    (regTcPtr->operation != ZUNLOCK);
   bool tupCanChangePropagatedAttrInfo= (regTcPtr->opExec == 1);
   
   bool saveAttrInfo= 
@@ -4674,6 +4708,13 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   Uint32 tc_ptr_i = tcConnectptr.i;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Uint32 activeCreat = regTcPtr->activeCreat;
+  if (regTcPtr->operation == ZUNLOCK)
+  {
+    jam();
+    handleUserUnlockRequest(signal);
+    return;
+  }
+
   if (regTcPtr->indTakeOver == ZTRUE) {
     jam();
     ttcScanOp = KeyInfo20::getScanOp(regTcPtr->tcScanInfo);
@@ -4731,6 +4772,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     case ZWRITE: TRACENR("WRITE"); break;
     case ZINSERT: TRACENR("INSERT"); break;
     case ZDELETE: TRACENR("DELETE"); break;
+    case ZUNLOCK: TRACENR("UNLOCK"); break;
     default: TRACENR("<Unknown: " << regTcPtr->operation << ">"); break;
     }
     
@@ -5287,6 +5329,153 @@ Dblqh::getKeyInfoWordOrZero(const TcConnectionrec* regTcPtr,
     }
   }
   return 0;
+}
+
+void Dblqh::unlockError(Signal* signal, Uint32 error)
+{
+  terrorCode = error;
+  abortErrorLab(signal);
+}
+
+/**
+ * handleUserUnlockRequest
+ *
+ * This method handles an LQHKEYREQ unlock request from 
+ * TC.
+ */
+void Dblqh::handleUserUnlockRequest(Signal* signal)
+{
+  jam();
+  TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  Uint32 tcPtrI = tcConnectptr.i;
+
+  /* Request to unlock (abort) an existing read operation
+   *
+   * 1) Get user's LOCK_REF from KeyInfo
+   *    
+   * 2) Lookup TC_OP_REF in hash
+   *    
+   * 3) Check state of found op : TransId, state, type, lock
+   *    
+   * 4) Check op_id portion
+   * 
+   * 5) Abort locking op in ACC
+   * 
+   * 6) Clean up locking op in LQH
+   *    
+   * 7) Send LQHKEYCONF to TC for user unlock op
+   * 
+   * 8) Clean up user unlock op
+   */
+  if (unlikely( regTcPtr->primKeyLen != LqhKeyReq::UnlockKeyLen ))
+  {
+    jam();
+    unlockError(signal, 4109); /* Faulty primary key attribute length */
+    return;
+  }
+    
+  SectionReader keyInfoReader(regTcPtr->keyInfoIVal,
+                              getSectionSegmentPool());
+
+  ndbrequire( keyInfoReader.getSize() == regTcPtr->primKeyLen );
+  
+  /* Extract components of user lock reference */
+  Uint32 tcOpRecIndex;
+  Uint32 lqhOpIdWord;
+  ndbrequire( keyInfoReader.getWord( &tcOpRecIndex ) ); // Locking op TC index
+  ndbrequire( keyInfoReader.getWord( &lqhOpIdWord ) );  // Part of Locking op LQH id
+  
+  /* Use TC operation record index to find the operation record
+   * This requires that this operation and the referenced 
+   * operation are part of the same transaction.
+   * On success this sets tcConnectptr.i and .p to the 
+   * operation-to-unlock's record.
+   */
+  if (unlikely( findTransaction(regTcPtr->transid[0], 
+                                regTcPtr->transid[1], 
+                                tcOpRecIndex) != ZOK)) 
+  {
+    jam();
+    unlockError(signal, ZBAD_OP_REF);
+    return;
+  }
+  
+  TcConnectionrec * const regLockTcPtr = tcConnectptr.p;
+  
+  /* Validate that the bottom 32-bits of the operation id reference
+   * we were given are in alignment
+   */
+  Uint32 lockOpKeyReqId = (Uint32) regLockTcPtr->lqhKeyReqId;
+  if (unlikely( lockOpKeyReqId != lqhOpIdWord ))
+  {
+    jam();
+    unlockError(signal, ZBAD_OP_REF);
+    return;
+  }
+
+  /* Validate the state of the locking operation */
+  bool lockingOpValid = 
+    (( regLockTcPtr->operation == ZREAD ) && 
+       // ZREAD_EX mapped to ZREAD above
+     ( ! regLockTcPtr->dirtyOp ) &&
+     ( ! regLockTcPtr->opSimple ) &&
+     ( (regLockTcPtr->lockType == ZREAD) ||  // LM_Read
+       (regLockTcPtr->lockType == ZUPDATE) ) // LM_Exclusive 
+     &&
+     ( regLockTcPtr->transactionState == TcConnectionrec::PREPARED ) &&
+     ( regLockTcPtr->commitAckMarker == RNIL ) && 
+       // No commit ack marker 
+     ( regLockTcPtr->logWriteState == 
+       TcConnectionrec::NOT_STARTED )); // No log written
+  
+  if (unlikely(! lockingOpValid))
+  {
+    jam();
+    unlockError(signal, ZBAD_UNLOCK_STATE);
+    return;
+  }
+  
+  /* Ok, now we're ready to start 'aborting' this operation, to get the 
+   * effect of unlocking it
+   */
+  signal->theData[0] = regLockTcPtr->accConnectrec;
+  signal->theData[1] = 0; // For Execute_Direct
+  EXECUTE_DIRECT(refToMain(regLockTcPtr->tcAccBlockref),
+                 GSN_ACC_ABORTREQ,
+                 signal,
+                 2);
+  jamEntry();
+  
+  /* Would be nice to handle non-success case somehow */
+  ndbrequire(signal->theData[1] == 0); 
+  
+  /* Now we want to release LQH resources associated with the
+   * locking operation
+   */
+  cleanUp(signal);
+  
+  /* Now that the locking operation has been 'disappeared', we need to 
+   * send an LQHKEYCONF for the unlock operation and then 'disappear' it 
+   * as well
+   */
+  tcConnectptr.i = tcPtrI;
+  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  
+  ndbrequire( regTcPtr == tcConnectptr.p );
+  
+  /* Set readlenAi to the unlocked operation's TC operation ref */
+  regTcPtr->readlenAi = tcOpRecIndex;
+
+  /* Clear number of fired triggers */
+  regTcPtr->noFiredTriggers = 0;
+  
+  /* Now send the LQHKEYCONF to TC */
+  sendLqhkeyconfTc(signal, regTcPtr->tcBlockref);
+  
+  /* Finally, clean up the unlock operation itself */
+  cleanUp(signal);
+
+  return;
 }
 
 /* =*======================================================================= */
@@ -7361,6 +7550,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	case ZWRITE: TRACENR("WRITE"); break;
 	case ZINSERT: TRACENR("INSERT"); break;
 	case ZDELETE: TRACENR("DELETE"); break;
+        case ZUNLOCK: TRACENR("UNLOCK"); break;
 	}
 
 	TRACENR(" tab: " << regTcPtr.p->tableref 
@@ -7631,7 +7821,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   /**
    * Normal case
    */
-  if (op == ZREAD)
+  if (op == ZREAD || op == ZUNLOCK)
   {
     ndbrequire(tabPtr.p->usageCountR > 0);
     tabPtr.p->usageCountR--;
@@ -7870,6 +8060,7 @@ void Dblqh::execACCKEYREF(Signal* signal)
     case ZWRITE: TRACENR("WRITE"); break;
     case ZINSERT: TRACENR("INSERT"); break;
     case ZDELETE: TRACENR("DELETE"); break;
+    case ZUNLOCK: TRACENR("UNLOCK"); break;
     default: TRACENR("<Unknown: " << tcPtr->operation << ">"); break;
     }
     
@@ -8581,22 +8772,24 @@ void Dblqh::lqhTransNextLab(Signal* signal)
       if (tcConnectptr.p->transactionState != TcConnectionrec::TC_NOT_CONNECTED) {
         if (tcConnectptr.p->tcScanRec == RNIL) {
           if (refToNode(tcConnectptr.p->tcBlockref) == tcNodeFailptr.p->oldNodeId) {
-            if (tcConnectptr.p->operation != ZREAD) {
+            switch( tcConnectptr.p->operation ) {
+            case ZUNLOCK :
+              jam(); /* Skip over */
+              break;
+            case ZREAD :
+              jam();
+              if (tcConnectptr.p->opSimple == ZTRUE) {
+                jam();
+                break; /* Skip over */
+              }
+              /* Fall through */
+            default :
               jam();
               tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
               tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
               abortStateHandlerLab(signal);
               return;
-            } else {
-              jam();
-              if (tcConnectptr.p->opSimple != ZTRUE) {
-                jam();
-                tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
-                tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
-                abortStateHandlerLab(signal);
-                return;
-              }//if
-            }//if
+            } // switch
           }//if
         } else {
           scanptr.i = tcConnectptr.p->tcScanRec;
@@ -20839,6 +21032,7 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
     case ZUPDATE: op = "UPDATE"; break;
     case ZDELETE: op = "DELETE"; break;
     case ZWRITE: op = "WRITE"; break;
+    case ZUNLOCK: op = "UNLOCK"; break;
     }
     
     switch(tcRec.p->transactionState){

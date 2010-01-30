@@ -265,6 +265,18 @@ Ndb::getNdbBlob()
   return tBlob;
 }
 
+NdbLockHandle*
+Ndb::getLockHandle()
+{
+  NdbLockHandle* lh = theImpl->theLockHandleList.seize(this);
+  if (lh)
+  {
+    lh->init();
+  }
+
+  return lh;
+} 
+
 /***************************************************************************
 void releaseNdbBranch(NdbBranch* aNdbBranch);
 
@@ -450,6 +462,13 @@ Ndb::releaseNdbBlob(NdbBlob* aBlob)
   theImpl->theNdbBlobIdleList.release(aBlob);
 }
 
+void
+Ndb::releaseLockHandle(NdbLockHandle* lh)
+{
+  lh->release(this);
+  theImpl->theLockHandleList.release(lh);
+};
+
 /****************************************************************************
 int releaseConnectToNdb(NdbTransaction* aConnectConnection);
 
@@ -574,6 +593,10 @@ Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
   }
   else if(!strcmp(curr->m_name, "NdbReceiver"))
   {
+    update(curr, theImpl->theLockHandleList, "NdbLockHandle");
+  }
+  else if(!strcmp(curr->m_name, "NdbLockHandle"))
+  {
     return 0;
   }
   else
@@ -601,3 +624,4 @@ TI(NdbReceiver);
 TI(NdbConnection);
 TI(NdbIndexOperation);
 TI(NdbIndexScanOperation);
+TI(NdbLockHandle);

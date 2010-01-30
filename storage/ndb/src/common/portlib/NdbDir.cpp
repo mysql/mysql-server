@@ -414,6 +414,8 @@ TAPTEST(DirIterator)
   CHECK(gone(path));
 
   // Remove non exisiting directory
+  fprintf(stderr, "Checking that proper error is returned when "
+                  "opening non existing directory\n");
   CHECK(!NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
