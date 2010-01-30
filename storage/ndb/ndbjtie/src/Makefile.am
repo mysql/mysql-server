@@ -89,6 +89,10 @@ EXTRA_DIST = \
 		$(MYSQL_DIR)/*.java \
 		$(MGMAPI_DIR)/*.java \
 		$(NDBAPI_DIR)/*.java \
+		mysql_jtie.hpp \
+		mgmapi_jtie.hpp \
+		ndbapi_jtie.hpp \
+		gccsup_lib.hpp \
 		CMakeLists.txt
 
 classndbjtie.stamp: $(NDBAPI_java) $(MGMAPI_java) $(MYSQL_java)
