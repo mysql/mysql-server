@@ -54,9 +54,9 @@ AC_DEFUN([MYSQL_CHECK_LIBEVENT], [
     "" | "yes")
       libevent_includes=""
       libevent_libs="-levent"
-      AC_CHECK_LIB(event, event_get_version,[with_libevent=system],
+      AC_CHECK_LIB(event, evutil_socketpair,[with_libevent=system],
                    [with_libevent=bundled])
-      AC_CHECK_HEADER(event.h,,[with_libevent=bundled])
+      AC_CHECK_HEADER(evutil.h,,[with_libevent=bundled])
       if test "$with_libevent" = "bundled"; then
         MYSQL_USE_BUNDLED_LIBEVENT
       fi
@@ -67,10 +67,10 @@ AC_DEFUN([MYSQL_CHECK_LIBEVENT], [
                  -f "$with_libevent/lib/libevent.so" -o \
                  -f "$with_libevent/lib/libevent.sl" -o \
                  -f "$with_libevent/lib/libevent.dylib" \) \
-              -a -f "$with_libevent/include/event.h"; then
+              -a -f "$with_libevent/include/evutil.h"; then
         libevent_includes="-I$with_libevent/include"
         libevent_libs="-L$with_libevent/lib -levent"
-        AC_CHECK_LIB(event, event_get_version,[with_libevent=$with_libevent],
+        AC_CHECK_LIB(event, evutil_socketpair,[with_libevent=$with_libevent],
                      [with_libevent=no], [$libevent_libs])
       else
         with_libevent=no
