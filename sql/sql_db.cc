@@ -829,7 +829,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db_len = strlen(db);
 
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
-    if (error= mysql_bin_log.write(&qinfo))
+    if ((error= mysql_bin_log.write(&qinfo)))
       goto exit;
   }
   my_ok(thd, result);

@@ -179,7 +179,7 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", 'a', "Deprecated. Use --create-options instead.",
+  {"all", OPT_ALL, "Deprecated. Use --create-options instead.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"all-databases", 'A',
@@ -230,7 +230,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"create-options", OPT_CREATE_OPTIONS,
+  {"create-options", 'a',
    "Include all MySQL specific create options.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
@@ -268,7 +268,7 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
-   "Allows utilization of the new, much faster INSERT syntax.",
+   "Use multiple-row INSERT syntax that include several VALUES lists.",
    (uchar**) &extended_insert, (uchar**) &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
@@ -761,6 +761,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case 'O':
     WARN_DEPRECATED(VER_CELOSIA, "--set-variable", "--variable-name=value");
+    break;
+  case (int) OPT_ALL:
+    WARN_DEPRECATED(VER_CELOSIA, "--all", "--create-options");
     break;
   case (int) OPT_FIRST_SLAVE:
     WARN_DEPRECATED(VER_CELOSIA, "--first-slave", "--lock-all-tables");
