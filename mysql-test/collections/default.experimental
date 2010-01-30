@@ -16,7 +16,6 @@ main.plugin                              # Bug#47146 Linking problem with exampl
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
-rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
