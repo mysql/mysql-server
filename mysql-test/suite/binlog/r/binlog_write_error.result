@@ -1,0 +1,108 @@
+#
+# Initialization
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP TRIGGER IF EXISTS tr1;
+DROP TRIGGER IF EXISTS tr2;
+DROP VIEW IF EXISTS v1, v2;
+#
+# Test injecting binlog write error when executing queries
+#
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+INSERT INTO t1 VALUES (1),(2),(3);
+SET GLOBAL debug='d,injecting_fault_writing';
+INSERT INTO t1 VALUES (4),(5),(6);
+INSERT INTO t1 VALUES (4),(5),(6);
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+UPDATE t1 set a=a+1;
+UPDATE t1 set a=a+1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DELETE FROM t1;
+DELETE FROM t1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t1 VALUES (new.a + 100);
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP TRIGGER tr1;
+DROP TRIGGER tr1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+ALTER TABLE t1 ADD (b INT);
+ALTER TABLE t1 ADD (b INT);
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE VIEW v1 AS SELECT a FROM t1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP VIEW v1;
+DROP VIEW v1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
+CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP PROCEDURE p1;
+DROP PROCEDURE p1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP TABLE t1;
+DROP TABLE t1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE FUNCTION f1() RETURNS INT return 1;
+CREATE FUNCTION f1() RETURNS INT return 1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP FUNCTION f1;
+DROP FUNCTION f1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+CREATE USER user1;
+CREATE USER user1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+SET GLOBAL debug='d,injecting_fault_writing';
+DROP USER user1;
+DROP USER user1;
+ERROR HY000: Error writing file 'master-bin' ((errno: #)
+SET GLOBAL debug='';
+#
+# Cleanup
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+DROP PROCEDURE IF EXISTS p1;
+DROP TRIGGER IF EXISTS tr1;
+DROP VIEW IF EXISTS v1, v2;

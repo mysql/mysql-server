@@ -5891,7 +5891,7 @@ Slave_log_event::Slave_log_event(const char* buf, uint event_len)
 int Slave_log_event::do_apply_event(Relay_log_info const *rli)
 {
   if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
+    return mysql_bin_log.write(this);
   return 0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -7620,7 +7620,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    error= thd->binlog_flush_pending_rows_event(true);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -7631,7 +7631,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error= ha_autocommit_or_rollback(thd, 0);
+    error|= ha_autocommit_or_rollback(thd, error);
 
     /*
       Now what if this is not a transactional engine? we still need to
