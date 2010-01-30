@@ -22,13 +22,13 @@ VARIABLE_NAME	VARIABLE_VALUE
 SQL_LOG_UPDATE	ON
 set global sql_log_update=1;
 Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
+Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 select @@global.sql_log_update;
 @@global.sql_log_update
 1
 set session sql_log_update=ON;
 Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
+Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 select @@session.sql_log_update;
 @@session.sql_log_update
 1
@@ -40,7 +40,7 @@ set global sql_log_update="foo";
 ERROR 42000: Variable 'sql_log_update' can't be set to the value of 'foo'
 SET @@global.sql_log_update = @start_global_value;
 Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
+Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 SELECT @@global.sql_log_update;
 @@global.sql_log_update
 1

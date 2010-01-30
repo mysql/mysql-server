@@ -1765,19 +1765,19 @@ String *Item_func_encode::val_str(String *str)
 
   null_value= 0;
   res= copy_if_not_alloced(str, res, res->length());
-  transform(res);
+  crypto_transform(res);
   sql_crypt.reinit();
 
   return res;
 }
 
-void Item_func_encode::transform(String *res)
+void Item_func_encode::crypto_transform(String *res)
 {
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
-void Item_func_decode::transform(String *res)
+void Item_func_decode::crypto_transform(String *res)
 {
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
