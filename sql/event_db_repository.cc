@@ -1045,6 +1045,7 @@ update_timing_fields_for_event(THD *thd,
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
+  bool save_binlog_row_based;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
@@ -1052,8 +1053,8 @@ update_timing_fields_for_event(THD *thd,
     Turn off row binlogging of event timing updates. These are not used
     for RBR of events replicated to the slave.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  thd->clear_current_stmt_binlog_row_based();
 
   DBUG_ASSERT(thd->security_ctx->master_access & SUPER_ACL);
 
@@ -1095,6 +1096,8 @@ update_timing_fields_for_event(THD *thd,
 end:
   if (table)
     close_thread_tables(thd);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(test(ret));
 }
