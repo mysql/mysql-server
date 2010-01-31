@@ -142,7 +142,7 @@ int main()
     lengths[1] = 32;
     CharsetMap::RecodeStatus rr2 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_2);
-    printf("Recode Test 2 - Latin-1 to UTF-8: %d %l %l \"%s\" => \"%s\" \n", 
+    printf("Recode Test 2 - Latin-1 to UTF-8: %d %d %d \"%s\" => \"%s\" \n", 
            rr2, lengths[0], lengths[1], my_word_latin1, result_buff_2);
     assert(rr2 == CharsetMap::RECODE_OK);
     assert(lengths[0] == 6);
@@ -154,7 +154,7 @@ int main()
     lengths[1] = 4;
     CharsetMap::RecodeStatus rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_too_small);
-    printf("Recode Test 3 - too-small buffer: %d %l %l \"%s\" => \"%s\" \n", 
+    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%s\" \n", 
            rr3, lengths[0], lengths[1], my_word_latin1, result_buff_too_small);
     assert(rr3 == CharsetMap::RECODE_BUFF_TOO_SMALL);
     assert(lengths[0] == 3);
