@@ -32,7 +32,8 @@ public abstract class SingleEMTestCase extends SingleEMFTestCase {
 
     @Override
     public void setUp() {
-        setUp(new Object[0]);
+        super.setUp();
+        em = emf.createEntityManager(); 
     }
 
     @Override

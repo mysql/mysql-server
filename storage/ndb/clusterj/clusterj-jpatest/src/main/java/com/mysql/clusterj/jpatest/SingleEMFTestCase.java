@@ -18,6 +18,9 @@
 
 package com.mysql.clusterj.jpatest;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.persistence.EntityManagerFactory;
 
 /**
@@ -30,12 +33,26 @@ public abstract class SingleEMFTestCase
     protected EntityManagerFactory emf;
 
     /**
-     * Call {@link #setUp(Object...)} with no arguments so that the emf
-     * set-up happens even if <code>setUp()</code> is not called from the
-     * subclass.
+     * Check system properties so the tests can be run with overrides.
      */
-    public void setUp() throws Exception {
-        setUp(new Object[0]);
+    public void setUp() {
+        List<String> extraProps = new ArrayList<String>();
+        String connectionDriverName = System.getProperty("openjpa.ConnectionDriverName");
+        String connectionURL = System.getProperty("openjpa.ConnectionURL");
+        String connectString = System.getProperty("openjpa.ndb.connectString");
+        if (connectionDriverName != null) {
+            extraProps.add("openjpa.ConnectionDriverName");
+            extraProps.add(connectionDriverName);
+        }
+        if (connectionURL != null) {
+            extraProps.add("openjpa.ConnectionURL");
+            extraProps.add(connectionURL);
+        }
+        if (connectString != null) {
+            extraProps.add("openjpa.ndb.connectString");
+            extraProps.add(connectString);
+        }
+        setUp(extraProps.toArray());
     }
 
     /**
