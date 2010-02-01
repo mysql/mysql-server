@@ -549,7 +549,7 @@ JOIN::prepare(Item ***rref_pointer_array,
         there. Such fields don't contain any data to sort.
       */
       if (!real_order &&
-          (item->type() != Item::Item::FIELD_ITEM ||
+          (item->type() != Item::FIELD_ITEM ||
            ((Item_field *) item)->field->maybe_null() ||
            ((Item_field *) item)->field->sort_length()))
         real_order= TRUE;
