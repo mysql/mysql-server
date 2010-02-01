@@ -14,7 +14,7 @@ AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 # to the modern single-argument form; see
 #   http://www.gnu.org/software/automake/manual/automake.html#Public-Macros
 #
-AC_INIT([mysql], [5.1.41-ndb-7.1.0])
+AC_INIT([mysql], [5.1.41-ndb-7.1.1-beta])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 
@@ -33,7 +33,7 @@ AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=0
+NDB_VERSION_BUILD=1
 NDB_VERSION_STATUS="beta"
 
 PROTOCOL_VERSION=10
