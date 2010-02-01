@@ -1543,7 +1543,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests)
 {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **sort_buf, **p_req;
-  uint req_count= mdl_requests->elements();
+  ssize_t req_count= static_cast<ssize_t>(mdl_requests->elements());
 
   if (req_count == 0)
     return FALSE;
