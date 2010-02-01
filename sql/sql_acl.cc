@@ -32,9 +32,8 @@
 #include "sp.h"
 #include "transaction.h"
 
-time_t mysql_db_table_last_check= 0L;
-
-TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
+static const
+TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
     { C_STRING_WITH_LEN("Host") },            
     { C_STRING_WITH_LEN("char(60)") },
@@ -147,6 +146,8 @@ TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+const TABLE_FIELD_DEF
+  mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -2458,7 +2459,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         privs = cols = 0;			/* purecov: deadcode */
         return;				/* purecov: deadcode */
       }
-      my_hash_insert(&hash_columns, (uchar *) mem_check);
+      if (my_hash_insert(&hash_columns, (uchar *) mem_check))
+      {
+        /* Invalidate this entry */
+        privs= cols= 0;
+        return;
+      }
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
@@ -2492,14 +2498,17 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *host,const char* ip,
                                     const char *db,
                                     const char *user, const char *tname,
-                                    bool exact)
+                                    bool exact, bool name_tolower)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3];
+  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
+  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
+  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  if (name_tolower)
+    my_casedn_str(files_charset_info, name_ptr);
   for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,
                                                len, &state);
        grant_name ;
@@ -2532,7 +2541,7 @@ routine_hash_search(const char *host, const char *ip, const char *db,
 {
   return (GRANT_TABLE*)
     name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
-		     host, ip, db, user, tname, exact);
+		     host, ip, db, user, tname, exact, TRUE);
 }
 
 
@@ -2541,7 +2550,7 @@ table_hash_search(const char *host, const char *ip, const char *db,
 		  const char *user, const char *tname, bool exact)
 {
   return (GRANT_TABLE*) name_hash_search(&column_priv_hash, host, ip, db,
-					 user, tname, exact);
+					 user, tname, exact, FALSE);
 }
 
 
@@ -2664,7 +2673,11 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	goto end;				/* purecov: inspected */
       }
       grant_column= new GRANT_COLUMN(column->column,privileges);
-      my_hash_insert(&g_t->hash_columns,(uchar*) grant_column);
+      if (my_hash_insert(&g_t->hash_columns,(uchar*) grant_column))
+      {
+        result= -1;
+        goto end;
+      }
     }
   }
 
@@ -3191,12 +3204,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 				     Str->user.str, table_name,
 				     rights,
 				     column_priv);
-      if (!grant_table)				// end of memory
+      if (!grant_table ||
+        my_hash_insert(&column_priv_hash,(uchar*) grant_table))
       {
 	result= TRUE;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      my_hash_insert(&column_priv_hash,(uchar*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -3401,12 +3414,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       grant_name= new GRANT_NAME(Str->host.str, db_name,
 				 Str->user.str, table_name,
 				 rights, TRUE);
-      if (!grant_name)
+      if (!grant_name ||
+        my_hash_insert(is_proc ?
+                       &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
       {
         result= TRUE;
 	continue;
       }
-      my_hash_insert(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*) grant_name);
     }
 
     if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
@@ -3510,6 +3524,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }
+    /*
+      No User, but a password?
+      They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
+      Get the current user, and shallow-copy the new password to them!
+    */
+    if (!tmp_Str->user.str && tmp_Str->password.str)
+      Str->password= tmp_Str->password;
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &

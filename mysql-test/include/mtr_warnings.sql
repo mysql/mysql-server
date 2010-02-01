@@ -185,6 +185,14 @@ INSERT INTO global_suppressions VALUES
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
 
  /*
    BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 

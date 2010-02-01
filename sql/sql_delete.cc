@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -427,7 +427,8 @@ cleanup:
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
-  if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
+  if (error < 0 || 
+      (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
   {
     /*
       If a TRUNCATE TABLE was issued, the number of rows should be reported as
@@ -1219,10 +1220,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         DBUG_RETURN(TRUE);
 
       has_mdl_lock= TRUE;
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
                        table_list->table_name);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
 
@@ -1232,10 +1233,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
      '\0';
   */
   path[path_length - reg_ext_length] = 0;
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   query_cache_invalidate3(thd, table_list, 0);
 
 end:

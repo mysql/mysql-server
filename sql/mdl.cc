@@ -729,8 +729,8 @@ static inline const char *mdl_enter_cond(THD *thd,
 {
   safe_mutex_assert_owner(mutex);
 
-  mysys_var->current_mutex= mutex;
-  mysys_var->current_cond= cond;
+  mysys_var->current_mutex= (mysql_mutex_t*) mutex;
+  mysys_var->current_cond= (mysql_cond_t*) cond;
 
   DEBUG_SYNC(thd, "mdl_enter_cond");
 
@@ -749,13 +749,13 @@ static inline void mdl_exit_cond(THD *thd,
                                  const char *calling_file,
                                  const unsigned int calling_line)
 {
-  DBUG_ASSERT(mutex == mysys_var->current_mutex);
+  DBUG_ASSERT(mutex == (pthread_mutex_t*) mysys_var->current_mutex);
 
   pthread_mutex_unlock(mutex);
-  pthread_mutex_lock(&mysys_var->mutex);
+  mysql_mutex_lock(&mysys_var->mutex);
   mysys_var->current_mutex= 0;
   mysys_var->current_cond= 0;
-  pthread_mutex_unlock(&mysys_var->mutex);
+  mysql_mutex_unlock(&mysys_var->mutex);
 
   DEBUG_SYNC(thd, "mdl_exit_cond");
 
@@ -1099,7 +1099,7 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type)
 {
   bool result;
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   rw_rdlock(&m_rwlock);
   result= (m_waiting.bitmap() & incompatible_granted_types_bitmap()[type]);
@@ -1274,7 +1274,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
 
   /* Don't take chances in production. */
   mdl_request->ticket= NULL;
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   /*
     Check whether the context already holds a shared lock on the object,
@@ -1361,7 +1361,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 {
   MDL_ticket *ticket;
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
   /*
     By submitting mdl_request->type to MDL_ticket::create()
     we effectively downgrade the cloned lock to the level of
@@ -1436,7 +1436,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request)
   st_my_thread_var *mysys_var= my_thread_var;
   MDL_key *key= &mdl_request->key;
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(mdl_request->ticket == NULL);
   /* Don't take chances in production. */
@@ -1830,7 +1830,7 @@ MDL_context::wait_for_lock(MDL_request *mdl_request)
   MDL_lock *lock;
   st_my_thread_var *mysys_var= my_thread_var;
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(mdl_request->ticket == NULL);
 
@@ -1907,7 +1907,7 @@ void MDL_context::release_lock(MDL_ticket *ticket)
                                         lock->key.name()));
 
   DBUG_ASSERT(this == ticket->get_ctx());
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   if (ticket == m_trans_sentinel)
     m_trans_sentinel= ++Ticket_list::Iterator(m_tickets, ticket);
@@ -2001,7 +2001,7 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
 
 void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
 {
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   /*
     Do nothing if already downgraded. Used when we FLUSH TABLE under

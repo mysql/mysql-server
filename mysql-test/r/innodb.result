@@ -1783,7 +1783,6 @@ show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
 set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
-SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	0
@@ -1801,7 +1800,6 @@ set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	16
-SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	500
@@ -3091,7 +3089,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)

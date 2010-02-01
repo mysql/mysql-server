@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -620,7 +620,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -666,7 +666,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
                       buff.ptr(), buff.length(), FALSE, FALSE, errcode);
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
@@ -1609,7 +1609,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   if (lock_table_names(thd, views))
     DBUG_RETURN(TRUE);
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
     TABLE_SHARE *share;
@@ -1684,7 +1684,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     write_bin_log(thd, !something_wrong, thd->query(), thd->query_length());
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   
   if (something_wrong)
   {

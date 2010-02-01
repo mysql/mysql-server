@@ -148,8 +148,6 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
-#define pthread_yield() SwitchToThread()
-
 /* per the platform's documentation */
 #define pthread_yield() Sleep(0)
 
@@ -607,6 +605,8 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 typedef ulong my_thread_id;
 
 extern my_bool my_thread_global_init(void);
+extern my_bool my_thread_basic_global_init(void);
+extern void my_thread_basic_global_reinit(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
@@ -637,10 +637,10 @@ extern int pthread_dummy(int);
 struct st_my_thread_var
 {
   int thr_errno;
-  pthread_cond_t suspend;
-  pthread_mutex_t mutex;
-  pthread_mutex_t * volatile current_mutex;
-  pthread_cond_t * volatile current_cond;
+  mysql_cond_t suspend;
+  mysql_mutex_t mutex;
+  mysql_mutex_t * volatile current_mutex;
+  mysql_cond_t * volatile current_cond;
   pthread_t pthread_self;
   my_thread_id id;
   int cmp_length;
@@ -692,16 +692,16 @@ extern uint thd_lib_detected;
 #ifdef THREAD
 #ifndef thread_safe_increment
 #define thread_safe_increment(V,L) \
-        (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
-        (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
 #endif
 
 #ifndef thread_safe_add
 #define thread_safe_add(V,C,L) \
-        (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
-        (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
 #endif
 #endif
 

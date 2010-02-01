@@ -239,26 +239,27 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 {
   DBUG_ENTER("partition_default_handling");
 
-  if (part_info->use_default_num_partitions)
+  if (!is_create_table_ind)
   {
-    if (!is_create_table_ind &&
-        table->file->get_no_parts(normalized_path, &part_info->num_parts))
+    if (part_info->use_default_num_partitions)
     {
-      DBUG_RETURN(TRUE);
+      if (table->file->get_no_parts(normalized_path, &part_info->num_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
     }
-  }
-  else if (part_info->is_sub_partitioned() &&
-           part_info->use_default_num_subpartitions)
-  {
-    uint num_parts;
-    if (!is_create_table_ind &&
-        (table->file->get_no_parts(normalized_path, &num_parts)))
+    else if (part_info->is_sub_partitioned() &&
+             part_info->use_default_num_subpartitions)
     {
-      DBUG_RETURN(TRUE);
+      uint num_parts;
+      if (table->file->get_no_parts(normalized_path, &num_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      DBUG_ASSERT(part_info->num_parts > 0);
+      DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
+      part_info->num_subparts= num_parts / part_info->num_parts;
     }
-    DBUG_ASSERT(part_info->num_parts > 0);
-    part_info->num_subparts= num_parts / part_info->num_parts;
-    DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
@@ -1057,6 +1058,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   const char *save_where;
   LEX *old_lex= thd->lex;
   LEX lex;
+  uint8 saved_full_group_by_flag;
+  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (init_lex_with_single_table(thd, table, &lex))
@@ -1082,7 +1085,18 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
+  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
+  saved_allow_sum_func= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
+
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
+
+  /*
+    Restore full_group_by_flag and allow_sum_func,
+    fix_fields should not affect mysql_select later, see Bug#46923.
+  */
+  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
+  thd->lex->allow_sum_func= saved_allow_sum_func;
 
   if (unlikely(error))
   {
@@ -1794,8 +1808,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
   if (((part_info->part_type != HASH_PARTITION ||
       part_info->list_of_part_fields == FALSE) &&
       (!part_info->column_list &&
-       check_part_func_fields(part_info->part_field_array, TRUE))) ||
-      (part_info->list_of_part_fields == FALSE &&
+      check_part_func_fields(part_info->part_field_array, TRUE))) ||
+      (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
@@ -6241,7 +6255,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
     We must keep LOCK_open while manipulating with thd->open_tables.
     Another thread may be working on it.
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   /*
     We can safely remove locks for all tables with the same name:
     later they will all be closed anyway in
@@ -6266,7 +6280,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
                        table->s->table_name.str);
     }
   }
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 

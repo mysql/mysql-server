@@ -427,5 +427,4 @@ a:  b
   </row>
 </resultset>
 drop table t1;
-
-End of tests
+End of 5.0 tests

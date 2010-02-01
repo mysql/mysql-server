@@ -1016,6 +1016,18 @@ SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug #48472: Loose index scan inappropriately chosen for some WHERE
+--echo #             conditions
+--echo # 
+
+CREATE TABLE t (a INT, b INT, INDEX (a,b));
+INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
+INSERT INTO t SELECT * FROM t;                                   
+
+SELECT a, MAX(b) FROM t WHERE 0=b+0 GROUP BY a;
+
+DROP TABLE t;
 
 --echo End of 5.0 tests
 

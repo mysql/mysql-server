@@ -2170,6 +2170,23 @@ public:
     save_in_field(result_field, no_conversions);
   }
   void cleanup();
+  /*
+    This method is used for debug purposes to print the name of an
+    item to the debug log. The second use of this method is as
+    a helper function of print() and error messages, where it is
+    applicable. To suit both goals it should return a meaningful,
+    distinguishable and sintactically correct string. This method
+    should not be used for runtime type identification, use enum
+    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
+    instead.
+    Added here, to the parent class of both Item_func and Item_sum_func.
+
+    NOTE: for Items inherited from Item_sum, func_name() return part of
+    function name till first argument (including '(') to make difference in
+    names for functions with 'distinct' clause and without 'distinct' and
+    also to make printing of items inherited from Item_sum uniform.
+  */
+  virtual const char *func_name() const= 0;
 };
 
 
@@ -2980,7 +2997,7 @@ public:
     return this == item;
   }
   virtual void store(Item *item);
-  virtual void cache_value()= 0;
+  virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
 };
@@ -3003,7 +3020,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool result_as_longlong() { return TRUE; }
-  void cache_value();
+  bool cache_value();
 };
 
 
@@ -3019,7 +3036,7 @@ public:
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return REAL_RESULT; }
-  void cache_value();
+  bool cache_value();
 };
 
 
@@ -3035,7 +3052,7 @@ public:
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return DECIMAL_RESULT; }
-  void cache_value();
+  bool cache_value();
 };
 
 
@@ -3060,7 +3077,7 @@ public:
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
-  void cache_value();
+  bool cache_value();
 };
 
 class Item_cache_row: public Item_cache
@@ -3129,7 +3146,7 @@ public:
       values= 0;
     DBUG_VOID_RETURN;
   }
-  void cache_value();
+  bool cache_value();
 };
 
 
@@ -3160,8 +3177,8 @@ public:
     completely relies on the ability of the underlying item to do the
     correct conversion.
   */
-  void cache_value_int();
-  void cache_value();
+  bool cache_value_int();
+  bool cache_value();
 };
 
 

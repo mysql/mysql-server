@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ static void mysql_change_db_impl(THD *thd,
 
 /* Database lock hash */
 HASH lock_db_cache;
-pthread_mutex_t LOCK_lock_db;
+mysql_mutex_t LOCK_lock_db;
 int creating_database= 0;  // how many database locks are made
 
 
@@ -103,7 +103,7 @@ static my_bool lock_db_insert(const char *dbname, uint length)
   my_bool error= 0;
   DBUG_ENTER("lock_db_insert");
   
-  safe_mutex_assert_owner(&LOCK_lock_db);
+  mysql_mutex_assert_owner(&LOCK_lock_db);
 
   if (!(opt= (my_dblock_t*) my_hash_search(&lock_db_cache,
                                            (uchar*) dbname, length)))
@@ -138,7 +138,7 @@ end:
 void lock_db_delete(const char *name, uint length)
 {
   my_dblock_t *opt;
-  safe_mutex_assert_owner(&LOCK_lock_db);
+  mysql_mutex_assert_owner(&LOCK_lock_db);
   if ((opt= (my_dblock_t *)my_hash_search(&lock_db_cache,
                                           (const uchar*) name, length)))
     my_hash_delete(&lock_db_cache, (uchar*) opt);
@@ -148,7 +148,7 @@ void lock_db_delete(const char *name, uint length)
 /* Database options hash */
 static HASH dboptions;
 static my_bool dboptions_init= 0;
-static rw_lock_t LOCK_dboptions;
+static mysql_rwlock_t LOCK_dboptions;
 
 /* Structure for database options */
 typedef struct my_dbopt_st
@@ -199,6 +199,26 @@ void free_dbopt(void *dbopt)
   my_free((uchar*) dbopt, MYF(0));
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_rwlock_key key_rwlock_LOCK_dboptions;
+
+static PSI_rwlock_info all_database_names_rwlocks[]=
+{
+  { &key_rwlock_LOCK_dboptions, "LOCK_dboptions", PSI_FLAG_GLOBAL}
+};
+
+static void init_database_names_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_database_names_rwlocks);
+  PSI_server->register_rwlock(category, all_database_names_rwlocks, count);
+}
+#endif
 
 /* 
   Initialize database option hash and locked database hash.
@@ -216,8 +236,12 @@ void free_dbopt(void *dbopt)
 
 bool my_database_names_init(void)
 {
+#ifdef HAVE_PSI_INTERFACE
+  init_database_names_psi_keys();
+#endif
+
   bool error= 0;
-  (void) my_rwlock_init(&LOCK_dboptions, NULL);
+  mysql_rwlock_init(key_rwlock_LOCK_dboptions, &LOCK_dboptions);
   if (!dboptions_init)
   {
     dboptions_init= 1;
@@ -246,7 +270,7 @@ void my_database_names_free(void)
   {
     dboptions_init= 0;
     my_hash_free(&dboptions);
-    (void) rwlock_destroy(&LOCK_dboptions);
+    mysql_rwlock_destroy(&LOCK_dboptions);
     my_hash_free(&lock_db_cache);
   }
 }
@@ -258,13 +282,13 @@ void my_database_names_free(void)
 
 void my_dbopt_cleanup(void)
 {
-  rw_wrlock(&LOCK_dboptions);
+  mysql_rwlock_wrlock(&LOCK_dboptions);
   my_hash_free(&dboptions);
   my_hash_init(&dboptions, lower_case_table_names ? 
                &my_charset_bin : system_charset_info,
                32, 0, 0, (my_hash_get_key) dboptions_get_key,
                free_dbopt,0);
-  rw_unlock(&LOCK_dboptions);
+  mysql_rwlock_unlock(&LOCK_dboptions);
 }
 
 
@@ -288,13 +312,13 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
   
   length= (uint) strlen(dbname);
   
-  rw_rdlock(&LOCK_dboptions);
+  mysql_rwlock_rdlock(&LOCK_dboptions);
   if ((opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname, length)))
   {
     create->default_table_charset= opt->charset;
     error= 0;
   }
-  rw_unlock(&LOCK_dboptions);
+  mysql_rwlock_unlock(&LOCK_dboptions);
   return error;
 }
 
@@ -320,7 +344,7 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
 
   length= (uint) strlen(dbname);
   
-  rw_wrlock(&LOCK_dboptions);
+  mysql_rwlock_wrlock(&LOCK_dboptions);
   if (!(opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname,
                                           length)))
   { 
@@ -349,7 +373,7 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
   opt->charset= create->default_table_charset;
 
 end:
-  rw_unlock(&LOCK_dboptions);  
+  mysql_rwlock_unlock(&LOCK_dboptions);
   DBUG_RETURN(error);
 }
 
@@ -361,11 +385,11 @@ end:
 void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
-  rw_wrlock(&LOCK_dboptions);
+  mysql_rwlock_wrlock(&LOCK_dboptions);
   if ((opt= (my_dbopt_t *)my_hash_search(&dboptions, (const uchar*) path,
                                          strlen(path))))
     my_hash_delete(&dboptions, (uchar*) opt);
-  rw_unlock(&LOCK_dboptions);
+  mysql_rwlock_unlock(&LOCK_dboptions);
 }
 
 
@@ -392,7 +416,8 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   if (put_dbopt(path, create))
     return 1;
 
-  if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_create(key_file_dbopt, path, CREATE_MODE,
+                               O_RDWR | O_TRUNC, MYF(MY_WME))) >= 0)
   {
     ulong length;
     length= (ulong) (strxnmov(buf, sizeof(buf)-1, "default-character-set=",
@@ -401,10 +426,10 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
                               create->default_table_charset->name,
                               "\n", NullS) - buf);
 
-    /* Error is written by my_write */
-    if (!my_write(file,(uchar*) buf, length, MYF(MY_NABP+MY_WME)))
+    /* Error is written by mysql_file_write */
+    if (!mysql_file_write(file, (uchar*) buf, length, MYF(MY_NABP+MY_WME)))
       error=0;
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
   }
   return error;
 }
@@ -441,7 +466,8 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
     DBUG_RETURN(0);
 
   /* Otherwise, load options from the .opt file */
-  if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_dbopt,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     goto err1;
 
   IO_CACHE cache;
@@ -499,7 +525,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   end_io_cache(&cache);
 err2:
-  my_close(file,MYF(0));
+  mysql_file_close(file, MYF(0));
 err1:
   DBUG_RETURN(error);
 }
@@ -643,13 +669,13 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     goto exit2;
   }
 
-  pthread_mutex_lock(&LOCK_mysql_create_db);
+  mysql_mutex_lock(&LOCK_mysql_create_db);
 
   /* Check directory */
   path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
 
-  if (my_stat(path,&stat_info,MYF(0)))
+  if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
   {
     if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
@@ -753,7 +779,7 @@ not_silent:
   }
 
 exit:
-  pthread_mutex_unlock(&LOCK_mysql_create_db);
+  mysql_mutex_unlock(&LOCK_mysql_create_db);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
@@ -784,7 +810,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error= thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE)))
     goto exit2;
 
-  pthread_mutex_lock(&LOCK_mysql_create_db);
+  mysql_mutex_lock(&LOCK_mysql_create_db);
 
   /* 
      Recreate db options file: /dbpath/.db.opt
@@ -830,7 +856,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   my_ok(thd, result);
 
 exit:
-  pthread_mutex_unlock(&LOCK_mysql_create_db);
+  mysql_mutex_unlock(&LOCK_mysql_create_db);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
@@ -882,7 +908,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     goto exit2;
   }
 
-  pthread_mutex_lock(&LOCK_mysql_create_db);
+  mysql_mutex_lock(&LOCK_mysql_create_db);
 
   length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
@@ -1026,7 +1052,7 @@ exit:
   */
   if (thd->db && !strcmp(thd->db, db) && error == 0)
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
-  pthread_mutex_unlock(&LOCK_mysql_create_db);
+  mysql_mutex_unlock(&LOCK_mysql_create_db);
   thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
@@ -1157,7 +1183,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     else
     {
       strxmov(filePath, org_path, "/", file->name, NullS);
-      if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+      if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME)))
       {
 	goto err;
       }
@@ -1235,7 +1261,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
     DBUG_RETURN(1);
   if (!error)
   {
-    if (my_delete(path, MYF(send_error ? MY_WME : 0)))
+    if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0)))
     {
       DBUG_RETURN(send_error);
     }
@@ -1312,7 +1338,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
       continue;
     }
     strxmov(filePath, org_path, "/", file->name, NullS);
-    if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+    if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME)))
     {
       goto err;
     }
@@ -1719,18 +1745,18 @@ static int
 lock_databases(THD *thd, const char *db1, uint length1,
                          const char *db2, uint length2)
 {
-  pthread_mutex_lock(&LOCK_lock_db);
+  mysql_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
          (my_hash_search(&lock_db_cache,(uchar*) db1, length1) ||
           my_hash_search(&lock_db_cache,(uchar*) db2, length2)))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    pthread_mutex_lock(&LOCK_lock_db);
+    mysql_mutex_lock(&LOCK_lock_db);
   }
 
   if (thd->killed)
   {
-    pthread_mutex_unlock(&LOCK_lock_db);
+    mysql_mutex_unlock(&LOCK_lock_db);
     return 1;
   }
 
@@ -1747,7 +1773,7 @@ lock_databases(THD *thd, const char *db1, uint length1,
   while (!thd->killed && creating_table)
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    pthread_mutex_lock(&LOCK_lock_db);
+    mysql_mutex_lock(&LOCK_lock_db);
   }
 
   if (thd->killed)
@@ -1755,8 +1781,8 @@ lock_databases(THD *thd, const char *db1, uint length1,
     lock_db_delete(db1, length1);
     lock_db_delete(db2, length2);
     creating_database--;
-    pthread_mutex_unlock(&LOCK_lock_db);
-    pthread_cond_signal(&COND_refresh);
+    mysql_mutex_unlock(&LOCK_lock_db);
+    mysql_cond_signal(&COND_refresh);
     return(1);
   }
 
@@ -1764,7 +1790,7 @@ lock_databases(THD *thd, const char *db1, uint length1,
     We can unlock now as the hash will protect against anyone creating a table
     in the databases we are using
   */
-  pthread_mutex_unlock(&LOCK_lock_db);
+  mysql_mutex_unlock(&LOCK_lock_db);
   return 0;
 }
 
@@ -1893,7 +1919,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     */
     build_table_filename(path, sizeof(path)-1,
                          new_db.str,"",MY_DB_OPT_FILE, 0);
-    my_delete(path, MYF(MY_WME));
+    mysql_file_delete(key_file_dbopt, path, MYF(MY_WME));
     length= build_table_filename(path, sizeof(path)-1, new_db.str, "", "", 0);
     if (length && path[length-1] == FN_LIBCHAR)
       path[length-1]=0;                            // remove ending '\'
@@ -1949,7 +1975,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
                            old_db->str, "", file->name, 0);
       build_table_filename(newname, sizeof(newname)-1,
                            new_db.str, "", file->name, 0);
-      my_rename(oldname, newname, MYF(MY_WME));
+      mysql_file_rename(key_file_misc, oldname, newname, MYF(MY_WME));
     }
     my_dirend(dirp);
   }
@@ -1977,14 +2003,14 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     error|= mysql_change_db(thd, & new_db, FALSE);
 
 exit:
-  pthread_mutex_lock(&LOCK_lock_db);
+  mysql_mutex_lock(&LOCK_lock_db);
   /* Remove the databases from db lock cache */
   lock_db_delete(old_db->str, old_db->length);
   lock_db_delete(new_db.str, new_db.length);
   creating_database--;
   /* Signal waiting CREATE TABLE's to continue */
-  pthread_cond_signal(&COND_refresh);
-  pthread_mutex_unlock(&LOCK_lock_db);
+  mysql_cond_signal(&COND_refresh);
+  mysql_mutex_unlock(&LOCK_lock_db);
 
   DBUG_RETURN(error);
 }

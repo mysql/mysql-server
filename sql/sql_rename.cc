@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (lock_table_names(thd, table_list))
     goto err;
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
@@ -174,7 +174,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     higher concurrency - query_cache_invalidate can take minutes to
     complete.
   */
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   /* Lets hope this doesn't fail as the result will be messy */ 
   if (!silent && !error)
