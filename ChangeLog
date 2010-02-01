@@ -1,3 +1,12 @@
+2010-02-01	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.test,
+	mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc-44030.test,
+	mysql-test/innodb-autoinc-44030.result:
+	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
+	a negative value
+
 2010-01-27	The InnoDB Team
 
 	* include/row0mysql.h, log/log0recv.c, row/row0mysql.c:
