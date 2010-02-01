@@ -1790,7 +1790,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (!drop_temporary)
   {
-    if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
+    if (!thd->locked_tables_mode &&
+       thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       DBUG_RETURN(TRUE);
   }
 
@@ -1798,8 +1799,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
   thd->pop_internal_handler();
 
-  if (thd->global_read_lock_protection > 0)
-    start_waiting_global_read_lock(thd);
+  if (thd->global_read_lock.has_protection())
+    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (error)
     DBUG_RETURN(TRUE);
@@ -1931,8 +1932,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
             by parser) it is safe to cache pointer to the TABLE instances
             in its elements.
           */
-          table->table= find_write_locked_table(thd->open_tables, table->db,
-                                                table->table_name);
+          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
+                                                   table->table_name, FALSE);
           if (!table->table)
             DBUG_RETURN(1);
           table->mdl_request.ticket= table->table->mdl_ticket;
@@ -2200,7 +2201,7 @@ err:
       Under LOCK TABLES we should release meta-data locks on the tables
       which were dropped. Otherwise we can rely on close_thread_tables()
       doing this. Unfortunately in this case we are likely to get more
-      false positives in try_acquire_exclusive_lock() function. So
+      false positives in try_acquire_lock() function. So
       it makes sense to remove exclusive meta-data locks in all cases.
 
       Leave LOCK TABLES mode if we managed to drop all tables which were
@@ -4142,7 +4143,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     Open or obtain an exclusive metadata lock on table being created.
   */
   if (open_and_lock_tables_derived(thd, thd->lex->query_tables, FALSE,
-                                   MYSQL_OPEN_TAKE_UPGRADABLE_MDL))
+                                   0))
   {
     result= TRUE;
     goto unlock;
@@ -4353,6 +4354,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   if (!(table= table_list->table))
   {
+    char key[MAX_DBKEY_LENGTH];
+    uint key_length;
+    MDL_request mdl_global_request;
+    MDL_request_list mdl_requests;
     /*
       If the table didn't exist, we have a shared metadata lock
       on it that is left from mysql_admin_table()'s attempt to 
@@ -4365,22 +4370,17 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Attempt to do full-blown table open in mysql_admin_table() has failed.
       Let us try to open at least a .FRM for this table.
     */
-    char key[MAX_DBKEY_LENGTH];
-    uint key_length;
 
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  MDL_EXCLUSIVE);
 
-    MDL_request mdl_global_request;
     mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+    mdl_requests.push_front(&table_list->mdl_request);
+    mdl_requests.push_front(&mdl_global_request);
 
-    if (thd->mdl_context.acquire_global_intention_exclusive_lock(
-               &mdl_global_request))
-      DBUG_RETURN(0);
-
-    if (thd->mdl_context.acquire_exclusive_lock(&table_list->mdl_request))
+    if (thd->mdl_context.acquire_locks(&mdl_requests))
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
 
@@ -5274,8 +5274,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     non-temporary table.
   */
   DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-              thd->mdl_context.is_exclusive_lock_owner(MDL_key::TABLE, table->db,
-                                                       table->table_name));
+              thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                             table->table_name,
+                                             MDL_EXCLUSIVE));
 
   /*
     We have to write the query before we unlock the tables.
@@ -6458,7 +6459,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(TRUE);
     }
 
-    if (wait_if_global_read_lock(thd,0,1))
+    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       DBUG_RETURN(TRUE);
     if (lock_table_names(thd, table_list))
     {
@@ -6484,7 +6485,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     unlock_table_names(thd);
 
 view_err:
-    start_waiting_global_read_lock(thd);
+    thd->global_read_lock.start_waiting_global_read_lock(thd);
     DBUG_RETURN(error);
   }
 
@@ -6568,10 +6569,11 @@ view_err:
           Global intention exclusive lock must have been already acquired when
           table to be altered was open, so there is no need to do it here.
         */
-        DBUG_ASSERT(thd->
-                    mdl_context.is_global_lock_owner(MDL_INTENTION_EXCLUSIVE));
+        DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL,
+                                                   "", "",
+                                                   MDL_INTENTION_EXCLUSIVE));
 
-        if (thd->mdl_context.try_acquire_exclusive_lock(&target_mdl_request))
+        if (thd->mdl_context.try_acquire_lock(&target_mdl_request))
           DBUG_RETURN(TRUE);
         if (target_mdl_request.ticket == NULL)
         {
@@ -6767,9 +6769,6 @@ view_err:
         Under LOCK TABLES we should adjust meta-data locks before finishing
         statement. Otherwise we can rely on close_thread_tables() releasing
         them.
-
-        TODO: Investigate what should be done with upgraded table-level
-        lock here...
       */
       if (new_name != table_name || new_db != db)
       {
@@ -6777,7 +6776,7 @@ view_err:
         thd->mdl_context.release_all_locks_for_name(mdl_ticket);
       }
       else
-        mdl_ticket->downgrade_exclusive_lock();
+        mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
     }
     DBUG_RETURN(error);
   }
@@ -7462,7 +7461,7 @@ view_err:
       thd->mdl_context.release_all_locks_for_name(mdl_ticket);
     }
     else
-      mdl_ticket->downgrade_exclusive_lock();
+      mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
 
 end_temporary:

@@ -452,8 +452,6 @@ THD::THD()
    examined_row_count(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
-   global_read_lock_protection(0),
-   global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -1000,21 +998,21 @@ void THD::cleanup(void)
   locked_tables_list.unlock_locked_tables(this);
   mysql_ha_cleanup(this);
 
+  DBUG_ASSERT(open_tables == NULL);
   /*
     If the thread was in the middle of an ongoing transaction (rolled
     back a few lines above) or under LOCK TABLES (unlocked the tables
     and left the mode a few lines above), there will be outstanding
     metadata locks. Release them.
   */
-  DBUG_ASSERT(open_tables == NULL);
-  /* All HANDLERs must have been closed by now. */
-  DBUG_ASSERT(mdl_context.lt_or_ha_sentinel() == NULL ||
-              global_read_lock);
-  /*
-    Due to the above assert, this is guaranteed to release *all* in
-    this session.
-  */
   mdl_context.release_transactional_locks();
+
+  /* Release the global read lock, if acquired. */
+  if (global_read_lock.is_acquired())
+    global_read_lock.unlock_global_read_lock(this);
+
+  /* All metadata locks must have been released by now. */
+  DBUG_ASSERT(!mdl_context.has_locks());
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
@@ -1031,8 +1029,6 @@ void THD::cleanup(void)
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
-  if (global_read_lock)
-    unlock_global_read_lock(this);
   if (ull)
   {
     pthread_mutex_lock(&LOCK_user_locks);

@@ -1164,7 +1164,7 @@ int ha_commit_trans(THD *thd, bool all)
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
     if (rw_trans &&
-        wait_if_global_read_lock(thd, 0, 0))
+        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
     {
       ha_rollback_trans(thd, all);
       DBUG_RETURN(1);
@@ -1223,7 +1223,7 @@ int ha_commit_trans(THD *thd, bool all)
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
-      start_waiting_global_read_lock(thd);
+      thd->global_read_lock.start_waiting_global_read_lock(thd);
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)

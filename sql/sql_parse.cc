@@ -1972,7 +1972,7 @@ mysql_execute_command(THD *thd)
   */
   if (((sql_command_flags[lex->sql_command] & CF_PROTECT_AGAINST_GRL) != 0) &&
       !thd->locked_tables_mode)
-    if (wait_if_global_read_lock(thd, FALSE, TRUE))
+    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
 
   switch (lex->sql_command) {
@@ -2045,7 +2045,7 @@ mysql_execute_command(THD *thd)
       break;
 
     if (!thd->locked_tables_mode && lex->protect_against_global_read_lock &&
-        wait_if_global_read_lock(thd, 0, 1))
+        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -2397,8 +2397,7 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE,
-                                              MYSQL_OPEN_TAKE_UPGRADABLE_MDL)))
+      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE, 0)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -2548,7 +2547,7 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->active_transaction() || thd->global_read_lock)
+      thd->active_transaction() || thd->global_read_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3078,7 +3077,7 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    if (wait_if_global_read_lock(thd, 0, 1))
+    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
     res= mysql_truncate(thd, first_table, 0);
     break;
@@ -3299,8 +3298,8 @@ end_with_restore_list:
       thd->mdl_context.release_transactional_locks();
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
-    if (thd->global_read_lock)
-      unlock_global_read_lock(thd);
+    if (thd->global_read_lock.is_acquired())
+      thd->global_read_lock.unlock_global_read_lock(thd);
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
@@ -3322,7 +3321,7 @@ end_with_restore_list:
                            FALSE, UINT_MAX, FALSE))
       goto error;
     if (lex->protect_against_global_read_lock &&
-        wait_if_global_read_lock(thd, 0, 1))
+        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
 
     init_mdl_requests(all_tables);
@@ -4503,13 +4502,13 @@ error:
   res= TRUE;
 
 finish:
-  if (thd->global_read_lock_protection > 0)
+  if (thd->global_read_lock.has_protection())
   {
     /*
       Release the protection against the global read lock and wake
       everyone, who might want to set a global read lock.
     */
-    start_waiting_global_read_lock(thd);
+    thd->global_read_lock.start_waiting_global_read_lock(thd);
   }
 
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
@@ -5971,7 +5970,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, MDL_SHARED);
+  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name,
+                        (ptr->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                        MDL_SHARED_WRITE : MDL_SHARED_READ);
   DBUG_RETURN(ptr);
 }
 
@@ -6207,6 +6208,8 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   {
     tables->lock_type= lock_type;
     tables->updating=  for_update;
+    tables->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
   }
   DBUG_VOID_RETURN;
 }
@@ -6503,7 +6506,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
               thd->handler_tables_hash.records ||
-              thd->global_read_lock);
+              thd->global_read_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
@@ -6529,16 +6532,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 	UNLOCK TABLES
       */
       tmp_write_to_binlog= 0;
-      if (lock_global_read_lock(thd))
+      if (thd->global_read_lock.lock_global_read_lock(thd))
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE))
           result= 1;
       
-      if (make_global_read_lock_block_commit(thd)) // Killed
+      if (thd->global_read_lock.make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
-        unlock_global_read_lock(thd);
+        thd->global_read_lock.unlock_global_read_lock(thd);
         return 1;
       }
     }
@@ -6553,15 +6556,15 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         if (tables)
         {
           for (TABLE_LIST *t= tables; t; t= t->next_local)
-            if (!find_write_locked_table(thd->open_tables, t->db,
-                                         t->table_name))
+            if (!find_table_for_mdl_upgrade(thd->open_tables, t->db,
+                                            t->table_name, FALSE))
               return 1;
         }
         else
         {
           for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
           {
-            if (tab->reginfo.lock_type < TL_WRITE_ALLOW_WRITE)
+            if (! tab->mdl_ticket->is_upgradable_or_exclusive())
             {
               my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
                        tab->s->table_name.str);

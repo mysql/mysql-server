@@ -637,7 +637,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     has the global read lock and refuses the operation with
     ER_CANT_UPDATE_WITH_READLOCK if applicable.
   */
-  if (wait_if_global_read_lock(thd, 0, 1))
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
   {
     error= -1;
     goto exit2;
@@ -754,7 +754,7 @@ not_silent:
 
 exit:
   pthread_mutex_unlock(&LOCK_mysql_create_db);
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
 }
@@ -781,7 +781,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     has the global read lock and refuses the operation with
     ER_CANT_UPDATE_WITH_READLOCK if applicable.
   */
-  if ((error=wait_if_global_read_lock(thd,0,1)))
+  if ((error= thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE)))
     goto exit2;
 
   pthread_mutex_lock(&LOCK_mysql_create_db);
@@ -831,7 +831,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
 exit:
   pthread_mutex_unlock(&LOCK_mysql_create_db);
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
 }
@@ -876,7 +876,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     has the global read lock and refuses the operation with
     ER_CANT_UPDATE_WITH_READLOCK if applicable.
   */
-  if (wait_if_global_read_lock(thd, 0, 1))
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
   {
     error= -1;
     goto exit2;
@@ -1027,7 +1027,7 @@ exit:
   if (thd->db && !strcmp(thd->db, db) && error == 0)
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
   pthread_mutex_unlock(&LOCK_mysql_create_db);
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
 exit2:
   DBUG_RETURN(error);
 }

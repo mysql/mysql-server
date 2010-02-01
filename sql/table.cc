@@ -4583,11 +4583,12 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   mdl_request.ticket= NULL;
   /*
-    Not strictly necessary, but we manipulate with the type in open_table(),
-    so it's "safe" to reset the lock request type to the parser default, to
-    restore things back to first-execution state.
+    Since we manipulate with the metadata lock type in open_table(),
+    we need to reset it to the parser default, to restore things back
+    to first-execution state.
   */
-  mdl_request.set_type(MDL_SHARED);
+  mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                       MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 /*
@@ -4821,7 +4822,8 @@ void init_mdl_requests(TABLE_LIST *table_list)
   for ( ; table_list ; table_list= table_list->next_global)
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
-                                 MDL_SHARED);
+                                 table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 

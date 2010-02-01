@@ -1287,7 +1287,8 @@ public:
   enum enum_open_table_action
   {
     OT_NO_ACTION= 0,
-    OT_WAIT,
+    OT_WAIT_MDL_LOCK,
+    OT_WAIT_TDC,
     OT_DISCOVER,
     OT_REPAIR
   };
@@ -1426,6 +1427,45 @@ struct Ha_data
 
   Ha_data() :ha_ptr(NULL) {}
 };
+
+/**
+  An instance of the global read lock in a connection.
+  Implemented in lock.cc.
+*/
+
+class Global_read_lock
+{
+public:
+  enum enum_grl_state
+  {
+    GRL_NONE,
+    GRL_ACQUIRED,
+    GRL_ACQUIRED_AND_BLOCKS_COMMIT
+  };
+
+  Global_read_lock()
+    :m_protection_count(0), m_state(GRL_NONE), m_mdl_global_shared_lock(NULL)
+  {}
+
+  bool lock_global_read_lock(THD *thd);
+  void unlock_global_read_lock(THD *thd);
+  bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                                bool is_not_commit);
+  void start_waiting_global_read_lock(THD *thd);
+  bool make_global_read_lock_block_commit(THD *thd);
+  bool is_acquired() const { return m_state != GRL_NONE; }
+  bool has_protection() const { return m_protection_count > 0; }
+  MDL_ticket *global_shared_lock() const { return m_mdl_global_shared_lock; }
+private:
+  uint           m_protection_count;            // GRL protection count
+  /**
+    In order to acquire the global read lock, the connection must
+    acquire a global shared metadata lock, to prohibit all DDL.
+  */
+  enum_grl_state m_state;
+  MDL_ticket *m_mdl_global_shared_lock;
+};
+
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
@@ -1685,6 +1725,7 @@ public:
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
   } transaction;
+  Global_read_lock global_read_lock;
   Field      *dup_field;
 #ifndef __WIN__
   sigset_t signals;
@@ -1905,8 +1946,7 @@ public:
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
-  uint       global_read_lock_protection;// GRL protection count
-  uint	     tmp_table, global_read_lock;
+  uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -2585,15 +2625,16 @@ public:
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
-    DBUG_ASSERT(! mdl_context.lt_or_ha_sentinel() ||
-                mdl_context.is_global_lock_owner(MDL_SHARED));
-    mdl_context.set_lt_or_ha_sentinel();
+    DBUG_ASSERT(handler_tables_hash.records == 0);
+
+    mdl_context.set_trans_sentinel();
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode()
   {
     locked_tables_mode= LTM_NONE;
-    mdl_context.clear_lt_or_ha_sentinel();
+    /* Make sure we don't release the global read lock when leaving LTM. */
+    mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
   }
 private:
   /** The current internal error handler for this thread, or NULL. */
