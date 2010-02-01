@@ -614,7 +614,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 #endif
 
 
-  if (wait_if_global_read_lock(thd, 0, 0))
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
   {
     res= TRUE;
     goto err;
@@ -669,7 +669,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   pthread_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 

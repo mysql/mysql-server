@@ -655,7 +655,7 @@ connection master;
 connection master1;
 --echo # Waitng for 'insert into t1 ...' to get blocked on table lock...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Table lock' and info='insert into t1 (a) values (f1())';
+where state='Waiting for table' and info='insert into t1 (a) values (f1())';
 --source include/wait_condition.inc
 --echo # Sending 'drop function f1'. It will abort the table lock wait.
 drop function f1;

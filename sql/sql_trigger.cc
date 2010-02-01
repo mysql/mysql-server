@@ -385,7 +385,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     LOCK_open is not enough because global read lock is held without holding
     LOCK_open).
   */
-  if (!thd->locked_tables_mode && wait_if_global_read_lock(thd, 0, 1))
+  if (!thd->locked_tables_mode &&
+      thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
     DBUG_RETURN(TRUE);
 
   if (!create)
@@ -453,8 +454,10 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (thd->locked_tables_mode)
   {
     /* Under LOCK TABLES we must only accept write locked tables. */
-    if (!(tables->table= find_write_locked_table(thd->open_tables, tables->db,
-                                                 tables->table_name)))
+    if (!(tables->table= find_table_for_mdl_upgrade(thd->open_tables,
+                                                    tables->db,
+                                                    tables->table_name,
+                                                    FALSE)))
       goto end;
   }
   else
@@ -517,10 +520,10 @@ end:
     TABLE instance created by open_n_lock_single_table() and metadata lock.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
-    mdl_ticket->downgrade_exclusive_lock();
+    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
 
-  if (thd->global_read_lock_protection > 0)
-    start_waiting_global_read_lock(thd);
+  if (thd->global_read_lock.has_protection())
+    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (!result)
     my_ok(thd);
@@ -1886,7 +1889,8 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
-  if (thd->mdl_context.is_exclusive_lock_owner(MDL_key::TABLE, db, old_table))
+  if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
+                                     MDL_EXCLUSIVE))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
 

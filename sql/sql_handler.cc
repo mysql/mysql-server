@@ -315,8 +315,11 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   }
   thd->open_tables= backup_open_tables;
   if (hash_tables->mdl_request.ticket)
+  {
     thd->mdl_context.
-      move_ticket_after_lt_or_ha_sentinel(hash_tables->mdl_request.ticket);
+      move_ticket_after_trans_sentinel(hash_tables->mdl_request.ticket);
+    thd->mdl_context.set_needs_thr_lock_abort(TRUE);
+  }
 
   /* Assert that the above check prevent opening of views and merge tables. */
   DBUG_ASSERT(hash_tables->table->next == NULL);
@@ -375,6 +378,13 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }
+
+  /*
+    Mark MDL_context as no longer breaking protocol if we have
+    closed last HANDLER.
+  */
+  if (! thd->handler_tables_hash.records)
+    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   my_ok(thd);
   DBUG_PRINT("exit", ("OK"));
@@ -738,6 +748,13 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
     my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     hash_tables= next;
   }
+
+  /*
+    Mark MDL_context as no longer breaking protocol if we have
+    closed last HANDLER.
+  */
+  if (! thd->handler_tables_hash.records)
+    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   DBUG_VOID_RETURN;
 }

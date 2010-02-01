@@ -1100,7 +1100,6 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error= TRUE;
   uint path_length;
-  MDL_request mdl_global_request, mdl_request;
   /*
     Is set if we're under LOCK TABLES, and used
     to downgrade the exclusive lock after the
@@ -1186,8 +1185,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
     if (thd->locked_tables_mode)
     {
-      if (!(table= find_write_locked_table(thd->open_tables, table_list->db,
-                                           table_list->table_name)))
+      if (!(table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+                                              table_list->table_name, FALSE)))
         DBUG_RETURN(TRUE);
       mdl_ticket= table->mdl_ticket;
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
@@ -1196,6 +1195,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     }
     else
     {
+      MDL_request mdl_global_request, mdl_request;
+      MDL_request_list mdl_requests;
       /*
         Even though we could use the previous execution branch
         here just as well, we must not try to open the table: 
@@ -1211,17 +1212,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
       mdl_request.init(MDL_key::TABLE, table_list->db, table_list->table_name,
                        MDL_EXCLUSIVE);
-      if (thd->mdl_context.acquire_global_intention_exclusive_lock(
-                             &mdl_global_request))
+      mdl_requests.push_front(&mdl_request);
+      mdl_requests.push_front(&mdl_global_request);
+
+      if (thd->mdl_context.acquire_locks(&mdl_requests))
         DBUG_RETURN(TRUE);
-      if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
-      {
-        /*
-          We rely on that close_thread_tables() to release global lock
-          in this case.
-        */
-        DBUG_RETURN(TRUE);
-      }
+
       has_mdl_lock= TRUE;
       pthread_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
@@ -1263,7 +1259,7 @@ end:
     if (has_mdl_lock)
       thd->mdl_context.release_transactional_locks();
     if (mdl_ticket)
-      mdl_ticket->downgrade_exclusive_lock();
+      mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
 
   DBUG_PRINT("exit", ("error: %d", error));

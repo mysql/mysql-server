@@ -1204,7 +1204,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if ((values= its++))
@@ -1285,7 +1286,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
-      open_tables(thd, &table_list, &table_count, 0))
+      open_tables(thd, &table_list, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (table_list->multitable_view)
@@ -1362,7 +1363,8 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list, 0))
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (!table_list->table)
@@ -1420,7 +1422,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1481,7 +1483,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1511,7 +1513,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   while ((var= it++))
@@ -1548,7 +1550,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   while ((item= it++))
@@ -1631,7 +1633,8 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_normal_and_derived_tables(stmt->thd, tables, 0))
+  if (open_normal_and_derived_tables(stmt->thd, tables,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1675,7 +1678,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
 
     select_lex->context.resolve_in_select_list= TRUE;
@@ -1694,7 +1698,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
   }
 
@@ -1727,7 +1732,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   lex->view_prepare_mode= 1;

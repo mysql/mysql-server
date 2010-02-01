@@ -586,7 +586,7 @@ bool trans_xa_commit(THD *thd)
   }
   else if (xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
   {
-    if (wait_if_global_read_lock(thd, 0, 0))
+    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
     {
       ha_rollback_trans(thd, TRUE);
       my_error(ER_XAER_RMERR, MYF(0));
@@ -596,7 +596,7 @@ bool trans_xa_commit(THD *thd)
       res= test(ha_commit_one_phase(thd, 1));
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
-      start_waiting_global_read_lock(thd);
+      thd->global_read_lock.start_waiting_global_read_lock(thd);
     }
   }
   else

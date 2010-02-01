@@ -1,21 +1,39 @@
 drop table if exists t1,t2;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 write;
+select get_lock("mysqltest_lock", 100);
+get_lock("mysqltest_lock", 100)
+1
+update t1 set n = 2 and get_lock('mysqltest_lock', 100);
 update low_priority t1 set n = 4;
 select n from t1;
-unlock tables;
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
 n
 4
 drop table t1;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 read;
+select get_lock("mysqltest_lock", 100);
+get_lock("mysqltest_lock", 100)
+1
+select n from t1 where get_lock('mysqltest_lock', 100);
 update low_priority t1 set n = 4;
 select n from t1;
 n
 1
-unlock tables;
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+n
+1
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
 drop table t1;
 create table t1 (a int, b int);
 create table t2 (c int, d int);
@@ -35,6 +53,7 @@ create table t2 (a int);
 lock table t1 write, t2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 create table t1 (a int);
@@ -42,6 +61,7 @@ create table t2 (a int);
 lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 End of 4.1 tests
@@ -221,6 +241,36 @@ connection: default
 flush tables;
 drop table t1;
 #
+# Test for bug #46272 "MySQL 5.4.4, new MDL: unnecessary deadlock".
+#
+drop table if exists t1;
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+update t1 set c3=c3+1 where c2=3;
+#
+# Switching to connection 'con46272'.
+# The below ALTER TABLE statement should wait till transaction
+# in connection 'default' is complete and then succeed.
+# It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+# Sending:
+alter table t1 add column c4 int;;
+#
+# Switching to connection 'default'.
+# Wait until the above ALTER TABLE gets blocked because this
+# connection holds SW metadata lock on table to be altered.
+# The below statement should succeed. It should not
+# deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+# Unblock ALTER TABLE by committing transaction.
+commit;
+#
+# Switching to connection 'con46272'.
+# Reaping ALTER TABLE.
+#
+# Switching to connection 'default'.
+drop table t1;
+#
 # Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
 #
 DROP TABLE IF EXISTS t1;
@@ -228,14 +278,15 @@ DROP VIEW  IF EXISTS v1;
 #
 # Test 1: LOCK TABLES v1 WRITE, t1 READ;
 #
+# Thanks to the fact that we no longer allow DDL on tables
+# which are locked for write implicitly, the exact scenario
+# in which assert was failing is no longer repeatable.
 CREATE TABLE t1 ( f1 integer );
 CREATE VIEW v1 AS SELECT f1 FROM t1 ;
-# Connection 2
 LOCK TABLES v1 WRITE, t1 READ;
 FLUSH TABLE t1;
-# Connection 1
-LOCK TABLES t1 WRITE;
-FLUSH TABLE t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
 DROP TABLE t1;
 DROP VIEW v1;
 #

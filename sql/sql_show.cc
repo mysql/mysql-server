@@ -3085,12 +3085,10 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
   while (!(error=
-           thd->mdl_context.try_acquire_shared_lock(&table->mdl_request)) &&
+           thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
          !table->mdl_request.ticket && !can_deadlock)
   {
-    MDL_request_list mdl_requests;
-    mdl_requests.push_front(&table->mdl_request);
-    if ((error= thd->mdl_context.wait_for_locks(&mdl_requests)))
+    if ((error= thd->mdl_context.wait_for_lock(&table->mdl_request)))
       break;
   }
   return error;

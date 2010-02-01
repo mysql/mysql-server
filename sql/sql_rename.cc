@@ -53,7 +53,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   mysql_ha_rm_tables(thd, table_list);
 
-  if (wait_if_global_read_lock(thd,0,1))
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
     DBUG_RETURN(1);
 
   if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
@@ -189,7 +189,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   unlock_table_names(thd);
 
 err:
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }
 
