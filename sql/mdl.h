@@ -397,6 +397,7 @@ public:
            m_type == MDL_EXCLUSIVE;
   }
   enum_mdl_type get_type() const { return m_type; }
+  MDL_lock *get_lock() const { return m_lock; }
   void downgrade_exclusive_lock(enum_mdl_type type);
 
   bool has_stronger_or_equal_type(enum_mdl_type type) const;
@@ -423,7 +424,9 @@ private:
   */
   MDL_context *m_ctx;
 
-  /** Pointer to the lock object for this lock ticket. Context private. */
+  /**
+    Pointer to the lock object for this lock ticket. Externally accessible.
+  */
   MDL_lock *m_lock;
 
 private:

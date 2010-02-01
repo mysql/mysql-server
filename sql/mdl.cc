@@ -838,6 +838,12 @@ void MDL_lock::Ticket_list::clear_bit_if_not_in_list(enum_mdl_type type)
 
 void MDL_lock::Ticket_list::add_ticket(MDL_ticket *ticket)
 {
+  /*
+    Ticket being added to the list must have MDL_ticket::m_lock set,
+    since for such tickets methods accessing this member might be
+    called by other threads.
+  */
+  DBUG_ASSERT(ticket->get_lock());
   m_list.push_front(ticket);
   m_bitmap|= MDL_BIT(ticket->get_type());
 }
@@ -1317,10 +1323,9 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
 
   if (lock->can_grant_lock(mdl_request->type, this))
   {
+    ticket->m_lock= lock;
     lock->m_granted.add_ticket(ticket);
     rw_unlock(&lock->m_rwlock);
-
-    ticket->m_lock= lock;
 
     m_tickets.push_front(ticket);
 
