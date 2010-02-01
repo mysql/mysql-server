@@ -383,6 +383,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+
   if (thd->query())
   {
     if (max_query_len < 1)
@@ -392,6 +394,9 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append('\n');
     str.append(thd->query(), len);
   }
+
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+
   if (str.c_ptr_safe() == buffer)
     return buffer;
 
@@ -958,9 +963,9 @@ void THD::init_for_queries()
 
 void THD::change_user(void)
 {
-  pthread_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  pthread_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1031,9 +1036,9 @@ void THD::cleanup(void)
 
   if (ull)
   {
-    pthread_mutex_lock(&LOCK_user_locks);
+    mysql_mutex_lock(&LOCK_user_locks);
     item_user_lock_release(ull);
-    pthread_mutex_unlock(&LOCK_user_locks);
+    mysql_mutex_unlock(&LOCK_user_locks);
     ull= NULL;
   }
 
@@ -1173,7 +1178,7 @@ void THD::awake(THD::killed_state state_to_set)
   }
   if (mysys_var)
   {
-    pthread_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_lock(&mysys_var->mutex);
     if (!system_thread)		// Don't abort locks
       mysys_var->abort=1;
     /*
@@ -1197,11 +1202,11 @@ void THD::awake(THD::killed_state state_to_set)
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
-      pthread_mutex_lock(mysys_var->current_mutex);
-      pthread_cond_broadcast(mysys_var->current_cond);
-      pthread_mutex_unlock(mysys_var->current_mutex);
+      mysql_mutex_lock(mysys_var->current_mutex);
+      mysql_cond_broadcast(mysys_var->current_cond);
+      mysql_mutex_unlock(mysys_var->current_mutex);
     }
-    pthread_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&mysys_var->mutex);
   }
   DBUG_VOID_RETURN;
 }
@@ -3281,6 +3286,26 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
   pthread_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+/** Assign a new value to thd->query and thd->query_id.  */
+
+void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
+                           query_id_t new_query_id)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  set_query_inner(query_arg, query_length_arg);
+  query_id= new_query_id;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
+
+/** Assign a new value to thd->query_id.  */
+
+void THD::set_query_id(query_id_t new_query_id)
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  query_id= new_query_id;
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 

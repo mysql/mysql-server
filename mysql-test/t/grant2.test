@@ -632,5 +632,40 @@ DROP DATABASE db1;
 
 --echo End of 5.0 tests
 
+#
+# Bug #48319: Server crashes on "GRANT/REVOKE ... TO CURRENT_USER"
+#
+
+# work out who we are.
+USE mysql;
+SELECT LEFT(CURRENT_USER(),INSTR(CURRENT_USER(),'@')-1) INTO @u;
+SELECT MID(CURRENT_USER(),INSTR(CURRENT_USER(),'@')+1)  INTO @h;
+SELECT password FROM user WHERE user=@u AND host=@h INTO @pwd;
+
+# show current privs.
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+
+# toggle INSERT
+UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+
+# show that GRANT ... TO CURRENT_USER() no longer crashes
+GRANT INSERT ON *.* TO CURRENT_USER();
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+UPDATE user SET insert_priv='N' WHERE user=@u AND host=@h;
+
+# show that GRANT ... TO CURRENT_USER() IDENTIFIED BY ... works now
+GRANT INSERT ON *.* TO CURRENT_USER() IDENTIFIED BY 'keksdose';
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+
+UPDATE user SET password=@pwd WHERE user=@u AND host=@h;
+SELECT user,host,password,insert_priv FROM user WHERE user=@u AND host=@h;
+
+FLUSH PRIVILEGES;
+
+USE test;
+
+--echo End of 5.1 tests
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

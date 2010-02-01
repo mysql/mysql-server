@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1656,7 +1656,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       completing this we write a new phase to the log entry that will
       deactivate it.
     */
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (my_delete(frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         lpt->table->file->ha_create_handler_files(path, shadow_path,
@@ -1709,7 +1709,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #endif
 
 err:
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
     part_info->frm_log_entry= NULL;
@@ -1872,7 +1872,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     .frm file to find if the table is a normal table (not view) and what
     engine to use.
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   for (table= tables; table; table= table->next_local)
   {
     TABLE_SHARE *share;
@@ -1885,12 +1885,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(1);
     }
   }
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (!drop_temporary)
   {
@@ -1898,10 +1898,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (lock_table_names(thd, tables))
         DBUG_RETURN(1);
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       for (table= tables; table; table= table->next_local)
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
     else
     {
@@ -2043,7 +2043,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       TODO: Investigate what should be done to remove this lock completely.
             Is exclusive meta-data lock enough ?
     */
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (drop_temporary ||
         ((table_type == NULL &&        
          access(path, F_OK) &&
@@ -2096,7 +2096,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         error|= new_error;
       }
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     if (error)
     {
       if (wrong_tables.length())
@@ -3948,7 +3948,7 @@ bool mysql_create_table_no_lock(THD *thd,
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
@@ -4092,7 +4092,7 @@ bool mysql_create_table_no_lock(THD *thd,
 
   error= FALSE;
 unlock_and_end:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
 err:
   thd_proc_info(thd, "After create");
@@ -4122,22 +4122,22 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   DBUG_ENTER("mysql_create_table");
 
   /* Wait for any database locks */
-  pthread_mutex_lock(&LOCK_lock_db);
+  mysql_mutex_lock(&LOCK_lock_db);
   while (!thd->killed &&
          my_hash_search(&lock_db_cache, (uchar*)create_table->db,
                         create_table->db_length))
   {
     wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    pthread_mutex_lock(&LOCK_lock_db);
+    mysql_mutex_lock(&LOCK_lock_db);
   }
 
   if (thd->killed)
   {
-    pthread_mutex_unlock(&LOCK_lock_db);
+    mysql_mutex_unlock(&LOCK_lock_db);
     DBUG_RETURN(TRUE);
   }
   creating_table++;
-  pthread_mutex_unlock(&LOCK_lock_db);
+  mysql_mutex_unlock(&LOCK_lock_db);
 
   /*
     Open or obtain an exclusive metadata lock on table being created.
@@ -4180,10 +4180,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   }
 
 unlock:
-  pthread_mutex_lock(&LOCK_lock_db);
+  mysql_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
-    pthread_cond_signal(&COND_refresh);
-  pthread_mutex_unlock(&LOCK_lock_db);
+    mysql_cond_signal(&COND_refresh);
+  mysql_mutex_unlock(&LOCK_lock_db);
   DBUG_RETURN(result);
 }
 
@@ -4384,21 +4384,21 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
 
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (!(share= (get_table_share(thd, table_list, key, key_length, 0,
                                   &error))))
     {
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);				// Can't open frm file
     }
 
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
     {
       release_table_share(share);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);                           // Out of memory
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     table= &tmp_table;
   }
 
@@ -4505,9 +4505,9 @@ end:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   if (table == &tmp_table)
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     closefrm(table, 1);				// Free allocated memory
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
   /* In case of a temporary table there will be no metadata lock. */
   if (error && has_mdl_lock)
@@ -5324,14 +5324,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         write_bin_log(thd, TRUE, query.ptr(), query.length());
 
         DBUG_ASSERT(thd->open_tables == table->table);
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         /*
           When opening the table, we ignored the locked tables
           (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table without
           risking to close some locked table.
         */
         close_thread_table(thd, &thd->open_tables);
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
       else                                      // Case 1
         write_bin_log(thd, TRUE, thd->query(), thd->query_length());
@@ -6467,7 +6467,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto view_err;
     }
 
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
 
     if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
     {
@@ -6480,7 +6480,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       my_ok(thd);
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
 
     unlock_table_names(thd);
 
@@ -6727,7 +6727,7 @@ view_err:
       else
       {
         *fn_ext(new_name)=0;
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias, 0))
           error= -1;
         else if (Table_triggers_list::change_table_name(thd, db, table_name,
@@ -6737,7 +6737,7 @@ view_err:
                                     table_name, 0);
           error= -1;
         }
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
     }
 
@@ -7330,7 +7330,7 @@ view_err:
     /* This type cannot happen in regular ALTER. */
     new_db_type= old_db_type= NULL;
   }
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   if (mysql_rename_table(old_db_type, db, table_name, db, old_name,
                          FN_TO_IS_TMP))
   {
@@ -7357,7 +7357,7 @@ view_err:
   if (! error)
     (void) quick_rm_table(old_db_type, db, old_name, FN_IS_TMP);
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (error)
   {
@@ -7404,9 +7404,9 @@ view_err:
                                                create_info);
 
     DBUG_ASSERT(thd->open_tables == t_table);
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     close_thread_table(thd, &thd->open_tables);
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     table_list->table= 0;
 
     if (error)

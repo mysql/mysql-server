@@ -20,11 +20,13 @@
 #         prevents logging slow queries in a connection 'extra'
 #
 # OBS: 
-#   This test only runs for statement and mixed binlogging firmat because on
-#   row format slow queries do not get slow query logged. 
+#   This test only runs for statement binlogging format because on row format
+#   slow queries do not get slow query logged. 
+#   Note that due to the sleep() command the insert is written to the binary
+#   log in row format.
 
 source include/master-slave.inc;
-source include/have_binlog_format_mixed_or_statement.inc;
+source include/have_binlog_format_statement.inc;
 
 
 # Prepare slave for different long_query_time we need to stop the slave 
@@ -55,7 +57,9 @@ let $slow_query= INSERT INTO t1 values(1, sleep(3));
 let $fast_query= INSERT INTO t1 values(1, 1);
 
 eval $fast_query;
+--disable_warnings
 eval $slow_query;
+--enable_warnings
 sync_slave_with_master;
 
 let $found_fast_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$fast_query'`;

@@ -8,24 +8,20 @@ funcs_1.charset_collation_1              # depends on compile-time decisions
 
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
-main.innodb-autoinc*                     # Bug#47809 2009-10-04 joro innodb-autoinc.test fails with valgrind errors with the innodb plugin
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.plugin_load                         # Bug#47146
 
-rpl.rpl_cross_version*                   # Bug #43913 2009-10-26 joro rpl_cross_version can't pass on conflicts complainig clash with --slave-load-tm
-rpl.rpl_innodb_bug28430*                 # Bug#46029
-rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
-rpl.rpl_log_pos*                         # Bug#47743 2009-10-02 alik rpl.rpl_log_pos fails sporadically
-rpl.rpl_plugin_load*  @solaris           # Bug#47146
-rpl.rpl_row_create_table*                # Bug#45576: rpl_row_create_table fails on PB2
-rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
-rpl.rpl_trigger*                         # Bug#46656 2009-09-25 alik InnoDB plugin: memory leaks (Valgrind)
+rpl.rpl_cross_version*                   # Bug#48340 2009-12-01 Daogang rpl_cross_version: Found warnings/errors in server log file!
+rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
-
+rpl.rpl_innodb_bug28430*                 # Bug#46029
+rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
+rpl.rpl_plugin_load*  @solaris           # Bug#47146
+rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
 
 # Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
 # Usually the test cases from ndb and rpl_ndb test suites are not run in PB,
@@ -34,6 +30,7 @@ rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails spora
 
 ndb.*
 rpl_ndb.*
+rpl_ndb.rpl_ndb_log                      # Bug#38998
 
 # Declare all NDB-tests in other test suites experimental.
 
@@ -67,17 +64,17 @@ funcs_1.ndb_cursors
 
 funcs_2.ndb_charset
 
-parts.partition_engine_ndb
-parts.ndb_dd_backuprestore
-parts.partition_value_ndb
-parts.partition_mgm_lc2_ndb
-parts.partition_alter1_2_ndb
-parts.partition_alter1_1_ndb
-parts.part_supported_sql_func_ndb
-parts.partition_int_ndb
-parts.partition_mgm_lc1_ndb
-parts.partition_auto_increment_ndb
-parts.partition_syntax_ndb
-parts.partition_alter1_1_2_ndb
-parts.partition_basic_ndb
-parts.partition_mgm_lc0_ndb
+parts.ndb_dd_backuprestore               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.part_supported_sql_func_ndb        # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_1_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_1_2_ndb           # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_2_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_auto_increment_ndb       # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_basic_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_engine_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_int_ndb                  # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc0_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin

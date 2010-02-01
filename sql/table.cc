@@ -1309,8 +1309,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       share->timestamp_field_offset= i;
 
     if (use_hash)
-      (void) my_hash_insert(&share->name_hash,
-                            (uchar*) field_ptr); // never fail
+      if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
+      {
+        /*
+          Set return code 8 here to indicate that an error has
+          occurred but that the error message already has been
+          sent (OOM).
+        */
+        error= 8; 
+        goto err;
+      }
   }
   *field_ptr=0;					// End marker
 
@@ -2796,34 +2804,38 @@ bool check_column_name(const char *name)
                   and such errors never reach the user.
 */
 
-my_bool
-table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def)
+bool
+Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 {
   uint i;
   my_bool error= FALSE;
-  my_bool fields_diff_count;
+  const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
-                     table->alias, table_f_count));
+                     table->alias, table_def->count));
 
-  fields_diff_count= (table->s->fields != table_f_count);
-  if (fields_diff_count)
+  /* Whether the table definition has already been validated. */
+  if (table->s->table_field_def_cache == table_def)
+    DBUG_RETURN(FALSE);
+
+  if (table->s->fields != table_def->count)
   {
     DBUG_PRINT("info", ("Column count has changed, checking the definition"));
 
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                      table->alias, table_f_count, table->s->fields,
-                      table->s->mysql_version, MYSQL_VERSION_ID);
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
+                   table->alias, table_def->count, table->s->fields,
+                   table->s->mysql_version, MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
-      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
-                      table_f_count, table->s->fields);
+      report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                   table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
     }
     /*
@@ -2835,7 +2847,7 @@ table_check_intact(TABLE *table, const uint table_f_count,
     */
   }
   char buffer[STRING_BUFFER_USUAL_SIZE];
-  for (i=0 ; i < table_f_count; i++, table_def++)
+  for (i=0 ; i < table_def->count; i++, field_def++)
   {
     String sql_type(buffer, sizeof(buffer), system_charset_info);
     sql_type.length(0);
@@ -2843,18 +2855,18 @@ table_check_intact(TABLE *table, const uint table_f_count,
     {
       Field *field= table->field[i];
 
-      if (strncmp(field->field_name, table_def->name.str,
-                  table_def->name.length))
+      if (strncmp(field->field_name, field_def->name.str,
+                  field_def->name.length))
       {
         /*
           Name changes are not fatal, we use ordinal numbers to access columns.
           Still this can be a sign of a tampered table, output an error
           to the error log.
         */
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected column '%s' at position %d, found '%s'.",
-                        table->s->db.str, table->alias, table_def->name.str, i,
-                        field->field_name);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected column '%s' at position %d, found '%s'.",
+                     table->s->db.str, table->alias, field_def->name.str, i,
+                     field->field_name);
       }
       field->sql_type(sql_type);
       /*
@@ -2874,47 +2886,51 @@ table_check_intact(TABLE *table, const uint table_f_count,
         the new table definition is backward compatible with the
         original one.
        */
-      if (strncmp(sql_type.c_ptr_safe(), table_def->type.str,
-                  table_def->type.length - 1))
+      if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
+                  field_def->type.length - 1))
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected column '%s' at position %d to have type "
-                        "%s, found type %s.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->type.str,
-                        sql_type.c_ptr_safe());
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected column '%s' at position %d to have type "
+                     "%s, found type %s.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->type.str,
+                     sql_type.c_ptr_safe());
         error= TRUE;
       }
-      else if (table_def->cset.str && !field->has_charset())
+      else if (field_def->cset.str && !field->has_charset())
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected the type of column '%s' at position %d "
-                        "to have character set '%s' but the type has no "
-                        "character set.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->cset.str);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected the type of column '%s' at position %d "
+                     "to have character set '%s' but the type has no "
+                     "character set.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
-      else if (table_def->cset.str &&
-               strcmp(field->charset()->csname, table_def->cset.str))
+      else if (field_def->cset.str &&
+               strcmp(field->charset()->csname, field_def->cset.str))
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected the type of column '%s' at position %d "
-                        "to have character set '%s' but found "
-                        "character set '%s'.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->cset.str,
-                        field->charset()->csname);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected the type of column '%s' at position %d "
+                     "to have character set '%s' but found "
+                     "character set '%s'.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->cset.str,
+                     field->charset()->csname);
         error= TRUE;
       }
     }
     else
     {
-      sql_print_error("Incorrect definition of table %s.%s: "
-                      "expected column '%s' at position %d to have type %s "
-                      " but the column is not found.",
-                      table->s->db.str, table->alias,
-                      table_def->name.str, i, table_def->type.str);
+      report_error(0, "Incorrect definition of table %s.%s: "
+                   "expected column '%s' at position %d to have type %s "
+                   " but the column is not found.",
+                   table->s->db.str, table->alias,
+                   field_def->name.str, i, field_def->type.str);
       error= TRUE;
     }
   }
+
+  if (! error)
+    table->s->table_field_def_cache= table_def;
+
   DBUG_RETURN(error);
 }
 

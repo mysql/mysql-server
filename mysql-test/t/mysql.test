@@ -398,10 +398,16 @@ drop tables t1, t2;
 #
 # Bug #27884: mysql --html does not quote HTML special characters in output
 # 
---exec $MYSQL --html test -e "select '< & >' as '<'"
+--write_file $MYSQLTEST_VARDIR/tmp/bug27884.sql
+SELECT '< & >' AS `<`;
+EOF
+--exec $MYSQL --html test < $MYSQLTEST_VARDIR/tmp/bug27884.sql
+
+remove_file $MYSQLTEST_VARDIR/tmp/bug27884.sql;
+
 
 #
-# Bug #27884: mysql client + null byte
+# Bug #28203: mysql client + null byte
 # 
 create table t1 (a char(5));
 insert into t1 values ('\0b\0');
@@ -414,5 +420,5 @@ insert into t1 values ('\0b\0');
 --exec $MYSQL --xml test -e "select a from t1"
 drop table t1;
 
---echo
---echo End of tests
+
+--echo End of 5.0 tests

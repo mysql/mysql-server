@@ -69,6 +69,122 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
+static const
+TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
+{
+  {
+    { C_STRING_WITH_LEN("db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("type") },
+    { C_STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("specific_name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("language") },
+    { C_STRING_WITH_LEN("enum('SQL')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("sql_data_access") },
+    { C_STRING_WITH_LEN("enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("is_deterministic") },
+    { C_STRING_WITH_LEN("enum('YES','NO')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("security_type") },
+    { C_STRING_WITH_LEN("enum('INVOKER','DEFINER')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("param_list") },
+    { C_STRING_WITH_LEN("blob") },
+    { NULL, 0 }
+  },
+
+  {
+    { C_STRING_WITH_LEN("returns") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("body") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("definer") },
+    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("created") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("modified") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("sql_mode") },
+    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
+    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
+    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
+    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
+    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
+    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("comment") },
+    { C_STRING_WITH_LEN("text") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("character_set_client") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("collation_connection") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("db_collation") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("body_utf8") },
+    { C_STRING_WITH_LEN("longblob") },
+    { NULL, 0 }
+  }
+};
+
+static const TABLE_FIELD_DEF
+  proc_table_def= {MYSQL_PROC_FIELD_COUNT, proc_table_fields};
+
 /*************************************************************************/
 
 /**
@@ -246,6 +362,50 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 
 /*************************************************************************/
 
+class Proc_table_intact : public Table_check_intact
+{
+private:
+  bool m_print_once;
+
+public:
+  Proc_table_intact() : m_print_once(TRUE) {}
+
+protected:
+  void report_error(uint code, const char *fmt, ...);
+};
+
+
+/**
+  Report failure to validate the mysql.proc table definition.
+  Print a message to the error log only once.
+*/
+
+void Proc_table_intact::report_error(uint code, const char *fmt, ...)
+{
+  va_list args;
+  char buf[512];
+
+  va_start(args, fmt);
+  my_vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+
+  if (code)
+    my_message(code, buf, MYF(0));
+  else
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "proc");
+
+  if (m_print_once)
+  {
+    m_print_once= FALSE;
+    sql_print_error("%s", buf);
+  }
+};
+
+
+/** Single instance used to control printing to the error log. */
+static Proc_table_intact proc_table_intact;
+
+
 /**
   Open the mysql.proc table for read.
 
@@ -268,10 +428,15 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
   table.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
 
-  if (!open_system_tables_for_read(thd, &table, backup))
+  if (open_system_tables_for_read(thd, &table, backup))
+    DBUG_RETURN(NULL);
+
+  if (!proc_table_intact.check(table.table, &proc_table_def))
     DBUG_RETURN(table.table);
-  else
-    DBUG_RETURN(0);
+
+  close_system_tables(thd, backup);
+
+  DBUG_RETURN(NULL);
 }
 
 
@@ -291,12 +456,22 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
 static TABLE *open_proc_table_for_update(THD *thd)
 {
-  TABLE_LIST table;
+  TABLE_LIST table_list;
+  TABLE *table;
   DBUG_ENTER("open_proc_table_for_update");
 
-  table.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
+  table_list.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
 
-  DBUG_RETURN(open_system_table_for_update(thd, &table));
+  if (!(table= open_system_table_for_update(thd, &table_list)))
+    DBUG_RETURN(NULL);
+
+  if (!proc_table_intact.check(table, &proc_table_def))
+    DBUG_RETURN(table);
+
+  close_thread_tables(thd);
+
+  DBUG_RETURN(NULL);
+
 }
 
 
@@ -1502,7 +1677,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
     rn->mdl_request.init(key, MDL_SHARED);
-    my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn);
+    if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
+      return FALSE;
     prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_sp_cache_version= 0;
@@ -1586,17 +1762,25 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
     dependant on time of life of elements from source hash. It also
     won't touch lists linking elements in source and destination
     hashes.
+
+  @returns
+    @return TRUE Failure
+    @return FALSE Success
 */
 
-void sp_update_sp_used_routines(HASH *dst, HASH *src)
+bool sp_update_sp_used_routines(HASH *dst, HASH *src)
 {
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
     if (!my_hash_search(dst, (uchar *)rt->mdl_request.key.ptr(),
                         rt->mdl_request.key.length()))
-      my_hash_insert(dst, (uchar *)rt);
+    {
+      if (my_hash_insert(dst, (uchar *)rt))
+        return TRUE;
+    }
   }
+  return FALSE;
 }
 
 

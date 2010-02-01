@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (C) 2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sp_cache.h"
 #include "sp_head.h"
 
-static pthread_mutex_t Cversion_lock;
+static mysql_mutex_t Cversion_lock;
 static ulong volatile Cversion= 0;
 
 
@@ -34,10 +34,16 @@ public:
   sp_cache();
   ~sp_cache();
 
-  inline void insert(sp_head *sp)
+  /**
+   Inserts a sp_head object into a hash table.
+
+   @returns Success status
+     @return TRUE Failure
+     @return FALSE Success
+  */
+  inline bool insert(sp_head *sp)
   {
-    /* TODO: why don't we check return value? */
-    my_hash_insert(&m_hashtable, (const uchar *)sp);
+    return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
   inline sp_head *lookup(char *name, uint namelen)
@@ -58,12 +64,36 @@ private:
   HASH m_hashtable;
 }; // class sp_cache
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_Cversion_lock;
+
+static PSI_mutex_info all_sp_cache_mutexes[]=
+{
+  { &key_Cversion_lock, "Cversion_lock", PSI_FLAG_GLOBAL}
+};
+
+static void init_sp_cache_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_sp_cache_mutexes);
+  PSI_server->register_mutex(category, all_sp_cache_mutexes, count);
+}
+#endif
 
 /* Initialize the SP caching once at startup */
 
 void sp_cache_init()
 {
-  pthread_mutex_init(&Cversion_lock, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_PSI_INTERFACE
+  init_sp_cache_psi_keys();
+#endif
+
+  mysql_mutex_init(key_Cversion_lock, &Cversion_lock, MY_MUTEX_INIT_FAST);
 }
 
 

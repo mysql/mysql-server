@@ -716,7 +716,7 @@ extern "C" const char *set_thd_proc_info(THD *thd, const char *info,
                                          const char *calling_file,
                                          const unsigned int calling_line);
 #ifndef DBUG_OFF
-extern pthread_mutex_t LOCK_open;
+extern mysql_mutex_t LOCK_open;
 #endif
 
 #endif

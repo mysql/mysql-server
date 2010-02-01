@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -519,6 +519,22 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
+  if (thd->locked_tables_mode && thd->global_read_lock.is_acquired())
+  {
+    /*
+      If this connection has the global read lock, the handler thread
+      will not be able to lock the table. It will wait for the global
+      read lock to go away, but this will never happen since the
+      connection thread will be stuck waiting for the handler thread
+      to open and lock the table.
+      If we are not in locked tables mode, INSERT will seek protection
+      against the global read lock (and fail), thus we will only get
+      to this point in locked tables mode.
+    */
+    my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   if (delayed_get_table(thd, table_list))
     DBUG_RETURN(TRUE);
 
@@ -899,7 +915,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	    thd->net.last_error/errno.  For example if there has
 	    been a disk full error when writing the row, and it was
 	    MyISAM, then thd->net.last_error/errno will be set to
-	    "disk full"... and the my_pwrite() will wait until free
+            "disk full"... and the mysql_file_pwrite() will wait until free
 	    space appears, and so when it finishes then the
 	    write_row() was entirely successful
 	  */
@@ -1758,8 +1774,8 @@ class Delayed_insert :public ilink {
 public:
   THD thd;
   TABLE *table;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond,cond_client;
+  mysql_mutex_t mutex;
+  mysql_cond_t cond, cond_client;
   volatile uint tables_in_use,stacked_inserts;
   volatile bool status;
   COPY_INFO info;
@@ -1790,9 +1806,9 @@ public:
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
     bzero((char*) &info,sizeof(info));
-    pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&cond,NULL);
-    pthread_cond_init(&cond_client,NULL);
+    mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_delayed_insert_cond, &cond, NULL);
+    mysql_cond_init(key_delayed_insert_cond_client, &cond_client, NULL);
     pthread_mutex_lock(&LOCK_thread_count);
     delayed_insert_threads++;
     delayed_lock= global_system_variables.low_priority_updates ?
@@ -1808,9 +1824,9 @@ public:
     if (table)
       close_thread_tables(&thd);
     pthread_mutex_lock(&LOCK_thread_count);
-    pthread_mutex_destroy(&mutex);
-    pthread_cond_destroy(&cond);
-    pthread_cond_destroy(&cond_client);
+    mysql_mutex_destroy(&mutex);
+    mysql_cond_destroy(&cond);
+    mysql_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     x_free(thd.query());
     thd.security_ctx->user= thd.security_ctx->host=0;
@@ -1827,18 +1843,18 @@ public:
   }
   void unlock()
   {
-    pthread_mutex_lock(&LOCK_delayed_insert);
+    mysql_mutex_lock(&LOCK_delayed_insert);
     if (!--locks_in_memory)
     {
-      pthread_mutex_lock(&mutex);
+      mysql_mutex_lock(&mutex);
       if (thd.killed && ! stacked_inserts && ! tables_in_use)
       {
-	pthread_cond_signal(&cond);
+        mysql_cond_signal(&cond);
 	status=1;
       }
-      pthread_mutex_unlock(&mutex);
+      mysql_mutex_unlock(&mutex);
     }
-    pthread_mutex_unlock(&LOCK_delayed_insert);
+    mysql_mutex_unlock(&LOCK_delayed_insert);
   }
   inline uint lock_count() { return locks_in_memory; }
 
@@ -1860,7 +1876,7 @@ static
 Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 {
   thd_proc_info(thd, "waiting for delay_list");
-  pthread_mutex_lock(&LOCK_delayed_insert);	// Protect master list
+  mysql_mutex_lock(&LOCK_delayed_insert);       // Protect master list
   I_List_iterator<Delayed_insert> it(delayed_threads);
   Delayed_insert *di;
   while ((di= it++))
@@ -1872,7 +1888,7 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
+  mysql_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
   return di;
 }
 
@@ -1941,7 +1957,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
     thd_proc_info(thd, "Creating delayed handler");
-    pthread_mutex_lock(&LOCK_delayed_create);
+    mysql_mutex_lock(&LOCK_delayed_create);
     /*
       The first search above was done without LOCK_delayed_create.
       Another thread might have created the handler in between. Search again.
@@ -1967,14 +1983,15 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
       di->lock();
-      pthread_mutex_lock(&di->mutex);
-      if ((error= pthread_create(&di->thd.real_id, &connection_attrib,
-                                 handle_delayed_insert, (void*) di)))
+      mysql_mutex_lock(&di->mutex);
+      if ((error= mysql_thread_create(key_thread_delayed_insert,
+                                      &di->thd.real_id, &connection_attrib,
+                                      handle_delayed_insert, (void*) di)))
       {
 	DBUG_PRINT("error",
 		   ("Can't create thread to handle delayed insert (error %d)",
 		    error));
-	pthread_mutex_unlock(&di->mutex);
+        mysql_mutex_unlock(&di->mutex);
 	di->unlock();
 	delete di;
 	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
@@ -1985,9 +2002,9 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       thd_proc_info(thd, "waiting for handler open");
       while (!di->thd.killed && !di->table && !thd->killed)
       {
-	pthread_cond_wait(&di->cond_client, &di->mutex);
+        mysql_cond_wait(&di->cond_client, &di->mutex);
       }
-      pthread_mutex_unlock(&di->mutex);
+      mysql_mutex_unlock(&di->mutex);
       thd_proc_info(thd, "got old table");
       if (thd->killed)
       {
@@ -2014,16 +2031,16 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
         di->unlock();
         goto end_create;
       }
-      pthread_mutex_lock(&LOCK_delayed_insert);
+      mysql_mutex_lock(&LOCK_delayed_insert);
       delayed_threads.append(di);
-      pthread_mutex_unlock(&LOCK_delayed_insert);
+      mysql_mutex_unlock(&LOCK_delayed_insert);
     }
-    pthread_mutex_unlock(&LOCK_delayed_create);
+    mysql_mutex_unlock(&LOCK_delayed_create);
   }
 
-  pthread_mutex_lock(&di->mutex);
+  mysql_mutex_lock(&di->mutex);
   table_list->table= di->get_local_table(thd);
-  pthread_mutex_unlock(&di->mutex);
+  mysql_mutex_unlock(&di->mutex);
   if (table_list->table)
   {
     DBUG_ASSERT(! thd->is_error());
@@ -2034,7 +2051,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
   DBUG_RETURN((table_list->table == NULL));
 
 end_create:
-  pthread_mutex_unlock(&LOCK_delayed_create);
+  mysql_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(thd->is_error());
 }
 
@@ -2070,10 +2087,10 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   if (!thd.lock)				// Table is not locked
   {
     thd_proc_info(client_thd, "waiting for handler lock");
-    pthread_cond_signal(&cond);			// Tell handler to lock table
+    mysql_cond_signal(&cond);			// Tell handler to lock table
     while (!thd.killed && !thd.lock && ! client_thd->killed)
     {
-      pthread_cond_wait(&cond_client,&mutex);
+      mysql_cond_wait(&cond_client, &mutex);
     }
     thd_proc_info(client_thd, "got handler lock");
     if (client_thd->killed)
@@ -2176,7 +2193,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
  error:
   tables_in_use--;
   status=1;
-  pthread_cond_signal(&cond);			// Inform thread about abort
+  mysql_cond_signal(&cond);                     // Inform thread about abort
   DBUG_RETURN(0);
 }
 
@@ -2195,9 +2212,9 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                        (ulong) query.length));
 
   thd_proc_info(thd, "waiting for handler insert");
-  pthread_mutex_lock(&di->mutex);
+  mysql_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
-    pthread_cond_wait(&di->cond_client,&di->mutex);
+    mysql_cond_wait(&di->cond_client, &di->mutex);
   thd_proc_info(thd, "storing row into queue");
 
   if (thd->killed)
@@ -2272,15 +2289,15 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   di->status=1;
   if (table->s->blob_fields)
     unlink_blobs(table);
-  pthread_cond_signal(&di->cond);
+  mysql_cond_signal(&di->cond);
 
   thread_safe_increment(delayed_rows_in_use,&LOCK_delayed_status);
-  pthread_mutex_unlock(&di->mutex);
+  mysql_mutex_unlock(&di->mutex);
   DBUG_RETURN(0);
 
  err:
   delete row;
-  pthread_mutex_unlock(&di->mutex);
+  mysql_mutex_unlock(&di->mutex);
   DBUG_RETURN(1);
 }
 
@@ -2293,14 +2310,14 @@ static void end_delayed_insert(THD *thd)
 {
   DBUG_ENTER("end_delayed_insert");
   Delayed_insert *di=thd->di;
-  pthread_mutex_lock(&di->mutex);
+  mysql_mutex_lock(&di->mutex);
   DBUG_PRINT("info",("tables in use: %d",di->tables_in_use));
   if (!--di->tables_in_use || di->thd.killed)
   {						// Unlock table
     di->status=1;
-    pthread_cond_signal(&di->cond);
+    mysql_cond_signal(&di->cond);
   }
-  pthread_mutex_unlock(&di->mutex);
+  mysql_mutex_unlock(&di->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2309,7 +2326,7 @@ static void end_delayed_insert(THD *thd)
 
 void kill_delayed_threads(void)
 {
-  pthread_mutex_lock(&LOCK_delayed_insert); // For unlink from list
+  mysql_mutex_lock(&LOCK_delayed_insert); // For unlink from list
 
   I_List_iterator<Delayed_insert> it(delayed_threads);
   Delayed_insert *di;
@@ -2318,7 +2335,7 @@ void kill_delayed_threads(void)
     di->thd.killed= THD::KILL_CONNECTION;
     if (di->thd.mysys_var)
     {
-      pthread_mutex_lock(&di->thd.mysys_var->mutex);
+      mysql_mutex_lock(&di->thd.mysys_var->mutex);
       if (di->thd.mysys_var->current_cond)
       {
 	/*
@@ -2326,15 +2343,15 @@ void kill_delayed_threads(void)
 	  in handle_delayed_insert()
 	*/
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
-	  pthread_mutex_lock(di->thd.mysys_var->current_mutex);
-	pthread_cond_broadcast(di->thd.mysys_var->current_cond);
+          mysql_mutex_lock(di->thd.mysys_var->current_mutex);
+        mysql_cond_broadcast(di->thd.mysys_var->current_cond);
 	if (&di->mutex != di->thd.mysys_var->current_mutex)
-	  pthread_mutex_unlock(di->thd.mysys_var->current_mutex);
+          mysql_mutex_unlock(di->thd.mysys_var->current_mutex);
       }
-      pthread_mutex_unlock(&di->thd.mysys_var->mutex);
+      mysql_mutex_unlock(&di->thd.mysys_var->mutex);
     }
   }
-  pthread_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
+  mysql_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
 }
 
 
@@ -2392,15 +2409,17 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  mysql_thread_set_psi_id(thd->thread_id);
+
   /*
-    Wait until the client runs into pthread_cond_wait(),
+    Wait until the client runs into mysql_cond_wait(),
     where we free it after the table is opened and di linked in the list.
     If we did not wait here, the client might detect the opened table
     before it is linked to the list. It would release LOCK_delayed_create
     and allow another thread to create another handler for the same table,
     since it does not find one in the list.
   */
-  pthread_mutex_lock(&di->mutex);
+  mysql_mutex_lock(&di->mutex);
   if (my_thread_init())
   {
     /* Can't use my_error since store_globals has not yet been called */
@@ -2440,7 +2459,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       goto err;
 
     /* Tell client that the thread is initialized */
-    pthread_cond_signal(&di->cond_client);
+    mysql_cond_signal(&di->cond_client);
 
     /* Now wait until we get an insert or lock to handle */
     /* We will not abort as long as a client thread uses this thread */
@@ -2454,12 +2473,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
           Remove this from delay insert list so that no one can request a
           table from this
         */
-        pthread_mutex_unlock(&di->mutex);
-        pthread_mutex_lock(&LOCK_delayed_insert);
+        mysql_mutex_unlock(&di->mutex);
+        mysql_mutex_lock(&LOCK_delayed_insert);
         di->unlink();
         lock_count=di->lock_count();
-        pthread_mutex_unlock(&LOCK_delayed_insert);
-        pthread_mutex_lock(&di->mutex);
+        mysql_mutex_unlock(&LOCK_delayed_insert);
+        mysql_mutex_lock(&di->mutex);
         if (!lock_count && !di->tables_in_use && !di->stacked_inserts)
           break;					// Time to die
       }
@@ -2480,15 +2499,15 @@ pthread_handler_t handle_delayed_insert(void *arg)
         {
           int error;
 #if defined(HAVE_BROKEN_COND_TIMEDWAIT)
-          error=pthread_cond_wait(&di->cond,&di->mutex);
+          error= mysql_cond_wait(&di->cond, &di->mutex);
 #else
-          error=pthread_cond_timedwait(&di->cond,&di->mutex,&abstime);
+          error= mysql_cond_timedwait(&di->cond, &di->mutex, &abstime);
 #ifdef EXTRA_DEBUG
           if (error && error != EINTR && error != ETIMEDOUT)
           {
-            fprintf(stderr, "Got error %d from pthread_cond_timedwait\n",error);
-            DBUG_PRINT("error",("Got error %d from pthread_cond_timedwait",
-                                error));
+            fprintf(stderr, "Got error %d from mysql_cond_timedwait\n", error);
+            DBUG_PRINT("error", ("Got error %d from mysql_cond_timedwait",
+                                 error));
           }
 #endif
 #endif
@@ -2496,12 +2515,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
             thd->killed= THD::KILL_CONNECTION;
         }
         /* We can't lock di->mutex and mysys_var->mutex at the same time */
-        pthread_mutex_unlock(&di->mutex);
-        pthread_mutex_lock(&di->thd.mysys_var->mutex);
+        mysql_mutex_unlock(&di->mutex);
+        mysql_mutex_lock(&di->thd.mysys_var->mutex);
         di->thd.mysys_var->current_mutex= 0;
         di->thd.mysys_var->current_cond= 0;
-        pthread_mutex_unlock(&di->thd.mysys_var->mutex);
-        pthread_mutex_lock(&di->mutex);
+        mysql_mutex_unlock(&di->thd.mysys_var->mutex);
+        mysql_mutex_lock(&di->mutex);
       }
       thd_proc_info(&(di->thd), 0);
 
@@ -2543,7 +2562,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
             thd->killed= THD::KILL_CONNECTION;
           }
         }
-        pthread_cond_broadcast(&di->cond_client);
+        mysql_cond_broadcast(&di->cond_client);
       }
       if (di->stacked_inserts)
       {
@@ -2562,7 +2581,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
         */
         MYSQL_LOCK *lock=thd->lock;
         thd->lock=0;
-        pthread_mutex_unlock(&di->mutex);
+        mysql_mutex_unlock(&di->mutex);
         /*
           We need to release next_insert_id before unlocking. This is
           enforced by handler::ha_external_lock().
@@ -2571,10 +2590,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
         mysql_unlock_tables(thd, lock);
         trans_commit_stmt(thd);
         di->group_count=0;
-        pthread_mutex_lock(&di->mutex);
+        mysql_mutex_lock(&di->mutex);
       }
       if (di->tables_in_use)
-        pthread_cond_broadcast(&di->cond_client); // If waiting clients
+        mysql_cond_broadcast(&di->cond_client); // If waiting clients
     }
 
   err:
@@ -2602,14 +2621,14 @@ pthread_handler_t handle_delayed_insert(void *arg)
   close_thread_tables(thd);			// Free the table
   di->table=0;
   thd->killed= THD::KILL_CONNECTION;	        // If error
-  pthread_cond_broadcast(&di->cond_client);	// Safety
-  pthread_mutex_unlock(&di->mutex);
+  mysql_cond_broadcast(&di->cond_client);       // Safety
+  mysql_mutex_unlock(&di->mutex);
 
-  pthread_mutex_lock(&LOCK_delayed_create);	// Because of delayed_get_table
-  pthread_mutex_lock(&LOCK_delayed_insert);	
+  mysql_mutex_lock(&LOCK_delayed_create);       // Because of delayed_get_table
+  mysql_mutex_lock(&LOCK_delayed_insert);
   delete di;
-  pthread_mutex_unlock(&LOCK_delayed_insert);
-  pthread_mutex_unlock(&LOCK_delayed_create);  
+  mysql_mutex_unlock(&LOCK_delayed_insert);
+  mysql_mutex_unlock(&LOCK_delayed_create);
 
   my_thread_end();
   pthread_exit(0);
@@ -2656,7 +2675,7 @@ bool Delayed_insert::handle_inserts(void)
   DBUG_ENTER("handle_inserts");
 
   /* Allow client to insert new rows */
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_unlock(&mutex);
 
   table->next_number_field=table->found_next_number_field;
   table->use_all_columns();
@@ -2689,12 +2708,12 @@ bool Delayed_insert::handle_inserts(void)
   */
   if (!using_bin_log)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
 
   while ((row=rows.get()))
   {
     stacked_inserts--;
-    pthread_mutex_unlock(&mutex);
+    mysql_mutex_unlock(&mutex);
     memcpy(table->record[0],row->record,table->s->reclength);
 
     thd.start_time=row->start_time;
@@ -2812,7 +2831,7 @@ bool Delayed_insert::handle_inserts(void)
       free_delayed_insert_blobs(table);
     thread_safe_decrement(delayed_rows_in_use,&LOCK_delayed_status);
     thread_safe_increment(delayed_insert_writes,&LOCK_delayed_status);
-    pthread_mutex_lock(&mutex);
+    mysql_mutex_lock(&mutex);
 
     /*
       Reset the table->auto_increment_field_not_null as it is valid for
@@ -2834,9 +2853,9 @@ bool Delayed_insert::handle_inserts(void)
       if (stacked_inserts || tables_in_use)	// Let these wait a while
       {
 	if (tables_in_use)
-	  pthread_cond_broadcast(&cond_client); // If waiting clients
+          mysql_cond_broadcast(&cond_client);   // If waiting clients
 	thd_proc_info(&thd, "reschedule");
-	pthread_mutex_unlock(&mutex);
+        mysql_mutex_unlock(&mutex);
 	if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
 	{
 	  /* This should never happen */
@@ -2855,15 +2874,15 @@ bool Delayed_insert::handle_inserts(void)
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
-	pthread_mutex_lock(&mutex);
+        mysql_mutex_lock(&mutex);
 	thd_proc_info(&thd, "insert");
       }
       if (tables_in_use)
-	pthread_cond_broadcast(&cond_client);	// If waiting clients
+        mysql_cond_broadcast(&cond_client);     // If waiting clients
     }
   }
   thd_proc_info(&thd, 0);
-  pthread_mutex_unlock(&mutex);
+  mysql_mutex_unlock(&mutex);
 
   /*
     We need to flush the pending event when using row-based
@@ -2888,7 +2907,7 @@ bool Delayed_insert::handle_inserts(void)
     goto err;
   }
   query_cache_invalidate3(&thd, table, 1);
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   DBUG_RETURN(0);
 
  err:
@@ -2912,7 +2931,7 @@ bool Delayed_insert::handle_inserts(void)
   }
   DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   DBUG_RETURN(1);
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -3573,11 +3592,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         if (open_table(thd, create_table, thd->mem_root,
                        &ot_ctx_unused, MYSQL_OPEN_REOPEN))
         {
-          pthread_mutex_lock(&LOCK_open);
+          mysql_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
                          0);
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
         }
         else
           table= create_table->table;

@@ -341,7 +341,7 @@ struct st_my_file_info
 #endif
   enum   file_type	type;
 #if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
-  pthread_mutex_t	mutex;
+  mysql_mutex_t mutex;
 #endif
 };
 
@@ -361,7 +361,7 @@ typedef struct st_my_tmpdir
   char **list;
   uint cur, max;
 #ifdef THREAD
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
 #endif
 } MY_TMPDIR;
 
@@ -377,9 +377,9 @@ typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 #ifdef THREAD
 typedef struct st_io_cache_share
 {
-  pthread_mutex_t       mutex;           /* To sync on reads into buffer. */
-  pthread_cond_t        cond;            /* To wait for signals. */
-  pthread_cond_t        cond_writer;     /* For a synchronized writer. */
+  mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
+  mysql_cond_t        cond;            /* To wait for signals. */
+  mysql_cond_t        cond_writer;     /* For a synchronized writer. */
   /* Offset in file corresponding to the first byte of buffer. */
   my_off_t              pos_in_file;
   /* If a synchronized write cache is the source of the data. */
@@ -440,7 +440,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     The lock is for append buffer used in SEQ_READ_APPEND cache
     need mutex copying from append buffer to read buffer.
   */
-  pthread_mutex_t append_buffer_lock;
+  mysql_mutex_t append_buffer_lock;
   /*
     The following is used when several threads are reading the
     same file in parallel. They are synchronized on disk
@@ -694,6 +694,7 @@ extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern void my_message_curses(uint my_err, const char *str,myf MyFlags);
+extern my_bool my_basic_init(void);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
