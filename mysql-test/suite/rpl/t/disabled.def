@@ -14,3 +14,6 @@ rpl_cross_version               : BUG#43913 2009-10-22 luis rpl_cross_version fa
 rpl_spec_variables		: BUG#47661 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
 rpl_failed_optimize        : WL#4284: Can't optimize table used by a pending transaction (there is metadata lock on the table).
 rpl_read_only              : WL#4284: Setting Read only won't succeed until all metadata locks are released.
+rpl_heartbeat_ssl          : SSL certificates have expired.
+rpl_ssl                    : SSL certificates have expired.
+rpl_ssl1                   : SSL certificates have expired.
