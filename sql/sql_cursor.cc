@@ -436,7 +436,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   thd->derived_tables= derived_tables;
   thd->open_tables= open_tables;
   thd->lock= lock;
-  thd->query_id= query_id;
+  thd->set_query_id(query_id);
   change_list.move_elements_to(&thd->change_list);
   /* save references to memory allocated during fetch */
   thd->set_n_backup_active_arena(this, &backup_arena);

@@ -119,7 +119,13 @@ int table_mapping::set_table(ulong table_id, TABLE* table)
   }
   e->table_id= table_id;
   e->table= table;
-  my_hash_insert(&m_table_ids,(uchar *)e);
+  if (my_hash_insert(&m_table_ids,(uchar *)e))
+  {
+    /* we add this entry to the chain of free (free for use) entries */
+    e->next= m_free;
+    m_free= e;
+    DBUG_RETURN(ERR_MEMORY_ALLOCATION);
+  }
 
   DBUG_PRINT("info", ("tid %lu -> table 0x%lx (%s)", 
 		      table_id, (long) e->table,

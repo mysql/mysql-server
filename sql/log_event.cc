@@ -3056,10 +3056,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->set_query((char*)query_arg, q_len_arg);
-    pthread_mutex_lock(&LOCK_thread_count);
-    thd->query_id = next_query_id();
-    pthread_mutex_unlock(&LOCK_thread_count);
+    thd->set_query_and_id((char*)query_arg, q_len_arg, next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     DBUG_PRINT("query",("%s", thd->query()));
 
@@ -4582,9 +4579,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   if (rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    pthread_mutex_lock(&LOCK_thread_count);
-    thd->query_id = next_query_id();
-    pthread_mutex_unlock(&LOCK_thread_count);
+    thd->set_query_id(next_query_id());
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
@@ -8072,9 +8067,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->sql_thd == thd);
 
   /* Step the query id to mark what columns that are actually used. */
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->query_id= next_query_id();
-  pthread_mutex_unlock(&LOCK_thread_count);
+  thd->set_query_id(next_query_id());
 
   if (!(memory= my_multi_malloc(MYF(MY_WME),
                                 &table_list, (uint) sizeof(RPL_TABLE_LIST),

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ void print_cached_tables(void)
   compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
 
   /* purecov: begin tested */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   puts("DB             Table                            Version  Thread  Open  Lock");
 
   for (idx=unused=0 ; idx < table_def_cache.records ; idx++)
@@ -127,7 +127,7 @@ void print_cached_tables(void)
   if (my_hash_check(&table_def_cache))
     printf("Error: Table definition hash table is corrupted\n");
   fflush(stdout);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   /* purecov: end */
   return;
 }
@@ -392,12 +392,12 @@ static void display_table_locks(void)
   DYNAMIC_ARRAY saved_table_locks;
 
   (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), table_cache_count + 20,50);
-  pthread_mutex_lock(&THR_LOCK_lock);
+  mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
 
-    pthread_mutex_lock(&lock->mutex);
+    mysql_mutex_lock(&lock->mutex);
     push_locks_into_array(&saved_table_locks, lock->write.data, FALSE,
 			  "Locked - write");
     push_locks_into_array(&saved_table_locks, lock->write_wait.data, TRUE,
@@ -406,9 +406,9 @@ static void display_table_locks(void)
 			  "Locked - read");
     push_locks_into_array(&saved_table_locks, lock->read_wait.data, TRUE,
 			  "Waiting - read");
-    pthread_mutex_unlock(&lock->mutex);
+    mysql_mutex_unlock(&lock->mutex);
   }
-  pthread_mutex_unlock(&THR_LOCK_lock);
+  mysql_mutex_unlock(&THR_LOCK_lock);
   if (!saved_table_locks.elements) goto end;
   
   qsort((uchar*) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
@@ -484,7 +484,7 @@ void mysql_print_status()
   /* Print key cache status */
   puts("\nKey caches:");
   process_key_caches(print_key_cache_status);
-  pthread_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
 read_key:   %10lu\n\
 read_next:  %10lu\n\
@@ -500,7 +500,7 @@ update:     %10lu\n",
 	 tmp.ha_write_count,
 	 tmp.ha_delete_count,
 	 tmp.ha_update_count);
-  pthread_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\

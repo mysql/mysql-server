@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
-  pthread_mutex_init(&tmpdir->mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   if (my_init_dynamic_array(&tmpdir->full_list, sizeof(char*), 1, 5))
     goto err;
   if (!pathlist || !pathlist[0])
@@ -65,7 +65,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 
 err:
   delete_dynamic(&tmpdir->full_list);           /* Safe to free */
-  pthread_mutex_destroy(&tmpdir->mutex);
+  mysql_mutex_destroy(&tmpdir->mutex);
   DBUG_RETURN(TRUE);
 }
 
@@ -75,10 +75,10 @@ char *my_tmpdir(MY_TMPDIR *tmpdir)
   char *dir;
   if (!tmpdir->max)
     return tmpdir->list[0];
-  pthread_mutex_lock(&tmpdir->mutex);
+  mysql_mutex_lock(&tmpdir->mutex);
   dir=tmpdir->list[tmpdir->cur];
   tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur+1;
-  pthread_mutex_unlock(&tmpdir->mutex);
+  mysql_mutex_unlock(&tmpdir->mutex);
   return dir;
 }
 
@@ -90,6 +90,6 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
   for (i=0; i<=tmpdir->max; i++)
     my_free(tmpdir->list[i], MYF(0));
   delete_dynamic(&tmpdir->full_list);
-  pthread_mutex_destroy(&tmpdir->mutex);
+  mysql_mutex_destroy(&tmpdir->mutex);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,10 +115,11 @@ typedef struct st_thr_lock_data {
   THR_LOCK_OWNER *owner;
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
-  pthread_cond_t *cond;
+  mysql_cond_t *cond;
   enum thr_lock_type type;
   void *status_param;			/* Param to status functions */
   void *debug_print_param;
+  struct PSI_table *m_psi;
 } THR_LOCK_DATA;
 
 struct st_lock_list {
@@ -127,7 +128,7 @@ struct st_lock_list {
 
 typedef struct st_thr_lock {
   LIST list;
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   struct st_lock_list read_wait;
   struct st_lock_list read;
   struct st_lock_list write_wait;
@@ -144,7 +145,7 @@ typedef struct st_thr_lock {
 
 
 extern LIST *thr_lock_thread_list;
-extern pthread_mutex_t THR_LOCK_lock;
+extern mysql_mutex_t THR_LOCK_lock;
 
 my_bool init_thr_lock(void);		/* Must be called once/thread */
 #define thr_lock_owner_init(owner, info_arg) (owner)->info= (info_arg)

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_PRINT("my",("path: '%s' MyFlags: %d",path,MyFlags));
 
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
 #endif
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
@@ -173,7 +173,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   (void) closedir(dirp);
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
 #endif
   result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
   result->number_off_files= dir_entries_storage->elements;
@@ -185,7 +185,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
  error:
 #if defined(THREAD) && !defined(HAVE_READDIR_R)
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
 #endif
   my_errno=errno;
   if (dirp)

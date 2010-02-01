@@ -38,16 +38,39 @@ prepare() {
 }
 
 do_query() {
-    echo $1 >$command
+    echo "$1" >$command
+    #sed 's,^,> ,' < $command  # Debugging
     mysql --defaults-file=$config <$command
     return $?
+}
+
+# Simple escape mechanism (\-escape any ' and \), suitable for two contexts:
+# - single-quoted SQL strings
+# - single-quoted option values on the right hand side of = in my.cnf
+#
+# These two contexts don't handle escapes identically.  SQL strings allow
+# quoting any character (\C => C, for any C), but my.cnf parsing allows
+# quoting only \, ' or ".  For example, password='a\b' quotes a 3-character
+# string in my.cnf, but a 2-character string in SQL.
+#
+# This simple escape works correctly in both places.
+basic_single_escape () {
+    # The quoting on this sed command is a bit complex.  Single-quoted strings
+    # don't allow *any* escape mechanism, so they cannot contain a single
+    # quote.  The string sed gets (as argv[1]) is:  s/\(['\]\)/\\\1/g
+    #
+    # Inside a character class, \ and ' are not special, so the ['\] character
+    # class is balanced and contains two characters.
+    echo "$1" | sed 's/\(['"'"'\]\)/\\\1/g'
 }
 
 make_config() {
     echo "# mysql_secure_installation config file" >$config
     echo "[mysql]" >>$config
     echo "user=root" >>$config
-    echo "password=$rootpass" >>$config
+    esc_pass=`basic_single_escape "$rootpass"`
+    echo "password='$esc_pass'" >>$config
+    #sed 's,^,> ,' < $config  # Debugging
 }
 
 get_root_password() {
@@ -94,13 +117,12 @@ set_root_password() {
 	return 1
     fi
 
-    do_query "UPDATE mysql.user SET Password=PASSWORD('$password1') WHERE User='root';"
+    esc_pass=`basic_single_escape "$password1"`
+    do_query "UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root';"
     if [ $? -eq 0 ]; then
 	echo "Password updated successfully!"
 	echo "Reloading privilege tables.."
-	if ! reload_privilege_tables; then
-	    exit 1
-	fi
+	reload_privilege_tables || exit 1
 	echo
 	rootpass=$password1
 	make_config

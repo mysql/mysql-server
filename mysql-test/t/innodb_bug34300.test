@@ -22,7 +22,6 @@ CREATE TABLE bug34300 (
 
 INSERT INTO bug34300 VALUES ('xxx', repeat('a', 8459264), 'zzz');
 
--- enable_query_log
 -- enable_result_log
 
 SELECT f4, f8 FROM bug34300;
@@ -32,8 +31,4 @@ ALTER TABLE bug34300 ADD COLUMN (f10 INT);
 SELECT f4, f8 FROM bug34300;
 
 DROP TABLE bug34300;
-
 EVAL SET @@global.max_allowed_packet=$max_packet;
-disconnect newconn;
-connection default;
-SET @@global.max_allowed_packet=default;

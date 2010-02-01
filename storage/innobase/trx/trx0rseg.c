@@ -132,6 +132,49 @@ trx_rseg_header_create(
 }
 
 /***********************************************************************//**
+Free's an instance of the rollback segment in memory. */
+UNIV_INTERN
+void
+trx_rseg_mem_free(
+/*==============*/
+	trx_rseg_t*	rseg)	/* in, own: instance to free */
+{
+	trx_undo_t*	undo;
+
+	mutex_free(&rseg->mutex);
+
+	/* There can't be any active transactions. */
+	ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
+	ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
+
+	undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+
+	while (undo != NULL) {
+		trx_undo_t*	prev_undo = undo;
+
+		undo = UT_LIST_GET_NEXT(undo_list, undo);
+		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, prev_undo);
+
+		trx_undo_mem_free(prev_undo);
+	}
+
+	undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+
+	while (undo != NULL) {
+		trx_undo_t*	prev_undo = undo;
+
+		undo = UT_LIST_GET_NEXT(undo_list, undo);
+		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, prev_undo);
+
+		trx_undo_mem_free(prev_undo);
+	}
+
+	trx_sys_set_nth_rseg(trx_sys, rseg->id, NULL);
+
+	mem_free(rseg);
+}
+
+/***************************************************************************
 Creates and initializes a rollback segment object. The values for the
 fields are read from the header. The object is inserted to the rseg
 list of the trx system object and a pointer is inserted in the rseg

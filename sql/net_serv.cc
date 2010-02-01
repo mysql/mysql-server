@@ -71,7 +71,9 @@
 
 #if defined(__WIN__) || !defined(MYSQL_SERVER)
   /* The following is because alarms doesn't work on windows. */
+#ifndef NO_ALARM
 #define NO_ALARM
+#endif
 #endif
 
 #ifndef NO_ALARM

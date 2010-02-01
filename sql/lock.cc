@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1352,7 +1352,7 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     threads could not close their tables. This would make a pretty
     deadlock.
   */
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
@@ -1507,7 +1507,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 
 void broadcast_refresh(void)
 {
-  pthread_cond_broadcast(&COND_refresh);
+  mysql_cond_broadcast(&COND_refresh);
   pthread_cond_broadcast(&COND_global_read_lock);
 }
 

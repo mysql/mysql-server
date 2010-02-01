@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -258,7 +258,7 @@ extern "C" uchar *table_def_key(const uchar *record, size_t *length,
 static void table_def_free_entry(TABLE_SHARE *share)
 {
   DBUG_ENTER("table_def_free_entry");
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   if (share->prev)
   {
     /* remove from old_unused_share list */
@@ -292,7 +292,7 @@ void table_def_start_shutdown(void)
 {
   if (table_def_inited)
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     /* Free all cached but unused TABLEs and TABLE_SHAREs first. */
     close_cached_tables(NULL, NULL, TRUE, FALSE);
     /*
@@ -302,7 +302,7 @@ void table_def_start_shutdown(void)
       plugins minimal and allows shutdown to proceed smoothly.
     */
     table_def_shutdown_in_progress= TRUE;
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
 }
 
@@ -669,7 +669,7 @@ void release_table_share(TABLE_SHARE *share)
               (ulong) share, share->db.str, share->table_name.str,
               share->ref_count, share->version));
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   DBUG_ASSERT(share->ref_count);
   if (!--share->ref_count)
@@ -719,7 +719,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
   char key[NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   table_list.db= (char*) db;
   table_list.table_name= (char*) table_name;
@@ -740,7 +740,7 @@ static void reference_table_share(TABLE_SHARE *share)
 {
   DBUG_ENTER("reference_table_share");
   DBUG_ASSERT(share->ref_count);
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   share->ref_count++;
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
                      (ulong) share, share->ref_count));
@@ -773,7 +773,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   TABLE_LIST table_list;
   DBUG_ENTER("list_open_tables");
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   bzero((char*) &table_list,sizeof(table_list));
   start_list= &open_list;
   open_list=0;
@@ -813,7 +813,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     start_list= &(*start_list)->next;
     *start_list=0;
   }
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(open_list);
 }
 
@@ -890,7 +890,7 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
   I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
   TABLE *tab;
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   while ((tab= it++))
   {
@@ -900,14 +900,14 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
         ! in_use->killed)
     {
       in_use->killed= THD::KILL_CONNECTION;
-      pthread_mutex_lock(&in_use->mysys_var->mutex);
+      mysql_mutex_lock(&in_use->mysys_var->mutex);
       if (in_use->mysys_var->current_cond)
       {
-        pthread_mutex_lock(in_use->mysys_var->current_mutex);
-        pthread_cond_broadcast(in_use->mysys_var->current_cond);
-        pthread_mutex_unlock(in_use->mysys_var->current_mutex);
+        mysql_mutex_lock(in_use->mysys_var->current_mutex);
+        mysql_cond_broadcast(in_use->mysys_var->current_cond);
+        mysql_mutex_unlock(in_use->mysys_var->current_mutex);
       }
-      pthread_mutex_unlock(&in_use->mysys_var->mutex);
+      mysql_mutex_unlock(&in_use->mysys_var->mutex);
     }
   }
 }
@@ -941,7 +941,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   DBUG_ASSERT(thd || (!wait_for_refresh && !tables));
 
   if (!have_lock)
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
   if (!tables)
   {
     refresh_version++;				// Force close of open tables
@@ -979,7 +979,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   }
 
   if (!have_lock)
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
 
   if (!wait_for_refresh)
     DBUG_RETURN(result);
@@ -1030,7 +1030,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     mysql_ha_flush(thd);
     DEBUG_SYNC(thd, "after_flush_unlock");
 
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
 
     thd->enter_cond(&COND_refresh, &LOCK_open, "Flushing tables");
 
@@ -1063,7 +1063,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     if (found)
     {
       DBUG_PRINT("signal", ("Waiting for COND_refresh"));
-      pthread_cond_wait(&COND_refresh,&LOCK_open);
+      mysql_cond_wait(&COND_refresh, &LOCK_open);
     }
 
     thd->exit_cond(NULL);
@@ -1107,7 +1107,7 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   bzero(&tmp, sizeof(TABLE_LIST));
 
   if (!have_lock)
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
 
   for (idx= 0; idx < table_def_cache.records; idx++)
   {
@@ -1140,15 +1140,15 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
     result= close_cached_tables(thd, tables, TRUE, FALSE);
 
   if (!have_lock)
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
 
   if (if_wait_for_refresh)
   {
-    pthread_mutex_lock(&thd->mysys_var->mutex);
+    mysql_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= 0;
     thd->mysys_var->current_cond= 0;
     thd->proc_info=0;
-    pthread_mutex_unlock(&thd->mysys_var->mutex);
+    mysql_mutex_unlock(&thd->mysys_var->mutex);
   }
 
   DBUG_RETURN(result);
@@ -1268,9 +1268,9 @@ static void close_open_tables(THD *thd)
 {
   bool found_old_table= 0;
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
@@ -1286,7 +1286,7 @@ static void close_open_tables(THD *thd)
     broadcast_refresh();
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -1317,13 +1317,13 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 
   memcpy(key, share->table_cache_key.str, key_length);
 
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
   /*
     We need to hold LOCK_open while changing the open_tables
     list, since another thread may work on it.
     @sa mysql_notify_thread_having_shared_lock()
   */
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   for (TABLE **prev= &thd->open_tables; *prev; )
   {
@@ -1359,7 +1359,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   }
   /* We have been removing tables from the table cache. */
   broadcast_refresh();
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -1552,7 +1552,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   *table_ptr=table->next;
 
@@ -2148,10 +2148,10 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   if (thd->mdl_context.upgrade_shared_lock_to_exclusive(table->mdl_ticket))
     DBUG_RETURN(TRUE);
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
                    table->s->db.str, table->s->table_name.str);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   /* extra() call must come only after all instances above are closed */
   (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
@@ -2191,11 +2191,11 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     /* Ensure the table is removed from the cache. */
     table->s->version= 0;
 
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
     quick_rm_table(table_type, db_name, table_name, 0);
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
   DBUG_VOID_RETURN;
 }
@@ -2212,7 +2212,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
      cond	Condition to wait for
 */
 
-void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
+void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
 {
   /* Wait until the current table is up to date */
   const char *proc_info;
@@ -2222,7 +2222,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
   if (!thd->killed)
-    (void) pthread_cond_wait(cond, mutex);
+    mysql_cond_wait(cond, mutex);
 
   /*
     We must unlock mutex first to avoid deadlock becasue conditions are
@@ -2235,12 +2235,12 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
     mutex is unlocked
   */
     
-  pthread_mutex_unlock(mutex);
-  pthread_mutex_lock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(mutex);
+  mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
   thd_proc_info(thd, proc_info);
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  mysql_mutex_unlock(&thd->mysys_var->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2272,7 +2272,7 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
   int rc;
   DBUG_ENTER("check_if_table_exists");
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   *exists= TRUE;
 
@@ -2316,10 +2316,10 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 
 void table_share_release_hook(void *share)
 {
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   release_table_share((TABLE_SHARE*) share);
   broadcast_refresh();
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -2676,7 +2676,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   */
   mdl_ticket= mdl_request->ticket;
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   /*
     If it's the first table from a list of tables used in a query,
@@ -2692,7 +2692,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
            ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
     DBUG_RETURN(TRUE);
   }
@@ -2706,14 +2706,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
     if (!exists)
     {
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
     }
     /* Table exists. Let us try to open it. */
   }
   else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
   {
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     DBUG_RETURN(FALSE);
   }
 
@@ -2772,7 +2772,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         DBUG_ASSERT(table_list->view);
       }
 
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
     }
     /*
@@ -2832,7 +2832,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
          (see tdc_wait_for_old_versions()).
        */
       release_table_share(share);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
       DBUG_RETURN(TRUE);
     }
@@ -2895,7 +2895,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table_def_add_used_table(thd, table);
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   /*
     In CREATE TABLE .. If NOT EXISTS .. SELECT we have found that
@@ -2955,7 +2955,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 err_unlock:
   release_table_share(share);
 err_unlock2:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   DBUG_RETURN(TRUE);
 }
@@ -3249,7 +3249,7 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
   */
   if (reopen_count)
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     while (reopen_count--)
     {
       /*
@@ -3266,7 +3266,7 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
       close_thread_table(thd, &thd->open_tables);
     }
     broadcast_refresh();
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
   /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
@@ -3395,7 +3395,7 @@ void assign_new_table_id(TABLE_SHARE *share)
 
   /* Preconditions */
   DBUG_ASSERT(share != NULL);
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   ulong tid= ++last_table_id;                   /* get next id */
   /*
@@ -3570,7 +3570,7 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
   int error;
   TABLE_SHARE *share;
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length, 
@@ -3586,14 +3586,14 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                     mem_root))
   {
     release_table_share(share);
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     return FALSE;
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
   release_table_share(share);
 err:
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   return TRUE;
 }
 
@@ -3605,7 +3605,6 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
     return TRUE;
@@ -3668,13 +3667,13 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
 
   thd->clear_error();
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length,
                                            OPEN_VIEW, &not_used)))
   {
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     return TRUE;
   }
 
@@ -3687,7 +3686,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     goto end_with_lock_open;
   }
   share->version= 0;
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (open_table_from_share(thd, share, table_list->alias,
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
@@ -3714,11 +3713,11 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   }
   my_free(entry, MYF(0));
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
 end_with_lock_open:
   release_table_share(share);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   return result;
 }
 
@@ -3849,14 +3848,14 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                          mdl_request->key.db_name(),
                          mdl_request->key.name());
         ha_create_table_from_engine(thd,
                                     mdl_request->key.db_name(),
                                     mdl_request->key.name());
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
 
         thd->warning_info->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
@@ -3880,11 +3879,11 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                          mdl_request->key.db_name(),
                          mdl_request->key.name());
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
 
         result= auto_repair_table(thd, table);
         thd->mdl_context.release_transactional_locks();
@@ -8494,10 +8493,10 @@ my_bool mysql_rm_tmp_tables(void)
 
 void flush_tables()
 {
-  (void) pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   while (unused_tables)
     free_cache_entry(unused_tables);
-  (void) pthread_mutex_unlock(&LOCK_open);
+  (void) mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -8537,13 +8536,13 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
       !in_use->killed)
   {
     in_use->killed= THD::KILL_CONNECTION;
-    pthread_mutex_lock(&in_use->mysys_var->mutex);
+    mysql_mutex_lock(&in_use->mysys_var->mutex);
     if (in_use->mysys_var->current_cond)
-      pthread_cond_broadcast(in_use->mysys_var->current_cond);
-    pthread_mutex_unlock(&in_use->mysys_var->mutex);
+      mysql_cond_broadcast(in_use->mysys_var->current_cond);
+    mysql_mutex_unlock(&in_use->mysys_var->mutex);
     signalled= TRUE;
   }
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
 
   if (needs_thr_lock_abort)
   {
@@ -8573,7 +8572,7 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     a multi-statement transaction.
   */
   broadcast_refresh();
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   return signalled;
 }
 
@@ -8616,7 +8615,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   TABLE *table;
   TABLE_SHARE *share;
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
@@ -8684,7 +8683,7 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     */
     mysql_ha_flush(thd);
 
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
 
     MDL_request_list::Iterator it(*mdl_requests);
     while ((mdl_request= it++))
@@ -8700,11 +8699,11 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     }
     if (!mdl_request)
     {
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
       break;
     }
     old_msg= thd->enter_cond(&COND_refresh, &LOCK_open, "Waiting for table");
-    pthread_cond_wait(&COND_refresh, &LOCK_open);
+    mysql_cond_wait(&COND_refresh, &LOCK_open);
     /* LOCK_open mutex is unlocked by THD::exit_cond() as side-effect. */
     thd->exit_cond(old_msg);
   }

@@ -37,7 +37,7 @@
   my_atomic_store#(&var, what)
     store 'what' in *var
 
-  '#' is substituted by a size suffix - 8, 16, 32, or ptr
+  '#' is substituted by a size suffix - 8, 16, 32, 64, or ptr
   (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
 
   NOTE This operations are not always atomic, so they always must be
@@ -49,18 +49,17 @@
   On architectures where these operations are really atomic, rwlocks will
   be optimized away.
   8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
-  but can be added, if necessary.
+  but can be added, if necessary. 
 */
 
 #ifndef my_atomic_rwlock_init
 
 #define intptr         void *
 /**
-  On most platforms we implement 8-bit, 16-bit, 32-bit and "pointer"
-  operations. Thus the symbol below is defined by default; platforms
-  where we leave out 8-bit or 16-bit operations should undefine it.
+  Currently we don't support 8-bit and 16-bit operations.
+  It can be added later if needed.
 */
-#define MY_ATOMIC_HAS_8_16 1
+#undef MY_ATOMIC_HAS_8_16
 
 #ifndef MY_ATOMIC_MODE_RWLOCKS
 /*
@@ -129,6 +128,7 @@
 make_transparent_unions(8)
 make_transparent_unions(16)
 make_transparent_unions(32)
+make_transparent_unions(64)
 make_transparent_unions(ptr)
 #undef uintptr
 #undef make_transparent_unions
@@ -140,10 +140,12 @@ make_transparent_unions(ptr)
 #define U_8    int8
 #define U_16   int16
 #define U_32   int32
+#define U_64   int64
 #define U_ptr  intptr
 #define Uv_8   int8
 #define Uv_16  int16
 #define Uv_32  int32
+#define Uv_64  int64
 #define Uv_ptr intptr
 #define U_a    volatile *a
 #define U_cmp  *cmp
@@ -217,6 +219,7 @@ make_atomic_cas(8)
 make_atomic_cas(16)
 #endif
 make_atomic_cas(32)
+make_atomic_cas(64)
 make_atomic_cas(ptr)
 
 #ifdef MY_ATOMIC_HAS_8_16
@@ -224,12 +227,14 @@ make_atomic_add(8)
 make_atomic_add(16)
 #endif
 make_atomic_add(32)
+make_atomic_add(64)
 
 #ifdef MY_ATOMIC_HAS_8_16
 make_atomic_load(8)
 make_atomic_load(16)
 #endif
 make_atomic_load(32)
+make_atomic_load(64)
 make_atomic_load(ptr)
 
 #ifdef MY_ATOMIC_HAS_8_16
@@ -237,6 +242,7 @@ make_atomic_fas(8)
 make_atomic_fas(16)
 #endif
 make_atomic_fas(32)
+make_atomic_fas(64)
 make_atomic_fas(ptr)
 
 #ifdef MY_ATOMIC_HAS_8_16
@@ -244,6 +250,7 @@ make_atomic_store(8)
 make_atomic_store(16)
 #endif
 make_atomic_store(32)
+make_atomic_store(64)
 make_atomic_store(ptr)
 
 #ifdef _atomic_h_cleanup_
@@ -254,10 +261,12 @@ make_atomic_store(ptr)
 #undef U_8
 #undef U_16
 #undef U_32
+#undef U_64
 #undef U_ptr
 #undef Uv_8
 #undef Uv_16
 #undef Uv_32
+#undef Uv_64
 #undef Uv_ptr
 #undef a
 #undef cmp

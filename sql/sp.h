@@ -115,7 +115,7 @@ void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          const MDL_key *key, TABLE_LIST *belong_to_view);
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
-void sp_update_sp_used_routines(HASH *dst, HASH *src);
+bool sp_update_sp_used_routines(HASH *dst, HASH *src);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   HASH *src, TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
