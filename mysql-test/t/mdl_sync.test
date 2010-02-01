@@ -2307,6 +2307,7 @@ connection handler_con1;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and info = "insert into t1 values (1)";
+--source include/wait_condition.inc
 --echo # The below ALTER TABLE will be blocked because of presence of HANDLER.
 --echo # Sending:
 --send alter table t1 add column j int;
@@ -2352,6 +2353,7 @@ connection handler_con1;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table" and info = "insert into t2 values (1)";
+--source include/wait_condition.inc
 --echo # The below ALTER TABLE will be blocked because of presence of HANDLER.
 --echo # Sending:
 --send alter table t1 drop column j;
