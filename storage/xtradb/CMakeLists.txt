@@ -13,36 +13,41 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+# This is the CMakeLists for InnoDB Plugin
+
+
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+
+# Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
+# CMakeLists.txt still needs to work with previous versions of MySQL.
+IF (MYSQL_VERSION_ID GREATER "50137")
+	INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+ENDIF (MYSQL_VERSION_ID GREATER "50137")
+
 IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	SET(WIN64 TRUE)
 ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 
-# Check type sizes
-include(CheckTypeSize)
-
-# Currently, the checked results are not used.
-CHECK_TYPE_SIZE(int SIZEOF_INT)
-CHECK_TYPE_SIZE(long SIZEOF_LONG)
-CHECK_TYPE_SIZE(void* SIZEOF_VOID_P)
-
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 ADD_DEFINITIONS(-D_WIN32 -D_LIB -DMYSQL_SERVER)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/storage/xtradb/include
-                    ${CMAKE_SOURCE_DIR}/storage/xtradb/handler
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+# Include directories under innobase
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/xtradb/include
+                    ${CMAKE_SOURCE_DIR}/storage/xtradb/handler)
+ 
+# Include directories under mysql
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+		    ${CMAKE_SOURCE_DIR}/sql
+		    ${CMAKE_SOURCE_DIR}/regex
+		    ${CMAKE_SOURCE_DIR}/zlib
+		    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF(MSVC AND $(WIN64))
+IF (MSVC AND $(WIN64))
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF(MSVC AND $(WIN64))
+ENDIF (MSVC AND $(WIN64))
 
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
@@ -77,5 +82,20 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
+ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
 
-MYSQL_STORAGE_ENGINE(INNOBASE)
+IF (MYSQL_VERSION_ID GREATER "50137")
+	MYSQL_STORAGE_ENGINE(INNOBASE)
+	# Use ha_innodb for plugin name, if plugin is built
+	GET_TARGET_PROPERTY(LIB_LOCATION ha_innobase LOCATION)
+	IF(LIB_LOCATION)
+		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
+	ENDIF(LIB_LOCATION)
+ELSE (MYSQL_VERSION_ID GREATER "50137")
+	IF (NOT SOURCE_SUBLIBS)
+		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
+		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
+		# Require mysqld_error.h, which is built as part of the GenError
+		ADD_DEPENDENCIES(innobase GenError)
+	ENDIF (NOT SOURCE_SUBLIBS)
+ENDIF (MYSQL_VERSION_ID GREATER "50137")

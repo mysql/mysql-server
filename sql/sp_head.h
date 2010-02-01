@@ -340,7 +340,7 @@ public:
 
     @todo Conflicting comment in sp_head.cc
   */
-  void
+  bool
   restore_lex(THD *thd);
 
   /// Put the instruction on the backpatch list, associated with the label.

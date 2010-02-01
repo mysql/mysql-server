@@ -536,7 +536,7 @@ extern struct XTThread	**xt_thr_array;
  * Function prototypes
  */
 
-extern "C" void *thr_main(void *data);
+extern "C" void *thr_main_pbxt(void *data);
 
 void			xt_get_now(char *buffer, size_t len);
 xtBool			xt_init_logging(void);

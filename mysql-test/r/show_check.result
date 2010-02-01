@@ -252,13 +252,11 @@ drop table t1;
 flush tables;
 show open tables;
 Database	Table	In_use	Name_locked
-mysql	general_log	0	0
 create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
 test	t1	0	0
-mysql	general_log	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -1454,4 +1452,10 @@ GRANT PROCESS ON *.* TO test_u@localhost;
 SHOW ENGINE MYISAM MUTEX;
 SHOW ENGINE MYISAM STATUS;
 DROP USER test_u@localhost;
+#
+# Bug #48985: show create table crashes if previous access to the table
+#    was killed
+#
+SHOW CREATE TABLE non_existent;
+ERROR 70100: Query execution was interrupted
 End of 5.1 tests

@@ -238,7 +238,7 @@ echo
 # Poll till all connections of 'test_user' are in a state with COMMAND = 'Sleep'
 ;
 let $wait_condition= SELECT COUNT(*) = 2 FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE USER = 'test_user' AND COMMAND = 'Sleep';
+        WHERE USER = 'test_user' AND COMMAND = 'Sleep' AND STATE = '';
 --source include/wait_condition.inc
 echo
 # ----- switch to connection con2 (user = test_user) -----

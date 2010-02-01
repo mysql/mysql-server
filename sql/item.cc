@@ -4938,9 +4938,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    field= new Field_new_decimal((uchar*) 0, max_length, null_ptr, 0,
-                                 Field::NONE, name, decimals, 0,
-                                 unsigned_flag);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case MYSQL_TYPE_TINY:
     field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
@@ -6979,9 +6977,24 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
 Item_cache* Item_cache::get_cache(const Item *item)
 {
-  switch (item->result_type()) {
+  return get_cache(item, item->result_type());
+}
+
+
+/**
+  Get a cache item of given type.
+
+  @param item         value to be cached
+  @param type         required type of cache
+
+  @return cache item
+*/
+
+Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
+{
+  switch (type) {
   case INT_RESULT:
-    return new Item_cache_int();
+    return new Item_cache_int(item->field_type());
   case REAL_RESULT:
     return new Item_cache_real();
   case DECIMAL_RESULT:
@@ -6997,6 +7010,13 @@ Item_cache* Item_cache::get_cache(const Item *item)
   }
 }
 
+void Item_cache::store(Item *item)
+{
+  example= item;
+  if (!item)
+    null_value= TRUE;
+  value_cached= FALSE;
+}
 
 void Item_cache::print(String *str, enum_query_type query_type)
 {
@@ -7008,17 +7028,22 @@ void Item_cache::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
-void Item_cache_int::store(Item *item)
+bool  Item_cache_int::cache_value()
 {
-  value= item->val_int_result();
-  null_value= item->null_value;
-  unsigned_flag= item->unsigned_flag;
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value= example->val_int_result();
+  null_value= example->null_value;
+  unsigned_flag= example->unsigned_flag;
+  return TRUE;
 }
 
 
 void Item_cache_int::store(Item *item, longlong val_arg)
 {
+  /* An explicit values is given, save it. */
+  value_cached= TRUE;
   value= val_arg;
   null_value= item->null_value;
   unsigned_flag= item->unsigned_flag;
@@ -7028,6 +7053,8 @@ void Item_cache_int::store(Item *item, longlong val_arg)
 String *Item_cache_int::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   str->set(value, default_charset());
   return str;
 }
@@ -7036,21 +7063,52 @@ String *Item_cache_int::val_str(String *str)
 my_decimal *Item_cache_int::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_val);
   return decimal_val;
 }
 
-
-void Item_cache_real::store(Item *item)
+double Item_cache_int::val_real()
 {
-  value= item->val_result();
-  null_value= item->null_value;
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0.0;
+  return (double) value;
 }
 
+longlong Item_cache_int::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
+  return value;
+}
+
+bool Item_cache_real::cache_value()
+{
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value= example->val_result();
+  null_value= example->null_value;
+  return TRUE;
+}
+
+
+double Item_cache_real::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0.0;
+  return value;
+}
 
 longlong Item_cache_real::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
   return (longlong) rint(value);
 }
 
@@ -7058,6 +7116,8 @@ longlong Item_cache_real::val_int()
 String* Item_cache_real::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   str->set_real(value, decimals, default_charset());
   return str;
 }
@@ -7066,22 +7126,30 @@ String* Item_cache_real::val_str(String *str)
 my_decimal *Item_cache_real::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   double2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   return decimal_val;
 }
 
 
-void Item_cache_decimal::store(Item *item)
+bool Item_cache_decimal::cache_value()
 {
-  my_decimal *val= item->val_decimal_result(&decimal_value);
-  if (!(null_value= item->null_value) && val != &decimal_value)
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  my_decimal *val= example->val_decimal_result(&decimal_value);
+  if (!(null_value= example->null_value) && val != &decimal_value)
     my_decimal2decimal(val, &decimal_value);
+  return TRUE;
 }
 
 double Item_cache_decimal::val_real()
 {
   DBUG_ASSERT(fixed);
   double res;
+  if (!value_cached && !cache_value())
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }
@@ -7090,6 +7158,8 @@ longlong Item_cache_decimal::val_int()
 {
   DBUG_ASSERT(fixed);
   longlong res;
+  if (!value_cached && !cache_value())
+    return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, &decimal_value, unsigned_flag, &res);
   return res;
 }
@@ -7097,6 +7167,8 @@ longlong Item_cache_decimal::val_int()
 String* Item_cache_decimal::val_str(String *str)
 {
   DBUG_ASSERT(fixed);
+  if (!value_cached && !cache_value())
+    return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, &decimal_value, decimals, FALSE,
                    &decimal_value);
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str);
@@ -7106,15 +7178,20 @@ String* Item_cache_decimal::val_str(String *str)
 my_decimal *Item_cache_decimal::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed);
+  if (!value_cached && !cache_value())
+    return NULL;
   return &decimal_value;
 }
 
 
-void Item_cache_str::store(Item *item)
+bool Item_cache_str::cache_value()
 {
-  value_buff.set(buffer, sizeof(buffer), item->collation.collation);
-  value= item->str_result(&value_buff);
-  if ((null_value= item->null_value))
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
+  value_buff.set(buffer, sizeof(buffer), example->collation.collation);
+  value= example->str_result(&value_buff);
+  if ((null_value= example->null_value))
     value= 0;
   else if (value != &value_buff)
   {
@@ -7129,6 +7206,7 @@ void Item_cache_str::store(Item *item)
     value_buff.copy(*value);
     value= &value_buff;
   }
+  return TRUE;
 }
 
 double Item_cache_str::val_real()
@@ -7136,6 +7214,8 @@ double Item_cache_str::val_real()
   DBUG_ASSERT(fixed == 1);
   int err_not_used;
   char *end_not_used;
+  if (!value_cached && !cache_value())
+    return 0.0;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
 		      value->length(), &end_not_used, &err_not_used);
@@ -7147,6 +7227,8 @@ longlong Item_cache_str::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
+  if (!value_cached && !cache_value())
+    return 0;
   if (value)
     return my_strntoll(value->charset(), value->ptr(),
 		       value->length(), 10, (char**) 0, &err);
@@ -7154,9 +7236,21 @@ longlong Item_cache_str::val_int()
     return (longlong)0;
 }
 
+
+String* Item_cache_str::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return 0;
+  return value;
+}
+
+
 my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+  if (!value_cached && !cache_value())
+    return NULL;
   if (value)
     string2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   else
@@ -7167,6 +7261,8 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 int Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
+  if (!value_cached && !cache_value())
+    return 0;
   int res= Item_cache::save_in_field(field, no_conversions);
   return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
           value->length() < field->field_length) ? 1 : res;
@@ -7201,13 +7297,30 @@ bool Item_cache_row::setup(Item * item)
 
 void Item_cache_row::store(Item * item)
 {
+  example= item;
+  if (!item)
+  {
+    null_value= TRUE;
+    return;
+  }
+  for (uint i= 0; i < item_count; i++)
+    values[i]->store(item->element_index(i));
+}
+
+
+bool Item_cache_row::cache_value()
+{
+  if (!example)
+    return FALSE;
+  value_cached= TRUE;
   null_value= 0;
-  item->bring_value();
+  example->bring_value();
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->store(item->element_index(i));
+    values[i]->cache_value();
     null_value|= values[i]->null_value;
   }
+  return TRUE;
 }
 
 

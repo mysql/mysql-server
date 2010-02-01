@@ -1,6 +1,9 @@
 # This test covers various aspects of PBXT locking mechanism, including
 # internal permanent/temporary row locking and MySQL locking
 
+# SHOW PROCESSLIST has hardcoded "Writing to net" as state.
+-- source include/not_embedded.inc
+
 # TEST: select for update test
  
 drop table if exists t1;

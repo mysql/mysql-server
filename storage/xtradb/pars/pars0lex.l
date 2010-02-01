@@ -661,3 +661,18 @@ In the state 'id', only two actions are possible (defined below). */
 }
 
 %%
+
+/**********************************************************************
+Release any resources used by the lexer. */
+UNIV_INTERN
+void
+pars_lexer_close(void)
+/*==================*/
+{
+        if (yy_buffer_stack)
+  	  yylex_destroy();
+        if (stringbuf)
+  	  free(stringbuf);
+	stringbuf = NULL;
+	stringbuf_len_alloc = stringbuf_len = 0;
+}

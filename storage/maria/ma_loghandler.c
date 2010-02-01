@@ -2823,8 +2823,8 @@ static my_bool translog_page_validator(uchar *page,
 
   data->was_recovered= 0;
 
-  if (uint3korr(page) != page_no ||
-      uint3korr(page + 3) != data->number)
+  if ((pgcache_page_no_t) uint3korr(page) != page_no ||
+      (uint32) uint3korr(page + 3) != data->number)
   {
     DBUG_PRINT("error", ("Page (%lu,0x%lx): "
                          "page address written in the page is incorrect: "

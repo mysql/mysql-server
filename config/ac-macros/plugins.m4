@@ -267,7 +267,6 @@ dnl   we have to recompile these modules when we want to
 dnl   to compile server parts with the different #defines
 dnl   Normally it happens when we compile the embedded server
 dnl   Thus one should mark such files in his handler using this macro
-dnl    (currently only one such a file per plugin is supported)
 dnl
 dnl ---------------------------------------------------------------------------
 
@@ -463,11 +462,13 @@ dnl Although this is "pretty", it breaks libmysqld build
       mysql_plugin_defs="$mysql_plugin_defs, [builtin_]$2[_plugin]"
       [with_plugin_]$2=yes
       AC_MSG_RESULT([yes])
-      m4_ifdef([$11],[
-       condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
-       condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp($11, [[^/]+\.], [\&o])"
-       condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
-       condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
+      m4_ifdef([$11], [
+        m4_foreach([plugin], [$11], [
+           condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp(plugin, [[^/]+$], [\&])"
+           condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp(plugin, [[^/]+\.], [\&o])"
+           condition_dependent_plugin_links="$condition_dependent_plugin_links $6/plugin"
+           condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp(plugin, [^.+[/$]], [\&])"
+        ])
       ])
     fi
   fi

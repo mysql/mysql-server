@@ -177,6 +177,7 @@ int maria_close(register MARIA_HA *info)
   {
     (void) pthread_mutex_destroy(&share->intern_lock);
     (void) pthread_mutex_destroy(&share->close_lock);
+    (void) pthread_cond_destroy(&share->key_del_cond);
     my_free((uchar *)share, MYF(0));
     /*
       If share cannot be freed, it's because checkpoint has previously

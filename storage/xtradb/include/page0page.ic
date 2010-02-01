@@ -907,7 +907,7 @@ page_get_data_size(
 
 /************************************************************//**
 Allocates a block of memory from the free list of an index page. */
-UNIV_INTERN
+UNIV_INLINE
 void
 page_mem_alloc_free(
 /*================*/

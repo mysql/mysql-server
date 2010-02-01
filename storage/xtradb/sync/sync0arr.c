@@ -227,24 +227,21 @@ sync_array_create(
 				SYNC_ARRAY_MUTEX: determines the type
 				of mutex protecting the data structure */
 {
+	ulint		sz;
 	sync_array_t*	arr;
-	sync_cell_t*	cell_array;
-	sync_cell_t*	cell;
-	ulint		i;
 
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
 	arr = ut_malloc(sizeof(sync_array_t));
+	memset(arr, 0x0, sizeof(*arr));
 
-	cell_array = ut_malloc(sizeof(sync_cell_t) * n_cells);
+	sz = sizeof(sync_cell_t) * n_cells;
+	arr->array = ut_malloc(sz);
+	memset(arr->array, 0x0, sz);
 
 	arr->n_cells = n_cells;
-	arr->n_reserved = 0;
-	arr->array = cell_array;
 	arr->protection = protection;
-	arr->sg_count = 0;
-	arr->res_count = 0;
 
 	/* Then create the mutex to protect the wait array complex */
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
@@ -253,13 +250,6 @@ sync_array_create(
 		mutex_create(&arr->mutex, SYNC_NO_ORDER_CHECK);
 	} else {
 		ut_error;
-	}
-
-	for (i = 0; i < n_cells; i++) {
-		cell = sync_array_get_nth_cell(arr, i);
-	cell->wait_object = NULL;
-		cell->waiting = FALSE;
-		cell->signal_count = 0;
 	}
 
 	return(arr);
@@ -492,12 +482,12 @@ sync_array_cell_print(
 		mutex = cell->old_wait_mutex;
 
 		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
+			"Mutex at %p '%s', lock var %lu\n"
 #ifdef UNIV_SYNC_DEBUG
 			"Last time reserved in file %s line %lu, "
 #endif /* UNIV_SYNC_DEBUG */
 			"waiters flag %lu\n",
-			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
+			(void*) mutex, mutex->cmutex_name,
 			(ulong) mutex->lock_word,
 #ifdef UNIV_SYNC_DEBUG
 			mutex->file_name, (ulong) mutex->line,
@@ -513,9 +503,8 @@ sync_array_cell_print(
 		rwlock = cell->old_wait_rw_lock;
 
 		fprintf(file,
-			" RW-latch at %p created in file %s line %lu\n",
-			(void*) rwlock, rwlock->cfile_name,
-			(ulong) rwlock->cline);
+			" RW-latch at %p '%s'\n",
+			(void*) rwlock, rwlock->lock_name);
 		writer = rw_lock_get_writer(rwlock);
 		if (writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,

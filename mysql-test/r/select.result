@@ -4426,6 +4426,20 @@ ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
 INTO @var0;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
+#
+# Bug #48458: simple query tries to allocate enormous amount of
+#   memory
+#
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+CREATE TABLE t2(c INT);
+# Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+1
+DROP TABLE t1,t2;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -4576,4 +4590,47 @@ field2
 15:13:38
 drop table A,AA,B,BB;
 #end of test for bug#45266
+# 
+# BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+# 
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+v
+DROP TABLE t1;
+#
+# Bug#49489 Uninitialized cache led to a wrong result.
+#
+CREATE TABLE t1(c1 DOUBLE(5,4));
+INSERT INTO t1 VALUES (9.1234);
+SELECT * FROM t1 WHERE c1 < 9.12345;
+c1
+9.1234
+DROP TABLE t1;
+# End of test for bug#49489.
+#
+# Bug #49517: Inconsistent behavior while using 
+# NULLable BIGINT and INT columns in comparison
+#
+CREATE TABLE t1(a BIGINT UNSIGNED NOT NULL, b BIGINT NULL, c INT NULL);
+INSERT INTO t1 VALUES(105, NULL, NULL);
+SELECT * FROM t1 WHERE b < 102;
+a	b	c
+SELECT * FROM t1 WHERE c < 102;
+a	b	c
+SELECT * FROM t1 WHERE 102 < b;
+a	b	c
+SELECT * FROM t1 WHERE 102 < c;
+a	b	c
+DROP TABLE t1;
 End of 5.1 tests

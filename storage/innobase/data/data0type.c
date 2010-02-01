@@ -252,6 +252,22 @@ dtype_print(
 		fputs("DATA_SYS", stderr);
 		break;
 
+	case DATA_FLOAT:
+		fputs("DATA_FLOAT", stderr);
+		break;
+
+	case DATA_DOUBLE:
+		fputs("DATA_DOUBLE", stderr);
+		break;
+
+	case DATA_DECIMAL:
+		fputs("DATA_DECIMAL", stderr);
+		break;
+
+	case DATA_VARMYSQL:
+		fputs("DATA_VARMYSQL", stderr);
+		break;
+
 	default:
 		fprintf(stderr, "type %lu", (ulong) mtype);
 		break;

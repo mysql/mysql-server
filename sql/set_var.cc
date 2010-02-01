@@ -58,6 +58,9 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#endif
 #include <my_dir.h>
 #include <waiting_threads.h>
 #include "events.h"

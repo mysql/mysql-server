@@ -1178,11 +1178,14 @@ static void __cdecl kill_server(int sig_ptr)
   /*
    Send event to smem_event_connect_request for aborting
    */
-  if (!SetEvent(smem_event_connect_request))
+  if (opt_enable_shared_memory)
   {
-    DBUG_PRINT("error",
-               ("Got error: %ld from SetEvent of smem_event_connect_request",
-                GetLastError()));
+    if (!SetEvent(smem_event_connect_request))
+    {
+      DBUG_PRINT("error",
+                 ("Got error: %ld from SetEvent of smem_event_connect_request",
+                  GetLastError()));
+    }
   }
 #endif
 
@@ -2718,7 +2721,7 @@ static void init_signals(void)
   {
     /* Change limits so that we will get a core file */
     STRUCT_RLIMIT rl;
-    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+    rl.rlim_cur = rl.rlim_max = (rlim_t) RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
@@ -4029,6 +4032,27 @@ server.");
 
   if (opt_bin_log)
   {
+    /* Reports an error and aborts, if the --log-bin's path 
+       is a directory.*/
+    if (opt_bin_logname && 
+        opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin option", opt_bin_logname);
+      unireg_abort(1);
+    }
+
+    /* Reports an error and aborts, if the --log-bin-index's path 
+       is a directory.*/
+    if (opt_binlog_index_name && 
+        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1] 
+        == FN_LIBCHAR)
+    {
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --log-bin-index option", opt_binlog_index_name);
+      unireg_abort(1);
+    }
+
     char buf[FN_REFLEN];
     const char *ln;
     ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
@@ -5385,12 +5409,16 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 pthread_handler_t handle_connections_namedpipes(void *arg)
 {
   HANDLE hConnectedPipe;
-  OVERLAPPED connectOverlapped = {0};
+  OVERLAPPED connectOverlapped= {0};
   THD *thd;
   my_thread_init();
   DBUG_ENTER("handle_connections_namedpipes");
-  connectOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-
+  connectOverlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (!connectOverlapped.hEvent)
+  {
+    sql_print_error("Can't create event, last error=%u", GetLastError());
+    unireg_abort(1);
+  }
   DBUG_PRINT("general",("Waiting for named pipe connections."));
   while (!abort_loop)
   {
@@ -5413,7 +5441,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     {
       CloseHandle(hPipe);
       if ((hPipe= CreateNamedPipe(pipe_name,
-                                  PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
+                                  PIPE_ACCESS_DUPLEX |
+                                  FILE_FLAG_OVERLAPPED,
                                   PIPE_TYPE_BYTE |
                                   PIPE_READMODE_BYTE |
                                   PIPE_WAIT,
@@ -5433,7 +5462,8 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
     if ((hPipe = CreateNamedPipe(pipe_name,
-				 PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
+                 PIPE_ACCESS_DUPLEX |
+                 FILE_FLAG_OVERLAPPED,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |
 				 PIPE_WAIT,
@@ -9017,20 +9047,20 @@ static int fix_paths(void)
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
   }
-  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
-  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
-    --mysql_unpacked_real_data_home_len;
-
-
   convert_dirname(language,language,NullS);
+  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
                                       get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
+
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= 
+    (int) strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
@@ -9062,8 +9092,8 @@ static int fix_paths(void)
   /*
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
-   */
-  if (opt_secure_file_priv)
+  */
+  if (opt_secure_file_priv && opt_secure_file_priv[0])
   {
     convert_dirname(buff, opt_secure_file_priv, NullS);
     my_free(opt_secure_file_priv, MYF(0));

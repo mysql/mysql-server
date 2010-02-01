@@ -5,3 +5,4 @@ MYSQL_PLUGIN_STATIC(pbxt,    [src/libpbxt.a])
 MYSQL_PLUGIN_ACTIONS(pbxt,  [
 #               AC_CONFIG_FILES(storage/pbxt/src/Makefile)
                ])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(pbxt, [[src/ha_pbxt.cc],[src/myxt_xt.cc],[src/discover_xt.cc]])
