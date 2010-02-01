@@ -271,7 +271,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
 	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
 	Wait until the lock is gone
       */
-      if (wait_if_global_read_lock(thd, 1, 1))
+      if (thd->global_read_lock.wait_if_global_read_lock(thd, 1, 1))
       {
         /* Clear the lock type of all lock data to avoid reusage. */
         reset_lock_data_and_free(&sql_lock);
@@ -940,7 +940,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
    @note This function assumes that no metadata locks were acquired
          before calling it. Also it cannot be called while holding
          LOCK_open mutex. Both these invariants are enforced by asserts
-         in MDL_context::acquire_exclusive_locks().
+         in MDL_context::acquire_locks().
 
    @retval FALSE  Success.
    @retval TRUE   Failure (OOM or thread was killed).
@@ -962,14 +962,11 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
     mdl_requests.push_front(&lock_table->mdl_request);
   }
 
-  if (thd->mdl_context.acquire_global_intention_exclusive_lock(&global_request))
+  mdl_requests.push_front(&global_request);
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests))
     return 1;
 
-  if (thd->mdl_context.acquire_exclusive_locks(&mdl_requests))
-  {
-    thd->mdl_context.release_lock(global_request.ticket);
-    return 1;
-  }
   return 0;
 }
 
@@ -1002,7 +999,7 @@ void unlock_table_names(THD *thd)
   This function assumes that no metadata locks were acquired
   before calling it. Additionally, it cannot be called while
   holding LOCK_open mutex. Both these invariants are enforced by
-  asserts in MDL_context::acquire_exclusive_locks().
+  asserts in MDL_context::acquire_locks().
   To avoid deadlocks, we do not try to obtain exclusive metadata
   locks in LOCK TABLES mode, since in this mode there may be
   other metadata locks already taken by the current connection,
@@ -1019,6 +1016,7 @@ bool lock_routine_name(THD *thd, bool is_function,
   MDL_key::enum_mdl_namespace mdl_type= (is_function ?
                                          MDL_key::FUNCTION :
                                          MDL_key::PROCEDURE);
+  MDL_request_list mdl_requests;
   MDL_request global_request;
   MDL_request mdl_request;
 
@@ -1035,14 +1033,11 @@ bool lock_routine_name(THD *thd, bool is_function,
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
   mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
 
-  if (thd->mdl_context.acquire_global_intention_exclusive_lock(&global_request))
-    return TRUE;
+  mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&global_request);
 
-  if (thd->mdl_context.acquire_exclusive_lock(&mdl_request))
-  {
-    thd->mdl_context.release_lock(global_request.ticket);
+  if (thd->mdl_context.acquire_locks(&mdl_requests))
     return TRUE;
-  }
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return FALSE;
@@ -1161,9 +1156,6 @@ volatile uint global_read_lock_blocks_commit=0;
 static volatile uint protect_against_global_read_lock=0;
 static volatile uint waiting_for_read_lock=0;
 
-#define GOT_GLOBAL_READ_LOCK               1
-#define MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT 2
-
 /**
   Take global read lock, wait if there is protection against lock.
 
@@ -1177,12 +1169,13 @@ static volatile uint waiting_for_read_lock=0;
   @retval True   Failure, thread was killed.
 */
 
-bool lock_global_read_lock(THD *thd)
+bool Global_read_lock::lock_global_read_lock(THD *thd)
 {
   DBUG_ENTER("lock_global_read_lock");
 
-  if (!thd->global_read_lock)
+  if (!m_state)
   {
+    MDL_request mdl_request;
     const char *old_message;
     const char *new_message= "Waiting to get readlock";
     (void) pthread_mutex_lock(&LOCK_global_read_lock);
@@ -1224,7 +1217,7 @@ bool lock_global_read_lock(THD *thd)
       thd->exit_cond(old_message);
       DBUG_RETURN(1);
     }
-    thd->global_read_lock= GOT_GLOBAL_READ_LOCK;
+    m_state= GRL_ACQUIRED;
     global_read_lock++;
     thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
     /*
@@ -1241,7 +1234,12 @@ bool lock_global_read_lock(THD *thd)
             redundancy between metadata locks, global read lock and DDL
             blocker (see WL#4399 and WL#4400).
     */
-    if (thd->mdl_context.acquire_global_shared_lock())
+
+    DBUG_ASSERT(! thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                                 MDL_SHARED));
+    mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request))
     {
       /* Our thread was killed -- return back to initial state. */
       pthread_mutex_lock(&LOCK_global_read_lock);
@@ -1251,9 +1249,11 @@ bool lock_global_read_lock(THD *thd)
         pthread_cond_broadcast(&COND_global_read_lock);
       }
       pthread_mutex_unlock(&LOCK_global_read_lock);
-      thd->global_read_lock= 0;
+      m_state= GRL_NONE;
       DBUG_RETURN(1);
     }
+    thd->mdl_context.move_ticket_after_trans_sentinel(mdl_request.ticket);
+    m_mdl_global_shared_lock= mdl_request.ticket;
   }
   /*
     We DON'T set global_read_lock_blocks_commit now, it will be set after
@@ -1277,7 +1277,7 @@ bool lock_global_read_lock(THD *thd)
   @param thd    Reference to thread.
 */
 
-void unlock_global_read_lock(THD *thd)
+void Global_read_lock::unlock_global_read_lock(THD *thd)
 {
   uint tmp;
   DBUG_ENTER("unlock_global_read_lock");
@@ -1285,11 +1285,14 @@ void unlock_global_read_lock(THD *thd)
              ("global_read_lock: %u  global_read_lock_blocks_commit: %u",
               global_read_lock, global_read_lock_blocks_commit));
 
-  thd->mdl_context.release_global_shared_lock();
+  DBUG_ASSERT(m_mdl_global_shared_lock && m_state);
+
+  thd->mdl_context.release_lock(m_mdl_global_shared_lock);
+  m_mdl_global_shared_lock= NULL;
 
   pthread_mutex_lock(&LOCK_global_read_lock);
   tmp= --global_read_lock;
-  if (thd->global_read_lock == MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT)
+  if (m_state == GRL_ACQUIRED_AND_BLOCKS_COMMIT)
     --global_read_lock_blocks_commit;
   pthread_mutex_unlock(&LOCK_global_read_lock);
   /* Send the signal outside the mutex to avoid a context switch */
@@ -1298,7 +1301,7 @@ void unlock_global_read_lock(THD *thd)
     DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
     pthread_cond_broadcast(&COND_global_read_lock);
   }
-  thd->global_read_lock= 0;
+  m_state= GRL_NONE;
 
   DBUG_VOID_RETURN;
 }
@@ -1326,8 +1329,9 @@ void unlock_global_read_lock(THD *thd)
                    (is_not_commit ||                               \
                     global_read_lock_blocks_commit))
 
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                              bool is_not_commit)
+bool Global_read_lock::
+wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                         bool is_not_commit)
 {
   const char *UNINIT_VAR(old_message);
   bool result= 0, need_exit_cond;
@@ -1337,10 +1341,10 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     If we already have protection against global read lock,
     just increment the counter.
   */
-  if (unlikely(thd->global_read_lock_protection > 0))
+  if (unlikely(m_protection_count > 0))
   {
     if (!abort_on_refresh)
-      thd->global_read_lock_protection++;
+      m_protection_count++;
     DBUG_RETURN(FALSE);
   }
   /*
@@ -1353,7 +1357,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
   {
-    if (thd->global_read_lock)		// This thread had the read locks
+    if (m_state)		// This thread had the read locks
     {
       if (is_not_commit)
         my_message(ER_CANT_UPDATE_WITH_READLOCK,
@@ -1380,7 +1384,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   }
   if (!abort_on_refresh && !result)
   {
-    thd->global_read_lock_protection++;
+    m_protection_count++;
     protect_against_global_read_lock++;
     DBUG_PRINT("sql_lock", ("protect_against_global_read_lock incr: %u",
                             protect_against_global_read_lock));
@@ -1408,7 +1412,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   @param thd     Reference to thread.
 */
 
-void start_waiting_global_read_lock(THD *thd)
+void Global_read_lock::start_waiting_global_read_lock(THD *thd)
 {
   bool tmp;
   DBUG_ENTER("start_waiting_global_read_lock");
@@ -1416,13 +1420,13 @@ void start_waiting_global_read_lock(THD *thd)
     Ignore request if we do not have protection against global read lock.
     (Note that this is a violation of the interface contract, hence the assert).
   */
-  DBUG_ASSERT(thd->global_read_lock_protection > 0);
-  if (unlikely(thd->global_read_lock_protection == 0))
+  DBUG_ASSERT(m_protection_count > 0);
+  if (unlikely(m_protection_count == 0))
     DBUG_VOID_RETURN;
   /* Decrement local read lock protection counter, return if we still have it */
-  if (unlikely(--thd->global_read_lock_protection > 0))
+  if (unlikely(--m_protection_count > 0))
     DBUG_VOID_RETURN;
-  if (unlikely(thd->global_read_lock))
+  if (unlikely(m_state))
     DBUG_VOID_RETURN;
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   DBUG_ASSERT(protect_against_global_read_lock);
@@ -1450,7 +1454,7 @@ void start_waiting_global_read_lock(THD *thd)
   @retval True   Failure, thread was killed.
 */
 
-bool make_global_read_lock_block_commit(THD *thd)
+bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 {
   bool error;
   const char *old_message;
@@ -1459,7 +1463,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
     make_global_read_lock_block_commit(), do nothing.
   */
-  if (thd->global_read_lock != GOT_GLOBAL_READ_LOCK)
+  if (m_state != GRL_ACQUIRED)
     DBUG_RETURN(0);
   pthread_mutex_lock(&LOCK_global_read_lock);
   /* increment this BEFORE waiting on cond (otherwise race cond) */
@@ -1476,7 +1480,7 @@ bool make_global_read_lock_block_commit(THD *thd)
   if ((error= test(thd->killed)))
     global_read_lock_blocks_commit--; // undo what we did
   else
-    thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
+    m_state= GRL_ACQUIRED_AND_BLOCKS_COMMIT;
   thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
 }

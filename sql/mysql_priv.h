@@ -1241,8 +1241,9 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
-TABLE *find_write_locked_table(TABLE *list, const char *db,
-                               const char *table_name);
+TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+                                  const char *table_name,
+                                  bool no_error);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
@@ -2078,6 +2079,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_OPEN_SKIP_TEMPORARY               0x0100
 /** Fail instead of waiting when conficting metadata lock is discovered. */
 #define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0200
+/** Open tables using MDL_SHARED lock instead of one specified in parser. */
+#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0400
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
@@ -2098,14 +2101,6 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack);
-bool lock_global_read_lock(THD *thd);
-void unlock_global_read_lock(THD *thd);
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                              bool is_not_commit);
-void start_waiting_global_read_lock(THD *thd);
-bool make_global_read_lock_block_commit(THD *thd);
-bool set_protect_against_global_read_lock(void);
-void unset_protect_against_global_read_lock(void);
 void broadcast_refresh(void);
 
 /* Lock based on name */

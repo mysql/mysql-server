@@ -66,6 +66,60 @@ connection default;
 disconnect con1;
 disconnect con3;
 
+
+--echo #
+--echo # Test for bug #37346 "innodb does not detect deadlock between update
+--echo #                      and alter table".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int primary key, c2 int, c3 int) engine=InnoDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+--echo # Run statement which acquires X-lock on one of table's rows.
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connect (con37346,localhost,root,,test,,);
+connection con37346;
+--echo # The below ALTER TABLE statement should wait till transaction
+--echo # in connection 'default' is complete and then succeed.
+--echo # It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+--echo # Sending:
+--send alter table t1 add column c4 int;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above ALTER TABLE gets blocked because this
+--echo # connection holds SW metadata lock on table to be altered.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed. It should not
+--echo # deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+
+--echo # Unblock ALTER TABLE by committing transaction.
+commit;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connection con37346;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con37346;
+drop table t1;
+
+
 --echo #
 --echo # Bug #42147 Concurrent DML and LOCK TABLE ... READ for InnoDB 
 --echo #            table cause warnings in errlog

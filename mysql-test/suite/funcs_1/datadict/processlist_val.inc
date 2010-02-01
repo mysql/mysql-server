@@ -425,7 +425,7 @@ echo
 # Poll till INFO is no more NULL and State = 'Table Lock'.
 ;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE INFO IS NOT NULL AND STATE = 'Table Lock';
+        WHERE INFO IS NOT NULL AND STATE = 'Waiting for table';
 --source include/wait_condition.inc
 echo
 # Expect result:

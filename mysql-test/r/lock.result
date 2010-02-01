@@ -151,6 +151,12 @@ select * from t2;
 a
 select * from t3;
 ERROR HY000: Table 't3' was not locked with LOCK TABLES
+Dropping of implicitly locked table is disallowed.
+drop table t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+Now let us also lock table explicitly and drop it.
+lock tables t1 write, v_bug5719 write;
 drop table t1;
 
 sic: left LOCK TABLES mode
@@ -281,6 +287,79 @@ insert into t1 values (1);
 # Disconnect
 # Ensure that metadata locks held by the transaction are released.
 drop table t1;
+#
+# Coverage for situations when we try to execute DDL on tables
+# which are locked by LOCK TABLES only implicitly.
+#
+drop tables if exists t1, t2;
+drop view if exists v1;
+drop function if exists f1;
+create table t1 (i int);
+create table t2 (j int);
+#
+# Try to perform DDL on table which is locked through view.
+create view v1 as select * from t2;
+lock tables t1 write, v1 write;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop view v1;
+#
+# Now, try  DDL on table which is locked through routine.
+create function f1 () returns int
+begin
+insert into t2 values (1);
+return 0;
+end|
+create view v1 as select f1() from t1;
+lock tables v1 read;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop view v1;
+drop function f1;
+#
+# Finally, try DDL on table which is locked thanks to trigger.
+create trigger t1_ai after insert on t1 for each row insert into t2 values (1);
+lock tables t1 write;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop trigger t1_ai;
+drop tables t1, t2;
 #
 # Bug#45035 " Altering table under LOCK TABLES results in 
 # "Error 1213 Deadlock found..."

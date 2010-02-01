@@ -4262,7 +4262,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     DBUG_RETURN(true);
   }
 
-  if (thd->global_read_lock)
+  if (thd->global_read_lock.is_acquired())
   {
     /*
       This connection already holds the global read lock.
@@ -4285,8 +4285,8 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     [3] prevents transactions from being committed.
   */
 
-  if (lock_global_read_lock(thd))
-    DBUG_RETURN(true);
+  if (thd->global_read_lock.lock_global_read_lock(thd))
+    DBUG_RETURN(TRUE);
 
   /*
     This call will be blocked by any connection holding a READ or WRITE lock.
@@ -4300,7 +4300,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
   if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
     goto end_with_read_lock;
 
-  if ((result= make_global_read_lock_block_commit(thd)))
+  if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -4308,7 +4308,7 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
 
 end_with_read_lock:
   /* Release the lock */
-  unlock_global_read_lock(thd);
+  thd->global_read_lock.unlock_global_read_lock(thd);
   DBUG_RETURN(result);
 }
 

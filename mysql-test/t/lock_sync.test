@@ -21,6 +21,7 @@
 --echo # TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
 --disable_warnings
 drop table if exists t1;
+drop view if exists v1;
 --enable_warnings
 --echo # Create auxiliary connections used through the test.
 connect (con_bug45143_1,localhost,root,,test,,);
@@ -35,6 +36,9 @@ set @old_general_log = @@global.general_log;
 set @@global.general_log= OFF;
 
 create table t1 (i int) engine=InnoDB;
+--echo # We have to use view in order to make LOCK TABLES avoid
+--echo # acquiring SNRW metadata lock on table.
+create view v1 as select * from t1;
 insert into t1 values (1);
 --echo # Prepare user lock which will be used for resuming execution of
 --echo # the first statement after it acquires TL_WRITE_ALLOW_WRITE lock.
@@ -65,14 +69,14 @@ connection con_bug45143_3;
 --echo # acquiring lock for the the first instance of 't1'.
 set debug_sync= 'now WAIT_FOR parked';
 --echo # Send LOCK TABLE statement which will try to get TL_WRITE lock on 't1':
---send lock table t1 write;
+--send lock table v1 write;
 
 --echo # Switch to connection 'default'.
 connection default;
 --echo # Wait until this LOCK TABLES statement starts waiting for table lock.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
                        where state= 'Table lock' and
-                             info='lock table t1 write';
+                             info='lock table v1 write';
 --source include/wait_condition.inc
 --echo # Allow SELECT ... FOR UPDATE to resume.
 --echo # Since it already has TL_WRITE_ALLOW_WRITE lock on the first instance
@@ -110,6 +114,7 @@ disconnect con_bug45143_2;
 disconnect con_bug45143_3;
 set debug_sync= 'RESET';
 set @@global.general_log= @old_general_log;
+drop view v1;
 drop table t1;
 
 

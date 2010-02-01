@@ -8,14 +8,24 @@ drop table if exists t1,t2;
 # Test to see if select will get the lock ahead of low priority update
 
 connect (locker,localhost,root,,);
+connect (locker2,localhost,root,,);
 connect (reader,localhost,root,,);
 connect (writer,localhost,root,,);
 
 connection locker;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 write;
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+send
+update t1 set n = 2 and get_lock('mysqltest_lock', 100);
 connection writer;
+# Wait till above update gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "update t1 set n = 2 and get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 send
 update low_priority t1 set n = 4;
 connection reader;
@@ -26,13 +36,16 @@ let $wait_condition=
 --source include/wait_condition.inc
 send
 select n from t1;
-connection locker;
+connection locker2;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Table lock" and info = "select n from t1";
 --source include/wait_condition.inc
-unlock tables;
+select release_lock("mysqltest_lock");
+connection locker;
+reap;
+select release_lock("mysqltest_lock");
 connection writer;
 reap;
 connection reader;
@@ -42,8 +55,17 @@ drop table t1;
 connection locker;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 read;
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+send
+select n from t1 where get_lock('mysqltest_lock', 100);
 connection writer;
+# Wait till above select gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "select n from t1 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 send
 update low_priority t1 set n = 4;
 connection reader;
@@ -53,8 +75,11 @@ let $wait_condition=
   where state = "Table lock" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
 select n from t1;
+connection locker2;
+select release_lock("mysqltest_lock");
 connection locker;
-unlock tables;
+reap;
+select release_lock("mysqltest_lock");
 connection writer;
 reap;
 drop table t1;
@@ -95,9 +120,10 @@ insert t1 select * from t2;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "insert t1 select * from t2";
+  where state = "Waiting for table" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -119,9 +145,10 @@ connection locker;
 # Sleep a bit till the insert of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "insert t1 select * from t2";
+  where state = "Waiting for table" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -164,7 +191,7 @@ connection locker;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Table lock" AND info =
+  WHERE state = "Waiting for table" AND info =
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -299,7 +326,7 @@ connection reader;
 # Wait till connection writer is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 send
 alter table t1 auto_increment=0;
@@ -307,7 +334,7 @@ connection locker;
 # Wait till connection reader is blocked
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where state = "Table lock" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 unlock tables;
 connection writer;
@@ -502,6 +529,7 @@ drop table t1;
 
 # Disconnect sessions used in many subtests above
 disconnect locker;
+disconnect locker2;
 disconnect reader;
 disconnect writer;
 
@@ -668,6 +696,57 @@ disconnect flush;
 
 
 --echo #
+--echo # Test for bug #46272 "MySQL 5.4.4, new MDL: unnecessary deadlock".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con46272'.
+connect (con46272,localhost,root,,test,,);
+connection con46272;
+--echo # The below ALTER TABLE statement should wait till transaction
+--echo # in connection 'default' is complete and then succeed.
+--echo # It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+--echo # Sending:
+--send alter table t1 add column c4 int;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above ALTER TABLE gets blocked because this
+--echo # connection holds SW metadata lock on table to be altered.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed. It should not
+--echo # deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+
+--echo # Unblock ALTER TABLE by committing transaction.
+commit;
+
+--echo #
+--echo # Switching to connection 'con46272'.
+connection con46272;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con46272;
+drop table t1;
+
+
+--echo #
 --echo # Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
 --echo #
 
@@ -679,21 +758,17 @@ DROP VIEW  IF EXISTS v1;
 --echo #
 --echo # Test 1: LOCK TABLES v1 WRITE, t1 READ;
 --echo #
+--echo # Thanks to the fact that we no longer allow DDL on tables
+--echo # which are locked for write implicitly, the exact scenario
+--echo # in which assert was failing is no longer repeatable.
 
 CREATE TABLE t1 ( f1 integer );
 CREATE VIEW v1 AS SELECT f1 FROM t1 ;
 
---echo # Connection 2
-connect (con2,localhost,root);
 LOCK TABLES v1 WRITE, t1 READ;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 FLUSH TABLE t1;
-disconnect con2;
---source include/wait_until_disconnected.inc
-
---echo # Connection 1
-connection default;
-LOCK TABLES t1 WRITE;
-FLUSH TABLE t1;                                    # Assertion happened here
+UNLOCK TABLES;
 
 # Cleanup
 DROP TABLE t1;
