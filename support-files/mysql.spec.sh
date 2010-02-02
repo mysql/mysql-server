@@ -1,14 +1,14 @@
 # Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING. If not, write to the
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
@@ -55,7 +55,7 @@
 %define _unpackaged_files_terminate_build 0
 
 # ------------------------------------------------------------------------------
-# RPM build tools now automatically detects Perl module dependencies. This 
+# RPM build tools now automatically detects Perl module dependencies. This
 # detection gives problems as it is broken in some versions, and it also
 # give unwanted dependencies from mandatory scripts in our package.
 # Might not be possible to disable in all RPM tool versions, but here we
@@ -174,7 +174,7 @@ Obsoletes: mysql-client
 Provides: mysql-client
 
 %description client
-This package contains the standard MySQL clients and administration tools. 
+This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
@@ -185,8 +185,8 @@ Summary:	MySQL - ndbcluster storage engine
 Group:		Applications/Databases
 
 %description ndb-storage
-This package contains the ndbcluster storage engine. 
-It is necessary to have this package installed on all 
+This package contains the ndbcluster storage engine.
+It is necessary to have this package installed on all
 computers that should store ndbcluster table data.
 
 %{see_base}
@@ -199,7 +199,7 @@ Group:		Applications/Databases
 
 %description ndb-management
 This package contains ndbcluster storage engine management.
-It is necessary to have this package installed on at least 
+It is necessary to have this package installed on at least
 one computer in the cluster.
 
 %{see_base}
@@ -465,7 +465,7 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-# Install all binaries stripped 
+# Install all binaries stripped
 make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 
 # Install the ndb binaries
@@ -608,7 +608,7 @@ fi
 # exists.
 # ----------------------------------------------------------------------
 groupadd -r %{mysqld_group} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
@@ -682,7 +682,7 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING README 
+%doc COPYING README
 %doc support-files/my-*.cnf
 %doc support-files/ndb-*.ini
 
@@ -983,7 +983,7 @@ fi
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB) 
+- Explicitly note that the "MySQL-shared" RPMs (as built by MySQL AB)
   replace "mysql-shared" (as distributed by SuSE) to allow easy upgrading
   (bug#22081).
 
@@ -1066,8 +1066,8 @@ fi
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
-- Avoid using the "bundled" zlib on "shared" builds: 
-  As it is not installed (on the build system), this gives dependency 
+- Avoid using the "bundled" zlib on "shared" builds:
+  As it is not installed (on the build system), this gives dependency
   problems with "libtool" causing the build to fail.
   (Change was done on Nov 11, but left uncommented.)
 
@@ -1253,7 +1253,7 @@ fi
 
 * Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
 
-- when using gcc, _always_ use CXX=gcc 
+- when using gcc, _always_ use CXX=gcc
 - replaced Copyright with License field (Copyright is obsolete)
 
 * Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
@@ -1343,7 +1343,7 @@ fi
 
 * Wed Nov 27 2002 Lenz Grimmer <lenz@mysql.com>
 
-- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of 
+- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of
   Linux distributions now support this scheme as proposed by the LSB either
   directly or via a compatibility symlink)
 - Use new "restart" init script action instead of starting and stopping
@@ -1358,7 +1358,7 @@ fi
   (mixing 3.23 and 4.0 packages)
 
 * Fri Aug 09 2002 Lenz Grimmer <lenz@mysql.com>
- 
+
 - Turn off OpenSSL in MySQL-Max for now until it works properly again
 - enable RAID for the Max binary instead
 - added compatibility link: safe_mysqld -> mysqld_safe to ease the
