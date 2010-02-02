@@ -15,27 +15,95 @@
 
 # This file includes build settings used for MySQL release
 
-OPTION(WITH_INNOBASE_STORAGE_ENGINE "" ON)
-OPTION(WITH_ARCHIVE_STORAGE_ENGINE "" ON)
-OPTION(WITH_BLACKHOLE_STORAGE_ENGINE "" ON)
-OPTION(WITH_FEDERATED_STORAGE_ENGINE "" ON )
-OPTION(WITHOUT_EXAMPLE_STORAGE_ENGINE "" ON)
-OPTION(WITH_EMBEDDED_SERVER "" ON)
+ 
+SET(FEATURE_SET "community" CACHE STRING 
+" Selection of features. Options are
+ - xsmall : 
+ - small: embedded
+ - classic: embedded + archive + federated + blackhole 
+ - large :  embedded + archive + federated + blackhole + innodb
+ - xlarge:  embedded + archive + federated + blackhole + innodb + partition
+ - community:  all  features (currently == xlarge)
+"
+)
+
+SET(FEATURE_SET_xsmall  1)
+SET(FEATURE_SET_small   2)
+SET(FEATURE_SET_classic 3)
+SET(FEATURE_SET_large   5)
+SET(FEATURE_SET_xlarge  6)
+SET(FEATURE_SET_community 7)
+
+IF(FEATURE_SET)
+  STRING(TOLOWER ${FEATURE_SET} feature_set)
+  SET(num ${FEATURE_SET_${feature_set}})
+  IF(NOT num)
+   MESSAGE(FATAL_ERROR "Invalid FEATURE_SET option '${feature_set}'. 
+   Should be xsmall, small, classic, large, or community
+   ")
+  ENDIF()
+  SET(WITH_PARTITION_STORAGE_ENGINE OFF)
+  IF(num EQUAL FEATURE_SET_xsmall)
+    SET(WITH_NONE ON)
+  ENDIF()
+  
+  IF(num GREATER FEATURE_SET_xsmall)
+    SET(WITH_EMBEDDED_SERVER ON CACHE BOOL "")
+  ENDIF()
+  IF(num GREATER FEATURE_SET_small)
+    SET(WITH_ARCHIVE_STORAGE_ENGINE  ON)
+    SET(WITH_BLACKHOLE_STORAGE_ENGINE ON)
+    SET(WITH_FEDERATED_STORAGE_ENGINE ON)
+  ENDIF()
+  IF(num GREATER FEATURE_SET_classic)
+    SET(WITH_INNOBASE_STORAGE_ENGINE ON)
+  ENDIF()
+  IF(num GREATER FEATURE_SET_large)
+    SET(WITH_PARTITION_STORAGE_ENGINE ON)
+  ENDIF()
+  IF(num GREATER FEATURE_SET_xlarge)
+   # OPTION(WITH_ALL ON) 
+   # better no set this, otherwise server would be linked 
+   # statically with experimental stuff like audit_null
+  ENDIF()
+  
+  # Update cache with current values, remove engines we do not care about
+  # from build.
+  FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE PARTITION EXAMPLE)
+    IF(NOT WITH_${eng}_STORAGE_ENGINE)
+      SET(WITHOUT_${eng}_STORAGE_ENGINE ON CACHE BOOL "")
+      MARK_AS_ADVANCED(WITHOUT_${eng}_STORAGE_ENGINE)
+      SET(WITH_${eng}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSE()
+     SET(WITH_${eng}_STORAGE_ENGINE ON CACHE BOOL "")
+	ENDIF()
+  ENDFOREACH()
+ENDIF()
+
+
 OPTION(ENABLE_LOCAL_INFILE "" ON)
 SET(WITH_SSL bundled CACHE STRING "")
 SET(WITH_ZLIB bundled CACHE STRING "")
-  
+
 
 IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "MySQL Community Server (GPL)")
 ENDIF()
 
 IF(UNIX)
-  SET(CMAKE_INSTALL_PREFIX "/usr/local/mysql") 
-  SET(WITH_EXTRA_CHARSETS complex CACHE STRING "")
-  OPTION(WITH_READLINE  "" ON)
-  OPTION(WITH_PIC "" ON)
-  
+  SET(WITH_EXTRA_CHARSETS all CACHE STRING "")
+  IF(EXISTS "${CMAKE_SOURCE_DIR}/COPYING")
+    OPTION(WITH_READLINE  "" ON)
+  ELSE()
+    OPTION(WITH_LIBEDIT  "" ON)
+  ENDIF()
+
+  OPTION(WITH_PIC "" ON) # Why?
+ENDIF()
+
+
+# Compiler options
+IF(UNIX)  
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCXX)
    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O3 -static-libgcc -fno-omit-frame-pointer")
@@ -90,7 +158,6 @@ IF(UNIX)
             "-g0 -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
          ENDIF()
        ELSE() 
-          
           IF(CMAKE_SIZEOF_VOIDP EQUAL 4)
             # Solaris sparc 32 bit
             SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-g -xO3 -Xa -xstrconst -mt -xarch=sparc")
