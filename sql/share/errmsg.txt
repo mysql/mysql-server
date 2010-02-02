@@ -6306,3 +6306,7 @@ ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s."
         ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
 
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
+ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot change the binlog direct flag inside a stored function or trigger"

@@ -6,6 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+SET @@session.binlog_direct_non_transactional_updates= FALSE;
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 use db1;

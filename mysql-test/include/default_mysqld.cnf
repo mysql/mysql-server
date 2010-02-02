@@ -44,3 +44,4 @@ log-bin=mysqld-bin
 # Run tests with the performance schema instrumentation
 loose-enable-performance-schema
 
+binlog-direct-non-transactional-updates
