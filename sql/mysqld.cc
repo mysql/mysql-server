@@ -1305,7 +1305,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   item_create_cleanup();
   set_var_free();
-  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -4009,7 +4008,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln))
+    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(1);
     }
@@ -4173,7 +4172,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0))
+                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -5704,6 +5703,7 @@ enum options_mysqld
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
+  OPT_MYISAM_MMAP_SIZE,
   OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -6005,7 +6005,8 @@ Disable with --skip-super-large-pages.",
 #endif
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed by a slave server \
+each time the SQL thread starts.",
    (uchar**) &opt_init_slave, (uchar**) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"language", 'L',
@@ -6825,6 +6826,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.myisam_max_sort_file_size, 0,
    GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
    0, 1024*1024, 0},
+  {"myisam_mmap_size", OPT_MYISAM_MMAP_SIZE,
+   "Can be used to restrict the total memory used for memory mmaping of myisam files",
+   (uchar**) &myisam_mmap_size, (uchar**) &myisam_mmap_size, 0,
+   GET_ULL, REQUIRED_ARG, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 0, 1, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
    "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
    (uchar**) &global_system_variables.myisam_repair_threads,

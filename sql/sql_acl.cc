@@ -3436,7 +3436,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
