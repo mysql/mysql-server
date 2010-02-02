@@ -14,36 +14,23 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%define mysql_version   @VERSION@
-%define mysql_vendor    MySQL AB
+##############################################################################
+# Some common macro definitions
+##############################################################################
 
-# use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
-# to enable static linking (off by default)
-%{?_with_static:%define STATIC_BUILD 1}
-%{!?_with_static:%define STATIC_BUILD 0}
+# NOTE: "vendor" is used in upgrade/downgrade check, so you can't
+# change these, has to be exactly as is.
+%define mysql_old_vendor	MySQL AB
+%define mysql_vendor		Sun Microsystems, Inc.
 
-# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
-# to build with yaSSL support (off by default)
-%{?_with_yassl:%define YASSL_BUILD 1}
-%{!?_with_yassl:%define YASSL_BUILD 0}
+%define mysql_version @VERSION@
 
-%if %{STATIC_BUILD}
-%define release 1
-%else
-%define release 1.glibc23
-%endif
-%define license GPL
-%define mysqld_user     mysql
-%define mysqld_group    mysql
-%define server_suffix   -community
-%define mysqldatadir    /var/lib/mysql
-
-# We don't package all files installed into the build root by intention -
-# See BUG#998 for details.
-%define _unpackaged_files_terminate_build 0
-
+%define mysqld_user    mysql
+%define mysqld_group   mysql
+%define mysqldatadir   /var/lib/mysql
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
+# ------------------------------------------------------------------------------
 # On SuSE 9 no separate "debuginfo" package is built. To enable basic
 # debugging on that platform, we don't strip binaries on SuSE 9. We
 # disable the strip of binaries by redefining the RPM macro
@@ -58,18 +45,68 @@
 # http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
 # http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
 # http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
-
+# ------------------------------------------------------------------------------
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-Name: MySQL
+# ------------------------------------------------------------------------------
+# We don't package all files installed into the build root by intention -
+# See BUG#998 for details.
+# ------------------------------------------------------------------------------
+%define _unpackaged_files_terminate_build 0
+
+# ------------------------------------------------------------------------------
+# RPM build tools now automatically detects Perl module dependencies. This 
+# detection gives problems as it is broken in some versions, and it also
+# give unwanted dependencies from mandatory scripts in our package.
+# Might not be possible to disable in all RPM tool versions, but here we
+# try. We keep the "AutoReqProv: no" for the "test" sub package, as disabling
+# here might fail, and that package has the most problems.
+# See http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
+#     http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
+# ------------------------------------------------------------------------------
+%undefine __perl_provides
+%undefine __perl_requires
+
+##############################################################################
+# Command line handling
+##############################################################################
+
+# ----------------------------------------------------------------------
+# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
+# to build with yaSSL support (off by default)
+# ----------------------------------------------------------------------
+%{?_with_yassl:%define YASSL_BUILD 1}
+%{!?_with_yassl:%define YASSL_BUILD 0}
+
+# ------------------------------------------------------------------------------
+# use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
+# to enable static linking (off by default)
+%{?_with_static:%define STATIC_BUILD 1}
+%{!?_with_static:%define STATIC_BUILD 0}
+
+%if %{STATIC_BUILD}
+%define release 1
+%else
+%define release 1.glibc23
+%endif
+
+%define license GPL
+%define server_suffix   -community
+%define src_dir mysql-%{mysql_version}
+
+##############################################################################
+# Main spec file section
+##############################################################################
+
+Name:		MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
 License:	%{license}
-Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
+Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	MySQL Production Engineering Team <build@mysql.com>
+Packager:	Sun Microsystems, Inc. Product Engineering Team <build@mysql.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -85,7 +122,7 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
 Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -94,6 +131,10 @@ and you are welcome to modify and redistribute it under the GPL license.
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
+
+##############################################################################
+# Sub package definition
+##############################################################################
 
 %package server
 Summary:	MySQL: a very fast and reliable SQL database server
@@ -107,7 +148,7 @@ The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
-MySQL AB.
+Sun Microsystems, Inc.
 
 Copyright (C) 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -117,11 +158,14 @@ The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
-This package includes the MySQL server binary (incl. InnoDB) as well
-as related utilities to run and administrate a MySQL server.
+This package includes the MySQL server binary
+(configured including InnoDB)
+as well as related utilities to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-the package "MySQL-client" as well!
+package "MySQL-client" as well!
+
+# ------------------------------------------------------------------------------
 
 %package client
 Summary: MySQL - Client
@@ -134,6 +178,8 @@ This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
+# ------------------------------------------------------------------------------
+
 %package ndb-storage
 Summary:	MySQL - ndbcluster storage engine
 Group:		Applications/Databases
@@ -144,6 +190,8 @@ It is necessary to have this package installed on all
 computers that should store ndbcluster table data.
 
 %{see_base}
+
+# ------------------------------------------------------------------------------
 
 %package ndb-management
 Summary:	MySQL - ndbcluster storage engine management
@@ -156,6 +204,8 @@ one computer in the cluster.
 
 %{see_base}
 
+# ------------------------------------------------------------------------------
+
 %package ndb-tools
 Summary:	MySQL - ndbcluster storage engine basic tools
 Group:		Applications/Databases
@@ -164,6 +214,8 @@ Group:		Applications/Databases
 This package contains ndbcluster storage engine basic tools.
 
 %{see_base}
+
+# ------------------------------------------------------------------------------
 
 %package ndb-extra
 Summary:	MySQL - ndbcluster storage engine extra tools
@@ -174,6 +226,8 @@ This package contains some extra ndbcluster storage engine tools for the advance
 They should be used with caution.
 
 %{see_base}
+
+# ------------------------------------------------------------------------------
 
 %package bench
 Requires: %{name}-client perl-DBI perl
@@ -188,6 +242,8 @@ This package contains MySQL benchmark scripts and data.
 
 %{see_base}
 
+# ------------------------------------------------------------------------------
+
 %package devel
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
@@ -199,6 +255,8 @@ This package contains the development header files and libraries
 necessary to develop MySQL client applications.
 
 %{see_base}
+
+# ------------------------------------------------------------------------------
 
 %package shared
 Summary: MySQL - Shared libraries
@@ -230,7 +288,11 @@ languages and applications need to dynamically load and use MySQL.
 #%{see_base}
 
 %prep
-%setup -n mysql-%{mysql_version}
+%setup -n %{src_dir}
+
+##############################################################################
+# The actual build
+##############################################################################
 
 %build
 
@@ -238,8 +300,8 @@ BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
-	CC=\"${CC:-$MYSQL_BUILD_CC}\" \
-	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
+	CC=\"${MYSQL_BUILD_CC:-$CC}\" \
+	CXX=\"${MYSQL_BUILD_CXX:-$CXX}\" \
 	CFLAGS=\"$CFLAGS\" \
 	CXXFLAGS=\"$CXXFLAGS\" \
 	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
@@ -247,25 +309,25 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
  	    $* \
 	    --enable-assembler \
 	    --enable-local-infile \
-            --with-mysqld-user=%{mysqld_user} \
-            --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-mysqld-user=%{mysqld_user} \
+	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
 	    --with-pic \
-            --prefix=/ \
+	    --prefix=/ \
 %if %{YASSL_BUILD}
 	    --with-yassl \
 %endif
-            --exec-prefix=%{_exec_prefix} \
-            --libexecdir=%{_sbindir} \
-            --libdir=%{_libdir} \
-            --sysconfdir=%{_sysconfdir} \
-            --datadir=%{_datadir} \
-            --localstatedir=%{mysqldatadir} \
-            --infodir=%{_infodir} \
-            --includedir=%{_includedir} \
-            --mandir=%{_mandir} \
+	    --exec-prefix=%{_exec_prefix} \
+	    --libexecdir=%{_sbindir} \
+	    --libdir=%{_libdir} \
+	    --sysconfdir=%{_sysconfdir} \
+	    --datadir=%{_datadir} \
+	    --localstatedir=%{mysqldatadir} \
+	    --infodir=%{_infodir} \
+	    --includedir=%{_includedir} \
+	    --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
 	    --enable-community-features \
-            --enable-profiling \
+	    --enable-profiling \
 	    --with-readline ; \
 	    # Add this for more debugging support
 	    # --with-debug
@@ -274,6 +336,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
  # benchdir does not fit in above model. Maybe a separate bench distribution
  make benchdir_root=$RPM_BUILD_ROOT/usr/share/
 }
+# end of function definition "BuildMySQL"
 
 # Use our own copy of glibc
 
@@ -287,7 +350,7 @@ fi
 # Use the build root for temporary storage of the shared libraries.
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
@@ -301,10 +364,8 @@ export PATH
 
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
-if [ -z "$CXX" -a -z "$CC" ]
-then
-	export CC="gcc"
-	export CXX="gcc"
+if [ -z "$CXX" -a -z "$CC" ] ; then
+	export CC="gcc" CXX="gcc"
 fi
 
 # Prepare compiler flags
@@ -393,7 +454,7 @@ make test-bt
 
 %install
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
@@ -417,7 +478,6 @@ install -s -m 755 $MBD/sql/mysqld-debug $RBR%{_sbindir}/mysqld-debug
 (cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
 
 # install symbol files ( for stack trace resolution)
-# install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
 install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 install -m 644 $MBD/sql/mysqld-debug.sym $RBR%{_libdir}/mysql/mysqld-debug.sym
 
@@ -431,7 +491,7 @@ install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
-ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
+ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
@@ -451,6 +511,7 @@ installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
+  myoldvendor='%{mysql_old_vendor}'
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
@@ -462,12 +523,12 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myvendor.  Some files may be installed
-to different locations, including log files and the service
-startup script in %{_sysconfdir}/init.d/.
+vendor ($vendor) than $myoldvendor or $myvendor.
+Some files may be installed to different locations, including log
+files and the service startup script in %{_sysconfdir}/init.d/.
 "
   fi
 
@@ -511,58 +572,70 @@ HERE
 fi
 
 # Shut down a previously installed server first
-if test -x %{_sysconfdir}/init.d/mysql
-then
-  %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-  echo "Giving mysqld a couple of seconds to exit nicely"
-  sleep 5
-elif test -x %{_sysconfdir}/rc.d/init.d/mysql
-then
-  %{_sysconfdir}/rc.d/init.d/mysql stop > /dev/null 2>&1
-  echo "Giving mysqld a couple of seconds to exit nicely"
-  sleep 5
+if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+	%{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+	echo "Giving mysqld 5 seconds to exit nicely"
+	sleep 5
+elif [ -x %{_sysconfdir}/rc.d/init.d/mysql ] ; then
+	%{_sysconfdir}/rc.d/init.d/mysql stop > /dev/null 2>&1
+	echo "Giving mysqld 5 seconds to exit nicely"
+	sleep 5
 fi
 
 %post server
 mysql_datadir=%{mysqldatadir}
 
+# ----------------------------------------------------------------------
 # Create data directory if needed
-if test ! -d $mysql_datadir; then mkdir -m 755 $mysql_datadir; fi
-if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
-if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
+# ----------------------------------------------------------------------
+if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
+if [ ! -d $mysql_datadir/mysql ] ; then mkdir $mysql_datadir/mysql; fi
+if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
+# ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
+# ----------------------------------------------------------------------
 # use insserv for older SuSE Linux versions
-if test -x /sbin/insserv
-then
+if [ -x /sbin/insserv ] ; then
 	/sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Red Hat and newer SuSE releases
-elif test -x /sbin/chkconfig
-then
+elif [ -x /sbin/chkconfig ] ; then
 	/sbin/chkconfig --add mysql
 fi
 
+# ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
+# ----------------------------------------------------------------------
 groupadd -r %{mysqld_group} 2> /dev/null || true
 useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
 # The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
+# ----------------------------------------------------------------------
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
+# ----------------------------------------------------------------------
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
+# ----------------------------------------------------------------------
 # Initiate databases if needed
+# ----------------------------------------------------------------------
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
+# ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
+# ----------------------------------------------------------------------
 
+# ----------------------------------------------------------------------
 # Change permissions again to fix any new files.
+# ----------------------------------------------------------------------
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
+# ----------------------------------------------------------------------
 # Fix permissions for the permission database so that only the user
 # can read them.
+# ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
 
 # Restart in the same way that mysqld will be started normally.
@@ -578,32 +651,33 @@ mysql_clusterdir=/var/lib/mysql-cluster
 if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 %preun server
-if test $1 = 0
-then
-  # Stop MySQL before uninstalling it
-  if test -x %{_sysconfdir}/init.d/mysql
-  then
-    %{_sysconfdir}/init.d/mysql stop > /dev/null
-
-    # Remove autostart of mysql
-    # for older SuSE Linux versions
-    if test -x /sbin/insserv
-    then
-      /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-    # use chkconfig on Red Hat and newer SuSE releases
-    elif test -x /sbin/chkconfig
-    then
-      /sbin/chkconfig --del mysql
-    fi
-  fi
+if [ $1 = 0 ] ; then
+	# Stop MySQL before uninstalling it
+	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+		%{_sysconfdir}/init.d/mysql stop > /dev/null
+		# Remove autostart of MySQL
+		# For older SuSE Linux versions
+		if [ -x /sbin/insserv ] ; then
+			/sbin/insserv -r %{_sysconfdir}/init.d/mysql
+		# use chkconfig on Red Hat and newer SuSE releases
+		elif [ -x /sbin/chkconfig ] ; then
+			/sbin/chkconfig --del mysql
+		fi
+	fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
 # database files.
 
-# Clean up the BuildRoot
+# ----------------------------------------------------------------------
+# Clean up the BuildRoot after build is done
+# ----------------------------------------------------------------------
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
+
+##############################################################################
+#  Files section
+##############################################################################
 
 %files server
 %defattr(-,root,root,0755)
@@ -818,6 +892,19 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Feb 01 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Formatting changes:
+  Have a consistent structure of separator lines and of indentation
+  (8 leading blanks => tab).
+- Add the "old vendor" (= "MySQL AB") and expand the upgrade check
+  so that "MySQL" packages can be upgraded by "Sun" ones.
+  This fixes bug#45534, with its duplicates #42953 and #46174.
+- Backport the fix that prevents RPM from requiring "perl-DBI".
+- Introduce the variable "src_dir".
+- Give the environment variables "MYSQL_BUILD_CC(CXX)" precedence
+  over "CC" ("CXX").
+
 * Mon Jan 11 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Change RPM file naming:
