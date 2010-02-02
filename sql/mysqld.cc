@@ -5733,7 +5733,8 @@ enum options_mysqld
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
-  OPT_BINLOG_DIRECT_NON_TRANS_UPDATE
+  OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+  OPT_DEFAULT_CHARACTER_SET_OLD
 };
 
 
@@ -5859,7 +5860,8 @@ struct my_option my_long_options[] =
   {"debug", '#', "Debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
+  {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
+   "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-collation", OPT_DEFAULT_COLLATION_OLD, "Set the default collation (deprecated option, use --collation-server instead).",
@@ -7921,8 +7923,12 @@ mysqld_get_one_option(int optid,
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
+  case OPT_DEFAULT_CHARACTER_SET_OLD: // --default-character-set
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
+                    "--default-character-set",
+                    "--character-set-server");
+    /* Fall through */
   case 'C':
-    WARN_DEPRECATED(NULL, VER_CELOSIA, "--default-character-set", "--character-set-server");
     if (default_collation_name == compiled_default_collation_name)
       default_collation_name= 0;
     break;
