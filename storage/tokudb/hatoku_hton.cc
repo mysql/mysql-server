@@ -66,7 +66,6 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
 #endif
-static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print);
 handlerton *tokudb_hton;
 
 const char *ha_tokudb_ext = ".tokudb";
@@ -681,49 +680,6 @@ cleanup:
 }
 
 
-static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
-    TOKUDB_DBUG_ENTER("tokudb_show_logs");
-    char **all_logs, **free_logs, **a, **f;
-    int error = 1;
-    MEM_ROOT **root_ptr = my_pthread_getspecific_ptr(MEM_ROOT **, THR_MALLOC);
-    MEM_ROOT show_logs_root, *old_mem_root = *root_ptr;
-
-    init_sql_alloc(&show_logs_root, BDB_LOG_ALLOC_BLOCK_SIZE, BDB_LOG_ALLOC_BLOCK_SIZE);
-    *root_ptr = &show_logs_root;
-    all_logs = free_logs = 0;
-
-    error = db_env->log_archive(db_env, &all_logs, 0);
-    if (error) {
-        DBUG_PRINT("error", ("log_archive failed (error %d)", error));
-        db_env->err(db_env, error, "log_archive");
-        if (error == DB_NOTFOUND)
-            error = 0;          // No log files
-        goto err;
-    }
-    /* Error is 0 here */
-    if (all_logs) {
-        for (a = all_logs, f = free_logs; *a; ++a) {
-            if (f && *f && strcmp(*a, *f) == 0) {
-                f++;
-                if ((error = stat_print(thd, tokudb_hton_name, tokudb_hton_name_length, *a, strlen(*a), STRING_WITH_LEN(SHOW_LOG_STATUS_FREE))))
-                    break;
-            } else {
-                if ((error = stat_print(thd, tokudb_hton_name, tokudb_hton_name_length, *a, strlen(*a), STRING_WITH_LEN(SHOW_LOG_STATUS_INUSE))))
-                    break;
-            }
-        }
-    }
-  err:
-    if (all_logs)
-        free(all_logs);
-    if (free_logs)
-        free(free_logs);
-    free_root(&show_logs_root, MYF(0));
-    *root_ptr = old_mem_root;
-    if (error) { my_errno = error; }
-    TOKUDB_DBUG_RETURN(error);
-}
-
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
                                           tokudb_hton_name_length, \
@@ -917,9 +873,6 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
         break;
     case HA_ENGINE_DATA_EXACT_AMOUNT:
         return tokudb_show_data_size(thd, stat_print, true);
-        break;
-    case HA_ENGINE_LOGS:
-        return tokudb_show_logs(thd, stat_print);
         break;
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
