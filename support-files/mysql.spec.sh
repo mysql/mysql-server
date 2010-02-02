@@ -43,6 +43,12 @@
 %{?_with_cluster:%define CLUSTER_BUILD 1}
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
+# ----------------------------------------------------------------------
+# support optional "tcmalloc" stuff (experimental)
+# ----------------------------------------------------------------------
+%{?malloc_lib_target:%define WITH_TCMALLOC 1}
+%{!?malloc_lib_target:%define WITH_TCMALLOC 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -448,7 +454,7 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
-%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib/mysql, so it
 # doesn't conflict with possible shared lib by the same name in /usr/lib.  See
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
@@ -709,12 +715,10 @@ fi
 %attr(755, root, root) %{_bindir}/resolveip
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
-%if %{WITHOUT_INNODB_PLUGIN}
-%else
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
-%endif
+%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/libsemisync_slave.so*
 
-%if %{?malloc_lib_target:1}%{!?malloc_lib_target:0}
+%if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
 
@@ -833,6 +837,7 @@ fi
 %{_libdir}/mysql/libmysqlclient.la
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlclient_r.la
+%{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
 %if %{CLUSTER_BUILD}
@@ -844,11 +849,10 @@ fi
 %{_libdir}/mysql/libz.la
 %{_libdir}/mysql/plugin/ha_example.a
 %{_libdir}/mysql/plugin/ha_example.la
-%if %{WITHOUT_INNODB_PLUGIN}
-%else
-%{_libdir}/mysql/plugin/ha_innodb_plugin.a
-%{_libdir}/mysql/plugin/ha_innodb_plugin.la
-%endif
+%{_libdir}/mysql/plugin/libsemisync_master.a
+%{_libdir}/mysql/plugin/libsemisync_master.la
+%{_libdir}/mysql/plugin/libsemisync_slave.a
+%{_libdir}/mysql/plugin/libsemisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -878,6 +882,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Fix some problems with the directives around "tcmalloc" (experimental),
+  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+
 * Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
 
 - "mysqlmanager" got removed from version 5.4, all references deleted.

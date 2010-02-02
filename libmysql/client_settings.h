@@ -27,8 +27,7 @@ extern char *	mysql_unix_port;
                              CLIENT_TRANSACTIONS |  \
                              CLIENT_PROTOCOL_41 | \
                              CLIENT_SECURE_CONNECTION | \
-                             CLIENT_MULTI_RESULTS | \
-                             CLIENT_PS_MULTI_RESULTS)
+                             CLIENT_MULTI_RESULTS)
 
 sig_handler my_pipe_sig_handler(int sig);
 void read_user_name(char *name);

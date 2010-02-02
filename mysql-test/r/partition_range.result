@@ -1,6 +1,19 @@
 drop table if exists t1, t2;
 create table t1 (a int)
 partition by range (a)
+subpartition by hash(to_seconds(a))
+(partition p0 values less than (1));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (to_seconds(a))
+(PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM) */
+drop table t1;
+create table t1 (a int)
+partition by range (a)
 ( partition p0 values less than (NULL),
 partition p1 values less than (MAXVALUE));
 ERROR HY000: Not allowed to use NULL value in VALUES LESS THAN
@@ -30,6 +43,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t1 where a < '2007-03-07 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE (TO_SECONDS(a))
+(PARTITION p0 VALUES LESS THAN (63340531200) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (63342604800) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a date)
 partition by range(to_seconds(a))
@@ -53,6 +74,14 @@ select * from t1 where a <= '2005-01-01';
 a
 2003-12-30
 2004-12-31
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` date DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE (to_seconds(a))
+(PARTITION p0 VALUES LESS THAN (63240134400) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (63271756800) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a datetime)
 partition by range(to_seconds(a))
@@ -75,6 +104,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t1 where a <= '2005-01-01';
 a
 2004-01-01 11:59:29
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY RANGE (to_seconds(a))
+(PARTITION p0 VALUES LESS THAN (63240177600) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN (63271800000) ENGINE = MyISAM) */
 drop table t1;
 create table t1 (a int, b char(20))
 partition by range columns(a,b)

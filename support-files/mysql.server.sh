@@ -303,7 +303,7 @@ case "$mode" in
     then
       mysqld_pid=`cat "$mysqld_pid_file_path"`
 
-      if (kill -9 $mysqld_pid 2>/dev/null)
+      if (kill -0 $mysqld_pid 2>/dev/null)
       then
         echo $echo_n "Shutting down MySQL"
         kill $mysqld_pid

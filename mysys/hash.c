@@ -232,6 +232,8 @@ my_hash_value_type my_calc_hash(const HASH *hash,
 {
   return calc_hash(hash, key, length ? length : hash->key_length);
 }
+
+
 /*
   Search after a record based on a key
 
@@ -242,11 +244,17 @@ my_hash_value_type my_calc_hash(const HASH *hash,
 uchar* my_hash_first(const HASH *hash, const uchar *key, size_t length,
                      HASH_SEARCH_STATE *current_record)
 {
-  return my_hash_first_from_hash_value(hash,
-                 calc_hash(hash, key, length ? length : hash->key_length),
-                 key, length, current_record);
+  uchar *res;
+  if (my_hash_inited(hash))
+    res= my_hash_first_from_hash_value(hash,
+                   calc_hash(hash, key, length ? length : hash->key_length),
+                   key, length, current_record);
+  else
+    res= 0;
+  return res;
 }
-                    
+
+
 uchar* my_hash_first_from_hash_value(const HASH *hash,
                                      my_hash_value_type hash_value,
                                      const uchar *key,

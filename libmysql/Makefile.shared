@@ -35,7 +35,7 @@ target_sources = 	libmysql.c password.c \
 			get_password.c errmsg.c
 
 mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
-			strmake.lo strend.lo strtod.lo \
+			strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
 			strcend.lo bcmp.lo ctype-latin1.lo \
@@ -46,7 +46,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			ctype-win1250ch.lo ctype-utf8.lo ctype-extra.lo \
 			ctype-ucs2.lo ctype-gb2312.lo ctype-gbk.lo \
 			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo \
-			ctype-uca.lo xml.lo my_strtoll10.lo str_alloc.lo 
+			ctype-uca.lo xml.lo my_strtoll10.lo str_alloc.lo dtoa.lo
 
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo

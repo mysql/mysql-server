@@ -69,7 +69,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/ctype-simple.c ../strings/ctype-sjis.c ../strings/ctype-tis620.c 
                      ../strings/ctype-uca.c ../strings/ctype-ucs2.c ../strings/ctype-ujis.c 
                      ../strings/ctype-utf8.c ../strings/ctype-win1250ch.c ../strings/ctype.c 
-                     ../mysys/default.c errmsg.c ../mysys/errors.c
+                     ../mysys/default.c ../strings/dtoa.c errmsg.c ../mysys/errors.c
                      ../mysys/hash.c ../mysys/my_sleep.c ../mysys/default_modify.c
                      get_password.c ../strings/int2str.c ../strings/is_prefix.c 
                      libmysql.c ../mysys/list.c ../strings/llstr.c
@@ -92,7 +92,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/safemalloc.c ../mysys/sha1.c ../strings/str2int.c
                      ../strings/str_alloc.c ../strings/strcend.c ../strings/strcont.c ../strings/strend.c 
                      ../strings/strfill.c ../mysys/string.c ../strings/strinstr.c ../strings/strmake.c 
-                     ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c ../strings/strtod.c
+                     ../strings/strmov.c ../strings/strnlen.c ../strings/strnmov.c
                      ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                      ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
                      ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c ../mysys/mf_qsort.c

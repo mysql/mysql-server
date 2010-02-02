@@ -18,3 +18,4 @@ ssl_compress             : SSL certificates expired
 ssl_connect              : SSL certificates expired
 innodb-autoinc           : Bug#49267 2009-12-02 test fails on windows because of different case mode
 innodb                   : Bug#49396 2009-12-03 test fails in embedded mode
+plugin_load              : Bug#42144 2009-12-21 alik plugin_load fails

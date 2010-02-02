@@ -102,7 +102,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
       Foreign_key* fk = (Foreign_key*)curKey;
       
       char db2LibName[MAX_DB2_SCHEMANAME_LENGTH+1];
-      if (fk->name)
+      if (fk->name.str)
       {
         char db2FKName[MAX_DB2_FILENAME_LENGTH+1];
         appendHere.append(STRING_WITH_LEN("CONSTRAINT "));
@@ -120,7 +120,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         
         appendHere.append('.');
         
-        convertMySQLNameToDB2Name(fk->name, db2FKName, sizeof(db2FKName));
+        convertMySQLNameToDB2Name(fk->name.str, db2FKName, sizeof(db2FKName));
         appendHere.append(db2FKName);
       }
       
@@ -139,7 +139,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         }
         firstTime = false;
         
-        convertMySQLNameToDB2Name(curColumn->field_name, colName, sizeof(colName));
+        convertMySQLNameToDB2Name(curColumn->field_name.str, colName, sizeof(colName));
         appendHere.append(colName);
 
         // DB2 requires that the sort sequence on the child table match the parent table's
@@ -148,7 +148,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
         Field** field = fields;
         do
         {
-          if (strcmp((*field)->field_name, curColumn->field_name) == 0)
+          if (strcmp((*field)->field_name, curColumn->field_name.str) == 0)
           {
             int rc = updateAssociatedSortSequence((*field)->charset(),
                                                   fileSortSequenceType,
@@ -199,7 +199,7 @@ int ha_ibmdb2i::buildDB2ConstraintString(LEX* lex,
           }
           firstTime = false;
 
-          convertMySQLNameToDB2Name(curRef->field_name, colName, sizeof(colName));
+          convertMySQLNameToDB2Name(curRef->field_name.str, colName, sizeof(colName));
           appendHere.append(colName);
         }
 
