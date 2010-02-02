@@ -85,6 +85,24 @@ IF(WIN32)
       MESSAGE(FATAL_ERROR 
       "signtool is not found. Signing executables not possible")
     ENDIF()
+    IF(NOT DEFINED SIGNCODE_ENABLED)
+      FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/testsign.c "int main(){return 0;}")
+      MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/testsign)
+     TRY_COMPILE(RESULT ${CMAKE_CURRENT_BINARY_DIR}/testsign ${CMAKE_CURRENT_BINARY_DIR}/testsign.c  
+      COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
+     )
+      
+     EXECUTE_PROCESS(COMMAND 
+      ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
+      RESULT_VARIABLE ERR ERROR_QUIET OUTPUT_QUIET
+      )
+      IF(ERR EQUAL 0)
+       SET(SIGNCODE_ENABLED 1 CACHE INTERNAL "Can sign executables")
+      ELSE()
+       MESSAGE(STATUS "Disable authenticode signing for executables")
+        SET(SIGNCODE_ENABLED 0 CACHE INTERNAL "Invalid or missing certificate")
+      ENDIF()
+    ENDIF()
     MARK_AS_ADVANCED(SIGNTOOL_EXECUTABLE  SIGNTOOL_PARAMETERS)
   ENDIF()
 ENDIF()
@@ -100,7 +118,7 @@ MACRO(SIGN_TARGET target)
    INSTALL(CODE
    "EXECUTE_PROCESS(COMMAND 
      ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${target_location}
-     ERROR_VARIABLE ERR)
+     RESULT_VARIABLE ERR)
     IF(NOT \${ERR} EQUAL 0)
       MESSAGE(FATAL_ERROR \"Error signing  ${target_location}\")
     ENDIF()
@@ -131,7 +149,7 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
 
   # If signing is required, sign executables before installing
   FOREACH(target ${TARGETS})
-    IF(SIGNCODE)
+    IF(SIGNCODE AND SIGNCODE_ENABLED)
       SIGN_TARGET(${target})
     ENDIF()
     ADD_VERSION_INFO(${target})
