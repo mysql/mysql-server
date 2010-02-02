@@ -27,7 +27,7 @@ test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
           conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf \
           conf-upgrade.cnf upgrade-tests.txt \
-	  conf-ndb07.cnf
+	  conf-ndb07.cnf conf-fimafeng09.cnf conf-tyr64.cnf conf-techra29.cnf
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           autotest-run.sh atrt-backtrace.sh
