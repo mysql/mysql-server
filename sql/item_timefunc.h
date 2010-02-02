@@ -91,6 +91,15 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+
+  bool intro_version(uchar *int_arg)
+  {
+    int *input_version= (int*)int_arg;
+    /* This function was introduced in 5.5 */
+    int output_version= (*input_version, 50500);
+    *input_version= output_version;
+    return 0;
+  }
 };
 
 

@@ -302,6 +302,7 @@ public:
   bool check_partition_field_length();
   bool init_column_part();
   bool add_column_list_value(THD *thd, Item *item);
+  void set_show_version_string(String *packet);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,

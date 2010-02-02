@@ -3553,7 +3553,7 @@ sys_var *intern_find_sys_var(const char *str, uint length, bool no_error)
     A lock on LOCK_system_variable_hash should be held
   */
   var= (sys_var*) my_hash_search(&system_variable_hash,
-			      (uchar*) str, length ? length : strlen(str));
+                                 (uchar*) str, length ? length : strlen(str));
   if (!(var || no_error))
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
 

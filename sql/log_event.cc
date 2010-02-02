@@ -5363,11 +5363,11 @@ void User_var_log_event::pack_info(Protocol* protocol)
     case REAL_RESULT:
       double real_val;
       float8get(real_val, val);
-      if (!(buf= (char*) my_malloc(val_offset + FLOATING_POINT_BUFFER,
+      if (!(buf= (char*) my_malloc(val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
                                    MYF(MY_WME))))
         return;
-      event_len+= my_sprintf(buf + val_offset,
-			     (buf + val_offset, "%.14g", real_val));
+      event_len+= my_gcvt(real_val, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
+                          buf + val_offset, NULL);
       break;
     case INT_RESULT:
       if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))

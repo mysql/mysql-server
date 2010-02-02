@@ -1932,6 +1932,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+extern const double log_10[309];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
