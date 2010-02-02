@@ -764,10 +764,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 173 shift/reduce conflicts.
+  Currently there are 172 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 173
+%expect 172
 
 /*
    Comments for TOKENS.
@@ -7198,50 +7198,63 @@ select_option_list:
         ;
 
 select_option:
-          STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
-        | HIGH_PRIORITY
-          {
-            if (check_simple_select())
-              MYSQL_YYABORT;
-            Lex->lock_option=  TL_READ_HIGH_PRIORITY;
-            Lex->current_select->lock_option= TL_READ_HIGH_PRIORITY;
-          }
-        | DISTINCT         { Select->options|= SELECT_DISTINCT; }
-        | SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
-        | SQL_BIG_RESULT   { Select->options|= SELECT_BIG_RESULT; }
-        | SQL_BUFFER_RESULT
-          {
-            if (check_simple_select())
-              MYSQL_YYABORT;
-            Select->options|= OPTION_BUFFER_RESULT;
-          }
-        | SQL_CALC_FOUND_ROWS
-          {
-            if (check_simple_select())
-              MYSQL_YYABORT;
-            Select->options|= OPTION_FOUND_ROWS;
-          }
+          query_expression_option
         | SQL_NO_CACHE_SYM
           {
-            Lex->safe_to_cache_query=0;
-            Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
-            Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
+            /* 
+              Allow this flag only on the first top-level SELECT statement, if
+              SQL_CACHE wasn't specified, and only once per query.
+             */
+            if (Lex->current_select != &Lex->select_lex)
+            {
+              my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
+              MYSQL_YYABORT;
+            }
+            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_CACHE)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "SQL_CACHE", "SQL_NO_CACHE");
+              MYSQL_YYABORT;
+            }
+            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_NO_CACHE)
+            {
+              my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_NO_CACHE");
+              MYSQL_YYABORT;
+            }
+            else
+            {
+              Lex->safe_to_cache_query=0;
+              Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
+              Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
+            }
           }
         | SQL_CACHE_SYM
           {
-            /*
-             Honor this flag only if SQL_NO_CACHE wasn't specified AND
-             we are parsing the outermost SELECT in the query.
-            */
-            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE &&
-                Lex->current_select == &Lex->select_lex)
+            /* 
+              Allow this flag only on the first top-level SELECT statement, if
+              SQL_NO_CACHE wasn't specified, and only once per query.
+             */
+            if (Lex->current_select != &Lex->select_lex)
+            {
+              my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
+              MYSQL_YYABORT;
+            }         
+            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_NO_CACHE)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "SQL_NO_CACHE", "SQL_CACHE");
+              MYSQL_YYABORT;
+            }
+            else if (Lex->select_lex.sql_cache == SELECT_LEX::SQL_CACHE)
+            {
+              my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_CACHE");
+              MYSQL_YYABORT;
+            }
+            else
             {
               Lex->safe_to_cache_query=1;
               Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
               Lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE;
             }
           }
-        | ALL { Select->options|= SELECT_ALL; }
         ;
 
 select_lock_type:
@@ -9313,7 +9326,7 @@ select_part2_derived:
               mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
           }
-          select_options select_item_list
+          opt_query_expression_options select_item_list
           {
             Select->parsing_place= NO_MATTER;
           }
@@ -13660,6 +13673,43 @@ subselect_end:
             lex->current_select->select_n_where_fields+=
             child->select_n_where_fields;
           }
+        ;
+
+opt_query_expression_options:
+          /* empty */
+        | query_expression_option_list
+        ;
+
+query_expression_option_list:
+          query_expression_option_list query_expression_option
+        | query_expression_option
+        ;
+
+query_expression_option:
+          STRAIGHT_JOIN { Select->options|= SELECT_STRAIGHT_JOIN; }
+        | HIGH_PRIORITY
+          {
+            if (check_simple_select())
+              MYSQL_YYABORT;
+            Lex->lock_option= TL_READ_HIGH_PRIORITY;
+            Lex->current_select->lock_option= TL_READ_HIGH_PRIORITY;
+          }
+        | DISTINCT         { Select->options|= SELECT_DISTINCT; }
+        | SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
+        | SQL_BIG_RESULT   { Select->options|= SELECT_BIG_RESULT; }
+        | SQL_BUFFER_RESULT
+          {
+            if (check_simple_select())
+              MYSQL_YYABORT;
+            Select->options|= OPTION_BUFFER_RESULT;
+          }
+        | SQL_CALC_FOUND_ROWS
+          {
+            if (check_simple_select())
+              MYSQL_YYABORT;
+            Select->options|= OPTION_FOUND_ROWS;
+          }
+        | ALL { Select->options|= SELECT_ALL; }
         ;
 
 /**************************************************************************

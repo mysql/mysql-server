@@ -1108,6 +1108,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   */
   MDL_ticket *mdl_ticket= NULL;
   bool has_mdl_lock= FALSE;
+  bool is_temporary_table= false;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1118,6 +1119,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
+    is_temporary_table= true;
     handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
     /* Note that a temporary table cannot be partitioned */
@@ -1250,11 +1252,9 @@ end:
     */
     if (!error)
     {
-      /*
-        TRUNCATE must always be statement-based binlogged (not row-based) so
-        we don't test current_stmt_binlog_row_based.
-      */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      /* In RBR, the statement is not binlogged if the table is temporary. */
+      if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
+        write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       my_ok(thd);		// This should return record count
     }
     if (has_mdl_lock)

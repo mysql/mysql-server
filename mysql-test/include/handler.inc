@@ -1491,3 +1491,12 @@ disconnect con1;
 --source include/wait_until_disconnected.inc
 --echo # -> connection default
 connection default;
+
+--echo #
+--echo # A test for Bug#50555 "handler commands crash server in
+--echo # my_hash_first()". 
+--echo #
+--error ER_UNKNOWN_TABLE
+handler no_such_table read no_such_index first;
+--error ER_UNKNOWN_TABLE
+handler no_such_table close;

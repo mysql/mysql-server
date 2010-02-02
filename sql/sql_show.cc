@@ -1468,7 +1468,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   show_table_options,
                                                   NULL, NULL))))
     {
-       packet->append(STRING_WITH_LEN("\n/*!50100"));
+       table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
        my_free(part_syntax, MYF(0));
@@ -2166,7 +2166,8 @@ static bool show_status_array(THD *thd, const char *wild,
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_DOUBLE:
-          end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
+          /* 6 is the default precision for '%f' in sprintf() */
+          end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
           break;
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (ulong) value);

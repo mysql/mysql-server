@@ -107,6 +107,14 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
     MESSAGE("Warning: Building MySQL with Visual Studio 2003.NET is no more supported.")
     MESSAGE("Please use a newer version of Visual Studio.")
     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
+
+    # VS2003 needs the /Op compiler option to disable floating point optimizations
+    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Op")
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Op")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Op")
+    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Op")
+    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Op")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Op")
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7")
 
 # Settings for Visual Studio 7 and above.  

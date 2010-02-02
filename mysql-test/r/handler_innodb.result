@@ -1456,3 +1456,11 @@ handler t1 close;
 drop table t1;
 # -> connection con1
 # -> connection default
+#
+# A test for Bug#50555 "handler commands crash server in
+# my_hash_first()". 
+#
+handler no_such_table read no_such_index first;
+ERROR 42S02: Unknown table 'no_such_table' in HANDLER
+handler no_such_table close;
+ERROR 42S02: Unknown table 'no_such_table' in HANDLER

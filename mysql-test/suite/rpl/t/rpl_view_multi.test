@@ -56,7 +56,9 @@ select release_lock("lock_bg25144");
 
 --echo # Switching to connection 'master1'
 connection master1;
+--disable_warnings
 --reap
+--enable_warnings
 select release_lock("lock_bg25144");
 
 --echo # Switching to connection 'master2'
@@ -105,7 +107,9 @@ select release_lock("lock_bg25144");
 
 --echo # Switching to connection 'master1'
 connection master1;
+--disable_warnings
 --reap
+--enable_warnings
 select release_lock("lock_bg25144");
 
 --echo # Switching to connection 'master2'

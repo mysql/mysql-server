@@ -94,10 +94,6 @@ select sql_cache * from t1 union select * from t1;
 set query_cache_type=2;
 select sql_cache * from t1 union select * from t1;
 
-# all sql_cache statements, except for the first select, are ignored.
-select * from t1 union select sql_cache * from t1;
-select * from t1 where a IN (select sql_cache a from t1);
-select * from t1 where a IN (select a from t1 union select sql_cache a from t1);
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 set query_cache_type=on;
@@ -110,15 +106,6 @@ show status like "Qcache_queries_in_cache";
 # SELECT SQL_NO_CACHE
 #
 select sql_no_cache * from t1;
-# sql_no_cache can occur in any nested select to turn on cacheing for the whole
-# expression and it will always override a sql_cache statement.
-select * from t1 union select sql_no_cache * from t1;
-select * from t1 where a IN (select sql_no_cache a from t1);
-select * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
-select sql_cache sql_no_cache * from t1;
-select sql_cache  * from t1 union select sql_no_cache * from t1;
-select sql_cache * from t1 where a IN (select sql_no_cache a from t1);
-select sql_cache * from t1 where a IN (select a from t1 union select sql_no_cache a from t1);
 show status like "Qcache_queries_in_cache";
 drop table t1;
 #
@@ -1044,22 +1031,25 @@ set GLOBAL query_cache_size= default;
 # Bug #29053 SQL_CACHE in UNION causes non-deterministic functions to be cached
 #
 
-set GLOBAL query_cache_size=1000000;
-
-create table t1 (a char);
-insert into t1 values ('c');
-
-let $q1= `select RAND() from t1 union select sql_cache 1 from t1;`;
-let $q2= `select RAND() from t1 union select sql_cache 1 from t1;`;
-
+# This syntax is no longer allowed, therefore the test case has been commented 
+# out.
+# See test for Bug#35020 below.
+#set GLOBAL query_cache_size=1000000;
+#
+#create table t1 (a char);
+#insert into t1 values ('c');
+#
+#let $q1= `select RAND() from t1 union select sql_cache 1 from t1;`;
+#let $q2= `select RAND() from t1 union select sql_cache 1 from t1;`; 
+#
 # disabling the logging of the query because the times are different each run.
---disable_query_log
-eval select a  from t1 where "$q1" = "$q2";
---enable_query_log
-
-drop table t1;
-
-set GLOBAL query_cache_size= default;
+#--disable_query_log
+#eval select a  from t1 where "$q1" = "$q2";
+#--enable_query_log
+#
+#drop table t1;
+#
+#set GLOBAL query_cache_size= default;
 
 #
 # Bug#29856: Insufficient buffer space led to a server crash.
@@ -1307,5 +1297,69 @@ SELECT 1 FROM t1 GROUP BY
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 
---echo End of 5.1 tests
 
+#
+# Bug#35020: illegal sql_cache select syntax
+#
+CREATE TABLE t1( a INT );
+
+--error ER_PARSE_ERROR
+SET @v = ( SELECT SQL_CACHE    1 );
+--error ER_PARSE_ERROR
+SET @v = ( SELECT SQL_NO_CACHE 1 );
+
+#
+# Keywords 'SQL_CACHE' and 'SQL_NO_CACHE' are allowed as column names.
+# Hence the error messages are not intuitive.
+#
+--error ER_BAD_FIELD_ERROR 
+SELECT a FROM t1 WHERE a IN ( SELECT SQL_CACHE    a FROM t1 );
+--error ER_BAD_FIELD_ERROR 
+SELECT a FROM t1 WHERE a IN ( SELECT SQL_NO_CACHE a FROM t1 );
+--error ER_BAD_FIELD_ERROR
+SELECT ( SELECT SQL_CACHE a FROM t1 );
+--error ER_BAD_FIELD_ERROR
+SELECT ( SELECT SQL_NO_CACHE a FROM t1 );
+
+SELECT SQL_CACHE * FROM t1;
+SELECT SQL_NO_CACHE * FROM t1;
+
+# SQL_CACHE is only allowed once in first top-level select.
+--error ER_CANT_USE_OPTION_HERE
+SELECT * FROM t1 UNION SELECT SQL_CACHE * FROM t1;
+--error ER_CANT_USE_OPTION_HERE
+SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM t1 WHERE a IN (SELECT SQL_CACHE a FROM t1);
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1 UNION SELECT SQL_CACHE a FROM t1);
+
+--error ER_CANT_USE_OPTION_HERE
+SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM t1 WHERE a IN (SELECT SQL_NO_CACHE a FROM t1);
+--error ER_BAD_FIELD_ERROR
+SELECT * FROM t1 WHERE a IN 
+  (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
+--error ER_WRONG_USAGE
+SELECT SQL_CACHE SQL_NO_CACHE * FROM t1;
+--error ER_WRONG_USAGE
+SELECT SQL_NO_CACHE SQL_CACHE * FROM t1;
+--error ER_CANT_USE_OPTION_HERE
+SELECT SQL_CACHE * FROM t1 UNION SELECT SQL_CACHE * FROM t1;
+--error ER_CANT_USE_OPTION_HERE
+SELECT SQL_CACHE * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
+--error ER_CANT_USE_OPTION_HERE
+SELECT SQL_NO_CACHE * FROM t1 UNION SELECT SQL_CACHE * FROM t1;
+--error ER_CANT_USE_OPTION_HERE
+SELECT SQL_NO_CACHE * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
+--error ER_BAD_FIELD_ERROR
+SELECT SQL_CACHE * FROM t1 WHERE a IN 
+  (SELECT SQL_NO_CACHE a FROM t1);
+--error ER_BAD_FIELD_ERROR
+SELECT SQL_CACHE * FROM t1 WHERE a IN 
+  (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests

@@ -164,10 +164,10 @@ int32 initCharsetSupport()
   }
 
   VOID(pthread_mutex_init(&textDescMapHashMutex,MY_MUTEX_INIT_FAST));
-  hash_init(&textDescMapHash, &my_charset_bin, 10, offsetof(TextDescMap, hashKey), sizeof(TextDescMap::hashKey), 0, 0, HASH_UNIQUE);
+  my_hash_init(&textDescMapHash, &my_charset_bin, 10, offsetof(TextDescMap, hashKey), sizeof(TextDescMap::hashKey), 0, 0, HASH_UNIQUE);
 
   VOID(pthread_mutex_init(&iconvMapHashMutex,MY_MUTEX_INIT_FAST));
-  hash_init(&iconvMapHash, &my_charset_bin, 10, offsetof(IconvMap, hashKey), sizeof(IconvMap::hashKey), 0, 0, HASH_UNIQUE);
+  my_hash_init(&iconvMapHash, &my_charset_bin, 10, offsetof(IconvMap, hashKey), sizeof(IconvMap::hashKey), 0, 0, HASH_UNIQUE);
 
   init_alloc_root(&textDescMapMemroot, 2048, 0);
   init_alloc_root(&iconvMapMemroot, 256, 0);
@@ -191,9 +191,9 @@ void doneCharsetSupport()
   free_root(&iconvMapMemroot, 0);
   
   pthread_mutex_destroy(&textDescMapHashMutex);
-  hash_free(&textDescMapHash);
+  my_hash_free(&textDescMapHash);
   pthread_mutex_destroy(&iconvMapHashMutex);
-  hash_free(&iconvMapHash);
+  my_hash_free(&iconvMapHash);
   free_aligned(QlgCvtTextDescToDesc_sym);
 }
 
@@ -415,7 +415,7 @@ static int32 convertTextDesc(const int32 inType, const int32 outType, const char
   memcpy(hashKey.inDesc, inDescOverride, len);
   memset(hashKey.inDesc+len, 0, sizeof(hashKey.inDesc) - len);
   
-  if (!(mapping=(TextDescMap *) hash_search(&textDescMapHash,
+  if (!(mapping=(TextDescMap *) my_hash_search(&textDescMapHash,
                                            (const uchar*)&hashKey,
                                            sizeof(hashKey))))
   {
@@ -748,7 +748,7 @@ int32 getConversion(enum_conversionDirection direction, const CHARSET_INFO* cs, 
   
   /* Look for the conversion in the cache and add it if it is not there. */
   IconvMap *mapping;
-  if (!(mapping= (IconvMap *) hash_search(&iconvMapHash,
+  if (!(mapping= (IconvMap *) my_hash_search(&iconvMapHash,
                                          (const uchar*)&hashKey,
                                          sizeof(hashKey))))
   {
