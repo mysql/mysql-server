@@ -603,4 +603,12 @@ WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
 count(*)
 0
 DROP TABLE t1,t2,t3;
+#
+# Bug #49445: Assertion failed: 0, file .\item_row.cc, line 55 with 
+#   fulltext search and row op
+#
+CREATE TABLE t1(a CHAR(1),FULLTEXT(a));
+SELECT 1 FROM t1 WHERE MATCH(a) AGAINST ('') AND ROW(a,a) > ROW(1,1);
+1
+DROP TABLE t1;
 End of 5.1 tests
