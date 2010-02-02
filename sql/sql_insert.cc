@@ -810,12 +810,21 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
+        TABLE_SHARE *share= table->s;
+
         /*
           Fix delete marker. No need to restore rest of record since it will
           be overwritten by fill_record() anyway (and fill_record() does not
           use default values in this case).
         */
-	table->record[0][0]= table->s->default_values[0];
+        table->record[0][0]= share->default_values[0];
+
+        /* Fix undefined null_bits. */
+        if (share->null_bytes > 1 && share->last_null_bit_pos)
+        {
+          table->record[0][share->null_bytes - 1]= 
+            share->default_values[share->null_bytes - 1];
+        }
       }
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,

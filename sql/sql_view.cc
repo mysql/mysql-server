@@ -1800,7 +1800,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
       {
         thd->mark_used_columns= save_mark_used_columns;
-        return TRUE;
+        DBUG_RETURN(TRUE);
       }
     }
     thd->mark_used_columns= save_mark_used_columns;

@@ -832,7 +832,7 @@ int mysql_update(THD *thd,
 
   if (error < 0)
   {
-    char buff[STRING_BUFFER_USUAL_SIZE];
+    char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->warning_info->statement_warn_count());

@@ -67,6 +67,11 @@ typedef int pthread_mutexattr_t;
 #define pthread_handler_t EXTERNC void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
 
+typedef volatile LONG my_pthread_once_t;
+#define MY_PTHREAD_ONCE_INIT  0
+#define MY_PTHREAD_ONCE_INPROGRESS 1
+#define MY_PTHREAD_ONCE_DONE 2
+
 /*
   Struct and macros to be used in combination with the
   windows implementation of pthread_cond_timedwait
@@ -110,6 +115,7 @@ int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
+int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
@@ -183,6 +189,10 @@ void my_pthread_exit(void *status);
 #define pthread_detach_this_thread()
 #define pthread_handler_t EXTERNC void *
 typedef void *(* pthread_handler)(void *);
+
+#define my_pthread_once_t pthread_once_t
+#define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
+#define my_pthread_once(C,F) pthread_once(C,F)
 
 /* Test first for RTS or FSU threads */
 

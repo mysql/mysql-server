@@ -14,7 +14,6 @@ main.log_tables                          # Bug#47924 2009-10-08 alik main.log_ta
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.plugin_load                         # Bug#47146
 
-rpl.rpl_cross_version*                   # Bug#48340 2009-12-01 Daogang rpl_cross_version: Found warnings/errors in server log file!
 rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
