@@ -2313,6 +2313,12 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
+    /*
+      We need to clean up tmp_table_param for reusable JOINs (having non-zero
+      and different from self tmp_join) because it's not being cleaned up
+      anywhere else (as we need to keep the join is reusable).
+    */
+    tmp_table_param.cleanup();
     tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
@@ -5838,6 +5844,12 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   const_table_map= 0;
   tmp_table_param.field_count= tmp_table_param.sum_func_count=
     tmp_table_param.func_count= 0;
+  /*
+    We need to destruct the copy_field (allocated in create_tmp_table())
+    before setting it to 0 if the join is not "reusable".
+  */
+  if (!tmp_join || tmp_join != this) 
+    tmp_table_param.cleanup(); 
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
