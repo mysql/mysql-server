@@ -344,30 +344,14 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t2 (a, data) VALUES (3, $data);
-if (`SELECT @@binlog_format = 'STATEMENT'`)
-{
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
-  --eval INSERT INTO t1 (a, data) VALUES (4, $data);
-}
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
-{
-  --eval INSERT INTO t1 (a, data) VALUES (4, $data);
-}
+--eval INSERT INTO t1 (a, data) VALUES (4, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (7, $data);
-if (`SELECT @@binlog_format = 'STATEMENT'`)
-{
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
-  --eval UPDATE t2 SET data= CONCAT($data, $data);
-}
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
-{
-  --eval UPDATE t2 SET data= CONCAT($data, $data);
-}
+--eval UPDATE t2 SET data= CONCAT($data, $data);
 --eval INSERT INTO t1 (a, data) VALUES (8, 's');
 --eval INSERT INTO t1 (a, data) VALUES (9, 's');
 --eval INSERT INTO t2 (a, data) VALUES (10, 's');
@@ -380,30 +364,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (15, $data);
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
 --eval INSERT INTO t2 (a, data) VALUES (17, $data);
-if (`SELECT @@binlog_format = 'STATEMENT'`)
-{
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
-  --eval INSERT INTO t1 (a, data) VALUES (18, $data);
-}
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
-{
-  --eval INSERT INTO t1 (a, data) VALUES (18, $data);
-}
+--eval INSERT INTO t1 (a, data) VALUES (18, $data);
 --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (19, $data);
 --enable_query_log
 COMMIT;
-
-if (`SELECT @@binlog_format = 'STATEMENT'`)
-{
-  connection slave;
-  --source include/wait_for_slave_sql_to_stop.inc
-  
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-  START SLAVE SQL_THREAD;
-  --source include/wait_for_slave_sql_to_start.inc
-  connection master;
-}
 
 let $diff_statement= SELECT * FROM t1;
 --source include/diff_master_slave.inc
