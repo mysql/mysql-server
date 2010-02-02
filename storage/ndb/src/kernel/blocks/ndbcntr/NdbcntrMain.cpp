@@ -60,6 +60,10 @@
 #include <signaldata/DropNodegroupImpl.hpp>
 #include <signaldata/CreateFilegroup.hpp>
 
+#include <EventLogger.hpp>
+
+extern EventLogger * g_eventLogger;
+
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
 Uint32 g_currentStartPhase;
@@ -3591,18 +3595,22 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
     NodeState newState(NodeState::SL_STARTING, currentStartPhase, 
 		       (NodeState::StartType)cntr.ctypeOfStart);
     cntr.updateNodeState(signal, newState);
-    
+
     if(start != 0){
       /**
-       * At least one wanted this start phase,  report it
+       * At least one wanted this start phase, record & report it
        */
       jam();
+      g_eventLogger->info("Start phase %u completed", currentStartPhase);
+
       signal->theData[0] = NDB_LE_StartPhaseCompleted;
       signal->theData[1] = currentStartPhase;
       signal->theData[2] = cntr.ctypeOfStart;    
       cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
     }
   }
+
+  g_eventLogger->info("Node started");
 
   signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
