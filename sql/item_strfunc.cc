@@ -1720,68 +1720,65 @@ String *Item_func_encrypt::val_str(String *str)
 #endif	/* HAVE_CRYPT */
 }
 
+bool Item_func_encode::seed()
+{
+  char buf[80];
+  ulong rand_nr[2];
+  String *key, tmp(buf, sizeof(buf), system_charset_info);
+
+  if (!(key= args[1]->val_str(&tmp)))
+    return TRUE;
+
+  hash_password(rand_nr, key->ptr(), key->length());
+  sql_crypt.init(rand_nr);
+
+  return FALSE;
+}
+
 void Item_func_encode::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
   maybe_null=args[0]->maybe_null || args[1]->maybe_null;
   collation.set(&my_charset_bin);
+  /* Precompute the seed state if the item is constant. */
+  seeded= args[1]->const_item() &&
+          (args[1]->result_type() == STRING_RESULT) && !seed();
 }
 
 String *Item_func_encode::val_str(String *str)
 {
   String *res;
-  char pw_buff[80];
-  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
-  String *password;
   DBUG_ASSERT(fixed == 1);
 
   if (!(res=args[0]->val_str(str)))
   {
-    null_value=1; /* purecov: inspected */
-    return 0; /* purecov: inspected */
+    null_value= 1;
+    return NULL;
   }
 
-  if (!(password=args[1]->val_str(& tmp_pw_value)))
+  if (!seeded && seed())
   {
-    null_value=1;
-    return 0;
+    null_value= 1;
+    return NULL;
   }
 
-  null_value=0;
-  res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr(), password->length());
-  sql_crypt.init();
-  sql_crypt.encode((char*) res->ptr(),res->length());
-  res->set_charset(&my_charset_bin);
+  null_value= 0;
+  res= copy_if_not_alloced(str, res, res->length());
+  transform(res);
+  sql_crypt.reinit();
+
   return res;
 }
 
-String *Item_func_decode::val_str(String *str)
+void Item_func_encode::transform(String *res)
 {
-  String *res;
-  char pw_buff[80];
-  String tmp_pw_value(pw_buff, sizeof(pw_buff), system_charset_info);
-  String *password;
-  DBUG_ASSERT(fixed == 1);
+  sql_crypt.encode((char*) res->ptr(),res->length());
+  res->set_charset(&my_charset_bin);
+}
 
-  if (!(res=args[0]->val_str(str)))
-  {
-    null_value=1; /* purecov: inspected */
-    return 0; /* purecov: inspected */
-  }
-
-  if (!(password=args[1]->val_str(& tmp_pw_value)))
-  {
-    null_value=1;
-    return 0;
-  }
-
-  null_value=0;
-  res=copy_if_not_alloced(str,res,res->length());
-  SQL_CRYPT sql_crypt(password->ptr(), password->length());
-  sql_crypt.init();
+void Item_func_decode::transform(String *res)
+{
   sql_crypt.decode((char*) res->ptr(),res->length());
-  return res;
 }
 
 

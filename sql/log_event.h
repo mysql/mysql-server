@@ -1787,7 +1787,7 @@ private:
 
   @verbatim
    (1)    USE db;
-   (2)    LOAD DATA [LOCAL] INFILE 'file_name'
+   (2)    LOAD DATA [CONCURRENT] [LOCAL] INFILE 'file_name'
    (3)    [REPLACE | IGNORE]
    (4)    INTO TABLE 'table_name'
    (5)    [FIELDS

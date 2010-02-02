@@ -722,6 +722,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       file.  In this case it's best to just continue as if nothing has
       happened.  (This is a very unlikely senario)
     */
+    thd->clear_error();
   }
 
 not_silent:
@@ -837,9 +838,9 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, TRUE);
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query(), thd->query_length(), 0,
-			  /* suppress_use */ TRUE, errcode);
+			  /* suppress_use */ TRUE, 0);
 
     /*
       Write should use the database being created as the "current
@@ -849,7 +850,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db     = db;
     qinfo.db_len = strlen(db);
 
-    thd->clear_error();
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
     mysql_bin_log.write(&qinfo);
   }
@@ -985,9 +985,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     if (mysql_bin_log.is_open())
     {
-      int errcode= query_error_code(thd, TRUE);
+      thd->clear_error();
       Query_log_event qinfo(thd, query, query_length, 0, 
-			    /* suppress_use */ TRUE, errcode);
+			    /* suppress_use */ TRUE, 0);
       /*
         Write should use the database being created as the "current
         database" and not the threads current database, which is the
@@ -996,7 +996,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
 
-      thd->clear_error();
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }

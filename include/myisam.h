@@ -259,6 +259,8 @@ extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 /* usually used to check if a symlink points into the mysql data home */
 /* which is normally forbidden                                        */
 extern int (*myisam_test_invalid_symlink)(const char *filename);
+extern ulonglong myisam_mmap_size, myisam_mmap_used;
+extern pthread_mutex_t THR_LOCK_myisam_mmap;
 
 	/* Prototypes for myisam-functions */
 
@@ -304,6 +306,7 @@ extern int mi_delete_all_rows(struct st_myisam_info *info);
 extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
+#define MEMMAP_EXTRA_MARGIN     7       /* Write this as a suffix for mmap file */
 /* this is used to pass to mysql_myisamchk_table */
 
 #define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r */

@@ -968,6 +968,15 @@ public:
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
+  /*
+    Check if an expression value depends on the current timezone. Used by
+    partitioning code to reject timezone-dependent expressions in a
+    (sub)partitioning function.
+  */
+  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  {
+    return FALSE;
+  }
 
   /*
     For SP local variable returns pointer to Item representing its

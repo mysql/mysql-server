@@ -914,6 +914,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
   String retstr(64);
+  retstr.set_charset(system_charset_info);
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1471,6 +1472,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
       64 -- size of "returns" column of mysql.proc.
     */
     String retstr(64);
+    retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
 
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
     if (sp->m_first_free_instance)

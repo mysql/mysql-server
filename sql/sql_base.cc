@@ -5807,7 +5807,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
+      if (register_tree_change &&
+          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on

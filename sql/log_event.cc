@@ -2140,8 +2140,8 @@ void Query_log_event::pack_info(Protocol *protocol)
 /**
   Utility function for the next method (Query_log_event::write()) .
 */
-static void write_str_with_code_and_len(char **dst, const char *src,
-                                        int len, uint code)
+static void write_str_with_code_and_len(uchar **dst, const char *src,
+                                        uint len, uint code)
 {
   /*
     only 1 byte to store the length of catalog, so it should not
@@ -2236,7 +2236,7 @@ bool Query_log_event::write(IO_CACHE* file)
   }
   if (catalog_len) // i.e. this var is inited (false for 4.0 events)
   {
-    write_str_with_code_and_len((char **)(&start),
+    write_str_with_code_and_len(&start,
                                 catalog, catalog_len, Q_CATALOG_NZ_CODE);
     /*
       In 5.0.x where x<4 masters we used to store the end zero here. This was
@@ -2274,7 +2274,7 @@ bool Query_log_event::write(IO_CACHE* file)
   {
     /* In the TZ sys table, column Name is of length 64 so this should be ok */
     DBUG_ASSERT(time_zone_len <= MAX_TIME_ZONE_NAME_LENGTH);
-    write_str_with_code_and_len((char **)(&start),
+    write_str_with_code_and_len(&start,
                                 time_zone_str, time_zone_len, Q_TIME_ZONE_CODE);
   }
   if (lc_time_names_number)
@@ -4037,6 +4037,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     5 + db_len + 3 +                        // "use DB; "
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
     13 + table_name_len*2 +                 // "INTO TABLE `table`"
@@ -4063,6 +4064,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
   }
 
   pos= strmov(pos, "LOAD DATA ");
+
+  if (thd->lex->lock_option == TL_WRITE_CONCURRENT_INSERT)
+    pos= strmov(pos, "CONCURRENT ");
 
   if (fn_start)
     *fn_start= pos;
@@ -4541,6 +4545,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     as the present method does not call mysql_parse().
   */
   lex_start(thd);
+  thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
 
   if (!use_rli_only_for_errors)

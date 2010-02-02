@@ -1889,6 +1889,7 @@ AC_CACHE_CHECK([whether the compiler provides atomic builtins],
         ],
      [[
         int foo= -10; int bar= 10;
+        long long int foo64= -10; long long int bar64= 10;
         if (!__sync_fetch_and_add(&foo, bar) || foo)
           return -1;
         bar= __sync_lock_test_and_set(&foo, bar);
@@ -1896,6 +1897,14 @@ AC_CACHE_CHECK([whether the compiler provides atomic builtins],
           return -1;
         bar= __sync_val_compare_and_swap(&bar, foo, 15);
         if (bar)
+          return -1;
+        if (!__sync_fetch_and_add(&foo64, bar64) || foo64)
+          return -1;
+        bar64= __sync_lock_test_and_set(&foo64, bar64);
+        if (bar64 || foo64 != 10)
+          return -1;
+        bar64= __sync_val_compare_and_swap(&bar64, foo, 15);
+        if (bar64)
           return -1;
         return 0;
      ]]
@@ -1913,11 +1922,12 @@ AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
                [mysql_cv_solaris_atomic],
   [AC_RUN_IFELSE(
      [AC_LANG_PROGRAM(
-        [
+        [[
         #include <atomic.h>
-        ]
+        ]],
      [[
         int foo = -10; int bar = 10;
+        int64_t foo64 = -10; int64_t bar64 = 10;
         if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
           return -1;
         bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
@@ -1926,6 +1936,15 @@ AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
         bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
         if (bar)
           return -1;
+        if (atomic_add_64_nv((volatile uint64_t *)&foo64, bar64) || foo64)
+          return -1;
+        bar64 = atomic_swap_64((volatile uint64_t *)&foo64, (uint64_t)bar64);
+        if (bar64 || foo64 != 10)
+          return -1;
+        bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
+        if (bar64)
+          return -1;
+        atomic_or_64((volatile uint64_t *)&bar64, 0);
         return 0;
      ]]
      )],
@@ -2230,7 +2249,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   sighold sigset sigthreadmask port_create sleep thr_yield \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
+  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack)
 
 #
 #
