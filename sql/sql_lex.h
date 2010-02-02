@@ -1727,8 +1727,6 @@ typedef struct st_lex : public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
-      - CREATE VIEW(points to "VIEW");
-      - CREATE EVENT(points to "EVENT");
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
@@ -1736,29 +1734,6 @@ typedef struct st_lex : public Query_tables_list
   const char *stmt_definition_begin;
 
   const char *stmt_definition_end;
-
-  /*
-    stmt_begin is intended to point to the begin of every statement.
-    It is now used in the following statements:
-      - GRANT ALL PRIVELEGES ON *.* (points to "GRANT");
-      - REVOKE ALL PRIVELEGES ON *.* (points to "REVOKE");
-   */
-  const char *stmt_begin;
-  const char *stmt_end;
-
-  /*
-    stmt_user_begin is intended to point to the begin of the user list in
-    the following statements:
-      - GRANT ALL PRIVELEGES ON *.* TO 'username'@'hostname'
-        (points to "'username'");
-      - REVOKE ALL PRIVELEGES ON *.* FROM 'username'@'hostname'
-        (points to "'username'");
-
-    these pointers are required to replace the CURRENT_USER()
-    function by the real user before dumping it to the binlog.
-   */
-  const char *stmt_user_begin;
-  const char *stmt_user_end;
 
   /**
     During name resolution search only in the table list given by 

@@ -194,7 +194,6 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
-static bool acl_write_bin_log(THD *thd, List <LEX_USER> &list, bool clear_error);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -3226,8 +3225,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    if (acl_write_bin_log(thd, user_list, TRUE))
-      result= -1;
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -3403,7 +3401,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog)
   {
-    result|= acl_write_bin_log(thd, user_list, FALSE);
+    if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+      result= TRUE;
   }
 
   rw_unlock(&LOCK_grant);
@@ -3532,7 +3531,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (!result)
   {
-    result= acl_write_bin_log(thd, list, TRUE);
+    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   rw_unlock(&LOCK_grant);
@@ -5664,9 +5663,9 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
 }
 
 
-static void append_user(String *str, LEX_USER *user, bool comma= TRUE)
+static void append_user(String *str, LEX_USER *user)
 {
-  if (comma && str->length())
+  if (str->length())
     str->append(',');
   str->append('\'');
   str->append(user->user.str);
@@ -5675,65 +5674,6 @@ static void append_user(String *str, LEX_USER *user, bool comma= TRUE)
   str->append('\'');
 }
 
-/*
-  The operations(DROP, RENAME, REVOKE, GRANT) will cause inconsistency between
-  master and slave, when CURRENT_USER() is used. To solve this problem, we
-  construct a new binlog statement in which CURRENT_USER() is replaced by
-  the real user name and host name.
- */
-static bool acl_write_bin_log(THD *thd, List <LEX_USER> &list, bool clear_error)
-{
-  String log_query;
-  LEX *lex= thd->lex;
-  List_iterator <LEX_USER> user_list(list);
-  LEX_USER *user, *tmp_user;
-
-  if (!mysql_bin_log.is_open())
-    return FALSE;
-
-  if (log_query.append(lex->stmt_begin, lex->stmt_user_begin - lex->stmt_begin))
-    return TRUE;
-  while ((tmp_user= user_list++))
-  {
-    if (!(user= get_current_user(thd, tmp_user)))
-      continue;
-
-    /*
-      No User, but a password?
-      They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
-      Get the current user, and shallow-copy the new password to them!
-    */
-    if (!tmp_user->user.str && tmp_user->password.str)
-      user->password= tmp_user->password;
-
-    if (log_query.append(" ", 1))
-      return TRUE;
-    append_user(&log_query, user, FALSE);
-    /* Only 'GRANT' have password */
-    if (user->password.str)
-    {
-      if (log_query.append(STRING_WITH_LEN(" IDENTIFIED BY ")) ||
-                           log_query.append(STRING_WITH_LEN("PASSWORD ")) ||
-                           log_query.append("'", 1) ||
-                           log_query.append(user->password.str,
-                                            user->password.length) ||
-                           log_query.append("'", 1))
-        return TRUE;
-    }
-    if (log_query.append(",", 1))
-      return TRUE;
-  }
-  /* It is binlogged only when at least one user is in the query */
-  if (log_query.c_ptr()[log_query.length()-1] == ',')
-  {
-    log_query.length(log_query.length()-1);
-    if (log_query.append(lex->stmt_user_end, lex->stmt_end - lex->stmt_user_end))
-      return TRUE;
-    return write_bin_log(thd, clear_error, log_query.c_ptr_safe(),
-                         log_query.length()) != 0;
-  }
-  return FALSE;
-}
 
 /*
   Create a list of users.
@@ -5840,7 +5780,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  String log_query;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -5870,7 +5809,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  log_query.append(STRING_WITH_LEN("DROP USER"));
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
@@ -5878,17 +5816,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
       continue;
     }  
-
-    /*
-      The operation will cause inconsistency between master and slave, when
-      CURRENT_USER() is used. To solve this problem, we construct a new
-      binlog statement in which CURRENT_USER() is replaced by the real user
-      name and host name.
-     */
-    log_query.append(STRING_WITH_LEN(" "));
-    append_user(&log_query, user_name, FALSE);
-    log_query.append(STRING_WITH_LEN(","));
-
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
       append_user(&wrong_users, user_name);
@@ -5907,13 +5834,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-  {
-    if (log_query.c_ptr()[log_query.length()-1] == ',')
-    {
-      log_query.length(log_query.length()-1);
-      result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
-    }
-  }
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5941,7 +5862,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  String log_query;
   LEX_USER *user_from, *tmp_user_from;
   LEX_USER *user_to, *tmp_user_to;
   List_iterator <LEX_USER> user_list(list);
@@ -5969,7 +5889,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  log_query.append(STRING_WITH_LEN("RENAME USER"));
   while ((tmp_user_from= user_list++))
   {
     if (!(user_from= get_current_user(thd, tmp_user_from)))
@@ -5984,18 +5903,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       continue;
     }  
     DBUG_ASSERT(user_to != 0); /* Syntax enforces pairs of users. */
-
-    /*
-      The operation will cause inconsistency between master and slave, when
-      CURRENT_USER() is used. To solve this problem, we construct a new
-      binlog statement in which CURRENT_USER() is replaced by the real user
-      name and host name.
-     */
-    log_query.append(STRING_WITH_LEN(" "));
-    append_user(&log_query, user_from, FALSE);
-    log_query.append(STRING_WITH_LEN(" TO "));
-    append_user(&log_query, user_to, FALSE);
-    log_query.append(STRING_WITH_LEN(","));
 
     /*
       Search all in-memory structures and grant tables
@@ -6018,15 +5925,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
-
-  if (some_users_renamed)
-  {
-    if (log_query.c_ptr()[log_query.length()-1] == ',')
-    {
-      log_query.length(log_query.length()-1);
-      result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
-    }
-  }
+  
+  if (some_users_renamed && mysql_bin_log.is_open())
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -6216,9 +6117,8 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  int binlog_error= 0;
-  if (acl_write_bin_log(thd, list, FALSE))
-    binlog_error= 1;
+  int binlog_error=
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
