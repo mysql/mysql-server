@@ -5031,6 +5031,7 @@ send_result_message:
     trans_commit_stmt(thd);
     trans_commit_implicit(thd);
     close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
     table->table=0;				// For query cache
 
     /*
@@ -5060,6 +5061,7 @@ err:
   trans_rollback_stmt(thd);
   trans_rollback(thd);
   close_thread_tables(thd);			// Shouldn't be needed
+  thd->mdl_context.release_transactional_locks();
   if (table)
     table->table=0;
   DBUG_RETURN(TRUE);
