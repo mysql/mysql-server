@@ -6,16 +6,18 @@
 --source suite/ndb/include/have_ndbjtie.inc
 --source suite/ndb/include/have_ndbjtie_junit.inc
 
---let $JAVA_CLASSPATH=-classpath $NDBJTIE_JAR:$NDBJTIE_JUNIT_JAR:$NDBJTIE_UNLOAD_JUNIT_JAR
---let $JAVA_JVM_OPTS= -ea -Xcheck:jni -Djtie.unit.ndb.connectstring=$NDB_CONNECTSTRING
---let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_CLASSPATH=-classpath $NDBJTIE_JAR
+--let JAVA_CLASSPATH_1=$NDBJTIE_JUNIT_JAR
+--let JAVA_CLASSPATH_2=$NDBJTIE_UNLOAD_JUNIT_JAR
+--let JAVA_JVM_OPTS=-ea -Xcheck:jni -Djtie.unit.ndb.connectstring=$NDB_CONNECTSTRING
+--let JAVA_JVM_OPTS_1=-Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
 
 --let JAVA_CLASS=test.NdbJTieSmokeTest
 --source suite/ndb/include/run_java.inc
 
---let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Dcom.mysql.jtie.test.MyLoadUnloadTest.target_package_prefixes="test.,com.mysql.ndbjtie."
---let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Dcom.mysql.jtie.test.MyLoadUnloadTest.target_class_name="test.NdbJTieSmokeTest"
---let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Dcom.mysql.jtie.test.MyLoadUnloadTest.target_method_name="test"
+--let JAVA_JVM_OPTS_2=-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_package_prefixes="test.,com.mysql.ndbjtie."
+--let JAVA_JVM_OPTS_3=-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_class_name="test.NdbJTieSmokeTest"
+--let JAVA_JVM_OPTS_4=-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_method_name="test"
 
 --let JAVA_CLASS=test.MyLoadUnloadTest
 --source suite/ndb/include/run_java.inc

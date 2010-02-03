@@ -1,0 +1,66 @@
+#
+# Run the Cluster/J JPA JUnit tests from MTR
+#
+--source include/have_ndb.inc
+--source include/have_big5.inc
+--source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_java.inc
+--source suite/ndb/include/have_junit.inc
+--source suite/ndb/include/have_ndbjtie.inc
+--source suite/ndb/include/have_clusterj.inc
+--source suite/ndb/include/have_clusterj_jpa.inc
+--source suite/ndb/include/have_openjpa.inc
+
+--disable_abort_on_error
+--disable_warnings
+--source $CLUSTERJ_TEST_SCHEMA
+--enable_warnings
+--enable_abort_on_error
+
+--let JAVA_CLASSPATH=-classpath $CLUSTERJ_JPA_JAR
+--let JAVA_CLASSPATH_1=$CLUSTERJ_JPA_TEST_JAR
+--let JAVA_CLASSPATH_2=$CLUSTERJ_TEST_JAR
+--let JAVA_CLASSPATH_3=$CLUSTERJ_JAR
+--let JAVA_CLASSPATH_4=$NDBJTIE_JAR
+# MTR_CLASSPATH automatically added to JAVA_CLASSPATH
+--let JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
+--let JAVA_JVM_OPTS_1= -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_JVM_OPTS_2= -Dopenjpa.ConnectionDriverName="com.mysql.jdbc.Driver"
+--let JAVA_JVM_OPTS_3= -Dopenjpa.ConnectionURL="jdbc:mysql://localhost:$MASTER_MYPORT/test?user=root"
+--let JAVA_JVM_OPTS_4= -Dopenjpa.ndb.connectString="$NDB_CONNECTSTRING"
+--let JAVA_CLASS= testsuite.clusterj.AllTests
+--let JAVA_ARGUMENTS= $CLUSTERJ_JPA_TEST_JAR
+
+--source suite/ndb/include/run_java.inc
+
+drop table t_basic;
+drop table longlongstringpk;
+drop table bittypes;
+drop table binarytypes;
+drop table charsetlatin1;
+drop table charsetbig5;
+drop table charsetutf8;
+drop table charsetsjis;
+drop table longintstringpk;
+drop table longlongstringfk;
+drop table longintstringfk;
+drop table a;
+drop table b0;
+drop table blobtypes;
+drop table bytestype;
+drop table doubletypes;
+drop table floattypes;
+drop table t_basic;
+drop table dn2id;
+drop table nullvalues;
+drop table allprimitives;
+drop table decimaltypes;
+drop table bigintegertypes;
+drop table timestamptypes;
+drop table stringtype;
+drop table yeartypes;
+drop table timetypes;
+drop table datetypes;
+drop table datetimetypes;
+
+exit;

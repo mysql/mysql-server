@@ -21,11 +21,11 @@ OPENJPA_EXPORT=com.mysql.clusterj.openjpa
 
 CLUSTERJ_EXPORT=com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation, com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie
 
-BASE_DIRS = clusterj-api clusterj-core clusterj-tie $(OPENJPA_OPT)
+BASE_DIRS = clusterj-api clusterj-core clusterj-tie
 
-SUBDIRS = $(BASE_DIRS) $(OPENJPA_OPT) $(CLUSTERJ_TESTS) 
+SUBDIRS = $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT)
 
-DIST_SUBDIRS = clusterj-api clusterj-core clusterj-tie clusterj-openjpa clusterj-test clusterj-jpatest
+DIST_SUBDIRS = clusterj-api clusterj-core clusterj-tie clusterj-jpatest clusterj-openjpa clusterj-test
 
 MANIFEST = MANIFEST.MF
 
@@ -50,7 +50,7 @@ $(MANIFEST):
 
 $(clusterj_version_JAR) : $(SUBDIRS) $(MANIFEST)
 	rm -f $@; @JAR@ cvfm $@ $(MANIFEST); \
-	for i in $(BASE_DIRS); do \
+	for i in $(BASE_DIRS) $(OPENJPA_OPT); do \
 	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
 	  @JAR@ uvf $@ -C $$i/target/classes com/mysql/clusterj; \
 	  if test -x $$i/src/main/resources/META-INF/services; then \

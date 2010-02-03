@@ -21,11 +21,15 @@ clusterj_openjpa_src = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/m
 
 clusterj_openjpa_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/main/resources
 
+clusterj_openjpa_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/test/java
+
+clusterj_openjpa_test_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/test/resources
+
 MANIFEST = MANIFEST.MF
 
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/target/classes
 
-CLASSPATH_ENV = CLASSPATH=@CLUSTERJ_CLASSPATH@:$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar
+CLASSPATH_ENV = CLASSPATH=@CLUSTERJ_CLASSPATH@:$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-@JAVA_NDB_VERSION@.jar
 
 clusterj_openjpadir= $(prefix)/share/mysql/java/
 
@@ -43,7 +47,27 @@ clusterj_openjpa_java = \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPABrokerFactory.java \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAProductDerivation.java \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAStoreQuery.java \
-  $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAUtility.java 
+  $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAUtility.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BasicTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BigIntegerTypesTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BlobTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/ClobTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/CrundTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DateAsSqlDateTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DateAsUtilDateTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DatetimeAsSqlTimestampTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DatetimeAsUtilDateTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/DecimalTypesTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/EmbeddedTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/LongIntStringPKOneOneTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/LongLongStringPKOneManyTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/LongLongStringPKTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/OneToManyRelationshipTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TestBadPersistenceUnitNoConnectString.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimeAsSqlTimeTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimeAsUtilDateTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsSqlTimestampTest.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsUtilDateTest.java
 
 clusterj_openjpa_DATA = $(clusterj_openjpa_version_JAR)
 
@@ -70,10 +94,12 @@ classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 	echo timestamp > classclusterj_openjpa.stamp
 
 $(clusterj_openjpa_version_JAR) : classclusterj_openjpa.stamp $(MANIFEST)
-	rm -f $@ ; @JAR@ cvfm $@ $(MANIFEST) \
+	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
 	-C $(JAVAROOT) com/mysql/clusterj/openjpa \
+	-C $(JAVAROOT) com/mysql/clusterj/openjpatest \
 	-C $(clusterj_openjpa_res) com/mysql/clusterj/openjpa/Bundle.properties \
-	-C $(clusterj_openjpa_res) META-INF
+	-C $(clusterj_openjpa_res) META-INF \
+	-C $(clusterj_openjpa_test_res) META-INF
 	$(LN_CP_F) -f $(clusterj_openjpa_version_JAR) $(clusterj_openjpa_JAR)
 
 ## create a versioned link

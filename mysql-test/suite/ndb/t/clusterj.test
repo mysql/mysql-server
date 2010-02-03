@@ -8,11 +8,15 @@
 --source suite/ndb/include/have_ndbjtie.inc
 --source suite/ndb/include/have_clusterj.inc
 
---let $JAVA_CLASSPATH=-classpath $CLUSTERJ_TEST_JAR:$CLUSTERJ_JAR:$CONNECTORJ_JAR:$NDBJTIE_JAR:$JUNIT_JAR
---let $JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
---let $JAVA_JVM_OPTS= $JAVA_JVM_OPTS -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
---let $JAVA_CLASS= testsuite.clusterj.AllTests
---let $JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
+--let JAVA_CLASSPATH=-classpath $CLUSTERJ_TEST_JAR
+--let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
+--let JAVA_CLASSPATH_2=$NDBJTIE_JAR
+# MTR_CLASSPATH automatically added to JAVA_CLASSPATH
+--let JAVA_JVM_OPTS= -ea -Xcheck:jni
+--let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
+--let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_CLASS= testsuite.clusterj.AllTests
+--let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 
 --source suite/ndb/include/run_java.inc
 
@@ -20,11 +24,14 @@
 DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE b0;
+DROP TABLE bigintegertypes;
 DROP TABLE binarytypes;
 DROP TABLE bittypes;
 DROP TABLE blobtypes;
 DROP TABLE bytestype;
+DROP TABLE charsetbig5;
 DROP TABLE charsetlatin1;
+DROP TABLE charsetsjis;
 DROP TABLE charsetutf8;
 DROP TABLE datetimetypes;
 DROP TABLE datetypes;
