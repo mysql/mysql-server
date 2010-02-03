@@ -139,17 +139,17 @@ class NdbGenericConstOperandImpl : public NdbConstOperandImpl
 {
 public:
   explicit NdbGenericConstOperandImpl (const void* value,
-                                       const NdbRecord::Attr& attr)
+                                       size_t len)
   : NdbConstOperandImpl(),
     m_value(value),
-    m_attr(attr)
+    m_len(len)
   {}
 
   int convert2ColumnType();
 
 private:
   const void* const m_value;
-  const NdbRecord::Attr& m_attr;
+  const size_t m_len;
 };
 
 ////////////////////////////////////////////////
@@ -520,14 +520,10 @@ NdbQueryBuilder::constValue(const char* value)
   return &constOp->m_interface;
 }
 NdbConstOperand* 
-NdbQueryBuilder::constValue(const void* _rowptr,
-                            const NdbRecord* record, Uint32 attrId)
+NdbQueryBuilder::constValue(const void* value, size_t len)
 {
-  returnErrIf(record==0,QRY_REQ_ARG_IS_NULL);
-  returnErrIf(_rowptr == 0, QRY_REQ_ARG_IS_NULL);
-  const NdbRecord::Attr& attr = record->columns[attrId];
-  const void * value = reinterpret_cast<const Uint8*>(_rowptr) + attr.offset;
-  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,attr);
+  returnErrIf(value == 0, QRY_REQ_ARG_IS_NULL);
+  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,len);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
   m_pimpl->m_operands.push_back(constOp);
@@ -1095,57 +1091,50 @@ int NdbCharConstOperandImpl::convertVChar()
 int
 NdbGenericConstOperandImpl::convert2ColumnType()
 {
-  size_t len;
-  const unsigned char* const src= (unsigned char*)m_value;
+  size_t len = m_len;
+  size_t maxSize = (size_t)m_column->getSizeInBytes();
 
-  if (m_attr.flags & NdbRecord::IsMysqldShrinkVarchar)
+  const unsigned char* const src = (unsigned char*)m_value;
+  char* dst = NULL;
+
+  if (likely(m_column->m_arrayType == NDB_ARRAYTYPE_FIXED))
   {
-    assert (m_attr.flags & NdbRecord::IsVar1ByteLen);
-    assert (m_attr.maxSize-1 <= 0xFF); // maxSize incl length in first byte
-    len = uint2korr(src);
+    if (unlikely(len != maxSize))
+      return QRY_OPERAND_HAS_WRONG_TYPE;
 
-    if (unlikely(len > m_attr.maxSize-1))
+    dst = m_converted.getCharBuffer(len);
+    if (unlikely(dst==NULL))
+      return Err_MemoryAlloc;
+  }
+  else if (m_column->m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+  {
+    if (unlikely(len+1 > maxSize))
       return QRY_CHAR_OPERAND_TRUNCATED;
 
-    char* dst = m_converted.getCharBuffer(len+1);
+    dst = m_converted.getCharBuffer(len+1);
     if (unlikely(dst==NULL))
       return Err_MemoryAlloc;
 
-    memcpy (dst+1, src+2, len);
-    *(uchar*)dst = len;
+    *(Uint8*)dst++ = (Uint8)len;
+  }
+  else if (m_column->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+  {
+    if (unlikely(len+2 > maxSize))
+      return QRY_CHAR_OPERAND_TRUNCATED;
+
+    dst = m_converted.getCharBuffer(len+2);
+    if (unlikely(dst==NULL))
+      return Err_MemoryAlloc;
+
+    *(Uint8*)dst++ = (Uint8)(len & 0xFF);
+    *(Uint8*)dst++ = (Uint8)(len >> 8);
   }
   else
   {
-    if (m_attr.flags & NdbRecord::IsVar1ByteLen)
-    {
-      len = 1 + *src;
-      if (unlikely(len > m_attr.maxSize-1)) {
-        return QRY_CHAR_OPERAND_TRUNCATED;
-      }
-    }
-    else if (m_attr.flags & NdbRecord::IsVar2ByteLen)
-    {
-      len = 2 + uint2korr(src);
-      if (unlikely(len > m_attr.maxSize-2)) {
-        return QRY_CHAR_OPERAND_TRUNCATED;
-      }
-    }
-    else
-    {
-      len = m_attr.maxSize;
-    }
-
-    if (unlikely(m_attr.maxSize != (size_t)m_column->getSizeInBytes())) {
-      return QRY_OPERAND_HAS_WRONG_TYPE;
-    }
-
-    void* dst = m_converted.getCharBuffer(len);
-    if (unlikely(dst==NULL))
-      return Err_MemoryAlloc;
-
-    memcpy (dst, m_value, len);
+    DBUG_ASSERT(0);
   }
 
+  memcpy (dst, m_value, len);
   return 0;
 }  //NdbGenericConstOperandImpl::convert2ColumnType
 

@@ -515,7 +515,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
 
   const AQP::Table_access join_root = plan.get_table_access(0);
 
-  if(join_root.get_access_type() == AQP::AT_Other)
+  if (join_root.get_access_type() == AQP::AT_Other)
   {
     DBUG_PRINT("info", ("join_root.get_access_type() == AQP::AT_Other"
                         " -> not pushable"));
@@ -687,20 +687,26 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     }
 
     KEY *key= &handler->table->key_info[join_tab.get_index_no()];
+    KEY_PART_INFO *key_part= key->key_part;
     DBUG_ASSERT(join_tab.get_no_of_key_fields() ==
                 static_cast<int32>(key->key_parts));
 
-    const NdbRecord* key_record= 
-      handler->m_index[join_tab.get_index_no()].ndb_unique_record_key;
     const NdbQueryOperand* linked_key[MAX_LINKED_KEYS] = {NULL};
-    for (uint32 i = 0; i < key->key_parts; i++)
+    for (uint i= 0; i < key->key_parts; i++, key_part++)
     {
       const Item* item = join_items[i];
       linked_key[i]= NULL;
       if (item->const_item())
       {
-        const uchar* const_key = join_tab.get_key_buffer();
-        linked_key[i]= builder.constValue(const_key, key_record, i);
+        // Items constant value is already propagated to Field defining
+        // the value of this key_part:
+        Field* field= key_part->field;
+        DBUG_ASSERT(!field->is_real_null());
+        const uchar* const ptr= (field->real_type() == MYSQL_TYPE_VARCHAR)
+                ? field->ptr + ((Field_varstring*)field)->length_bytes
+                : field->ptr;
+
+        linked_key[i]= builder.constValue(ptr, field->data_length());
       }
       else
       {

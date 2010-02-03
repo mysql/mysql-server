@@ -25,7 +25,6 @@
 #include "NdbDictionary.hpp"
 
 class Ndb;
-class NdbRecord;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
@@ -270,10 +269,12 @@ public:
   const NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
 
   // NdbQueryOperand builders:
+  //
   // ::constValue constructors variants, considder to added/removed variants
-  // If the attribute is of a fixed size datatype, its value must include all bytes.
-  // A fixed-Char value must be native-blank padded
-  // Partly based on value types currently supported through NdbOperation::equal()
+  // Typechecking is provided  and will reject constValues/() which is
+  // incompatible with the type of the column it is used against.
+  // Some very basic typeconversion is available to match destination column
+  // with different numeric presicion and spacepad character strings to defined length.
   NdbConstOperand* constValue(Int32  value); 
   NdbConstOperand* constValue(Uint32 value); 
   NdbConstOperand* constValue(Int64  value); 
@@ -281,15 +282,19 @@ public:
   NdbConstOperand* constValue(double value); 
   NdbConstOperand* constValue(const char* value);  // Null terminated char/varchar C-type string
 
-  // Raw data with specified length, with src type as specified by 'record.column[attrId]'.
-  // Provide very basic type check to match destination column it is
-  // used against.
-  NdbConstOperand* constValue(const void* rowptr,
-                              const NdbRecord* record, Uint32 attrId);
+  // Raw constValue data with specified length - No typeconversion performed to match destination format.
+  // Fixed sized datatypes requires 'len' to exactly match the destination column.
+  // Fixed sized character values should be spacepadded to required length.
+  // Variable sized datatypes requires 'len <= max(len)'.
+  NdbConstOperand* constValue(const void* value, size_t len);
 
-  // ::paramValue()
+  // ::paramValue() is a placeholder for a parameter value to be specified when
+  // a query instance is created for execution.
   NdbParamOperand* paramValue(const char* name = 0);  // Parameterized
 
+  // ::linkedValue() defines a value available from execution of a previously defined
+  // NdbQueryOperationDef. This NdbQueryOperationDef will become the 'parent' of the
+  // NdbQueryOperationDef which uses this linkedValue() in any expression.
   NdbLinkedOperand* linkedValue(const NdbQueryOperationDef*, const char* attr); // Linked value
 
 
