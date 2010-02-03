@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
+   Copyright (C) 2003 MySQL AB, 2010 Sun Microsystems, Inc.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,12 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <Vector.hpp>
+
 #include <mgmapi.h>
-#include <util/BaseString.hpp>
 #include <ndbd_exit_codes.h>
+
+#include <util/BaseString.hpp>
+#include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
 
 class MgmtSrvr;
@@ -208,20 +209,19 @@ Ndb_mgmclient::disconnect()
  * The CommandInterpreter
  */
 
-#include <mgmapi.h>
 #include <mgmapi_debug.h>
-#include <version.h>
-#include <NdbAutoPtr.hpp>
-#include <NdbOut.hpp>
-#include <NdbSleep.h>
-#include <NdbMem.h>
-#include <EventLogger.hpp>
+
+#include <util/version.h>
+#include <util/NdbAutoPtr.hpp>
+#include <util/NdbOut.hpp>
+
+#include <portlib/NdbSleep.h>
+#include <portlib/NdbThread.h>
+
+#include <debugger/EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
+
 #include "MgmtErrorReporter.hpp"
-#include <Parser.hpp>
-#include <SocketServer.hpp>
-#include <util/InputStream.hpp>
-#include <util/OutputStream.hpp>
 
 int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, bool interactive, int *error)
 {
