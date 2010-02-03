@@ -77,12 +77,28 @@ copy_file $fake_relay_log $_fake_relay_log;
 
 if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
 {
-  eval select './$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
+  -- let $_index_entry= ./$_fake_filename-fake.000001
 }
 
 if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
 {
-  eval select '.\\\\$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
+  -- let $_index_entry= .\\\\$_fake_filename-fake.000001
+}
+
+if (`SELECT LENGTH(@@secure_file_priv) > 0`)
+{
+  -- let $_file_priv_dir= `SELECT @@secure_file_priv`;
+  -- let $_suffix= `SELECT UUID()`
+  -- let $_tmp_file= $_file_priv_dir/fake-index.$_suffix
+
+  -- eval select '$_index_entry\n' into dumpfile '$_tmp_file'
+  -- copy_file $_tmp_file $_fake_relay_index
+  -- remove_file $_tmp_file
+}
+
+if (`SELECT LENGTH(@@secure_file_priv) = 0`)
+{
+  -- eval select '$_index_entry\n' into dumpfile '$_fake_relay_index'
 }
 
 # Setup replication from existing relay log.
