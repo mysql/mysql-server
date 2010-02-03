@@ -510,7 +510,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Flushing relay log and master info file."));
     if (current_thd)
       thd_proc_info(current_thd, "Flushing relay log and master info files.");
-    if (flush_master_info(mi, TRUE /* flush relay log */))
+    if (flush_master_info(mi, TRUE, FALSE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
@@ -1601,7 +1601,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, FALSE))
         sql_print_error("Failed to flush master info file");
       delete ev;
     }
@@ -2928,7 +2928,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
         goto err;
       }
 
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
       {
         sql_print_error("Failed to flush master info file");
         goto err;

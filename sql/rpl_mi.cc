@@ -369,7 +369,7 @@ file '%s')", fname);
   mi->rli.is_relay_log_recovery= FALSE;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
-  if ((error=test(flush_master_info(mi, 1))))
+  if ((error=test(flush_master_info(mi, TRUE, TRUE))))
     sql_print_error("Failed to flush master info file");
   mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -395,7 +395,9 @@ err:
      1 - flush master info failed
      0 - all ok
 */
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
@@ -418,8 +420,19 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
   */
   if (flush_relay_log_cache)
   {
+    mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
     IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
-    if (flush_io_cache(log_file))
+
+    if (need_lock_relay_log)
+      mysql_mutex_lock(log_lock);
+
+    mysql_mutex_assert_owner(log_lock);
+    err= flush_io_cache(log_file);
+
+    if (need_lock_relay_log)
+      mysql_mutex_unlock(log_lock);
+
+    if (err)
       DBUG_RETURN(2);
   }
   

@@ -123,7 +123,7 @@ int init_relay_log_info(Relay_log_info* rli,
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
     Note that the I/O thread flushes it to disk after writing every
-    event, in flush_master_info(mi, 1).
+    event, in flush_master_info(mi, 1, ?).
   */
 
   /*
