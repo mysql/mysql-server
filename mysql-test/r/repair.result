@@ -169,3 +169,17 @@ test.t1	repair	Error	Table 't1' was locked with a READ lock and can't be updated
 test.t1	repair	status	Operation failed
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Test for bug #50784 "MDL: Assertion `m_tickets.is_empty() ||
+#                      m_tickets.front() == m_trans_sentinel'"
+#
+drop tables if exists t1, t2;
+create table t1 (i int);
+create table t2 (j int);
+set @@autocommit= 0;
+repair table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+set @@autocommit= default;
+drop tables t1, t2;
