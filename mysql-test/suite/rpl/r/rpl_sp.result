@@ -436,9 +436,9 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t2 like t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
     DETERMINISTIC
 insert into t1 values (15)
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to 'zedjzlcsjhd'@'127.0.0.1'
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to 'zedjzlcsjhd'@'127.0.0.1'
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to 'zedjzlcsjhd'@'127.0.0.1'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
     DETERMINISTIC
 begin
@@ -551,7 +551,7 @@ select * from t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop function fn1
 master-bin.000001	#	Query	#	#	drop database mysqltest1
-master-bin.000001	#	Query	#	#	DROP USER 'zedjzlcsjhd'@'127.0.0.1'
+master-bin.000001	#	Query	#	#	drop user "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `test`; drop function if exists f1
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
     READS SQL DATA
@@ -736,13 +736,13 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
 insert into t1 values (15)
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-grant CREATE ROUTINE, EXECUTE on mysqltest1.* to 'zedjzlcsjhd'@'127.0.0.1'
+grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-grant SELECT on mysqltest1.t1 to 'zedjzlcsjhd'@'127.0.0.1'
+grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-grant SELECT, INSERT on mysqltest1.t2 to 'zedjzlcsjhd'@'127.0.0.1'
+grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
@@ -1017,7 +1017,7 @@ SET TIMESTAMP=t/*!*/;
 drop database mysqltest1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-DROP USER 'zedjzlcsjhd'@'127.0.0.1'
+drop user "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 use test/*!*/;
 SET TIMESTAMP=t/*!*/;
