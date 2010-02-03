@@ -341,48 +341,31 @@ common_1_lev_code:
 }
 
 
-/*
-  Binlog '{CREATE|ALTER} EVENT' statements.
-  Definer part is always rewritten, for definer can be CURRENT_USER() function.
-
+/**
+  Create a new query string for removing executable comments 
+  for avoiding leak and keeping consistency of the execution 
+  on master and slave.
+  
   @param[in] thd                 Thread handler
-  @param[in] create              CREATE or ALTER statement
+  @param[in] buf                 Query string
 
   @return
-             FASE           ok
-             TRUE           error
+             0           ok
+             1           error
 */
-static bool event_write_bin_log(THD *thd, bool create)
+static int
+create_query_string(THD *thd, String *buf)
 {
-  String log_query;
-  if (create)
-  {
-    /* Append the "CREATE" part of the query */
-    if (log_query.append(STRING_WITH_LEN("CREATE ")))
-      return TRUE;
-  }
-  else
-  {
-    /* Append the "ALETR " part of the query */
-    if (log_query.append(STRING_WITH_LEN("ALTER ")))
-      return TRUE;
-  }
-
-  /* Append definer
-     If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
-     will be written into the binary log as the definer for the SQL thread.
-   */
-  append_definer(thd, &log_query, &(thd->lex->definer->user),
-                 &(thd->lex->definer->host));
-
+  /* Append the "CREATE" part of the query */
+  if (buf->append(STRING_WITH_LEN("CREATE ")))
+    return 1;
+  /* Append definer */
+  append_definer(thd, buf, &(thd->lex->definer->user), &(thd->lex->definer->host));
   /* Append the left part of thd->query after "DEFINER" part */
-  if (log_query.append(thd->lex->stmt_definition_begin,
-                       thd->lex->stmt_definition_end -
-                       thd->lex->stmt_definition_begin))
-    return TRUE;
-
-  return write_bin_log(thd, TRUE, log_query.c_ptr_safe(), log_query.length())
-          != 0;
+  if (buf->append(thd->lex->stmt_definition_begin))
+    return 1;
+ 
+  return 0;
 }
 
 /**
@@ -397,7 +380,8 @@ static bool event_write_bin_log(THD *thd, bool create)
   @sa Events::drop_event for the notes about locking, pre-locking
   and Events DDL.
 
-  @retval  FALSE  OK @retval  TRUE   Error (reported)
+  @retval  FALSE  OK
+  @retval  TRUE   Error (reported)
 */
 
 bool
@@ -481,7 +465,22 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       binlog the create event unless it's been successfully dropped
     */
     if (!dropped)
-      ret= event_write_bin_log(thd, TRUE);
+    {
+      /* Binlog the create event. */
+      DBUG_ASSERT(thd->query() && thd->query_length());
+      String log_query;
+      if (create_query_string(thd, &log_query))
+      {
+        sql_print_error("Event Error: An error occurred while creating query string, "
+                        "before writing it into binary log.");
+        /* Restore the state of binlog format */
+        thd->current_stmt_binlog_row_based= save_binlog_row_based;
+        DBUG_RETURN(TRUE);
+      }
+      /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
+         will be written into the binary log as the definer for the SQL thread. */
+      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+    }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
@@ -603,7 +602,9 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       if (event_queue)
         event_queue->update_event(thd, parse_data->dbname, parse_data->name,
                                   new_element);
-      ret= event_write_bin_log(thd, FALSE);
+      /* Binlog the alter event. */
+      DBUG_ASSERT(thd->query() && thd->query_length());
+      ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
