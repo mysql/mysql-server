@@ -56,6 +56,7 @@ nobase_test_DATA = \
 	lib/mtr_unique.pm \
 	lib/My/ConfigFactory.pm \
 	lib/My/Config.pm \
+	lib/My/Exec.pm \
 	lib/My/Find.pm \
 	lib/My/Handles.pm \
 	lib/My/Options.pm \
