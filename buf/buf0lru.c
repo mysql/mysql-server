@@ -347,11 +347,11 @@ scan_again:
 
 	all_freed = TRUE;
 
-rescan:
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (bpage != NULL) {
 		buf_page_t*	prev_bpage;
+		ibool		prev_bpage_buf_fix = FALSE;
 
 		ut_a(buf_page_in_file(bpage));
 
@@ -394,8 +394,40 @@ rescan:
 					(ulong) buf_page_get_page_no(bpage));
 			}
 #endif
-			if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE
-			    && ((buf_block_t*) bpage)->is_hashed) {
+			if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
+				/* This is a compressed-only block
+				descriptor.  Ensure that prev_bpage
+				cannot be relocated when bpage is freed. */
+				if (UNIV_LIKELY(prev_bpage != NULL)) {
+					switch (buf_page_get_state(
+							prev_bpage)) {
+					case BUF_BLOCK_FILE_PAGE:
+						/* Descriptors of uncompressed
+						blocks will not be relocated,
+						because we are holding the
+						buf_pool_mutex. */
+						break;
+					case BUF_BLOCK_ZIP_PAGE:
+					case BUF_BLOCK_ZIP_DIRTY:
+						/* Descriptors of compressed-
+						only blocks can be relocated,
+						unless they are buffer-fixed.
+						Because both bpage and
+						prev_bpage are protected by
+						buf_pool_zip_mutex, it is
+						not necessary to acquire
+						further mutexes. */
+						ut_ad(&buf_pool_zip_mutex
+						      == block_mutex);
+						ut_ad(mutex_own(block_mutex));
+						prev_bpage_buf_fix = TRUE;
+						prev_bpage->buf_fix_count++;
+						break;
+					default:
+						ut_error;
+					}
+				}
+			} else if (((buf_block_t*) bpage)->is_hashed) {
 				ulint	page_no;
 				ulint	zip_size;
 
@@ -419,7 +451,8 @@ rescan:
 				buf_flush_remove(bpage);
 			}
 
-			/* Remove from the LRU list */
+			/* Remove from the LRU list. */
+
 			if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 			    != BUF_BLOCK_ZIP_FREE) {
 				buf_LRU_block_free_hashed_page((buf_block_t*)
@@ -431,18 +464,27 @@ rescan:
 				ut_ad(block_mutex == &buf_pool_zip_mutex);
 				ut_ad(!mutex_own(block_mutex));
 
-				/* The compressed block descriptor
-				(bpage) has been deallocated and
-				block_mutex released.  Also,
-				buf_buddy_free() may have relocated
-				prev_bpage.  Rescan the LRU list. */
+				if (prev_bpage_buf_fix) {
+					/* We temporarily buffer-fixed
+					prev_bpage, so that
+					buf_buddy_free() could not
+					relocate it, in case it was a
+					compressed-only block
+					descriptor. */
 
-				goto rescan;
+					mutex_enter(block_mutex);
+					ut_ad(prev_bpage->buf_fix_count > 0);
+					prev_bpage->buf_fix_count--;
+					mutex_exit(block_mutex);
+				}
+
+				goto next_page_no_mutex;
 			}
 next_page:
 			mutex_exit(block_mutex);
 		}
 
+next_page_no_mutex:
 		bpage = prev_bpage;
 	}
 
