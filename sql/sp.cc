@@ -30,44 +30,15 @@ create_string(THD *thd, String *buf,
 	      const char *body, ulong bodylen,
 	      st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
-              const LEX_STRING *definer_host);
+              const LEX_STRING *definer_host,
+              ulong sql_mode);
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
-
-/*
- *
- * DB storage of Stored PROCEDUREs and FUNCTIONs
- *
- */
-
-enum
-{
-  MYSQL_PROC_FIELD_DB = 0,
-  MYSQL_PROC_FIELD_NAME,
-  MYSQL_PROC_MYSQL_TYPE,
-  MYSQL_PROC_FIELD_SPECIFIC_NAME,
-  MYSQL_PROC_FIELD_LANGUAGE,
-  MYSQL_PROC_FIELD_ACCESS,
-  MYSQL_PROC_FIELD_DETERMINISTIC,
-  MYSQL_PROC_FIELD_SECURITY_TYPE,
-  MYSQL_PROC_FIELD_PARAM_LIST,
-  MYSQL_PROC_FIELD_RETURNS,
-  MYSQL_PROC_FIELD_BODY,
-  MYSQL_PROC_FIELD_DEFINER,
-  MYSQL_PROC_FIELD_CREATED,
-  MYSQL_PROC_FIELD_MODIFIED,
-  MYSQL_PROC_FIELD_SQL_MODE,
-  MYSQL_PROC_FIELD_COMMENT,
-  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
-  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
-  MYSQL_PROC_FIELD_DB_COLLATION,
-  MYSQL_PROC_FIELD_BODY_UTF8,
-  MYSQL_PROC_FIELD_COUNT
-};
 
 static const
 TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
@@ -717,6 +688,55 @@ Silence_deprecated_warning::handle_condition(
 }
 
 
+/**
+  @brief    The function parses input strings and returns SP stucture.
+
+  @param[in]      thd               Thread handler
+  @param[in]      defstr            CREATE... string
+  @param[in]      sql_mode          SQL mode
+  @param[in]      creation_ctx      Creation context of stored routines
+                                    
+  @return     Pointer on sp_head struct
+    @retval   #                     Pointer on sp_head struct
+    @retval   0                     error
+*/
+
+static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
+                           Stored_program_creation_ctx *creation_ctx)
+{
+  sp_head *sp;
+  ulong old_sql_mode= thd->variables.sql_mode;
+  ha_rows old_select_limit= thd->variables.select_limit;
+  sp_rcontext *old_spcont= thd->spcont;
+  Silence_deprecated_warning warning_handler;
+
+  thd->variables.sql_mode= sql_mode;
+  thd->variables.select_limit= HA_POS_ERROR;
+
+  Parser_state parser_state(thd, defstr->c_ptr(), defstr->length());
+  lex_start(thd);
+  thd->push_internal_handler(&warning_handler);
+  thd->spcont= 0;
+
+  if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
+  {
+    sp= thd->lex->sphead;
+    delete sp;
+    sp= 0;
+  }
+  else
+  {
+    sp= thd->lex->sphead;
+  }
+
+  thd->pop_internal_handler();
+  thd->spcont= old_spcont;
+  thd->variables.sql_mode= old_sql_mode;
+  thd->variables.select_limit= old_select_limit;
+  return sp;
+}
+
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
@@ -730,11 +750,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-  ulong old_sql_mode= thd->variables.sql_mode;
-  ha_rows old_select_limit= thd->variables.select_limit;
-  sp_rcontext *old_spcont= thd->spcont;
-  Silence_deprecated_warning warning_handler;
-
+  
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -742,10 +758,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
 
-  int ret;
-
-  thd->variables.sql_mode= sql_mode;
-  thd->variables.select_limit= HA_POS_ERROR;
+  int ret= 0;
 
   thd->lex= &newlex;
   newlex.current_select= NULL;
@@ -769,7 +782,8 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                      params, strlen(params),
                      returns, strlen(returns),
                      body, strlen(body),
-                     &chistics, &definer_user_name, &definer_host_name))
+                     &chistics, &definer_user_name, &definer_host_name,
+                     sql_mode))
   {
     ret= SP_INTERNAL_ERROR;
     goto end;
@@ -788,17 +802,8 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
-  thd->spcont= NULL;
-
   {
-    Parser_state parser_state(thd, defstr.c_ptr(), defstr.length());
-
-    lex_start(thd);
-
-    thd->push_internal_handler(&warning_handler);
-    ret= parse_sql(thd, & parser_state, creation_ctx) || newlex.sphead == NULL;
-    thd->pop_internal_handler();
-
+    *sphp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
     /*
       Force switching back to the saved current database (if changed),
       because it may be NULL. In this case, mysql_change_db() would
@@ -807,19 +812,16 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
     if (cur_db_changed && mysql_change_db(thd, &saved_cur_db_name, TRUE))
     {
-      delete newlex.sphead;
       ret= SP_INTERNAL_ERROR;
       goto end;
     }
 
-    if (ret)
+    if (!*sphp)
     {
-      delete newlex.sphead;
       ret= SP_PARSE_ERROR;
       goto end;
     }
 
-    *sphp= newlex.sphead;
     (*sphp)->set_definer(&definer_user_name, &definer_host_name);
     (*sphp)->set_info(created, modified, &chistics, sql_mode);
     (*sphp)->set_creation_ctx(creation_ctx);
@@ -837,9 +839,6 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
 end:
   lex_end(thd->lex);
-  thd->spcont= old_spcont;
-  thd->variables.sql_mode= old_sql_mode;
-  thd->variables.select_limit= old_select_limit;
   thd->lex= old_lex;
   return ret;
 }
@@ -1119,7 +1118,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
                          retstr.c_ptr(), retstr.length(),
                          sp->m_body.str, sp->m_body.length,
                          sp->m_chistics, &(thd->lex->definer->user),
-                         &(thd->lex->definer->host)))
+                         &(thd->lex->definer->host),
+                         saved_mode))
       {
         ret= SP_INTERNAL_ERROR;
         goto done;
@@ -1962,6 +1962,7 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
     Returns TRUE on success, FALSE on (alloc) failure.
 */
 static bool
+
 create_string(THD *thd, String *buf,
               int type,
               const char *db, ulong dblen,
@@ -1971,14 +1972,17 @@ create_string(THD *thd, String *buf,
               const char *body, ulong bodylen,
               st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
-              const LEX_STRING *definer_host)
+              const LEX_STRING *definer_host,
+              ulong sql_mode)
 {
+  ulong old_sql_mode= thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
                  USER_HOST_BUFF_SIZE))
     return FALSE;
 
+  thd->variables.sql_mode= sql_mode;
   buf->append(STRING_WITH_LEN("CREATE "));
   append_definer(thd, buf, definer_user, definer_host);
   if (type == TYPE_ENUM_FUNCTION)
@@ -2026,5 +2030,79 @@ create_string(THD *thd, String *buf,
     buf->append('\n');
   }
   buf->append(body, bodylen);
+  thd->variables.sql_mode= old_sql_mode;
   return TRUE;
+}
+
+
+/**
+  @brief    The function loads sp_head struct for information schema purposes
+            (used for I_S ROUTINES & PARAMETERS tables).
+
+  @param[in]      thd               thread handler
+  @param[in]      proc_table        mysql.proc table structurte
+  @param[in]      db                database name
+  @param[in]      name              sp name
+  @param[in]      sql_mode          SQL mode
+  @param[in]      type              Routine type
+  @param[in]      returns           'returns' string
+  @param[in]      params            parameters definition string
+  @param[out]     free_sp_head      returns 1 if we need to free sp_head struct
+                                    otherwise returns 0
+                                    
+  @return     Pointer on sp_head struct
+    @retval   #                     Pointer on sp_head struct
+    @retval   0                     error
+*/
+
+sp_head *
+sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
+                               String *name, ulong sql_mode, int type,
+                               const char *returns, const char *params,
+                               bool *free_sp_head)
+{
+  const char *sp_body;
+  String defstr;
+  struct st_sp_chistics sp_chistics;
+  const LEX_STRING definer_user= {(char*)STRING_WITH_LEN("")};
+  const LEX_STRING definer_host= {(char*)STRING_WITH_LEN("")}; 
+  LEX_STRING sp_db_str;
+  LEX_STRING sp_name_str;
+  sp_head *sp;
+  sp_cache **spc= ((type == TYPE_ENUM_PROCEDURE) ?
+                  &thd->sp_proc_cache : &thd->sp_func_cache);
+  sp_db_str.str= db->c_ptr();
+  sp_db_str.length= db->length();
+  sp_name_str.str= name->c_ptr();
+  sp_name_str.length= name->length();
+  sp_name sp_name_obj(sp_db_str, sp_name_str, true);
+  sp_name_obj.init_qname(thd);
+  *free_sp_head= 0;
+  if ((sp= sp_cache_lookup(spc, &sp_name_obj)))
+  {
+    return sp;
+  }
+
+  LEX *old_lex= thd->lex, newlex;
+  Stored_program_creation_ctx *creation_ctx= 
+    Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
+  sp_body= (type == TYPE_ENUM_FUNCTION ? "RETURN NULL" : "BEGIN END");
+  bzero((char*) &sp_chistics, sizeof(sp_chistics));
+  defstr.set_charset(creation_ctx->get_client_cs());
+  if (!create_string(thd, &defstr, type, 
+                     sp_db_str.str, sp_db_str.length, 
+                     sp_name_obj.m_name.str, sp_name_obj.m_name.length, 
+                     params, strlen(params),
+                     returns, strlen(returns), 
+                     sp_body, strlen(sp_body),
+                     &sp_chistics, &definer_user, &definer_host, sql_mode))
+    return 0;
+
+  thd->lex= &newlex;
+  newlex.current_select= NULL; 
+  sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
+  *free_sp_head= 1;
+  lex_end(thd->lex);
+  thd->lex= old_lex;
+  return sp;
 }

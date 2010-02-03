@@ -53,6 +53,7 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
+PARAMETERS
 PARTITIONS
 PLUGINS
 PROCESSLIST
@@ -772,11 +773,13 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
+information_schema	PARAMETERS	DTD_IDENTIFIER
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
 information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	PROCESSLIST	INFO
+information_schema	ROUTINES	DTD_IDENTIFIER
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
@@ -862,7 +865,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	29
+information_schema	30
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1312,6 +1315,7 @@ FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
 PROCESSLIST	information_schema.PROCESSLIST	1
@@ -1702,7 +1706,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE EVENT_OBJECT_SCHEMA='test';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 1 database
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.t1;

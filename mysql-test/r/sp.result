@@ -4988,22 +4988,22 @@ SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
 dtd_identifier
-char(10) CHARSET utf8
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
 dtd_identifier
-char(10) CHARSET koi8r
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
 dtd_identifier
-char(10) CHARSET utf8
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
 dtd_identifier
-char(10) CHARSET koi8r
+char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
 utf8
@@ -5038,22 +5038,22 @@ SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
 dtd_identifier
-char(10) CHARSET utf8
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
 dtd_identifier
-char(10) CHARSET koi8r
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
 dtd_identifier
-char(10) CHARSET utf8
+char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
 dtd_identifier
-char(10) CHARSET koi8r
+char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
 utf8

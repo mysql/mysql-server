@@ -122,10 +122,6 @@ static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
-static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
-                         uint db_stat, uint prgflag,
-                         uint ha_open_flags, TABLE *outparam,
-                         TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 static bool tdc_wait_for_old_versions(THD *thd,
                                       MDL_request_list *mdl_requests);
 static bool
@@ -8784,7 +8780,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     mem_root	  temporary MEM_ROOT for parsing
 */
 
-static bool
+bool
 open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
              uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
