@@ -338,7 +338,7 @@ void PROFILING::start_new_query(const char *initial_state)
     finish_current_query();
   }
 
-  enabled= (((thd)->options & OPTION_PROFILING) != 0);
+  enabled= ((thd->variables.option_bits & OPTION_PROFILING) != 0);
 
   if (! enabled) DBUG_VOID_RETURN;
 
@@ -376,7 +376,7 @@ void PROFILING::finish_current_query()
     status_change("ending", NULL, NULL, 0);
 
     if ((enabled) &&                                    /* ON at start? */
-        ((thd->options & OPTION_PROFILING) != 0) &&   /* and ON at end? */
+        ((thd->variables.option_bits & OPTION_PROFILING) != 0) &&   /* and ON at end? */
         (current->query_source != NULL) &&
         (! current->entries.is_empty()))
     {

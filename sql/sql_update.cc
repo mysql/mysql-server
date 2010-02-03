@@ -185,7 +185,7 @@ int mysql_update(THD *thd,
                  ha_rows *found_return, ha_rows *updated_return)
 {
   bool		using_limit= limit != HA_POS_ERROR;
-  bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
+  bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool		used_key_is_modified, transactional_table, will_batch;
   bool		can_compare_record;
   int           res;
@@ -1491,7 +1491,7 @@ multi_update::initialize_tables(JOIN *join)
   TABLE_LIST *table_ref;
   DBUG_ENTER("initialize_tables");
 
-  if ((thd->options & OPTION_SAFE_UPDATES) && error_if_full_join(join))
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && error_if_full_join(join))
     DBUG_RETURN(1);
   main_table=join->join_tab->table;
   table_to_update= 0;
@@ -1615,13 +1615,14 @@ loop_end:
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
-    if (!(tmp_tables[cnt]=create_tmp_table(thd,
-					   tmp_param,
-					   temp_fields,
-					   (ORDER*) &group, 0, 0,
-					   TMP_TABLE_ALL_COLUMNS,
-					   HA_POS_ERROR,
-					   (char *) "")))
+    /* small table, ignore SQL_BIG_TABLES */
+    my_bool save_big_tables= thd->variables.big_tables; 
+    thd->variables.big_tables= FALSE;
+    tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
+                                     (ORDER*) &group, 0, 0,
+                                     TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+    thd->variables.big_tables= save_big_tables;
+    if (!tmp_tables[cnt])
       DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }

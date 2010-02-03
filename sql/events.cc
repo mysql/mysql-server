@@ -20,6 +20,7 @@
 #include "event_queue.h"
 #include "event_scheduler.h"
 #include "sp_head.h" // for Stored_program_creation_ctx
+#include "set_var.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -63,43 +64,10 @@
   eligible for execution.
 */
 
-/*
-  Keep the order of the first to as in var_typelib
-  sys_var_event_scheduler::value_ptr() references this array. Keep in
-  mind!
-*/
-static const char *opt_event_scheduler_state_names[]=
-    { "OFF", "ON", "0", "1", "DISABLED", NullS };
-
-const TYPELIB Events::opt_typelib=
-{
-  array_elements(opt_event_scheduler_state_names)-1,
-  "",
-  opt_event_scheduler_state_names,
-  NULL
-};
-
-
-/*
-  The order should not be changed. We consider OFF to be equivalent of INT 0
-  And ON of 1. If OFF & ON are interchanged the logic in
-  sys_var_event_scheduler::update() will be broken!
-*/
-static const char *var_event_scheduler_state_names[]= { "OFF", "ON", NullS };
-
-const TYPELIB Events::var_typelib=
-{
-  array_elements(var_event_scheduler_state_names)-1,
-  "",
-  var_event_scheduler_state_names,
-  NULL
-};
-
 Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
-enum Events::enum_opt_event_scheduler
-Events::opt_event_scheduler= Events::EVENTS_OFF;
+uint Events::opt_event_scheduler= Events::EVENTS_OFF;
 pthread_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
@@ -123,69 +91,6 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
                                   (uchar *) t.str,t.length, 0);
-}
-
-
-/**
-  @brief Initialize the start up option of the Events scheduler.
-
-  Do not initialize the scheduler subsystem yet - the initialization
-  is split into steps as it has to fit into the common MySQL
-  initialization framework.
-  No locking as this is called only at start up.
-
-  @param[in,out]  argument  The value of the argument. If this value
-                            is found in the typelib, the argument is
-                            updated.
-
-  @retval TRUE  unknown option value
-  @retval FALSE success
-*/
-
-bool
-Events::set_opt_event_scheduler(char *argument)
-{
-  if (argument == NULL)
-    opt_event_scheduler= Events::EVENTS_ON;
-  else
-  {
-    int type;
-    /*
-      type=   1   2      3   4      5
-           (OFF | ON) - (0 | 1) (DISABLE )
-    */
-    const static enum enum_opt_event_scheduler type2state[]=
-    { EVENTS_OFF, EVENTS_ON, EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
-
-    type= find_type(argument, &opt_typelib, 1);
-
-    DBUG_ASSERT(type >= 0 && type <= 5); /* guaranteed by find_type */
-
-    if (type == 0)
-    {
-      fprintf(stderr, "Unknown option to event-scheduler: %s\n", argument);
-      return TRUE;
-    }
-    opt_event_scheduler= type2state[type-1];
-  }
-  return FALSE;
-}
-
-
-/**
-  Return a string representation of the current scheduler mode.
-*/
-
-const char *
-Events::get_opt_event_scheduler_str()
-{
-  const char *str;
-
-  pthread_mutex_lock(&LOCK_event_metadata);
-  str= opt_typelib.type_names[(int) opt_event_scheduler];
-  pthread_mutex_unlock(&LOCK_event_metadata);
-
-  return str;
 }
 
 
@@ -704,8 +609,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
 
   field_list.push_back(new Item_empty_string("Event", NAME_CHAR_LEN));
 
-  if (sys_var_thd_sql_mode::symbolic_mode_representation(thd, et->sql_mode,
-                                                         &sql_mode))
+  if (sql_mode_string_representation(thd, et->sql_mode, &sql_mode))
     DBUG_RETURN(TRUE);
 
   field_list.push_back(new Item_empty_string("sql_mode", (uint) sql_mode.length));
@@ -1061,60 +965,15 @@ Events::dump_internal_status()
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Starts or stops the event scheduler thread.
-
-  @retval FALSE success
-  @retval TRUE  error
-*/
-
-bool
-Events::switch_event_scheduler_state(enum_opt_event_scheduler new_state)
+bool Events::start()
 {
-  bool ret= FALSE;
-
-  DBUG_ENTER("Events::switch_event_scheduler_state");
-
-  DBUG_ASSERT(new_state == Events::EVENTS_ON ||
-              new_state == Events::EVENTS_OFF);
-
-  /*
-    If the scheduler was disabled because there are no/bad
-    system tables, produce a more meaningful error message
-    than ER_OPTION_PREVENTS_STATEMENT
-  */
-  if (check_if_system_tables_error())
-    DBUG_RETURN(TRUE);
-
-  pthread_mutex_lock(&LOCK_event_metadata);
-
-  if (opt_event_scheduler == EVENTS_DISABLED)
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT,
-             MYF(0), "--event-scheduler=DISABLED or --skip-grant-tables");
-    ret= TRUE;
-    goto end;
-  }
-
-  if (new_state == EVENTS_ON)
-    ret= scheduler->start();
-  else
-    ret= scheduler->stop();
-
-  if (ret)
-  {
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
-    goto end;
-  }
-
-  opt_event_scheduler= new_state;
-
-end:
-  pthread_mutex_unlock(&LOCK_event_metadata);
-  DBUG_RETURN(ret);
+  return scheduler->start();
 }
 
+bool Events::stop()
+{
+  return scheduler->stop();
+}
 
 /**
   Loads all ENABLED events from mysql.event into a prioritized

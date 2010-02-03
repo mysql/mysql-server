@@ -56,8 +56,6 @@ SELECT @@global.max_relay_log_size;
 
 SET @@global.max_relay_log_size = @start_value;
 SELECT @@global.max_relay_log_size = 1024;
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
 
 --echo '#--------------------FN_DYNVARS_082_03------------------------#'
 #####################################################################
@@ -74,7 +72,6 @@ SET @@global.max_relay_log_size = 1073741823;
 SELECT @@global.max_relay_log_size;
 SET @@global.max_relay_log_size = 65535;
 SELECT @@global.max_relay_log_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 --echo '#--------------------FN_DYNVARS_082_04-------------------------#'
 ########################################################################
@@ -94,8 +91,6 @@ SET @@global.max_relay_log_size = 1073741825;
 SELECT @@global.max_relay_log_size;
 SET @@global.max_relay_log_size = 10737418241;
 SELECT @@global.max_relay_log_size;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_relay_log_size = ON;

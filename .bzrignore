@@ -3073,3 +3073,5 @@ dbug/tests
 libmysqld/mdl.cc
 client/transaction.h
 libmysqld/transaction.cc
+libmysqld/sys_vars.cc
+libmysqld/keycaches.cc

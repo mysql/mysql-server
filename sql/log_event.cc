@@ -1201,15 +1201,11 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     */
     if (description_event->event_type_permutation)
     {
-#ifndef DBUG_OFF
-      int new_event_type=
-        description_event->event_type_permutation[event_type];
-      DBUG_PRINT("info",
-                 ("converting event type %d to %d (%s)",
-                  event_type, new_event_type,
-                  get_type_str((Log_event_type)new_event_type)));
-#endif
-      event_type= description_event->event_type_permutation[event_type];
+      int new_event_type= description_event->event_type_permutation[event_type];
+      DBUG_PRINT("info", ("converting event type %d to %d (%s)",
+                   event_type, new_event_type,
+                   get_type_str((Log_event_type)new_event_type)));
+      event_type= new_event_type;
     }
 
     switch(event_type) {
@@ -2416,7 +2412,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     the autocommit flag as written by the master to the binlog. This
     behavior may change after WL#4162 has been implemented.
   */
-  flags2= (uint32) (thd_arg->options &
+  flags2= (uint32) (thd_arg->variables.option_bits &
                     (OPTIONS_WRITTEN_TO_BIN_LOG & ~OPTION_NOT_AUTOCOMMIT));
   DBUG_ASSERT(thd_arg->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd_arg->variables.collation_connection->number < 256*256);
@@ -3065,13 +3061,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     {
       if (flags2_inited)
         /*
-          all bits of thd->options which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG
+          all bits of thd->variables.option_bits which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG
           must take their value from flags2.
         */
-        thd->options= flags2|(thd->options & ~OPTIONS_WRITTEN_TO_BIN_LOG);
+        thd->variables.option_bits= flags2|(thd->variables.option_bits & ~OPTIONS_WRITTEN_TO_BIN_LOG);
       /*
         else, we are in a 3.23/4.0 binlog; we previously received a
-        Rotate_log_event which reset thd->options and sql_mode etc, so
+        Rotate_log_event which reset thd->variables.option_bits and sql_mode etc, so
         nothing to do.
       */
       /*
@@ -3349,13 +3345,13 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
   {
     if (strcmp("BEGIN", query) == 0)
     {
-      thd->options|= OPTION_BEGIN;
+      thd->variables.option_bits|= OPTION_BEGIN;
       DBUG_RETURN(Log_event::continue_group(rli));
     }
 
     if (strcmp("COMMIT", query) == 0 || strcmp("ROLLBACK", query) == 0)
     {
-      thd->options&= ~OPTION_BEGIN;
+      thd->variables.option_bits&= ~OPTION_BEGIN;
       DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
     }
   }
@@ -3611,8 +3607,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
 #ifndef DBUG_OFF      
       // Allows us to sanity-check that all events initialized their
       // events (see the end of this 'if' block).
-      memset(post_header_len, 255,
-                     number_of_event_types*sizeof(uint8));
+      memset(post_header_len, 255, number_of_event_types*sizeof(uint8));
 #endif
 
       /* Note: all event types must explicitly fill in their lengths here. */
@@ -4955,7 +4950,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     flush_relay_log_info(rli);
     
     /*
-      Reset thd->options and sql_mode etc, because this could be the signal of
+      Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
       However, no need to reset description_event_for_exec: indeed, if the next
       master is 5.0 (even 5.0.1) we will soon get a Format_desc; if the next
@@ -5331,7 +5326,7 @@ Xid_log_event::do_shall_skip(Relay_log_info *rli)
 {
   DBUG_ENTER("Xid_log_event::do_shall_skip");
   if (rli->slave_skip_counter > 0) {
-    thd->options&= ~OPTION_BEGIN;
+    thd->variables.option_bits&= ~OPTION_BEGIN;
     DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
   }
   DBUG_RETURN(Log_event::do_shall_skip(rli));
@@ -5932,7 +5927,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
   */
-  if (thd->options & OPTION_BEGIN)
+  if (thd->variables.option_bits & OPTION_BEGIN)
     rli->inc_event_relay_log_pos();
   else
   {
@@ -6999,9 +6994,9 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
   DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
               (!tbl_arg && !cols && tid == ~0UL));
 
-  if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+  if (thd_arg->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
-  if (thd_arg->options & OPTION_RELAXED_UNIQUE_CHECKS)
+  if (thd_arg->variables.option_bits & OPTION_RELAXED_UNIQUE_CHECKS)
       set_flags(RELAXED_UNIQUE_CHECKS_F);
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(&m_cols,
@@ -7289,7 +7284,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       STMT_END_F or next error.
     */
     if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+        mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
     {
       thd->set_current_stmt_binlog_row_based();
     }
@@ -7301,16 +7296,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       the event.
     */
     if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
-        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+        thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+        thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (get_flags(RELAXED_UNIQUE_CHECKS_F))
-        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+        thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+        thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
@@ -7464,8 +7459,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         int actual_error= convert_handler_error(error, thd, table);
         bool idempotent_error= (idempotent_error_code(error) &&
-                                ((bit_is_set(slave_exec_mode, 
-                                SLAVE_EXEC_MODE_IDEMPOTENT)) == 1));
+                               (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
         bool ignored_error= (idempotent_error == 0 ?
                              ignored_error_code(actual_error) : 0);
 
@@ -7533,7 +7527,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     if (!cache_stmt)
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
+      thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
   } // if (table)
 
@@ -8271,8 +8265,8 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
   */
-  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
-      m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
+  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
+      (m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER))
   {
     /*
       We are using REPLACE semantics and not INSERT IGNORE semantics
@@ -8350,7 +8344,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   int local_error= 0;
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
+  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
     m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -8651,9 +8645,7 @@ int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
-  int error=
-    write_row(rli,        /* if 1 then overwrite */
-              bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1);
+  int error= write_row(rli, slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
     
   if (error && !thd->is_error())
   {

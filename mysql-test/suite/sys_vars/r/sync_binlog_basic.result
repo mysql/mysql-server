@@ -1,0 +1,114 @@
+SET @start_value = @@global.sync_binlog;
+SELECT @start_value;
+@start_value
+0
+'#--------------------FN_DYNVARS_168_01------------------------#'
+SET @@global.sync_binlog = 99;
+SET @@global.sync_binlog = DEFAULT;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+0
+'#---------------------FN_DYNVARS_168_02-------------------------#'
+SET @@global.sync_binlog = @start_value;
+SELECT @@global.sync_binlog = 0;
+@@global.sync_binlog = 0
+1
+'#--------------------FN_DYNVARS_168_03------------------------#'
+SET @@global.sync_binlog = 0;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+0
+SET @@global.sync_binlog = 1;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+1
+SET @@global.sync_binlog = 4294967295;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = 4294967294;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967294
+SET @@global.sync_binlog = 65536;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+65536
+'#--------------------FN_DYNVARS_168_04-------------------------#'
+SET @@global.sync_binlog = -1;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '-1'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+0
+SET @@global.sync_binlog = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '4294967296'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = 10240022115;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '10240022115'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'sync_binlog'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = -1024;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '-1024'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+0
+SET @@global.sync_binlog = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect sync_binlog value: '42949672950'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = ON;
+ERROR 42000: Incorrect argument type to variable 'sync_binlog'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+SET @@global.sync_binlog = 'test';
+ERROR 42000: Incorrect argument type to variable 'sync_binlog'
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+4294967295
+'#-------------------FN_DYNVARS_168_05----------------------------#'
+SET @@session.sync_binlog = 0;
+ERROR HY000: Variable 'sync_binlog' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@sync_binlog;
+@@sync_binlog
+4294967295
+'#----------------------FN_DYNVARS_168_06------------------------#'
+SELECT @@global.sync_binlog = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='sync_binlog';
+@@global.sync_binlog = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_168_07----------------------#'
+SET sync_binlog = 1;
+ERROR HY000: Variable 'sync_binlog' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@sync_binlog;
+@@sync_binlog
+4294967295
+SET local.sync_binlog = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sync_binlog = 1' at line 1
+SELECT local.sync_binlog;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.sync_binlog = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sync_binlog = 1' at line 1
+SELECT global.sync_binlog;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT sync_binlog = @@session.sync_binlog;
+ERROR 42S22: Unknown column 'sync_binlog' in 'field list'
+SET @@global.sync_binlog = @start_value;
+SELECT @@global.sync_binlog;
+@@global.sync_binlog
+0

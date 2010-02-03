@@ -25,7 +25,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.5.99)
+AM_INIT_AUTOMAKE(mysql, 5.5.99-m3)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 # Request support for automake silent-rules if available.
@@ -2890,7 +2890,7 @@ case $SYSTEM_TYPE in
     fi
 
     # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
     then
 	AC_MSG_ERROR([This commercially licensed MySQL source package can't
 	      be built with libreadline. Please use --with-libedit to use
@@ -3030,8 +3030,8 @@ AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
 AC_SUBST(mysql_plugin_libs)
-AC_SUBST(mysql_plugin_defs)
-
+AC_SUBST(mysql_optional_plugins)
+AC_SUBST(mysql_mandatory_plugins)
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
 # We support client-only builds by "--without-server", but not vice versa,

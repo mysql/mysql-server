@@ -22,6 +22,7 @@
 #include "repl_failsafe.h"
 #include "sp.h"
 #include "sp_head.h"
+#include "set_var.h"
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
@@ -960,7 +961,7 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
   if (length &&
       !is_keyword(name,length) &&
       !require_quotes(name, length) &&
-      !(thd->options & OPTION_QUOTE_SHOW_CREATE))
+      !(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     return '"';
@@ -2213,6 +2214,15 @@ static bool show_status_array(THD *thd, const char *wild,
           if (!(pos= *(char**) value))
             pos= "";
           end= strend(pos);
+          break;
+        }
+        case SHOW_LEX_STRING:
+        {
+          LEX_STRING *ls=(LEX_STRING*)value;
+          if (!(pos= ls->str))
+            end= pos= "";
+          else
+            end= pos + ls->length;
           break;
         }
         case SHOW_KEY_CACHE_LONG:
@@ -4698,8 +4708,7 @@ static bool store_trigger(THD *thd, TABLE *table, LEX_STRING *db_name,
   table->field[14]->store(STRING_WITH_LEN("OLD"), cs);
   table->field[15]->store(STRING_WITH_LEN("NEW"), cs);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd, sql_mode,
-                                                     &sql_mode_rep);
+  sql_mode_string_representation(thd, sql_mode, &sql_mode_rep);
   table->field[17]->store(sql_mode_rep.str, sql_mode_rep.length, cs);
   table->field[18]->store(definer_buffer->str, definer_buffer->length, cs);
   table->field[19]->store(client_cs_name->str, client_cs_name->length, cs);
@@ -5430,8 +5439,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   /* SQL_MODE */
   {
     LEX_STRING sql_mode;
-    sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                       &sql_mode);
+    sql_mode_string_representation(thd, et.sql_mode, &sql_mode);
     sch_table->field[ISE_SQL_MODE]->
                                 store(sql_mode.str, sql_mode.length, scs);
   }
@@ -5595,7 +5603,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
     option_type= OPT_GLOBAL;
 
   rw_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars),
+  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
                          option_type, NULL, "", tables->table, upper_case_names, cond);
   rw_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
@@ -5920,7 +5928,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   SELECT_LEX *select_lex= thd->lex->current_select;
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
-                                (select_lex->options | thd->options |
+                                (select_lex->options | thd->variables.option_bits |
                                  TMP_TABLE_ALL_COLUMNS),
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
@@ -7166,9 +7174,7 @@ static bool show_create_trigger_impl(THD *thd,
                              &trg_connection_cl_name,
                              &trg_db_cl_name);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(thd,
-                                                     trg_sql_mode,
-                                                     &trg_sql_mode_str);
+  sql_mode_string_representation(thd, trg_sql_mode, &trg_sql_mode_str);
 
   /* Resolve trigger client character set. */
 

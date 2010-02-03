@@ -9,16 +9,13 @@ REPEATABLE-READ
 '#--------------------FN_DYNVARS_183_01------------------------#'
 SET @@global.tx_isolation = 'READ-UNCOMMITTED';
 SET @@global.tx_isolation = DEFAULT;
-ERROR 42000: Variable 'tx_isolation' doesn't have a default value
-'Bug# 34878: Documentation specifies a DEFAULT value of REPEATABLE-READ';
-'where as DEFAULT is not supported here.';
-SET @@session.tx_isolation = 'SERIALIZABLE';
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
+REPEATABLE-READ
 SET @@session.tx_isolation = DEFAULT;
 SELECT @@session.tx_isolation;
 @@session.tx_isolation
-READ-UNCOMMITTED
-'Bug# 34876: Documentation specifies a DEFAULT value of REPEATABLE-READ';
-'where as DEFAULT here as no effect.';
+REPEATABLE-READ
 '#---------------------FN_DYNVARS_183_02-------------------------#'
 SET @@global.tx_isolation = NULL;
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'NULL'
@@ -67,10 +64,7 @@ ERROR 42000: Variable 'tx_isolation' can't be set to the value of '-1'
 SET @@global.tx_isolation = READUNCOMMITTED;
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'READUNCOMMITTED'
 SET @@global.tx_isolation = 'REPEATABLE';
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-REPEATABLE-READ
-'Bug# 34833: REPEATABLE is not documented as as valid tx_isolation level'
+ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'REPEATABLE'
 SET @@global.tx_isolation = OFF;
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'OFF'
 SET @@global.tx_isolation = ON;
@@ -82,10 +76,7 @@ ERROR 42000: Variable 'tx_isolation' can't be set to the value of '-1'
 SET @@tx_isolation = READUNCOMMITTED;
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'READUNCOMMITTED'
 SET @@tx_isolation = 'REPEATABLE';
-SELECT @@tx_isolation;
-@@tx_isolation
-REPEATABLE-READ
-'Bug# 34833: REPEATABLE is not documented as as valid tx_isolation level'
+ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'REPEATABLE'
 SET @@tx_isolation = 'NONE';
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'NONE'
 SET @@tx_isolation = 'ALL';
@@ -120,29 +111,7 @@ SELECT @@global.tx_isolation;
 @@global.tx_isolation
 SERIALIZABLE
 SET @@global.tx_isolation = 0.4;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-READ-UNCOMMITTED
-SET @@global.tx_isolation = 1.1;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-READ-COMMITTED
-SET @@global.tx_isolation = 1.5;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-REPEATABLE-READ
-SET @@global.tx_isolation = 2.9;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
-SERIALIZABLE
-SET @@session.tx_isolation = 3.49;
-SELECT @@session.tx_isolation;
-@@session.tx_isolation
-SERIALIZABLE
-SET @@session.tx_isolation = 3.6;
-ERROR 42000: Variable 'tx_isolation' can't be set to the value of '4'
-'Bug: Decimal values can be used within the range [0.0-3.5).';
-'Values are rounded to 0,1,2,3 as evident from outcome.';
+ERROR 42000: Incorrect argument type to variable 'tx_isolation'
 '#---------------------FN_DYNVARS_183_08----------------------#'
 SET @@global.tx_isolation = TRUE;
 SELECT @@global.tx_isolation;

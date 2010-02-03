@@ -22,6 +22,7 @@
 
 struct RPL_TABLE_LIST;
 class Master_info;
+extern uint sql_slave_skip_counter;
 
 /****************************************************************************
 
@@ -427,7 +428,7 @@ public:
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
-    return (sql_thd->options & OPTION_BEGIN) ||
+    return (sql_thd->variables.option_bits & OPTION_BEGIN) ||
       (m_flags & (1UL << IN_STMT));
   }
 

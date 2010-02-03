@@ -149,10 +149,13 @@ show status like 'key_blocks_used';
 --replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED 1824 KEY_BLOCKS_UNUSED
 show status like 'key_blocks_unused';
 
-
-# Cleanup
-# We don't reset keycache2 as we want to ensure that mysqld will reset it
+create table t1 (a int primary key);
+cache index t1 in keycache2;
+insert t1 values (1),(2),(3),(4),(5),(6),(7),(8);
+# delete keycache2, t1 is reassigned to default
 set global keycache2.key_buffer_size=0;
+select * from t1;
+drop table t1;
 
 # Test to set up a too small size for a key cache (bug #2064)
 set global keycache3.key_buffer_size=100;
@@ -216,6 +219,7 @@ set global key_cache_block_size= @my_key_cache_block_size;
 # Bug#10473 - Can't set 'key_buffer_size' system variable to ZERO
 # (One cannot drop the default key cache.)
 #
+--error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 set @@global.key_buffer_size=0;
 select @@global.key_buffer_size;
 

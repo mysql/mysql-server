@@ -169,6 +169,7 @@ enum mysql_db_table_field
 };
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
+extern bool mysql_user_table_is_in_short_password_format;
 
 /* Classes */
 

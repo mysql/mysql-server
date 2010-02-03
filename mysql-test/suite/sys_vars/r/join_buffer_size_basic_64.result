@@ -7,127 +7,117 @@ SELECT @start_session_value;
 @start_session_value
 131072
 '#--------------------FN_DYNVARS_053_01-------------------------#'
-SET @@global.join_buffer_size = 8200;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8200'
 SET @@global.join_buffer_size = DEFAULT;
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 131072
-SET @@session.join_buffer_size = 8200;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8200'
 SET @@session.join_buffer_size = DEFAULT;
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 131072
-'#--------------------FN_DYNVARS_053_02-------------------------#'
-SET @@global.join_buffer_size = DEFAULT;
-SELECT @@global.join_buffer_size = 131072;
-@@global.join_buffer_size = 131072
-1
-SET @@session.join_buffer_size = DEFAULT;
-SELECT @@session.join_buffer_size = 131072;
-@@session.join_buffer_size = 131072
-1
 '#--------------------FN_DYNVARS_053_03-------------------------#'
 SET @@global.join_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '8200'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+8192
 SET @@global.join_buffer_size = 65536;
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
 65536
 SET @@global.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
-4294963200
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
+4294967168
 '#--------------------FN_DYNVARS_053_04-------------------------#'
 SET @@session.join_buffer_size = 8200;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '8200'
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-@@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228
-1
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+8192
 SET @@session.join_buffer_size = 65536;
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
 65536
 SET @@session.join_buffer_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '4294967295'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
-4294963200
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
+4294967168
 '#------------------FN_DYNVARS_053_05-----------------------#'
 SET @@global.join_buffer_size = 0;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '0'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+128
 SET @@global.join_buffer_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '-1024'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
-SET @@global.join_buffer_size = 8199;
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+128
+SET @@global.join_buffer_size = 127;
 Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8199'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
+Warning	1292	Truncated incorrect join_buffer_size value: '127'
+SELECT @@global.join_buffer_size;
+@@global.join_buffer_size
+128
 SET @@global.join_buffer_size = 42949672951;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '42949672951'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
-42949668864
-SET @@global.join_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+42949672832
+SET @@global.join_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
-42949668864
+42949672832
 SET @@global.join_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@global.join_buffer_size;
 @@global.join_buffer_size
-42949668864
+42949672832
 SET @@session.join_buffer_size = 0;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '0'
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-@@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228
-1
-SET @@session.join_buffer_size = -2;
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+128
+SET @@session.join_buffer_size = -1024;
 Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '-2'
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-@@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228
-1
-SET @@session.join_buffer_size = 8199;
+Warning	1292	Truncated incorrect join_buffer_size value: '-1024'
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+128
+SET @@session.join_buffer_size = 127;
 Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8199'
-SELECT @@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228;
-@@session.join_buffer_size=8200 OR @@session.join_buffer_size= 8228
-1
+Warning	1292	Truncated incorrect join_buffer_size value: '127'
+SELECT @@session.join_buffer_size;
+@@session.join_buffer_size
+128
 SET @@session.join_buffer_size = 42949672951;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '42949672951'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
-42949668864
-SET @@session.join_buffer_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+42949672832
+SET @@session.join_buffer_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
-42949668864
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
+42949672832
 SET @@session.join_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'join_buffer_size'
 SELECT @@session.join_buffer_size;
 @@session.join_buffer_size
-42949668864
+42949672832
 '#------------------FN_DYNVARS_053_06-----------------------#'
 SELECT @@global.join_buffer_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -144,16 +134,9 @@ WHERE VARIABLE_NAME='join_buffer_size';
 SET @@global.join_buffer_size = TRUE;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '1'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
 SET @@global.join_buffer_size = FALSE;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '0'
-SELECT @@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228;
-@@global.join_buffer_size=8200 OR @@global.join_buffer_size= 8228
-1
-'Bug: Errors are not coming on assigning TRUE/FALSE to variable';
 '#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.join_buffer_size = 10;
 Warnings:
@@ -175,9 +158,9 @@ SELECT @@local.join_buffer_size = @@session.join_buffer_size;
 SET join_buffer_size = 1;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '1'
-SELECT @@join_buffer_size=8200 OR @@join_buffer_size= 8228;
-@@join_buffer_size=8200 OR @@join_buffer_size= 8228
-1
+SELECT @@join_buffer_size;
+@@join_buffer_size
+128
 SELECT local.join_buffer_size;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.join_buffer_size;

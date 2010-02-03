@@ -91,7 +91,6 @@ SET @@global.expire_logs_days = -1024;
 SELECT @@global.expire_logs_days;
 SET @@global.expire_logs_days = 42949672950;
 SELECT @@global.expire_logs_days;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.expire_logs_days = ON;

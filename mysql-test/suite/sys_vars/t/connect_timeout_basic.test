@@ -79,7 +79,6 @@ SET @@global.connect_timeout = -1024;
 SELECT @@global.connect_timeout;
 SET @@global.connect_timeout = 42949672950;
 SELECT @@global.connect_timeout;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.connect_timeout = 21221204.10;
 --Error ER_WRONG_TYPE_FOR_VAR

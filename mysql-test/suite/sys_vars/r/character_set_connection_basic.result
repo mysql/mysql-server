@@ -425,9 +425,6 @@ SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
 36
-'Bug # 34843: character sets are mapped in such a way that 100 and following ';
-'numbers gives error, and before 100 the 36 mapped wraps arround';
-'several times.';
 '#--------------------FN_DYNVARS_011_10-------------------------#'
 SET @@character_set_connection = abc;
 ERROR 42000: Unknown character set: 'abc'

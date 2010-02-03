@@ -1597,7 +1597,7 @@ void close_temporary_tables(THD *thd)
   TABLE *table;
   TABLE *next= NULL;
   TABLE *prev_table;
-  /* Assume thd->options has OPTION_QUOTE_SHOW_CREATE */
+  /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
 
   if (!thd->temporary_tables)
@@ -1665,9 +1665,9 @@ void close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= test(thd->options & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= test(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
   {
-    thd->options |= OPTION_QUOTE_SHOW_CREATE;
+    thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
 
   /* scan sorted tmps to generate sequence of DROP */
@@ -1720,7 +1720,7 @@ void close_temporary_tables(THD *thd)
     }
   }
   if (!was_quote_show)
-    thd->options&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
 }
 
@@ -3922,7 +3922,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
 
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 {
-  bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  bool log_on= mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
@@ -5221,7 +5221,7 @@ bool decide_logging_format(THD *thd, TABLE_LIST *tables)
     This check here is needed to prevent some spurious error to be
     raised in some cases (See BUG#42829).
    */
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
+  if (mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG) &&
       (thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
        binlog_filter->db_ok(thd->db)))
   {
@@ -5263,7 +5263,7 @@ bool decide_logging_format(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info", ("flags_some_set: %s%s",
                         FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
                         FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
+    DBUG_PRINT("info", ("thd->variables.binlog_format: %u",
                         thd->variables.binlog_format));
     DBUG_PRINT("info", ("multi_engine: %s",
                         multi_engine ? "TRUE" : "FALSE"));

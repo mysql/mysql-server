@@ -1,0 +1,21 @@
+select @@global.socket;
+@@global.socket
+MYSQL_TMP_DIR/mysqld.1.sock
+select @@session.socket;
+ERROR HY000: Variable 'socket' is a GLOBAL variable
+show global variables like 'socket';
+Variable_name	Value
+socket	MYSQL_TMP_DIR/mysqld.1.sock
+show session variables like 'socket';
+Variable_name	Value
+socket	MYSQL_TMP_DIR/mysqld.1.sock
+select * from information_schema.global_variables where variable_name='socket';
+VARIABLE_NAME	VARIABLE_VALUE
+SOCKET	MYSQL_TMP_DIR/mysqld.1.sock
+select * from information_schema.session_variables where variable_name='socket';
+VARIABLE_NAME	VARIABLE_VALUE
+SOCKET	MYSQL_TMP_DIR/mysqld.1.sock
+set global socket=1;
+ERROR HY000: Variable 'socket' is a read only variable
+set session socket=1;
+ERROR HY000: Variable 'socket' is a read only variable

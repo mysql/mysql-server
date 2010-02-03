@@ -407,13 +407,6 @@ static void debug_wait_for_kill(const char *info)
 #define DUMP(C)
 #endif
 
-const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
-TYPELIB query_cache_type_typelib=
-{
-  array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
-};
-
-
 /**
   Serialize access to the query cache.
   If the lock cannot be granted the thread hangs in a conditional wait which
@@ -1074,12 +1067,12 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
   :query_cache_size(0),
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
-   total_blocks(0), lowmem_prunes(0),
+   total_blocks(0), lowmem_prunes(0), m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
-   initialized(0), m_query_cache_is_disabled(FALSE)
+   initialized(0)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
 		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
@@ -2156,7 +2149,7 @@ ulong Query_cache::init_cache()
 
   (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
                       query_cache_query_get_key, 0, 0);
-#ifndef FN_NO_CASE_SENCE
+#ifndef FN_NO_CASE_SENSE
   /*
     If lower_case_table_names!=0 then db and table names are already 
     converted to lower case and we can use binary collation for their 

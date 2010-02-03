@@ -116,8 +116,7 @@ latin5
 select @@character_set_server;
 @@character_set_server
 latin5
-set one_shot max_join_size=10;
-ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
+set one_shot max_join_size=1000000;
 set character_set_client=9999999;
 ERROR 42000: Unknown character set: '9999999'
 set collation_server=9999998;

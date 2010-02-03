@@ -1761,6 +1761,10 @@ end:
     my_pthread_setspecific_ptr(THR_THD,  0);
     my_pthread_setspecific_ptr(THR_MALLOC,  0);
   }
+  
+  default_tz= default_tz_name ? global_system_variables.time_zone
+                              : my_tz_SYSTEM;
+
   DBUG_RETURN(return_val);
 }
 

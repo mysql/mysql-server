@@ -1,0 +1,21 @@
+select @@global.lower_case_table_names=20;
+@@global.lower_case_table_names=20
+0
+select @@session.lower_case_table_names;
+ERROR HY000: Variable 'lower_case_table_names' is a GLOBAL variable
+show global variables like 'lower_case_table_names';
+Variable_name	Value
+lower_case_table_names	#
+show session variables like 'lower_case_table_names';
+Variable_name	Value
+lower_case_table_names	#
+select * from information_schema.global_variables where variable_name='lower_case_table_names';
+VARIABLE_NAME	VARIABLE_VALUE
+LOWER_CASE_TABLE_NAMES	#
+select * from information_schema.session_variables where variable_name='lower_case_table_names';
+VARIABLE_NAME	VARIABLE_VALUE
+LOWER_CASE_TABLE_NAMES	#
+set global lower_case_table_names=1;
+ERROR HY000: Variable 'lower_case_table_names' is a read only variable
+set session lower_case_table_names=1;
+ERROR HY000: Variable 'lower_case_table_names' is a read only variable

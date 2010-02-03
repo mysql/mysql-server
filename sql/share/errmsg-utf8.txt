@@ -1777,7 +1777,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
         dan "For stor feltlængde for kolonne '%-.192s' (maks = %lu). Brug BLOB i stedet"
         nla "Te grote kolomlengte voor '%-.192s' (max = %lu). Maak hiervoor gebruik van het type BLOB"
         eng "Column length too big for column '%-.192s' (max = %lu); use BLOB or TEXT instead"
-        jps "column '%-.192s' は,確保する column の大きさが多すぎます. (最大 %lu まで). BLOB をかわりに使用してください.",
+        jps "column '%-.192s' は,確保する column の大きさが多すぎます. (最大 %lu まで). BLOB をかわりに使用してください."
         est "Tulba '%-.192s' pikkus on liiga pikk (maksimaalne pikkus: %lu). Kasuta BLOB väljatüüpi"
         fre "Champ '%-.192s' trop long (max = %lu). Utilisez un BLOB"
         ger "Feldlänge für Feld '%-.192s' zu groß (maximal %lu). BLOB- oder TEXT-Spaltentyp verwenden!"
@@ -5014,7 +5014,7 @@ ER_WARN_HOSTNAME_WONT_WORK
         por "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar"
         spa "MySQL esta inicializado en modo --skip-name-resolve. Usted necesita reinicializarlo sin esta opción para este derecho funcionar"
 ER_UNKNOWN_STORAGE_ENGINE 42000 
-        eng "Unknown table engine '%s'"
+        eng "Unknown storage engine '%s'"
         ger "Unbekannte Speicher-Engine '%s'"
         por "Motor de tabela desconhecido '%s'"
         spa "Desconocido motor de tabla '%s'"
@@ -6108,7 +6108,7 @@ ER_TRG_CANT_OPEN_TABLE
 
 ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
-ER_SLAVE_AMBIGOUS_EXEC_MODE
+ER_NEVER_USED
   eng "Ambiguous slave modes combination. %s"
 
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
@@ -6120,7 +6120,7 @@ ER_LOAD_DATA_INVALID_COLUMN
   eng "Invalid column reference (%-.64s) in LOAD DATA"
 
 ER_LOG_PURGE_NO_FILE  
-	eng "Being purged log %s was not found"
+  eng "Being purged log %s was not found"
 
 ER_XA_RBTIMEOUT XA106
 	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
@@ -6196,7 +6196,7 @@ ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
 ER_TOO_MANY_CONCURRENT_TRXS
-        eng  "Too many active concurrent transactions"
+  eng  "Too many active concurrent transactions"
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
@@ -6235,8 +6235,9 @@ WARN_COND_ITEM_TRUNCATED
 ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
-ER_UNKNOWN_LOCALE                                                                                                                                                                    
-  eng "Unknown locale: '%-.64s'"
+ER_UNKNOWN_LOCALE
+        eng "Unknown locale: '%-.64s'"
+
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
 ER_QUERY_CACHE_DISABLED
@@ -6261,3 +6262,9 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+ER_PATH_LENGTH
+  eng "The path specified for %.64s is too long."
+ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
+  eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
+  ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+

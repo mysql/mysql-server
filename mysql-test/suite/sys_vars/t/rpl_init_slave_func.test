@@ -39,8 +39,9 @@ SET @start_init_slave= @@global.init_slave;
 
 # setting of a global value with an effect on the next start of the slave server
 # check that @@global.init_slave could be set
+SET NAMES utf8;
 let $my_init_slave=
-   'SET @@global.max_connections = @@global.max_connections + 1';
+   'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
 eval SET @@global.init_slave = $my_init_slave;
 
 # show the data type of the variable
@@ -49,6 +50,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 --enable_warnings
 DESCRIBE t1;
+select length(my_column) from t1;
 DROP TABLE t1;
 #
 # check that the new setting of @@global.init_slave becomes immediately visible

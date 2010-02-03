@@ -1,0 +1,21 @@
+select @@global.large_pages;
+@@global.large_pages
+0
+select @@session.large_pages;
+ERROR HY000: Variable 'large_pages' is a GLOBAL variable
+show global variables like 'large_pages';
+Variable_name	Value
+large_pages	OFF
+show session variables like 'large_pages';
+Variable_name	Value
+large_pages	OFF
+select * from information_schema.global_variables where variable_name='large_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+LARGE_PAGES	OFF
+select * from information_schema.session_variables where variable_name='large_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+LARGE_PAGES	OFF
+set global large_pages=1;
+ERROR HY000: Variable 'large_pages' is a read only variable
+set session large_pages=1;
+ERROR HY000: Variable 'large_pages' is a read only variable

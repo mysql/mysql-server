@@ -104,7 +104,6 @@ Warning	1292	Truncated incorrect auto_increment_offset value: '65550'
 SELECT @@session.auto_increment_offset;
 @@session.auto_increment_offset
 65535
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@session.auto_increment_offset = ON;
 ERROR 42000: Incorrect argument type to variable 'auto_increment_offset'
 SELECT @@session.auto_increment_offset;

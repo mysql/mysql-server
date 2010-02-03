@@ -36,7 +36,7 @@
 #define SHOW_always_last SHOW_KEY_CACHE_LONG, \
             SHOW_KEY_CACHE_LONGLONG, SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
             SHOW_HAVE, SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, \
-            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS
+            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS, SHOW_LEX_STRING
 
 #include <my_global.h>
 #include <mysql_version.h>
@@ -492,12 +492,6 @@ protected:
 #define FLUSH_TIME		0		/**< Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
-#ifdef __NETWARE__
-#define IF_NETWARE(A,B) A
-#else
-#define IF_NETWARE(A,B) B
-#endif
-
 #if defined(__WIN__)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/**< Flush every half hour */
@@ -522,7 +516,7 @@ protected:
    This is included in the server and in the client.
    Options for select set by the yacc parser (stored in lex->options).
 
-   XXX:
+   NOTE
    log_event.h defines OPTIONS_WRITTEN_TO_BIN_LOG to specify what THD
    options list are written into binlog. These options can NOT change their
    values, or it will break replication between version.
@@ -536,53 +530,52 @@ protected:
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT         (ULL(1) << 0)     // SELECT, user
-#define SELECT_STRAIGHT_JOIN    (ULL(1) << 1)     // SELECT, user
-#define SELECT_DESCRIBE         (ULL(1) << 2)     // SELECT, user
-#define SELECT_SMALL_RESULT     (ULL(1) << 3)     // SELECT, user
-#define SELECT_BIG_RESULT       (ULL(1) << 4)     // SELECT, user
-#define OPTION_FOUND_ROWS       (ULL(1) << 5)     // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (ULL(1) << 6)     // SELECT, user
-#define SELECT_NO_JOIN_CACHE    (ULL(1) << 7)     // intern
-#define OPTION_BIG_TABLES       (ULL(1) << 8)     // THD, user
-#define OPTION_BIG_SELECTS      (ULL(1) << 9)     // THD, user
-#define OPTION_LOG_OFF          (ULL(1) << 10)    // THD, user
-#define OPTION_QUOTE_SHOW_CREATE (ULL(1) << 11)   // THD, user, unused
-#define TMP_TABLE_ALL_COLUMNS   (ULL(1) << 12)    // SELECT, intern
-#define OPTION_WARNINGS         (ULL(1) << 13)    // THD, user
-#define OPTION_AUTO_IS_NULL     (ULL(1) << 14)    // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (ULL(1) << 15)    // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES     (ULL(1) << 16)    // THD, user
-#define OPTION_BUFFER_RESULT    (ULL(1) << 17)    // SELECT, user
-#define OPTION_BIN_LOG          (ULL(1) << 18)    // THD, user
-#define OPTION_NOT_AUTOCOMMIT   (ULL(1) << 19)    // THD, user
-#define OPTION_BEGIN            (ULL(1) << 20)    // THD, intern
-#define OPTION_TABLE_LOCK       (ULL(1) << 21)    // THD, intern
-#define OPTION_QUICK            (ULL(1) << 22)    // SELECT (for DELETE)
-#define OPTION_KEEP_LOG         (ULL(1) << 23)    // THD, user
+#define SELECT_DISTINCT         (1ULL << 0)     // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (1ULL << 1)     // SELECT, user
+#define SELECT_DESCRIBE         (1ULL << 2)     // SELECT, user
+#define SELECT_SMALL_RESULT     (1ULL << 3)     // SELECT, user
+#define SELECT_BIG_RESULT       (1ULL << 4)     // SELECT, user
+#define OPTION_FOUND_ROWS       (1ULL << 5)     // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (1ULL << 6)     // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (1ULL << 7)     // intern
+/** always the opposite of OPTION_NOT_AUTOCOMMIT except when in fix_autocommit() */
+#define OPTION_AUTOCOMMIT       (1ULL << 8)    // THD, user
+#define OPTION_BIG_SELECTS      (1ULL << 9)     // THD, user
+#define OPTION_LOG_OFF          (1ULL << 10)    // THD, user
+#define OPTION_QUOTE_SHOW_CREATE (1ULL << 11)   // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (1ULL << 12)    // SELECT, intern
+#define OPTION_WARNINGS         (1ULL << 13)    // THD, user
+#define OPTION_AUTO_IS_NULL     (1ULL << 14)    // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (1ULL << 15)    // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (1ULL << 16)    // THD, user
+#define OPTION_BUFFER_RESULT    (1ULL << 17)    // SELECT, user
+#define OPTION_BIN_LOG          (1ULL << 18)    // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (1ULL << 19)    // THD, user
+#define OPTION_BEGIN            (1ULL << 20)    // THD, intern
+#define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
+#define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
+#define OPTION_KEEP_LOG         (1ULL << 23)    // THD, user
 
 /* The following is used to detect a conflict with DISTINCT */
-#define SELECT_ALL              (ULL(1) << 24)    // SELECT, user, parser
-
+#define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
 /** The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (ULL(1) << 26) // THD, user, binlog
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1ULL << 26) // THD, user, binlog
 /** The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (ULL(1) << 27) // THD, user, binlog
-#define SELECT_NO_UNLOCK                (ULL(1) << 28) // SELECT, intern
-#define OPTION_SCHEMA_TABLE             (ULL(1) << 29) // SELECT, intern
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1ULL << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (1ULL << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (1ULL << 29) // SELECT, intern
 /** Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (ULL(1) << 30) // intern
+#define OPTION_SETUP_TABLES_DONE        (1ULL << 30) // intern
 /** If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (ULL(1) << 31) // THD, user
+#define OPTION_SQL_NOTES                (1ULL << 31) // THD, user
 /**
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
-#define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
-#define OPTION_PROFILING                (ULL(1) << 33)
-
+#define TMP_TABLE_FORCE_MYISAM          (1ULL << 32)
+#define OPTION_PROFILING                (1ULL << 33)
 
 
 /**
@@ -1295,7 +1288,7 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   const char *table_name,
                                   bool no_error);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
-void execute_init_command(THD *thd, sys_var_str *init_command_var,
+void execute_init_command(THD *thd, LEX_STRING *init_command,
 			  rw_lock_t *var_mutex);
 extern Field *not_found_field;
 extern Field *view_ref_found;
@@ -1592,7 +1585,8 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
-char *make_default_log_name(char *buff,const char* log_ext);
+char *make_log_name(char *buff, const char *name, const char* log_ext);
+extern char default_logfile_name[FN_REFLEN];
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -1853,10 +1847,6 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
-ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
-                              ulonglong cur_set, ulonglong default_set,
-                              const char *str, uint length, CHARSET_INFO *cs,
-                              char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, uint length,
                bool part_match);
 uint find_type2(const TYPELIB *lib, const char *find, uint length,
@@ -1866,6 +1856,10 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
                          CHARSET_INFO * const cs);
+char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                    const char *lib[]);
+char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                        const char *lib[]);
 
 
 bool is_keyword(const char *name, uint len);
@@ -1890,7 +1884,9 @@ extern int creating_table;    // How many mysql_create_table() are running
 extern time_t server_start_time, flush_status_time;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
-extern uint mysql_data_home_len;
+extern uint mysql_data_home_len, mysql_real_data_home_len;
+extern const char *mysql_real_data_home_ptr;
+extern uint thread_handling;
 
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern char server_version[SERVER_VERSION_LENGTH];
@@ -1900,18 +1896,18 @@ extern char mysql_unpacked_real_data_home[];
 extern CHARSET_INFO *character_set_filesystem;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
-extern char *opt_mysql_tmpdir, mysql_charsets_dir[],
-            def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern int mysql_unpacked_real_data_home_len;
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 extern const LEX_STRING command_name[];
 
+extern LEX_STRING opt_init_connect, opt_init_slave;
+
 extern const char *first_keyword, *delayed_user, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;			/* Error messages */
 
-extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern const char * const TRG_EXT;
 extern const char * const TRN_EXT;
@@ -1922,15 +1918,16 @@ extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
 extern char lc_messages_dir[FN_REFLEN];
+extern char *lc_messages_dir_ptr, *log_error_file_ptr;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
+extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
-extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern const double log_10[309];
 extern ulonglong log_10_int[20];
@@ -1950,7 +1947,6 @@ extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;
-extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -1992,7 +1988,7 @@ extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
-extern ulong log_output_options;
+extern ulonglong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_ignore_builtin_innodb;
@@ -2004,18 +2000,20 @@ extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
-extern ulong slave_exec_mode_options;
+extern uint slave_exec_mode_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-extern my_bool sp_automatic_privileges, opt_noacl;
+extern my_bool sp_automatic_privileges, opt_noacl, disable_slaves;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
+extern Time_zone *default_tz;
+extern char *default_storage_engine;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern my_bool opt_large_pages;
@@ -2024,6 +2022,7 @@ extern uint opt_large_page_size;
 #ifdef MYSQL_SERVER
 extern char *opt_logname, *opt_slow_logname;
 extern const char *log_output_str;
+extern my_bool old_mode;
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
@@ -2055,7 +2054,6 @@ extern pthread_cond_t COND_thread_count, COND_manager;
 extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
-extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
@@ -2069,7 +2067,7 @@ extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
 
-extern const char *opt_date_time_formats[];
+extern DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 
 extern String null_string;
@@ -2084,8 +2082,11 @@ extern TYPELIB thread_handling_typelib;
 extern uint sql_command_flags[];
 extern uint server_command_flags[];
 extern TYPELIB log_output_typelib;
+extern const char *log_output_names[];
 
 /* optional things, have_* variables */
+extern SHOW_COMP_OPTION have_csv, have_innodb;
+extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 extern SHOW_COMP_OPTION have_profiling;
 
 extern handlerton *partition_hton;
@@ -2105,6 +2106,9 @@ extern const char *load_default_groups[];
 #ifndef __WIN__
 extern pthread_t signal_thread;
 #endif
+
+extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
+            *opt_ssl_key;
 
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
@@ -2223,6 +2227,20 @@ bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
 extern LEX_STRING interval_type_to_name[];
+
+
+bool parse_date_time_format(timestamp_type format_type, 
+                            const char *format, uint format_length,
+                            DATE_TIME_FORMAT *date_time_format);
+/* convenience wrapper */
+inline bool parse_date_time_format(timestamp_type format_type, 
+                                   DATE_TIME_FORMAT *date_time_format)
+{
+  return parse_date_time_format(format_type,
+                                date_time_format->format.str,
+                                date_time_format->format.length,
+                                date_time_format);
+}
 
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
@@ -2491,6 +2509,11 @@ inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
 
+/* This must match the path length limit in the ER_NOT_RW_DIR error msg. */
+#define ER_NOT_RW_DIR_PATHSIZE 200
+bool is_usable_directory(THD *thd, const char *varname,
+                         const char *path, const char *prefix);
+
 /* Used by handlers to store things in schema tables */
 #define IS_FILES_FILE_ID              0
 #define IS_FILES_FILE_NAME            1
@@ -2565,6 +2588,58 @@ bool load_collation(MEM_ROOT *mem_root,
                     Field *field,
                     CHARSET_INFO *dflt_cl,
                     CHARSET_INFO **cl);
+
+#define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
+
+/**
+  only options that need special treatment in get_one_option() deserve
+  to be listed below
+*/
+enum options_mysqld
+{
+  OPT_to_set_the_start_number=256,
+  OPT_BIND_ADDRESS,
+  OPT_BINLOG_DO_DB,
+  OPT_BINLOG_FORMAT,
+  OPT_BINLOG_IGNORE_DB,
+  OPT_BIN_LOG,
+  OPT_BOOTSTRAP,
+  OPT_CONSOLE,
+  OPT_DEBUG_SYNC_TIMEOUT,
+  OPT_DELAY_KEY_WRITE_ALL,
+  OPT_ISAM_LOG,
+  OPT_KEY_BUFFER_SIZE,
+  OPT_KEY_CACHE_AGE_THRESHOLD,
+  OPT_KEY_CACHE_BLOCK_SIZE,
+  OPT_KEY_CACHE_DIVISION_LIMIT,
+  OPT_LOWER_CASE_TABLE_NAMES,
+  OPT_ONE_THREAD,
+  OPT_POOL_OF_THREADS,
+  OPT_REPLICATE_DO_DB,
+  OPT_REPLICATE_DO_TABLE,
+  OPT_REPLICATE_IGNORE_DB,
+  OPT_REPLICATE_IGNORE_TABLE,
+  OPT_REPLICATE_REWRITE_DB,
+  OPT_REPLICATE_WILD_DO_TABLE,
+  OPT_REPLICATE_WILD_IGNORE_TABLE,
+  OPT_SAFE,
+  OPT_SERVER_ID,
+  OPT_SKIP_HOST_CACHE,
+  OPT_SKIP_LOCK,
+  OPT_SKIP_NEW,
+  OPT_SKIP_PRIOR,
+  OPT_SKIP_RESOLVE,
+  OPT_SKIP_STACK_TRACE,
+  OPT_SKIP_SYMLINKS,
+  OPT_SLOW_QUERY_LOG,
+  OPT_SSL_CA,
+  OPT_SSL_CAPATH,
+  OPT_SSL_CERT,
+  OPT_SSL_CIPHER,
+  OPT_SSL_KEY,
+  OPT_UPDATE_LOG,
+  OPT_WANT_CORE
+};
 
 #endif /* MYSQL_SERVER */
 extern "C" int test_if_data_home_dir(const char *dir);

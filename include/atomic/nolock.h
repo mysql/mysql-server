@@ -50,11 +50,7 @@
 #  endif
 #endif
 
-#if defined(make_atomic_cas_body) || defined(MY_ATOMICS_MADE)
-/*
- * We have atomics that require no locking
- */
-#define	MY_ATOMIC_NOLOCK
+#if defined(make_atomic_cas_body)
 /*
   Type not used so minimal size (emptry struct has different size between C
   and C++, zero-length array is gcc-specific).

@@ -32,6 +32,8 @@
 #include "sp.h"
 #include "transaction.h"
 
+bool mysql_user_table_is_in_short_password_format= false;
+
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
@@ -220,25 +222,6 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
 }
 
 /*
-  This after_update function is used when user.password is less than
-  SCRAMBLE_LENGTH bytes.
-*/
-
-static void restrict_update_of_old_passwords_var(THD *thd,
-                                                 enum_var_type var_type)
-{
-  if (var_type == OPT_GLOBAL)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.old_passwords= 1;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-  }
-  else
-    thd->variables.old_passwords= 1;
-}
-
-
-/*
   Initialize structures responsible for user/db-level privilege checking and
   load privilege information for them from tables in the 'mysql' database.
 
@@ -399,7 +382,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                       "but server started with --secure-auth option.");
       goto end;
     }
-    sys_old_passwords.after_update= restrict_update_of_old_passwords_var;
+    mysql_user_table_is_in_short_password_format= true;
     if (global_system_variables.old_passwords)
       pthread_mutex_unlock(&LOCK_global_system_variables);
     else
@@ -414,7 +397,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    sys_old_passwords.after_update= 0;
+    mysql_user_table_is_in_short_password_format= false;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
 

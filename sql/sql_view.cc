@@ -29,15 +29,6 @@ const LEX_STRING view_type= { C_STRING_WITH_LEN("VIEW") };
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
 
-const char *updatable_views_with_limit_names[]= { "NO", "YES", NullS };
-TYPELIB updatable_views_with_limit_typelib=
-{
-  array_elements(updatable_views_with_limit_names)-1, "",
-  updatable_views_with_limit_names,
-  0
-};
-
-
 /*
   Make a unique name for an anonymous view column
   SYNOPSIS

@@ -6109,7 +6109,7 @@ ER_TRG_CANT_OPEN_TABLE
 
 ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
-ER_SLAVE_AMBIGOUS_EXEC_MODE
+ER_NEVER_USED
   eng "Ambiguous slave modes combination. %s"
 
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
@@ -6262,3 +6262,9 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+ER_PATH_LENGTH
+        eng "The path specified for %.64s is too long."
+ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
+        eng  "The syntax '%s' is deprecated and will be removed in MySQL %s."
+        ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+

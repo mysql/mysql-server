@@ -9,8 +9,6 @@ profiling_history_size	15
 select @@profiling;
 @@profiling
 0
-set global profiling = ON;
-ERROR HY000: Variable 'profiling' is a SESSION variable and can't be used with SET GLOBAL
 set @start_value= @@global.profiling_history_size;
 set global profiling_history_size=100;
 show global variables like 'profil%';
