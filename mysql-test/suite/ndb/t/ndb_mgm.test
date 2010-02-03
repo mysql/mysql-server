@@ -1,0 +1,32 @@
+-- source include/have_ndb.inc
+
+# Build the standard command used for running "ndb_mgm"
+let $mgm_cmd = $NDB_MGM;
+let $mgm_cmd = $mgm_cmd --no-defaults;
+let $mgm_cmd = $mgm_cmd --ndb-connectstring="$NDB_CONNECTSTRING";
+let $mgm_cmd = $mgm_cmd --verbose=0;
+
+#
+# Build strings for masking ndb_mgm output
+#
+
+#echo MYSQL_SERVER_VERSION: $MYSQL_SERVER_VERSION;
+
+# extract mysql-X.X.X
+let $mysql_version=
+  `select CONCAT('mysql-', SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', 1))`;
+#echo mysql_version: $mysql_version;
+
+# extract ndb-X.X.X(if the server version string does not include NDB version
+# we should add a 'ndb_version' variable installed by ha_ndbcluster)
+let $ndb_version=
+  `select SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', -2)`;
+#echo ndb_version: $ndb_version;
+
+
+#
+# Test the SHOW command
+#
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+exec $mgm_cmd -e "show";
+
