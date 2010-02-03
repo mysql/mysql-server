@@ -132,7 +132,8 @@ The following options may be given as the first argument:
                       on that value
   --enable-locking    Deprecated option, use --external-locking instead.
   --engine-condition-pushdown 
-                      Push supported query conditions to the storage engine
+                      Push supported query conditions to the storage engine.
+                      Deprecated, use --optimizer-switch instead.
                       (Defaults to on; use --skip-engine-condition-pushdown to disable.)
   --event-scheduler[=name] 
                       Enable the event scheduler. Possible values are ON, OFF,
@@ -413,8 +414,9 @@ The following options may be given as the first argument:
   --optimizer-switch=name 
                       optimizer_switch=option=val[,option=val...], where option
                       is one of {index_merge, index_merge_union,
-                      index_merge_sort_union, index_merge_intersection} and val
-                      is one of {on, off, default}
+                      index_merge_sort_union, index_merge_intersection,
+                      engine_condition_pushdown} and val is one of {on, off,
+                      default}
   --partition[=name]  Enable or disable partition plugin. Possible values are
                       ON, OFF, FORCE (don't start if the plugin fails to load).
   --pid-file=name     Pid file used by safe_mysqld
@@ -746,7 +748,6 @@ completion-type                   NO_CHAIN
 concurrent-insert                 AUTO
 connect-timeout                   10
 console                           FALSE
-datadir                           MYSQLTEST_VARDIR/install.db/
 date-format                       %Y-%m-%d
 datetime-format                   %Y-%m-%d %H:%i:%s
 default-character-set             latin1
@@ -857,7 +858,7 @@ old-passwords                     FALSE
 old-style-user-limits             FALSE
 optimizer-prune-level             1
 optimizer-search-depth            62
-optimizer-switch                  index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on
+optimizer-switch                  index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
 partition                         ON
 plugin-dir                        MYSQL_LIBDIR/plugin
 plugin-load                       (No default value)
@@ -902,7 +903,6 @@ skip-show-database                FALSE
 skip-slave-start                  FALSE
 slave-compressed-protocol         FALSE
 slave-exec-mode                   STRICT
-slave-load-tmpdir                 MYSQLTEST_VARDIR/tmp/
 slave-net-timeout                 3600
 slave-skip-errors                 (No default value)
 slave-transaction-retries         10
@@ -930,7 +930,6 @@ thread-stack                      262144
 time-format                       %H:%i:%s
 timed-mutexes                     FALSE
 tmp-table-size                    16777216
-tmpdir                            MYSQLTEST_VARDIR/tmp/
 transaction-alloc-block-size      8192
 transaction-isolation             REPEATABLE-READ
 transaction-prealloc-size         4096
