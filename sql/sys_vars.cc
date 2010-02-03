@@ -1254,16 +1254,28 @@ static Sys_var_ulong Sys_optimizer_search_depth(
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
-  "index_merge_intersection",
+  "index_merge_intersection", "engine_condition_pushdown",
   "default", NullS
 };
+/** propagates changes to @@engine_condition_pushdown */
+static bool fix_optimizer_switch(sys_var *self, THD *thd,
+                                 enum_var_type type)
+{
+  SV *sv= (type == OPT_GLOBAL) ? &global_system_variables : &thd->variables;
+  sv->engine_condition_pushdown= 
+    test(sv->optimizer_switch & OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+  return false;
+}
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection} and val is one of {on, off, default}",
+       "index_merge_intersection, engine_condition_pushdown}"
+       " and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
-       optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT));
+       optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_optimizer_switch));
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
@@ -1960,11 +1972,26 @@ static Sys_var_ulong Sys_net_wait_timeout(
        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
+/** propagates changes to the relevant flag of @@optimizer_switch */
+static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  SV *sv= (type == OPT_GLOBAL) ? &global_system_variables : &thd->variables;
+  if (sv->engine_condition_pushdown)
+    sv->optimizer_switch|= OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+  else
+    sv->optimizer_switch&= ~OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+  return false;
+}
 static Sys_var_mybool Sys_engine_condition_pushdown(
        "engine_condition_pushdown",
-       "Push supported query conditions to the storage engine",
-       SESSION_VAR(engine_condition_pushdown), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       "Push supported query conditions to the storage engine."
+       " Deprecated, use --optimizer-switch instead.",
+       SESSION_VAR(engine_condition_pushdown),
+       CMD_LINE(OPT_ARG, OPT_ENGINE_CONDITION_PUSHDOWN),
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_engine_condition_pushdown),
+       DEPRECATED(70000, "'@@optimizer_switch'"));
 
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
