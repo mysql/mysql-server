@@ -921,6 +921,7 @@ SELECT F_TEST();
 
 CONNECTION con_tester_denied;
 
+--disable_result_log
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM TestTab;
 --error ER_PROCACCESS_DENIED_ERROR
@@ -931,6 +932,7 @@ SELECT `F_TEST`();
 SELECT f_Test();
 --error ER_PROCACCESS_DENIED_ERROR
 SELECT F_TEST();
+--enable_result_log
 SELECT `f_Test_denied`();
 SELECT `F_TEST_DENIED`();
 
