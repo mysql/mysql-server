@@ -173,3 +173,18 @@ REPAIR TABLE t1;
 
 UNLOCK TABLES;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #50784 "MDL: Assertion `m_tickets.is_empty() ||
+--echo #                      m_tickets.front() == m_trans_sentinel'"
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create table t2 (j int);
+set @@autocommit= 0;
+repair table t1, t2;
+set @@autocommit= default;
+drop tables t1, t2;
