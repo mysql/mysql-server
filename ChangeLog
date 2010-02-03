@@ -1,5 +1,11 @@
 2010-02-03	The InnoDB Team
 
+	* buf/buf0lru.c:
+	Fix Bug#35077 Very slow DROP TABLE (ALTER TABLE, OPTIMIZE TABLE)
+	on compressed tables
+
+2010-02-03	The InnoDB Team
+
 	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
 	Clean up CHECK TABLE error handling.
 
