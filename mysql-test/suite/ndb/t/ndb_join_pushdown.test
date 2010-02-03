@@ -168,6 +168,46 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
+## Create a non-ndb table used as a tool to force part of
+## a query to be non-pushable.
+CREATE TABLE t1_myisam (
+  a int NOT NULL,
+  b int NOT NULL,
+  c int NOT NULL,
+  d int NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM;
+
+insert into t1_myisam values
+(1,1,1,1), (2,2,1,1), (3,3,1,1), (4,4,1,1);
+
+
+## Optimizer will use the equality set to replace 't2.a' 
+## in the term 't3.a = t2.a' with 't1.c' (as 't2.a = t1.c').
+## Furthermore the MyIsam table t1 is const table optimized making
+## 't1.c' a const_item. This constant value has not yet been materialized
+## into the key_buffer when the definition for the linked query is
+## created. However, it is always available through the 
+## Field defining the KEY_PART of this JT_EQ_REF.
+##
+
+set ndb_join_pushdown=true;
+
+explain
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a=2 and t1.b=2;
+--sorted_result
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a=2 and t1.b=2;
+
+drop table t1_myisam;
+
 #
 # Test scans with filter. These should be pushed as linked operations
 # where the root operation is a scan *with* a (pushed) filter and a 

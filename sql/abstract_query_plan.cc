@@ -51,14 +51,12 @@ namespace AQP
                 || (m_join_tabs[0].select->quick == NULL));
   }
 
-
   /** Get the JOIN_TAB of the n'th table access operation.*/
   const JOIN_TAB* Query_plan::get_join_tab(int32 join_tab_no) const
   {
     DBUG_ASSERT(join_tab_no < m_access_count);
     return m_join_tabs + join_tab_no;
   }
-
 
   /**
     Find the table access method that a given Item_field refers to. It is an
@@ -92,7 +90,6 @@ namespace AQP
     return get_join_tab()->ref.key_parts;
   }
 
-
   /**
     Get the field_no'th key values for this operation. It is an error
     to call this method on an operation that is not an index lookup
@@ -120,7 +117,6 @@ namespace AQP
     return &key->key_part[field_no];
   }
 
-
   /**
     Get the name of the table that this operation accesses.
   */
@@ -137,7 +133,6 @@ namespace AQP
     return get_join_tab()->table->file;
   }
 
-
   /**
     Get the table that this operation accesses.
   */
@@ -146,26 +141,11 @@ namespace AQP
     return get_join_tab()->table;
   }
 
-
-  /**
-    Get the buffer that holds any constant parts of the key for this
-    operation. It is an error to call this method on an operation that
-    is not an index lookup operation.
-  */
-  const uchar* Table_access::get_key_buffer() const
-  {
-    DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
-                m_access_type == AT_UniqueIndexLookup);
-    return get_join_tab()->ref.key_buff;
-  }
-
-
   /** Get the JOIN_TAB object that corresponds to this operation.*/
   inline const JOIN_TAB* Table_access::get_join_tab() const
   {
     return m_root_tab + m_tab_no;
   }
-
 
   /**
     Write an entry in the trace file about the contents of this object.

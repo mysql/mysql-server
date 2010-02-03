@@ -197,8 +197,6 @@ namespace AQP
 
     st_table* get_table() const;
 
-    const uchar* get_key_buffer() const;
-
     void dbug_print() const;
 
   private:
