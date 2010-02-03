@@ -946,6 +946,11 @@ sub command_line_setup {
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir= cwd();
+  if ($glob_mysql_test_dir =~ / /)
+  {
+    die("Working directory \"$glob_mysql_test_dir\" contains space\n".
+	"Bailing out, cannot function properly with space in path");
+  }
   if (IS_CYGWIN)
   {
     # Use mixed path format i.e c:/path/to/
