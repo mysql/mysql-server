@@ -34,6 +34,32 @@
 #define SP_BODY_TOO_LONG    -10
 #define SP_FLD_STORE_FAILED -11
 
+/* DB storage of Stored PROCEDUREs and FUNCTIONs */
+enum
+{
+  MYSQL_PROC_FIELD_DB = 0,
+  MYSQL_PROC_FIELD_NAME,
+  MYSQL_PROC_MYSQL_TYPE,
+  MYSQL_PROC_FIELD_SPECIFIC_NAME,
+  MYSQL_PROC_FIELD_LANGUAGE,
+  MYSQL_PROC_FIELD_ACCESS,
+  MYSQL_PROC_FIELD_DETERMINISTIC,
+  MYSQL_PROC_FIELD_SECURITY_TYPE,
+  MYSQL_PROC_FIELD_PARAM_LIST,
+  MYSQL_PROC_FIELD_RETURNS,
+  MYSQL_PROC_FIELD_BODY,
+  MYSQL_PROC_FIELD_DEFINER,
+  MYSQL_PROC_FIELD_CREATED,
+  MYSQL_PROC_FIELD_MODIFIED,
+  MYSQL_PROC_FIELD_SQL_MODE,
+  MYSQL_PROC_FIELD_COMMENT,
+  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
+  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
+  MYSQL_PROC_FIELD_DB_COLLATION,
+  MYSQL_PROC_FIELD_BODY_UTF8,
+  MYSQL_PROC_FIELD_COUNT
+};
+
 /* Drop all routines in database 'db' */
 int
 sp_drop_db_routines(THD *thd, char *db);
@@ -129,5 +155,11 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
   we already have some tables open and locked.
 */
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
+
+sp_head *
+sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
+                               String *name, ulong sql_mode, int type,
+                               const char *returns, const char *params,
+                               bool *free_sp_head);
 
 #endif /* _SP_H_ */

@@ -1298,6 +1298,10 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   const char *table_name,
                                   bool no_error);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
+bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
+                  uint db_stat, uint prgflag,
+                  uint ha_open_flags, TABLE *outparam,
+                  TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_mutex);
 extern Field *not_found_field;
