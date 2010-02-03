@@ -4377,6 +4377,27 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
+
   optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                         key_part->part);
 
