@@ -10,7 +10,8 @@
 select @@global.pseudo_thread_id;
 
 # Check the variable has a valid numeric value (assumed to be less then 10000)
-select @@session.pseudo_thread_id between 1 and 1000;
+select @@session.pseudo_thread_id between 1 and 10000;
+select @@session.pseudo_thread_id;
 
 --echo should be empty
 show global variables like 'pseudo_thread_id';
