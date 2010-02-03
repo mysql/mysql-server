@@ -455,3 +455,20 @@ EXECUTE s;
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #49250 : spatial btree index corruption and crash
+--echo # Part two : fulltext syntax check
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(col1 TEXT,
+  FULLTEXT INDEX USING BTREE (col1));
+CREATE TABLE t2(col1 TEXT);
+--error ER_PARSE_ERROR
+CREATE FULLTEXT INDEX USING BTREE ON t2(col);
+--error ER_PARSE_ERROR
+ALTER TABLE t2 ADD FULLTEXT INDEX USING BTREE (col1);
+
+DROP TABLE t2;
+
+--echo End of 5.0 tests
