@@ -16,17 +16,23 @@ dnl Process this file with autoconf to produce a configure script.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
+# Minimum Autoconf version required.
+AC_PREREQ(2.59)
 
-AC_INIT(sql/mysqld.cc)
-AC_CANONICAL_SYSTEM
-# The Docs Makefile.am parses this line!
-# remember to also update version.c in ndb
-#
+# Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.5.99-m3)
-AM_CONFIG_HEADER([include/config.h:config.h.in])
+AC_INIT([MySQL Server], [5.5.99-m3], [], [mysql])
+AC_CONFIG_SRCDIR([sql/mysqld.cc])
+AC_CANONICAL_SYSTEM
+# USTAR format gives us the possibility to store longer path names in
+# TAR files, the path name is split into two parts, a 155 chacater
+# first part and a 100 character second part.
+AM_INIT_AUTOMAKE([1.9 tar-ustar])
+LT_INIT
+LT_PREREQ([1.5.6])
+
+AM_CONFIG_HEADER([include/config.h])
 
 # Request support for automake silent-rules if available.
 # Default to verbose output. One can use the configure-time
