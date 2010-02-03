@@ -537,35 +537,6 @@ convert_error_code_to_mysql(
 }
 
 /*****************************************************************
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex.
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*****************************************************************
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
-}
-
-/*****************************************************************
 Prints info of a THD object (== user session thread) to the given file.
 NOTE that /mysql/innobase/trx/trx0trx.c must contain the prototype for
 this function! */
@@ -578,11 +549,11 @@ innobase_mysql_print_thd(
 	uint	max_query_len)	/* in: max query length to print, or 0 to
 				   use the default max length */
 {
-	const THD*	thd;
+	THD*        	thd;
         const Security_context *sctx;
 	const char*	s;
 
-        thd = (const THD*) input_thd;
+        thd = (THD*) input_thd;
         /* We probably want to have original user as part of debug output. */
         sctx = &thd->main_security_ctx;
 
@@ -608,6 +579,10 @@ innobase_mysql_print_thd(
 		putc(' ', f);
 		fputs(s, f);
 	}
+
+        /* We have to quarantine an access to thd->query and
+           thd->query_length with thd->LOCK_thd_data mutex. */
+	VOID(pthread_mutex_lock(&thd->LOCK_thd_data));
 
 	if ((s = thd->query)) {
 		/* 3100 is chosen because currently 3000 is the maximum
@@ -652,6 +627,8 @@ innobase_mysql_print_thd(
 			my_free(dyn_str, MYF(0));
 		}
 	}
+
+	VOID(pthread_mutex_unlock(&thd->LOCK_thd_data));
 
 	putc('\n', f);
 }
