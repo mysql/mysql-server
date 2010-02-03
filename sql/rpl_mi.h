@@ -120,7 +120,9 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log);
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 
 #endif /* HAVE_REPLICATION */
