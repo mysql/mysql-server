@@ -798,21 +798,25 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
      * We don't support join push down if...
      *   - not LM_CommittedRead
      *   - uses blobs
-     *
-     * But, lock-mode is upgraded to LM_Read if using blobs, so
-     *      it' sufficient to check that
      */
     THD *thd= current_thd;
     if (unlikely(!(thd->variables.ndb_join_pushdown)))
       DBUG_RETURN(false);
 
+    if (table->read_set != NULL && uses_blob_value(table->read_set))
+    {
+      DBUG_RETURN(false);
+    }
+
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-    if (lm == NdbOperation::LM_CommittedRead)
+
+    if (lm != NdbOperation::LM_CommittedRead)
     {
-      DBUG_RETURN(true);
+      DBUG_RETURN(false);
     }
-    DBUG_RETURN(false);
+
+    DBUG_RETURN(true);
   }
   case HA_PUSH_DISABLE:
     DBUG_PRINT("info", ("HA_PUSH_DISABLE"));
@@ -1796,6 +1800,40 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
       field_blob->set_null();
       field_blob->move_field_offset(-ptrdiff);
       DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
+    }
+  }
+
+  if (!ha->m_active_cursor)
+  {
+    /* Non-scan, Blob reads have been issued
+     * execute them and then close the Blob 
+     * handles
+     */
+    for (uint i= 0; i < ha->table->s->fields; i++)
+    {
+      Field *field= ha->table->field[i];
+      if (! (field->flags & BLOB_FLAG))
+        continue;
+      NdbValue value= ha->m_value[i];
+      if (value.blob == NULL)
+      {
+        DBUG_PRINT("info",("[%u] skipped", i));
+        continue;
+      }
+      NdbBlob *ndb_blob= value.blob;
+    
+      assert(ndb_blob->getState() == NdbBlob::Active);
+
+      /* Call close() with execPendingBlobOps == true
+       * For LM_CommittedRead access, this will enqueue
+       * an unlock operation, which the Blob framework 
+       * code invoking this callback will execute before
+       * returning control to the caller of execute()
+       */
+      if (ndb_blob->close(true) != 0)
+      {
+        ERR_RETURN(ndb_blob->getNdbError());
+      }
     }
   }
 
@@ -2796,8 +2834,7 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type,
 {
   if (type >= TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
-  if (type ==  TL_READ_WITH_SHARED_LOCKS ||
-      (column_bitmap != NULL && uses_blob_value(column_bitmap)))
+  if (type ==  TL_READ_WITH_SHARED_LOCKS)
     return NdbOperation::LM_Read;
   return NdbOperation::LM_CommittedRead;
 }

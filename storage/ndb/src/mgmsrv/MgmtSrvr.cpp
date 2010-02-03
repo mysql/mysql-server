@@ -2897,12 +2897,11 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
     theFacade->doConnect(id);
     theFacade->unlock_mutex();
   }
-    
-  char tmp_str[128];
-  m_reserved_nodes.getText(tmp_str);
+
   g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
                       "m_reserved_nodes %s.",
-                      id, get_connect_address(id), tmp_str);
+                      id, get_connect_address(id),
+                      BaseString::getPrettyText(m_reserved_nodes).c_str());
 
   return 0;
 }
@@ -3326,23 +3325,25 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
-  if (!m_reserved_nodes.isclear())
+  if (m_reserved_nodes.isclear())
   {
     /**
      * No need to aquire mutex if we didn't have any reservation in
      * our sesssion
      */
-    Guard g(m_mgmsrv.m_node_id_mutex);
-    m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes);
-
-    // node has been reserved, force update signal to ndb nodes
-    m_mgmsrv.updateStatus();
-
-    char tmp_str[128];
-    m_mgmsrv.m_reserved_nodes.getText(tmp_str);
-    g_eventLogger->info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
-                        get_nodeid(), tmp_str);
+    return;
   }
+
+  Guard g(m_mgmsrv.m_node_id_mutex);
+  m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes);
+
+  // node has been reserved, force update signal to ndb nodes
+  m_mgmsrv.updateStatus();
+
+  g_eventLogger->
+    info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
+         get_nodeid(),
+         BaseString::getPrettyText(m_mgmsrv.m_reserved_nodes).c_str());
 }
 
 void

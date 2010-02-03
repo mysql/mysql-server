@@ -320,6 +320,8 @@ class Lgman;
 /*       ERROR CODES ADDED IN VERSION 2.X                                    */
 /* ------------------------------------------------------------------------- */
 #define ZNODE_FAILURE_ERROR 400
+#define ZBAD_UNLOCK_STATE 416
+#define ZBAD_OP_REF 417
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES FROM ACC                                                */
 /* ------------------------------------------------------------------------- */
@@ -2004,6 +2006,7 @@ public:
     };
     Uint32 m_rootStreamId; // For result correlation for linked operations.
     Uint32 m_anyValue;
+    Uint64 lqhKeyReqId;
     Uint16 errorCode;
     Uint16 logStartPageIndex;
     Uint16 logStartPageNo;
@@ -2622,6 +2625,9 @@ private:
   void logfileInitCompleteReport(Signal* signal);
  
   void check_send_scan_hb_rep(Signal* signal, ScanRecord*, TcConnectionrec*);
+
+  void unlockError(Signal* signal, Uint32 error);
+  void handleUserUnlockRequest(Signal* signal);
   
   Dbtup* c_tup;
   Dbacc* c_acc;
@@ -3142,6 +3148,8 @@ public:
     }
 
   } c_Counters;
+
+  Uint64 cTotalLqhKeyReqCount;
 
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;

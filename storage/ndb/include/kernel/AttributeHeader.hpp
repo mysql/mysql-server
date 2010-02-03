@@ -53,14 +53,17 @@ public:
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
   STATIC_CONST( READ_LCP     = 0xFFEF );
-  STATIC_CONST( FLUSH_AI     = 0xFFEE );
-  STATIC_CONST( READ_ANY_VALUE = 0xFFED );
+  STATIC_CONST( LOCK_REF     = 0xFFEE ); // Operation lock reference
+  STATIC_CONST( OP_ID        = 0xFFED ); // Operation runtime identity
 
   // Extents * sizeof(Extent) allocated to fragment
   STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
   
   // Free but allocated DD extent space
   STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
+
+  STATIC_CONST( FLUSH_AI     = 0xFFEA );
+  STATIC_CONST( READ_ANY_VALUE = 0xFFE9 );
 
   /**
    * Optimize pseudo column and optimization options

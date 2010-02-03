@@ -96,6 +96,7 @@ public:
   Uint32 getNodeGrp(NodeId nodeId) const;
   Uint32 getNodeSequence(NodeId nodeId) const;
   Uint32 getNodeNdbVersion(NodeId nodeId) const;
+  Uint32 getMinDbNodeVersion() const;
 
   // Is there space in sendBuffer to send messages
   bool   check_send_size(Uint32 node_id, Uint32 send_size);
@@ -443,6 +444,16 @@ Uint32
 TransporterFacade::getNodeNdbVersion(NodeId n) const
 {
   return theClusterMgr->getNodeInfo(n).m_info.m_version;
+}
+
+inline
+Uint32
+TransporterFacade::getMinDbNodeVersion() const
+{
+  if (theClusterMgr)
+    return theClusterMgr->minDbVersion;
+  else
+    return 0;
 }
 
 inline

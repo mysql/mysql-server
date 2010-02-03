@@ -304,6 +304,10 @@ ErrorBundle ErrorCodes[] = {
   { 4349, DMEC, IE, "Inconsistency detected at index usage" },
   { 4350, DMEC, IE, "Transaction already aborted" },
   { 4351, DMEC, TO, "Timeout/deadlock during index build" },
+  { 294,  DMEC, IE, "Unlocked operation has out of range index" },
+  { 295,  DMEC, IE, "Unlocked operation has invalid state" },
+  { 298,  DMEC, IE, "Invalid distribution key" },
+  { 416,  DMEC, IE, "Bad state handling unlock request" },
 
   /**
    * Application error
@@ -332,6 +336,7 @@ ErrorBundle ErrorCodes[] = {
   { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
+  { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
    * Scan application errors
@@ -626,6 +631,13 @@ ErrorBundle ErrorCodes[] = {
   { 4546, DMEC, AE, "Explicit partitioning info not allowed for table and operation" },
   { 4547, DMEC, AE, "RecordSpecification has overlapping offsets" },
   { 4548, DMEC, AE, "RecordSpecification has too many elements" },
+  { 4549, DMEC, AE, "getLockHandle only supported for primary key read with a lock" },
+  { 4550, DMEC, AE, "Cannot releaseLockHandle until operation executed" },
+  { 4551, DMEC, AE, "NdbLockHandle already released" },
+  { 4552, DMEC, AE, "NdbLockHandle does not belong to transaction" },
+  { 4553, DMEC, AE, "NdbLockHandle original operation not executed successfully" },
+  { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
+  { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

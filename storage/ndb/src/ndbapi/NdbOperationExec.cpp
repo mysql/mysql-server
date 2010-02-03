@@ -347,6 +347,40 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
 }//NdbOperation::doSend()
 
 
+int 
+NdbOperation::prepareGetLockHandle()
+{
+  /* Read LOCK_REF pseudo column */
+  assert(! theLockHandle->isLockRefValid() );
+
+  theLockHandle->m_table = m_currentTable;
+
+  /* Add read of TC_LOCKREF pseudo column */
+  NdbRecAttr* ra = getValue(NdbDictionary::Column::LOCK_REF,
+                            (char*) &theLockHandle->m_lockRef);
+  
+  if (!ra)
+  {
+    /* Assume error code set */
+    return -1;
+  }
+
+  theLockHandle->m_state = NdbLockHandle::PREPARED;
+  
+  /* Count Blob handles associated with this operation
+   * for LockHandle open Blob handles ref count
+   */
+  NdbBlob* blobHandle = theBlobList;
+
+  while (blobHandle != NULL)
+  {
+    theLockHandle->m_openBlobCount ++;
+    blobHandle = blobHandle->theNext;
+  }
+
+  return 0;
+}
+
 /***************************************************************************
 int prepareSend(Uint32 aTC_ConnectPtr,
                 Uint64 aTransactionId)
@@ -394,6 +428,14 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
       else if (tOpType != DeleteRequest)
       {
 	assert(tOpType == ReadRequest || tOpType == ReadExclusive);
+        if (theLockHandle)
+        {
+          /* Take steps to read LockHandle info as part of read */
+          if (prepareGetLockHandle() != 0)
+            return -1;
+          
+          tTotalCurrAI_Len = theTotalCurrAI_Len;
+        }
         tTotalCurrAI_Len = repack_read(tTotalCurrAI_Len);
       }
     } else {
@@ -813,6 +855,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   const NdbRecord *attr_rec= m_attribute_record;
   const char *updRow;
   const bool isScanTakeover= (key_rec == NULL);
+  const bool isUnlock = (theOperationType == UnlockRequest);
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId);
@@ -834,8 +877,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     if (res)
       return res;
   }
-  else
+  else if (!isUnlock)
   {
+    /* Normal PK / unique index read */
     tcKeyReq->tableId= key_rec->tableId;
     tcKeyReq->tableSchemaVersion= key_rec->tableVersion;
     theTotalNrOfKeyWordInSignal= 0;
@@ -881,6 +925,26 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       if (res)
         return res;
     }
+  }
+  else
+  {
+    assert(isUnlock);
+    assert(theLockHandle);
+    assert(attr_rec);
+    assert(theLockHandle->isLockRefValid());
+
+    tcKeyReq->tableId= attr_rec->tableId;
+    tcKeyReq->tableSchemaVersion= attr_rec->tableVersion;
+
+    /* Copy key data from NdbLockHandle */
+    Uint32 keyInfoWords = 0;
+    const Uint32* keyInfoSrc = theLockHandle->getKeyInfoWords(keyInfoWords);
+    assert( keyInfoWords );
+    
+    res = insertKEYINFO_NdbRecord((const char*)keyInfoSrc,
+                                  keyInfoWords << 2);
+    if (res)
+      return res;
   }
 
   /* For long TCKEYREQ, we don't need to set the key length in the

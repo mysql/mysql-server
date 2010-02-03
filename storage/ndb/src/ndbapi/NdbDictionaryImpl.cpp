@@ -359,6 +359,10 @@ NdbColumnImpl::create_pseudo_columns()
     NdbColumnImpl::create_pseudo("NDB$FRAGMENT_EXTENT_SPACE");
   NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE =
     NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FREE_EXTENT_SPACE");
+  NdbDictionary::Column::LOCK_REF = 
+    NdbColumnImpl::create_pseudo("NDB$LOCK_REF");
+  NdbDictionary::Column::OP_ID = 
+    NdbColumnImpl::create_pseudo("NDB$OP_ID");
 }
 
 void
@@ -399,6 +403,11 @@ NdbColumnImpl::destory_pseudo_columns()
 
   delete NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE;
   NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE = 0;
+
+  delete NdbDictionary::Column::LOCK_REF;
+  delete NdbDictionary::Column::OP_ID;
+  NdbDictionary::Column::LOCK_REF = 0;
+  NdbDictionary::Column::OP_ID = 0;
 }
 
 NdbDictionary::Column *
@@ -486,7 +495,18 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::FRAGMENT_FREE_EXTENT_SPACE;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 2;
-  } else {
+  } else if (!strcmp(name, "NDB$LOCK_REF")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::LOCK_REF;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 3;
+  } else if (!strcmp(name, "NDB$OP_ID")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::OP_ID;
+    col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
+  }
+  else {
     abort();
   }
   col->m_impl.m_storageType = NDB_STORAGETYPE_MEMORY;
@@ -8028,5 +8048,7 @@ const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_EXTENT_SPACE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::LOCK_REF = 0;
+const NdbDictionary::Column * NdbDictionary::Column::OP_ID = 0;
 
 template class Vector<NdbDictInterface::Tx::Op>;

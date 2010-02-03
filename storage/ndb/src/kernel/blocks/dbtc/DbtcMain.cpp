@@ -1768,6 +1768,36 @@ start_failure:
     apiConnectptr.p->m_exec_flag = 1;
     goto start_failure;
   }
+  case 61:
+  {
+    jam();
+    terrorCode = ZUNLOCKED_IVAL_TOO_HIGH;
+    abortErrorLab(signal);
+    return;
+  }
+  case 62:
+  {
+    jam();
+    terrorCode = ZUNLOCKED_OP_HAS_BAD_STATE;
+    abortErrorLab(signal);
+    return;
+  }
+  case 63:
+  {
+    jam();
+    /* Function not implemented yet */
+    terrorCode = 4003;
+    abortErrorLab(signal);
+    return;
+  }
+  case 64:
+  {
+    jam();
+    /* Invalid distribution key */
+    terrorCode = ZBAD_DIST_KEY;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2157,7 +2187,17 @@ void Dbtc::hash(Signal* signal)
   }
   else
   {
-    handle_special_hash(tmp, Tdata32, keylen, regCachePtr->tableref, !distKey);
+    if (regCachePtr->m_no_hash)
+    {
+      /* No need for tuple key hash at LQH */
+      ndbassert(distKey); /* User must supply distkey */
+      Uint32 zero[4] = {0, 0, 0, 0};
+      *tmp = *zero;
+    }
+    else
+    {
+      handle_special_hash(tmp, Tdata32, keylen, regCachePtr->tableref, !distKey);
+    }
   }
   
   /* Primary key hash value is first word of hash on PK columns
@@ -2778,8 +2818,23 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TkeyIndex = TDistrKeyIndex + TDistrKeyFlag;
   }
 
+  regCachePtr->m_no_hash = false;
+
+  if (TOperationType == ZUNLOCK)
+  {
+    /* Unlock op has distribution key containing
+     * LQH nodeid and fragid
+     */
+    ndbassert( regCachePtr->distributionKeyIndicator );
+    regCachePtr->m_no_hash = 1;
+    regCachePtr->unlockNodeId = (regCachePtr->distributionKey >> 16);
+    regCachePtr->distributionKey &= 0xffff;
+  }
+  
   regCachePtr->m_special_hash = 
-    localTabptr.p->hasCharAttr | (localTabptr.p->noOfDistrKeys > 0);
+    localTabptr.p->hasCharAttr | 
+    (localTabptr.p->noOfDistrKeys > 0) |
+    regCachePtr->m_no_hash;
 
   if (TkeyLength == 0)
   {
@@ -2862,12 +2917,18 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
   }
 
-  if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
+  if (TOperationType == ZUNLOCK)
+  {
+    jam();
+    // TODO : Consider adding counter for unlock operations
+  }
+  else if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
     jam();
     c_counters.creadCount++;
   }
   else
   {
+    /* Insert, Update, Write, Delete */
     if (!regApiPtr->m_commit_ack_marker_received)
     {
       if(regApiPtr->commitAckMarker != RNIL)
@@ -3173,7 +3234,51 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     jam();
     regTcPtr->lastReplicaNo = 0;
     regTcPtr->noOfNodes = 1;
-  } else {
+  } 
+  else if (Toperation == ZUNLOCK)
+  {
+    regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
+   
+    const Uint32 numNodes = tnoOfBackup + 1;
+    /* Check that node from dist key is one of the nodes returned */
+    bool found = false;
+    for (Uint32 idx = 0; idx < numNodes; idx ++)
+    {
+      Uint32 nodeId = regTcPtr->tcNodedata[ idx ];
+      jam();
+      if (nodeId == regCachePtr->unlockNodeId)
+      {
+        jam();
+        found = true;
+        break;
+      }
+    }
+
+    if (unlikely(!found))
+    {
+      /* DIH says the specified node does not store the fragment
+       * requested
+       */
+      jam();
+      TCKEY_abort(signal, 64);
+      return;
+    }
+
+    /* Check that the relevant LQH node can handle an unlock request */
+    Uint32 lqhVersion = getNodeInfo(regCachePtr->unlockNodeId).m_version;
+    
+    if (unlikely( lqhVersion < NDBD_UNLOCK_OP_SUPPORTED ))
+    {
+      TCKEY_abort(signal, 63);
+      return;
+    }
+
+    /* Select the specified node for the unlock op */ 
+    regTcPtr->tcNodedata[0] = regCachePtr->unlockNodeId;
+    regTcPtr->lastReplicaNo = 0;
+    regTcPtr->noOfNodes = 1;
+  }
+  else {
     UintR TlastReplicaNo;
     jam();
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
@@ -4102,6 +4207,16 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     return;
   }//if
 
+  Uint32 lockingOpI = RNIL;
+  if (Toperation == ZUNLOCK)
+  {
+    /* For unlock operations readlen in TCKEYCONF carries
+     * the locking operation TC reference
+     */
+    lockingOpI = treadlenAi;
+    treadlenAi = 0;
+  }
+
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   regTcPtr->commitAckMarker = RNIL;
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
@@ -4150,7 +4265,80 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     unlinkReadyTcCon(signal);
     releaseTcCon();
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
-  } 
+  }
+  else if (Toperation == ZUNLOCK)
+  {
+    jam();
+    /* We've unlocked and released a read operation in LQH
+     * The readLenAi member contains the TC OP reference
+     * for the unlocked operation.
+     * So here we :
+     * 1) Validate the TC OP reference
+     * 2) Release the referenced TC op
+     * 3) Send TCKEYCONF back to the user
+     * 4) Release our own TC op
+     */
+    Uint32 unlockOpI = tcConnectptr.i;
+
+    ndbrequire( noFired == 0 );
+    ndbrequire( regTcPtr->triggeringOperation == RNIL );
+
+    /* Switch to the original locking operation */
+    if (unlikely( lockingOpI >= ctcConnectFilesize ))
+    {
+      jam();
+      TCKEY_abort(signal, 61);
+      return;
+    }
+    tcConnectptr.i = lockingOpI;
+    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    
+    const TcConnectRecord * regLockTcPtr = tcConnectptr.p;
+    
+    /* Validate the locking operation's state */
+    bool locking_op_ok = 
+      ( ( regLockTcPtr->apiConnect == regTcPtr->apiConnect ) &&
+        ( ( regLockTcPtr->operation == ZREAD ) ||
+          ( regLockTcPtr->operation == ZREAD_EX ) ) &&
+        ( regLockTcPtr->tcConnectstate == OS_PREPARED ) &&
+        ( ! regLockTcPtr->dirtyOp ) &&
+        ( ! regLockTcPtr->opSimple ) &&
+        ( ! TcConnectRecord::isIndexOp(regLockTcPtr->m_special_op_flags) ) &&
+        ( regLockTcPtr->commitAckMarker == RNIL ) );
+
+    if (unlikely (! locking_op_ok ))
+    {
+      jam();
+      TCKEY_abort(signal, 63);
+      return;
+    }
+    
+    /* Ok, all checks passed, release the original locking op */
+    unlinkReadyTcCon(signal);
+    releaseTcCon();
+
+    /* Remove record of original locking op's LQHKEYREQ/CONF
+     * etc.
+     */
+    ndbrequire( regApiPtr.p->lqhkeyreqrec );
+    ndbrequire( regApiPtr.p->lqhkeyconfrec );
+    regApiPtr.p->lqhkeyreqrec -= 1;
+    regApiPtr.p->lqhkeyconfrec -= 1;
+
+    /* Switch back to the unlock operation */
+    tcConnectptr.i = unlockOpI;
+    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+
+    /* Release the unlock operation */
+    unlinkReadyTcCon(signal);
+    releaseTcCon();
+
+    /* Remove record of unlock op's LQHKEYREQ */
+    ndbrequire( regApiPtr.p->lqhkeyreqrec );
+    regApiPtr.p->lqhkeyreqrec -= 1;
+
+    /* TCKEYCONF sent below */
+  }
   else 
   {
     jam();

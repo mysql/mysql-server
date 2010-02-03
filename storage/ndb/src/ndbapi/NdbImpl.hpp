@@ -134,6 +134,7 @@ public:
   Ndb_free_list_t<NdbCall> theCallList;
   Ndb_free_list_t<NdbBlob> theNdbBlobIdleList;
   Ndb_free_list_t<NdbReceiver> theScanList;
+  Ndb_free_list_t<NdbLockHandle> theLockHandleList;
   Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
   Ndb_free_list_t<NdbOperation>  theOpIdleList;  
   Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;

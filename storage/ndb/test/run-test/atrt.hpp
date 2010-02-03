@@ -278,45 +278,61 @@ static inline char* replace_drive_letters(const char* path) {
 static inline int sh(const char *script){
 
 #ifdef _WIN32
+  g_logger.debug("sh('%s')", script);
 
-  BaseString bs;
-  BaseString tmp;
+  /*
+    Running sh script on Windows
+    1) Write the command to run into temporary file
+    2) Run the temporary file with 'sh <temp_file_name>'
+  */
 
-  FILE *fp;
-  char *templat = "fnXXXXXX";
-  char *result;
-
-  NdbAutoPtr<char> clean = replace_drive_letters(script);
-  tmp.assfmt("%s\\%s", getenv("TEMP"), templat);
-  result = _mktemp( (char*)tmp.c_str() );  // C4996
-  if (result == NULL) {
-     g_logger.error( "Problem creating the template\n" );
-     if (errno == EINVAL) {
-         g_logger.error( "Bad parameter\n");
-     }
-     else if (errno == EEXIST) {
-         g_logger.error( "Out of unique filenames\n");
-     }
-     return -1;
-  }
-  else {
-     fp = fopen(result, "w" );
-     if( fp == NULL ) {
-        g_logger.error( "Cannot open %s\n", result );
-     }
-     fprintf(fp, "%s", clean);
-     fclose(fp);
-     bs.assfmt("sh %s", result);
+  char tmp_path[MAX_PATH];
+  if (GetTempPath(sizeof(tmp_path), tmp_path) == 0)
+  {
+    g_logger.error( "GetTempPath failed, error: %d", GetLastError());
+    return -1;
   }
 
-  g_logger.debug("script: %s", clean);
-  int rv = system(bs.c_str());
-  unlink(result);
-
-  if (rv) {
-    g_logger.debug("system returned %d\n", rv);
+  char tmp_file[MAX_PATH];
+  if (GetTempFileName(tmp_path, "sh_", 0, tmp_file) == 0)
+  {
+    g_logger.error( "GetTempFileName failed, error: %d", GetLastError());
+    return -1;
   }
-  return rv;
+
+  FILE* fp = fopen(tmp_file, "w");
+  if (fp == NULL)
+  {
+    g_logger.error( "Cannot open file '%s', error: %d", tmp_file, errno);
+    return -1;
+  }
+
+  // cygwin'ify the script and write it to temp file
+  {
+    char* cygwin_script = replace_drive_letters(script);
+    g_logger.debug(" - cygwin_script: '%s' ", cygwin_script);
+    fprintf(fp, "%s", cygwin_script);
+    free(cygwin_script);
+  }
+
+  fclose(fp);
+
+  // Run the temp file with "sh"
+  BaseString command;
+  command.assfmt("sh %s", tmp_file);
+  g_logger.debug(" - running '%s' ", command.c_str());
+
+  int ret = system(command.c_str());
+  if (ret == 0)
+    g_logger.debug(" - OK!");
+  else
+    g_logger.warning("Running the command '%s' as '%s' failed, ret: %d",
+                     script, command.c_str(), ret);
+
+  // Remove the temp file
+  unlink(tmp_file);
+
+  return ret;
 
 #else
 
