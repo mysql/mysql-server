@@ -184,7 +184,6 @@ NdbMutex* print_mutex;
  */
 
 #include "ndb_mgmclient.hpp"
-#include "ndb_mgmclient.h"
 
 Ndb_mgmclient::Ndb_mgmclient(const char *host,int verbose)
 {
@@ -204,21 +203,7 @@ Ndb_mgmclient::disconnect()
   return m_cmd->disconnect();
 }
 
-extern "C" {
-  Ndb_mgmclient_handle ndb_mgmclient_handle_create(const char *connect_string)
-  {
-    return (Ndb_mgmclient_handle) new Ndb_mgmclient(connect_string);
-  }
-  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, char** argv)
-  {
-    return ((Ndb_mgmclient*)h)->execute(argc, argv, 1);
-  }
-  int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle h)
-  {
-    delete (Ndb_mgmclient*)h;
-    return 0;
-  }
-}
+
 /*
  * The CommandInterpreter
  */
