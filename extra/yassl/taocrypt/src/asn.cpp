@@ -652,6 +652,23 @@ word32 CertDecoder::GetDigest()
 }
 
 
+char *CertDecoder::AddTag(char *ptr, const char *buf_end, 
+                          const char *tag_name, word32 tag_name_length,
+                          word32 tag_value_length)
+{
+  if (ptr + tag_name_length + tag_value_length > buf_end)
+      return 0;
+    
+  memcpy(ptr, tag_name, tag_name_length);
+  ptr+= tag_name_length;
+  
+  memcpy(ptr, source_.get_current(), tag_value_length);
+  ptr+= tag_value_length;
+  
+  return ptr;
+}
+
+
 // process NAME, either issuer or subject
 void CertDecoder::GetName(NameType nt)
 {
@@ -659,11 +676,21 @@ void CertDecoder::GetName(NameType nt)
 
     SHA    sha;
     word32 length = GetSequence();  // length of all distinguished names
-    assert (length < ASN_NAME_MAX);
+
+    if (length >= ASN_NAME_MAX)
+        goto err;
     length += source_.get_index();
 
-    char*  ptr = (nt == ISSUER) ? issuer_ : subject_;
-    word32 idx = 0;
+    char *ptr, *buf_end;
+
+    if (nt == ISSUER) {
+        ptr= issuer_;
+        buf_end= ptr + sizeof(issuer_) - 1;  // 1 byte for trailing 0
+    }
+    else {
+        ptr= subject_;
+        buf_end= ptr + sizeof(subject_) - 1;  // 1 byte for trailing 0
+    }
 
     while (source_.get_index() < length) {
         GetSet();
@@ -685,47 +712,36 @@ void CertDecoder::GetName(NameType nt)
             byte   id      = source_.next();  
             b              = source_.next();    // strType
             word32 strLen  = GetLength(source_);
-            bool   copy    = false;
 
-            if (id == COMMON_NAME) {
-                memcpy(&ptr[idx], "/CN=", 4);
-                idx += 4;
-                copy = true;
-            }
-            else if (id == SUR_NAME) {
-                memcpy(&ptr[idx], "/SN=", 4);
-                idx += 4;
-                copy = true;
-            }
-            else if (id == COUNTRY_NAME) {
-                memcpy(&ptr[idx], "/C=", 3);
-                idx += 3;
-                copy = true;
-            }
-            else if (id == LOCALITY_NAME) {
-                memcpy(&ptr[idx], "/L=", 3);
-                idx += 3;
-                copy = true;
-            }
-            else if (id == STATE_NAME) {
-                memcpy(&ptr[idx], "/ST=", 4);
-                idx += 4;
-                copy = true;
-            }
-            else if (id == ORG_NAME) {
-                memcpy(&ptr[idx], "/O=", 3);
-                idx += 3;
-                copy = true;
-            }
-            else if (id == ORGUNIT_NAME) {
-                memcpy(&ptr[idx], "/OU=", 4);
-                idx += 4;
-                copy = true;
-            }
-
-            if (copy) {
-                memcpy(&ptr[idx], source_.get_current(), strLen);
-                idx += strLen;
+            switch (id) {
+            case COMMON_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/CN=", 4, strLen)))
+                  goto err;
+                break;
+            case SUR_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/SN=", 4, strLen)))
+                  goto err;
+                break;
+            case COUNTRY_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/C=", 3, strLen)))
+                  goto err;
+                break;
+            case LOCALITY_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/L=", 3, strLen)))
+                  goto err;
+                break;
+            case STATE_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/ST=", 4, strLen)))
+                  goto err;
+                break;
+            case ORG_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/O=", 3, strLen)))
+                  goto err;
+                break;
+            case ORGUNIT_NAME:
+                if (!(ptr= AddTag(ptr, buf_end, "/OU=", 4, strLen)))
+                  goto err;
+                break;
             }
 
             sha.Update(source_.get_current(), strLen);
@@ -739,23 +755,20 @@ void CertDecoder::GetName(NameType nt)
             source_.advance(oidSz + 1);
             word32 length = GetLength(source_);
 
-            if (email) {
-                memcpy(&ptr[idx], "/emailAddress=", 14);
-                idx += 14;
-
-                memcpy(&ptr[idx], source_.get_current(), length);
-                idx += length;
-            }
+            if (email && !(ptr= AddTag(ptr, buf_end, "/emailAddress=", 14, length)))
+                goto err;
 
             source_.advance(length);
         }
     }
-    ptr[idx++] = 0;
+    *ptr= 0;
 
-    if (nt == ISSUER)
-        sha.Final(issuerHash_);
-    else
-        sha.Final(subjectHash_);
+    sha.Final(nt == ISSUER ? issuerHash_ : subjectHash_);
+        
+    return;
+    
+err:
+    source_.SetError(CONTENT_E);
 }
 
 
