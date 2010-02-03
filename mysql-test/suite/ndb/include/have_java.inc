@@ -59,8 +59,8 @@ my $F = IO::File->new("$vardir/tmp/have_java_result.inc", "w") or die;
 if ($java_loc eq '') {
   print $F "--skip Could not find Java executable;\n";
 } else {
-  print $F "--let \$MTR_JAVA= $java_loc\n";
-  print $F "--let \$MTR_JAVA_ARGS= $java_args\n";
+  print $F "--let \MTR_JAVA= $java_loc\n";
+  print $F "--let \MTR_JAVA_ARGS= $java_args\n";
   print $F "--echo Found Java: '\$MTR_JAVA'\n";
 }
 $F->close();

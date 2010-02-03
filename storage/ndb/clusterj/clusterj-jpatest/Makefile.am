@@ -36,10 +36,29 @@ clusterj_jpatest_DATA = $(clusterj_jpatest_version_JAR)
 
 clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/AbstractJPABaseTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/BigIntegerTypesTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/BlobTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/ClobTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/DateAsSqlDateTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/DateAsUtilDateTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/DatetimeAsSqlTimestampTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/DatetimeAsUtilDateTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/DecimalTypesTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/Driver.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/EmbeddedTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/JpaLoad.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/A.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/B0.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BigIntegerTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BlobTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/ClobTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DateAsSqlDateTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DateAsUtilDateTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DatetimeAsSqlTimestampTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DatetimeAsUtilDateTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/DecimalTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/Embedded.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/Embedding.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/Employee.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/IdBase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongIntStringConstants.java \
@@ -51,9 +70,17 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringOid.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringPK.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LongLongStringPKOneMany.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimeAsSqlTimeTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimeAsUtilDateTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsSqlTimestampTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsUtilDateTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/PersistenceTestCase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMFTestCase.java \
-  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMTestCase.java
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMTestCase.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimeAsSqlTimeTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimeAsUtilDateTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimestampAsSqlTimestampTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimestampAsUtilDateTest.java
 
 EXTRA_DIST= \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/*.java \
@@ -77,7 +104,10 @@ classclusterj_jpatest.stamp: $(clusterj_jpatest_java)
 	echo timestamp > classclusterj_jpatest.stamp
 
 $(clusterj_jpatest_version_JAR) : classclusterj_jpatest.stamp $(MANIFEST)
-	rm -f $@ ; @JAR@ cvfm $@ $(MANIFEST) \
+	$(JAVA) -classpath "$(JAVAROOT):$(CLUSTERJ_CLASSPATH)" \
+	org.apache.openjpa.enhance.PCEnhancer \
+	-p $(clusterj_jpatest_res)/META-INF/persistence.xml -d $(JAVAROOT); \
+	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
   	  -C $(JAVAROOT) com/mysql/clusterj/jpatest
 	$(LN_CP_F) -f $(clusterj_jpatest_version_JAR) $(clusterj_jpatest_JAR)
 

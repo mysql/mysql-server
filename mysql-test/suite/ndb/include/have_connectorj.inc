@@ -3,21 +3,17 @@ use strict;
 use IO::File;
 
 #
-# Looks for MySQL Connector/J JAR file
-# - MTR_CONNECTOR_J environment variable
-#
-# If Connector/J JAR file is found, CONNECTORJ_JAR will be set to reflect this location
+# Looks for MySQL Connector/J JAR file in MTR_CLASSPATH
 #
 
-my $connectorj_jar = $ENV{'MTR_CONNECTORJ_JAR'};
+my $classpath = $ENV{'MTR_CLASSPATH'} || '';
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $F = IO::File->new("$vardir/tmp/have_connectorj_result.inc", "w") or die;
-if ($connectorj_jar eq '') {
-  print $F "--skip Could not find Connector/J JAR file, please set MTR_CONNECTORJ_JAR env variable\n";
+if ($classpath =~ m/mysql-connector-java/) {
+  print $F "--echo Found Connector/J JAR in MTR_CLASSPATH\n";
 } else {
-  print $F "--let \$CONNECTORJ_JAR= $connectorj_jar\n";
-  print $F "--echo Found Connector/J JAR: '\$CONNECTORJ_JAR'\n";
+  print $F "--skip Could not find Connector/J JAR file in MTR_CLASSPATH env variable\n";
 }
 $F->close();
 
