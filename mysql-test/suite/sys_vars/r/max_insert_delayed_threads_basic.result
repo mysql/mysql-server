@@ -6,30 +6,28 @@ SET @start_session_value = @@session.max_insert_delayed_threads;
 SELECT @start_session_value;
 @start_session_value
 20
-'#--------------------FN_DYNVARS_078_01-------------------------#'
+'#--------------------FN_DYNVARS_075_01-------------------------#'
 SET @@global.max_insert_delayed_threads = 1000;
 SET @@global.max_insert_delayed_threads = DEFAULT;
-ERROR 42000: Variable 'max_insert_delayed_threads' doesn't have a default value
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
-1000
+20
 SET @@session.max_insert_delayed_threads = 1000;
+ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '1000'
 SET @@session.max_insert_delayed_threads = DEFAULT;
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-1000
-'#--------------------FN_DYNVARS_078_02-------------------------#'
+20
+'#--------------------FN_DYNVARS_075_02-------------------------#'
 SET @@global.max_insert_delayed_threads = DEFAULT;
-ERROR 42000: Variable 'max_insert_delayed_threads' doesn't have a default value
 SELECT @@global.max_insert_delayed_threads = 20;
 @@global.max_insert_delayed_threads = 20
-0
+1
 SET @@session.max_insert_delayed_threads = DEFAULT;
 SELECT @@session.max_insert_delayed_threads = 20;
 @@session.max_insert_delayed_threads = 20
-0
-'Bug# 34876: This variable has invalid default value as compared to documentation';
-'#--------------------FN_DYNVARS_078_03-------------------------#'
+1
+'#--------------------FN_DYNVARS_075_03-------------------------#'
 SET @@global.max_insert_delayed_threads = 1;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
@@ -38,7 +36,6 @@ SET @@global.max_insert_delayed_threads = 1025;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 1025
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.max_insert_delayed_threads = 0;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
@@ -51,17 +48,17 @@ SET @@global.max_insert_delayed_threads = 16383;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 16383
-'#--------------------FN_DYNVARS_078_04-------------------------#'
+'#--------------------FN_DYNVARS_075_04-------------------------#'
 SET @@session.max_insert_delayed_threads = 1;
 ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '1'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-1000
+20
 SET @@session.max_insert_delayed_threads = 1025;
 ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '1025'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-1000
+20
 SET @@session.max_insert_delayed_threads = 0;
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
@@ -75,7 +72,7 @@ SET @@session.max_insert_delayed_threads = 16383;
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
 16383
-'#------------------FN_DYNVARS_078_05-----------------------#'
+'#------------------FN_DYNVARS_075_05-----------------------#'
 SET @@global.max_insert_delayed_threads = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_insert_delayed_threads value: '-1024'
@@ -94,8 +91,8 @@ Warning	1292	Truncated incorrect max_insert_delayed_threads value: '16385'
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 16384
-SET @@global.max_insert_delayed_threads = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_insert_delayed_threads = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 16384
@@ -105,45 +102,49 @@ SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 16384
 SET @@session.max_insert_delayed_threads = 16385;
-ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '16385'
+Warnings:
+Warning	1292	Truncated incorrect max_insert_delayed_threads value: '16385'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-16383
+16384
 SET @@session.max_insert_delayed_threads = -1;
-ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '-1'
+Warnings:
+Warning	1292	Truncated incorrect max_insert_delayed_threads value: '-1'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-16383
+0
 SET @@session.max_insert_delayed_threads = -2;
-ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '-2'
+Warnings:
+Warning	1292	Truncated incorrect max_insert_delayed_threads value: '-2'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-16383
-SET @@session.max_insert_delayed_threads = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+0
+SET @@session.max_insert_delayed_threads = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
 SET @@session.max_insert_delayed_threads = 10737418241;
-ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '10737418241'
+Warnings:
+Warning	1292	Truncated incorrect max_insert_delayed_threads value: '10737418241'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-16383
+16384
 SET @@session.max_insert_delayed_threads = test;
 ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads
-16383
-'#------------------FN_DYNVARS_078_06-----------------------#'
+16384
+'#------------------FN_DYNVARS_075_06-----------------------#'
 SELECT @@global.max_insert_delayed_threads = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_insert_delayed_threads';
 @@global.max_insert_delayed_threads = VARIABLE_VALUE
 1
-'#------------------FN_DYNVARS_078_07-----------------------#'
+'#------------------FN_DYNVARS_075_07-----------------------#'
 SELECT @@session.max_insert_delayed_threads = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='max_insert_delayed_threads';
 @@session.max_insert_delayed_threads = VARIABLE_VALUE
 1
-'#------------------FN_DYNVARS_078_08-----------------------#'
+'#------------------FN_DYNVARS_075_08-----------------------#'
 SET @@global.max_insert_delayed_threads = TRUE;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
@@ -152,12 +153,12 @@ SET @@global.max_insert_delayed_threads = FALSE;
 SELECT @@global.max_insert_delayed_threads;
 @@global.max_insert_delayed_threads
 0
-'#---------------------FN_DYNVARS_078_09----------------------#'
+'#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.max_insert_delayed_threads = 2048;
 SELECT @@max_insert_delayed_threads = @@global.max_insert_delayed_threads;
 @@max_insert_delayed_threads = @@global.max_insert_delayed_threads
 0
-'#---------------------FN_DYNVARS_078_10----------------------#'
+'#---------------------FN_DYNVARS_001_10----------------------#'
 SET @@max_insert_delayed_threads = 100000;
 ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '100000'
 SELECT @@max_insert_delayed_threads = @@local.max_insert_delayed_threads;
@@ -166,12 +167,12 @@ SELECT @@max_insert_delayed_threads = @@local.max_insert_delayed_threads;
 SELECT @@local.max_insert_delayed_threads = @@session.max_insert_delayed_threads;
 @@local.max_insert_delayed_threads = @@session.max_insert_delayed_threads
 1
-'#---------------------FN_DYNVARS_078_11----------------------#'
+'#---------------------FN_DYNVARS_001_11----------------------#'
 SET max_insert_delayed_threads = 1024;
 ERROR 42000: Variable 'max_insert_delayed_threads' can't be set to the value of '1024'
 SELECT @@max_insert_delayed_threads;
 @@max_insert_delayed_threads
-16383
+16384
 SELECT local.max_insert_delayed_threads;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.max_insert_delayed_threads;

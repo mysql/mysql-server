@@ -366,7 +366,6 @@ int prepare_record(TABLE *const table,
   */
   for (Field **field_ptr= table->field+skip; *field_ptr; ++field_ptr)
   {
-    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
     Field *const f= *field_ptr;
     if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
         (f->real_type() != MYSQL_TYPE_ENUM))

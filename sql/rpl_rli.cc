@@ -1044,7 +1044,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       DBUG_RETURN(FALSE);
     log_name= group_master_log_name;
     log_pos= (!ev)? group_master_log_pos :
-      ((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+      ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
        group_master_log_pos : ev->log_pos - ev->data_written);
   }
   else
@@ -1169,7 +1169,7 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
     middle of the "transaction". START SLAVE will resume at BEGIN
     while the MyISAM table has already been updated.
   */
-  if ((sql_thd->options & OPTION_BEGIN) && opt_using_transactions)
+  if ((sql_thd->variables.option_bits & OPTION_BEGIN) && opt_using_transactions)
     inc_event_relay_log_pos();
   else
   {
@@ -1223,8 +1223,8 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   /*
     Cleanup for the flags that have been set at do_apply_event.
   */
-  thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
-  thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+  thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+  thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
   DBUG_VOID_RETURN;
 }
 

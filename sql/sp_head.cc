@@ -24,6 +24,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "set_var.h"
 
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
@@ -1691,7 +1692,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     each substatement be binlogged its way.
   */
   need_binlog_call= mysql_bin_log.is_open() &&
-    (thd->options & OPTION_BIN_LOG) && !thd->current_stmt_binlog_row_based;
+    (thd->variables.option_bits & OPTION_BIN_LOG) && !thd->current_stmt_binlog_row_based;
 
   /*
     Remember the original arguments for unrolled replication of functions
@@ -1754,8 +1755,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     q= global_query_id;
     pthread_mutex_unlock(&LOCK_thread_count);
     mysql_bin_log.start_union_events(thd, q + 1);
-    binlog_save_options= thd->options;
-    thd->options&= ~OPTION_BIN_LOG;
+    binlog_save_options= thd->variables.option_bits;
+    thd->variables.option_bits&= ~OPTION_BIN_LOG;
   }
 
   /*
@@ -1775,7 +1776,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call)
   {
     mysql_bin_log.stop_union_events(thd);
-    thd->options= binlog_save_options;
+    thd->variables.option_bits= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
       int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
@@ -1967,12 +1968,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     save_enable_slow_log= true;
     thd->enable_slow_log= FALSE;
   }
-  if (!(m_flags & LOG_GENERAL_LOG) && !(thd->options & OPTION_LOG_OFF))
+  if (!(m_flags & LOG_GENERAL_LOG) && !(thd->variables.option_bits & OPTION_LOG_OFF))
   {
     DBUG_PRINT("info", ("Disabling general log for the execution"));
     save_log_general= true;
     /* disable this bit */
-    thd->options |= OPTION_LOG_OFF;
+    thd->variables.option_bits |= OPTION_LOG_OFF;
   }
   thd->spcont= nctx;
 
@@ -1986,7 +1987,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     err_status= execute(thd);
 
   if (save_log_general)
-    thd->options &= ~OPTION_LOG_OFF;
+    thd->variables.option_bits &= ~OPTION_LOG_OFF;
   if (save_enable_slow_log)
     thd->enable_slow_log= true;
   /*
@@ -2424,8 +2425,7 @@ sp_head::show_create_routine(THD *thd, int type)
   if (check_show_routine_access(thd, this, &full_access))
     DBUG_RETURN(TRUE);
 
-  sys_var_thd_sql_mode::symbolic_mode_representation(
-      thd, m_sql_mode, &sql_mode);
+  sql_mode_string_representation(thd, m_sql_mode, &sql_mode);
 
   /* Send header. */
 
@@ -2864,7 +2864,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       (the order of query cache and subst_spvars calls is irrelevant because
       queries with SP vars can't be cached)
     */
-    if (unlikely((thd->options & OPTION_LOG_OFF)==0))
+    if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd,

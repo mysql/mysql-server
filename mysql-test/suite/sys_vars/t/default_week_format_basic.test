@@ -118,7 +118,6 @@ SET @@session.default_week_format = -2;
 SELECT @@session.default_week_format;
 SET @@session.default_week_format = 65550;
 SELECT @@session.default_week_format;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --echo '#------------------FN_DYNVARS_022_06-----------------------#'
 ###############################################################################

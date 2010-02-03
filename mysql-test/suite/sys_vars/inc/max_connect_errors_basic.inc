@@ -46,7 +46,6 @@ SELECT @start_value;
 SET @@global.max_connect_errors = 5000;
 SET @@global.max_connect_errors = DEFAULT;
 SELECT @@global.max_connect_errors;
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
 
 --echo '#---------------------FN_DYNVARS_073_02-------------------------#'
 ############################################### 
@@ -71,7 +70,6 @@ SET @@global.max_connect_errors = 1;
 SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = 2;
 SELECT @@global.max_connect_errors;
---echo 'Bug# 34877:  Invalid Values are coming in variable on assigning valid values';
 
 
 --echo '#--------------------FN_DYNVARS_073_04-------------------------#'
@@ -92,8 +90,6 @@ SET @@global.max_connect_errors = 0;
 SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = 4294967296;
 SELECT @@global.max_connect_errors;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_connect_errors = ON;

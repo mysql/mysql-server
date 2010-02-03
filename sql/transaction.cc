@@ -105,7 +105,7 @@ bool trans_begin(THD *thd, uint flags)
   */
   thd->mdl_context.release_transactional_locks();
 
-  thd->options|= OPTION_BEGIN;
+  thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
 
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
@@ -142,7 +142,7 @@ bool trans_commit(THD *thd)
     RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
   thd->lex->start_transaction_opt= 0;
 
@@ -169,16 +169,17 @@ bool trans_commit_implicit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  if (thd->in_multi_stmt_transaction() || (thd->options & OPTION_TABLE_LOCK))
+  if (thd->in_multi_stmt_transaction() ||
+      (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables_mode)
-      thd->options&= ~OPTION_TABLE_LOCK;
+      thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
 
   DBUG_RETURN(res);
@@ -205,7 +206,7 @@ bool trans_rollback(THD *thd)
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_rollback_trans(thd, TRUE);
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
   thd->lex->start_transaction_opt= 0;
 
@@ -383,7 +384,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
-  else if (((thd->options & OPTION_KEEP_LOG) ||
+  else if (((thd->variables.option_bits & OPTION_KEEP_LOG) ||
             thd->transaction.all.modified_non_trans_table) &&
            !thd->slave_thread)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -605,7 +606,7 @@ bool trans_xa_commit(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
@@ -660,7 +661,7 @@ bool trans_xa_rollback(THD *thd)
   if ((res= test(ha_rollback_trans(thd, TRUE))))
     my_error(ER_XAER_RMERR, MYF(0));
 
-  thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);

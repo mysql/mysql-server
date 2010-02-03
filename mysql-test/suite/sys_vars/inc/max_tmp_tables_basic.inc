@@ -121,8 +121,8 @@ SET @@global.max_tmp_tables = -1;
 SELECT @@global.max_tmp_tables;
 SET @@global.max_tmp_tables = 429496729500;
 SELECT @@global.max_tmp_tables;
---Error ER_PARSE_ERROR
-SET @@global.max_tmp_tables = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_tmp_tables = 65530.34;
 SELECT @@global.max_tmp_tables;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_tmp_tables = test;
@@ -136,8 +136,8 @@ SET @@session.max_tmp_tables = 429496729500;
 SELECT @@session.max_tmp_tables;
 SET @@session.max_tmp_tables = -001;
 SELECT @@session.max_tmp_tables;
---Error ER_PARSE_ERROR
-SET @@session.max_tmp_tables = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_tmp_tables = 65530.34;
 SET @@session.max_tmp_tables = 10737418241;
 SELECT @@session.max_tmp_tables;
 --Error ER_WRONG_TYPE_FOR_VAR

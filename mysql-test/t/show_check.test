@@ -903,7 +903,7 @@ CREATE TABLE t1(колонка1 INT);
 --echo
 --echo ---> Dumping mysqltest1 to outfile1
 
---exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $outfile1
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqltest1 > $outfile1
 
 #   - Clean mysqltest1;
 

@@ -1978,11 +1978,11 @@ static int add_part_field_list(File fptr, List<char> field_list)
     const char *field_str= part_it++;
     String field_string("", 0, system_charset_info);
     THD *thd= current_thd;
-    ulonglong save_options= thd->options;
-    thd->options= 0;
+    ulonglong save_options= thd->variables.option_bits;
+    thd->variables.option_bits= 0;
     append_identifier(thd, &field_string, field_str,
                       strlen(field_str));
-    thd->options= save_options;
+    thd->variables.option_bits= save_options;
     err+= add_string_object(fptr, &field_string);
     if (i != (num_fields-1))
       err+= add_comma(fptr);
@@ -1997,12 +1997,12 @@ static int add_name_string(File fptr, const char *name)
   int err;
   String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
-  ulonglong save_options= thd->options;
+  ulonglong save_options= thd->variables.option_bits;
 
-  thd->options= 0;
+  thd->variables.option_bits= 0;
   append_identifier(thd, &name_string, name,
                     strlen(name));
-  thd->options= save_options;
+  thd->variables.option_bits= save_options;
   err= add_string_object(fptr, &name_string);
   return err;
 }

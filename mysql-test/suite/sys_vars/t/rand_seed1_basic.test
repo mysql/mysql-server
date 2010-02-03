@@ -1,0 +1,30 @@
+
+#
+# exists as a session only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.rand_seed1;
+select @@session.rand_seed1;
+show global variables like 'rand_seed1';
+show session variables like 'rand_seed1';
+select * from information_schema.global_variables where variable_name='rand_seed1';
+select * from information_schema.session_variables where variable_name='rand_seed1';
+
+#
+# show that it's writable
+#
+set session rand_seed1=1;
+select @@session.rand_seed1;
+--error ER_LOCAL_VARIABLE
+set global rand_seed1=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed1=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed1=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session rand_seed1="foo";
+

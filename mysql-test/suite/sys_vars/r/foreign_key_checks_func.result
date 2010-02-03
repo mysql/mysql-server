@@ -36,9 +36,6 @@ INSERT INTO t2 values (20,4);
 'try enabling foreign_key_checks again';
 SET @@session.foreign_key_checks = 1;
 UPDATE t2 SET b=4 where a=20;
-'Bug#35358: Updating an incorrect foreign key(inserted by disabling '
-'foreign_key_checks)to the same value does not raise error after '
-'enabling foreign_key_checks'
 'Check when foreign_key_checks is enabled and FK constraint is re-created'
 SET @@session.foreign_key_checks = 0;
 TRUNCATE t2;

@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "keycaches.h"
 #include <hash.h>
 #include <thr_alarm.h>
 #if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
@@ -454,8 +455,10 @@ writes:         %10s\n\
 r_requests:     %10s\n\
 reads:          %10s\n\n",
 	   name,
-	   (ulong) key_cache->param_buff_size, key_cache->param_block_size,
-	   key_cache->param_division_limit, key_cache->param_age_threshold,
+	   (ulong) key_cache->param_buff_size,
+           (ulong)key_cache->param_block_size,
+	   (ulong)key_cache->param_division_limit,
+           (ulong)key_cache->param_age_threshold,
 	   key_cache->blocks_used,key_cache->global_blocks_changed,
 	   llstr(key_cache->global_cache_w_requests,llbuff1),
            llstr(key_cache->global_cache_write,llbuff2),

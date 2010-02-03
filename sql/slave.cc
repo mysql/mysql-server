@@ -363,6 +363,9 @@ static void print_slave_skip_errors(void)
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
+  /* Make @@slave_skip_errors show the nice human-readable value.  */
+  opt_slave_skip_errors= slave_skip_error_names;
+
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
     /* purecov: begin tested */
@@ -1872,12 +1875,12 @@ void set_slave_thread_options(THD* thd)
      when max_join_size is 4G, OPTION_BIG_SELECTS is automatically set, but
      only for client threads.
   */
-  ulonglong options= thd->options | OPTION_BIG_SELECTS;
+  ulonglong options= thd->variables.option_bits | OPTION_BIG_SELECTS;
   if (opt_log_slave_updates)
     options|= OPTION_BIN_LOG;
   else
     options&= ~OPTION_BIN_LOG;
-  thd->options= options;
+  thd->variables.option_bits= options;
   thd->variables.completion_type= 0;
   DBUG_VOID_RETURN;
 }
@@ -2188,8 +2191,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
                            ev->get_type_str(), ev->get_type_code(),
                            ev->server_id));
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
-                      FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                      FLAGSTR(thd->options, OPTION_BEGIN),
+                      FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
+                      FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
                       rli->last_event_start_time));
 
   /*
@@ -2225,7 +2228,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   int reason= ev->shall_skip(rli);
   if (reason == Log_event::EVENT_SKIP_COUNT)
-    --rli->slave_skip_counter;
+    sql_slave_skip_counter= --rli->slave_skip_counter;
   pthread_mutex_unlock(&rli->data_lock);
   if (reason == Log_event::EVENT_SKIP_NOT)
     exec_res= ev->apply_event(rli);
@@ -2245,7 +2248,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     "skipped because event skip counter was non-zero"
   };
   DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                      thd->options & OPTION_BEGIN ? 1 : 0,
+                      test(thd->variables.option_bits & OPTION_BEGIN),
                       rli->get_flag(Relay_log_info::IN_STMT)));
   DBUG_PRINT("skip_event", ("%s event was %s",
                             ev->get_type_str(), explain[reason]));
@@ -3136,9 +3139,9 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   }
 
   /* execute init_slave variable */
-  if (sys_init_slave.value_length)
+  if (opt_init_slave.length)
   {
-    execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
+    execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
       rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),

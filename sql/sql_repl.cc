@@ -29,6 +29,14 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+/**
+  a copy of active_mi->rli->slave_skip_counter, for showing in SHOW VARIABLES,
+  INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_slave_skip_counter without
+  taking all the mutexes needed to access active_mi->rli->slave_skip_counter
+  properly.
+*/
+uint sql_slave_skip_counter;
+
 /*
     fake_rotate_event() builds a fake (=which does not exist physically in any
     binlog) Rotate event, which contains the name of the binlog we are going to
@@ -1981,148 +1989,5 @@ int log_loaded_block(IO_CACHE* file)
   }
   DBUG_RETURN(0);
 }
-
-/*
-  Replication System Variables
-*/
-
-class sys_var_slave_skip_counter :public sys_var
-{
-public:
-  sys_var_slave_skip_counter(sys_var_chain *chain, const char *name_arg)
-    :sys_var(name_arg)
-  { chain_sys_var(chain); }
-  bool check(THD *thd, set_var *var);
-  bool update(THD *thd, set_var *var);
-  bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
-  /*
-    We can't retrieve the value of this, so we don't have to define
-    type() or value_ptr()
-  */
-};
-
-class sys_var_sync_binlog_period :public sys_var_long_ptr
-{
-public:
-  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg, 
-                             ulong *value_ptr)
-    :sys_var_long_ptr(chain, name_arg,value_ptr) {}
-  bool update(THD *thd, set_var *var);
-};
-
-static void fix_slave_net_timeout(THD *thd, enum_var_type type)
-{
-  DBUG_ENTER("fix_slave_net_timeout");
-#ifdef HAVE_REPLICATION
-  pthread_mutex_lock(&LOCK_active_mi);
-  DBUG_PRINT("info",("slave_net_timeout=%lu mi->heartbeat_period=%.3f",
-                     slave_net_timeout,
-                     (active_mi? active_mi->heartbeat_period : 0.0)));
-  if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                        "The currect value for master_heartbeat_period"
-                        " exceeds the new value of `slave_net_timeout' sec."
-                        " A sensible value for the period should be"
-                        " less than the timeout.");
-  pthread_mutex_unlock(&LOCK_active_mi);
-#endif
-  DBUG_VOID_RETURN;
-}
-
-static sys_var_chain vars = { NULL, NULL };
-
-static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
-                                              OPT_GLOBAL, SHOW_MY_BOOL,
-                                              (uchar*) &opt_log_slave_updates);
-static sys_var_const    sys_relay_log(&vars, "relay_log",
-                                      OPT_GLOBAL, SHOW_CHAR_PTR,
-                                      (uchar*) &opt_relay_logname);
-static sys_var_const    sys_relay_log_index(&vars, "relay_log_index",
-                                      OPT_GLOBAL, SHOW_CHAR_PTR,
-                                      (uchar*) &opt_relaylog_index_name);
-static sys_var_const    sys_relay_log_info_file(&vars, "relay_log_info_file",
-                                      OPT_GLOBAL, SHOW_CHAR_PTR,
-                                      (uchar*) &relay_log_info_file);
-static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
-					    &relay_log_purge);
-static sys_var_bool_ptr sys_relay_log_recovery(&vars, "relay_log_recovery",
-                                               &relay_log_recovery);
-static sys_var_uint_ptr sys_sync_binlog_period(&vars, "sync_binlog",
-                                              &sync_binlog_period);
-static sys_var_uint_ptr sys_sync_relaylog_period(&vars, "sync_relay_log",
-                                                &sync_relaylog_period);
-static sys_var_uint_ptr sys_sync_relayloginfo_period(&vars, "sync_relay_log_info",
-                                                    &sync_relayloginfo_period);
-static sys_var_uint_ptr sys_sync_masterinfo_period(&vars, "sync_master_info",
-                                                  &sync_masterinfo_period);
-static sys_var_const    sys_relay_log_space_limit(&vars,
-                                                  "relay_log_space_limit",
-                                                  OPT_GLOBAL, SHOW_LONGLONG,
-                                                  (uchar*)
-                                                  &relay_log_space_limit);
-static sys_var_const    sys_slave_load_tmpdir(&vars, "slave_load_tmpdir",
-                                              OPT_GLOBAL, SHOW_CHAR_PTR,
-                                              (uchar*) &slave_load_tmpdir);
-static sys_var_long_ptr	sys_slave_net_timeout(&vars, "slave_net_timeout",
-					      &slave_net_timeout,
-                                              fix_slave_net_timeout);
-static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
-                                              OPT_GLOBAL, SHOW_CHAR,
-                                              (uchar*) slave_skip_error_names);
-static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
-						&slave_trans_retries);
-static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
-
-
-bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
-{
-  int result= 0;
-  pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
-  if (active_mi->rli.slave_running)
-  {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    result=1;
-  }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
-  pthread_mutex_unlock(&LOCK_active_mi);
-  var->save_result.ulong_value= (ulong) var->value->val_int();
-  return result;
-}
-
-
-bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
-{
-  pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
-  /*
-    The following test should normally never be true as we test this
-    in the check function;  To be safe against multiple
-    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-  */
-  if (!active_mi->rli.slave_running)
-  {
-    pthread_mutex_lock(&active_mi->rli.data_lock);
-    active_mi->rli.slave_skip_counter= var->save_result.ulong_value;
-    pthread_mutex_unlock(&active_mi->rli.data_lock);
-  }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
-  pthread_mutex_unlock(&LOCK_active_mi);
-  return 0;
-}
-
-
-int init_replication_sys_vars()
-{
-  if (mysql_add_sys_var_chain(vars.first, my_long_options))
-  {
-    /* should not happen */
-    fprintf(stderr, "failed to initialize replication system variables");
-    unireg_abort(1);
-  }
-  return 0;
-}
-
 
 #endif /* HAVE_REPLICATION */

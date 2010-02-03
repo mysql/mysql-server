@@ -1,0 +1,18 @@
+#
+# show the global and session values;
+#
+select @@global.date_format;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.date_format;
+show global variables like 'date_format';
+show session variables like 'date_format';
+select * from information_schema.global_variables where variable_name='date_format';
+select * from information_schema.session_variables where variable_name='date_format';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global date_format="foo";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session date_format="foo";

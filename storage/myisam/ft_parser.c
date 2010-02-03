@@ -83,10 +83,10 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   uint i, j;
 
   if (!str ||
-      (strlen((char*) str)+1 != sizeof(ft_boolean_syntax)) ||
+      (strlen((char*) str)+1 != sizeof(DEFAULT_FTB_SYNTAX)) ||
       (str[0] != ' ' && str[1] != ' '))
     return 1;
-  for (i=0; i<sizeof(ft_boolean_syntax); i++)
+  for (i=0; i<sizeof(DEFAULT_FTB_SYNTAX); i++)
   {
     /* limiting to 7-bit ascii only */
     if ((unsigned char)(str[i]) > 127 || my_isalnum(default_charset_info, str[i]))
@@ -127,7 +127,6 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
         break;
       if (*doc == FTB_RQUOT && param->quot)
       {
-        param->quot= (char*) doc;
         *start=doc+1;
         param->type= FT_TOKEN_RIGHT_PAREN;
         goto ret;
@@ -139,7 +138,7 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
           /* param->prev=' '; */
           *start=doc+1;
           if (*doc == FTB_LQUOT)
-            param->quot= (char*) *start;
+            param->quot= (char*) 1;
           param->type= (*doc == FTB_RBR ? FT_TOKEN_RIGHT_PAREN : FT_TOKEN_LEFT_PAREN);
           goto ret;
         }
@@ -193,7 +192,6 @@ uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
   if (param->quot)
   {
     *start= doc;
-    param->quot= (char*) doc;
     param->type= 3; /* FT_RBR */
     goto ret;
   }

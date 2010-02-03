@@ -38,9 +38,7 @@ SELECT @start_session_value;
 #     Display the DEFAULT value of storage_engine                    #
 ######################################################################
 
-SET @@global.storage_engine = MYISAM;
-
---Error ER_NO_DEFAULT
+SET @@global.storage_engine = INNODB;
 SET @@global.storage_engine = DEFAULT;
 SELECT @@global.storage_engine;
 
@@ -87,11 +85,14 @@ SELECT @@session.storage_engine;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.storage_engine = 8199;
 
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.storage_engine = NULL;
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.storage_engine = -1024;
 
---Error ER_PARSE_ERROR
-SET @@global.storage_engine = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
 SET @@global.storage_engine = FILE;
@@ -99,8 +100,8 @@ SET @@global.storage_engine = FILE;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.storage_engine = 8199;
 
---Error ER_PARSE_ERROR
-SET @@session.storage_engine = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
 SET @@session.storage_engine = RECORD;
@@ -163,6 +164,8 @@ SELECT session.storage_engine;
 --Error ER_BAD_FIELD_ERROR
 SELECT storage_engine = @@session.storage_engine;
 
+# check the old obsolete name
+SET @@storage_engine = @start_global_value;
 
 ####################################
 #     Restore initial value        #

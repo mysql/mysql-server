@@ -718,7 +718,7 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
-                          FALSE, thd->options | TMP_TABLE_ALL_COLUMNS, ""))
+                          FALSE, thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, ""))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

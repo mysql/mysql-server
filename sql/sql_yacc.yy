@@ -47,6 +47,8 @@
 #include "event_parse_data.h"
 #include <myisam.h>
 #include <myisammrg.h>
+#include "keycaches.h"
+#include "set_var.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -426,7 +428,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   LEX *lex= thd->lex;
 
   /* No AUTOCOMMIT from a stored function or trigger. */
-  if (lex->spcont && tmp->var == &sys_autocommit)
+  if (lex->spcont && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
   if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
@@ -4311,8 +4313,8 @@ have_partitioning:
               MYSQL_YYABORT;
             }
 #else
-            my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                    "--skip-partition");
+            my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
+                    "--with-plugin-partition");
             MYSQL_YYABORT;
 #endif
           }
@@ -4735,7 +4737,6 @@ part_value_item:
           part_value_item_list {}
           ')'
           {
-            LEX *lex= Lex;
             partition_info *part_info= Lex->part_info;
             part_info->print_debug(") part_value_item", NULL);
             if (part_info->num_columns == 0)
@@ -4766,7 +4767,6 @@ part_value_expr_item:
           MAX_VALUE_SYM
           {
             partition_info *part_info= Lex->part_info;
-            part_column_list_val *col_val;
             if (part_info->part_type == LIST_PARTITION)
             {
               my_parse_error(ER(ER_MAXVALUE_IN_VALUES_IN));
@@ -7066,7 +7066,7 @@ cache_keys_spec:
           {
             Lex->select_lex.alloc_index_hints(YYTHD);
             Select->set_index_hint_type(INDEX_HINT_USE, 
-                                        global_system_variables.old_mode ? 
+                                        old_mode ? 
                                         INDEX_HINT_MASK_JOIN : 
                                         INDEX_HINT_MASK_ALL);
           }
@@ -9419,8 +9419,7 @@ opt_outer:
 index_hint_clause:
           /* empty */
           {
-            $$= global_system_variables.old_mode ? 
-                  INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL; 
+            $$= old_mode ?  INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL; 
           }
         | FOR_SYM JOIN_SYM      { $$= INDEX_HINT_MASK_JOIN;  }
         | FOR_SYM ORDER_SYM BY  { $$= INDEX_HINT_MASK_ORDER; }

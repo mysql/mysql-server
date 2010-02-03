@@ -1,0 +1,178 @@
+############## mysql-test\t\key_cache_block_size_basic.test ###############
+#                                                                             #
+# Variable Name: key_cache_block_size                                         #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric 1024                                                     #
+# Default Value:                                                              #
+# Range: 512-16384                                                            #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable key_cache_block_size     #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+##################################################################### 
+#            START OF key_cache_block_size TESTS                    #
+#####################################################################
+
+
+########################################################################## 
+#  Saving initial value of key_cache_block_size in a temporary variable  #
+##########################################################################
+
+SET @start_value = @@global.key_cache_block_size;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_057_01------------------------#'
+################################################################################ 
+#              Display the DEFAULT value of key_cache_block_size            #
+################################################################################ 
+
+SET @@global.key_cache_block_size = DEFAULT;
+SELECT @@global.key_cache_block_size;
+
+
+--echo '#---------------------FN_DYNVARS_057_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.key_cache_block_size = @start_value;
+SELECT @@global.key_cache_block_size = 1024;
+
+
+--echo '#--------------------FN_DYNVARS_057_03------------------------#'
+############################################################################### 
+#        Change the value of key_cache_block_size to a valid value            #
+############################################################################### 
+
+SET @@global.key_cache_block_size = 1024;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 16384;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 1800;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 16383;
+SELECT @@global.key_cache_block_size;
+
+--echo '#--------------------FN_DYNVARS_057_04-------------------------#'
+########################################################################### 
+#         Change the value of key_cache_block_size to invalid value    #
+########################################################################### 
+
+SET @@global.key_cache_block_size = -1;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 42949672951;
+SELECT @@global.key_cache_block_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_block_size = 10000.01;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = -1024;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 256;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 511;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = 16385;
+SELECT @@global.key_cache_block_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_block_size = ON;
+SELECT @@global.key_cache_block_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_block_size = 'test';
+SELECT @@global.key_cache_block_size;
+
+
+--echo '#-------------------FN_DYNVARS_057_05----------------------------#'
+########################################################################### 
+#       Test if accessing session key_cache_block_size gives error     #
+########################################################################### 
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.key_cache_block_size = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.key_cache_block_size;
+
+
+--echo '#----------------------FN_DYNVARS_057_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+SELECT @@global.key_cache_block_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_block_size';
+
+SELECT @@key_cache_block_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_block_size';
+
+
+--echo '#---------------------FN_DYNVARS_057_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.key_cache_block_size = TRUE;
+SELECT @@global.key_cache_block_size;
+SET @@global.key_cache_block_size = FALSE;
+SELECT @@global.key_cache_block_size;
+
+
+--echo '#---------------------FN_DYNVARS_057_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.key_cache_block_size = 1024;
+SELECT @@key_cache_block_size = @@global.key_cache_block_size;
+
+
+--echo '#---------------------FN_DYNVARS_057_09----------------------#'
+############################################################################### 
+#   Check if key_cache_block_size can be accessed with and without @@ sign    #
+###############################################################################;
+
+--Error ER_GLOBAL_VARIABLE
+SET key_cache_block_size = 8000;
+SELECT @@key_cache_block_size;
+--Error ER_PARSE_ERROR
+SET local.key_cache_block_size = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT local.key_cache_block_size;
+--Error ER_PARSE_ERROR
+SET global.key_cache_block_size = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT global.key_cache_block_size;
+--Error ER_BAD_FIELD_ERROR
+SELECT key_cache_block_size = @@session.key_cache_block_size;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.key_cache_block_size = @start_value;
+SELECT @@global.key_cache_block_size;
+
+
+#####################################################################
+#              END OF key_cache_block_size TESTS                    #
+#####################################################################
+

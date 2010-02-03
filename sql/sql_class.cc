@@ -294,7 +294,7 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
 {
-  return thd->options & test_options;
+  return thd->variables.option_bits & test_options;
 }
 
 extern "C"
@@ -685,7 +685,7 @@ void THD::raise_note(uint sql_errno)
 {
   DBUG_ENTER("THD::raise_note");
   DBUG_PRINT("enter", ("code: %d", sql_errno));
-  if (!(this->options & OPTION_SQL_NOTES))
+  if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
@@ -701,7 +701,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
   char    ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("THD::raise_note_printf");
   DBUG_PRINT("enter",("code: %u", sql_errno));
-  if (!(this->options & OPTION_SQL_NOTES))
+  if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
   const char* format= ER(sql_errno);
   va_start(args, sql_errno);
@@ -722,7 +722,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
-  if (!(this->options & OPTION_SQL_NOTES) &&
+  if (!(variables.option_bits & OPTION_SQL_NOTES) &&
       (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
@@ -888,12 +888,6 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   plugin_thdvar_init(this);
-  variables.time_format= date_time_format_copy((THD*) 0,
-					       variables.time_format);
-  variables.date_format= date_time_format_copy((THD*) 0,
-					       variables.date_format);
-  variables.datetime_format= date_time_format_copy((THD*) 0,
-						   variables.datetime_format);
   /*
     variables= global_system_variables above has reset
     variables.pseudo_thread_id to 0. We need to correct it here to
@@ -904,12 +898,6 @@ void THD::init(void)
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
-  options= thd_startup_options;
-
-  if (variables.max_join_size == HA_POS_ERROR)
-    options |= OPTION_BIG_SELECTS;
-  else
-    options &= ~OPTION_BIG_SELECTS;
 
   transaction.all.modified_non_trans_table= transaction.stmt.modified_non_trans_table= FALSE;
   open_options=ha_open_options;
@@ -920,7 +908,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
-  sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+  sql_log_bin_toplevel= variables.option_bits & OPTION_BIN_LOG;
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -1027,10 +1015,6 @@ void THD::cleanup(void)
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   close_temporary_tables(this);
-  my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -1398,15 +1382,21 @@ bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 void THD::update_charset()
 {
   uint32 not_used;
-  charset_is_system_charset= !String::needs_conversion(0,charset(),
-                                                       system_charset_info,
-                                                       &not_used);
+  charset_is_system_charset=
+    !String::needs_conversion(0,
+                              variables.character_set_client,
+                              system_charset_info,
+                              &not_used);
   charset_is_collation_connection= 
-    !String::needs_conversion(0,charset(),variables.collation_connection,
+    !String::needs_conversion(0,
+                              variables.character_set_client,
+                              variables.collation_connection,
                               &not_used);
   charset_is_character_set_filesystem= 
-    !String::needs_conversion(0, charset(),
-                              variables.character_set_filesystem, &not_used);
+    !String::needs_conversion(0,
+                              variables.character_set_client,
+                              variables.character_set_filesystem,
+                              &not_used);
 }
 
 
@@ -3116,7 +3106,7 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
 {
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+  if (mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
     return (int) thd->variables.binlog_format;
   else
     return BINLOG_FORMAT_UNSPEC;
@@ -3177,7 +3167,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   }
 #endif
   
-  backup->options=         options;
+  backup->option_bits=     variables.option_bits;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
@@ -3194,10 +3184,10 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
   {
-    options&= ~OPTION_BIN_LOG;
+    variables.option_bits&= ~OPTION_BIN_LOG;
   }
 
-  if ((backup->options & OPTION_BIN_LOG) && is_update_query(lex->sql_command)&&
+  if ((backup->option_bits & OPTION_BIN_LOG) && is_update_query(lex->sql_command)&&
       !current_stmt_binlog_row_based)
     mysql_bin_log.start_union_events(this, this->query_id);
 
@@ -3241,7 +3231,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     (void)ha_release_savepoint(this, sv);
   }
   transaction.savepoints= backup->savepoints;
-  options=          backup->options;
+  variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
   enable_slow_log=  backup->enable_slow_log;
   first_successful_insert_id_in_prev_stmt= 
@@ -3259,7 +3249,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   if (!in_sub_stmt)
     is_fatal_sub_stmt_error= FALSE;
 
-  if ((options & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
+  if ((variables.option_bits & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
     !current_stmt_binlog_row_based)
     mysql_bin_log.stop_union_events(this);
 

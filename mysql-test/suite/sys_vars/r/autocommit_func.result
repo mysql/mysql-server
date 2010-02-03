@@ -89,7 +89,6 @@ id	name
 1	Record_1
 2	Record_2
 3	Record_3
-'Bug#35373: Records donot get committed in transaction on switching connections'
 INSERT into t1(name) values('Record_6');
 SELECT * from t1;
 id	name

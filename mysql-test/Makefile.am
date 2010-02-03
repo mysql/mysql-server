@@ -99,7 +99,8 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
-	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include
+	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
+	suite/sys_vars suite/sys_vars/t suite/sys_vars/inc suite/sys_vars/r
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory

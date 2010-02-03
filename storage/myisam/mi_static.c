@@ -33,11 +33,11 @@ uint	myisam_quick_table_bits=9;
 ulong	myisam_block_size= MI_KEY_BLOCK_LENGTH;		/* Best by test */
 my_bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
 #if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
-ulong myisam_concurrent_insert= 2;
+uint myisam_concurrent_insert= 2;
 #else
-ulong myisam_concurrent_insert= 0;
+uint myisam_concurrent_insert= 0;
 #endif
-my_off_t myisam_max_temp_length= MAX_FILE_SIZE;
+ulonglong myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_bulk_insert_tree_size=8192*1024;
 ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;

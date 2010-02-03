@@ -311,7 +311,7 @@ class Time_zone;
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
-struct system_variables
+typedef struct system_variables
 {
   /*
     How dynamically allocated system variables are handled:
@@ -328,10 +328,12 @@ struct system_variables
   uint dynamic_variables_size;  /* how many bytes are in use */
   
   ulonglong myisam_max_extra_sort_file_size;
-  ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  ulonglong optimizer_switch;
+  ulonglong sql_mode; ///< which non-standard SQL behaviour should be enabled
+  ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
@@ -345,9 +347,6 @@ struct system_variables
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
   ulong multi_range_count;
-  ulong myisam_repair_threads;
-  ulong myisam_sort_buff_size;
-  ulong myisam_stats_method;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -356,23 +355,13 @@ struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
-  /* A bitmap for switching optimizations on/off */
-  ulong optimizer_switch;
   ulong preload_buff_size;
   ulong profiling_history_size;
-  ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
-  ulong thread_handling;
-  ulong tx_isolation;
-  ulong completion_type;
-  /* Determines which non-standard SQL behaviour should be enabled */
-  ulong sql_mode;
   ulong max_sp_recursion_depth;
-  /* check of key presence in updatable view */
-  ulong updatable_views_with_limit;
   ulong default_week_format;
   ulong max_seeks_for_key;
   ulong range_alloc_block_size;
@@ -382,11 +371,14 @@ struct system_variables
   ulong trans_prealloc_size;
   ulong log_warnings;
   ulong group_concat_max_len;
-  ulong ndb_autoincrement_prefetch_sz;
-  ulong ndb_index_stat_cache_entries;
-  ulong ndb_index_stat_update_freq;
-  ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
-  /*
+
+  uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  uint completion_type;
+  uint query_cache_type;
+  uint tx_isolation;
+  uint updatable_views_with_limit;
+  uint max_user_connections;
+  /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
   */
@@ -394,22 +386,13 @@ struct system_variables
 
   my_bool low_priority_updates;
   my_bool new_mode;
-  /* 
-    compatibility option:
-      - index usage hints (USE INDEX without a FOR clause) behave as in 5.0 
-  */
-  my_bool old_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
   my_bool keep_files_on_create;
-  my_bool ndb_force_send;
-  my_bool ndb_use_copying_alter_table;
-  my_bool ndb_use_exact_count;
-  my_bool ndb_use_transactions;
-  my_bool ndb_index_stat_enable;
 
   my_bool old_alter_table;
   my_bool old_passwords;
+  my_bool big_tables;
 
   plugin_ref table_plugin;
 
@@ -430,12 +413,10 @@ struct system_variables
 
   Time_zone *time_zone;
 
-  /* DATE, DATETIME and MYSQL_TIME formats */
-  DATE_TIME_FORMAT *date_format;
-  DATE_TIME_FORMAT *datetime_format;
-  DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
-};
+
+  double long_query_time_double;
+} SV;
 
 
 /* per thread status variables */
@@ -1046,7 +1027,7 @@ public:
 class Sub_statement_state
 {
 public:
-  ulonglong options;
+  ulonglong option_bits;
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
   Discrete_interval auto_inc_interval_for_cur_row;
@@ -1590,7 +1571,6 @@ public:
   */
   const char *where;
 
-  double tmp_double_value;                    /* Used in set_var.cc */
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
@@ -1902,7 +1882,6 @@ public:
   }
 
   ulonglong  limit_found_rows;
-  ulonglong  options;           /* Bitmap of states */
   longlong   row_count_func;    /* For the ROW_COUNT() function */
   ha_rows    cuted_fields;
 
@@ -2232,7 +2211,7 @@ public:
   */
   inline bool in_multi_stmt_transaction()
   {
-    return options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
+    return variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   }
   inline bool fill_derived_tables()
   {
@@ -2684,10 +2663,10 @@ my_eof(THD *thd)
 }
 
 #define tmp_disable_binlog(A)       \
-  {ulonglong tmp_disable_binlog__save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG
+  {ulonglong tmp_disable_binlog__save_options= (A)->variables.option_bits; \
+  (A)->variables.option_bits&= ~OPTION_BIN_LOG
 
-#define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
+#define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
 
 
 /*

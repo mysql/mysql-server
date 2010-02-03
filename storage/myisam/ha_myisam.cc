@@ -30,11 +30,12 @@
 #include "myisamdef.h"
 #include "rt_index.h"
 
-ulong myisam_recover_options= HA_RECOVER_NONE;
+ulonglong myisam_recover_options;
+static ulong opt_myisam_block_size;
 
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
-{ "DEFAULT", "BACKUP", "FORCE", "QUICK", NullS};
+{ "DEFAULT", "BACKUP", "FORCE", "QUICK", "OFF", NullS};
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
@@ -43,6 +44,54 @@ const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
   myisam_stats_method_names, NULL};
+
+static MYSQL_SYSVAR_ULONG(block_size, opt_myisam_block_size,
+  PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
+  "Block size to be used for MyISAM index pages", NULL, NULL,
+  MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+  MI_MIN_KEY_BLOCK_LENGTH);
+
+static MYSQL_SYSVAR_ULONG(data_pointer_size, myisam_data_pointer_size,
+  PLUGIN_VAR_RQCMDARG, "Default pointer size to be used for MyISAM tables",
+  NULL, NULL, 6, 2, 7, 1);
+
+#define MB (1024*1024)
+static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size, myisam_max_temp_length,
+  PLUGIN_VAR_RQCMDARG, "Don't use the fast sort index method to created "
+  "index if the temporary file would get bigger than this", NULL, NULL,
+  LONG_MAX/MB*MB, 0, MAX_FILE_SIZE, MB);
+
+static MYSQL_SYSVAR_SET(recover_options, myisam_recover_options,
+  PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_READONLY,
+  "Syntax: myisam-recover-options[=option[,option...]], where option can be "
+  "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
+  NULL, NULL, 0, &myisam_recover_typelib);
+
+static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
+  "If larger than 1, when repairing a MyISAM table all indexes will be "
+  "created in parallel, with one thread per index. The value of 1 "
+  "disables parallel repair", NULL, NULL,
+  1, 1, ULONG_MAX, 1);
+
+static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
+  "The buffer that is allocated when sorting the index when doing "
+  "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE", NULL, NULL,
+  8192*1024, 4, ULONG_MAX, 1);
+
+static MYSQL_SYSVAR_BOOL(use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
+  "Use memory mapping for reading and writing MyISAM tables", NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONGLONG(mmap_size, myisam_mmap_size,
+  PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_READONLY, "Restricts the total memory "
+  "used for memory mapping of MySQL tables", NULL, NULL,
+  SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 1);
+
+static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
+  "Specifies how MyISAM index statistics collection code should "
+  "treat NULLs. Possible values of name are NULLS_UNEQUAL (default "
+  "behavior for 4.1 and later), NULLS_EQUAL (emulate 4.0 behavior), "
+  "and NULLS_IGNORED", NULL, NULL,
+  MI_STATS_METHOD_NULLS_NOT_EQUAL, &myisam_stats_method_typelib);
 
 #ifndef DBUG_OFF
 /**
@@ -751,7 +800,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
-  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+  param.stats_method= (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
@@ -843,7 +892,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
-  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+  param.stats_method= (enum_mi_stats_method)THDVAR(thd, stats_method);
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
@@ -875,7 +924,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   param.testflag= ((check_opt->flags & ~(T_EXTEND)) |
                    T_SILENT | T_FORCE_CREATE | T_CALC_CHECKSUM |
                    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
-  param.sort_buffer_length=  check_opt->sort_buffer_size;
+  param.sort_buffer_length=  THDVAR(thd, sort_buffer_size);
   start_records=file->state->records;
   while ((error=repair(thd,param,0)) && param.retry_repair)
   {
@@ -921,7 +970,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.op_name= "optimize";
   param.testflag= (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
-  param.sort_buffer_length=  check_opt->sort_buffer_size;
+  param.sort_buffer_length=  THDVAR(thd, sort_buffer_size);
   if ((error= repair(thd,param,1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
@@ -979,7 +1028,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       local_testflag|= T_STATISTICS;
       param.testflag|= T_STATISTICS;		// We get this for free
       statistics_done=1;
-      if (thd->variables.myisam_repair_threads>1)
+      if (THDVAR(thd, repair_threads)>1)
       {
         char buf[40];
         /* TODO: respect myisam_repair_threads variable */
@@ -1290,8 +1339,8 @@ int ha_myisam::enable_indexes(uint mode)
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
-    param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-    param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+    param.sort_buffer_length=  THDVAR(thd, sort_buffer_size);
+    param.stats_method= (enum_mi_stats_method)THDVAR(thd, stats_method);
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
@@ -1970,6 +2019,14 @@ static int myisam_init(void *p)
   init_myisam_psi_keys();
 #endif
 
+  /* Set global variables based on startup options */
+  if (myisam_recover_options)
+    ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
+  else
+    myisam_recover_options= HA_RECOVER_OFF;
+
+  myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
+
   myisam_hton= (handlerton *)p;
   myisam_hton->state= SHOW_OPTION_YES;
   myisam_hton->db_type= DB_TYPE_MYISAM;
@@ -1978,6 +2035,19 @@ static int myisam_init(void *p)
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   return 0;
 }
+
+static struct st_mysql_sys_var* myisam_sysvars[]= {
+  MYSQL_SYSVAR(block_size),
+  MYSQL_SYSVAR(data_pointer_size),
+  MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(recover_options),
+  MYSQL_SYSVAR(repair_threads),
+  MYSQL_SYSVAR(sort_buffer_size),
+  MYSQL_SYSVAR(use_mmap),
+  MYSQL_SYSVAR(mmap_size),
+  MYSQL_SYSVAR(stats_method),
+  0
+};
 
 struct st_mysql_storage_engine myisam_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
@@ -1994,8 +2064,8 @@ mysql_declare_plugin(myisam)
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  myisam_sysvars,             /* system variables                */
+  NULL
 }
 mysql_declare_plugin_end;
 

@@ -20,7 +20,7 @@
 #include <m_ctype.h>
 
 
-static const char field_separator=',';
+#define is_field_separator(X) ((X) == ',' || (X) == '=')
 
 int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 {
@@ -44,26 +44,26 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 }
 
 
-/*
+/**
   Search after a string in a list of strings. Endspace in x is not compared.
 
-  SYNOPSIS
-   find_type()
-   x			String to find
-   lib			TYPELIB (struct of pointer to values + count)
-   full_name		bitmap of what to do
-			If & 1 accept only whole names
-			If & 2 don't expand if half field
-			If & 4 allow #number# as type
-			If & 8 use ',' as string terminator
+  @param x              String to find
+  @param lib            TYPELIB (struct of pointer to values + count)
+  @param full_name      bitmap of what to do
+                        If & 1 accept only whole names
+                        If & 2 don't expand if half field
+                        If & 4 allow #number# as type
+                        If & 8 use ',' as string terminator
 
-  NOTES
-    If part, uniq field is found and full_name == 0 then x is expanded
-    to full field.
+  @note
+  If part, uniq field is found and full_name == 0 then x is expanded
+  to full field.
 
-  RETURN
-    -1	Too many matching values
-    0	No matching value
+  @retval
+    -1  Too many matching values
+  @retval
+    0   No matching value
+  @retval
     >0  Offset+1 in typelib for matched string
 */
 
@@ -86,17 +86,17 @@ int find_type(char *x, const TYPELIB *typelib, uint full_name)
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     for (i=x ; 
-    	*i && (!(full_name & 8) || *i != field_separator) &&
+    	*i && (!(full_name & 8) || !is_field_separator(*i)) &&
         my_toupper(&my_charset_latin1,*i) == 
     		my_toupper(&my_charset_latin1,*j) ; i++, j++) ;
     if (! *j)
     {
       while (*i == ' ')
 	i++;					/* skip_end_space */
-      if (! *i || ((full_name & 8) && *i == field_separator))
+      if (! *i || ((full_name & 8) && is_field_separator(*i)))
 	DBUG_RETURN(pos+1);
     }
-    if ((!*i && (!(full_name & 8) || *i != field_separator)) && 
+    if ((!*i && (!(full_name & 8) || !is_field_separator(*i))) && 
         (!*j || !(full_name & 1)))
     {
       find++;
@@ -122,8 +122,12 @@ int find_type(char *x, const TYPELIB *typelib, uint full_name)
 } /* find_type */
 
 
-	/* Get name of type nr 'nr' */
-	/* Warning first type is 1, 0 = empty field */
+/**
+  Get name of type nr
+ 
+  @note
+  first type is 1, 0 = empty field
+*/
 
 void make_type(register char * to, register uint nr,
 	       register TYPELIB *typelib)
@@ -137,8 +141,12 @@ void make_type(register char * to, register uint nr,
 } /* make_type */
 
 
-	/* Get type */
-	/* Warning first type is 0 */
+/**
+  Get type
+
+  @note
+  first type is 0
+*/
 
 const char *get_type(TYPELIB *typelib, uint nr)
 {
@@ -148,18 +156,16 @@ const char *get_type(TYPELIB *typelib, uint nr)
 }
 
 
-/*
+/**
   Create an integer value to represent the supplied comma-seperated
   string where each string in the TYPELIB denotes a bit position.
 
-  SYNOPSIS
-    find_typeset()
-    x		string to decompose
-    lib		TYPELIB (struct of pointer to values + count)
-    err		index (not char position) of string element which was not 
+  @param x      string to decompose
+  @param lib    TYPELIB (struct of pointer to values + count)
+  @param err    index (not char position) of string element which was not 
                 found or 0 if there was no error
 
-  RETURN
+  @retval
     a integer representation of the supplied string
 */
 
@@ -182,9 +188,9 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
   {
     (*err)++;
     i= x;
-    while (*x && *x != field_separator)
+    while (*x && !is_field_separator(*x))
       x++;
-    if (x[0] && x[1])                            /* skip separator if found */
+    if (x[0] && x[1])      /* skip separator if found */
       x++;
     if ((find= find_type(i, lib, 2 | 8) - 1) < 0)
       DBUG_RETURN(0);
@@ -195,16 +201,15 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
 } /* find_set */
 
 
-/*
+/**
   Create a copy of a specified TYPELIB structure.
 
-  SYNOPSIS
-    copy_typelib()
-    root	pointer to a MEM_ROOT object for allocations
-    from	pointer to a source TYPELIB structure
+  @param root   pointer to a MEM_ROOT object for allocations
+  @param from   pointer to a source TYPELIB structure
 
-  RETURN
-    pointer to the new TYPELIB structure on successful copy, or
+  @retval
+    pointer to the new TYPELIB structure on successful copy
+  @retval
     NULL otherwise
 */
 
@@ -244,3 +249,140 @@ TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from)
 
   return to;
 }
+
+
+static const char *on_off_default_names[]= { "off","on","default", 0};
+static TYPELIB on_off_default_typelib= {array_elements(on_off_default_names)-1,
+                                        "", on_off_default_names, 0};
+
+/**
+  Parse a TYPELIB name from the buffer
+
+  @param lib          Set of names to scan for.
+  @param strpos INOUT Start of the buffer (updated to point to the next
+                      character after the name)
+  @param end          End of the buffer
+
+  @note
+  The buffer is assumed to contain one of the names specified in the TYPELIB,
+  followed by comma, '=', or end of the buffer.
+
+  @retval
+    0   No matching name
+  @retval
+    >0  Offset+1 in typelib for matched name
+*/
+
+static uint parse_name(const TYPELIB *lib, const char **strpos, const char *end)
+{
+  const char *pos= *strpos;
+  uint find= find_type((char*)pos, lib, 8);
+  for (; pos != end && *pos != '=' && *pos !=',' ; pos++);
+  *strpos= pos;
+  return find;
+}
+
+/**
+  Parse and apply a set of flag assingments
+
+  @param lib               Flag names
+  @param default_name      Number of "default" in the typelib
+  @param cur_set           Current set of flags (start from this state)
+  @param default_set       Default set of flags (use this for assign-default
+                           keyword and flag=default assignments)
+  @param str               String to be parsed
+  @param length            Length of the string
+  @param err_pos      OUT  If error, set to point to start of wrong set string
+                           NULL on success
+  @param err_len      OUT  If error, set to the length of wrong set string
+
+  @details
+  Parse a set of flag assignments, that is, parse a string in form:
+
+    param_name1=value1,param_name2=value2,... 
+  
+  where the names are specified in the TYPELIB, and each value can be
+  either 'on','off', or 'default'. Setting the same name twice is not 
+  allowed.
+  
+  Besides param=val assignments, we support the "default" keyword (keyword 
+  #default_name in the typelib). It can be used one time, if specified it 
+  causes us to build the new set over the default_set rather than cur_set
+  value.
+
+  @note
+  it's not charset aware
+
+  @retval
+    Parsed set value if (*errpos == NULL), otherwise undefined
+*/
+
+my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
+                              my_ulonglong cur_set, my_ulonglong default_set,
+                              const char *str, uint length,
+                              char **err_pos, uint *err_len)
+{
+  const char *end= str + length;
+  my_ulonglong flags_to_set= 0, flags_to_clear= 0, res;
+  my_bool set_defaults= 0;
+
+  *err_pos= 0;                  // No error yet
+  if (str != end)
+  {
+    const char *start= str;    
+    for (;;)
+    {
+      const char *pos= start;
+      uint flag_no, value;
+
+      if (!(flag_no= parse_name(lib, &pos, end)))
+        goto err;
+
+      if (flag_no == default_name)
+      {
+        /* Using 'default' twice isn't allowed. */
+        if (set_defaults)
+          goto err;
+        set_defaults= TRUE;
+      }
+      else
+      {
+        my_ulonglong bit=  (1ULL << (flag_no - 1));
+        /* parse the '=on|off|default' */
+        if ((flags_to_clear | flags_to_set) & bit ||
+            pos >= end || *pos++ != '=' ||
+            !(value= parse_name(&on_off_default_typelib, &pos, end)))
+          goto err;
+        
+        if (value == 1) // this is '=off'
+          flags_to_clear|= bit;
+        else if (value == 2) // this is '=on'
+          flags_to_set|= bit;
+        else // this is '=default' 
+        {
+          if (default_set & bit)
+            flags_to_set|= bit;
+          else
+            flags_to_clear|= bit;
+        }
+      }
+      if (pos >= end)
+        break;
+
+      if (*pos++ != ',')
+        goto err;
+
+      start=pos;
+      continue;
+   err:
+      *err_pos= (char*)start;
+      *err_len= end - start;
+      break;
+    }
+  }
+  res= set_defaults? default_set : cur_set;
+  res|= flags_to_set;
+  res&= ~flags_to_clear;
+  return res;
+}
+

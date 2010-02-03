@@ -25,6 +25,7 @@
 #include "sql_trigger.h"
 #include "sql_show.h"
 #include "transaction.h"
+#include "keycaches.h"
 
 #ifdef __WIN__
 #include <io.h>
@@ -2290,10 +2291,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b_flags & HA_NOSAME))
       return -1;
-    if ((a_flags ^ b_flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
+    if ((a_flags ^ b_flags) & HA_NULL_PART_KEY)
     {
       /* Sort NOT NULL keys before other keys */
-      return (a_flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
+      return (a_flags & HA_NULL_PART_KEY) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -5119,45 +5120,6 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 0,
 				0, 0, &handler::assign_to_keycache, 0));
-}
-
-
-/*
-  Reassign all tables assigned to a key cache to another key cache
-
-  SYNOPSIS
-    reassign_keycache_tables()
-    thd		Thread object
-    src_cache	Reference to the key cache to clean up
-    dest_cache	New key cache
-
-  NOTES
-    This is called when one sets a key cache size to zero, in which
-    case we have to move the tables associated to this key cache to
-    the "default" one.
-
-    One has to ensure that one never calls this function while
-    some other thread is changing the key cache. This is assured by
-    the caller setting src_cache->in_init before calling this function.
-
-    We don't delete the old key cache as there may still be pointers pointing
-    to it for a while after this function returns.
-
- RETURN VALUES
-    0	  ok
-*/
-
-int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache,
-			     KEY_CACHE *dst_cache)
-{
-  DBUG_ENTER("reassign_keycache_tables");
-
-  DBUG_ASSERT(src_cache != dst_cache);
-  DBUG_ASSERT(src_cache->in_init);
-  src_cache->param_buff_size= 0;		// Free key cache
-  ha_resize_key_cache(src_cache);
-  ha_change_key_cache(src_cache, dst_cache);
-  DBUG_RETURN(0);
 }
 
 

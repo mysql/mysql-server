@@ -114,7 +114,6 @@ SET @@session.div_precision_increment = -2;
 SELECT @@session.div_precision_increment;
 SET @@session.div_precision_increment = 65550;
 SELECT @@session.div_precision_increment;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.div_precision_increment = 65530.30;

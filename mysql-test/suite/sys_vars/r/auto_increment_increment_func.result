@@ -95,8 +95,6 @@ id	name
 113	Record_8
 115	Record_9
 116	Record_10
-'Bug#35362: Here Record_10 id should be 120 instead of 115 because we'
-'have set the value of variable to 5'
 SET @@session.auto_increment_increment = 1;
 SELECT @@auto_increment_increment;
 @@auto_increment_increment
@@ -189,7 +187,6 @@ id	name
 127	Record_16
 128	Record_17
 129	Record_18
-'Bug#35364: Variable is incrementing some random values on assigning -ve value'
 ## Disconnecting test_con2 ##
 ## Dropping table t1 ##
 DROP table if exists t1;

@@ -23,15 +23,16 @@
 #include <myisam.h>
 #include <ft_global.h>
 
-#define HA_RECOVER_NONE		0	/* No automatic recover */
 #define HA_RECOVER_DEFAULT	1	/* Automatic recover active */
 #define HA_RECOVER_BACKUP	2	/* Make a backupfile on recover */
 #define HA_RECOVER_FORCE	4	/* Recover even if we loose rows */
 #define HA_RECOVER_QUICK	8	/* Don't check rows in data file */
+#define HA_RECOVER_OFF         16	/* No automatic recover */
 
 extern ulong myisam_sort_buffer_size;
 extern TYPELIB myisam_recover_typelib;
-extern ulong myisam_recover_options;
+extern const char *myisam_recover_names[];
+extern ulonglong myisam_recover_options;
 
 class ha_myisam: public handler
 {
