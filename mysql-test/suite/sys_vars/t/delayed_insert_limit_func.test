@@ -46,6 +46,7 @@ SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
 #
 
 CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
+CREATE VIEW v1 as select * from t1;
 
 --echo '#--------------------FN_DYNVARS_25_01-------------------------#'
 
@@ -60,7 +61,7 @@ INSERT INTO t1 VALUES('4','1','1');
 INSERT INTO t1 VALUES('5','1','1');
 INSERT INTO t1 VALUES('6','1','1');
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -122,7 +123,7 @@ connection default;
 --echo ** Wait till con0 is blocked **
 let $wait_condition=
    SELECT COUNT(*) = 1 FROM information_schema.processlist
-   WHERE state = 'Locked' AND info = '$my_select';
+   WHERE state = 'Table lock' AND info = '$my_select';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -153,6 +154,7 @@ let $wait_condition= SELECT count(*) = 43 FROM t1;
 SELECT COUNT(*) FROM t1;
 
 DROP TABLE t1;
+DROP VIEW v1;
 
 
 --echo '#--------------------FN_DYNVARS_25_02-------------------------#'
@@ -160,6 +162,7 @@ DROP TABLE t1;
 # delayed_insert_limit is bigger than the number of inserted rows
 
 CREATE TABLE t1 (a VARCHAR(100));
+CREATE VIEW v1 AS SELECT * FROM t1;
 
 SET GLOBAL delayed_insert_limit = 20;
 
@@ -170,7 +173,7 @@ INSERT INTO t1 VALUES('4');
 INSERT INTO t1 VALUES('5');
 INSERT INTO t1 VALUES('6');
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -214,7 +217,7 @@ connection default;
 --echo ** Wait till con0 is blocked **
 let $wait_condition=
    SELECT COUNT(*) = 1 FROM information_schema.processlist
-   WHERE state = 'Locked' AND info = '$my_select';
+   WHERE state = 'Table lock' AND info = '$my_select';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -240,6 +243,7 @@ eval $my_select;
 --echo ** Connection default**
 connection default;
 DROP TABLE t1;
+DROP VIEW v1;
 SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
 
 --echo Disconnecting from con1, con0
