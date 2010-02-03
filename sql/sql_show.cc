@@ -3317,11 +3317,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   while ((db_name= it++))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd, SELECT_ACL, db_name->str,
-                      &thd->col_access, NULL, 0, 1) ||
+    if (!(check_access(thd, SELECT_ACL, db_name->str,
+                       &thd->col_access, NULL, 0, 1) ||
+          (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
-	!check_grant_db(thd, db_name->str))
+        acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
 #endif
     {
       thd->no_warnings_for_error= 1;
