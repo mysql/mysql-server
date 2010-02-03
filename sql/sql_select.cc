@@ -6347,7 +6347,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown)
+	  if (thd->variables.optimizer_switch &
+              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map);
@@ -16637,7 +16638,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
 
-            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            if ((thd->variables.optimizer_switch &
+                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));

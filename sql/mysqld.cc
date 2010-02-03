@@ -7389,6 +7389,18 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_ENGINE_CONDITION_PUSHDOWN:
+    /*
+      The last of --engine-condition-pushdown and --optimizer_switch on
+      command line wins (see get_options().
+    */
+    if (global_system_variables.engine_condition_pushdown)
+      global_system_variables.optimizer_switch|=
+        OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+    else
+      global_system_variables.optimizer_switch&=
+        ~OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+    break;
   }
   return 0;
 }
@@ -7615,6 +7627,11 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
 #endif
+
+  global_system_variables.engine_condition_pushdown=
+    test(global_system_variables.optimizer_switch &
+         OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+
   return 0;
 }
 

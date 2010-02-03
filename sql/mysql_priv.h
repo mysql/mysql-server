@@ -622,17 +622,19 @@ protected:
 #define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
 /* @@optimizer_switch flags. These must be in sync with optimizer_switch_typelib */
-#define OPTIMIZER_SWITCH_INDEX_MERGE 1
-#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION 2
-#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION 4
-#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
-#define OPTIMIZER_SWITCH_LAST 16
+#define OPTIMIZER_SWITCH_INDEX_MERGE               (1ULL << 0)
+#define OPTIMIZER_SWITCH_INDEX_MERGE_UNION         (1ULL << 1)
+#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
+#define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
+#define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 5)
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
 
 
 /*
@@ -2646,7 +2648,8 @@ enum options_mysqld
   OPT_SSL_CIPHER,
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
-  OPT_WANT_CORE
+  OPT_WANT_CORE,
+  OPT_ENGINE_CONDITION_PUSHDOWN
 };
 
 #endif /* MYSQL_SERVER */

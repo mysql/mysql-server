@@ -154,8 +154,8 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES) $(storageobj
 if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
-		-rm -f libmysqld.a
-		if test "$(host_os)" = "netware" ; \
+	-rm -f libmysqld.a
+	if test "$(host_os)" = "netware" ; \
 		then \
 		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
 		else \
