@@ -1208,12 +1208,13 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
           DBUG_RETURN(1); // EOM
         }
-
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                            ER_TRG_NO_CREATION_CTX,
-                            ER(ER_TRG_NO_CREATION_CTX),
-                            (const char*) db,
-                            (const char*) table_name);
+        
+        if (!thd->no_warnings_for_error)
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_TRG_NO_CREATION_CTX,
+                              ER(ER_TRG_NO_CREATION_CTX),
+                              (const char*) db,
+                              (const char*) table_name);
 
         if (!(trg_client_cs_name= alloc_lex_string(&table->mem_root)) ||
             !(trg_connection_cl_name= alloc_lex_string(&table->mem_root)) ||
@@ -1342,12 +1343,12 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             MySQL, which does not support triggers definers. We should emit
             warning here.
           */
-
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                              ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
-                              (const char*) db,
-                              (const char*) lex.sphead->m_name.str);
-
+          if (!thd->no_warnings_for_error)
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
+                                (const char*) db,
+                                (const char*) lex.sphead->m_name.str);
+          
           /*
             Set definer to the '' to correct displaying in the information
             schema.

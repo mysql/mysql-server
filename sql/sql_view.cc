@@ -1122,8 +1122,18 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                         table->db, table->table_name);
     get_default_definer(thd, &table->definer);
   }
+
+  /*
+    Initialize view definition context by character set names loaded from
+    the view definition file. Use UTF8 character set if view definition
+    file is of old version and does not contain the character set names.
+  */
+  table->view_creation_ctx= View_creation_ctx::create(thd, table);
+
   if (flags & OPEN_VIEW_NO_PARSE)
   {
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
     DBUG_RETURN(FALSE);
   }
 
@@ -1152,13 +1162,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   /*TODO: md5 test here and warning if it is differ */
 
-  /*
-    Initialize view definition context by character set names loaded from
-    the view definition file. Use UTF8 character set if view definition
-    file is of old version and does not contain the character set names.
-  */
-
-  table->view_creation_ctx= View_creation_ctx::create(thd, table);
 
   /*
     TODO: TABLE mem root should be used here when VIEW will be stored in
