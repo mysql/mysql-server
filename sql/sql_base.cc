@@ -4996,8 +4996,6 @@ retry:
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, 0)) &&
          ot_ctx.can_recover_from_failed_open())
   {
-    /* We never have an open HANDLER, LOCK TABLES or GRL here. */
-    DBUG_ASSERT(thd->mdl_context.trans_sentinel() == NULL);
     /*
       Even though we have failed to open table we still need to
       call release_transactional_locks() to release metadata locks which
@@ -5048,8 +5046,6 @@ retry:
             close_thread_tables(thd);
             table_list->table= NULL;
             table_list->mdl_request.ticket= NULL;
-            /* We never have an open HANDLER, LOCK TABLES or GRL here. */
-            DBUG_ASSERT(thd->mdl_context.trans_sentinel() == NULL);
             thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
             goto retry;
           }
