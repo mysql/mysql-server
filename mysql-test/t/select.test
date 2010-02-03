@@ -3766,5 +3766,22 @@ EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #48291 : crash with row() operator,select into @var, and 
+--echo #   subquery returning multiple rows
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (2),(3);
+
+--echo # Should not crash
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1 WHERE a <> 1 AND NOT
+ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
+INTO @var0;
+
+DROP TABLE t1;
  
+
 --echo End of 5.0 tests
