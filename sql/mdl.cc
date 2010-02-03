@@ -1141,36 +1141,6 @@ bool MDL_ticket::is_incompatible_when_waiting(enum_mdl_type type) const
 
 
 /**
-  Acquire global intention exclusive lock.
-
-  @param[in]  mdl_request  Lock request object for lock to be acquired
-
-  @retval  FALSE   Success. The lock has been acquired.
-  @retval  TRUE    Error.
-*/
-
-bool
-MDL_context::acquire_global_intention_exclusive_lock(MDL_request *mdl_request)
-{
-  DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::GLOBAL &&
-              mdl_request->type == MDL_INTENTION_EXCLUSIVE);
-
-  /*
-    If this is a non-recursive attempt to acquire global intention
-    exclusive lock we might have to wait until active global shared
-    lock or pending requests will go away. Since we won't hold any
-    resources (except associated with open HANDLERs) while doing it
-    deadlocks are not possible.
-  */
-  DBUG_ASSERT(is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE) ||
-              ! has_locks() ||
-              (m_trans_sentinel && m_tickets.front() == m_trans_sentinel));
-
-  return acquire_lock(mdl_request);
-}
-
-
-/**
   Check whether the context already holds a compatible lock ticket
   on an object.
   Start searching the transactional locks. If not

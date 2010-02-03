@@ -515,8 +515,6 @@ public:
 
   inline THD *get_thd() const { return m_thd; }
 
-  bool acquire_global_intention_exclusive_lock(MDL_request *mdl_request);
-
   /**
     Wake up context which is waiting for a change of MDL_lock state.
   */
