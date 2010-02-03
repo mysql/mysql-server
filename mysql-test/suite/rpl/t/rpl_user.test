@@ -54,85 +54,8 @@ drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 sync_slave_with_master;
 select Host,User from mysql.user where Host='fakehost';
 
+#
+# show the binlog events on the master
+#
 connection master;
 source include/show_binlog_events.inc;
-
-#
-# BUG#48321
-#
-let $action= RENAME;
-let $statement= RENAME USER \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-let $action= DROP;
-let $statement= DROP USER \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
---disable_warnings
-DROP PROCEDURE IF EXISTS f1;
---enable_warnings
-CREATE PROCEDURE p1() SELECT 1;
-#REVOKE ALL PRIVILEGES
-let $action= REVOKE;
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Grant_priv;
-let $statement= REVOKE ALL PRIVILEGES, GRANT OPTION FROM \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-#REVOKE ALL PRIVILEGES with comment
-let $action= REVOKE;
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Grant_priv;
-let $statement= REVOKE ALL PRIVILEGES, GRANT OPTION FROM \$users_list /*With comment*/;
-source extra/rpl_tests/rpl_current_user.test;
-
-#REVOKE ALL PRIVILEGES with comment
-let $action= REVOKE;
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Grant_priv;
-let $statement= REVOKE ALL PRIVILEGES, GRANT OPTION FROM /*With comment*/ \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv;
-#REVOKE ON TABLE
-let $statement= REVOKE SELECT, UPDATE, CREATE, DROP ON TABLE *.* FROM \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-#REVOKE ON CREATE ROUTINE
-let $diff_columns= Create_routine_priv;
-let $statement= REVOKE CREATE ROUTINE ON *.* FROM \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-#REVOKE ON ROUTINE
-let $diff_table= mysql.procs_priv;
-let $diff_columns= Routine_name, Proc_priv;
-let $statement= REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-let $diff_table= mysql.user;
-#GRANT ALL PRIVILEGES
-let $action= GRANT;
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Grant_priv, Password;
-let $statement= GRANT ALL PRIVILEGES ON *.* TO \$users_list WITH GRANT OPTION;
-source extra/rpl_tests/rpl_current_user.test;
-
-#GRANT ALL PRIVILEGES with comment
-let $action= GRANT;
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Grant_priv, Password;
-let $statement= GRANT ALL PRIVILEGES ON *.* TO \$users_list /* With Comment */ WITH GRANT OPTION;
-source extra/rpl_tests/rpl_current_user.test;
-
-#GRANT ON TABLE
-let $diff_columns= Select_priv, Update_priv, Create_priv, Drop_priv, Password;
-let $statement= GRANT SELECT, UPDATE, CREATE, DROP ON TABLE *.* TO \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-#GRANT ON CREATE ROUTINE
-let $diff_columns= Create_routine_priv;
-let $statement= GRANT CREATE ROUTINE ON *.* TO \$users_list;
-source extra/rpl_tests/rpl_current_user.test;
-
-#GRANT ON ROUTINE
-let $diff_table= mysql.procs_priv;
-let $diff_columns= Routine_name, Proc_priv;
-let $statement= GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO \$users_list;
-
-DROP PROCEDURE p1;
-source extra/rpl_tests/rpl_current_user.test;
