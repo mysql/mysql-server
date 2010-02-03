@@ -80,7 +80,9 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_attrInfoGSN(GSN_ATTRINFO),
   theBlobList(NULL),
   m_abortOption(-1),
-  m_noErrorPropagation(false)
+  m_noErrorPropagation(false),
+  theLockHandle(NULL),
+  m_blob_lock_upgraded(false)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
   theError.code = 0;
@@ -232,6 +234,9 @@ NdbOperation::release()
   }
   theBlobList = NULL;
   theReceiver.release();
+
+  theLockHandle = NULL;
+  m_blob_lock_upgraded = false;
 }
 
 void
@@ -540,4 +545,81 @@ NdbTransaction*
 NdbOperation::getNdbTransaction() const
 {
   return theNdbCon; 
+}
+
+int
+NdbOperation::getLockHandleImpl()
+{
+  assert(! theLockHandle);
+  
+  if (unlikely(theNdb->getMinDbNodeVersion() < 
+               NDBD_UNLOCK_OP_SUPPORTED))
+  {
+    /* Function not implemented yet */
+    return 4003;
+  }
+
+  if (likely(((theOperationType == ReadRequest) ||
+              (theOperationType == ReadExclusive)) &&
+             (m_type == PrimaryKeyAccess) &&
+             ((theLockMode == LM_Read) |
+              (theLockMode == LM_Exclusive))))
+  {
+    theLockHandle = theNdbCon->getLockHandle();
+    if (!theLockHandle)
+    {
+      return 4000;
+    }
+    
+    /* Now operation has a LockHandle - it'll be
+     * filled-in when the operation is prepared prior
+     * to execution.
+     */
+    assert(theLockHandle->m_state == NdbLockHandle::ALLOCATED);
+    assert(! theLockHandle->isLockRefValid());
+    
+    return 0;
+  }
+  else
+  {
+    /* getLockHandle only supported for primary key read with a lock */
+    return 4549;
+  }  
+}
+
+const NdbLockHandle*
+NdbOperation::getLockHandle()
+{
+  if (likely (! m_blob_lock_upgraded))
+  {
+    if (theLockHandle == NULL)
+    {
+      int rc = getLockHandleImpl();
+      
+      if (likely(rc == 0))
+        return theLockHandle;
+      else
+      {
+        setErrorCode(rc);
+        return NULL;
+      }
+    }
+    /* Return existing LockHandle */
+    return theLockHandle;
+  }
+  else
+  {
+    /* Not allowed to call getLockHandle() on a Blob-upgraded
+     * read
+     */
+    setErrorCode(4549);
+    return NULL;
+  } 
+}
+  
+const NdbLockHandle*
+NdbOperation::getLockHandle() const
+{
+  /* NdbRecord / handle already exists variant */
+  return theLockHandle;
 }

@@ -29,6 +29,8 @@
 #include <NdbEventOperationImpl.hpp>
 #include <NdbEnv.h>
 #include "NdbRecord.hpp"
+#include "NdbUtil.hpp"
+#include <ndb_version.h>
 
 /*
  * Reading index table directly (as a table) is faster but there are
@@ -2069,7 +2071,48 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
     if (isReadOp()) {
       // upgrade lock mode
       if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+      {
+        assert(! theNdbOp->m_blob_lock_upgraded);
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
+        theNdbOp->m_blob_lock_upgraded = true;
+
+        if (!isIndexOp())
+        {
+          assert(theNdbOp->theLockHandle == NULL);
+          /* If the kernel supports it we'll ask for a lockhandle
+           * to allow us to unlock the main table row when the
+           * Blob handle is closed
+           */
+          if (likely(theNdb->getMinDbNodeVersion() >=
+                     NDBD_UNLOCK_OP_SUPPORTED))
+          {
+            /* We've upgraded the lock from LM_Committed to LM_Read
+             * Now modify the read operation to request an NdbLockHandle
+             * so that we can unlock the main table op on close()
+             */
+            if (theNdbOp->m_attribute_record)
+            {
+              /* NdbRecord op, need to set-up NdbLockHandle */
+              int rc = theNdbOp->prepareGetLockHandleNdbRecord();
+              if (rc != 0)
+              {
+                setErrorCode(rc, true);
+                return -1;
+              }
+            }
+            else
+            {
+              /* NdbRecAttr op, request lock handle read */
+              int rc = theNdbOp->getLockHandleImpl();
+              if (rc != 0)
+              {
+                setErrorCode(rc, true);
+                return -1;
+              }
+            }
+          }
+        }        
+      }
       // add read of head+inline in this op
       if (getHeadInlineValue(theNdbOp) == -1)
         return -1;
@@ -2099,7 +2142,11 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
        * point, so it's easy to change the mode
        */ 
       if (sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead)
+      {
+        assert(! theNdbOp->m_blob_lock_upgraded);
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
+        theNdbOp->m_blob_lock_upgraded = true;
+      }
     }
     else
     {
@@ -2108,7 +2155,11 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
        * the lockmode
        */
       if (sop->theLockMode == NdbOperation::LM_CommittedRead)
+      {
+        assert(! theNdbOp->m_blob_lock_upgraded);
         sop->setReadLockMode(NdbOperation::LM_Read);
+        theNdbOp->m_blob_lock_upgraded = true;
+      }
     }
 
     // add read of head+inline in this op
@@ -2136,7 +2187,18 @@ NdbBlob::atPrepareNdbRecord(NdbTransaction* aCon, NdbOperation* anOp,
   assert(isKeyOp());
 
   if (isTableOp())
+  {
     res= copyKeyFromRow(key_record, key_row, thePackKeyBuf, theKeyBuf);
+
+    if (theNdbOp->theLockHandle)
+    {
+      /* Record in the lock handle that we have another
+       * open Blob which must be closed before the 
+       * main table operation can be unlocked.
+       */
+      theNdbOp->theLockHandle->m_openBlobCount++;
+    }
+  }
   else if (isIndexOp())
     res= copyKeyFromRow(key_record, key_row, thePackKeyBuf, theAccessKeyBuf);
   if (res == -1)
@@ -2170,6 +2232,15 @@ NdbBlob::atPrepareNdbRecordTakeover(NdbTransaction* aCon, NdbOperation* anOp,
   thePackKeyBuf.zerorest();
   if (unpackKeyValue(theTable, theKeyBuf) == -1)
     DBUG_RETURN(-1);
+
+  if (theNdbOp->theLockHandle)
+  {
+    /* Record in the lock handle that we have another
+     * open Blob which must be closed before the 
+     * main table operation can be unlocked.
+     */
+    theNdbOp->theLockHandle->m_openBlobCount++;
+  }
 
   DBUG_RETURN(0);
 }
@@ -2740,6 +2811,8 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
 {
   DBUG_ENTER("NdbBlob::postExecute");
   DBUG_PRINT("info", ("this=%p op=%p con=%p anExecType=%u", this, theNdbOp, theNdbCon, anExecType));
+  if (theState == Closed)
+    DBUG_RETURN(0); // Nothing to do here 
   if (theState == Invalid)
     DBUG_RETURN(-1);
   if (theState == Active) {
@@ -2962,6 +3035,8 @@ NdbBlob::preCommit()
 {
   DBUG_ENTER("NdbBlob::preCommit");
   DBUG_PRINT("info", ("this=%p op=%p con=%p", this, theNdbOp, theNdbCon));
+  if (theState == Closed)
+    DBUG_RETURN(0); // Nothing to do here
   if (theState == Invalid)
     DBUG_RETURN(-1);
   if (unlikely((theState == Prepared) && 
@@ -3169,4 +3244,106 @@ const NdbOperation*
 NdbBlob::getNdbOperation() const
 {
   return theNdbOp;
+}
+
+int 
+NdbBlob::close(bool execPendingBlobOps)
+{
+  DBUG_ENTER("NdbBlob::close");
+  DBUG_PRINT("info", ("this=%p state=%u", this, theState));
+
+  /* A Blob can only be closed if it is in the Active state
+   * with no pending operations
+   */
+  if (theState != Active)
+  {
+    /* NdbBlob can only be closed from Active state */
+    setErrorCode(4554);
+    DBUG_RETURN(-1);
+  }
+
+  if (execPendingBlobOps)
+  {
+    if (thePendingBlobOps != 0)
+    {
+      if (theNdbCon->executeNoBlobs(NdbTransaction::NoCommit) == -1)
+        DBUG_RETURN(-1);
+      thePendingBlobOps = 0;
+      theNdbCon->thePendingBlobOps = 0;
+    }
+  } 
+  else if (thePendingBlobOps != 0)
+  {
+    /* NdbBlob cannot be closed with pending operations */
+    setErrorCode(4555);
+    DBUG_RETURN(-1);
+  }
+
+  setState(Closed);
+
+  if (theNdbOp->theLockHandle)
+  {
+    DBUG_PRINT("info", 
+               ("Decrementing lockhandle Blob ref count to %d",
+                theNdbOp->theLockHandle->m_openBlobCount -1));
+
+    /* Reduce open blob ref count in main table 
+     * operation's lock handle
+     * The main table operation can only be unlocked when
+     * the LockHandle's open blob refcount is zero.
+     */
+    assert(theNdbOp->theLockHandle->m_openBlobCount > 0);
+    
+    theNdbOp->theLockHandle->m_openBlobCount --;
+  }
+
+  if (theNdbOp->m_blob_lock_upgraded)
+  {
+    assert( theNdbOp->theLockMode == NdbOperation::LM_Read );
+    
+    /* In some upgrade scenarios, kernel may not support
+     * unlock, so there will be no LockHandle
+     * In that case we revert to the old behaviour - 
+     * do nothing and the main table row stays locked until
+     * commit / abort.
+     */
+    if (likely(theNdbOp->theLockHandle != NULL))
+    {
+      if (theNdbOp->theLockHandle->m_openBlobCount == 0)
+      {
+        DBUG_PRINT("info",
+                   ("Upgraded LM_CommittedRead->LM_Read lock "
+                    "now no longer required.  Issuing unlock "
+                    " operation"));
+        /* We can now issue an unlock operation for the main
+         * table row - it was supposed to be LM_CommittedRead
+         */
+        const NdbOperation* op = theNdbCon->unlock(theNdbOp->theLockHandle,
+                                                   NdbOperation::AbortOnError);
+        
+        if (unlikely(op == NULL))
+        {
+          /* setErrorCode will extract the error from the transaction... */
+          setErrorCode((NdbOperation*) NULL, true); // Set Blob to invalid state
+          DBUG_RETURN(-1);
+        }
+        
+        thePendingBlobOps |= (1 << NdbOperation::UnlockRequest);
+        theNdbCon->thePendingBlobOps |= (1 << NdbOperation::UnlockRequest);
+        
+        if (unlikely(theNdbCon->releaseLockHandle(theNdbOp->theLockHandle) != 0))
+        {
+          setErrorCode(theNdbCon->theError.code, true); // Set Blob to invalid state
+          DBUG_RETURN(-1);
+        }
+      }
+    }
+  }
+  
+  /*
+   * TODO : Release some other resources in the close() call to make it
+   * worthwhile for more than unlocking.
+   */
+  
+  DBUG_RETURN(0);
 }

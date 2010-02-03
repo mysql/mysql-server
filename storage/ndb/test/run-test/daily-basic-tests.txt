@@ -1511,3 +1511,36 @@ max-time: 500
 cmd: testNdbinfo
 args:
 
+# Unlock row tests as of 22/01/10
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockBasic T1
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockRepeat T2
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockMulti T3
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockScan T1
+
+max-time: 300
+cmd: testBasic
+args: -n UnlockBatch T6
+
+max-time: 300
+cmd: testBasic
+args: -n DoubleUnlock T1
+
+max-time: 300
+cmd: testBasic
+args: -n UnlockUpdateBatch T3
+
+max-time: 300
+cmd: testNodeRestart
+args: -n MixReadUnlockRestart T1
+

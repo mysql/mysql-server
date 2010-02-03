@@ -83,6 +83,8 @@ public:
   STATIC_CONST( KeyInfoSectionNum = 0 );
   STATIC_CONST( AttrInfoSectionNum = 1 );
 
+  STATIC_CONST( UnlockKeyLen = 2 );
+
 private:
 
   enum AbortOption {

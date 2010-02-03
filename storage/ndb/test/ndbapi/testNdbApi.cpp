@@ -3566,6 +3566,877 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
   
+void outputLockMode(NdbOperation::LockMode lm)
+{
+  switch(lm)
+  {
+  case NdbOperation::LM_Exclusive:
+    ndbout << "LM_Exclusive";
+    break;
+  case NdbOperation::LM_Read:
+    ndbout << "LM_Read";
+    break;
+  case NdbOperation::LM_SimpleRead:
+    ndbout << "LM_SimpleRead";
+    break;
+  case NdbOperation::LM_CommittedRead:
+    ndbout << "LM_CommittedRead";
+    break;
+  }
+}
+
+NdbOperation::LockMode chooseLockMode(bool onlyRealLocks = false)
+{
+  Uint32 choice;
+  
+  if (onlyRealLocks)
+  {
+    choice = rand() % 2;
+  }
+  else
+  {
+    choice = rand() % 4;
+  }
+
+  NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
+
+  switch(choice)
+  {
+  case 0:
+    lm = NdbOperation::LM_Exclusive;
+    break;
+  case 1:
+    lm = NdbOperation::LM_Read;
+    break;
+  case 2:
+    lm = NdbOperation::LM_SimpleRead;
+    break;
+  case 3:
+  default:
+    lm = NdbOperation::LM_CommittedRead;
+    break;
+  }
+
+  outputLockMode(lm);
+  ndbout << endl;
+
+  return lm;
+}
+
+NdbOperation::LockMode chooseConflictingLockMode(NdbOperation::LockMode lm)
+{
+  NdbOperation::LockMode conflicting = NdbOperation::LM_Exclusive;
+
+  switch (lm) 
+  {
+  case NdbOperation::LM_Exclusive:
+    conflicting = (((rand() % 2) == 0) ? 
+                   NdbOperation::LM_Exclusive :
+                   NdbOperation::LM_Read);
+
+    break;
+  case NdbOperation::LM_Read:
+    conflicting = NdbOperation::LM_Exclusive;
+    break;
+  default:
+    abort(); // SimpleRead + CommittedRead can't conflict reliably
+  }
+
+  ndbout << "conflicting with ";
+  outputLockMode(lm);
+  ndbout << " using ";
+  outputLockMode(conflicting);
+  ndbout << endl;
+  return conflicting;
+}   
+
+#define CHECKN(c, o, e) { if (!(c)) {                     \
+    ndbout << "Failed on line " << __LINE__ << endl;    \
+    ndbout << (o)->getNdbError() << endl;               \
+    return e; } }
+
+NdbOperation* defineReadAllColsOp(HugoOperations* hugoOps,
+                                  NdbTransaction* trans,
+                                  const NdbDictionary::Table* pTab,
+                                  NdbOperation::LockMode lm,
+                                  Uint32 rowNum)
+{
+  NdbOperation* op = trans->getNdbOperation(pTab);
+  CHECKN(op != NULL, trans, NULL);
+    
+  CHECKN(op->readTuple(lm) == 0, op, NULL);
+  
+  hugoOps->equalForRow(op, rowNum);
+  
+  for(int c = 0; c < pTab->getNoOfColumns(); c++)
+  {
+    if(!pTab->getColumn(c)->getPrimaryKey())
+    {
+      CHECKN(op->getValue(pTab->getColumn(c)->getName()) != NULL, op, NULL);
+    }
+  }
+  
+  return op;
+}
+
+bool checkReadRc(HugoOperations* hugoOps,
+                 Ndb* ndb,
+                 const NdbDictionary::Table* pTab,
+                 NdbOperation::LockMode lm,
+                 Uint32 rowNum,
+                 int expectedRc)
+{
+  NdbTransaction* trans = ndb->startTransaction();
+  CHECKN(trans != NULL, ndb, false);
+  
+  NdbOperation* readOp = defineReadAllColsOp(hugoOps,
+                                             trans,
+                                             pTab,
+                                             lm,
+                                             rowNum);
+  CHECKN(readOp != NULL, trans, false);
+
+  int execRc = trans->execute(Commit);
+  
+  if (expectedRc)
+  {
+    /* Here we assume that the error is on the transaction
+     * which may not be the case for some errors
+     */
+    if (trans->getNdbError().code != expectedRc)
+    {
+      ndbout << "Expected " << expectedRc << " at " << __LINE__ << endl;
+      ndbout << "Got " << trans->getNdbError() << endl;
+      return false;
+    }
+  }
+  else
+  {
+    CHECKN(execRc == 0, trans, false);
+    CHECKN(readOp->getNdbError().code == 0, readOp, false);
+  }
+  
+  trans->close();
+
+  return true;
+}
+
+bool checkReadDeadlocks(HugoOperations* hugoOps,
+                        Ndb* ndb,
+                        const NdbDictionary::Table* pTab,
+                        NdbOperation::LockMode lm,
+                        Uint32 rowNum)
+{
+  return checkReadRc(hugoOps, ndb, pTab, lm, rowNum, 266);
+}
+
+bool checkReadSucceeds(HugoOperations* hugoOps,
+                       Ndb* ndb,
+                       const NdbDictionary::Table* pTab,
+                       NdbOperation::LockMode lm,
+                       Uint32 rowNum)
+{
+  return checkReadRc(hugoOps, ndb, pTab, lm, rowNum, 0);
+}
+
+int runTestUnlockBasic(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Basic tests that we can lock and unlock rows
+   * using the unlock mechanism
+   * Some minor side-validation that the API rejects
+   * readLockInfo for non Exclusive / Shared lock modes
+   * and that double-release of the lockhandle is caught
+   */
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoOperations hugoOps(*pTab);
+  
+  const Uint32 iterations = 200;
+
+  for (Uint32 iter = 0; iter < iterations; iter++)
+  {
+    Uint32 rowNum = iter % ctx->getNumRecords();
+
+    NdbTransaction* trans = GETNDB(step)->startTransaction();
+    CHECKN(trans != NULL, GETNDB(step), NDBT_FAILED);
+    
+    ndbout << "First transaction operation using ";
+    NdbOperation::LockMode lm = chooseLockMode();
+
+    NdbOperation* op = defineReadAllColsOp(&hugoOps,
+                                           trans,
+                                           pTab,
+                                           lm,
+                                           rowNum);
+    CHECKN(op != NULL, trans, NDBT_FAILED);
+    
+    if (op->getLockHandle() == NULL)
+    {
+      if ((lm == NdbOperation::LM_CommittedRead) ||
+          (lm == NdbOperation::LM_SimpleRead))
+      {
+        if (op->getNdbError().code == 4549)
+        {
+          /* As expected, go to next iteration */
+          ndbout << "Definition error as expected, moving to next" << endl;
+          trans->close();
+          continue;
+        }
+        ndbout << "Expected 4549, got :" << endl;
+      }
+      ndbout << op->getNdbError() << endl;
+      ndbout << " at "<<__FILE__ << ":" <<__LINE__ << endl;
+      return NDBT_FAILED;
+    }
+    
+    CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+    
+    const NdbLockHandle* lh = op->getLockHandle();
+    CHECKN(lh != NULL, op, NDBT_FAILED);
+
+    /* Ok, let's use another transaction to try and get a
+     * lock on the row (exclusive or shared)
+     */
+    NdbTransaction* trans2 = GETNDB(step)->startTransaction();
+    CHECKN(trans2 != NULL, GETNDB(step), NDBT_FAILED);
+
+
+    ndbout << "Second transaction operation using ";
+    NdbOperation::LockMode lm2 = chooseLockMode();
+
+    NdbOperation* op2 = defineReadAllColsOp(&hugoOps,
+                                            trans2,
+                                            pTab,
+                                            lm2,
+                                            rowNum);
+    CHECKN(op2 != NULL, trans2, NDBT_FAILED);
+
+    /* Execute can succeed if both lock modes are LM read
+     * otherwise we'll deadlock (266)
+     */
+    bool expectOk = ((lm2 == NdbOperation::LM_CommittedRead) ||
+                     ((lm == NdbOperation::LM_Read) &&
+                      ((lm2 == NdbOperation::LM_Read) ||
+                       (lm2 == NdbOperation::LM_SimpleRead))));
+
+    /* Exclusive read locks primary only, and SimpleRead locks
+     * Primary or Backup, so SimpleRead may or may not succeed
+     */
+    bool unknownCase = ((lm == NdbOperation::LM_Exclusive) &&
+                        (lm2 == NdbOperation::LM_SimpleRead));
+    
+    if (trans2->execute(NoCommit) != 0)
+    {
+      if (expectOk ||
+          (trans2->getNdbError().code != 266))
+      {
+        ndbout << trans2->getNdbError() << endl;
+        ndbout << " at "<<__FILE__ << ":" <<__LINE__ << endl;
+        return NDBT_FAILED;
+      }
+    }
+    else
+    {
+      if (!expectOk  && !unknownCase)
+      {
+        ndbout << "Expected deadlock but had success!" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    trans2->close();
+
+    /* Now let's try to create an unlockRow operation, and
+     * execute it 
+     */
+    const NdbOperation* unlockOp = trans->unlock(lh);
+    
+    CHECKN(unlockOp != NULL, trans, NDBT_FAILED);
+
+    CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+
+    /* Now let's try to get an exclusive lock on the row from
+     * another transaction which can only be possible if the
+     * original lock has been removed.
+     */
+    CHECK(checkReadSucceeds(&hugoOps,
+                            GETNDB(step),
+                            pTab,
+                            NdbOperation::LM_Exclusive,
+                            rowNum));
+    ndbout << "Third transaction operation using LM_Exclusive succeeded" << endl;
+
+    Uint32 choice = rand() % 3;
+    switch(choice)
+    {
+    case 0:
+      ndbout << "Closing transaction" << endl;
+      trans->close();
+      break;
+    case 1:
+      ndbout << "Releasing handle and closing transaction" << endl;
+      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
+      trans->close();
+      break;
+    case 2:
+      ndbout << "Attempting to release the handle twice" << endl;
+      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
+      
+      if ((trans->releaseLockHandle(lh) != -1) ||
+          (trans->getNdbError().code != 4551))
+      {
+        ndbout << "Expected 4551, but got no error " << endl;
+        ndbout << " at "<<__FILE__ << ":" <<__LINE__ << endl;
+        return NDBT_FAILED;
+      }
+      
+      trans->close();
+      break;
+    default:
+      abort();
+      break;
+    } 
+  } // for (Uint32 iter
+
+  return NDBT_OK;
+}
+
+int runTestUnlockRepeat(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Transaction A locks 2 rows
+   * It repeatedly unlocks and re-locks one row, but leaves
+   * the other locked
+   * Transaction B verifies that it can only lock the unlocked
+   * row when it is unlocked, and can never lock the row which
+   * is never unlocked!
+   */
+
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoOperations hugoOps(*pTab);
+
+  const Uint32 outerLoops = 2;
+  const Uint32 iterations = 10;
+
+  Ndb* ndb = GETNDB(step);
+
+  /* Transaction A will take a lock on otherRowNum and hold it
+   * throughout.
+   * RowNum will be locked and unlocked each iteration
+   */
+  Uint32 otherRowNum = ctx->getNumRecords() - 1;
+  
+  for (Uint32 outerLoop = 0; outerLoop < outerLoops; outerLoop ++)
+  {
+    NdbTransaction* transA = ndb->startTransaction();
+    CHECKN(transA != NULL, ndb, NDBT_FAILED);
+
+    NdbOperation::LockMode lockAOtherMode;
+    ndbout << "TransA : Try to lock otherRowNum in mode ";
+
+    switch (outerLoop % 2) {
+    case 0:
+      ndbout << "LM_Exclusive" << endl;
+      lockAOtherMode = NdbOperation::LM_Exclusive;
+      break;
+    default:
+      ndbout << "LM_Read" << endl;
+      lockAOtherMode = NdbOperation::LM_Read;
+      break;
+    }
+  
+    NdbOperation* lockAOtherRowNum = defineReadAllColsOp(&hugoOps,
+                                                         transA,
+                                                         pTab,
+                                                         lockAOtherMode,
+                                                         otherRowNum);
+    CHECKN(lockAOtherRowNum != NULL, transA, NDBT_FAILED);
+
+    CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
+
+    ndbout << "TransA : Got initial lock on otherRowNum" << endl;
+
+    for (Uint32 iter = 0; iter < iterations; iter++)
+    {
+      Uint32 rowNum = iter % (ctx->getNumRecords() - 1);
+  
+      ndbout << "  TransA : Try to lock rowNum with mode ";
+      NdbOperation::LockMode lockAMode = chooseLockMode(true); // Exclusive or LM_Read
+  
+      /* Transaction A takes a lock on rowNum */
+      NdbOperation* lockARowNum = defineReadAllColsOp(&hugoOps,
+                                                      transA,
+                                                      pTab,
+                                                      lockAMode,
+                                                      rowNum);
+      CHECKN(lockARowNum != NULL, transA, NDBT_FAILED);
+    
+      const NdbLockHandle* lockAHandle = lockARowNum->getLockHandle();
+      CHECKN(lockAHandle != NULL, lockARowNum, NDBT_FAILED);
+
+      CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
+
+      ndbout << "    TransA : Got lock on rowNum" << endl; 
+
+      /* Now transaction B checks that it cannot get a conflicting lock 
+       * on rowNum 
+       */
+      ndbout << "  TransB : Try to lock rowNum by ";
+
+      CHECK(checkReadDeadlocks(&hugoOps,
+                               ndb,
+                               pTab,
+                               chooseConflictingLockMode(lockAMode),
+                               rowNum));
+
+      ndbout << "    TransB : Failed to get lock on rowNum as expected" << endl;
+
+      /* Now transaction A unlocks rowNum */
+      const NdbOperation* unlockOpA = transA->unlock(lockAHandle);
+      CHECKN(unlockOpA != NULL, transA, NDBT_FAILED);
+
+      CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
+
+      ndbout << "  TransA : Unlocked rowNum" << endl;
+    
+      /* Now transaction B attempts to gain a lock on RowNum */
+      NdbTransaction* transB = ndb->startTransaction();
+      CHECKN(transB != NULL, ndb, NDBT_FAILED);
+
+      ndbout << "  TransB : Try to lock rowNum with mode ";
+      NdbOperation::LockMode lockBMode = chooseLockMode(true);
+
+      NdbOperation* tryLockBRowNum2 = defineReadAllColsOp(&hugoOps,
+                                                          transB,
+                                                          pTab,
+                                                          lockBMode,
+                                                          rowNum);
+      CHECKN(tryLockBRowNum2 != NULL, transB, NDBT_FAILED);
+
+      CHECKN(transB->execute(NoCommit) == 0, transB, NDBT_FAILED);
+    
+      ndbout << "    TransB : Got lock on rowNum" << endl;
+
+      ndbout << "  TransB : Try to lock other row by ";
+      NdbOperation::LockMode lockBOtherMode = chooseConflictingLockMode(lockAOtherMode);
+
+      /* Now transaction B attempts to gain a lock on OtherRowNum
+       * which should fail as transaction A still has it locked
+       */
+      NdbOperation* tryLockBOtherRowNum = defineReadAllColsOp(&hugoOps,
+                                                              transB,
+                                                              pTab,
+                                                              lockBOtherMode,
+                                                              otherRowNum);
+      CHECKN(tryLockBOtherRowNum != NULL, transB, NDBT_FAILED);
+
+      CHECKN(transB->execute(NoCommit) == -1, transB, NDBT_FAILED);
+    
+      if (transB->getNdbError().code != 266)
+      {
+        ndbout << "Error was expecting 266, but got " << transB->getNdbError() << endl;
+        ndbout << "At line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+
+      ndbout << "    TransB : Failed to get lock on otherRowNum as expected" << endl;
+
+      transB->close();
+    }
+
+    transA->close();
+  }
+
+  return NDBT_OK;
+}
+
+
+int runTestUnlockMulti(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  /* Verifies that a single transaction (or multiple
+   * transactions) taking multiple locks on the same
+   * row using multiple operations behaves correctly
+   * as the operations unlock their locks.
+   * 
+   * Transaction A will lock the row to depth A
+   * Transaction A may use an exclusive lock as its first lock
+   * Transaction B will lock the row to depth B
+   *   iff transaction A did not use exclusive locks
+   * 
+   * Once all locks are in place, the locks placed are
+   * removed.
+   * The code checks that the row remains locked until
+   * all locking operations are unlocked
+   * The code checks that the row is unlocked when all
+   * locking operations are unlocked.
+   *
+   * Depth A and B and whether A uses exclusive or not
+   * are varied.
+   */
+  
+  HugoOperations hugoOps(*pTab);
+
+  const Uint32 MinLocks = 3;
+  const Uint32 MaxLocksPerTrans = 20;
+  Uint32 rowNum = ctx->getNumRecords() - 1;
+  Uint32 numLocksInTransA = rand() % MaxLocksPerTrans;
+  numLocksInTransA = (numLocksInTransA > MinLocks) ?
+    numLocksInTransA : MinLocks;
+  bool useExclusiveInA = ((rand() % 2) == 0);
+
+  Uint32 numLocksInTransB = useExclusiveInA ? 0 :
+    (rand() % MaxLocksPerTrans);
+  
+  Uint32 maxLocks = (numLocksInTransA > numLocksInTransB) ?
+    numLocksInTransA : numLocksInTransB;
+  
+  ndbout << "NumLocksInTransA " << numLocksInTransA 
+         << " NumLocksInTransB " << numLocksInTransB
+         << " useExclusiveInA " << useExclusiveInA
+         << endl;
+
+  NdbOperation* transAOps[ MaxLocksPerTrans ];
+  NdbOperation* transBOps[ MaxLocksPerTrans ];
+
+  /* First the lock phase when transA and transB
+   * claim locks (with LockHandles)
+   * As this occurs, transC attempts to obtain
+   * a conflicting lock and fails.
+   */
+  Ndb* ndb = GETNDB(step);
+
+  NdbTransaction* transA = ndb->startTransaction();
+  CHECKN(transA != NULL, ndb, NDBT_FAILED);
+  
+  NdbTransaction* transB = ndb->startTransaction();
+  CHECKN(transB != NULL, ndb, NDBT_FAILED);
+  
+  ndbout << "Locking phase" << endl << endl;
+  for(Uint32 depth=0; depth < maxLocks; depth++)
+  {
+    ndbout << "Depth " << depth << endl;
+    NdbOperation::LockMode lmA;
+    /* TransA */
+    if (depth < numLocksInTransA)
+    {
+      ndbout << "  TransA : Locking with mode ";
+      if ((depth == 0) && useExclusiveInA)
+      {
+        lmA = NdbOperation::LM_Exclusive;
+        ndbout << "LM_Exclusive" << endl;
+      }
+      else if (!useExclusiveInA)
+      {
+        lmA = NdbOperation::LM_Read;
+        ndbout << "LM_Read" << endl;
+      }
+      else
+      {
+        lmA = chooseLockMode(true); // LM_Exclusive or LM_Read;
+      }
+      
+      NdbOperation* lockA = defineReadAllColsOp(&hugoOps,
+                                                transA,
+                                                pTab,
+                                                lmA,
+                                                rowNum);
+      CHECKN(lockA != NULL, transA, NDBT_FAILED);
+      CHECKN(lockA->getLockHandle() != NULL, lockA, NDBT_FAILED);
+      
+      transAOps[ depth ] = lockA;
+      
+      CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
+      ndbout << "  TransA : Succeeded" << endl;
+    }
+    
+    /* TransB */
+    if (depth < numLocksInTransB)
+    {
+      ndbout << "  TransB : Locking with mode LM_Read" << endl;
+      
+      NdbOperation* lockB = defineReadAllColsOp(&hugoOps,
+                                                transB,
+                                                pTab,
+                                                NdbOperation::LM_Read,
+                                                rowNum);
+      CHECKN(lockB != NULL, transB, NDBT_FAILED);
+      CHECKN(lockB->getLockHandle() != NULL, lockB, NDBT_FAILED);
+      
+      transBOps[ depth ] = lockB;
+      
+      CHECKN(transB->execute(NoCommit) == 0, transB, NDBT_FAILED);
+      ndbout << "  TransB : Succeeded" << endl;
+    }
+  }
+
+  ndbout << "Unlocking phase" << endl << endl;
+
+  for(Uint32 depth = 0; depth < maxLocks; depth++)
+  {
+    Uint32 level = maxLocks - depth - 1;
+
+    ndbout << "Depth " << level << endl;
+
+    ndbout << "  TransC : Trying to lock row with lockmode ";
+    NdbOperation::LockMode lmC;
+    if (useExclusiveInA)
+    {
+      lmC = chooseLockMode(true); // LM_Exclusive or LM_Read;
+    }
+    else
+    {
+      ndbout << "LM_Exclusive" << endl;
+      lmC = NdbOperation::LM_Exclusive;
+    }
+
+    CHECK(checkReadDeadlocks(&hugoOps,
+                             ndb,
+                             pTab,
+                             lmC,
+                             rowNum));
+
+    ndbout << "  TransC failed as expected" << endl;
+
+    if (level < numLocksInTransB)
+    {
+      const NdbLockHandle* lockHandleB = transBOps[ level ]->getLockHandle();
+      CHECKN(lockHandleB != NULL, transBOps[ level ], NDBT_FAILED);
+
+      const NdbOperation* unlockB = transB->unlock(lockHandleB);
+      CHECKN(unlockB != NULL, transB, NDBT_FAILED);
+      
+      CHECKN(transB->execute(NoCommit) == 0, transB, NDBT_FAILED);
+      ndbout << "  TransB unlock succeeded" << endl;
+    }
+
+    if (level < numLocksInTransA)
+    {
+      const NdbLockHandle* lockHandleA = transAOps[ level ]->getLockHandle();
+      CHECKN(lockHandleA != NULL, transAOps[ level ], NDBT_FAILED);
+      
+      const NdbOperation* unlockA = transA->unlock(lockHandleA);
+      CHECKN(unlockA != NULL, transA, NDBT_FAILED);
+      
+      CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
+      ndbout << "  TransA unlock succeeded" << endl;
+    }
+  }
+
+
+  /* Finally, all are unlocked and transC can successfully
+   * obtain a conflicting lock
+   */
+  CHECK(checkReadSucceeds(&hugoOps,
+                          ndb,
+                          pTab,
+                          NdbOperation::LM_Exclusive,
+                          rowNum));
+
+  ndbout << "TransC LM_Exclusive lock succeeded" << endl;
+  
+  transA->close();
+  transB->close();
+
+  return NDBT_OK;
+}
+                    
+
+int runTestUnlockScan(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Performs a table scan with LM_Read or LM_Exclusive 
+   * and lock takeovers for a number of the rows returned
+   * Validates that some of the taken-over locks are held
+   * before unlocking them and validating that they 
+   * are released.
+   */
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  
+  HugoCalculator calc(*pTab);
+  HugoOperations hugoOps(*pTab);
+
+  /* 
+     1) Perform scan of the table with LM_Read / LM_Exclusive
+     2) Takeover some of the rows with read and lockinfo
+     3) Unlock the rows
+     4) Check that they are unlocked
+  */
+  Ndb* ndb = GETNDB(step);
+  
+  const int iterations = 2;
+
+  const int maxNumTakeovers = 15;
+  NdbOperation* takeoverOps[ maxNumTakeovers ];
+  Uint32 takeoverColIds[ maxNumTakeovers ];
+  
+  int numTakeovers = MIN(maxNumTakeovers, ctx->getNumRecords());
+  int takeoverMod = ctx->getNumRecords() / numTakeovers;
+
+  ndbout << "numTakeovers is " << numTakeovers
+         << " takeoverMod is " << takeoverMod << endl;
+
+  for (int iter = 0; iter < iterations; iter++)
+  {
+    ndbout << "Scanning table with lock mode : ";
+    NdbOperation::LockMode lmScan = chooseLockMode(true); // LM_Exclusive or LM_Read
+
+    NdbTransaction* trans = ndb->startTransaction();
+    CHECKN(trans != NULL, ndb, NDBT_FAILED);
+    
+    /* Define scan */
+    NdbScanOperation* scan = trans->getNdbScanOperation(pTab);
+    CHECKN(scan != NULL, trans, NDBT_FAILED);
+
+    Uint32 scanFlags = NdbScanOperation::SF_KeyInfo;
+
+    CHECKN(scan->readTuples(lmScan, scanFlags) == 0, scan, NDBT_FAILED);
+
+    NdbRecAttr* idColRecAttr = NULL;
+
+    for(int c = 0; c < pTab->getNoOfColumns(); c++)
+    {
+      NdbRecAttr* ra = scan->getValue(pTab->getColumn(c)->getName());
+      CHECKN(ra != NULL, scan, NDBT_FAILED);
+      if (calc.isIdCol(c))
+      {
+        CHECK(idColRecAttr == NULL);
+        idColRecAttr = ra;
+      }
+    }
+    CHECK(idColRecAttr != NULL);
+
+    CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+    
+    int rowsRead = 0;
+    int rowsTakenover = 0;
+    while (scan->nextResult(true) == 0)
+    {      
+      if ((rowsTakenover < maxNumTakeovers) &&
+          (0 == (rowsRead % takeoverMod)))
+      {
+        /* We're going to take the lock for this row into 
+         * a separate operation
+         */
+        Uint32 rowId = idColRecAttr->u_32_value();
+        ndbout << "  Taking over lock on result num " << rowsRead 
+               << " row (" << rowId << ")" << endl;
+        NdbOperation* readTakeoverOp = scan->lockCurrentTuple();
+        CHECKN(readTakeoverOp != NULL, scan, NDBT_FAILED);
+        
+        CHECKN(readTakeoverOp->getLockHandle() != NULL, readTakeoverOp, NDBT_FAILED);
+        takeoverOps[ rowsTakenover ] = readTakeoverOp;
+        takeoverColIds[ rowsTakenover ] = rowId;
+
+        CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+
+        CHECKN(readTakeoverOp->getNdbError().code == 0, readTakeoverOp, NDBT_FAILED);
+
+// // Uncomment to check that takeover keeps lock.
+//         if (0 == (rowsTakenover % 7))
+//         {
+//           ndbout << "  Validating taken-over lock holds on rowid "
+//                  << takeoverColIds[ rowsTakenover ] 
+//                  << " by ";
+//           /* Occasionally validate the lock held by the scan */
+//           CHECK(checkReadDeadlocks(&hugoOps,
+//                                    ndb,
+//                                    pTab,
+//                                    chooseConflictingLockMode(lmScan),
+//                                    takeoverColIds[ rowsTakenover ]));
+//         }
+        
+        rowsTakenover ++;
+
+      }
+
+      rowsRead ++;
+    }
+    
+    scan->close();
+
+    ndbout << "Scan complete : rows read : " << rowsRead 
+           << " rows locked : " << rowsTakenover << endl;
+
+    ndbout << "Now unlocking rows individually" << endl;
+    for (int lockedRows = 0; lockedRows < rowsTakenover; lockedRows ++)
+    {
+      if (0 == (lockedRows % 3))
+      {
+        ndbout << "  First validating that lock holds on rowid "
+               << takeoverColIds[ lockedRows ]
+               << " by ";
+        /* Occasionally check that the lock held by the scan still holds */
+        CHECK(checkReadDeadlocks(&hugoOps,
+                                 ndb,
+                                 pTab,
+                                 chooseConflictingLockMode(lmScan),
+                                 takeoverColIds[ lockedRows ]));
+        ndbout << "  Lock is held" << endl;
+      }
+
+      /* Unlock the row */
+      const NdbLockHandle* lockHandle = takeoverOps[ lockedRows ]->getLockHandle();
+      CHECKN(lockHandle != NULL, takeoverOps[ lockedRows ], NDBT_FAILED);
+
+      const NdbOperation* unlockOp = trans->unlock(lockHandle);
+      CHECKN(unlockOp, trans, NDBT_FAILED);
+
+      CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+      
+      /* Now check that the row's unlocked */
+      CHECK(checkReadSucceeds(&hugoOps,
+                              ndb,
+                              pTab,
+                              NdbOperation::LM_Exclusive,
+                              takeoverColIds[ lockedRows ]));
+      ndbout << "  Row " << takeoverColIds[ lockedRows ] 
+             << " unlocked successfully" << endl;
+    }
+
+    /* Lastly, verify that scan with LM_Exclusive in separate transaction 
+     * can scan whole table without locking on anything
+     */
+    ndbout << "Validating unlocking code with LM_Exclusive table scan" << endl;
+
+    NdbTransaction* otherTrans = ndb->startTransaction();
+    CHECKN(otherTrans != NULL, ndb, NDBT_FAILED);
+
+    NdbScanOperation* otherScan = otherTrans->getNdbScanOperation(pTab);
+    CHECKN(otherScan != NULL, otherTrans, NDBT_FAILED);
+
+    CHECKN(otherScan->readTuples(NdbOperation::LM_Exclusive) == 0, otherScan, NDBT_FAILED);
+
+    for(int c = 0; c < pTab->getNoOfColumns(); c++)
+    {
+      NdbRecAttr* ra = otherScan->getValue(pTab->getColumn(c)->getName());
+      CHECKN(ra != NULL, otherScan, NDBT_FAILED);
+    }
+
+    CHECKN(otherTrans->execute(NoCommit) == 0, trans, NDBT_FAILED);
+    
+    int nextRc = 0;
+    while (0 == (nextRc = otherScan->nextResult(true)))
+    {};
+
+    if (nextRc != 1)
+    {
+      ndbout << "Final scan with lock did not complete successfully" << endl;
+      ndbout << otherScan->getNdbError() << endl;
+      ndbout << "at line " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+
+    otherScan->close();
+    otherTrans->close();
+
+    ndbout << "All locked rows unlocked" << endl;
+
+    trans->close();
+  }
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -3756,6 +4627,30 @@ TESTCASE("FragmentedApiFailure",
   STEP(runFragmentedScanOtherApi);
   STEP(testFragmentedApiFail);
 };
+TESTCASE("UnlockBasic",
+         "Check basic op unlock behaviour") {
+  INITIALIZER(runLoadTable);
+  STEP(runTestUnlockBasic);
+  FINALIZER(runClearTable);
+}
+TESTCASE("UnlockRepeat",
+         "Check repeated lock/unlock behaviour") {
+  INITIALIZER(runLoadTable);
+  STEP(runTestUnlockRepeat);
+  FINALIZER(runClearTable);
+}
+TESTCASE("UnlockMulti",
+         "Check unlock behaviour with multiple operations") {
+  INITIALIZER(runLoadTable);
+  STEP(runTestUnlockMulti);
+  FINALIZER(runClearTable);
+}
+TESTCASE("UnlockScan",
+         "Check unlock behaviour with scan lock-takeover") {
+  INITIALIZER(runLoadTable);
+  STEP(runTestUnlockScan);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){

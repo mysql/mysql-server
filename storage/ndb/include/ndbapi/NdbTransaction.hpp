@@ -37,6 +37,7 @@ class NdbInterpretedCode;
 class NdbQueryImpl;
 class NdbQueryDef;
 class NdbQuery;
+class NdbLockHandle;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 // to be documented later
@@ -825,7 +826,6 @@ public:
             const NdbScanOperation::ScanOptions *options = 0,
             Uint32 sizeOfOptions = 0);
 
-
   /**
    * Add a prepared NdbQueryDef to transaction for execution.
    *
@@ -835,12 +835,79 @@ public:
    * Should be supplied in the same order as the related paramValue's
    * was defined.
    */
-
   NdbQuery*
   createQuery(const NdbQueryDef* query,
               const void* const paramValue[]= 0,
               NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
+  /* LockHandle methods */
+  /*
+   * Shared or Exclusive locks taken by read operations in a transaction
+   * are normally held until the transaction commits or aborts.
+   * Shared or Exclusive *read* locks can be released before transaction
+   * commit or abort time by requesting a LockHandle when defining the
+   * read operation.  Any time after the read operation has been executed,
+   * the LockHandle can be used to create a new Unlock operation.  When
+   * the Unlock operation is executed, the row lock placed by the read
+   * operation will be released.
+   * 
+   * The steps are :
+   *  1) Define the primary key read operation in the normal way
+   *     with lockmode LM_Read or LM_Exclusive
+   *
+   *  2) Call NdbOperation::getLockHandle() during operation definition
+   *     (Or set the OO_LOCKHANDLE operation option when calling
+   *      NdbTransaction::readTuple() for NdbRecord)
+   *  
+   *  3) Call NdbTransaction::execute()
+   *                         (Row will be locked from here as normal)
+   *  
+   *  4) Use the read data, make zero or more calls to 
+   *     NdbTransaction::execute() etc.
+   *  
+   *  5) Call NdbTransaction::unlock(NdbLockHandle*), passing in the
+   *     const LockHandle* from 2) to create an Unlock operation.
+   *  
+   *  6) Call NdbTransaction::execute()
+   *                         (Row will be unlocked from here)
+   * 
+   * Notes
+   * - As with other operation types, Unlock operations can be batched.
+   * - Each LockHandle object refers to a lock placed on a row by a single 
+   *   primary key read operation.  A single row in the database may have 
+   *   concurrent multiple lock holders (of mode LM_Read) and may have 
+   *   multiple lock holders pending (LM_Exclusive), so releasing the
+   *   claim of one lock holder may not result in a change to the 
+   *   observable lock status of the row.
+   * - LockHandles are supported for Scan lock takeover operations - the
+   *   lockhandle must be requested before the locktakeover is executed.
+   * - LockHandles and Unlock operations are not supported for Unique Index
+   *   read operations.
+   */
+
+  /* unlock
+   * 
+   * This method creates an Unlock operation on the current transaction.
+   * When executed, the Unlock operation will remove the lock referenced
+   * by the passed LockHandle.
+   * 
+   * The unlock operation can fail, for example due to the row being 
+   * unlocked already.  In this scenario, the AbortOption specifies how 
+   * this will be handled.
+   * The default is that errors will cause transaction abort.
+   */
+  const NdbOperation* unlock(const NdbLockHandle* lockHandle,
+                             NdbOperation::AbortOption ao = NdbOperation::DefaultAbortOption);
+  
+  /* releaseLockHandle
+   * This method is used to release a LockHandle object once it
+   * is no longer required.
+   * For NdbRecord primary key read operations, this cannot be
+   * called until the associated read operation has executed.
+   * All LockHandles associated with a transaction are released
+   * when it is closed.
+   */
+  int releaseLockHandle(const NdbLockHandle* lockHandle);
 
 private:						
   /**
@@ -936,7 +1003,8 @@ private:
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
 //void releaseExecutedScanOperation(NdbIndexScanOperation*);
-
+  void          releaseLockHandles();
+  
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
 
@@ -971,7 +1039,8 @@ private:
                               const char *attribute_row,
                               const unsigned char *mask,
                               const NdbOperation::OperationOptions *opts,
-                              Uint32 sizeOfOptions);
+                              Uint32 sizeOfOptions,
+                              const NdbLockHandle* lh = 0);
 
   void		handleExecuteCompletion();
   
@@ -1107,6 +1176,11 @@ private:
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
+
+  NdbLockHandle* m_theFirstLockHandle;
+  NdbLockHandle* m_theLastLockHandle;
+
+  NdbLockHandle* getLockHandle();
 
   friend class HugoOperations;
   friend struct Ndb_free_list_t<NdbTransaction>;

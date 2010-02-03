@@ -165,6 +165,7 @@ printusage()
     << "  n           normal insert and update" << endl
     << "  w           insert and update using writeTuple" << endl
     << "  d           delete, can skip only for one subtest" << endl
+    << "  l           read with lock and unlock" << endl
     << "blob operation styles for test/skip" << endl
     << "  0           getValue / setValue" << endl
     << "  1           setActiveHook" << endl
@@ -1199,6 +1200,7 @@ blobWriteHook(NdbBlob* h, void* arg)
   return 0;
 }
 
+
 static int
 setBlobWriteHook(NdbBlob* h, Bval& v, int error_code = 0)
 {
@@ -1249,6 +1251,62 @@ setBlobReadHook(Tup& tup)
   CHK(setBlobReadHook(g_bh1, tup.m_bval1) == 0);
   if (! g_opt.m_oneblob)
     CHK(setBlobReadHook(g_bh2, tup.m_bval2) == 0);
+  return 0;
+}
+
+static int
+tryRowLock(Tup& tup, bool exclusive)
+{
+  NdbTransaction* testTrans;
+  NdbOperation* testOp;
+  CHK((testTrans = g_ndb->startTransaction()) != NULL);
+  CHK((testOp = testTrans->getNdbOperation(g_opt.m_tname)) != 0);
+  CHK(testOp->readTuple(exclusive?
+                        NdbOperation::LM_Exclusive:
+                        NdbOperation::LM_Read) == 0);
+  CHK(testOp->equal("PK1", tup.m_pk1) == 0);
+  if (g_opt.m_pk2chr.m_len != 0) {
+    CHK(testOp->equal("PK2", tup.m_pk2) == 0);
+    CHK(testOp->equal("PK3", tup.m_pk3) == 0);
+  }
+  setUDpartId(tup, testOp);
+  
+  if (testTrans->execute(Commit, AbortOnError) == 0)
+  {
+    /* Successfully claimed lock */
+    testTrans->close();
+    return 0;
+  }
+  else
+  {
+    if (testTrans->getNdbError().code == 266)
+    {
+      /* Error as expected for lock already claimed */
+      testTrans->close();
+      return -2;
+    }
+    else
+    {
+      DBG("Error on tryRowLock, exclusive = " << exclusive
+          << endl << testTrans->getNdbError() << endl);
+      testTrans->close();
+      return -1;
+    }
+  }
+}
+  
+
+static int
+verifyRowLocked(Tup& tup)
+{
+  CHK(tryRowLock(tup, true) == -2);
+  return 0;
+}
+
+static int
+verifyRowNotLocked(Tup& tup)
+{
+  CHK(tryRowLock(tup, true) == 0);
   return 0;
 }
 
@@ -1689,6 +1747,179 @@ readPk(int style, int api)
           CHK(verifyBlobValue(tup) == 0);
         }
       }
+      g_ndb->closeTransaction(g_con);
+    } while (opState == Retrying);
+    g_opr = 0;
+    g_const_opr = 0;
+    g_con = 0;
+  }
+  return 0;
+}
+
+static int
+readLockPk(int style, int api)
+{
+  DBG("--- readLockPk " << stylename[style] <<" " << apiName[api] << " ---");
+  for (unsigned k = 0; k < g_opt.m_rows; k++) {
+    Tup& tup = g_tups[k];
+    Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+    OpState opState;
+
+    do
+    {
+      opState= Normal;
+      DBG("readLockPk pk1=" << hex << tup.m_pk1);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead;
+      switch(urandom(3))
+      {
+      case 0:
+        lm = NdbOperation::LM_Exclusive;
+        break;
+      case 1:
+        lm = NdbOperation::LM_Read;
+        break;
+      default:
+        break;
+      }
+      if (api == API_RECATTR)
+      {
+        CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        CHK(g_opr->readTuple(lm) == 0);
+
+        CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+          CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+        }
+        setUDpartId(tup, g_opr);
+        CHK(getBlobHandles(g_opr) == 0);
+        if (lm != NdbOperation::LM_CommittedRead)
+        {
+          CHK(g_opr->getLockHandle() != NULL);
+        }
+      }
+      else
+      { // NdbRecord
+        memcpy(&tup.m_key_row[g_pk1_offset], &tup.m_pk1, sizeof(tup.m_pk1));
+        if (g_opt.m_pk2chr.m_len != 0) {
+          memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
+          memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
+        }
+        NdbOperation::OperationOptions opts;
+        setUDpartIdNdbRecord(tup,
+                             g_ndb->getDictionary()->getTable(g_opt.m_tname),
+                             opts);
+        if (lm != NdbOperation::LM_CommittedRead)
+        {
+          opts.optionsPresent |= NdbOperation::OperationOptions::OO_LOCKHANDLE;
+        }
+        CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                            g_blob_record, tup.m_row,
+                                            lm,
+                                            NULL,
+                                            &opts,
+                                            sizeof(opts))) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(getBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobReadHook(tup) == 0);
+      } else {
+        CHK(g_con->execute(NoCommit) == 0);
+        if (readBlobData(tup) == -1)
+          CHK((timeout= conHasTimeoutError()) == true);
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(NoCommit) == 0)
+        {
+          /* Ok, read executed ok, now 
+           * - Verify the Blob data
+           * - Verify the row is locked
+           * - Close the Blob handles
+           * - Attempt to unlock
+           */
+          NdbOperation::LockMode lmused = (g_opr?g_opr:g_const_opr)->getLockMode();
+          CHK((lmused == NdbOperation::LM_Read) ||
+              (lmused == NdbOperation::LM_Exclusive));
+          
+          if (style == 0 || style == 1) {
+            CHK(verifyBlobValue(tup) == 0);
+          }
+
+          /* Occasionally check that we are locked */
+          if (urandom(200) == 0)
+            CHK(verifyRowLocked(tup) == 0);
+          
+          /* Close Blob handles */
+          CHK(g_bh1->close() == 0);
+          CHK(g_bh1->getState() == NdbBlob::Closed);
+          if (! g_opt.m_oneblob)
+          {
+            CHK(g_bh2->close() == 0);
+            CHK(g_bh2->getState() == NdbBlob::Closed);
+          }
+
+          /* Check Blob handle is closed */
+          char byte;
+          Uint32 len = 1;
+          CHK(g_bh1->readData(&byte, len) != 0);
+          CHK(g_bh1->getNdbError().code == 4265);
+          CHK(g_bh1->close() != 0);
+          CHK(g_bh1->getNdbError().code == 4554);
+          if(! g_opt.m_oneblob)
+          {
+            CHK(g_bh2->readData(&byte, len) != 0);
+            CHK(g_bh2->getNdbError().code == 4265);
+            CHK(g_bh2->close() != 0);
+            CHK(g_bh2->getNdbError().code == 4554);
+          }
+          
+          
+          if (lm != NdbOperation::LM_CommittedRead)
+          {
+            /* All Blob handles closed, now we can issue an
+             * unlock operation and the main row should be
+             * unlocked
+             */
+            const NdbOperation* readOp = (g_opr?g_opr:g_const_opr);
+            const NdbLockHandle* lh = readOp->getLockHandle();
+            CHK(lh != NULL);
+            const NdbOperation* unlockOp = g_con->unlock(lh);
+            CHK(unlockOp != NULL);
+          }
+          
+          /* All Blob handles closed - manual or automatic
+           * unlock op has been enqueued.  Now execute and
+           * check that the row is unlocked.
+           */
+          CHK(g_con->execute(NoCommit) == 0);
+          CHK(verifyRowNotLocked(tup) == 0);
+          
+          if (g_con->execute(Commit) != 0)
+          {
+            CHK((timeout= conHasTimeoutError()) == true);
+          }
+        }
+        else
+        {
+          CHK((timeout= conHasTimeoutError()) == true);
+        }
+      }
+      if (timeout)
+      {
+        DISP("ReadLockPk failed due to timeout on read("
+             << conError() <<")  Retries left : "
+             << opTimeoutRetries -1);
+        CHK(--opTimeoutRetries);
+        opState= Retrying;
+        sleep(1);
+      }
+
       g_ndb->closeTransaction(g_con);
     } while (opState == Retrying);
     g_opr = 0;
@@ -2663,6 +2894,225 @@ updateScan(int style, int api, bool idx)
 }
 
 static int
+lockUnlockScan(int style, int api, bool idx)
+{
+  DBG("--- " << "lockUnlockScan" << (idx ? "Idx" : "") << " " << stylename[style] << " " << apiName[api] << " ---");
+  Tup tup;
+  tup.alloc();  // allocate buffers
+
+  Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
+  enum OpState opState;
+
+  do
+  {
+    opState= Normal;
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    NdbOperation::LockMode lm = NdbOperation::LM_Read;
+    if (urandom(2) == 0)
+      lm = NdbOperation::LM_Exclusive;
+    
+    Uint32 scanFlags = g_scanFlags | NdbScanOperation::SF_KeyInfo;
+
+    if (api == API_RECATTR)
+    {
+      if (! idx) {
+        CHK((g_ops = g_con->getNdbScanOperation(g_opt.m_tname)) != 0);
+      } else {
+        CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
+      }
+      CHK(g_ops->readTuples(lm,
+                            scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
+      CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
+        CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
+      }
+      /* Don't bother setting UserDefined partitions for scan tests */
+    }
+    else
+    {
+      NdbScanOperation::ScanOptions opts;
+      opts.optionsPresent = NdbScanOperation::ScanOptions::SO_SCANFLAGS;
+      opts.scan_flags = scanFlags;
+      
+      /* Don't bother setting UserDefined partitions for scan tests */
+      if (! idx)
+        CHK((g_ops= g_con->scanTable(g_key_record,
+                                     lm, 0, &opts, sizeof(opts))) != 0);
+      else
+        CHK((g_ops= g_con->scanIndex(g_ord_record, g_key_record,
+                                     lm, 0, 0, &opts, sizeof(opts))) != 0);
+    }
+    CHK(g_con->execute(NoCommit) == 0);
+    unsigned rows = 0;
+    while (1) {
+      const char *out_row= NULL;
+      int ret;
+
+      if (api == API_RECATTR)
+      {
+        tup.m_pk1 = (Uint32)-1;
+        memset(tup.m_pk2, 'x', g_opt.m_pk2chr.m_totlen);
+        tup.m_pk3 = -1;
+
+        ret = g_ops->nextResult(true);
+      }
+      else
+      {
+        if(0 == (ret = g_ops->nextResult(&out_row, true, false)))
+        {
+          memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
+          if (g_opt.m_pk2chr.m_len != 0) {
+            memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
+            memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
+          }    
+        }
+      }
+      
+      if (ret == -1)
+      {
+        /* Timeout? */
+        if (conHasTimeoutError())
+        {
+          /* Break out and restart scan unless we've
+           * run out of attempts
+           */
+          DISP("Scan failed due to deadlock timeout ("
+               << conError() <<"), retries left :" 
+               << opTimeoutRetries -1);
+          CHK(--opTimeoutRetries);
+
+          opState= Retrying;
+          sleep(1);
+          break;
+        }
+      }
+      CHK(opState == Normal);
+      CHK((ret == 0) || (ret == 1));
+      if (ret == 1)
+        break;      
+
+      DBG("lockUnlockScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
+      /* Get tuple info for current row */
+      Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
+      CHK(k < g_opt.m_rows && g_tups[k].m_exists);
+      tup.copyfrom(g_tups[k]);
+      
+      if (api == API_RECATTR)
+      {
+        CHK((g_opr = g_ops->lockCurrentTuple()) != 0);
+        CHK(g_opr->getLockHandle() != NULL);
+        CHK(getBlobHandles(g_opr) == 0);
+      }
+      else
+      {
+        NdbOperation::OperationOptions opts;
+        opts.optionsPresent = NdbOperation::OperationOptions::OO_LOCKHANDLE;
+        CHK((g_const_opr = g_ops->lockCurrentTuple(g_con, g_blob_record, tup.m_row,
+                                                   0, &opts, sizeof(opts))) != 0);
+        CHK(getBlobHandles(g_const_opr) == 0);
+      }
+      bool timeout= false;
+      if (style == 0) {
+        CHK(getBlobValue(tup) == 0);
+      } else if (style == 1) {
+        CHK(setBlobReadHook(tup) == 0);
+      } else {
+        CHK(g_con->execute(NoCommit) == 0);
+        if (readBlobData(tup))
+          CHK((timeout= conHasTimeoutError()) == true);
+      }
+      if (!timeout)
+      {
+        if (g_con->execute(NoCommit) == 0)
+        {
+          /* Read executed successfully,
+           * - Verify the Blob data
+           * - Verify the row is locked
+           * - Close the Blob handles
+           * - Attempt to unlock
+           */
+          NdbOperation::LockMode lmused = g_ops->getLockMode();
+          CHK((lmused == NdbOperation::LM_Read) ||
+              (lmused == NdbOperation::LM_Exclusive));
+
+          if (style == 0 || style == 1) {
+            CHK(verifyBlobValue(tup) == 0);
+          }
+
+          /* Occasionally check that we are locked */
+          if (urandom(200) == 0)
+            CHK(verifyRowLocked(tup) == 0);
+          
+          /* Close Blob handles */
+          CHK(g_bh1->close() == 0);
+          if (! g_opt.m_oneblob)
+            CHK(g_bh2->close() == 0);
+          
+          if (lm != NdbOperation::LM_CommittedRead)
+          {
+            /* All Blob handles closed, now we can issue an
+             * unlock operation and the main row should be
+             * unlocked
+             */
+            const NdbOperation* readOp = (g_opr?g_opr:g_const_opr);
+            const NdbLockHandle* lh = readOp->getLockHandle();
+            CHK(lh != NULL);
+            const NdbOperation* unlockOp = g_con->unlock(lh);
+            CHK(unlockOp != NULL);
+          }
+          
+          /* All Blob handles closed - manual or automatic
+           * unlock op has been enqueued.  Now execute 
+           */
+          CHK(g_con->execute(NoCommit) == 0);
+        }
+        else
+        {
+          CHK((timeout= conHasTimeoutError()) == true);
+        }
+      }
+
+      if (timeout)
+      {
+        DISP("Scan read lock unlock timeout("
+             << conError()
+             << ") Retries left : "
+             << opTimeoutRetries-1);
+        CHK(opTimeoutRetries--);
+        opState= Retrying;
+        sleep(1);
+        break;
+      }
+
+      g_const_opr = 0;
+      g_opr = 0;
+      rows++;
+    }
+    if (opState == Normal)
+    {
+      /* We've scanned all rows, locked them and then unlocked them
+       * All rows should now be unlocked despite the transaction
+       * not being committed.
+       */
+      for (unsigned k = 0; k < g_opt.m_rows; k++) {
+        CHK(verifyRowNotLocked(g_tups[k]) == 0);
+      }
+
+      CHK(g_con->execute(Commit) == 0);
+      CHK(g_opt.m_rows == rows);
+    }
+    g_ndb->closeTransaction(g_con);
+  } while (opState == Retrying);
+  g_con = 0;
+  g_ops = 0;
+  return 0;
+}
+
+static int
 deleteScan(int api, bool idx)
 {
   DBG("--- " << "deleteScan" << (idx ? "Idx" : "") << apiName[api] << " ---");
@@ -3425,6 +3875,9 @@ testmain()
               CHK(verifyBlob() == 0);
               CHK(readPk(style, api) == 0);
             }
+            if (testcase('l')) {
+              CHK(readLockPk(style,api) == 0);
+            }
             if (testcase('d')) {
               CHK(deletePk(api) == 0);
               CHK(deleteNoPk() == 0);
@@ -3441,6 +3894,9 @@ testmain()
               CHK(writePk(style, api) == 0);
               CHK(verifyBlob() == 0);
               CHK(readPk(style, api) == 0);
+            }
+            if (testcase('l')) {
+              CHK(readLockPk(style,api) == 0);
             }
             if (testcase('d')) {
               CHK(deletePk(api) == 0);
@@ -3501,6 +3957,9 @@ testmain()
             CHK(updateScan(style, api, false) == 0);
             CHK(verifyBlob() == 0);
           }
+          if (testcase('l')) {
+            CHK(lockUnlockScan(style, api, false) == 0);
+          }
           if (testcase('d')) {
             CHK(deleteScan(api, false) == 0);
             CHK(verifyBlob() == 0);
@@ -3518,6 +3977,9 @@ testmain()
           if (testcase('u')) {
             CHK(updateScan(style, api, true) == 0);
             CHK(verifyBlob() == 0);
+          }
+          if (testcase('l')) {
+            CHK(lockUnlockScan(style, api, true) == 0);
           }
           if (testcase('d')) {
             CHK(deleteScan(api, true) == 0);

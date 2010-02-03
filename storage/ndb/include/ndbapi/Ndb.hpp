@@ -997,6 +997,7 @@ class TransporterFacade;
 class PollGuard;
 class Ndb_local_table_info;
 template <class T> struct Ndb_free_list_t;
+class NdbLockHandle;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -1769,6 +1770,9 @@ public:
   };
 
   Free_list_usage * get_free_list_usage(Free_list_usage*);
+
+  /* Get minimum known DB node version */
+  Uint32 getMinDbNodeVersion() const;
 #endif
 
 private:
@@ -1812,6 +1816,8 @@ private:
 
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
+  NdbLockHandle*        getLockHandle(); // Get a lock handle.
+
   void			releaseSignal(NdbApiSignal* anApiSignal);
   void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
@@ -1824,6 +1830,7 @@ private:
   void		 	releaseOperation(NdbOperation* anOperation);	
   void		 	releaseScanOperation(NdbIndexScanOperation*);
   void                  releaseNdbBlob(NdbBlob* aBlob);
+  void                  releaseLockHandle(NdbLockHandle* lh);
 
   void                  check_send_timeout();
   void                  remove_sent_list(Uint32);
@@ -1982,6 +1989,9 @@ private:
   } theInitState;
 
   NdbApiSignal* theCommitAckSignal;
+
+  /* Cached minimum connected Db node version */
+  Uint32 theCachedMinDbNodeVersion;
 
 
 #ifdef POORMANSPURIFY

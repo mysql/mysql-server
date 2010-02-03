@@ -37,6 +37,7 @@ class TcKeyReq;
 class NdbRecord;
 class NdbInterpretedCode;
 struct GenericSectionPtr;
+class NdbLockHandle;
 
 /**
  * @class NdbOperation
@@ -914,6 +915,7 @@ public:
     DeleteRequest = 3,            ///< Delete Operation
     WriteRequest = 4,             ///< Write Operation
     ReadExclusive = 5,            ///< Read exclusive
+    UnlockRequest = 7,            ///< Unlock operation
     OpenScanRequest,              ///< Scan Operation
     OpenRangeScanRequest,         ///< Range scan operation
     NotDefined2,                  ///< Internal for debugging
@@ -1036,7 +1038,8 @@ public:
                  OO_PARTITION_ID = 0x08, 
                  OO_INTERPRETED  = 0x10,
                  OO_ANYVALUE     = 0x20,
-                 OO_CUSTOMDATA   = 0x40 };
+                 OO_CUSTOMDATA   = 0x40,
+                 OO_LOCKHANDLE   = 0x80 };
 
     /* An operation-specific abort option.
      * Only necessary if the default abortoption behaviour
@@ -1066,6 +1069,17 @@ public:
     /* customData ptr for this operation */
     void * customData;
   };
+
+  /* getLockHandle
+   * Returns a pointer to this operation's LockHandle.
+   * For NdbRecord, the lock handle must first be requested using
+   * the OO_LOCKHANDLE operation option.
+   * For non-NdbRecord operations, this call can be used alone.
+   * The returned LockHandle cannot be used until the operation
+   * has been executed.
+   */
+  const NdbLockHandle* getLockHandle() const;
+  const NdbLockHandle* getLockHandle();
 
 protected:
 /******************************************************************************
@@ -1316,6 +1330,10 @@ protected:
   // get table or index key from prepared signals
   int getKeyFromTCREQ(Uint32* data, Uint32 & size);
 
+  int getLockHandleImpl();
+  int prepareGetLockHandle();
+  int prepareGetLockHandleNdbRecord();
+
   virtual void setReadLockMode(LockMode lockMode);
 
 /******************************************************************************
@@ -1485,6 +1503,12 @@ protected:
   friend struct Ndb_free_list_t<NdbOperation>;
 
   Uint32 repack_read(Uint32 len);
+
+  NdbLockHandle* theLockHandle;
+
+  bool m_blob_lock_upgraded; /* Did Blob code upgrade LM_CommittedRead
+                              * to LM_Read?
+                              */
 
 private:
   NdbOperation(const NdbOperation&); // Not impl.

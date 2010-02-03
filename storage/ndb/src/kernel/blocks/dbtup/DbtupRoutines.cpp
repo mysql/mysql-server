@@ -2451,6 +2451,25 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     sz = 2;
     break;
   }
+  case AttributeHeader::LOCK_REF:
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
+    outBuffer[3] = signal->theData[2];
+    sz = 3;
+    break;
+  case AttributeHeader::OP_ID:
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
+    sz = 2;
+    break;
   default:
     return -ZATTRIBUTE_ID_ERROR;
   }
