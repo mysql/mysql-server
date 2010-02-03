@@ -17,15 +17,16 @@ show grants for x@y;
 Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
 GRANT SELECT ON `d1`.`t` TO 'x'@'y'
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	drop database if exists d1
-master-bin.000001	#	Query	#	#	create database d1
-master-bin.000001	#	Query	#	#	use `d1`; create table t (s1 int) engine=innodb
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `d1`; insert into t values (1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; grant select on t to 'x'@'y'
+master-bin.000001	4	Format_desc	1	107	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	107	Query	1	194	drop database if exists d1
+master-bin.000001	194	Query	1	273	create database d1
+master-bin.000001	273	Query	1	371	use `d1`; create table t (s1 int) engine=innodb
+master-bin.000001	371	Query	1	437	BEGIN
+master-bin.000001	437	Query	1	522	use `d1`; insert into t values (1)
+master-bin.000001	522	Xid	1	549	COMMIT /* XID */
+master-bin.000001	549	Query	1	634	use `d1`; grant select on t to x@y
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -37,18 +38,19 @@ s1
 show grants for x@y;
 Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	drop database if exists d1
-master-bin.000001	#	Query	#	#	create database d1
-master-bin.000001	#	Query	#	#	use `d1`; create table t (s1 int) engine=innodb
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `d1`; insert into t values (1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; grant select on t to 'x'@'y'
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `d1`; insert into t values (2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `d1`; revoke select on t from 'x'@'y'
+master-bin.000001	4	Format_desc	1	107	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	107	Query	1	194	drop database if exists d1
+master-bin.000001	194	Query	1	273	create database d1
+master-bin.000001	273	Query	1	371	use `d1`; create table t (s1 int) engine=innodb
+master-bin.000001	371	Query	1	437	BEGIN
+master-bin.000001	437	Query	1	522	use `d1`; insert into t values (1)
+master-bin.000001	522	Xid	1	549	COMMIT /* XID */
+master-bin.000001	549	Query	1	634	use `d1`; grant select on t to x@y
+master-bin.000001	634	Query	1	700	BEGIN
+master-bin.000001	700	Query	1	785	use `d1`; insert into t values (2)
+master-bin.000001	785	Xid	1	812	COMMIT /* XID */
+master-bin.000001	812	Query	1	900	use `d1`; revoke select on t from x@y
 drop user x@y;
 drop database d1;

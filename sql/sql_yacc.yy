@@ -1681,11 +1681,7 @@ opt_end_of_input:
         ;
 
 verb_clause:
-          remember_name statement remember_end
-          {
-            Lex->stmt_begin= $1;
-            Lex->stmt_end= $3;
-          }
+          statement
         | begin
         ;
 
@@ -6196,7 +6192,7 @@ alter:
           }
           view_tail
           {}
-        | ALTER definer_opt remember_name EVENT_SYM sp_name
+        | ALTER definer_opt EVENT_SYM sp_name
           {
             /* 
               It is safe to use Lex->spname because
@@ -6208,8 +6204,7 @@ alter:
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               MYSQL_YYABORT;
-            Lex->event_parse_data->identifier= $5;
-            Lex->stmt_definition_begin= $3;
+            Lex->event_parse_data->identifier= $4;
 
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }
@@ -6219,7 +6214,7 @@ alter:
           opt_ev_comment
           opt_ev_sql_stmt
           {
-            if (!($7 || $8 || $9 || $10 || $11))
+            if (!($6 || $7 || $8 || $9 || $10))
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
@@ -6280,16 +6275,7 @@ opt_ev_rename_to:
         ;
 
 opt_ev_sql_stmt:
-          /* empty*/
-          {
-            $$= 0;
-            /*
-              Lex->sp_head is not initialized when event body is empty.
-              So we can not use Lex->sp_head->set_stmt_end() to set
-              stmt_definition_end.
-             */
-            Lex->stmt_definition_end= (char*) YYLIP->get_cpp_tok_end();
-          }
+          /* empty*/ { $$= 0;}
         | DO_SYM ev_sql_stmt { $$= 1; }
         ;
 
@@ -12068,7 +12054,6 @@ user:
             $$->user = $1;
             $$->host.str= (char *) "%";
             $$->host.length= 1;
-            Lex->stmt_user_end= YYLIP->get_cpp_ptr();
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12081,7 +12066,6 @@ user:
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
             $$->user = $1; $$->host=$3;
-            Lex->stmt_user_end= YYLIP->get_cpp_ptr();
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12091,7 +12075,6 @@ user:
           }
         | CURRENT_USER optional_braces
           {
-            Lex->stmt_user_end= YYLIP->get_cpp_ptr();
             if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
             /* 
@@ -13297,10 +13280,9 @@ user_list:
         ;
 
 grant_list:
-          { Lex->stmt_user_begin= YYLIP->get_cpp_ptr(); }
           grant_user
           {
-            if (Lex->users_list.push_back($2))
+            if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
           }
         | grant_list ',' grant_user
@@ -13313,7 +13295,6 @@ grant_list:
 grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
-            Lex->stmt_user_end= YYLIP->get_cpp_ptr();
             $$=$1; $1->password=$4;
             if ($4.length)
             {
@@ -13340,10 +13321,7 @@ grant_user:
             }
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          {
-            Lex->stmt_user_end= YYLIP->get_cpp_ptr();
-            $$= $1; $1->password= $5;
-          }
+          { $$= $1; $1->password= $5; }
         | user
           { $$= $1; $1->password= null_lex_str; }
         ;
