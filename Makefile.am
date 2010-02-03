@@ -129,14 +129,14 @@ smoke:
 test-full:	test test-nr test-ps
 
 test-force:
-	$(MAKE) force=--force test
+	$(MAKE) -k force=--force test
 
 test-force-full:
-	$(MAKE) force=--force test-full
+	$(MAKE) -k force=--force test-full
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) force=--force mem=--mem test
+	$(MAKE) -k force=--force mem=--mem test
 
 EXP = --experimental=collections/default.experimental
 
@@ -203,10 +203,6 @@ test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features $(EXP)
-
-test-bt-debug-fast:
-
-test-bt-debug-fast:
 
 # Keep these for a while
 test-pl:	test

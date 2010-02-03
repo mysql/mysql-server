@@ -4673,8 +4673,7 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
   }
   return (key->flag & HA_SPATIAL) ||
           (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
-	  ((ulonglong) rows * key_maxlength >
-	   (ulonglong) myisam_max_temp_length));
+	  ((ulonglong) rows * key_maxlength > myisam_max_temp_length));
 }
 
 /*

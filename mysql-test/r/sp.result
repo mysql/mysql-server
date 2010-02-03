@@ -3028,7 +3028,7 @@ set @x = @x + 1;
 return @x;
 end|
 set @qcs1 = @@query_cache_size|
-set global query_cache_size = 100000|
+set global query_cache_size = 102400|
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
@@ -6901,15 +6901,12 @@ DROP FUNCTION f1;
 
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= pow(2,32)-1;
+set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
-select @@sql_mode;
-@@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,?,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
 set @@sql_mode= @old_mode;
-select replace(@full_mode, '?', 'NOT_USED') into @full_mode;
+select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 name

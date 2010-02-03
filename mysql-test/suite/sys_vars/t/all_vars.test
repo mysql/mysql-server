@@ -1,0 +1,35 @@
+--source include/not_embedded.inc
+
+#
+# This test verifies that *all* system variables are tested
+# by the sys_vars suite. For every system variable
+# there must be a <variable_name>_basic.test file.
+#
+
+#
+# we can diff in perl or in sql, as it's my_SQL_test suite, do it in sql
+#
+
+perl;
+  use File::Basename;
+  my $dirname=dirname($ENV{MYSQLTEST_FILE});
+  my @all_tests=<$dirname/*_basic{,_32,_64}.test>;
+  open(F, '>', "$ENV{MYSQLTEST_VARDIR}/tmp/sys_vars.all_vars.txt") or die;
+  binmode F;
+  print F join "\n", sort map { s/_basic(_32|_64)?\.test$//; basename $_ } @all_tests;
+EOF
+
+create table t1 (test_name text);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+
+select variable_name as `There should be *no* variables listed below:`
+                    from information_schema.global_variables
+                       left join t1 on variable_name=test_name where
+                         test_name is null
+  union
+select variable_name from information_schema.session_variables
+                       left join t1 on variable_name=test_name where
+                         test_name is null;
+
+drop table t1;

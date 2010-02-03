@@ -608,13 +608,13 @@ public:
   void init_general_log(uint general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
-  MYSQL_QUERY_LOG *get_slow_log_file_handler()
+  MYSQL_QUERY_LOG *get_slow_log_file_handler() const
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_slow_log();
     return NULL;
   }
-  MYSQL_QUERY_LOG *get_log_file_handler()
+  MYSQL_QUERY_LOG *get_log_file_handler() const
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
@@ -623,19 +623,10 @@ public:
 };
 
 enum enum_binlog_format {
-  /*
-    statement-based except for cases where only row-based can work (UUID()
-    etc):
-  */
-  BINLOG_FORMAT_MIXED= 0,
-  BINLOG_FORMAT_STMT= 1, // statement-based
-  BINLOG_FORMAT_ROW= 2, // row_based
-/*
-  This value is last, after the end of binlog_format_typelib: it has no
-  corresponding cell in this typelib. We use this value to be able to know if
-  the user has explicitely specified a binlog format at startup or not.
-*/
-  BINLOG_FORMAT_UNSPEC= 3
+  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT=  1, ///< statement-based
+  BINLOG_FORMAT_ROW=   2, ///< row-based
+  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
 extern TYPELIB binlog_format_typelib;
 

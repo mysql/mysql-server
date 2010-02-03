@@ -1,0 +1,23 @@
+#
+# only global
+#
+select @@global.lower_case_file_system=2;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lower_case_file_system;
+--replace_column 2 #
+show global variables like 'lower_case_file_system';
+--replace_column 2 #
+show session variables like 'lower_case_file_system';
+--replace_column 2 #
+select * from information_schema.global_variables where variable_name='lower_case_file_system';
+--replace_column 2 #
+select * from information_schema.session_variables where variable_name='lower_case_file_system';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lower_case_file_system=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lower_case_file_system=1;
+

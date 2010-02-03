@@ -1561,56 +1561,6 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
   DBUG_RETURN(FALSE);
 }
 
-
-/**
-  Check if the system variable 'debug_sync' can be set.
-
-  @param[in]    thd             thread handle
-  @param[in]    var             set variable request
-
-  @return       status
-    @retval     FALSE           ok, variable can be set
-    @retval     TRUE            error, variable cannot be set
-*/
-
-bool sys_var_debug_sync::check(THD *thd, set_var *var)
-{
-  DBUG_ENTER("sys_var_debug_sync::check");
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(var);
-
-  /*
-    Variable can be set for the session only.
-
-    This could be changed later. Then we need to have a global array of
-    actions in addition to the thread local ones. SET GLOBAL would
-    manage the global array, SET [SESSION] the local array. A sync point
-    would need to look for a local and a global action. Setting and
-    executing of global actions need to be protected by a mutex.
-
-    The purpose of global actions could be to allow synchronizing with
-    connectionless threads that cannot execute SET statements.
-  */
-  if (var->type == OPT_GLOBAL)
-  {
-    my_error(ER_LOCAL_VARIABLE, MYF(0), name);
-    DBUG_RETURN(TRUE);
-  }
-
-  /*
-    Do not check for disabled facility. Test result should not
-    unnecessarily differ from enabled facility.
-  */
-
-  /*
-    Facility requires SUPER privilege. Sync points could be inside
-    global mutexes (e.g. LOCK_open). Waiting there forever would
-    stall the whole server.
-  */
-  DBUG_RETURN(check_global_access(thd, SUPER_ACL));
-}
-
-
 /**
   Set the system variable 'debug_sync'.
 
@@ -1631,28 +1581,9 @@ bool sys_var_debug_sync::check(THD *thd, set_var *var)
     terminators in the string. So we need to take a copy here.
 */
 
-bool sys_var_debug_sync::update(THD *thd, set_var *var)
+bool debug_sync_update(THD *thd, char *val_str)
 {
-  char   *val_str;
-  String *val_ptr;
-  String val_buf;
-  DBUG_ENTER("sys_var_debug_sync::update");
-  DBUG_ASSERT(thd);
-
-  /*
-    Depending on the value type (string literal, user variable, ...)
-    val_buf receives a copy of the value or not. But we always need
-    a copy. So we take a copy, if it is not done by val_str().
-    If val_str() puts a copy into val_buf, then it returns &val_buf,
-    otherwise it returns a pointer to the string object that we need
-    to copy.
-  */
-  val_ptr= var ? var->value->val_str(&val_buf) : &val_buf;
-  if (val_ptr != &val_buf)
-  {
-    val_buf.copy(*val_ptr);
-  }
-  val_str= val_buf.c_ptr();
+  DBUG_ENTER("debug_sync_update");
   DBUG_PRINT("debug_sync", ("set action: '%s'", val_str));
 
   /*
@@ -1669,8 +1600,6 @@ bool sys_var_debug_sync::update(THD *thd, set_var *var)
   Retrieve the value of the system variable 'debug_sync'.
 
   @param[in]    thd             thread handle
-  @param[in]    type            variable type, unused
-  @param[in]    base            variable base, unused
 
   @return       string
     @retval     != NULL         ok, string pointer
@@ -1683,13 +1612,10 @@ bool sys_var_debug_sync::update(THD *thd, set_var *var)
     When "ON", the current signal is added.
 */
 
-uchar *sys_var_debug_sync::value_ptr(THD *thd,
-                                     enum_var_type type __attribute__((unused)),
-                                     LEX_STRING *base __attribute__((unused)))
+uchar *debug_sync_value_ptr(THD *thd)
 {
   char *value;
-  DBUG_ENTER("sys_var_debug_sync::value_ptr");
-  DBUG_ASSERT(thd);
+  DBUG_ENTER("debug_sync_value_ptr");
 
   if (opt_debug_sync_timeout)
   {
@@ -1718,7 +1644,7 @@ uchar *sys_var_debug_sync::value_ptr(THD *thd,
   else
   {
     /* purecov: begin tested */
-    value= strmake_root(thd->mem_root, STRING_WITH_LEN("OFF"));
+    value= const_cast<char*>("OFF");
     /* purecov: end */
   }
 

@@ -208,7 +208,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #endif
 
     r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
-                  IF_WIN(const char*, void*) &nodelay,
+                  IF_WIN((const char*), (void*)) &nodelay,
                   sizeof(nodelay));
 
   }
@@ -240,11 +240,20 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 
 
 my_bool
-vio_should_retry(Vio * vio __attribute__((unused)))
+vio_should_retry(Vio * vio)
 {
   int en = socket_errno;
-  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
-	  en == SOCKET_EWOULDBLOCK);
+  /*
+    man 2 read write
+      EAGAIN or EWOULDBLOCK when a socket is a non-blocking mode means
+      that the read/write would block.
+    man 7 socket
+      EAGAIN or EWOULDBLOCK when a socket is in a blocking mode means
+      that the corresponding receiving or sending timeout was reached.
+  */
+  return  en == SOCKET_EINTR ||
+          (!vio_is_blocking(vio) &&
+            (en == SOCKET_EAGAIN || en == SOCKET_EWOULDBLOCK));
 }
 
 
@@ -682,15 +691,13 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 #endif
 
   r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                IF_WIN(const char*, const void*)&wait_timeout,
+                IF_WIN((const char*), (const void*))&wait_timeout,
                 sizeof(wait_timeout));
 
   }
 
-#ifndef DBUG_OFF
   if (r != 0)
     DBUG_PRINT("error", ("setsockopt failed: %d, errno: %d", r, socket_errno));
-#endif
 
   DBUG_VOID_RETURN;
 #else

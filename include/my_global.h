@@ -93,11 +93,35 @@
 #define HAVE_PSI_INTERFACE
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-/* Make it easier to add conditionl code for windows */
+/* Make it easier to add conditional code in _expressions_ */
 #ifdef __WIN__
-#define IF_WIN(A,B) (A)
+#define IF_WIN(A,B) A
 #else
-#define IF_WIN(A,B) (B)
+#define IF_WIN(A,B) B
+#endif
+
+#ifdef __NETWARE__
+#define IF_NETWARE(A,B) A
+#else
+#define IF_NETWARE(A,B) B
+#endif
+
+#ifndef DBUG_OFF
+#define IF_DBUG(A,B) A
+#else
+#define IF_DBUG(A,B) B
+#endif
+
+#ifdef HAVE_purify
+#define IF_PURIFY(A,B) A
+#else
+#define IF_PURIFY(A,B) B
+#endif
+
+#ifdef DISABLE_GRANT_OPTIONS
+#define IF_DISABLE_GRANT_OPTIONS(A,B) A
+#else
+#define IF_DISABLE_GRANT_OPTIONS(A,B) B
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -249,6 +273,8 @@
 #define inline_test_2(X)        inline_test_1(X)
 #if inline_test_2(inline) != 1
 #define HAVE_INLINE
+#else
+#warning No "inline" support in C, all "static inline" functions will be instantiated in every .o file!!!
 #endif
 #undef inline_test_2
 #undef inline_test_1
@@ -489,8 +515,7 @@ C_MODE_END
 #define compile_time_assert(X)                                  \
   do                                                            \
   {                                                             \
-    char compile_time_assert[(X) ? 1 : -1]                      \
-                             __attribute__ ((unused));          \
+    typedef char compile_time_assert[(X) ? 1 : -1];             \
   } while(0)
 #endif
 
@@ -787,7 +812,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 /* #define EXT_IN_LIBNAME     */
-/* #define FN_NO_CASE_SENCE   */
+/* #define FN_NO_CASE_SENSE   */
 /* #define FN_UPPER_CASE TRUE */
 
 /*
@@ -810,7 +835,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 	/* Typical record cash */
 #define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
 	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024-MALLOC_OVERHEAD)
+#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
 	/* Default size of a key cache block  */
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 

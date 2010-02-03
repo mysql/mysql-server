@@ -60,6 +60,7 @@ disable_query_log;
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
 
+
 let $_diff_table=$diff_table_2;
 let $_diff_i=2;
 while ($_diff_i) {

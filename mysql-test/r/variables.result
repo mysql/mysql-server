@@ -24,7 +24,7 @@ set @my_query_cache_type          =@@global.query_cache_type;
 set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
-set @my_storage_engine            =@@global.storage_engine;
+set @my_storage_engine            =@@global.default_storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
@@ -165,28 +165,28 @@ set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF",
 set global concurrent_insert=2;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	2
+concurrent_insert	ALWAYS
 select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	2
+CONCURRENT_INSERT	ALWAYS
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	1
+concurrent_insert	AUTO
 select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	1
+CONCURRENT_INSERT	AUTO
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
 Variable_name	Value
-concurrent_insert	0
+concurrent_insert	NEVER
 select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	0
+CONCURRENT_INSERT	NEVER
 set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 @@concurrent_insert
-1
+AUTO
 set global timed_mutexes=ON;
 show variables like 'timed_mutexes';
 Variable_name	Value
@@ -201,21 +201,23 @@ timed_mutexes	OFF
 select * from information_schema.session_variables where variable_name like 'timed_mutexes';
 VARIABLE_NAME	VARIABLE_VALUE
 TIMED_MUTEXES	OFF
-set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
-show local variables like 'storage_engine';
+set default_storage_engine=MYISAM, default_storage_engine="HEAP", global default_storage_engine="MERGE";
+show local variables like 'default_storage_engine';
 Variable_name	Value
-storage_engine	MEMORY
-select * from information_schema.session_variables where variable_name like 'storage_engine';
+default_storage_engine	MEMORY
+select * from information_schema.session_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-STORAGE_ENGINE	MEMORY
-show global variables like 'storage_engine';
+DEFAULT_STORAGE_ENGINE	MEMORY
+show global variables like 'default_storage_engine';
 Variable_name	Value
-storage_engine	MRG_MYISAM
-select * from information_schema.global_variables where variable_name like 'storage_engine';
+default_storage_engine	MRG_MYISAM
+select * from information_schema.global_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-STORAGE_ENGINE	MRG_MYISAM
-set GLOBAL query_cache_size=100000;
+DEFAULT_STORAGE_ENGINE	MRG_MYISAM
+set GLOBAL query_cache_size=102400;
 set GLOBAL myisam_max_sort_file_size=2000000;
+Warnings:
+Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	1048576
@@ -256,6 +258,8 @@ NET_READ_TIMEOUT	30
 NET_RETRY_COUNT	10
 NET_WRITE_TIMEOUT	60
 set global net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '8000'
 show global variables like 'net_%';
 Variable_name	Value
 net_buffer_length	7168
@@ -359,13 +363,20 @@ TRANSACTION_PREALLOC_SIZE	19456
 ==+ Manipulate variable values +==
 Testing values that are not 1024 multiples
 set @@range_alloc_block_size=1024*16+1023;
+Warnings:
+Warning	1292	Truncated incorrect range_alloc_block_size value: '17407'
 set @@query_alloc_block_size=1024*17+2;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '17410'
 set @@query_prealloc_size=1024*18-1023;
+Warnings:
+Warning	1292	Truncated incorrect query_prealloc_size value: '17409'
 set @@transaction_alloc_block_size=1024*20-1;
+Warnings:
+Warning	1292	Truncated incorrect transaction_alloc_block_size value: '20479'
 set @@transaction_prealloc_size=1024*21-1;
-select @@query_alloc_block_size;
-@@query_alloc_block_size
-17408
+Warnings:
+Warning	1292	Truncated incorrect transaction_prealloc_size value: '21503'
 ==+ Check manipulated values ==+
 SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
@@ -415,17 +426,15 @@ set unknown_variable=1;
 ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
 ERROR 42000: Incorrect argument type to variable 'max_join_size'
-set storage_engine=UNKNOWN_TABLE_TYPE;
-ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
-set storage_engine=MERGE, big_tables=2;
+set default_storage_engine=UNKNOWN_TABLE_TYPE;
+ERROR 42000: Unknown storage engine 'UNKNOWN_TABLE_TYPE'
+set default_storage_engine=MERGE, big_tables=2;
 ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
-show local variables like 'storage_engine';
+show local variables like 'default_storage_engine';
 Variable_name	Value
-storage_engine	MEMORY
+default_storage_engine	MEMORY
 set SESSION query_cache_size=10000;
 ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
-set GLOBAL storage_engine=DEFAULT;
-ERROR 42000: Variable 'storage_engine' doesn't have a default value
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -434,18 +443,12 @@ set character_set_client=NULL;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
 set collation_connection=NULL;
 ERROR 42000: Variable 'collation_connection' can't be set to the value of 'NULL'
-set global autocommit=1;
-ERROR HY000: Variable 'autocommit' is a SESSION variable and can't be used with SET GLOBAL
 select @@global.timestamp;
 ERROR HY000: Variable 'timestamp' is a SESSION variable
 set @@version='';
 ERROR HY000: Variable 'version' is a read only variable
 set @@concurrent_insert=1;
 ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
-set @@global.sql_auto_is_null=1;
-ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable and can't be used with SET GLOBAL
-select @@global.sql_auto_is_null;
-ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable
 set myisam_max_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set @@SQL_WARNINGS=NULL;
@@ -530,14 +533,16 @@ set net_read_timeout=100;
 set net_write_timeout=100;
 set global query_cache_limit=100;
 set global query_cache_size=100;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_size value: '100'
 set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
-Warnings:
-Warning	1292	Truncated incorrect read_rnd_buffer_size value: '100'
 set global rpl_recovery_rank=100;
+Warnings:
+Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -568,17 +573,13 @@ set sql_log_update=1;
 Warnings:
 Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
 set sql_low_priority_updates=1;
-set sql_max_join_size=200;
-select @@sql_max_join_size,@@max_join_size;
-@@sql_max_join_size	@@max_join_size
-200	200
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
 set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
-set storage_engine=myisam;
+set default_storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
@@ -615,6 +616,8 @@ create table t2 (a int not null auto_increment, primary key(a));
 insert into t1 values(null),(null),(null);
 insert into t2 values(null),(null),(null);
 set global key_buffer_size=100000;
+Warnings:
+Warning	1292	Truncated incorrect key_buffer_size value: '100000'
 select @@key_buffer_size;
 @@key_buffer_size
 98304
@@ -658,11 +661,11 @@ MYISAM_MAX_SORT_FILE_SIZE	MAX_FILE_SIZE
 set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
-100	200
+100	100
 set @svc=@@global.max_user_connections, @svj=@@local.max_join_size;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
-100	200
+100	100
 set @@global.max_user_connections=111,@@local.max_join_size=222;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
@@ -674,7 +677,7 @@ select @@global.max_user_connections,@@local.max_join_size;
 set @@global.max_user_connections=@svc, @@local.max_join_size=@svj;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
-100	200
+100	100
 set @a=1, @b=2;
 set @a=@b, @b=@a;
 select @a, @b;
@@ -1055,9 +1058,11 @@ set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
+Warnings:
+Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
-set global storage_engine            =@my_storage_engine;
+set global default_storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
@@ -1440,10 +1445,10 @@ Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
 SET GLOBAL auto_increment_offset=0;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '0'
-select @@storage_engine;
+select @@default_storage_engine;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					@@storage_engine	253	6	6	Y	0	31	8
-@@storage_engine
+def					@@default_storage_engine	253	6	6	Y	0	31	8
+@@default_storage_engine
 MyISAM
 SET @old_server_id = @@GLOBAL.server_id;
 SET GLOBAL server_id = (1 << 32) - 1;

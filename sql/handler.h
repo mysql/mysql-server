@@ -941,9 +941,6 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 
-enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
-
-
 typedef struct {
   ulonglong data_file_length;
   ulonglong max_data_file_length;
@@ -1075,7 +1072,6 @@ typedef class Item COND;
 typedef struct st_ha_check_opt
 {
   st_ha_check_opt() {}                        /* Remove gcc warning */
-  ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   KEY_CACHE *key_cache;	/* new key cache when changing key cache */
@@ -2006,7 +2002,7 @@ extern const char *ha_row_type[];
 extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
 extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
-extern TYPELIB myisam_stats_method_typelib;
+extern const char *myisam_stats_method_names[];
 extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
@@ -2076,7 +2072,6 @@ extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
-int ha_end_key_cache(KEY_CACHE *key_cache);
 
 /* report to InnoDB that control passes to the client */
 int ha_release_temporary_latches(THD *thd);

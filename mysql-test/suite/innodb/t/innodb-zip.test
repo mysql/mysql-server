@@ -142,19 +142,19 @@ set global innodb_file_format=`0`;
 select @@innodb_file_format;
 set global innodb_file_format=`1`;
 select @@innodb_file_format;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=`2`;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=`-1`;
 set global innodb_file_format=`Antelope`;
 set global innodb_file_format=`Barracuda`;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=`Cheetah`;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=`abc`;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=`1a`;
--- error ER_WRONG_ARGUMENTS
+-- error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=``;
 
 #test strict mode.

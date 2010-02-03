@@ -113,7 +113,7 @@ a	b
 set global slave_exec_mode='IDEMPOTENT';
 set global slave_exec_mode='STRICT';
 set global slave_exec_mode='IDEMPOTENT,STRICT';
-ERROR HY000: Ambiguous slave modes combination. 
+ERROR 42000: Variable 'slave_exec_mode' can't be set to the value of 'IDEMPOTENT,STRICT'
 select @@global.slave_exec_mode /* must be STRICT */;
 @@global.slave_exec_mode
 STRICT

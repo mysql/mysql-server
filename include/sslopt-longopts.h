@@ -19,8 +19,8 @@
 #ifdef HAVE_OPENSSL
 
   {"ssl", OPT_SSL_SSL,
-   "Enable SSL for connection (automatically enabled with other flags). Disable with --skip-ssl.",
- (uchar **) &opt_use_ssl, (uchar **) &opt_use_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   "Enable SSL for connection (automatically enabled with other flags).",
+ (uchar **) &opt_use_ssl, (uchar **) &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0,
    0, 0, 0},
   {"ssl-ca", OPT_SSL_CA,
    "CA file in PEM format (check OpenSSL docs, implies --ssl).",
@@ -43,7 +43,7 @@
   {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
    "Verify server's \"Common Name\" in its cert against hostname used when connecting. This option is disabled by default.",
    (uchar **) &opt_ssl_verify_server_cert, (uchar **) &opt_ssl_verify_server_cert,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #endif /* HAVE_OPENSSL */
 #endif /* SSLOPT_LONGOPTS_INCLUDED */

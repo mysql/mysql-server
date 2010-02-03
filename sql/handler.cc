@@ -308,7 +308,6 @@ const char **get_handler_errmsgs()
 int ha_init_errors(void)
 {
 #define SETMSG(nr, msg) handler_errmsgs[(nr) - HA_ERR_FIRST]= (msg)
-  const char    **errmsgs;
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
@@ -3649,7 +3648,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
-  sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
 }
 
 
@@ -3723,15 +3721,6 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
     pthread_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
-  return 0;
-}
-
-/**
-  Free memory allocated by a key cache.
-*/
-int ha_end_key_cache(KEY_CACHE *key_cache)
-{
-  end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
@@ -4442,7 +4431,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
   return (thd->current_stmt_binlog_row_based &&
           table->s->cached_row_logging_check &&
-          (thd->options & OPTION_BIN_LOG) &&
+          (thd->variables.option_bits & OPTION_BIN_LOG) &&
           mysql_bin_log.is_open());
 }
 

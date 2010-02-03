@@ -53,7 +53,7 @@ SET (SQL_SOURCE
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc 
+               mysqld.cc net_serv.cc  keycaches.cc
                nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -77,7 +77,7 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc rpl_handler.cc mdl.cc
-               transaction.cc
+               transaction.cc sys_vars.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
                ${PROJECT_SOURCE_DIR}/include/mysqld_error.h

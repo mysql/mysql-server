@@ -93,7 +93,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   }
 
   const_cond= (!conds || conds->const_item());
-  safe_update=test(thd->options & OPTION_SAFE_UPDATES);
+  safe_update=test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
@@ -632,7 +632,7 @@ multi_delete::initialize_tables(JOIN *join)
   Unique **tempfiles_ptr;
   DBUG_ENTER("initialize_tables");
 
-  if ((thd->options & OPTION_SAFE_UPDATES) && error_if_full_join(join))
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && error_if_full_join(join))
     DBUG_RETURN(1);
 
   table_map tables_to_delete_from=0;

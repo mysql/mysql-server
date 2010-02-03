@@ -43,10 +43,7 @@ SELECT @start_value;
 #              Display the DEFAULT value of key_cache_age_threshold            #
 ################################################################################ 
 
-SET @@global.key_cache_age_threshold = 99;
---Error ER_NO_DEFAULT
 SET @@global.key_cache_age_threshold = DEFAULT;
---echo 'Bug# 34878: This variable has default value according to documentation';
 SELECT @@global.key_cache_age_threshold;
 
 
@@ -72,8 +69,6 @@ SET @@global.key_cache_age_threshold = 1800;
 SELECT @@global.key_cache_age_threshold;
 SET @@global.key_cache_age_threshold = 65535;
 SELECT @@global.key_cache_age_threshold;
---echo 'Bug# 34877 : Invalid Values are coming in variable on assigning valid values and Out Of Memory Warnings are coming';
-
 
 --echo '#--------------------FN_DYNVARS_056_04-------------------------#'
 ########################################################################### 
@@ -91,8 +86,6 @@ SET @@global.key_cache_age_threshold = -1024;
 SELECT @@global.key_cache_age_threshold;
 SET @@global.key_cache_age_threshold = 99;
 SELECT @@global.key_cache_age_threshold;
-
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_cache_age_threshold = ON;

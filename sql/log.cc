@@ -138,18 +138,22 @@ sql_print_message_func sql_print_message_handlers[3] =
   sql_print_error
 };
 
-
 /**
-  Create the name of the default general log file
-  
+  Create the name of the log specified.
+
+  This method forms a new path + file name for the
+  log specified in @c name.
+
   @param[IN] buff    Location for building new string.
-  @param[IN] log_ext The extension for the file (e.g .log)
-  @returns Pointer to a new string containing the name
+  @param[IN] name    Name of the log file.
+  @param[IN] log_ext The extension for the log (e.g. .log).
+
+  @returns Pointer to new string containing the name.
 */
-char *make_default_log_name(char *buff,const char* log_ext)
+char *make_log_name(char *buff, const char *name, const char* log_ext)
 {
-  strmake(buff, default_logfile_name, FN_REFLEN-5);
-  return fn_format(buff, buff, mysql_data_home, log_ext,
+  strmake(buff, name, FN_REFLEN-5);
+  return fn_format(buff, buff, mysql_real_data_home, log_ext,
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
 
@@ -420,8 +424,8 @@ bool Log_to_csv_event_handler::
   */
   save_time_zone_used= thd->time_zone_used;
 
-  save_thd_options= thd->options;
-  thd->options&= ~OPTION_BIN_LOG;
+  save_thd_options= thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_BIN_LOG;
 
   table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
                             GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
@@ -525,7 +529,7 @@ err:
   if (need_close)
     close_performance_schema_table(thd, & open_tables_backup);
 
-  thd->options= save_thd_options;
+  thd->variables.option_bits= save_thd_options;
   thd->time_zone_used= save_time_zone_used;
   return result;
 }
@@ -826,10 +830,10 @@ bool Log_to_file_event_handler::init()
   if (!is_initialized)
   {
     if (opt_slow_log)
-      mysql_slow_log.open_slow_log(sys_var_slow_log_path.value);
+      mysql_slow_log.open_slow_log(opt_slow_logname);
 
     if (opt_log)
-      mysql_log.open_query_log(sys_var_general_log_path.value);
+      mysql_log.open_query_log(opt_logname);
 
     is_initialized= TRUE;
   }
@@ -1190,7 +1194,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_slow_log();
 
-      file_log->open_slow_log(sys_var_slow_log_path.value);
+      file_log->open_slow_log(opt_slow_logname);
       if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
       {
         /* Error printed by open table in activate_log() */
@@ -1209,7 +1213,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_log();
 
-      file_log->open_query_log(sys_var_general_log_path.value);
+      file_log->open_query_log(opt_logname);
       if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
       {
         /* Error printed by open table in activate_log() */
@@ -1442,8 +1446,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
   DBUG_PRINT("enter", ("transaction: %s  end_ev: 0x%lx",
                        all ? "all" : "stmt", (long) end_ev));
   DBUG_PRINT("info", ("thd->options={ %s%s}",
-                      FLAGSTR(thd->options, OPTION_NOT_AUTOCOMMIT),
-                      FLAGSTR(thd->options, OPTION_BEGIN)));
+                      FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
+                      FLAGSTR(thd->variables.option_bits, OPTION_BEGIN)));
 
   /*
     NULL denotes ROLLBACK with nothing to replicate: i.e., rollback of
@@ -1634,7 +1638,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       back.
     */
     if ((thd->transaction.stmt.modified_non_trans_table ||
-        (thd->options & OPTION_KEEP_LOG)) &&
+        (thd->variables.option_bits & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
     error= binlog_end_trans(thd, trx_data, 0, all);
@@ -1651,11 +1655,11 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     */
     if ((all && thd->transaction.all.modified_non_trans_table) ||
         (!all && thd->transaction.stmt.modified_non_trans_table &&
-         !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
+         !(thd->variables.option_bits & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
         (!all && thd->transaction.stmt.modified_non_trans_table &&
          !trx_data->at_least_one_stmt_committed &&
          thd->current_stmt_binlog_row_based) ||
-        ((thd->options & OPTION_KEEP_LOG)))
+        ((thd->variables.option_bits & OPTION_KEEP_LOG)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
       error= binlog_end_trans(thd, trx_data, &qev, all);
@@ -1759,7 +1763,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     from the SAVEPOINT command.
   */
   if (unlikely(thd->transaction.all.modified_non_trans_table || 
-               (thd->options & OPTION_KEEP_LOG)))
+               (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     int error=
@@ -1935,7 +1939,7 @@ updating the index files.", max_found);
    */
   if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
   {
-    sql_print_error("Log filename too large: %s%s (%lu). \
+    sql_print_error("Log filename too large: %s%s (%zu). \
 Please fix this by archiving old logs and updating the \
 index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     error= 1;
@@ -4367,7 +4371,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
+    if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
       pthread_mutex_unlock(&LOCK_log);
@@ -4536,7 +4540,7 @@ bool LOGGER::log_command(THD *thd, enum enum_server_command command)
   */
   if (*general_log_handler_list && (what_to_log & (1L << (uint) command)))
   {
-    if ((thd->options & OPTION_LOG_OFF)
+    if ((thd->variables.option_bits & OPTION_LOG_OFF)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
          && (sctx->master_access & SUPER_ACL)
 #endif

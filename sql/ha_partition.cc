@@ -1145,7 +1145,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
             {
               if (part_elem->part_state == PART_ADMIN)
                 part_elem->part_state= PART_NORMAL;
-            } while (part_elem= part_it++);
+            } while ((part_elem= part_it++));
             DBUG_RETURN(error);
           }
         } while (++j < num_subparts);
@@ -1177,7 +1177,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           {
             if (part_elem->part_state == PART_ADMIN)
               part_elem->part_state= PART_NORMAL;
-          } while (part_elem= part_it++);
+          } while ((part_elem= part_it++));
           DBUG_RETURN(error);
         }
       }
@@ -6501,7 +6501,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
         thd->lex->sql_command != SQLCOM_INSERT &&
         mysql_bin_log.is_open() &&
         !thd->current_stmt_binlog_row_based &&
-        (thd->options & OPTION_BIN_LOG))
+        (thd->variables.option_bits & OPTION_BIN_LOG))
     {
       DBUG_PRINT("info", ("locking auto_increment_safe_stmt_log_lock"));
       auto_increment_safe_stmt_log_lock= TRUE;

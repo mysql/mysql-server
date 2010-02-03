@@ -12,7 +12,6 @@ utf8
 SELECT @@session.character_set_database;
 @@session.character_set_database
 latin1
-'Bug#35356: session character_set_database differ from global character_set_database'
 '#--------------------FN_DYNVARS_008_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1;
@@ -39,7 +38,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 DROP TABLE t1;
 DROP DATABASE db1;
-'Bug#35357: character_set_database does not effects CREATE DATABASE without characater set'
 '--ascii character set specified--'
 CREATE DATABASE db1 CHARACTER SET ascii;
 USE db1;
@@ -72,7 +70,6 @@ SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 count(*)
 1
 DROP TABLE IF EXISTS t1;
-'Bug#27208: If no current database, character_set_database !=character_set_server'
 SET GLOBAL character_set_server=latin5;
 CREATE DATABASE csdb CHARACTER SET = utf8;
 USE csdb;

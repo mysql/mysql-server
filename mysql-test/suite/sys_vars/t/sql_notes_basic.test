@@ -98,12 +98,8 @@ SET @@session.sql_notes = "Y";
 SET @@session.sql_notes = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = OF;
-SELECT @@session.sql_notes;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -117,10 +113,9 @@ SET @@session.sql_notes = NO;
 #       Test if accessing global sql_notes gives error                  #
 #########################################################################
 
---Error ER_LOCAL_VARIABLE
-SET @@global.sql_notes = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.sql_notes = 1-@@global.sql_notes;
+SELECT @@global.sql_notes;
+SET @@global.sql_notes = 1-@@global.sql_notes;
 SELECT @@global.sql_notes;
 
 --echo '#----------------------FN_DYNVARS_161_06------------------------#'

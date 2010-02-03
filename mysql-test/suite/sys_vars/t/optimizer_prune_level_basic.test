@@ -146,12 +146,11 @@ SET @@session.optimizer_prune_level = OF;
 SET @@session.optimizer_prune_level = 'OFN';
 SET @@session.optimizer_prune_level = -2;
 SELECT @@session.optimizer_prune_level;
---Error ER_PARSE_ERROR
-SET @@session.optimizer_prune_level = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_prune_level = 65530.34;
 
 SET @@session.optimizer_prune_level = 65550;
 SELECT @@session.optimizer_prune_level;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.optimizer_prune_level = test;
