@@ -2265,14 +2265,17 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
 				      const char *host,const char* ip,
 				      const char *db,
 				      const char *user, const char *tname,
-				      bool exact)
+				      bool exact, bool name_tolower)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3];
+  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
+  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
+  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  if (name_tolower)
+    my_casedn_str(files_charset_info, name_ptr);
   for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
                                             len, &state);
        grant_name ;
@@ -2305,7 +2308,7 @@ routine_hash_search(const char *host, const char *ip, const char *db,
 {
   return (GRANT_TABLE*)
     name_hash_search(proc ? &proc_priv_hash : &func_priv_hash,
-		     host, ip, db, user, tname, exact);
+		     host, ip, db, user, tname, exact, TRUE);
 }
 
 
@@ -2314,7 +2317,7 @@ table_hash_search(const char *host, const char *ip, const char *db,
 		  const char *user, const char *tname, bool exact)
 {
   return (GRANT_TABLE*) name_hash_search(&column_priv_hash, host, ip, db,
-					 user, tname, exact);
+					 user, tname, exact, FALSE);
 }
 
 
