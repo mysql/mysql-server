@@ -610,7 +610,7 @@ struct st_global_ddl_log
 
 st_global_ddl_log global_ddl_log;
 
-pthread_mutex_t LOCK_gdl;
+mysql_mutex_t LOCK_gdl;
 
 #define DDL_LOG_ENTRY_TYPE_POS 0
 #define DDL_LOG_ACTION_TYPE_POS 1
@@ -640,8 +640,8 @@ static bool read_ddl_log_file_entry(uint entry_no)
   uint io_size= global_ddl_log.io_size;
   DBUG_ENTER("read_ddl_log_file_entry");
 
-  if (my_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
-               MYF(MY_WME)) != io_size)
+  if (mysql_file_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
+                       MYF(MY_WME)) != io_size)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -664,8 +664,8 @@ static bool write_ddl_log_file_entry(uint entry_no)
   char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("write_ddl_log_file_entry");
 
-  if (my_pwrite(file_id, (uchar*)file_entry_buf,
-                IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
+  if (mysql_file_pwrite(file_id, (uchar*)file_entry_buf,
+                        IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -741,8 +741,9 @@ static uint read_ddl_log_header()
   DBUG_ENTER("read_ddl_log_header");
 
   create_ddl_log_file_name(file_name);
-  if ((global_ddl_log.file_id= my_open(file_name,
-                                        O_RDWR | O_BINARY, MYF(0))) >= 0)
+  if ((global_ddl_log.file_id= mysql_file_open(key_file_global_ddl_log,
+                                               file_name,
+                                               O_RDWR | O_BINARY, MYF(0))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -767,7 +768,7 @@ static uint read_ddl_log_header()
   global_ddl_log.first_free= NULL;
   global_ddl_log.first_used= NULL;
   global_ddl_log.num_entries= 0;
-  pthread_mutex_init(&LOCK_gdl, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_gdl, &LOCK_gdl, MY_MUTEX_INIT_FAST);
   global_ddl_log.do_release= true;
   DBUG_RETURN(entry_no);
 }
@@ -837,10 +838,10 @@ static bool init_ddl_log()
 
   global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
-  if ((global_ddl_log.file_id= my_create(file_name,
-                                         CREATE_MODE,
-                                         O_RDWR | O_TRUNC | O_BINARY,
-                                         MYF(MY_WME))) < 0)
+  if ((global_ddl_log.file_id= mysql_file_create(key_file_global_ddl_log,
+                                                 file_name, CREATE_MODE,
+                                                 O_RDWR | O_TRUNC | O_BINARY,
+                                                 MYF(MY_WME))) < 0)
   {
     /* Couldn't create ddl log file, this is serious error */
     sql_print_error("Failed to open ddl log file");
@@ -849,7 +850,7 @@ static bool init_ddl_log()
   global_ddl_log.inited= TRUE;
   if (write_ddl_log_header())
   {
-    (void) my_close(global_ddl_log.file_id, MYF(MY_WME));
+    (void) mysql_file_close(global_ddl_log.file_id, MYF(MY_WME));
     global_ddl_log.inited= FALSE;
     DBUG_RETURN(TRUE);
   }
@@ -919,14 +920,14 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         if (frm_action)
         {
           strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
-          if ((error= my_delete(to_path, MYF(MY_WME))))
+          if ((error= mysql_file_delete(key_file_frm, to_path, MYF(MY_WME))))
           {
             if (my_errno != ENOENT)
               break;
           }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
-          (void) my_delete(to_path, MYF(MY_WME));
+          (void) mysql_file_delete(key_file_partition, to_path, MYF(MY_WME));
 #endif
         }
         else
@@ -958,12 +959,12 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       {
         strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, reg_ext, NullS);
-        if (my_rename(from_path, to_path, MYF(MY_WME)))
+        if (mysql_file_rename(key_file_frm, from_path, to_path, MYF(MY_WME)))
           break;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, par_ext, NullS);
-        (void) my_rename(from_path, to_path, MYF(MY_WME));
+        (void) mysql_file_rename(key_file_partition, from_path, to_path, MYF(MY_WME));
 #endif
       }
       else
@@ -1280,7 +1281,7 @@ bool sync_ddl_log()
   {
     DBUG_RETURN(TRUE);
   }
-  if (my_sync(global_ddl_log.file_id, MYF(0)))
+  if (mysql_file_sync(global_ddl_log.file_id, MYF(0)))
   {
     /* Write to error log */
     sql_print_error("Failed to sync ddl log");
@@ -1336,7 +1337,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
   uint read_entry= first_entry;
   DBUG_ENTER("execute_ddl_log_entry");
 
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   do
   {
     if (read_ddl_log_entry(read_entry, &ddl_log_entry))
@@ -1358,7 +1359,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
     }
     read_entry= ddl_log_entry.next_entry;
   } while (read_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 }
 
@@ -1376,7 +1377,7 @@ static void close_ddl_log()
   DBUG_ENTER("close_ddl_log");
   if (global_ddl_log.file_id >= 0)
   {
-    (void) my_close(global_ddl_log.file_id, MYF(MY_WME));
+    (void) mysql_file_close(global_ddl_log.file_id, MYF(MY_WME));
     global_ddl_log.file_id= (File) -1;
   }
   DBUG_VOID_RETURN;
@@ -1436,7 +1437,7 @@ void execute_ddl_log_recovery()
   }
   close_ddl_log();
   create_ddl_log_file_name(file_name);
-  (void) my_delete(file_name, MYF(0));
+  (void) mysql_file_delete(key_file_global_ddl_log, file_name, MYF(0));
   global_ddl_log.recovery_phase= FALSE;
   delete thd;
   /* Remember that we don't have a THD */
@@ -1462,7 +1463,7 @@ void release_ddl_log()
   if (!global_ddl_log.do_release)
     DBUG_VOID_RETURN;
 
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
@@ -1477,8 +1478,8 @@ void release_ddl_log()
   }
   close_ddl_log();
   global_ddl_log.inited= 0;
-  pthread_mutex_unlock(&LOCK_gdl);
-  pthread_mutex_destroy(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_destroy(&LOCK_gdl);
   global_ddl_log.do_release= false;
   DBUG_VOID_RETURN;
 }
@@ -1610,7 +1611,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                   CHF_CREATE_FLAG,
                                                   lpt->create_info))
     {
-      my_delete(shadow_frm_name, MYF(0));
+      mysql_file_delete(key_file_frm, shadow_frm_name, MYF(0));
       error= 1;
       goto end;
     }
@@ -1634,7 +1635,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       error= 1;
       goto end;
     }
-    error= my_delete(shadow_frm_name, MYF(MY_WME));
+    error= mysql_file_delete(key_file_frm, shadow_frm_name, MYF(MY_WME));
   }
   if (flags & WFRM_INSTALL_SHADOW)
   {
@@ -1658,7 +1659,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       deactivate it.
     */
     mysql_mutex_lock(&LOCK_open);
-    if (my_delete(frm_name, MYF(MY_WME)) ||
+    if (mysql_file_delete(key_file_frm, frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_DELETE_FLAG, NULL) ||
@@ -1666,11 +1667,13 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         (sync_ddl_log(), FALSE) ||
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
+        mysql_file_rename(key_file_frm,
+                          shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_RENAME_FLAG, NULL))
 #else
-        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)))
+        mysql_file_rename(key_file_frm,
+                          shadow_frm_name, frm_name, MYF(MY_WME)))
 #endif
     {
       error= 1;
@@ -1882,7 +1885,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       table->db_type= share->db_type();
 
     /* Disable drop of enabled log tables */
-    if (share && (share->table_category == TABLE_CATEGORY_PERFORMANCE) &&
+    if (share && (share->table_category == TABLE_CATEGORY_LOG) &&
         check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
@@ -2088,7 +2091,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         int new_error;
 	/* Delete the table definition file */
 	strmov(end,reg_ext);
-	if (!(new_error=my_delete(path,MYF(MY_WME))))
+        if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
         {
 	  some_tables_deleted=1;
           new_error= Table_triggers_list::drop_all_triggers(thd, db,
@@ -2262,7 +2265,7 @@ bool quick_rm_table(handlerton *base,const char *db,
 
   uint path_length= build_table_filename(path, sizeof(path) - 1,
                                          db, table_name, reg_ext, flags);
-  if (my_delete(path,MYF(0)))
+  if (mysql_file_delete(key_file_frm, path, MYF(0)))
     error= 1; /* purecov: inspected */
   path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
   if (!(flags & FRM_ONLY))
@@ -4371,6 +4374,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Attempt to do full-blown table open in mysql_admin_table() has failed.
       Let us try to open at least a .FRM for this table.
     */
+    my_hash_value_type hash_value;
 
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
@@ -4385,9 +4389,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
 
+    hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
     if (!(share= (get_table_share(thd, table_list, key, key_length, 0,
-                                  &error))))
+                                  &error, hash_value))))
     {
       mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);				// Can't open frm file
@@ -4445,7 +4450,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
-  if (!my_stat(from, &stat_info, MYF(0)))
+  if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
   my_snprintf(tmp, sizeof(tmp), "%s-%lx_%lx",
@@ -4480,7 +4485,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed generating table from .frm file");
     goto end;
   }
-  if (my_rename(tmp, from, MYF(MY_WME)))
+  if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed restoring .MYD file");
@@ -5110,14 +5115,14 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   DBUG_ENTER("mysql_assign_to_keycache");
 
   check_opt.init();
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache= get_key_cache(key_cache_name)))
   {
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
     DBUG_RETURN(TRUE);
   }
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 0,

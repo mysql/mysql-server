@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -498,7 +498,7 @@ static void cleanup_load_tmpdir()
     if (is_prefix(file->name, prefbuf))
     {
       fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
-      my_delete(fname, MYF(0));
+      mysql_file_delete(key_file_misc, fname, MYF(0));
     }
   }
 
@@ -968,7 +968,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
-			      pthread_mutex_t* log_lock)
+                              mysql_mutex_t* log_lock)
 {
   ulong data_len;
   int result=0;
@@ -976,7 +976,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   DBUG_ENTER("Log_event::read_log_event");
 
   if (log_lock)
-    pthread_mutex_lock(log_lock);
+    mysql_mutex_lock(log_lock);
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -1034,14 +1034,14 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
 end:
   if (log_lock)
-    pthread_mutex_unlock(log_lock);
+    mysql_mutex_unlock(log_lock);
   DBUG_RETURN(result);
 }
 #endif /* !MYSQL_CLIENT */
 
 #ifndef MYSQL_CLIENT
-#define UNLOCK_MUTEX if (log_lock) pthread_mutex_unlock(log_lock);
-#define LOCK_MUTEX if (log_lock) pthread_mutex_lock(log_lock);
+#define UNLOCK_MUTEX if (log_lock) mysql_mutex_unlock(log_lock);
+#define LOCK_MUTEX if (log_lock) mysql_mutex_lock(log_lock);
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
@@ -1053,7 +1053,7 @@ end:
     Allocates memory;  The caller is responsible for clean-up.
 */
 Log_event* Log_event::read_log_event(IO_CACHE* file,
-				     pthread_mutex_t* log_lock,
+                                     mysql_mutex_t* log_lock,
                                      const Format_description_log_event
                                      *description_event)
 #else
@@ -4934,7 +4934,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !rli->is_in_group())
   {
-    pthread_mutex_lock(&rli->data_lock);
+    mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->group_master_log_name,
@@ -4946,7 +4946,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         "new group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
-    pthread_mutex_unlock(&rli->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
     flush_relay_log_info(rli);
     
     /*
@@ -5773,8 +5773,8 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
 
   Master_info* mi = rli->mi;
   // TODO: re-write this better without holding both locks at the same time
-  pthread_mutex_lock(&mi->data_lock);
-  pthread_mutex_lock(&rli->data_lock);
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&rli->data_lock);
   master_host_len = strlen(mi->host);
   master_log_len = strlen(rli->group_master_log_name);
   // on OOM, just do not initialize the structure and print the error
@@ -5792,8 +5792,8 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   }
   else
     sql_print_error("Out of memory while recording slave event");
-  pthread_mutex_unlock(&rli->data_lock);
-  pthread_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&rli->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
   DBUG_VOID_RETURN;
 }
 #endif /* !MYSQL_CLIENT */
@@ -6150,10 +6150,12 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   fname_buf= strmov(proc_info, "Making temp file ");
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   thd_proc_info(thd, proc_info);
-  my_delete(fname_buf, MYF(0)); // old copy may exist already
-  if ((fd= my_create(fname_buf, CREATE_MODE,
-		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		     MYF(MY_WME))) < 0 ||
+  /* old copy may exist already */
+  mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+  if ((fd= mysql_file_create(key_file_log_event_info,
+                             fname_buf, CREATE_MODE,
+                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -6175,20 +6177,22 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
   end_io_cache(&file);
-  my_close(fd, MYF(0));
+  mysql_file_close(fd, MYF(0));
   
   // fname_buf now already has .data, not .info, because we did our trick
-  my_delete(fname_buf, MYF(0)); // old copy may exist already
-  if ((fd= my_create(fname_buf, CREATE_MODE,
-		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		     MYF(MY_WME))) < 0)
+  /* old copy may exist already */
+  mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  if ((fd= mysql_file_create(key_file_log_event_data,
+                             fname_buf, CREATE_MODE,
+                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                             MYF(MY_WME))) < 0)
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in Create_file event: could not open file '%s'",
                 fname_buf);
     goto err;
   }
-  if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in Create_file event: write to '%s' failed",
@@ -6201,7 +6205,7 @@ err:
   if (error)
     end_io_cache(&file);
   if (fd >= 0)
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   thd_proc_info(thd, 0);
   return error != 0;
 }
@@ -6333,10 +6337,12 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
-    my_delete(fname, MYF(0)); // old copy may exist already
-    if ((fd= my_create(fname, CREATE_MODE,
-		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-		       MYF(MY_WME))) < 0)
+    /* old copy may exist already */
+    mysql_file_delete(key_file_log_event_data, fname, MYF(0));
+    if ((fd= mysql_file_create(key_file_log_event_data,
+                               fname, CREATE_MODE,
+                               O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+                               MYF(MY_WME))) < 0)
     {
       rli->report(ERROR_LEVEL, my_errno,
                   "Error in %s event: could not create file '%s'",
@@ -6344,8 +6350,10 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
       goto err;
     }
   }
-  else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
-                         MYF(MY_WME))) < 0)
+  else if ((fd= mysql_file_open(key_file_log_event_data,
+                                fname,
+                                O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                                MYF(MY_WME))) < 0)
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in %s event: could not open file '%s'",
@@ -6353,10 +6361,14 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
 
-  DBUG_EXECUTE_IF("remove_slave_load_file_before_write", 
-                  my_close(fd,MYF(0)); fd= -1; my_delete(fname, MYF(0)););
+  DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
+                  {
+                    mysql_file_close(fd, MYF(0));
+                    fd= -1;
+                    mysql_file_delete(0, fname, MYF(0));
+                  });
 
-  if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, my_errno,
                 "Error in %s event: write to '%s' failed",
@@ -6367,7 +6379,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 
 err:
   if (fd >= 0)
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   thd_proc_info(thd, 0);
   DBUG_RETURN(error);
 }
@@ -6461,9 +6473,9 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
   char fname[FN_REFLEN+10];
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
   return 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -6564,8 +6576,9 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   Load_log_event *lev= 0;
 
   ext= slave_load_file_stem(fname, file_id, server_id, ".info");
-  if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
-                    MYF(MY_WME))) < 0 ||
+  if ((fd= mysql_file_open(key_file_log_event_info,
+                           fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
+                           MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -6575,7 +6588,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
-                                                         (pthread_mutex_t*)0,
+                                                         (mysql_mutex_t*)0,
                                                          rli->relay_log.description_event_for_exec)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
@@ -6615,24 +6628,24 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   }
   /*
     We have an open file descriptor to the .info file; we need to close it
-    or Windows will refuse to delete the file in my_delete().
+    or Windows will refuse to delete the file in mysql_file_delete().
   */
   if (fd >= 0)
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     end_io_cache(&file);
     fd= -1;
   }
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
   memcpy(ext, ".data", 6);
-  (void) my_delete(fname, MYF(MY_WME));
+  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   error = 0;
 
 err:
   delete lev;
   if (fd >= 0)
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     end_io_cache(&file);
   }
   return error;
@@ -6871,7 +6884,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
     file so that we can re-execute this event at START SLAVE.
   */
   if (!error)
-    (void) my_delete(fname, MYF(MY_WME));
+    mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
 
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   return error;

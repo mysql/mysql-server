@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "tzfile.h"
 #include <m_string.h>
 #include <my_dir.h>
+#include <mysql/psi/mysql_file.h>
 
 /*
   Now we don't use abbreviations in server but we will do this in future.
@@ -156,9 +157,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
   uchar *p;
   int read_from_file;
   uint i;
-  FILE *file;
+  MYSQL_FILE *file;
 
-  if (!(file= my_fopen(name, O_RDONLY|O_BINARY, MYF(MY_WME))))
+  if (!(file= mysql_file_fopen(0, name, O_RDONLY|O_BINARY, MYF(MY_WME))))
     return 1;
   {
     union
@@ -175,9 +176,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     uint ttisgmtcnt;
     char *tzinfo_buf;
 
-    read_from_file= my_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
+    read_from_file= mysql_file_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
-    if (my_fclose(file, MYF(MY_WME)) != 0)
+    if (mysql_file_fclose(file, MYF(MY_WME)) != 0)
       return 1;
 
     if (read_from_file < (int)sizeof(struct tzhead))
@@ -1432,7 +1433,7 @@ static MEM_ROOT tz_storage;
   time zone in offset_tzs or creating if it didn't existed before in
   tz_storage. So contention is low.
 */
-static pthread_mutex_t tz_LOCK;
+static mysql_mutex_t tz_LOCK;
 static bool tz_inited= 0;
 
 /*
@@ -1532,6 +1533,27 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
   }
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_tz_LOCK;
+
+static PSI_mutex_info all_tz_mutexes[]=
+{
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL}
+};
+
+static void init_tz_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_tz_mutexes);
+  PSI_server->register_mutex(category, all_tz_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 
 /*
   Initialize time zone support infrastructure.
@@ -1570,6 +1592,10 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   int res;
   DBUG_ENTER("my_tz_init");
 
+#ifdef HAVE_PSI_INTERFACE
+  init_tz_psi_keys();
+#endif
+
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
@@ -1593,7 +1619,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     goto end;
   }
   init_sql_alloc(&tz_storage, 32 * 1024, 0);
-  pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
@@ -1781,7 +1807,7 @@ void my_tz_free()
   if (tz_inited)
   {
     tz_inited= 0;
-    pthread_mutex_destroy(&tz_LOCK);
+    mysql_mutex_destroy(&tz_LOCK);
     my_hash_free(&offset_tzs);
     my_hash_free(&tz_names);
     free_root(&tz_storage, MYF(0));
@@ -2270,7 +2296,7 @@ my_tz_find(THD *thd, const String *name)
   if (!name)
     DBUG_RETURN(0);
 
-  pthread_mutex_lock(&tz_LOCK);
+  mysql_mutex_lock(&tz_LOCK);
 
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
@@ -2314,7 +2340,7 @@ my_tz_find(THD *thd, const String *name)
     }
   }
 
-  pthread_mutex_unlock(&tz_LOCK);
+  mysql_mutex_unlock(&tz_LOCK);
 
   DBUG_RETURN(result_tz);
 }

@@ -433,7 +433,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
-        if (!my_stat(buff, file->mystat, MYF(0)))
+        if (!mysql_file_stat(key_file_misc, buff, file->mystat, MYF(0)))
                continue;
        }
 #endif
@@ -1769,13 +1769,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
-        pthread_mutex_lock(&tmp->LOCK_thd_data);
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
-        pthread_mutex_unlock(&tmp->LOCK_thd_data);
+        mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -2147,7 +2147,7 @@ static bool show_status_array(THD *thd, const char *wild,
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
 
-        pthread_mutex_lock(&LOCK_global_system_variables);
+        mysql_mutex_lock(&LOCK_global_system_variables);
 
         if (show_type == SHOW_SYS)
         {
@@ -2244,7 +2244,7 @@ static bool show_status_array(THD *thd, const char *wild,
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
 
-        pthread_mutex_unlock(&LOCK_global_system_variables);
+        mysql_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
         {
@@ -3139,6 +3139,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   TABLE_LIST table_list;
   uint res= 0;
   int not_used;
+  my_hash_value_type hash_value;
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
@@ -3198,9 +3199,10 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
   }
 
   key_length= create_table_def_key(thd, key, &table_list, 0);
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, OPEN_VIEW, &not_used);
+                         key_length, OPEN_VIEW, &not_used, hash_value);
   if (!share)
   {
     res= 0;
@@ -3394,8 +3396,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   while ((db_name= it++))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd,SELECT_ACL, db_name->str, 
-                      &thd->col_access, 0, 1, with_i_schema) ||
+    if (!check_access(thd, SELECT_ACL, db_name->str,
+                      &thd->col_access, NULL, 0, 1) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
 	!check_grant_db(thd, db_name->str))
@@ -3596,7 +3598,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
     path_len= build_table_filename(path, sizeof(path) - 1,
                                    lookup_field_vals.db_value.str, "", "", 0);
     path[path_len-1]= 0;
-    if (!my_stat(path,&stat_info,MYF(0)))
+    if (!mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
       DBUG_RETURN(0);
   }
 
@@ -3886,9 +3888,10 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
-    check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, FALSE, FALSE,
-                 test(tables->schema_table));
+    check_access(thd, SELECT_ACL, db_name->str,
+                 &tables->grant.privilege,
+                 &tables->grant.m_internal,
+                 FALSE, FALSE);
     col_access= get_column_grant(thd, &tables->grant, 
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -5417,8 +5420,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     has access.
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
-      check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
-                   is_schema_db(et.dbname.str)))
+      check_access(thd, EVENT_ACL, et.dbname.str, NULL, NULL, 0, 1))
     DBUG_RETURN(0);
 
   sch_table->field[ISE_EVENT_CATALOG]->store(STRING_WITH_LEN("def"), scs);
@@ -5602,10 +5604,10 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
-  rw_rdlock(&LOCK_system_variables_hash);
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
                          option_type, NULL, "", tables->table, upper_case_names, cond);
-  rw_unlock(&LOCK_system_variables_hash);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
 
@@ -7417,6 +7419,56 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     send data to the client. In this case we simply raise the error
     status and client connection will be closed.
   */
+}
+
+class IS_internal_schema_access : public ACL_internal_schema_access
+{
+public:
+  IS_internal_schema_access()
+  {}
+
+  ~IS_internal_schema_access()
+  {}
+
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const;
+
+  const ACL_internal_table_access *lookup(const char *name) const;
+};
+
+ACL_internal_access_result
+IS_internal_schema_access::check(ulong want_access,
+                                 ulong *save_priv) const
+{
+  want_access &= ~SELECT_ACL;
+
+  /*
+    We don't allow any simple privileges but SELECT_ACL on
+    the information_schema database.
+  */
+  if (unlikely(want_access & DB_ACLS))
+    return ACL_INTERNAL_ACCESS_DENIED;
+
+  /* Always grant SELECT for the information schema. */
+  *save_priv|= SELECT_ACL;
+
+  return want_access ? ACL_INTERNAL_ACCESS_CHECK_GRANT :
+                       ACL_INTERNAL_ACCESS_GRANTED;
+}
+
+const ACL_internal_table_access *
+IS_internal_schema_access::lookup(const char *name) const
+{
+  /* There are no per table rules for the information schema. */
+  return NULL;
+}
+
+static IS_internal_schema_access is_internal_schema_access;
+
+void initialize_information_schema_acl()
+{
+  ACL_internal_schema_registry::register_schema(&INFORMATION_SCHEMA_NAME,
+                                                &is_internal_schema_access);
 }
 
 /*

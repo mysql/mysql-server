@@ -779,7 +779,7 @@ typedef struct st_xid_state {
   uint rm_error;
 } XID_STATE;
 
-extern pthread_mutex_t LOCK_xid_cache;
+extern mysql_mutex_t LOCK_xid_cache;
 extern HASH xid_cache;
 bool xid_cache_init(void);
 void xid_cache_free(void);
@@ -1519,7 +1519,7 @@ public:
     - thd->mysys_var (used by KILL statement and shutdown).
     Is locked when THD is deleted.
   */
-  pthread_mutex_t LOCK_thd_data;
+  mysql_mutex_t LOCK_thd_data;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
@@ -2094,15 +2094,15 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
-    pthread_mutex_lock(&LOCK_thd_data);
+    mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
-    pthread_mutex_unlock(&LOCK_thd_data);
+    mysql_mutex_unlock(&LOCK_thd_data);
   }
   inline void clear_active_vio()
   {
-    pthread_mutex_lock(&LOCK_thd_data);
+    mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
-    pthread_mutex_unlock(&LOCK_thd_data);
+    mysql_mutex_unlock(&LOCK_thd_data);
   }
   void close_active_vio();
 #endif
@@ -2148,12 +2148,6 @@ public:
     mysys_var->current_cond = cond;
     proc_info = msg;
     return old_msg;
-  }
-  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t *mutex,
-                                const char *msg)
-  {
-    /* TO BE REMOVED: temporary helper, to help with merges */
-    return enter_cond((mysql_cond_t*) cond, (mysql_mutex_t*) mutex, msg);
   }
   inline void exit_cond(const char* old_msg)
   {

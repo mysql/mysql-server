@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1076,9 +1076,10 @@ reopen_tables:
     if (!tl->derived)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
-      if (check_access(thd, want_privilege,
-                       tl->db, &tl->grant.privilege, 0, 0, 
-                       test(tl->schema_table)) ||
+      if (check_access(thd, want_privilege, tl->db,
+                       &tl->grant.privilege,
+                       &tl->grant.m_internal,
+                       0, 0) ||
           check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
         DBUG_RETURN(TRUE);
     }

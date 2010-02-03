@@ -1709,7 +1709,7 @@ int ha_myisam::info(uint flag)
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
-      pthread_mutex_lock(&share->LOCK_ha_data);
+      mysql_mutex_lock(&share->LOCK_ha_data);
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(misam_info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
@@ -1719,7 +1719,7 @@ int ha_myisam::info(uint flag)
 	     (char*) misam_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
     if (share->tmp_table == NO_TMP_TABLE)
-      pthread_mutex_unlock(&share->LOCK_ha_data);
+      mysql_mutex_unlock(&share->LOCK_ha_data);
 
    /*
      Set data_file_name and index_file_name to point at the symlink value

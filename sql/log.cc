@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,24 +168,24 @@ char *make_log_name(char *buff, const char *name, const char* log_ext)
 class Mutex_sentry
 {
 public:
-  Mutex_sentry(pthread_mutex_t *mutex)
+  Mutex_sentry(mysql_mutex_t *mutex)
     : m_mutex(mutex)
   {
     if (m_mutex)
-      pthread_mutex_lock(mutex);
+      mysql_mutex_lock(mutex);
   }
 
   ~Mutex_sentry()
   {
     if (m_mutex)
-      pthread_mutex_unlock(m_mutex);
+      mysql_mutex_unlock(m_mutex);
 #ifndef DBUG_OFF
     m_mutex= 0;
 #endif
   }
 
 private:
-  pthread_mutex_t *m_mutex;
+  mysql_mutex_t *m_mutex;
 
   // It's not allowed to copy this object in any way
   Mutex_sentry(Mutex_sentry const&);
@@ -433,7 +433,7 @@ bool Log_to_csv_event_handler::
                             TL_WRITE_CONCURRENT_INSERT);
 
   /*
-    1) open_performance_schema_table generates an error of the
+    1) open_log_table generates an error of the
     table can not be opened or is corrupted.
     2) "INSERT INTO general_log" can generate warning sometimes.
 
@@ -446,8 +446,7 @@ bool Log_to_csv_event_handler::
   thd->push_internal_handler(& error_handler);
   need_pop= TRUE;
 
-  if (!(table= open_performance_schema_table(thd, & table_list,
-                                             & open_tables_backup)))
+  if (!(table= open_log_table(thd, &table_list, &open_tables_backup)))
     goto err;
 
   need_close= TRUE;
@@ -527,7 +526,7 @@ err:
   if (need_pop)
     thd->pop_internal_handler();
   if (need_close)
-    close_performance_schema_table(thd, & open_tables_backup);
+    close_log_table(thd, &open_tables_backup);
 
   thd->variables.option_bits= save_thd_options;
   thd->time_zone_used= save_time_zone_used;
@@ -593,8 +592,7 @@ bool Log_to_csv_event_handler::
                             SLOW_LOG_NAME.str,
                             TL_WRITE_CONCURRENT_INSERT);
 
-  if (!(table= open_performance_schema_table(thd, & table_list,
-                                             & open_tables_backup)))
+  if (!(table= open_log_table(thd, &table_list, &open_tables_backup)))
     goto err;
 
   need_close= TRUE;
@@ -719,7 +717,7 @@ err:
     table->file->ha_release_auto_increment();
   }
   if (need_close)
-    close_performance_schema_table(thd, & open_tables_backup);
+    close_log_table(thd, &open_tables_backup);
   thd->time_zone_used= save_time_zone_used;
   DBUG_RETURN(result);
 }
@@ -749,12 +747,11 @@ int Log_to_csv_event_handler::
                             log_name->str, log_name->length, log_name->str,
                             TL_WRITE_CONCURRENT_INSERT);
 
-  table= open_performance_schema_table(thd, & table_list,
-                                       & open_tables_backup);
+  table= open_log_table(thd, &table_list, &open_tables_backup);
   if (table)
   {
     result= 0;
-    close_performance_schema_table(thd, & open_tables_backup);
+    close_log_table(thd, &open_tables_backup);
   }
   else
     result= 1;
@@ -890,7 +887,7 @@ bool LOGGER::error_log_print(enum loglevel level, const char *format,
 void LOGGER::cleanup_base()
 {
   DBUG_ASSERT(inited == 1);
-  rwlock_destroy(&LOCK_logger);
+  mysql_rwlock_destroy(&LOCK_logger);
   if (table_log_handler)
   {
     table_log_handler->cleanup();
@@ -935,7 +932,7 @@ void LOGGER::init_base()
   init_error_log(LOG_FILE);
 
   file_log_handler->init_pthread_objects();
-  my_rwlock_init(&LOCK_logger, NULL);
+  mysql_rwlock_init(key_rwlock_LOCK_logger, &LOCK_logger);
 }
 
 
@@ -1802,8 +1799,9 @@ File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY | O_SHARE, 
-                      MYF(MY_WME))) < 0)
+  if ((file= mysql_file_open(key_file_binlog,
+                             log_file_name, O_RDONLY | O_BINARY | O_SHARE,
+                             MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
                     log_file_name, my_errno);
@@ -1825,7 +1823,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
 err:
   if (file >= 0)
   {
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
     end_io_cache(log);
   }
   DBUG_RETURN(-1);
@@ -2035,10 +2033,11 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   db[0]= 0;
 
-  if ((file= my_open(log_file_name, open_flags,
-                     MYF(MY_WME | ME_WAITTANG))) < 0 ||
+  if ((file= mysql_file_open(key_file_MYSQL_LOG,
+                             log_file_name, open_flags,
+                             MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
-                    my_tell(file, MYF(MY_WME)), 0,
+                    mysql_file_tell(file, MYF(MY_WME)), 0,
                     MYF(MY_WME | MY_NABP |
                         ((log_type == LOG_BIN) ? MY_WAIT_IF_FULL : 0))))
     goto err;
@@ -2076,7 +2075,7 @@ Turning logging off for the whole duration of the MySQL server process. \
 To turn it on again: fix the cause, \
 shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
-    my_close(file, MYF(0));
+    mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   safeFree(name);
   log_state= LOG_CLOSED;
@@ -2100,7 +2099,7 @@ void MYSQL_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 }
 
 /*
@@ -2125,13 +2124,13 @@ void MYSQL_LOG::close(uint exiting)
   {
     end_io_cache(&log_file);
 
-    if (my_sync(log_file.file, MYF(MY_WME)) && ! write_error)
+    if (mysql_file_sync(log_file.file, MYF(MY_WME)) && ! write_error)
     {
       write_error= 1;
       sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
     }
 
-    if (my_close(log_file.file, MYF(MY_WME)) && ! write_error)
+    if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
     {
       write_error= 1;
       sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
@@ -2151,7 +2150,7 @@ void MYSQL_LOG::cleanup()
   if (inited)
   {
     inited= 0;
-    (void) pthread_mutex_destroy(&LOCK_log);
+    mysql_mutex_destroy(&LOCK_log);
     close(0);
   }
   DBUG_VOID_RETURN;
@@ -2206,7 +2205,7 @@ void MYSQL_QUERY_LOG::reopen_file()
     DBUG_VOID_RETURN;
   }
 
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
 
   save_name= name;
   name= 0;				// Don't free name
@@ -2219,7 +2218,7 @@ void MYSQL_QUERY_LOG::reopen_file()
   open(save_name, log_type, 0, io_cache_type);
   my_free(save_name, MYF(0));
 
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_VOID_RETURN;
 }
@@ -2261,7 +2260,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
   struct tm start;
   uint time_buff_len= 0;
 
-  (void) pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
 
   /* Test if someone closed between the is_open test and lock */
   if (is_open())
@@ -2310,7 +2309,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
       goto err;
   }
 
-  (void) pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   return FALSE;
 err:
 
@@ -2319,7 +2318,7 @@ err:
     write_error= 1;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
   }
-  (void) pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   return TRUE;
 }
 
@@ -2362,11 +2361,11 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
   bool error= 0;
   DBUG_ENTER("MYSQL_QUERY_LOG::write");
 
-  (void) pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
 
   if (!is_open())
   {
-    (void) pthread_mutex_unlock(&LOCK_log);
+    mysql_mutex_unlock(&LOCK_log);
     DBUG_RETURN(0);
   }
 
@@ -2475,7 +2474,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       }
     }
   }
-  (void) pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
 }
 
@@ -2537,9 +2536,9 @@ void MYSQL_BIN_LOG::cleanup()
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
     delete description_event_for_queue;
     delete description_event_for_exec;
-    (void) pthread_mutex_destroy(&LOCK_log);
-    (void) pthread_mutex_destroy(&LOCK_index);
-    (void) pthread_cond_destroy(&update_cond);
+    mysql_mutex_destroy(&LOCK_log);
+    mysql_mutex_destroy(&LOCK_index);
+    mysql_cond_destroy(&update_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2560,9 +2559,9 @@ void MYSQL_BIN_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
-  (void) pthread_cond_init(&update_cond, 0);
+  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_BINLOG_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
+  mysql_cond_init(key_BINLOG_update_cond, &update_cond, 0);
 }
 
 
@@ -2585,23 +2584,25 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   }
   fn_format(index_file_name, index_file_name_arg, mysql_data_home,
             ".index", opt);
-  if ((index_file_nr= my_open(index_file_name,
-                              O_RDWR | O_CREAT | O_BINARY ,
-                              MYF(MY_WME))) < 0 ||
-       my_sync(index_file_nr, MYF(MY_WME)) ||
+  if ((index_file_nr= mysql_file_open(key_file_binlog_index,
+                                      index_file_name,
+                                      O_RDWR | O_CREAT | O_BINARY,
+                                      MYF(MY_WME))) < 0 ||
+       mysql_file_sync(index_file_nr, MYF(MY_WME)) ||
        init_io_cache(&index_file, index_file_nr,
                      IO_SIZE, WRITE_CACHE,
-                     my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
-			0, MYF(MY_WME | MY_WAIT_IF_FULL)) ||
+                     mysql_file_seek(index_file_nr, 0L, MY_SEEK_END, MYF(0)),
+                                     0, MYF(MY_WME | MY_WAIT_IF_FULL)) ||
       DBUG_EVALUATE_IF("fault_injection_openning_index", 1, 0))
   {
     /*
       TODO: all operations creating/deleting the index file or a log, should
       call my_sync_dir() or my_sync_dir_by_file() to be durable.
-      TODO: file creation should be done with my_create() not my_open().
+      TODO: file creation should be done with mysql_file_create()
+      not mysql_file_open().
     */
     if (index_file_nr >= 0)
-      my_close(index_file_nr,MYF(0));
+      mysql_file_close(index_file_nr, MYF(0));
     return TRUE;
   }
 
@@ -2765,7 +2766,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       bytes_written+= description_event_for_queue->data_written;
     }
     if (flush_io_cache(&log_file) ||
-        my_sync(log_file.file, MYF(MY_WME)))
+        mysql_file_sync(log_file.file, MYF(MY_WME)))
       goto err;
 
     if (write_file_name_to_index_file)
@@ -2786,7 +2787,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
                      strlen(log_file_name)) ||
           my_b_write(&index_file, (uchar*) "\n", 1) ||
           flush_io_cache(&index_file) ||
-          my_sync(index_file.file, MYF(MY_WME)))
+          mysql_file_sync(index_file.file, MYF(MY_WME)))
         goto err;
 
 #ifdef HAVE_REPLICATION
@@ -2813,7 +2814,7 @@ Turning logging off for the whole duration of the MySQL server process. \
 To turn it on again: fix the cause, \
 shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   safeFree(name);
@@ -2824,9 +2825,9 @@ shutdown the MySQL server and restart it.", name, errno);
 
 int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
 {
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
   int ret = raw_get_current_log(linfo);
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   return ret;
 }
 
@@ -2866,19 +2867,20 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
 
   for (;; offset+= bytes_read)
   {
-    (void) my_seek(file, offset, MY_SEEK_SET, MYF(0));
-    if ((bytes_read= (int) my_read(file, io_buf, sizeof(io_buf), MYF(MY_WME)))
+    mysql_file_seek(file, offset, MY_SEEK_SET, MYF(0));
+    if ((bytes_read= (int) mysql_file_read(file, io_buf, sizeof(io_buf),
+                                           MYF(MY_WME)))
 	< 0)
       goto err;
     if (!bytes_read)
       break;					// end of file
-    (void) my_seek(file, offset-init_offset, MY_SEEK_SET, MYF(0));
-    if (my_write(file, io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
+    mysql_file_seek(file, offset-init_offset, MY_SEEK_SET, MYF(0));
+    if (mysql_file_write(file, io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
       goto err;
   }
   /* The following will either truncate the file or fill the end with \n' */
-  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
-      my_sync(file, MYF(MY_WME)))
+  if (mysql_file_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
+      mysql_file_sync(file, MYF(MY_WME)))
     goto err;
 
   /* Reset data in old index cache */
@@ -2927,8 +2929,8 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     move from under our feet
   */
   if (need_lock)
-    pthread_mutex_lock(&LOCK_index);
-  safe_mutex_assert_owner(&LOCK_index);
+    mysql_mutex_lock(&LOCK_index);
+  mysql_mutex_assert_owner(&LOCK_index);
 
   /* As the file is flushed, we can't get an error here */
   (void) reinit_io_cache(&index_file, READ_CACHE, (my_off_t) 0, 0, 0);
@@ -2962,7 +2964,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   }
 
   if (need_lock)
-    pthread_mutex_unlock(&LOCK_index);
+    mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -2998,8 +3000,8 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
   char *fname= linfo->log_file_name;
 
   if (need_lock)
-    pthread_mutex_lock(&LOCK_index);
-  safe_mutex_assert_owner(&LOCK_index);
+    mysql_mutex_lock(&LOCK_index);
+  mysql_mutex_assert_owner(&LOCK_index);
 
   /* As the file is flushed, we can't get an error here */
   (void) reinit_io_cache(&index_file, READ_CACHE, linfo->index_file_offset, 0,
@@ -3016,7 +3018,7 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 
 err:
   if (need_lock)
-    pthread_mutex_unlock(&LOCK_index);
+    mysql_mutex_unlock(&LOCK_index);
   return error;
 }
 
@@ -3051,8 +3053,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
   */
-  pthread_mutex_lock(&LOCK_log);
-  pthread_mutex_lock(&LOCK_index);
+  mysql_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_index);
 
   /*
     The following mutex is needed to ensure that no threads call
@@ -3154,8 +3156,8 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
   pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_mutex_unlock(&LOCK_index);
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_index);
+  mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
 }
 
@@ -3209,7 +3211,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->event_relay_log_name));
 
-  pthread_mutex_lock(&LOCK_index);
+  mysql_mutex_lock(&LOCK_index);
   to_purge_if_included= my_strdup(rli->group_relay_log_name, MYF(0));
 
   /*
@@ -3253,19 +3255,19 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 
   DBUG_EXECUTE_IF("crash_before_purge_logs", abort(););
 
-  pthread_mutex_lock(&rli->log_space_lock);
+  mysql_mutex_lock(&rli->log_space_lock);
   rli->relay_log.purge_logs(to_purge_if_included, included,
                             0, 0, &rli->log_space_total);
   // Tell the I/O thread to take the relay_log_space_limit into account
   rli->ignore_log_space_limit= 0;
-  pthread_mutex_unlock(&rli->log_space_lock);
+  mysql_mutex_unlock(&rli->log_space_lock);
 
   /*
     Ok to broadcast after the critical region as there is no risk of
     the mutex being destroyed by this thread later - this helps save
     context switches
   */
-  pthread_cond_broadcast(&rli->log_space_cond);
+  mysql_cond_broadcast(&rli->log_space_cond);
 
   /*
    * Need to update the log pos because purge logs has been called 
@@ -3287,7 +3289,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 
 err:
   my_free(to_purge_if_included, MYF(0));
-  pthread_mutex_unlock(&LOCK_index);
+  mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -3327,7 +3329,7 @@ int MYSQL_BIN_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads
     LOG_INFO_EOF		to_log not found
     LOG_INFO_EMFILE             too many files opened
     LOG_INFO_FATAL              if any other than ENOENT error from
-                                my_stat() or my_delete()
+                                mysql_file_stat() or mysql_file_delete()
 */
 
 int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
@@ -3344,7 +3346,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   DBUG_PRINT("info",("to_log= %s",to_log));
 
   if (need_mutex)
-    pthread_mutex_lock(&LOCK_index);
+    mysql_mutex_lock(&LOCK_index);
   if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/))) 
   {
     sql_print_error("MYSQL_BIN_LOG::purge_logs was called with file %s not "
@@ -3407,7 +3409,7 @@ err:
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", abort(););
 
   if (need_mutex)
-    pthread_mutex_unlock(&LOCK_index);
+    mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -3546,7 +3548,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
     /* Get rid of the trailing '\n' */
     log_info.log_file_name[length-1]= 0;
 
-    if (!my_stat(log_info.log_file_name, &s, MYF(0)))
+    if (!mysql_file_stat(key_file_binlog, log_info.log_file_name, &s, MYF(0)))
     {
       if (my_errno == ENOENT) 
       {
@@ -3560,7 +3562,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                               ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
-        sql_print_information("Failed to execute my_stat on file '%s'",
+        sql_print_information("Failed to execute mysql_file_stat on file '%s'",
 			      log_info.log_file_name);
         my_errno= 0;
       }
@@ -3698,7 +3700,7 @@ err:
   @retval
     LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
     LOG_INFO_FATAL              if any other than ENOENT error from
-                                my_stat() or my_delete()
+                                mysql_file_stat() or mysql_file_delete()
 */
 
 int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
@@ -3711,7 +3713,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   
   DBUG_ENTER("purge_logs_before_date");
 
-  pthread_mutex_lock(&LOCK_index);
+  mysql_mutex_lock(&LOCK_index);
   to_log[0]= 0;
 
   if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
@@ -3721,7 +3723,8 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
 	 !is_active(log_info.log_file_name) &&
          !log_in_use(log_info.log_file_name))
   {
-    if (!my_stat(log_info.log_file_name, &stat_area, MYF(0)))
+    if (!mysql_file_stat(key_file_binlog,
+                         log_info.log_file_name, &stat_area, MYF(0)))
     {
       if (my_errno == ENOENT) 
       {
@@ -3770,7 +3773,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   error= (to_log[0] ? purge_logs(to_log, 1, 0, 1, (ulonglong *) 0) : 0);
 
 err:
-  pthread_mutex_unlock(&LOCK_index);
+  mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 #endif /* HAVE_REPLICATION */
@@ -3846,11 +3849,11 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   }
 
   if (need_lock)
-    pthread_mutex_lock(&LOCK_log);
-  pthread_mutex_lock(&LOCK_index);
+    mysql_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_index);
 
-  safe_mutex_assert_owner(&LOCK_log);
-  safe_mutex_assert_owner(&LOCK_index);
+  mysql_mutex_assert_owner(&LOCK_log);
+  mysql_mutex_assert_owner(&LOCK_index);
 
   /*
     if binlog is used as tc log, be sure all xids are "unlogged",
@@ -3864,12 +3867,12 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   if (prepared_xids)
   {
     tc_log_page_waits++;
-    pthread_mutex_lock(&LOCK_prep_xids);
+    mysql_mutex_lock(&LOCK_prep_xids);
     while (prepared_xids) {
       DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
-      pthread_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
+      mysql_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
     }
-    pthread_mutex_unlock(&LOCK_prep_xids);
+    mysql_mutex_unlock(&LOCK_prep_xids);
   }
 
   /* Reuse old name if not binlog and not update log */
@@ -3929,8 +3932,8 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
 
 end:
   if (need_lock)
-    pthread_mutex_unlock(&LOCK_log);
-  pthread_mutex_unlock(&LOCK_index);
+    mysql_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_index);
 
   DBUG_VOID_RETURN;
 }
@@ -3939,7 +3942,7 @@ end:
 bool MYSQL_BIN_LOG::append(Log_event* ev)
 {
   bool error = 0;
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
@@ -3960,7 +3963,7 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
     new_file_without_locking();
 
 err:
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   signal_update();				// Safe as we don't call close
   DBUG_RETURN(error);
 }
@@ -3975,7 +3978,7 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
 
-  safe_mutex_assert_owner(&LOCK_log);
+  mysql_mutex_assert_owner(&LOCK_log);
   do
   {
     if (my_b_append(&log_file,(uchar*) buf,len))
@@ -4002,14 +4005,14 @@ bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
   int err=0, fd=log_file.file;
   if (synced)
     *synced= 0;
-  safe_mutex_assert_owner(&LOCK_log);
+  mysql_mutex_assert_owner(&LOCK_log);
   if (flush_io_cache(&log_file))
     return 1;
   uint sync_period= get_sync_period();
   if (sync_period && ++sync_counter >= sync_period)
   {
     sync_counter= 0;
-    err=my_sync(fd, MYF(MY_WME));
+    err= mysql_file_sync(fd, MYF(MY_WME));
     if (synced)
       *synced= 1;
   }
@@ -4268,14 +4271,14 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       m_table_map_version below, and that change has to be protected
       by the LOCK_log mutex.
     */
-    pthread_mutex_lock(&LOCK_log);
+    mysql_mutex_lock(&LOCK_log);
 
     /*
       Write pending event to log file or transaction cache
     */
     if (pending->write(file))
     {
-      pthread_mutex_unlock(&LOCK_log);
+      mysql_mutex_unlock(&LOCK_log);
       set_write_error(thd);
       DBUG_RETURN(1);
     }
@@ -4310,7 +4313,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       }
     }
 
-    pthread_mutex_unlock(&LOCK_log);
+    mysql_mutex_unlock(&LOCK_log);
   }
 
   thd->binlog_set_pending_rows_event(event);
@@ -4354,7 +4357,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   if (thd->binlog_flush_pending_rows_event(end_stmt))
     DBUG_RETURN(error);
 
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
 
   /*
      In most cases this is only called if 'is_open()' is true; in fact this is
@@ -4374,7 +4377,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
-      pthread_mutex_unlock(&LOCK_log);
+      mysql_mutex_unlock(&LOCK_log);
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -4510,7 +4513,7 @@ err:
   if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
     ++m_table_map_version;
 
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
 }
 
@@ -4590,7 +4593,7 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   bool check_purge= false;
 #endif
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    pthread_mutex_lock(&LOCK_log);
+    mysql_mutex_lock(&LOCK_log);
   if ((flags & RP_FORCE_ROTATE) ||
       (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
@@ -4600,7 +4603,7 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 #endif
   }
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    pthread_mutex_unlock(&LOCK_log);
+    mysql_mutex_unlock(&LOCK_log);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -4619,9 +4622,9 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 uint MYSQL_BIN_LOG::next_file_id()
 {
   uint res;
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
   res = file_id++;
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   return res;
 }
 
@@ -4805,7 +4808,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
   if (lock)
-    pthread_mutex_lock(&LOCK_log);
+    mysql_mutex_lock(&LOCK_log);
   ev.write(&log_file);
   if (lock)
   {
@@ -4814,7 +4817,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
-    pthread_mutex_unlock(&LOCK_log);
+    mysql_mutex_unlock(&LOCK_log);
   }
   DBUG_RETURN(error);
 }
@@ -4847,7 +4850,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
                           bool incident)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
 
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
@@ -4929,14 +4932,14 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
     */
     if (commit_event && commit_event->get_type_code() == XID_EVENT)
     {
-      pthread_mutex_lock(&LOCK_prep_xids);
+      mysql_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
-      pthread_mutex_unlock(&LOCK_prep_xids);
+      mysql_mutex_unlock(&LOCK_prep_xids);
     }
     else
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(0);
 
@@ -4946,7 +4949,7 @@ err:
     write_error= 1;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
   }
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
 }
 
@@ -4968,10 +4971,10 @@ void MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd)
   DBUG_ENTER("wait_for_update_relay_log");
 
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Slave has read all relay log; " 
+                           "Slave has read all relay log; "
                            "waiting for the slave I/O "
                            "thread to update it" );
-  pthread_cond_wait(&update_cond, &LOCK_log);
+  mysql_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
   DBUG_VOID_RETURN;
 }
@@ -5002,10 +5005,10 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
                            "Master has sent all binlog to slave; "
                            "waiting for binlog to be updated");
   if (!timeout)
-    pthread_cond_wait(&update_cond, &LOCK_log);
+    mysql_cond_wait(&update_cond, &LOCK_log);
   else
-    ret= pthread_cond_timedwait(&update_cond, &LOCK_log,
-                                const_cast<struct timespec *>(timeout));
+    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
+                              const_cast<struct timespec *>(timeout));
   DBUG_RETURN(ret);
 }
 
@@ -5045,16 +5048,16 @@ void MYSQL_BIN_LOG::close(uint exiting)
     if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
-      my_off_t org_position= my_tell(log_file.file, MYF(0));
+      my_off_t org_position= mysql_file_tell(log_file.file, MYF(0));
       uchar flags= 0;            // clearing LOG_EVENT_BINLOG_IN_USE_F
-      my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
+      mysql_file_pwrite(log_file.file, &flags, 1, offset, MYF(0));
       /*
         Restore position so that anything we have in the IO_cache is written
         to the correct position.
-        We need the seek here, as my_pwrite() is not guaranteed to keep the
+        We need the seek here, as mysql_file_pwrite() is not guaranteed to keep the
         original position on system that doesn't support pwrite().
       */
-      my_seek(log_file.file, org_position, MY_SEEK_SET, MYF(0));
+      mysql_file_seek(log_file.file, org_position, MY_SEEK_SET, MYF(0));
     }
 
     /* this will cleanup IO_CACHE, sync and close the file */
@@ -5069,7 +5072,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
   if ((exiting & LOG_CLOSE_INDEX) && my_b_inited(&index_file))
   {
     end_io_cache(&index_file);
-    if (my_close(index_file.file, MYF(0)) < 0 && ! write_error)
+    if (mysql_file_close(index_file.file, MYF(0)) < 0 && ! write_error)
     {
       write_error= 1;
       sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
@@ -5091,10 +5094,10 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
     it's like if the SET command was never run.
   */
   DBUG_ENTER("MYSQL_BIN_LOG::set_max_size");
-  pthread_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
   if (is_open())
     max_size= max_size_arg;
-  pthread_mutex_unlock(&LOCK_log);
+  mysql_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
 }
 
@@ -5166,7 +5169,7 @@ bool flush_error_log()
     char err_renamed[FN_REFLEN], *end;
     end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
     strmov(end, "-old");
-    pthread_mutex_lock(&LOCK_error_log);
+    mysql_mutex_lock(&LOCK_error_log);
 #ifdef __WIN__
     char err_temp[FN_REFLEN+4];
     /*
@@ -5174,7 +5177,7 @@ bool flush_error_log()
      the current error file.
     */
     strxmov(err_temp, err_renamed,"-tmp",NullS);
-    (void) my_delete(err_temp, MYF(0)); 
+    my_delete(err_temp, MYF(0));
     if (freopen(err_temp,"a+",stdout))
     {
       int fd;
@@ -5183,27 +5186,27 @@ bool flush_error_log()
 
       freopen(err_temp,"a+",stderr);
       setbuf(stderr, NULL);
-      (void) my_delete(err_renamed, MYF(0));
-      my_rename(log_error_file,err_renamed,MYF(0));
+      my_delete(err_renamed, MYF(0));
+      my_rename(log_error_file, err_renamed, MYF(0));
       if (freopen(log_error_file,"a+",stdout))
       {
         freopen(log_error_file,"a+",stderr);
         setbuf(stderr, NULL);
       }
 
-      if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
+      if ((fd= my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
-        while ((bytes= my_read(fd, buf, IO_SIZE, MYF(0))) &&
+        while ((bytes= mysql_file_read(fd, buf, IO_SIZE, MYF(0))) &&
                bytes != MY_FILE_ERROR)
           my_fwrite(stderr, buf, bytes, MYF(0));
-        my_close(fd, MYF(0));
+        mysql_file_close(fd, MYF(0));
       }
-      (void) my_delete(err_temp, MYF(0)); 
+      my_delete(err_temp, MYF(0));
     }
     else
      result= 1;
 #else
-   my_rename(log_error_file,err_renamed,MYF(0));
+   my_rename(log_error_file, err_renamed, MYF(0));
    if (freopen(log_error_file,"a+",stdout))
    {
      FILE *reopen;
@@ -5213,7 +5216,7 @@ bool flush_error_log()
    else
      result= 1;
 #endif
-    pthread_mutex_unlock(&LOCK_error_log);
+    mysql_mutex_unlock(&LOCK_error_log);
   }
    return result;
 }
@@ -5222,7 +5225,7 @@ void MYSQL_BIN_LOG::signal_update()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
   signal_cnt++;
-  pthread_cond_broadcast(&update_cond);
+  mysql_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
 
@@ -5288,7 +5291,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   DBUG_ENTER("print_buffer_to_file");
   DBUG_PRINT("enter",("buffer: %s", buffer));
 
-  pthread_mutex_lock(&LOCK_error_log);
+  mysql_mutex_lock(&LOCK_error_log);
 
   skr= my_time(0);
   localtime_r(&skr, &tm_tmp);
@@ -5307,7 +5310,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
 
   fflush(stderr);
 
-  pthread_mutex_unlock(&LOCK_error_log);
+  mysql_mutex_unlock(&LOCK_error_log);
   DBUG_VOID_RETURN;
 }
 
@@ -5431,17 +5434,18 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
-  if ((fd= my_open(logname, O_RDWR, MYF(0))) < 0)
+  if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)
   {
     if (my_errno != ENOENT)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    if ((fd= my_create(logname, CREATE_MODE, O_RDWR, MYF(MY_WME))) < 0)
+    if ((fd= mysql_file_create(key_file_tclog, logname, CREATE_MODE,
+                               O_RDWR, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
-    if (my_chsize(fd, file_length, 0, MYF(MY_WME)))
+    if (mysql_file_chsize(fd, file_length, 0, MYF(MY_WME)))
       goto err;
   }
   else
@@ -5455,7 +5459,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
                       "--tc-heuristic-recover is used");
       goto err;
     }
-    file_length= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
+    file_length= mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
     if (file_length == MY_FILEPOS_ERROR || file_length % tc_log_page_size)
       goto err;
   }
@@ -5479,8 +5483,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->next=pg+1;
     pg->waiters=0;
     pg->state=POOL;
-    pthread_mutex_init(&pg->lock, MY_MUTEX_INIT_FAST);
-    pthread_cond_init (&pg->cond, 0);
+    mysql_mutex_init(key_PAGE_lock, &pg->lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
     pg->start=(my_xid *)(data + i*tc_log_page_size);
     pg->end=(my_xid *)(pg->start + tc_log_page_size);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
@@ -5499,11 +5503,11 @@ int TC_LOG_MMAP::open(const char *opt_name)
   my_msync(fd, data, tc_log_page_size, MS_SYNC);
   inited=5;
 
-  pthread_mutex_init(&LOCK_sync,    MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_active,  MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_pool,    MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_active, 0);
-  pthread_cond_init(&COND_pool, 0);
+  mysql_mutex_init(key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_active, &LOCK_active, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_pool, &LOCK_pool, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_active, &COND_active, 0);
+  mysql_cond_init(key_COND_pool, &COND_pool, 0);
 
   inited=6;
 
@@ -5537,7 +5541,7 @@ void TC_LOG_MMAP::get_active_from_pool()
   int best_free;
 
   if (syncing)
-    pthread_mutex_lock(&LOCK_pool);
+    mysql_mutex_lock(&LOCK_pool);
 
   do
   {
@@ -5570,7 +5574,7 @@ void TC_LOG_MMAP::get_active_from_pool()
     pool_last=*best_p;
 
   if (syncing)
-    pthread_mutex_unlock(&LOCK_pool);
+    mysql_mutex_unlock(&LOCK_pool);
 }
 
 /**
@@ -5585,7 +5589,7 @@ int TC_LOG_MMAP::overflow()
     let's check the behaviour of tc_log_page_waits first
   */
   tc_log_page_waits++;
-  pthread_cond_wait(&COND_pool, &LOCK_pool);
+  mysql_cond_wait(&COND_pool, &LOCK_pool);
   return 1; // always return 1
 }
 
@@ -5622,7 +5626,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   PAGE *p;
   ulong cookie;
 
-  pthread_mutex_lock(&LOCK_active);
+  mysql_mutex_lock(&LOCK_active);
 
   /*
     if active page is full - just wait...
@@ -5632,14 +5636,14 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
     unlog() does not signal COND_active.
   */
   while (unlikely(active && active->free == 0))
-    pthread_cond_wait(&COND_active, &LOCK_active);
+    mysql_cond_wait(&COND_active, &LOCK_active);
 
   /* no active page ? take one from the pool */
   if (active == 0)
     get_active_from_pool();
 
   p=active;
-  pthread_mutex_lock(&p->lock);
+  mysql_mutex_lock(&p->lock);
 
   /* searching for an empty slot */
   while (*p->ptr)
@@ -5655,9 +5659,9 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   p->state= DIRTY;
 
   /* to sync or not to sync - this is the question */
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_lock(&LOCK_sync);
-  pthread_mutex_unlock(&p->lock);
+  mysql_mutex_unlock(&LOCK_active);
+  mysql_mutex_lock(&LOCK_sync);
+  mysql_mutex_unlock(&p->lock);
 
   if (syncing)
   {                                          // somebody's syncing. let's wait
@@ -5667,24 +5671,24 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
       as p->state may be not DIRTY when we come here
     */
     while (p->state == DIRTY && syncing)
-      pthread_cond_wait(&p->cond, &LOCK_sync);
+      mysql_cond_wait(&p->cond, &LOCK_sync);
     p->waiters--;
     err= p->state == ERROR;
     if (p->state != DIRTY)                   // page was synced
     {
       if (p->waiters == 0)
-        pthread_cond_signal(&COND_pool);     // in case somebody's waiting
-      pthread_mutex_unlock(&LOCK_sync);
+        mysql_cond_signal(&COND_pool);       // in case somebody's waiting
+      mysql_mutex_unlock(&LOCK_sync);
       goto done;                             // we're done
     }
   }                                          // page was not synced! do it now
   DBUG_ASSERT(active == p && syncing == 0);
-  pthread_mutex_lock(&LOCK_active);
+  mysql_mutex_lock(&LOCK_active);
   syncing=p;                                 // place is vacant - take it
   active=0;                                  // page is not active anymore
-  pthread_cond_broadcast(&COND_active);      // in case somebody's waiting
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_unlock(&LOCK_sync);
+  mysql_cond_broadcast(&COND_active);        // in case somebody's waiting
+  mysql_mutex_unlock(&LOCK_active);
+  mysql_mutex_unlock(&LOCK_sync);
   err= sync();
 
 done:
@@ -5704,20 +5708,20 @@ int TC_LOG_MMAP::sync()
   err= my_msync(fd, syncing->start, 1, MS_SYNC);
 
   /* page is synced. let's move it to the pool */
-  pthread_mutex_lock(&LOCK_pool);
+  mysql_mutex_lock(&LOCK_pool);
   pool_last->next=syncing;
   pool_last=syncing;
   syncing->next=0;
   syncing->state= err ? ERROR : POOL;
-  pthread_cond_broadcast(&syncing->cond);    // signal "sync done"
-  pthread_cond_signal(&COND_pool);           // in case somebody's waiting
-  pthread_mutex_unlock(&LOCK_pool);
+  mysql_cond_broadcast(&syncing->cond);      // signal "sync done"
+  mysql_cond_signal(&COND_pool);             // in case somebody's waiting
+  mysql_mutex_unlock(&LOCK_pool);
 
   /* marking 'syncing' slot free */
-  pthread_mutex_lock(&LOCK_sync);
+  mysql_mutex_lock(&LOCK_sync);
   syncing=0;
-  pthread_cond_signal(&active->cond);        // wake up a new syncer
-  pthread_mutex_unlock(&LOCK_sync);
+  mysql_cond_signal(&active->cond);        // wake up a new syncer
+  mysql_mutex_unlock(&LOCK_sync);
   return err;
 }
 
@@ -5735,15 +5739,15 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   DBUG_ASSERT(x >= p->start && x < p->end);
   *x=0;
 
-  pthread_mutex_lock(&p->lock);
+  mysql_mutex_lock(&p->lock);
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
   if (p->free == p->size)               // the page is completely empty
     statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
-    pthread_cond_signal(&COND_pool);   // ping ... for overflow()
-  pthread_mutex_unlock(&p->lock);
+    mysql_cond_signal(&COND_pool);     // ping ... for overflow()
+  mysql_mutex_unlock(&p->lock);
 }
 
 void TC_LOG_MMAP::close()
@@ -5751,29 +5755,29 @@ void TC_LOG_MMAP::close()
   uint i;
   switch (inited) {
   case 6:
-    pthread_mutex_destroy(&LOCK_sync);
-    pthread_mutex_destroy(&LOCK_active);
-    pthread_mutex_destroy(&LOCK_pool);
-    pthread_cond_destroy(&COND_pool);
+    mysql_mutex_destroy(&LOCK_sync);
+    mysql_mutex_destroy(&LOCK_active);
+    mysql_mutex_destroy(&LOCK_pool);
+    mysql_cond_destroy(&COND_pool);
   case 5:
-    data[0]='A'; // garble the first (signature) byte, in case my_delete fails
+    data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
   case 4:
     for (i=0; i < npages; i++)
     {
       if (pages[i].ptr == 0)
         break;
-      pthread_mutex_destroy(&pages[i].lock);
-      pthread_cond_destroy(&pages[i].cond);
+      mysql_mutex_destroy(&pages[i].lock);
+      mysql_cond_destroy(&pages[i].cond);
     }
   case 3:
     my_free((uchar*)pages, MYF(0));
   case 2:
     my_munmap((char*)data, (size_t)file_length);
   case 1:
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   }
   if (inited>=5) // cannot do in the switch because of Windows
-    my_delete(logname, MYF(MY_WME));
+    mysql_file_delete(key_file_tclog, logname, MYF(MY_WME));
   inited=0;
 }
 
@@ -5878,8 +5882,9 @@ int TC_LOG_BINLOG::open(const char *opt_name)
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
-  pthread_mutex_init(&LOCK_prep_xids, MY_MUTEX_INIT_FAST);
-  pthread_cond_init (&COND_prep_xids, 0);
+  mysql_mutex_init(key_BINLOG_LOCK_prep_xids,
+                   &LOCK_prep_xids, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_BINLOG_COND_prep_xids, &COND_prep_xids, 0);
 
   if (!my_b_inited(&index_file))
   {
@@ -5945,7 +5950,7 @@ int TC_LOG_BINLOG::open(const char *opt_name)
 
     delete ev;
     end_io_cache(&log);
-    my_close(file, MYF(MY_WME));
+    mysql_file_close(file, MYF(MY_WME));
 
     if (error)
       goto err;
@@ -5959,8 +5964,8 @@ err:
 void TC_LOG_BINLOG::close()
 {
   DBUG_ASSERT(prepared_xids==0);
-  pthread_mutex_destroy(&LOCK_prep_xids);
-  pthread_cond_destroy (&COND_prep_xids);
+  mysql_mutex_destroy(&LOCK_prep_xids);
+  mysql_cond_destroy(&COND_prep_xids);
 }
 
 /**
@@ -5987,13 +5992,13 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
-  pthread_mutex_lock(&LOCK_prep_xids);
+  mysql_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
   if (--prepared_xids == 0) {
     DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
-    pthread_cond_signal(&COND_prep_xids);
+    mysql_cond_signal(&COND_prep_xids);
   }
-  pthread_mutex_unlock(&LOCK_prep_xids);
+  mysql_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate
 }
 
