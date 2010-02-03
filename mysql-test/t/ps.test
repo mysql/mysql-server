@@ -1982,6 +1982,7 @@ create view v1 AS select 1 as a from t1 where b;
 prepare stmt from "select * from v1 where a";
 execute stmt;
 execute stmt;
+deallocate prepare stmt;
 drop table t1;
 drop view v1;
 
@@ -1991,6 +1992,7 @@ insert into t2 values (null);
 prepare stmt from "select 1 from t1 join  t2 on a xor b where b > 1  and a =1";
 execute stmt;
 execute stmt;
+deallocate prepare stmt;
 drop table t1,t2;
 --echo #
 
