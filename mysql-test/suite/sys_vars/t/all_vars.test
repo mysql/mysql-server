@@ -24,7 +24,10 @@
 if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_MASTER_PLUGIN') > 0`)
 {
   --disable_query_log
+  # The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
+  --replace_regex /\.dll/.so/
   eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+  --replace_regex /\.dll/.so/
   eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
   --enable_query_log
 }
