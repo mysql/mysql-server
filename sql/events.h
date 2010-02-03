@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,13 @@
 
   A public interface of Events_Scheduler module.
 */
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOCK_event_metadata,
+                     key_event_scheduler_LOCK_scheduler_state;
+extern PSI_cond_key key_event_scheduler_COND_state;
+extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
+#endif /* HAVE_PSI_INTERFACE */
 
 class Event_parse_data;
 class Event_db_repository;
@@ -77,7 +84,7 @@ public:
   */
   enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
   static uint opt_event_scheduler;
-  static pthread_mutex_t LOCK_event_metadata;
+  static mysql_mutex_t LOCK_event_metadata;
   static bool check_if_system_tables_error();
   static bool start();
   static bool stop();

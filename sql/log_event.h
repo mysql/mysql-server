@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -946,11 +946,11 @@ public:
     constructor and pass description_event as an argument.
   */
   static Log_event* read_log_event(IO_CACHE* file,
-				   pthread_mutex_t* log_lock,
+                                   mysql_mutex_t* log_lock,
                                    const Format_description_log_event
                                    *description_event);
   static int read_log_event(IO_CACHE* file, String* packet,
-			    pthread_mutex_t* log_lock);
+                            mysql_mutex_t* log_lock);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG

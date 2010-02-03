@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/* Copyright (C) 2000-2006 MySQL AB & Sasha, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,13 +151,14 @@ static int send_file(THD *thd)
   if (!strcmp(fname,"/dev/null"))
     goto end;
 
-  if ((fd = my_open(fname, O_RDONLY, MYF(0))) < 0)
+  if ((fd= mysql_file_open(key_file_send_file,
+                           fname, O_RDONLY, MYF(0))) < 0)
   {
     errmsg = "on open of file";
     goto err;
   }
 
-  while ((long) (bytes= my_read(fd, buf, IO_SIZE, MYF(0))) > 0)
+  while ((long) (bytes= mysql_file_read(fd, buf, IO_SIZE, MYF(0))) > 0)
   {
     if (my_net_write(net, buf, bytes))
     {
@@ -178,7 +179,7 @@ static int send_file(THD *thd)
  err:
   my_net_set_read_timeout(net, old_timeout);
   if (fd >= 0)
-    (void) my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
   if (errmsg)
   {
     sql_print_error("Failed in send_file() %s", errmsg);
@@ -221,7 +222,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
     LOG_INFO* linfo;
     if ((linfo = tmp->current_linfo))
     {
-      pthread_mutex_lock(&linfo->lock);
+      mysql_mutex_lock(&linfo->lock);
       /*
 	Index file offset can be less that purge offset only if
 	we just started reading the index file. In that case
@@ -231,7 +232,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
 	linfo->fatal = (linfo->index_file_offset != 0);
       else
 	linfo->index_file_offset -= purge_offset;
-      pthread_mutex_unlock(&linfo->lock);
+      mysql_mutex_unlock(&linfo->lock);
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -252,10 +253,10 @@ bool log_in_use(const char* log_name)
     LOG_INFO* linfo;
     if ((linfo = tmp->current_linfo))
     {
-      pthread_mutex_lock(&linfo->lock);
+      mysql_mutex_lock(&linfo->lock);
       result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
                      log_name_len);
-      pthread_mutex_unlock(&linfo->lock);
+      mysql_mutex_unlock(&linfo->lock);
       if (result)
 	break;
     }
@@ -444,7 +445,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int error;
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
-  pthread_mutex_t *log_lock;
+  mysql_mutex_t *log_lock;
   bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -797,11 +798,11 @@ impossible position";
           has not been updated since last read.
 	*/
 
-	pthread_mutex_lock(log_lock);
-	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0)) {
+        mysql_mutex_lock(log_lock);
+        switch (error= Log_event::read_log_event(&log, packet, (mysql_mutex_t*) 0)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
-	  pthread_mutex_unlock(log_lock);
+          mysql_mutex_unlock(log_lock);
 	  read_packet = 1;
           if (coord)
             coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
@@ -815,7 +816,7 @@ impossible position";
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
 	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
-	    pthread_mutex_unlock(log_lock);
+            mysql_mutex_unlock(log_lock);
 	    goto end;
 	  }
 
@@ -850,7 +851,7 @@ impossible position";
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
-                pthread_mutex_unlock(log_lock);
+                mysql_mutex_unlock(log_lock);
                 goto err;
               }
             }
@@ -859,12 +860,12 @@ impossible position";
               DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
           } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
-          pthread_mutex_unlock(log_lock);
+          mysql_mutex_unlock(log_lock);
         }
         break;
             
         default:
-	  pthread_mutex_unlock(log_lock);
+          mysql_mutex_unlock(log_lock);
           test_for_non_eof_log_read_errors(error, &errmsg);
           goto err;
 	}
@@ -931,7 +932,7 @@ impossible position";
         break;
 
       end_io_cache(&log);
-      (void) my_close(file, MYF(MY_WME));
+      mysql_file_close(file, MYF(MY_WME));
 
       /* reset transmit packet for the possible fake rotate event */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
@@ -961,7 +962,7 @@ impossible position";
 
 end:
   end_io_cache(&log);
-  (void)my_close(file, MYF(MY_WME));
+  mysql_file_close(file, MYF(MY_WME));
 
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
@@ -986,7 +987,7 @@ err:
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
-    (void) my_close(file, MYF(MY_WME));
+    mysql_file_close(file, MYF(MY_WME));
 
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
@@ -1012,7 +1013,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
   int thread_mask;
   DBUG_ENTER("start_slave");
 
-  if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
+  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
@@ -1039,7 +1040,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
       */
       if (thread_mask & SLAVE_SQL)
       {
-        pthread_mutex_lock(&mi->rli.data_lock);
+        mysql_mutex_lock(&mi->rli.data_lock);
 
         if (thd->lex->mi.pos)
         {
@@ -1093,7 +1094,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                          ER(ER_MISSING_SKIP_SLAVE));
         }
 
-        pthread_mutex_unlock(&mi->rli.data_lock);
+        mysql_mutex_unlock(&mi->rli.data_lock);
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -1152,7 +1153,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   if (!thd)
     thd = current_thd;
 
-  if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
+  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
   thd_proc_info(thd, "Killing slave");
   int thread_mask;
@@ -1250,14 +1251,16 @@ int reset_slave(THD *thd, Master_info* mi)
   end_master_info(mi);
   // and delete these two files
   fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
-  if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
+  if (mysql_file_stat(key_file_master_info, fname, &stat_area, MYF(0)) &&
+      mysql_file_delete(key_file_master_info, fname, MYF(MY_WME)))
   {
     error=1;
     goto err;
   }
   // delete relay_log_info_file
   fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
-  if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
+  if (mysql_file_stat(key_file_relay_log_info, fname, &stat_area, MYF(0)) &&
+      mysql_file_delete(key_file_relay_log_info, fname, MYF(MY_WME)))
   {
     error=1;
     goto err;
@@ -1275,7 +1278,7 @@ err:
 
   Kill all Binlog_dump threads which previously talked to the same slave
   ("same" means with the same server id). Indeed, if the slave stops, if the
-  Binlog_dump thread is waiting (pthread_cond_wait) for binlog update, then it
+  Binlog_dump thread is waiting (mysql_cond_wait) for binlog update, then it
   will keep existing until a query is written to the binlog. If the master is
   idle, then this could last long, and if the slave reconnects, we could have 2
   Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
@@ -1302,7 +1305,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+      mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
       break;
     }
   }
@@ -1315,7 +1318,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       again. We just to do kill the thread ourselves.
     */
     tmp->awake(THD::KILL_QUERY);
-    pthread_mutex_unlock(&tmp->LOCK_thd_data);
+    mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
 }
 
@@ -1572,7 +1575,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
     mi->rli.group_master_log_pos=0;
 
-  pthread_mutex_lock(&mi->rli.data_lock);
+  mysql_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the errors, for a clean start */
   mi->rli.clear_error();
@@ -1585,8 +1588,8 @@ bool change_master(THD* thd, Master_info* mi)
     not exist anymore).
   */
   flush_relay_log_info(&mi->rli);
-  pthread_cond_broadcast(&mi->data_cond);
-  pthread_mutex_unlock(&mi->rli.data_lock);
+  mysql_cond_broadcast(&mi->data_cond);
+  mysql_mutex_unlock(&mi->rli.data_lock);
 
 err:
   unlock_slave_threads(mi);
@@ -1699,7 +1702,7 @@ bool mysql_show_binlog_events(THD* thd)
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    pthread_mutex_t *log_lock = binary_log->get_log_lock();
+    mysql_mutex_t *log_lock = binary_log->get_log_lock();
     LOG_INFO linfo;
     Log_event* ev;
 
@@ -1733,7 +1736,7 @@ bool mysql_show_binlog_events(THD* thd)
     */
     thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
 
-    pthread_mutex_lock(log_lock);
+    mysql_mutex_lock(log_lock);
 
     /*
       open_binlog() sought to position 4.
@@ -1743,7 +1746,7 @@ bool mysql_show_binlog_events(THD* thd)
       This code will fail on a mixed relay log (one which has Format_desc then
       Rotate then Format_desc).
     */
-    ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event);
+    ev= Log_event::read_log_event(&log, (mysql_mutex_t*)0, description_event);
     if (ev)
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
@@ -1764,7 +1767,7 @@ bool mysql_show_binlog_events(THD* thd)
     }
 
     for (event_count = 0;
-	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*) 0,
+         (ev = Log_event::read_log_event(&log, (mysql_mutex_t*) 0,
                                          description_event)); )
     {
       if (event_count >= limit_start &&
@@ -1772,7 +1775,7 @@ bool mysql_show_binlog_events(THD* thd)
       {
 	errmsg = "Net error";
 	delete ev;
-	pthread_mutex_unlock(log_lock);
+        mysql_mutex_unlock(log_lock);
 	goto err;
       }
 
@@ -1786,11 +1789,11 @@ bool mysql_show_binlog_events(THD* thd)
     if (event_count < limit_end && log.error)
     {
       errmsg = "Wrong offset or I/O error";
-      pthread_mutex_unlock(log_lock);
+      mysql_mutex_unlock(log_lock);
       goto err;
     }
 
-    pthread_mutex_unlock(log_lock);
+    mysql_mutex_unlock(log_lock);
   }
 
   ret= FALSE;
@@ -1800,7 +1803,7 @@ err:
   if (file >= 0)
   {
     end_io_cache(&log);
-    (void) my_close(file, MYF(MY_WME));
+    mysql_file_close(file, MYF(MY_WME));
   }
 
   if (errmsg)
@@ -1892,12 +1895,12 @@ bool show_binlogs(THD* thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   
-  pthread_mutex_lock(mysql_bin_log.get_log_lock());
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   
   mysql_bin_log.raw_get_current_log(&cur); // dont take mutex
-  pthread_mutex_unlock(mysql_bin_log.get_log_lock()); // lockdep, OK
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock()); // lockdep, OK
   
   cur_dir_len= dirname_length(cur.log_file_name);
 
@@ -1920,11 +1923,12 @@ bool show_binlogs(THD* thd)
     else
     {
       /* this is an old log, open it and find the size */
-      if ((file= my_open(fname, O_RDONLY | O_SHARE | O_BINARY,
-                         MYF(0))) >= 0)
+      if ((file= mysql_file_open(key_file_binlog,
+                                 fname, O_RDONLY | O_SHARE | O_BINARY,
+                                 MYF(0))) >= 0)
       {
-        file_length= (ulonglong) my_seek(file, 0L, MY_SEEK_END, MYF(0));
-        my_close(file, MYF(0));
+        file_length= (ulonglong) mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
+        mysql_file_close(file, MYF(0));
       }
     }
     protocol->store(file_length);

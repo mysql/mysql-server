@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1642,7 +1642,7 @@ bool mysql_xa_recover(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
@@ -1655,13 +1655,13 @@ bool mysql_xa_recover(THD *thd)
                       &my_charset_bin);
       if (protocol->write())
       {
-        pthread_mutex_unlock(&LOCK_xid_cache);
+        mysql_mutex_unlock(&LOCK_xid_cache);
         DBUG_RETURN(1);
       }
     }
   }
 
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   my_eof(thd);
   DBUG_RETURN(0);
 }
@@ -2064,6 +2064,10 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
+PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
+{
+  return share->m_psi;
+}
 
 /** @brief
   Open database-handler.
@@ -2953,20 +2957,21 @@ static bool update_frm_version(TABLE *table)
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
 
-  if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
 
     int4store(version, MYSQL_VERSION_ID);
 
-    if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
+    if ((result= mysql_file_pwrite(file, (uchar*) version, 4, 51L, MYF_RW)))
       goto err;
 
     table->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
   if (file >= 0)
-    (void) my_close(file,MYF(MY_WME));
+    (void) mysql_file_close(file, MYF(MY_WME));
   DBUG_RETURN(result);
 }
 
@@ -3013,7 +3018,7 @@ int handler::delete_table(const char *name)
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
-    if (my_delete_with_symlink(buff, MYF(0)))
+    if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
       if (my_errno != ENOENT)
       {
@@ -3670,12 +3675,12 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 
   if (!key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     uint tmp_block_size= (uint) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
@@ -3694,12 +3699,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
 				  tmp_buff_size,
 				  division_limit, age_threshold));
@@ -3715,10 +3720,10 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
   return 0;
@@ -4742,7 +4747,8 @@ int example_of_iterator_using_for_logs_cleanup(handlerton *hton)
   {
     printf("%s\n", data.filename.str);
     if (data.status == HA_LOG_STATUS_FREE &&
-        my_delete(data.filename.str, MYF(MY_WME)))
+        mysql_file_delete(INSTRUMENT_ME,
+                          data.filename.str, MYF(MY_WME)))
       goto err;
   }
   res= 0;
@@ -4770,7 +4776,7 @@ err:
 enum log_status fl_get_log_status(char *log)
 {
   MY_STAT stat_buff;
-  if (my_stat(log, &stat_buff, MYF(0)))
+  if (mysql_file_stat(INSTRUMENT_ME, log, &stat_buff, MYF(0)))
     return HA_LOG_STATUS_INUSE;
   return HA_LOG_STATUS_NOSUCHLOG;
 }

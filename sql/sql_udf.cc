@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ extern "C"
 static bool initialized = 0;
 static MEM_ROOT mem;
 static HASH udf_hash;
-static rw_lock_t THR_LOCK_udf;
+static mysql_rwlock_t THR_LOCK_udf;
 
 
 static udf_func *add_udf(LEX_STRING *name, Item_result ret,
@@ -100,6 +100,26 @@ extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
   return (uchar*) udf->name.str;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_rwlock_key key_rwlock_THR_LOCK_udf;
+
+static PSI_rwlock_info all_udf_rwlocks[]=
+{
+  { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_GLOBAL}
+};
+
+static void init_udf_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_udf_rwlocks);
+  PSI_server->register_rwlock(category, all_udf_rwlocks, count);
+}
+#endif
 
 /*
   Read all predeclared functions from mysql.func and accept all that
@@ -119,8 +139,12 @@ void udf_init()
   if (initialized)
     DBUG_VOID_RETURN;
 
-  my_rwlock_init(&THR_LOCK_udf,NULL);
-  
+#ifdef HAVE_PSI_INTERFACE
+  init_udf_psi_keys();
+#endif
+
+  mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
+
   init_sql_alloc(&mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
@@ -253,7 +277,7 @@ void udf_free()
   if (initialized)
   {
     initialized= 0;
-    rwlock_destroy(&THR_LOCK_udf);
+    mysql_rwlock_destroy(&THR_LOCK_udf);
   }
   DBUG_VOID_RETURN;
 }
@@ -291,7 +315,7 @@ void free_udf(udf_func *udf)
   if (!initialized)
     DBUG_VOID_RETURN;
 
-  rw_wrlock(&THR_LOCK_udf);
+  mysql_rwlock_wrlock(&THR_LOCK_udf);
   if (!--udf->usage_count)
   {
     /*
@@ -303,7 +327,7 @@ void free_udf(udf_func *udf)
     if (!find_udf_dl(udf->dl))
       dlclose(udf->dlhandle);
   }
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
   DBUG_VOID_RETURN;
 }
 
@@ -320,9 +344,9 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
 
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
-    rw_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
+    mysql_rwlock_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
   else
-    rw_rdlock(&THR_LOCK_udf);  /* Called during parsing */
+    mysql_rwlock_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
   if ((udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) name,
                                       length ? length : (uint) strlen(name))))
@@ -332,7 +356,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
     else if (mark_used)
       udf->usage_count++;
   }
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
   DBUG_RETURN(udf);
 }
 
@@ -436,7 +460,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
 
-  rw_wrlock(&THR_LOCK_udf);
+  mysql_rwlock_wrlock(&THR_LOCK_udf);
   if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
   {
     my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
@@ -497,7 +521,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     del_udf(u_d);
     goto err;
   }
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
   write_bin_log(thd, TRUE, thd->query(), thd->query_length());
@@ -507,7 +531,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
  err:
   if (new_dl)
     dlclose(dl);
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
   DBUG_RETURN(1);
 }
 
@@ -537,7 +561,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
 
-  rw_wrlock(&THR_LOCK_udf);  
+  mysql_rwlock_wrlock(&THR_LOCK_udf);
   if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
                                        (uint) udf_name->length)))
   {
@@ -569,7 +593,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     if ((error = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /*
     Binlog the drop function. Keep the table open and locked
@@ -579,7 +603,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 
   DBUG_RETURN(0);
 err:
-  rw_unlock(&THR_LOCK_udf);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
   DBUG_RETURN(1);
 }
 

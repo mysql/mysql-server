@@ -6268,3 +6268,8 @@ ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
   eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
   ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
 
+ER_WRONG_NATIVE_TABLE_STRUCTURE
+        eng "Native table '%-.64s'.'%-.64s' has the wrong structure"
+
+ER_WRONG_PERFSCHEMA_USAGE
+        eng "Invalid performance_schema usage."

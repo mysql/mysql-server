@@ -235,12 +235,16 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
   */
-  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
+  if ((check_access(thd, CREATE_VIEW_ACL, view->db,
+                    &view->grant.privilege,
+                    &view->grant.m_internal,
+                    0, 0) ||
        check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
       (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
+       (check_access(thd, DROP_ACL, view->db,
+                     &view->grant.privilege,
+                     &view->grant.m_internal,
+                     0, 0) ||
         check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
     goto err;
 
@@ -290,7 +294,9 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       if (!tbl->table_in_first_from_clause)
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
+                         &tbl->grant.privilege,
+                         &tbl->grant.m_internal,
+                         0, 0) ||
             check_grant(thd, SELECT_ACL, tbl, FALSE, 1, FALSE))
           goto err;
       }
@@ -1636,7 +1642,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       }
       continue;
     }
-    if (my_delete(path, MYF(MY_WME)))
+    if (mysql_file_delete(key_file_frm, path, MYF(MY_WME)))
       error= TRUE;
 
     some_views_deleted= TRUE;
@@ -1708,10 +1714,11 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
   *dbt= DB_TYPE_UNKNOWN;
 
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(FRMTYPE_ERROR);
-  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
-  my_close(file, MYF(MY_WME));
+  error= mysql_file_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
+  mysql_file_close(file, MYF(MY_WME));
 
   if (error)
     DBUG_RETURN(FRMTYPE_ERROR);

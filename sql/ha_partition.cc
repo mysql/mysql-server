@@ -500,9 +500,9 @@ int ha_partition::create_handler_files(const char *path,
     strxmov(name, path, ha_par_ext, NullS);
     strxmov(old_name, old_path, ha_par_ext, NullS);
     if ((action_flag == CHF_DELETE_FLAG &&
-         my_delete(name, MYF(MY_WME))) ||
+         mysql_file_delete(key_file_partition, name, MYF(MY_WME))) ||
         (action_flag == CHF_RENAME_FLAG &&
-         my_rename(old_name, name, MYF(MY_WME))))
+         mysql_file_rename(key_file_partition, old_name, name, MYF(MY_WME))))
     {
       DBUG_RETURN(TRUE);
     }
@@ -2205,12 +2205,13 @@ bool ha_partition::create_handler_file(const char *name)
     to be used at open, delete_table and rename_table
   */
   fn_format(file_name, name, "", ha_par_ext, MY_APPEND_EXT);
-  if ((file= my_create(file_name, CREATE_MODE, O_RDWR | O_TRUNC,
-		       MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_create(key_file_partition,
+                               file_name, CREATE_MODE, O_RDWR | O_TRUNC,
+                               MYF(MY_WME))) >= 0)
   {
-    result= my_write(file, (uchar *) file_buffer, tot_len_byte,
-                     MYF(MY_WME | MY_NABP)) != 0;
-    (void) my_close(file, MYF(0));
+    result= mysql_file_write(file, (uchar *) file_buffer, tot_len_byte,
+                             MYF(MY_WME | MY_NABP)) != 0;
+    (void) mysql_file_close(file, MYF(0));
   }
   else
     result= TRUE;
@@ -2387,17 +2388,18 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
     DBUG_RETURN(FALSE);
   fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
 
-  /* Following could be done with my_stat to read in whole file */
-  if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  /* Following could be done with mysql_file_stat to read in whole file */
+  if ((file= mysql_file_open(key_file_partition,
+                             buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(TRUE);
-  if (my_read(file, (uchar *) & buff[0], 8, MYF(MY_NABP)))
+  if (mysql_file_read(file, (uchar *) &buff[0], 8, MYF(MY_NABP)))
     goto err1;
   len_words= uint4korr(buff);
   len_bytes= 4 * len_words;
   if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
     goto err1;
-  my_seek(file, 0, MY_SEEK_SET, MYF(0));
-  if (my_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
+  mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
+  if (mysql_file_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
     goto err2;
 
   chksum= 0;
@@ -2418,7 +2420,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   if (len_words != (tot_partition_words + tot_name_words + 4))
     goto err3;
   name_buffer_ptr= file_buffer + 16 + 4 * tot_partition_words;
-  (void) my_close(file, MYF(0));
+  (void) mysql_file_close(file, MYF(0));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
   
@@ -2443,7 +2445,7 @@ err3:
 err2:
   my_free(file_buffer, MYF(0));
 err1:
-  (void) my_close(file, MYF(0));
+  (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -2606,7 +2608,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     for the same table.
   */
   if (is_not_tmp_table)
-    pthread_mutex_lock(&table_share->LOCK_ha_data);
+    mysql_mutex_lock(&table_share->LOCK_ha_data);
   if (!table_share->ha_data)
   {
     HA_DATA_PARTITION *ha_data;
@@ -2617,7 +2619,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if (!ha_data)
     {
       if (is_not_tmp_table)
-        pthread_mutex_unlock(&table_share->LOCK_ha_data);
+        mysql_mutex_unlock(&table_share->LOCK_ha_data);
       goto err_handler;
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
@@ -2626,7 +2628,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
-    pthread_mutex_unlock(&table_share->LOCK_ha_data);
+    mysql_mutex_unlock(&table_share->LOCK_ha_data);
   /*
     Some handlers update statistics as part of the open call. This will in
     some cases corrupt the statistics of the partition handler and thus
@@ -6651,7 +6653,7 @@ int ha_partition::indexes_are_disabled(void)
 
 #ifdef NOT_USED
 static HASH partition_open_tables;
-static pthread_mutex_t partition_mutex;
+static mysql_mutex_t partition_mutex;
 static int partition_init= 0;
 
 
@@ -6689,17 +6691,17 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
   if (!partition_init)
   {
     /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
+    mysql_mutex_lock(&LOCK_mysql_create_db);
     if (!partition_init)
     {
       partition_init++;
-      pthread_mutex_init(&partition_mutex, MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(INSTRUMENT_ME, &partition_mutex, MY_MUTEX_INIT_FAST);
       (void) hash_init(&partition_open_tables, system_charset_info, 32, 0, 0,
 		       (hash_get_key) partition_get_key, 0, 0);
     }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
+    mysql_mutex_unlock(&LOCK_mysql_create_db);
   }
-  pthread_mutex_lock(&partition_mutex);
+  mysql_mutex_lock(&partition_mutex);
   length= (uint) strlen(table_name);
 
   if (!(share= (PARTITION_SHARE *) hash_search(&partition_open_tables,
@@ -6710,7 +6712,7 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
 			  &share, (uint) sizeof(*share),
 			  &tmp_name, (uint) length + 1, NullS)))
     {
-      pthread_mutex_unlock(&partition_mutex);
+      mysql_mutex_unlock(&partition_mutex);
       return NULL;
     }
 
@@ -6721,15 +6723,15 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
     if (my_hash_insert(&partition_open_tables, (uchar *) share))
       goto error;
     thr_lock_init(&share->lock);
-    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
   }
   share->use_count++;
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
 
   return share;
 
 error:
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
   my_free((uchar*) share, MYF(0));
 
   return NULL;
@@ -6744,15 +6746,15 @@ error:
 
 static int free_share(PARTITION_SHARE *share)
 {
-  pthread_mutex_lock(&partition_mutex);
+  mysql_mutex_lock(&partition_mutex);
   if (!--share->use_count)
   {
     hash_delete(&partition_open_tables, (uchar *) share);
     thr_lock_delete(&share->lock);
-    pthread_mutex_destroy(&share->mutex);
+    mysql_mutex_destroy(&share->mutex);
     my_free((uchar*) share, MYF(0));
   }
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
 
   return 0;
 }

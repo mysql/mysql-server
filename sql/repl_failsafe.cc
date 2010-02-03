@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2006 MySQL AB & Sasha
+/* Copyright (C) 2001-2006 MySQL AB & Sasha, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@
 
 
 uint rpl_status=RPL_NULL;
-pthread_mutex_t LOCK_rpl_status;
-pthread_cond_t COND_rpl_status;
+mysql_mutex_t LOCK_rpl_status;
+mysql_cond_t COND_rpl_status;
 HASH slave_list;
 
 const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
@@ -107,11 +107,11 @@ static int init_failsafe_rpl_thread(THD* thd)
 
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 {
-  pthread_mutex_lock(&LOCK_rpl_status);
+  mysql_mutex_lock(&LOCK_rpl_status);
   if (rpl_status == from_status || rpl_status == RPL_ANY)
     rpl_status = to_status;
-  pthread_cond_signal(&COND_rpl_status);
-  pthread_mutex_unlock(&LOCK_rpl_status);
+  mysql_cond_signal(&COND_rpl_status);
+  mysql_mutex_unlock(&LOCK_rpl_status);
 }
 
 
@@ -140,7 +140,7 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
   if (thd->server_id)
   {
     if (need_mutex)
-      pthread_mutex_lock(&LOCK_slave_list);
+      mysql_mutex_lock(&LOCK_slave_list);
 
     SLAVE_INFO* old_si;
     if ((old_si = (SLAVE_INFO*)my_hash_search(&slave_list,
@@ -149,7 +149,7 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
     my_hash_delete(&slave_list, (uchar*)old_si);
 
     if (need_mutex)
-      pthread_mutex_unlock(&LOCK_slave_list);
+      mysql_mutex_unlock(&LOCK_slave_list);
   }
 }
 
@@ -170,7 +170,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   uchar *p= packet, *p_end= packet + packet_length;
   const char *errmsg= "Wrong parameters to function register_slave";
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0,0))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db, NULL, NULL, 0, 0))
     return 1;
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
@@ -189,10 +189,10 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
     si->master_id= server_id;
   si->thd= thd;
 
-  pthread_mutex_lock(&LOCK_slave_list);
+  mysql_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd,0,0);
   res= my_hash_insert(&slave_list, (uchar*) si);
-  pthread_mutex_unlock(&LOCK_slave_list);
+  mysql_mutex_unlock(&LOCK_slave_list);
   return res;
 
 err:
@@ -215,12 +215,37 @@ extern "C" void slave_info_free(void *s)
   my_free(s, MYF(MY_WME));
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_slave_list;
+
+static PSI_mutex_info all_slave_list_mutexes[]=
+{
+  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL}
+};
+
+static void init_all_slave_list_mutexes(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_slave_list_mutexes);
+  PSI_server->register_mutex(category, all_slave_list_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 void init_slave_list()
 {
+#ifdef HAVE_PSI_INTERFACE
+  init_all_slave_list_mutexes();
+#endif
+
   my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
                (my_hash_get_key) slave_list_key,
                (my_hash_free_key) slave_info_free, 0);
-  pthread_mutex_init(&LOCK_slave_list, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);
 }
 
 void end_slave_list()
@@ -229,7 +254,7 @@ void end_slave_list()
   if (my_hash_inited(&slave_list))
   {
     my_hash_free(&slave_list);
-    pthread_mutex_destroy(&LOCK_slave_list);
+    mysql_mutex_destroy(&LOCK_slave_list);
   }
 }
 
@@ -241,7 +266,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   for (;;)
   {
     Log_event* ev;
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0)))
+    if (!(ev= Log_event::read_log_event(log, (mysql_mutex_t*) 0, 0)))
     {
       if (log->error > 0)
 	strmov(errmsg, "Binary log truncated in the middle of event");
@@ -283,7 +308,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   char last_log_name[FN_REFLEN];
   IO_CACHE log;
   File file = -1, last_file = -1;
-  pthread_mutex_t *log_lock;
+  mysql_mutex_t *log_lock;
   const char* errmsg_p;
   Slave_log_event* sev = 0;
   my_off_t last_pos = 0;
@@ -313,7 +338,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 
   bzero((char*) &log,sizeof(log));
   log_lock = mysql_bin_log.get_log_lock();
-  pthread_mutex_lock(log_lock);
+  mysql_mutex_lock(log_lock);
 
   for (;;)
   {
@@ -345,7 +370,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 	goto err;
       }
       end_io_cache(&log);
-      (void) my_close(file, MYF(MY_WME));
+      mysql_file_close(file, MYF(MY_WME));
       if (init_io_cache(&log, (file = last_file), IO_SIZE, READ_CACHE, 0, 0,
 			MYF(MY_WME)))
       {
@@ -361,7 +386,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
     switch (mysql_bin_log.find_next_log(&linfo, 1)) {
     case LOG_INFO_EOF:
       if (last_file >= 0)
-       (void)my_close(last_file, MYF(MY_WME));
+       mysql_file_close(last_file, MYF(MY_WME));
       last_file = -1;
       goto found_log;
     case 0:
@@ -373,7 +398,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 
     end_io_cache(&log);
     if (last_file >= 0)
-     (void) my_close(last_file, MYF(MY_WME));
+      mysql_file_close(last_file, MYF(MY_WME));
     last_file = file;
   }
 
@@ -386,15 +411,15 @@ found_log:
 mi_inited:
   error = 0;
 err:
-  pthread_mutex_unlock(log_lock);
+  mysql_mutex_unlock(log_lock);
   end_io_cache(&log);
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
-    (void) my_close(file, MYF(MY_WME));
+    mysql_file_close(file, MYF(MY_WME));
   if (last_file >= 0 && last_file != file)
-    (void) my_close(last_file, MYF(MY_WME));
+    mysql_file_close(last_file, MYF(MY_WME));
 
   DBUG_RETURN(error);
 }
@@ -415,7 +440,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 
   for (i = 0; i < 2; i++)
   {
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0, 0)))
+    if (!(ev= Log_event::read_log_event(log, (mysql_mutex_t*)0, 0)))
     {
       my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		  "Error reading event in log '%s'",
@@ -537,7 +562,7 @@ HOSTS";
     goto err;
   }
 
-  pthread_mutex_lock(&LOCK_slave_list);
+  mysql_mutex_lock(&LOCK_slave_list);
 
   while ((row= mysql_fetch_row(res)))
   {
@@ -552,14 +577,14 @@ HOSTS";
       if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
       {
 	error= "the slave is out of memory";
-	pthread_mutex_unlock(&LOCK_slave_list);
+        mysql_mutex_unlock(&LOCK_slave_list);
 	goto err;
       }
       si->server_id = log_server_id;
       if (my_hash_insert(&slave_list, (uchar*)si))
       {
         error= "the slave is out of memory";
-        pthread_mutex_unlock(&LOCK_slave_list);
+        mysql_mutex_unlock(&LOCK_slave_list);
         goto err;
       }
     }
@@ -573,7 +598,7 @@ HOSTS";
       strmake(si->password, row[3], sizeof(si->password)-1);
     }
   }
-  pthread_mutex_unlock(&LOCK_slave_list);
+  mysql_mutex_unlock(&LOCK_slave_list);
 
 err:
   if (res)
@@ -611,13 +636,13 @@ pthread_handler_t handle_failsafe_rpl(void *arg)
     sql_print_error("Could not initialize failsafe replication thread");
     goto err;
   }
-  pthread_mutex_lock(&LOCK_rpl_status);
+  mysql_mutex_lock(&LOCK_rpl_status);
   msg= thd->enter_cond(&COND_rpl_status,
                        &LOCK_rpl_status, "Waiting for request");
   while (!thd->killed && !abort_loop)
   {
     bool break_req_chain = 0;
-    pthread_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
+    mysql_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
     thd_proc_info(thd, "Processing request");
     while (!break_req_chain)
     {
@@ -680,7 +705,7 @@ bool show_slave_hosts(THD* thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  pthread_mutex_lock(&LOCK_slave_list);
+  mysql_mutex_lock(&LOCK_slave_list);
 
   for (uint i = 0; i < slave_list.records; ++i)
   {
@@ -697,11 +722,11 @@ bool show_slave_hosts(THD* thd)
     protocol->store((uint32) si->master_id);
     if (protocol->write())
     {
-      pthread_mutex_unlock(&LOCK_slave_list);
+      mysql_mutex_unlock(&LOCK_slave_list);
       DBUG_RETURN(TRUE);
     }
   }
-  pthread_mutex_unlock(&LOCK_slave_list);
+  mysql_mutex_unlock(&LOCK_slave_list);
   my_eof(thd);
   DBUG_RETURN(FALSE);
 }

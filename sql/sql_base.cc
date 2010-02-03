@@ -464,7 +464,8 @@ static void table_def_unuse_table(TABLE *table)
 */
 
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
-                             uint key_length, uint db_flags, int *error)
+                             uint key_length, uint db_flags, int *error,
+                             my_hash_value_type hash_value)
 {
   TABLE_SHARE *share;
   DBUG_ENTER("get_table_share");
@@ -481,8 +482,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                                              MDL_SHARED));
 
   /* Read table definition from cache */
-  if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
-                                            key_length)))
+  if ((share= (TABLE_SHARE*) my_hash_search_using_hash_value(&table_def_cache,
+                                                             hash_value, (uchar*) key, key_length)))
     goto found;
 
   if (!(share= alloc_table_share(table_list, key, key_length)))
@@ -571,13 +572,16 @@ found:
 static TABLE_SHARE
 *get_table_share_with_create(THD *thd, TABLE_LIST *table_list,
                              char *key, uint key_length,
-                             uint db_flags, int *error)
+                             uint db_flags, int *error,
+                             my_hash_value_type hash_value)
+
 {
   TABLE_SHARE *share;
   int tmp;
   DBUG_ENTER("get_table_share_with_create");
 
-  share= get_table_share(thd, table_list, key, key_length, db_flags, error);
+  share= get_table_share(thd, table_list, key, key_length, db_flags, error,
+                         hash_value);
   /*
     If share is not NULL, we found an existing share.
 
@@ -647,7 +651,7 @@ static TABLE_SHARE
   thd->warning_info->clear_warning_info(thd->query_id);
   thd->clear_error();                           // Clear error message
   DBUG_RETURN(get_table_share(thd, table_list, key, key_length,
-                              db_flags, error));
+                              db_flags, error, hash_value));
 }
 
 /**
@@ -2460,6 +2464,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   MDL_ticket *mdl_ticket;
   int error;
   TABLE_SHARE *share;
+  my_hash_value_type hash_value;
   DBUG_ENTER("open_table");
 
   /* an open table operation needs a lot of the stack space */
@@ -2676,6 +2681,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   */
   mdl_ticket= mdl_request->ticket;
 
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
 
   /*
@@ -2723,7 +2729,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (!(share= get_table_share_with_create(thd, table_list, key,
                                              key_length, OPEN_VIEW,
-                                             &error)))
+                                             &error,
+                                             hash_value)))
       goto err_unlock2;
 
     if (share->is_view)
@@ -3568,13 +3575,17 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
 {
   TABLE not_used;
   int error;
+  my_hash_value_type hash_value;
   TABLE_SHARE *share;
 
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
+                           cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length, 
-                                           OPEN_VIEW, &error)))
+                                           OPEN_VIEW, &error,
+                                           hash_value)))
     goto err;
 
   if (share->is_view &&
@@ -3662,16 +3673,20 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   TABLE *entry;
   int not_used;
   bool result= FALSE;
+  my_hash_value_type hash_value;
 
   cache_key_length= create_table_def_key(thd, cache_key, table_list, 0);
 
   thd->clear_error();
 
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
+                           cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length,
-                                           OPEN_VIEW, &not_used)))
+                                           OPEN_VIEW, &not_used,
+                                           hash_value)))
   {
     mysql_mutex_unlock(&LOCK_open);
     return TRUE;
@@ -3925,6 +3940,7 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
   bool log_on= mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
+      (table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
     return TL_READ;
   else
@@ -5238,9 +5254,12 @@ bool decide_logging_format(THD *thd, TABLE_LIST *tables)
     void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
+      TABLE_CATEGORY category;
       if (table->placeholder())
         continue;
-      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+      category= table->table->s->table_category;
+      if ((category == TABLE_CATEGORY_LOG) ||
+          (category == TABLE_CATEGORY_PERFORMANCE))
         thd->lex->set_stmt_unsafe();
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
@@ -5679,7 +5698,7 @@ bool rm_temporary_table(handlerton *base, char *path)
   DBUG_ENTER("rm_temporary_table");
 
   strmov(ext= strend(path), reg_ext);
-  if (my_delete(path,MYF(0)))
+  if (mysql_file_delete(key_file_frm, path, MYF(0)))
     error=1; /* purecov: inspected */
   *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
@@ -8468,7 +8487,7 @@ my_bool mysql_rm_tmp_tables(void)
           So we hide error messages which happnes during deleting of these
           files(MYF(0)).
         */
-        (void) my_delete(filePath, MYF(0)); 
+        (void) mysql_file_delete(key_file_misc, filePath, MYF(0));
       }
     }
     my_dirend(dirp);
@@ -8996,19 +9015,18 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
 }
 
 /**
-  Open a performance schema table.
+  Open a log table.
   Opening such tables is performed internally in the server
   implementation, and is a 'nested' open, since some tables
   might be already opened by the current thread.
   The thread context before this call is saved, and is restored
-  when calling close_performance_schema_table().
+  when calling close_log_table().
   @param thd The current thread
-  @param one_table Performance schema table to open
+  @param one_table Log table to open
   @param backup [out] Temporary storage used to save the thread context
 */
 TABLE *
-open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                              Open_tables_backup *backup)
+open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 {
   uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
@@ -9017,13 +9035,13 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
   TABLE *table;
   /* Save value that is changed in mysql_lock_tables() */
   ulonglong save_utime_after_lock= thd->utime_after_lock;
-  DBUG_ENTER("open_performance_schema_table");
+  DBUG_ENTER("open_log_table");
 
   thd->reset_n_backup_open_tables_state(backup);
 
   if ((table= open_ltable(thd, one_table, one_table->lock_type, flags)))
   {
-    DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_PERFORMANCE);
+    DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_LOG);
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
     table->no_replicate= 1;
@@ -9051,13 +9069,13 @@ open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
 }
 
 /**
-  Close a performance schema table.
-  The last table opened by open_performance_schema_table()
+  Close a log table.
+  The last table opened by open_log_table()
   is closed, then the thread context is restored.
   @param thd The current thread
   @param backup [in] the context to restore.
 */
-void close_performance_schema_table(THD *thd, Open_tables_backup *backup)
+void close_log_table(THD *thd, Open_tables_backup *backup)
 {
   close_system_tables(thd, backup);
 }
