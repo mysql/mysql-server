@@ -12,17 +12,19 @@ let $mgm_cmd = $mgm_cmd --verbose=0;
 
 #echo MYSQL_SERVER_VERSION: $MYSQL_SERVER_VERSION;
 
-# extract mysql-X.X.X
+# extract X.X.X for MySQL
 let $mysql_version=
-  `select CONCAT('mysql-', SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', 1))`;
+  `select SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', 1)`;
 #echo mysql_version: $mysql_version;
 
 # extract ndb-X.X.X(if the server version string does not include NDB version
 # we should add a 'ndb_version' variable installed by ha_ndbcluster)
 let $ndb_version=
-  `select SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', -2)`;
+  `select SUBSTRING_INDEX(REPLACE('$MYSQL_SERVER_VERSION',
+                                  '$mysql_version-', ''), '-', 2)`;
 #echo ndb_version: $ndb_version;
 
+let $mysql_version = mysql-$mysql_version;
 
 #
 # Test the SHOW command
