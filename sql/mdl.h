@@ -540,7 +540,7 @@ public:
             always re-try reading it after small timeout and therefore
             will see the new value eventually.
     */
-    m_needs_thr_lock_abort= TRUE;
+    m_needs_thr_lock_abort= needs_thr_lock_abort;
   }
   bool get_needs_thr_lock_abort() const
   {
