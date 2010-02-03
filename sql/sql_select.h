@@ -452,6 +452,7 @@ public:
   }
 
   bool rollup_init();
+  bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
