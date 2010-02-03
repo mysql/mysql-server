@@ -3673,20 +3673,20 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       cond_func=(Item_func_match *)cond;
     else if (func->arg_count == 2)
     {
-      Item_func *arg0=(Item_func *)(func->arguments()[0]),
-                *arg1=(Item_func *)(func->arguments()[1]);
-      if (arg1->const_item()  &&
-           arg0->type() == Item::FUNC_ITEM            &&
-           arg0->functype() == Item_func::FT_FUNC     &&
+      Item *arg0=(Item *)(func->arguments()[0]),
+           *arg1=(Item *)(func->arguments()[1]);
+      if (arg1->const_item() && arg1->cols() == 1 &&
+           arg0->type() == Item::FUNC_ITEM &&
+           ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
           ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
            (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func=(Item_func_match *) arg0;
+        cond_func= (Item_func_match *) arg0;
       else if (arg0->const_item() &&
-                arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC   &&
+                arg1->type() == Item::FUNC_ITEM &&
+                ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
                ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
                 (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func=(Item_func_match *) arg1;
+        cond_func= (Item_func_match *) arg1;
     }
   }
   else if (cond->type() == Item::COND_ITEM)
