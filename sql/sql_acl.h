@@ -1,7 +1,7 @@
 #ifndef SQL_ACL_INCLUDED
 #define SQL_ACL_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -278,12 +278,139 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
-bool has_any_table_level_privileges(THD *thd, ulong required_access,
-                                    TABLE_LIST *tables);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0
-#define has_any_table_level_privileges(A,B,C) 0
 #endif
+
+/**
+  Result of an access check for an internal schema or table.
+  Internal ACL checks are always performed *before* using
+  the grant tables.
+  This mechanism enforces that the server implementation has full
+  control on its internal tables.
+  Depending on the internal check result, the server implementation
+  can choose to:
+  - always allow access,
+  - always deny access,
+  - delegate the decision to the database administrator,
+  by using the grant tables.
+*/
+enum ACL_internal_access_result
+{
+  /**
+    Access granted for all the requested privileges,
+    do not use the grant tables.
+    This flag is used only for the INFORMATION_SCHEMA privileges,
+    for compatibility reasons.
+  */
+  ACL_INTERNAL_ACCESS_GRANTED,
+  /** Access denied, do not use the grant tables. */
+  ACL_INTERNAL_ACCESS_DENIED,
+  /** No decision yet, use the grant tables. */
+  ACL_INTERNAL_ACCESS_CHECK_GRANT
+};
+
+/**
+  Per internal table ACL access rules.
+  This class is an interface.
+  Per table(s) specific access rule should be implemented in a subclass.
+  @sa ACL_internal_schema_access
+*/
+class ACL_internal_table_access
+{
+public:
+  ACL_internal_table_access()
+  {}
+
+  virtual ~ACL_internal_table_access()
+  {}
+
+  /**
+    Check access to an internal table.
+    When a privilege is granted, this method add the requested privilege
+    to save_priv.
+    @param want_access the privileges requested
+    @param [in, out] save_priv the privileges granted
+    @return
+      @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
+      are granted, and saved in save_priv.
+      @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
+      privileges was denied.
+      @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
+      was denied, and grant should be checked for at least one
+      privilege. Requested privileges that are granted, if any, are saved
+      in save_priv.
+  */
+  virtual ACL_internal_access_result check(ulong want_access,
+                                           ulong *save_priv) const= 0;
+};
+
+/**
+  Per internal schema ACL access rules.
+  This class is an interface.
+  Each per schema specific access rule should be implemented
+  in a different subclass, and registered.
+  Per schema access rules can control:
+  - every schema privileges on schema.*
+  - every table privileges on schema.table
+  @sa ACL_internal_schema_registry
+*/
+class ACL_internal_schema_access
+{
+public:
+  ACL_internal_schema_access()
+  {}
+
+  virtual ~ACL_internal_schema_access()
+  {}
+
+  /**
+    Check access to an internal schema.
+    @param want_access the privileges requested
+    @param [in, out] save_priv the privileges granted
+    @return
+      @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
+      are granted, and saved in save_priv.
+      @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
+      privileges was denied.
+      @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
+      was denied, and grant should be checked for at least one
+      privilege. Requested privileges that are granted, if any, are saved
+      in save_priv.
+  */
+  virtual ACL_internal_access_result check(ulong want_access,
+                                           ulong *save_priv) const= 0;
+
+  /**
+    Search for per table ACL access rules by table name.
+    @param name the table name
+    @return per table access rules, or NULL
+  */
+  virtual const ACL_internal_table_access *lookup(const char *name) const= 0;
+};
+
+/**
+  A registry for per internal schema ACL.
+  An 'internal schema' is a database schema maintained by the
+  server implementation, such as 'performance_schema' and 'INFORMATION_SCHEMA'.
+*/
+class ACL_internal_schema_registry
+{
+public:
+  static void register_schema(const LEX_STRING *name,
+                              const ACL_internal_schema_access *access);
+  static const ACL_internal_schema_access *lookup(const char *name);
+};
+
+const ACL_internal_schema_access *
+get_cached_schema_access(GRANT_INTERNAL_INFO *grant_internal_info,
+                         const char *schema_name);
+
+const ACL_internal_table_access *
+get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
+                        const char *schema_name,
+                        const char *table_name);
+
 #endif /* SQL_ACL_INCLUDED */

@@ -264,7 +264,7 @@ Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 uchar g_node_id_map[max_ndb_nodes];
 
 /// Handler synchronization
-pthread_mutex_t ndbcluster_mutex;
+mysql_mutex_t ndbcluster_mutex;
 
 /// Table lock handling
 HASH ndbcluster_open_tables;
@@ -281,9 +281,9 @@ static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const NDBTAB *,
 // Util thread variables
 pthread_t ndb_util_thread;
 int ndb_util_thread_running= 0;
-pthread_mutex_t LOCK_ndb_util_thread;
-pthread_cond_t COND_ndb_util_thread;
-pthread_cond_t COND_ndb_util_ready;
+mysql_mutex_t LOCK_ndb_util_thread;
+mysql_cond_t COND_ndb_util_thread;
+mysql_cond_t COND_ndb_util_ready;
 pthread_handler_t ndb_util_thread_func(void *arg);
 
 /**
@@ -4778,11 +4778,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd_ndb->changed_tables.push_back(m_share, &thd->transaction.mem_root);
       }
 
-      pthread_mutex_lock(&m_share->mutex);
+      mysql_mutex_lock(&m_share->mutex);
       DBUG_PRINT("info", ("Invalidating commit_count"));
       m_share->commit_count= 0;
       m_share->commit_count_lock++;
-      pthread_mutex_unlock(&m_share->mutex);
+      mysql_mutex_unlock(&m_share->mutex);
     }
 
     if (!--thd_ndb->lock_count)
@@ -4942,12 +4942,12 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
   while ((share= it++))
   {
-    pthread_mutex_lock(&share->mutex);
+    mysql_mutex_lock(&share->mutex);
     DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %lu",
                         share->table_name, (ulong) share->commit_count));
     share->commit_count= 0;
     share->commit_count_lock++;
-    pthread_mutex_unlock(&share->mutex);
+    mysql_mutex_unlock(&share->mutex);
   }
   thd_ndb->changed_tables.empty();
 
@@ -5621,7 +5621,7 @@ int ha_ndbcluster::create(const char *name,
   if (!my_errno)
   {
     NDB_SHARE *share= 0;
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     /*
       First make sure we get a "fresh" share here, not an old trailing one...
     */
@@ -5646,7 +5646,7 @@ int ha_ndbcluster::create(const char *name,
       DBUG_PRINT("NDB_SHARE", ("%s binlog create  use_count: %u",
                                share->key, share->use_count));
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
@@ -6285,7 +6285,7 @@ retry_temporary_error1:
     /* the drop table failed for some reason, drop the share anyways */
     if (share)
     {
-      pthread_mutex_lock(&ndbcluster_mutex);
+      mysql_mutex_lock(&ndbcluster_mutex);
       if (share->state != NSS_DROPPED)
       {
         /*
@@ -6301,7 +6301,7 @@ retry_temporary_error1:
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
       free_share(&share, TRUE);
-      pthread_mutex_unlock(&ndbcluster_mutex);
+      mysql_mutex_unlock(&ndbcluster_mutex);
     }
 #endif
     DBUG_RETURN(res);
@@ -6342,7 +6342,7 @@ retry_temporary_error1:
 
   if (share)
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     if (share->state != NSS_DROPPED)
     {
       /*
@@ -6358,7 +6358,7 @@ retry_temporary_error1:
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                              share->key, share->use_count));
     free_share(&share, TRUE);
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
 #endif
   DBUG_RETURN(0);
@@ -7461,7 +7461,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 /* Call back after cluster connect */
 static int connect_callback()
 {
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
   update_status_variables(g_ndb_cluster_connection);
 
   uint node_id, i= 0;
@@ -7470,13 +7470,92 @@ static int connect_callback()
   while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
     g_node_id_map[node_id]= i++;
 
-  pthread_cond_signal(&COND_ndb_util_thread);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  mysql_cond_signal(&COND_ndb_util_thread);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
   return 0;
 }
 
 extern int ndb_dictionary_is_mysqld;
-extern pthread_mutex_t LOCK_plugin;
+extern mysql_mutex_t LOCK_plugin;
+
+#ifdef HAVE_PSI_INTERFACE
+
+#ifdef HAVE_NDB_BINLOG
+PSI_mutex_key key_injector_mutex, key_ndb_schema_share_mutex,
+              key_ndb_schema_object_mutex;
+#endif /* HAVE_NDB_BINLOG */
+
+PSI_mutex_key key_NDB_SHARE_mutex, key_ndbcluster_mutex,
+              key_LOCK_ndb_util_thread;
+
+static PSI_mutex_info all_ndbcluster_mutexes[]=
+{
+#ifdef HAVE_NDB_BINLOG
+  {& key_injector_mutex, "injector_mutex", PSI_FLAG_GLOBAL},
+  {& key_ndb_schema_share_mutex, "ndb_schema_share_mutex", PSI_FLAG_GLOBAL},
+  {& key_ndb_schema_object_mutex, "ndb_schema_object_mutex", PSI_FLAG_GLOBAL},
+#endif /* HAVE_NDB_BINLOG */
+  {& key_NDB_SHARE_mutex, "NDB_SHARE::mutex", PSI_FLAG_GLOBAL},
+  {& key_ndbcluster_mutex, "ndbcluster_mutex", PSI_FLAG_GLOBAL},
+  {& key_LOCK_ndb_util_thread, "LOCK_ndb_util_thread", PSI_FLAG_GLOBAL}
+};
+
+#ifdef HAVE_NDB_BINLOG
+PSI_cond_key key_injector_cond;
+#endif /* HAVE_NDB_BINLOG */
+
+PSI_cond_key key_COND_ndb_util_thread, key_COND_ndb_util_ready;
+
+static PSI_cond_info all_ndbcluster_conds[]=
+{
+#ifdef HAVE_NDB_BINLOG
+  {& key_injector_cond, "injector_cond", PSI_FLAG_GLOBAL},
+#endif /* HAVE_NDB_BINLOG */
+  {& key_COND_ndb_util_thread, "COND_ndb_util_thread", PSI_FLAG_GLOBAL},
+  {& key_COND_ndb_util_ready, "COND_ndb_util_ready", PSI_FLAG_GLOBAL}
+};
+
+#ifdef HAVE_NDB_BINLOG
+PSI_thread_key key_thread_ndb_binlog;
+#endif /* HAVE_NDB_BINLOG */
+PSI_thread_key key_thread_ndb_util;
+
+static PSI_thread_info all_ndbcluster_threads[]=
+{
+#ifdef HAVE_NDB_BINLOG
+  { &key_thread_ndb_binlog, "ndb_binlog", PSI_FLAG_GLOBAL},
+#endif /* HAVE_NDB_BINLOG */
+  { &key_thread_ndb_util, "ndb_util", PSI_FLAG_GLOBAL}
+};
+
+PSI_file_key key_file_ndb;
+
+static PSI_file_info all_ndbcluster_files[]=
+{
+  { &key_file_ndb, "ndb", 0}
+};
+
+void init_ndbcluster_psi_keys()
+{
+  const char* category= "ndbcluster";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_ndbcluster_mutexes);
+  PSI_server->register_mutex(category, all_ndbcluster_mutexes, count);
+
+  count= array_elements(all_ndbcluster_conds);
+  PSI_server->register_cond(category, all_ndbcluster_conds, count);
+
+  count= array_elements(all_ndbcluster_threads);
+  PSI_server->register_thread(category, all_ndbcluster_threads, count);
+
+  count= array_elements(all_ndbcluster_files);
+  PSI_server->register_file(category, all_ndbcluster_files, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 static int ndbcluster_init(void *p)
 {
@@ -7486,17 +7565,23 @@ static int ndbcluster_init(void *p)
   if (ndbcluster_inited)
     DBUG_RETURN(FALSE);
 
+#ifdef HAVE_PSI_INTERFACE
+  init_ndbcluster_psi_keys();
+#endif
+
   /*
     Below we create new THD's. They'll need LOCK_plugin, but it's taken now by
     plugin initialization code. Release it to avoid deadlocks.  It's safe, as
     there're no threads that may concurrently access plugin control structures.
   */
-  pthread_mutex_unlock(&LOCK_plugin);
+  mysql_mutex_unlock(&LOCK_plugin);
 
-  pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_ndb_util_thread, NULL);
-  pthread_cond_init(&COND_ndb_util_ready, NULL);
+  mysql_mutex_init(key_ndbcluster_mutex,
+                   &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_ndb_util_thread,
+                   &LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_ndb_util_thread, &COND_ndb_util_thread, NULL);
+  mysql_cond_init(key_COND_ndb_util_ready, &COND_ndb_util_ready, NULL);
   ndb_util_thread_running= -1;
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
@@ -7618,35 +7703,36 @@ static int ndbcluster_init(void *p)
 
   // Create utility thread
   pthread_t tmp;
-  if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
+  if (mysql_thread_create(key_thread_ndb_util,
+                          &tmp, &connection_attrib, ndb_util_thread_func, 0))
   {
     DBUG_PRINT("error", ("Could not create ndb utility thread"));
     my_hash_free(&ndbcluster_open_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    pthread_mutex_destroy(&LOCK_ndb_util_thread);
-    pthread_cond_destroy(&COND_ndb_util_thread);
-    pthread_cond_destroy(&COND_ndb_util_ready);
+    mysql_mutex_destroy(&ndbcluster_mutex);
+    mysql_mutex_destroy(&LOCK_ndb_util_thread);
+    mysql_cond_destroy(&COND_ndb_util_thread);
+    mysql_cond_destroy(&COND_ndb_util_ready);
     goto ndbcluster_init_error;
   }
 
   /* Wait for the util thread to start */
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
   while (ndb_util_thread_running < 0)
-    pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+    mysql_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
   
   if (!ndb_util_thread_running)
   {
     DBUG_PRINT("error", ("ndb utility thread exited prematurely"));
     my_hash_free(&ndbcluster_open_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    pthread_mutex_destroy(&LOCK_ndb_util_thread);
-    pthread_cond_destroy(&COND_ndb_util_thread);
-    pthread_cond_destroy(&COND_ndb_util_ready);
+    mysql_mutex_destroy(&ndbcluster_mutex);
+    mysql_mutex_destroy(&LOCK_ndb_util_thread);
+    mysql_cond_destroy(&COND_ndb_util_thread);
+    mysql_cond_destroy(&COND_ndb_util_ready);
     goto ndbcluster_init_error;
   }
 
-  pthread_mutex_lock(&LOCK_plugin);
+  mysql_mutex_lock(&LOCK_plugin);
 
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
@@ -7660,7 +7746,7 @@ ndbcluster_init_error:
   g_ndb_cluster_connection= NULL;
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
 
-  pthread_mutex_lock(&LOCK_plugin);
+  mysql_mutex_lock(&LOCK_plugin);
 
   DBUG_RETURN(TRUE);
 }
@@ -7703,17 +7789,17 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   /* wait for util thread to finish */
   sql_print_information("Stopping Cluster Utility thread");
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
   ndbcluster_terminating= 1;
-  pthread_cond_signal(&COND_ndb_util_thread);
+  mysql_cond_signal(&COND_ndb_util_thread);
   while (ndb_util_thread_running > 0)
-    pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+    mysql_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
 
 
 #ifdef HAVE_NDB_BINLOG
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     while (ndbcluster_open_tables.records)
     {
       NDB_SHARE *share=
@@ -7724,7 +7810,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 #endif
       ndbcluster_real_free_share(&share);
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
 #endif
   my_hash_free(&ndbcluster_open_tables);
@@ -7753,10 +7839,10 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   // cleanup ndb interface
   ndb_end_internal();
 
-  pthread_mutex_destroy(&ndbcluster_mutex);
-  pthread_mutex_destroy(&LOCK_ndb_util_thread);
-  pthread_cond_destroy(&COND_ndb_util_thread);
-  pthread_cond_destroy(&COND_ndb_util_ready);
+  mysql_mutex_destroy(&ndbcluster_mutex);
+  mysql_mutex_destroy(&LOCK_ndb_util_thread);
+  mysql_cond_destroy(&COND_ndb_util_thread);
+  mysql_cond_destroy(&COND_ndb_util_ready);
   DBUG_RETURN(0);
 }
 
@@ -8059,12 +8145,12 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   build_table_filename(name, sizeof(name) - 1,
                        dbname, tabname, "", 0);
   DBUG_PRINT("enter", ("name: %s", name));
-  pthread_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                           (uchar*) name,
                                           strlen(name))))
   {
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
     DBUG_PRINT("info", ("Table %s not found in ndbcluster_open_tables", name));
     DBUG_RETURN(1);
   }
@@ -8072,9 +8158,9 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   share->use_count++;
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key, share->use_count));
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
 
-  pthread_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   if (opt_ndb_cache_check_time > 0)
   {
     if (share->commit_count != 0)
@@ -8085,7 +8171,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
 #endif
       DBUG_PRINT("info", ("Getting commit_count: %s from share",
                           llstr(share->commit_count, buff)));
-      pthread_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
@@ -8102,7 +8188,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     ERR_RETURN(ndb->getNdbError());
   }
   uint lock= share->commit_count_lock;
-  pthread_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
   {
@@ -8118,7 +8204,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     }
   }
 
-  pthread_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   if (share->commit_count_lock == lock)
   {
 #ifndef DBUG_OFF
@@ -8134,7 +8220,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     DBUG_PRINT("info", ("Discarding commit_count, comit_count_lock changed"));
     *commit_count= 0;
   }
-  pthread_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                            share->key, share->use_count));
@@ -8346,7 +8432,7 @@ static void print_ndbcluster_open_tables()
   to avoid segmentation faults.  There is a risk that the memory for
   this trailing share leaks.
   
-  Must be called with previous pthread_mutex_lock(&ndbcluster_mutex)
+  Must be called with previous mysql_mutex_lock(&ndbcluster_mutex)
 */
 int handle_trailing_share(NDB_SHARE *share)
 {
@@ -8358,7 +8444,7 @@ int handle_trailing_share(NDB_SHARE *share)
   ++share->use_count;
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key, share->use_count));
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
   bzero((char*) &table_list,sizeof(table_list));
@@ -8367,7 +8453,7 @@ int handle_trailing_share(NDB_SHARE *share)
   mysql_mutex_assert_owner(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE);
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                            share->key, share->use_count));
@@ -8458,7 +8544,7 @@ int handle_trailing_share(NDB_SHARE *share)
 static int rename_share(NDB_SHARE *share, const char *new_key)
 {
   NDB_SHARE *tmp;
-  pthread_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   uint new_length= (uint) strlen(new_key);
   DBUG_PRINT("rename_share", ("old_key: %s  old__length: %d",
                               share->key, share->key_length));
@@ -8496,7 +8582,7 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
                            share->key));
     }
     dbug_print_open_tables();
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
     return -1;
   }
   dbug_print_open_tables();
@@ -8521,7 +8607,7 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
   share->old_names= old_key;
   // ToDo free old_names after ALTER EVENT
 
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
   return 0;
 }
 #endif
@@ -8532,12 +8618,12 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
 */
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 {
-  pthread_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   share->use_count++;
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
 
@@ -8554,7 +8640,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
   create_if_not_exists == FALSE:
     returns 0 if share does not exist
 
-  have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
+  have_lock == TRUE, mysql_mutex_lock(&ndbcluster_mutex) already taken
 */
 
 NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
@@ -8567,7 +8653,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
   if (!(share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                            (uchar*) key,
                                            length)))
@@ -8576,7 +8662,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     {
       DBUG_PRINT("error", ("get_share: %s does not exist", key));
       if (!have_lock)
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        mysql_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(0);
     }
     if ((share= (NDB_SHARE*) my_malloc(sizeof(*share),
@@ -8598,11 +8684,11 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
         my_free((uchar*) share, 0);
         *root_ptr= old_root;
         if (!have_lock)
-          pthread_mutex_unlock(&ndbcluster_mutex);
+          mysql_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(0);
       }
       thr_lock_init(&share->lock);
-      pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(key_NDB_SHARE_mutex, &share->mutex, MY_MUTEX_INIT_FAST);
       share->commit_count= 0;
       share->commit_count_lock= 0;
       share->db= share->key + length + 1;
@@ -8616,7 +8702,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
         ndbcluster_real_free_share(&share);
         *root_ptr= old_root;
         if (!have_lock)
-          pthread_mutex_unlock(&ndbcluster_mutex);
+          mysql_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(0);
       }
 #endif
@@ -8626,7 +8712,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       if (!have_lock)
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        mysql_mutex_unlock(&ndbcluster_mutex);
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(*share));
       DBUG_RETURN(0);
     }
@@ -8636,7 +8722,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
   if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(share);
 }
 
@@ -8648,7 +8734,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 
   my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   thr_lock_delete(&(*share)->lock);
-  pthread_mutex_destroy(&(*share)->mutex);
+  mysql_mutex_destroy(&(*share)->mutex);
 
 #ifdef HAVE_NDB_BINLOG
   if ((*share)->table)
@@ -8677,7 +8763,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
 {
   if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
   if ((*share)->util_lock == current_thd)
     (*share)->util_lock= 0;
   if (!--(*share)->use_count)
@@ -8690,7 +8776,7 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     dbug_print_share("ndbcluster_free_share:", *share);
   }
   if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 
@@ -8850,11 +8936,12 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   (void)strxnmov(path, FN_REFLEN-1, 
                  mysql_data_home,"/",name,ha_ndb_ext,NullS);
 
-  if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_create(key_file_ndb, path, CREATE_MODE,
+                               O_RDWR | O_TRUNC, MYF(MY_WME))) >= 0)
   {
     // It's an empty file
     error=0;
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
   }
   DBUG_RETURN(error);
 }
@@ -9407,7 +9494,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   DBUG_ENTER("ndb_util_thread");
   DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
  
-   pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == NULL)
@@ -9440,45 +9527,45 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   /* Signal successful initialization */
   ndb_util_thread_running= 1;
-  pthread_cond_signal(&COND_ndb_util_ready);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  mysql_cond_signal(&COND_ndb_util_ready);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
 
   /*
     wait for mysql server to start
   */
-  pthread_mutex_lock(&LOCK_server_started);
+  mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
     set_timespec(abstime, 1);
-    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
-	                       &abstime);
+    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
+                         &abstime);
     if (ndbcluster_terminating)
     {
-      pthread_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK_ndb_util_thread);
+      mysql_mutex_unlock(&LOCK_server_started);
+      mysql_mutex_lock(&LOCK_ndb_util_thread);
       goto ndb_util_thread_end;
     }
   }
-  pthread_mutex_unlock(&LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
 
   /*
     Wait for cluster to start
   */
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
   while (!ndb_cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
-    pthread_cond_wait(&COND_ndb_util_thread, &LOCK_ndb_util_thread);
+    mysql_cond_wait(&COND_ndb_util_thread, &LOCK_ndb_util_thread);
     if (ndbcluster_terminating)
       goto ndb_util_thread_end;
   }
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
 
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
   {
     sql_print_error("Could not allocate Thd_ndb object");
-    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    mysql_mutex_lock(&LOCK_ndb_util_thread);
     goto ndb_util_thread_end;
   }
   set_thd_ndb(thd, thd_ndb);
@@ -9499,14 +9586,14 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    mysql_mutex_lock(&LOCK_ndb_util_thread);
     if (!ndbcluster_terminating)
-      pthread_cond_timedwait(&COND_ndb_util_thread,
-                             &LOCK_ndb_util_thread,
-                             &abstime);
+      mysql_cond_timedwait(&COND_ndb_util_thread,
+                           &LOCK_ndb_util_thread,
+                           &abstime);
     if (ndbcluster_terminating) /* Shutting down server */
       goto ndb_util_thread_end;
-    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+    mysql_mutex_unlock(&LOCK_ndb_util_thread);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
     DBUG_PRINT("ndb_util_thread", ("Started, opt_ndb_cache_check_time: %lu",
                                    opt_ndb_cache_check_time));
@@ -9531,7 +9618,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
-    pthread_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     uint i, open_count, record_count= ndbcluster_open_tables.records;
     if (share_list_size < record_count)
     {
@@ -9540,7 +9627,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       {
         sql_print_warning("ndb util thread: malloc failure, "
                           "query cache not maintained properly");
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        mysql_mutex_unlock(&ndbcluster_mutex);
         goto next;                               // At least do not crash
       }
       delete [] share_list;
@@ -9567,7 +9654,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       /* Store pointer to table */
       share_list[open_count++]= share;
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
 
     /* Iterate through the open files list */
     for (i= 0; i < open_count; i++)
@@ -9592,9 +9679,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
       struct Ndb_statistics stat;
       uint lock;
-      pthread_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       lock= share->commit_count_lock;
-      pthread_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
       {
         /* Contact NDB to get commit count for table */
         Ndb* ndb= thd_ndb->ndb;
@@ -9625,10 +9712,10 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         }
       }
   loop_next:
-      pthread_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       if (share->commit_count_lock == lock)
         share->commit_count= stat.commit_count;
-      pthread_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
 
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -9658,7 +9745,7 @@ next:
     }
   }
 
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
+  mysql_mutex_lock(&LOCK_ndb_util_thread);
 
 ndb_util_thread_end:
   net_end(&thd->net);
@@ -9670,8 +9757,8 @@ ndb_util_thread_fail:
   
   /* signal termination */
   ndb_util_thread_running= 0;
-  pthread_cond_signal(&COND_ndb_util_ready);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
+  mysql_cond_signal(&COND_ndb_util_ready);
+  mysql_mutex_unlock(&LOCK_ndb_util_thread);
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
   DBUG_LEAVE;                               // Must match DBUG_ENTER()

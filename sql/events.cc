@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
 uint Events::opt_event_scheduler= Events::EVENTS_OFF;
-pthread_mutex_t Events::LOCK_event_metadata;
+mysql_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
 
@@ -310,8 +310,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   /* At create, one of them must be set */
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
 
   if (check_db_dir_existence(parse_data->dbname.str))
@@ -329,7 +328,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
 
-  pthread_mutex_lock(&LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_event_metadata);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
@@ -374,7 +373,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
-  pthread_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
 }
@@ -414,8 +413,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   if (parse_data->check_parse_data(thd) || parse_data->do_not_create)
     DBUG_RETURN(TRUE);
 
-  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+  if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
 
   if (new_dbname)                               /* It's a rename */
@@ -436,8 +434,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       to tell the user that a database doesn't exist if they can not
       access it.
     */
-    if (check_access(thd, EVENT_ACL, new_dbname->str, 0, 0, 0,
-                     is_schema_db(new_dbname->str)))
+    if (check_access(thd, EVENT_ACL, new_dbname->str, NULL, NULL, 0, 0))
       DBUG_RETURN(TRUE);
 
     /* Check that the target database exists */
@@ -455,7 +452,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
 
-  pthread_mutex_lock(&LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_event_metadata);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data,
@@ -488,7 +485,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
-  pthread_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
 }
@@ -527,8 +524,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   if (check_if_system_tables_error())
     DBUG_RETURN(TRUE);
 
-  if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
 
   /*
@@ -538,7 +534,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   if (thd->current_stmt_binlog_row_based)
     thd->clear_current_stmt_binlog_row_based();
 
-  pthread_mutex_lock(&LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
   {
@@ -548,7 +544,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     DBUG_ASSERT(thd->query() && thd->query_length());
     write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  pthread_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_event_metadata);
   DBUG_RETURN(ret);
 }
 
@@ -577,11 +573,11 @@ Events::drop_schema_events(THD *thd, char *db)
     are damaged, as intended.
   */
 
-  pthread_mutex_lock(&LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_event_metadata);
   if (event_queue)
     event_queue->drop_schema_events(thd, db_lex);
   db_repository->drop_schema_events(thd, db_lex);
-  pthread_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_VOID_RETURN;
 }
@@ -684,8 +680,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   if (check_if_system_tables_error())
     DBUG_RETURN(TRUE);
 
-  if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
 
   /*
@@ -743,8 +738,9 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_schema_db(thd->lex->select_lex.db) &&  // There is no events in I_S
-        check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0, 0))
+    if (!is_infoschema_db(thd->lex->select_lex.db) &&  // There is no events in I_S
+        check_access(thd, EVENT_ACL, thd->lex->select_lex.db,
+                     NULL, NULL, 0, 0))
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;
   }
@@ -904,6 +900,51 @@ Events::deinit()
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key key_LOCK_event_metadata, key_LOCK_event_queue,
+              key_event_scheduler_LOCK_scheduler_state;
+
+static PSI_mutex_info all_events_mutexes[]=
+{
+  { &key_LOCK_event_metadata, "LOCK_event_metadata", PSI_FLAG_GLOBAL},
+  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL},
+  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL}
+};
+
+PSI_cond_key key_event_scheduler_COND_state, key_COND_queue_state;
+
+static PSI_cond_info all_events_conds[]=
+{
+  { &key_event_scheduler_COND_state, "Event_scheduler::COND_state", PSI_FLAG_GLOBAL},
+  { &key_COND_queue_state, "COND_queue_state", PSI_FLAG_GLOBAL},
+};
+
+PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
+
+static PSI_thread_info all_events_threads[]=
+{
+  { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_GLOBAL},
+  { &key_thread_event_worker, "event_worker", 0}
+};
+
+static void init_events_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_events_mutexes);
+  PSI_server->register_mutex(category, all_events_mutexes, count);
+
+  count= array_elements(all_events_conds);
+  PSI_server->register_cond(category, all_events_conds, count);
+
+  count= array_elements(all_events_threads);
+  PSI_server->register_thread(category, all_events_threads, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 /**
   Inits Events mutexes
@@ -916,7 +957,12 @@ Events::deinit()
 void
 Events::init_mutexes()
 {
-  pthread_mutex_init(&LOCK_event_metadata, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_PSI_INTERFACE
+  init_events_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_event_metadata,
+                   &LOCK_event_metadata, MY_MUTEX_INIT_FAST);
 }
 
 
@@ -930,7 +976,7 @@ Events::init_mutexes()
 void
 Events::destroy_mutexes()
 {
-  pthread_mutex_destroy(&LOCK_event_metadata);
+  mysql_mutex_destroy(&LOCK_event_metadata);
 }
 
 
@@ -952,7 +998,7 @@ Events::dump_internal_status()
   puts("LLA = Last Locked At  LUA = Last Unlocked At");
   puts("WOC = Waiting On Condition  DL = Data Locked");
 
-  pthread_mutex_lock(&LOCK_event_metadata);
+  mysql_mutex_lock(&LOCK_event_metadata);
   if (opt_event_scheduler == EVENTS_DISABLED)
     puts("The Event Scheduler is disabled");
   else
@@ -961,7 +1007,7 @@ Events::dump_internal_status()
     event_queue->dump_internal_status();
   }
 
-  pthread_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_event_metadata);
   DBUG_VOID_RETURN;
 }
 

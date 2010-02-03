@@ -1881,7 +1881,7 @@ end:
 
 static int add_write(File fptr, const char *buf, uint len)
 {
-  uint ret_code= my_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
+  uint ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
 
   if (likely(ret_code == 0))
     return 0;
@@ -2593,10 +2593,11 @@ char *generate_partition_syntax(partition_info *part_info,
   }
   if (err)
     goto close_file;
-  buffer_length= my_seek(fptr, 0L,MY_SEEK_END,MYF(0));
+  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
   if (unlikely(buffer_length == MY_FILEPOS_ERROR))
     goto close_file;
-  if (unlikely(my_seek(fptr, 0L, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR))
+  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
+               == MY_FILEPOS_ERROR))
     goto close_file;
   *buf_length= (uint)buffer_length;
   if (use_sql_alloc)
@@ -2606,7 +2607,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!buf)
     goto close_file;
 
-  if (unlikely(my_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
+  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
       my_free(buf, MYF(0));
@@ -2617,7 +2618,7 @@ char *generate_partition_syntax(partition_info *part_info,
     buf[*buf_length]= 0;
 
 close_file:
-  my_close(fptr, MYF(0));
+  mysql_file_close(fptr, MYF(0));
   DBUG_RETURN(buf);
 }
 
@@ -5939,7 +5940,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("write_log_drop_shadow_frm");
 
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
     goto error;
@@ -5947,13 +5948,13 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -5987,7 +5988,7 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
   log_entry= part_info->first_log_entry;
@@ -5996,12 +5997,12 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6040,7 +6041,7 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "", 0);
   build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
                        lpt->table_name, "#", 0);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -6053,12 +6054,12 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6097,7 +6098,7 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "", 0);
   build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
                        lpt->table_name, "#", 0);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -6108,13 +6109,13 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -6152,7 +6153,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                       lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
     goto error;
@@ -6166,12 +6167,12 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6198,7 +6199,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ENTER("write_log_completed");
 
   DBUG_ASSERT(log_entry);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_execute_ddl_log_entry(0UL, TRUE, &log_entry))
   {
     /*
@@ -6212,7 +6213,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   }
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->exec_log_entry= NULL;
   part_info->first_log_entry= NULL;
   DBUG_VOID_RETURN;
@@ -6230,10 +6231,10 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
 
 static void release_log_entries(partition_info *part_info)
 {
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   part_info->exec_log_entry= NULL;
 }

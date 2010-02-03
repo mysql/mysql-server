@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,12 +160,17 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   inside the start_lock section, but at the same time we want a
   pthread_cond_wait() on start_cond,start_lock
 */
-int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
-		       pthread_mutex_t *cond_lock,
-		       pthread_cond_t* start_cond,
-		       volatile uint *slave_running,
-		       volatile ulong *slave_run_id,
-		       Master_info* mi);
+int start_slave_thread(
+#ifdef HAVE_PSI_INTERFACE
+                       PSI_thread_key thread_key,
+#endif
+                       pthread_handler h_func,
+                       mysql_mutex_t *start_lock,
+                       mysql_mutex_t *cond_lock,
+                       mysql_cond_t *start_cond,
+                       volatile uint *slave_running,
+                       volatile ulong *slave_run_id,
+                       Master_info *mi);
 
 /* If fd is -1, dump to NET */
 int mysql_table_dump(THD* thd, const char* db,

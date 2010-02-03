@@ -814,7 +814,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     return 0;
 
 err_with_cleanup:
-  my_delete(trigname_buff, MYF(MY_WME));
+  mysql_file_delete(key_file_trn, trigname_buff, MYF(MY_WME));
   return 1;
 }
 
@@ -837,7 +837,7 @@ static bool rm_trigger_file(char *path, const char *db,
                             const char *table_name)
 {
   build_table_filename(path, FN_REFLEN-1, db, table_name, TRG_EXT, 0);
-  return my_delete(path, MYF(MY_WME));
+  return mysql_file_delete(key_file_trg, path, MYF(MY_WME));
 }
 
 
@@ -859,7 +859,7 @@ static bool rm_trigname_file(char *path, const char *db,
                              const char *trigger_name)
 {
   build_table_filename(path, FN_REFLEN - 1, db, trigger_name, TRN_EXT, 0);
-  return my_delete(path, MYF(MY_WME));
+  return mysql_file_delete(key_file_trn, path, MYF(MY_WME));
 }
 
 

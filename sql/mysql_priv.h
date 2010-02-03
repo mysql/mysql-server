@@ -891,7 +891,10 @@ inline bool check_routine_access(THD *thd,ulong want_access,char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
 inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{ return false; }
+{
+  table->grant.privilege= want_access;
+  return false;
+}
 inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 { return false; }
 inline bool check_some_routine_access(THD *thd, const char *db,
@@ -1032,6 +1035,7 @@ int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 pthread_handler_t handle_one_connection(void *arg);
+void do_handle_one_connection(THD *thd_arg);
 bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
@@ -1084,6 +1088,7 @@ void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
+void do_handle_bootstrap(THD *thd);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
@@ -1105,15 +1110,17 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
                           bool *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
-                  bool no_grant, bool no_errors, bool schema_db);
-bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
+                  GRANT_INTERNAL_INFO *grant_internal_info,
+                  bool no_grant, bool no_errors);
+bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
                         bool any_combination_of_privileges_will_do,
                         uint number,
                         bool no_errors);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
-                         ulong *save_priv, bool no_grant, bool no_errors,
-                         bool schema_db)
+                         ulong *save_priv,
+                         GRANT_INTERNAL_INFO *grant_internal_info,
+                         bool no_grant, bool no_errors)
 {
   if (save_priv)
     *save_priv= GLOBAL_ACLS;
@@ -1273,7 +1280,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
-                             uint key_length, uint db_flags, int *error);
+                             uint key_length, uint db_flags, int *error,
+                             my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -1289,7 +1297,7 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   bool no_error);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
-			  rw_lock_t *var_mutex);
+                          mysql_rwlock_t *var_mutex);
 extern Field *not_found_field;
 extern Field *view_ref_found;
 
@@ -1330,7 +1338,7 @@ struct st_des_keyschedule
 extern char *des_key_file;
 extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
-extern pthread_mutex_t LOCK_des_key_file;
+extern mysql_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
 #endif /* HAVE_OPENSSL */
 
@@ -1377,6 +1385,8 @@ void free_status_vars();
 void reset_status_vars();
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
+/* performance schema */
+extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
 /* log tables */
 extern LEX_STRING MYSQL_SCHEMA_NAME;
 extern LEX_STRING GENERAL_LOG_NAME;
@@ -1398,8 +1408,10 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
-#define is_schema_db(X) \
+#define is_infoschema_db(X) \
   !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
+
+void initialize_information_schema_acl();
 
 /* sql_handler.cc */
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
@@ -1722,7 +1734,7 @@ void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
 
-extern pthread_mutex_t LOCK_gdl;
+extern mysql_mutex_t LOCK_gdl;
 
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
@@ -1738,9 +1750,8 @@ bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
 void close_system_tables(THD *thd, Open_tables_backup *backup);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 
-TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                                     Open_tables_backup *backup);
-void close_performance_schema_table(THD *thd, Open_tables_backup *backup);
+TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
+void close_log_table(THD *thd, Open_tables_backup *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
                          bool wait_for_refresh);
@@ -2027,31 +2038,29 @@ extern my_bool old_mode;
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
 extern TABLE_LIST general_log, slow_log;
-extern FILE *bootstrap_file;
+extern MYSQL_FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_mutex_t LOCK_mapped_file,
-       LOCK_error_log, LOCK_uuid_generator,
-       LOCK_crypt, LOCK_timezone,
+extern mysql_mutex_t LOCK_mysql_create_db, LOCK_open, LOCK_lock_db,
+       LOCK_mapped_file, LOCK_user_locks, LOCK_status,
+       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
+       LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
-extern mysql_mutex_t LOCK_mysql_create_db, LOCK_lock_db, LOCK_open,
-       LOCK_user_locks, LOCK_status, LOCK_delayed_status, LOCK_delayed_insert,
-       LOCK_delayed_create;
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
-extern pthread_mutex_t LOCK_des_key_file;
+extern mysql_mutex_t LOCK_des_key_file;
 #endif
-extern pthread_mutex_t LOCK_server_started;
-extern pthread_cond_t COND_server_started;
+extern mysql_mutex_t LOCK_server_started;
+extern mysql_cond_t COND_server_started;
 extern int mysqld_server_started;
-extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
-extern rw_lock_t LOCK_system_variables_hash;
-extern mysql_cond_t COND_refresh;
-extern pthread_cond_t COND_thread_count, COND_manager;
-extern pthread_cond_t COND_global_read_lock;
+extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_system_variables_hash;
+extern pthread_cond_t COND_thread_count;
+extern mysql_cond_t COND_refresh, COND_manager;
+extern mysql_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern MY_BITMAP temp_pool;
@@ -2075,7 +2084,6 @@ extern HASH table_def_cache, lock_db_cache;
 extern TABLE *unused_tables;
 extern uint  table_cache_count;
 extern const char* any_db;
-extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
 extern scheduler_functions thread_scheduler;
 extern TYPELIB thread_handling_typelib;
@@ -2645,5 +2653,70 @@ enum options_mysqld
 extern "C" int test_if_data_home_dir(const char *dir);
 
 #endif /* MYSQL_CLIENT */
+
+#ifdef MYSQL_SERVER
+#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_MMAP
+extern PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active,
+       key_LOCK_pool;
+#endif /* HAVE_MMAP */
+
+#ifdef HAVE_OPENSSL
+extern PSI_mutex_key key_LOCK_des_key_file;
+#endif
+
+extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+  key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
+  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
+  key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
+  key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
+  key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager, key_LOCK_mapped_file,
+  key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
+  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_table_share, key_LOCK_thd_data,
+  key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
+  key_master_info_data_lock, key_master_info_run_lock,
+  key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
+  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages;
+
+extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
+  key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
+  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
+
+#ifdef HAVE_MMAP
+extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
+#endif /* HAVE_MMAP */
+
+extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
+  key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
+  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_delayed_insert_cond, key_delayed_insert_cond_client,
+  key_item_func_sleep_cond, key_master_info_data_cond,
+  key_master_info_start_cond, key_master_info_stop_cond,
+  key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
+  key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_TABLE_SHARE_cond, key_user_level_lock_cond;
+
+extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
+  key_thread_handle_manager, key_thread_kill_server, key_thread_main,
+  key_thread_one_connection, key_thread_signal_hand;
+
+#ifdef HAVE_MMAP
+extern PSI_file_key key_file_map;
+#endif /* HAVE_MMAP */
+
+extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
+  key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
+  key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
+  key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
+  key_file_master_info, key_file_misc, key_file_MYSQL_LOG, key_file_partition,
+  key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
+  key_file_trg, key_file_trn, key_file_init;
+
+void init_server_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+#endif /* MYSQL_SERVER */
+
 
 #endif /* MYSQL_PRIV_H */

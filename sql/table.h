@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
 
 #include "sql_plist.h"
 #include "mdl.h"
@@ -31,6 +30,8 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+class ACL_internal_schema_access;
+class ACL_internal_table_access;
 
 /*************************************************************************/
 
@@ -72,6 +73,25 @@ typedef struct st_order {
   char	 *buff;				/* If tmp-table group */
   table_map used, depend_map;
 } ORDER;
+
+/**
+  State information for internal tables grants.
+  This structure is part of the TABLE_LIST, and is updated
+  during the ACL check process.
+  @sa GRANT_INFO
+*/
+struct st_grant_internal_info
+{
+  /** True if the internal lookup by schema name was done. */
+  bool m_schema_lookup_done;
+  /** Cached internal schema access. */
+  const ACL_internal_schema_access *m_schema_access;
+  /** True if the internal lookup by table name was done. */
+  bool m_table_lookup_done;
+  /** Cached internal table access. */
+  const ACL_internal_table_access *m_table_access;
+};
+typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
 
 /**
    @brief The current state of the privilege checking process for the current
@@ -134,6 +154,8 @@ typedef struct st_grant_info
     check access rights to the underlying tables of a view.
   */
   ulong orig_want_privilege;
+  /** The grant state for internal tables. */
+  GRANT_INTERNAL_INFO m_internal;
 } GRANT_INFO;
 
 enum tmp_table_type
@@ -250,7 +272,7 @@ enum enum_table_category
     - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
-    as there is no point in locking explicitely
+    as there is no point in locking explicitly
     an INFORMATION_SCHEMA table.
     Nothing is directly written to information schema tables.
     Note that this value is not used currently,
@@ -265,16 +287,16 @@ enum enum_table_category
   TABLE_CATEGORY_INFORMATION=4,
 
   /**
-    Performance schema tables.
+    Log tables.
     These tables are an interface provided by the system
-    to inspect the system performance data.
+    to inspect the system logs.
     These tables do *not* honor:
     - LOCK TABLE t FOR READ/WRITE
     - FLUSH TABLES WITH READ LOCK
     - SET GLOBAL READ_ONLY = ON
-    as there is no point in locking explicitely
-    a PERFORMANCE_SCHEMA table.
-    An example of PERFORMANCE_SCHEMA tables are:
+    as there is no point in locking explicitly
+    a LOG table.
+    An example of LOG tables are:
     - mysql.slow_log
     - mysql.general_log,
     which *are* updated even when there is either
@@ -282,9 +304,31 @@ enum enum_table_category
     User queries do not write directly to these tables
     (there are exceptions for log tables).
     The server implementation perform writes.
+    Log tables are cached in the table cache.
+  */
+  TABLE_CATEGORY_LOG=5,
+
+  /**
+    Performance schema tables.
+    These tables are an interface provided by the system
+    to inspect the system performance data.
+    These tables do *not* honor:
+    - LOCK TABLE t FOR READ/WRITE
+    - FLUSH TABLES WITH READ LOCK
+    - SET GLOBAL READ_ONLY = ON
+    as there is no point in locking explicitly
+    a PERFORMANCE_SCHEMA table.
+    An example of PERFORMANCE_SCHEMA tables are:
+    - performance_schema.*
+    which *are* updated (but not using the handler interface)
+    even when there is either
+    a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
+    User queries do not write directly to these tables
+    (there are exceptions for SETUP_* tables).
+    The server implementation perform writes.
     Performance tables are cached in the table cache.
   */
-  TABLE_CATEGORY_PERFORMANCE=5
+  TABLE_CATEGORY_PERFORMANCE=6
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -343,7 +387,7 @@ struct TABLE_SHARE
   TYPELIB keynames;			/* Pointers to keynames */
   TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
-  pthread_mutex_t LOCK_ha_data;         /* To protect access to ha_data */
+  mysql_mutex_t LOCK_ha_data;           /* To protect access to ha_data */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
 
   /*
@@ -477,6 +521,8 @@ struct TABLE_SHARE
   void *ha_data;
   void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
 
+  /** Instrumentation for this table share. */
+  PSI_table_share *m_psi;
 
   /*
     Set share's table cache key and update its db and table name appropriately.
@@ -538,7 +584,7 @@ struct TABLE_SHARE
 
   inline bool require_write_privileges()
   {
-    return (table_category == TABLE_CATEGORY_PERFORMANCE);
+    return (table_category == TABLE_CATEGORY_LOG);
   }
 
   inline ulong get_table_def_version()

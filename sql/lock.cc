@@ -1178,7 +1178,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
     MDL_request mdl_request;
     const char *old_message;
     const char *new_message= "Waiting to get readlock";
-    (void) pthread_mutex_lock(&LOCK_global_read_lock);
+    (void) mysql_mutex_lock(&LOCK_global_read_lock);
 
 #if defined(ENABLED_DEBUG_SYNC)
     /*
@@ -1210,7 +1210,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     waiting_for_read_lock++;
     while (protect_against_global_read_lock && !thd->killed)
-      pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+      mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
     waiting_for_read_lock--;
     if (thd->killed)
     {
@@ -1242,13 +1242,13 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
     if (thd->mdl_context.acquire_lock(&mdl_request))
     {
       /* Our thread was killed -- return back to initial state. */
-      pthread_mutex_lock(&LOCK_global_read_lock);
+      mysql_mutex_lock(&LOCK_global_read_lock);
       if (!(--global_read_lock))
       {
         DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
-        pthread_cond_broadcast(&COND_global_read_lock);
+        mysql_cond_broadcast(&COND_global_read_lock);
       }
-      pthread_mutex_unlock(&LOCK_global_read_lock);
+      mysql_mutex_unlock(&LOCK_global_read_lock);
       m_state= GRL_NONE;
       DBUG_RETURN(1);
     }
@@ -1290,16 +1290,16 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
   m_mdl_global_shared_lock= NULL;
 
-  pthread_mutex_lock(&LOCK_global_read_lock);
+  mysql_mutex_lock(&LOCK_global_read_lock);
   tmp= --global_read_lock;
   if (m_state == GRL_ACQUIRED_AND_BLOCKS_COMMIT)
     --global_read_lock_blocks_commit;
-  pthread_mutex_unlock(&LOCK_global_read_lock);
+  mysql_mutex_unlock(&LOCK_global_read_lock);
   /* Send the signal outside the mutex to avoid a context switch */
   if (!tmp)
   {
     DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
-    pthread_cond_broadcast(&COND_global_read_lock);
+    mysql_cond_broadcast(&COND_global_read_lock);
   }
   m_state= GRL_NONE;
 
@@ -1354,7 +1354,7 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   */
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  (void) pthread_mutex_lock(&LOCK_global_read_lock);
+  mysql_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
   {
     if (m_state)		// This thread had the read locks
@@ -1362,7 +1362,7 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
       if (is_not_commit)
         my_message(ER_CANT_UPDATE_WITH_READLOCK,
                    ER(ER_CANT_UPDATE_WITH_READLOCK), MYF(0));
-      (void) pthread_mutex_unlock(&LOCK_global_read_lock);
+      mysql_mutex_unlock(&LOCK_global_read_lock);
       /*
         We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
         This allowance is needed to not break existing versions of innobackup
@@ -1376,7 +1376,7 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
 	   (!abort_on_refresh || thd->version == refresh_version))
     {
       DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
-      (void) pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+      mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
       DBUG_PRINT("signal", ("Got COND_global_read_lock"));
     }
     if (thd->killed)
@@ -1396,7 +1396,7 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   if (unlikely(need_exit_cond))
     thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   else
-    pthread_mutex_unlock(&LOCK_global_read_lock);
+    mysql_mutex_unlock(&LOCK_global_read_lock);
   DBUG_RETURN(result);
 }
 
@@ -1428,13 +1428,13 @@ void Global_read_lock::start_waiting_global_read_lock(THD *thd)
     DBUG_VOID_RETURN;
   if (unlikely(m_state))
     DBUG_VOID_RETURN;
-  (void) pthread_mutex_lock(&LOCK_global_read_lock);
+  mysql_mutex_lock(&LOCK_global_read_lock);
   DBUG_ASSERT(protect_against_global_read_lock);
   tmp= (!--protect_against_global_read_lock &&
         (waiting_for_read_lock || global_read_lock_blocks_commit));
-  (void) pthread_mutex_unlock(&LOCK_global_read_lock);
+  mysql_mutex_unlock(&LOCK_global_read_lock);
   if (tmp)
-    pthread_cond_broadcast(&COND_global_read_lock);
+    mysql_cond_broadcast(&COND_global_read_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1465,7 +1465,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   */
   if (m_state != GRL_ACQUIRED)
     DBUG_RETURN(0);
-  pthread_mutex_lock(&LOCK_global_read_lock);
+  mysql_mutex_lock(&LOCK_global_read_lock);
   /* increment this BEFORE waiting on cond (otherwise race cond) */
   global_read_lock_blocks_commit++;
   /* For testing we set up some blocking, to see if we can be killed */
@@ -1474,7 +1474,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   old_message= thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
                                "Waiting for all running commits to finish");
   while (protect_against_global_read_lock && !thd->killed)
-    pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+    mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock--;);
   if ((error= test(thd->killed)))
@@ -1508,7 +1508,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 void broadcast_refresh(void)
 {
   mysql_cond_broadcast(&COND_refresh);
-  pthread_cond_broadcast(&COND_global_read_lock);
+  mysql_cond_broadcast(&COND_global_read_lock);
 }
 
 /**

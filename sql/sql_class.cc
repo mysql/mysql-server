@@ -266,8 +266,8 @@ const char *set_thd_proc_info(THD *thd, const char *info,
 }
 
 extern "C"
-const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
-                           pthread_mutex_t *mutex, const char *msg)
+const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                           mysql_mutex_t *mutex, const char *msg)
 {
   if (!thd)
     thd= current_thd;
@@ -383,7 +383,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  pthread_mutex_lock(&thd->LOCK_thd_data);
+  mysql_mutex_lock(&thd->LOCK_thd_data);
 
   if (thd->query())
   {
@@ -395,7 +395,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(thd->query(), len);
   }
 
-  pthread_mutex_unlock(&thd->LOCK_thd_data);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -534,7 +534,7 @@ THD::THD()
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
-  pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -886,7 +886,7 @@ extern "C"   THD *_current_thd_noinline(void)
 
 void THD::init(void)
 {
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   plugin_thdvar_init(this);
   /*
     variables= global_system_variables above has reset
@@ -894,7 +894,7 @@ void THD::init(void)
     avoid temporary tables replication failure.
   */
   variables.pseudo_thread_id= thread_id;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
@@ -1036,8 +1036,8 @@ THD::~THD()
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
-  pthread_mutex_lock(&LOCK_thd_data);
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
@@ -1062,7 +1062,7 @@ THD::~THD()
   safeFree(db);
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
-  pthread_mutex_destroy(&LOCK_thd_data);
+  mysql_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
@@ -1135,7 +1135,7 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
-  safe_mutex_assert_owner(&LOCK_thd_data);
+  mysql_mutex_assert_owner(&LOCK_thd_data);
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
@@ -1537,7 +1537,7 @@ int THD::send_explain_fields(select_result *result)
 void THD::close_active_vio()
 {
   DBUG_ENTER("close_active_vio");
-  safe_mutex_assert_owner(&LOCK_thd_data);
+  mysql_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
@@ -1769,8 +1769,9 @@ void select_to_file::send_error(uint errcode,const char *err)
   if (file > 0)
   {
     (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
-    (void) my_delete(path,MYF(0));		// Delete file on error
+    mysql_file_close(file, MYF(0));
+    /* Delete file on error */
+    mysql_file_delete(key_select_to_file, path, MYF(0));
     file= -1;
   }
 }
@@ -1779,7 +1780,7 @@ void select_to_file::send_error(uint errcode,const char *err)
 bool select_to_file::send_eof()
 {
   int error= test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
+  if (mysql_file_close(file, MYF(MY_WME)))
     error= 1;
   if (!error)
   {
@@ -1801,7 +1802,7 @@ void select_to_file::cleanup()
   if (file >= 0)
   {
     (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
     file= -1;
   }
   path[0]= '\0';
@@ -1814,7 +1815,7 @@ select_to_file::~select_to_file()
   if (file >= 0)
   {					// This only happens in case of error
     (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
     file= -1;
   }
 }
@@ -1878,7 +1879,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
   /* Create the file world readable */
-  if ((file= my_create(path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
+  if ((file= mysql_file_create(key_select_to_file,
+                               path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
     return file;
 #ifdef HAVE_FCHMOD
   (void) fchmod(file, 0666);			// Because of umask()
@@ -1887,8 +1889,9 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #endif
   if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
   {
-    my_close(file, MYF(0));
-    my_delete(path, MYF(0));  // Delete file on error, it was just created 
+    mysql_file_close(file, MYF(0));
+    /* Delete file on error, it was just created */
+    mysql_file_delete(key_select_to_file, path, MYF(0));
     return -1;
   }
   return file;
@@ -2681,7 +2684,7 @@ int Statement_map::insert(THD *thd, Statement *statement)
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_names_hash;
   }
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  mysql_mutex_lock(&LOCK_prepared_stmt_count);
   /*
     We don't check that prepared_stmt_count is <= max_prepared_stmt_count
     because we would like to allow to lower the total limit
@@ -2691,13 +2694,13 @@ int Statement_map::insert(THD *thd, Statement *statement)
   */
   if (prepared_stmt_count >= max_prepared_stmt_count)
   {
-    pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+    mysql_mutex_unlock(&LOCK_prepared_stmt_count);
     my_error(ER_MAX_PREPARED_STMT_COUNT_REACHED, MYF(0),
              max_prepared_stmt_count);
     goto err_max;
   }
   prepared_stmt_count++;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 
   last_found_statement= statement;
   return 0;
@@ -2730,20 +2733,20 @@ void Statement_map::erase(Statement *statement)
     my_hash_delete(&names_hash, (uchar *) statement);
 
   my_hash_delete(&st_hash, (uchar *) statement);
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  mysql_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 }
 
 
 void Statement_map::reset()
 {
   /* Must be first, hash_free will reset st_hash.records */
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  mysql_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
   prepared_stmt_count-= st_hash.records;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 
   my_hash_reset(&names_hash);
   my_hash_reset(&st_hash);
@@ -2754,10 +2757,10 @@ void Statement_map::reset()
 Statement_map::~Statement_map()
 {
   /* Must go first, hash_free will reset st_hash.records */
-  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  mysql_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
   prepared_stmt_count-= st_hash.records;
-  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);
@@ -3264,9 +3267,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
 
 void THD::set_statement(Statement *stmt)
 {
-  pthread_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
   Statement::set_statement(stmt);
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 
@@ -3274,9 +3277,9 @@ void THD::set_statement(Statement *stmt)
 
 void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
-  pthread_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
@@ -3284,19 +3287,19 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
 void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
                            query_id_t new_query_id)
 {
-  pthread_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
   query_id= new_query_id;
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->query_id.  */
 
 void THD::set_query_id(query_id_t new_query_id)
 {
-  pthread_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
   query_id= new_query_id;
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 
@@ -3329,7 +3332,7 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   Handling of XA id cacheing
 ***************************************************************************/
 
-pthread_mutex_t LOCK_xid_cache;
+mysql_mutex_t LOCK_xid_cache;
 HASH xid_cache;
 
 extern "C" uchar *xid_get_hash_key(const uchar *, size_t *, my_bool);
@@ -3348,9 +3351,34 @@ void xid_free_hash(void *ptr)
     my_free((uchar*)ptr, MYF(0));
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_xid_cache;
+
+static PSI_mutex_info all_xid_mutexes[]=
+{
+  { &key_LOCK_xid_cache, "LOCK_xid_cache", PSI_FLAG_GLOBAL}
+};
+
+static void init_xid_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_xid_mutexes);
+  PSI_server->register_mutex(category, all_xid_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 bool xid_cache_init()
 {
-  pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_PSI_INTERFACE
+  init_xid_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_xid_cache, &LOCK_xid_cache, MY_MUTEX_INIT_FAST);
   return my_hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
                       xid_get_hash_key, xid_free_hash, 0) != 0;
 }
@@ -3360,16 +3388,16 @@ void xid_cache_free()
   if (my_hash_inited(&xid_cache))
   {
     my_hash_free(&xid_cache);
-    pthread_mutex_destroy(&LOCK_xid_cache);
+    mysql_mutex_destroy(&LOCK_xid_cache);
   }
 }
 
 XID_STATE *xid_cache_search(XID *xid)
 {
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   XID_STATE *res=(XID_STATE *)my_hash_search(&xid_cache, xid->key(),
                                              xid->key_length());
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
 
@@ -3378,7 +3406,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 {
   XID_STATE *xs;
   my_bool res;
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   if (my_hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
@@ -3390,27 +3418,27 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->in_thd=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
 
 
 bool xid_cache_insert(XID_STATE *xid_state)
 {
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
                              xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
 
 
 void xid_cache_delete(XID_STATE *xid_state)
 {
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   my_hash_delete(&xid_cache, (uchar *)xid_state);
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
 }
 
 /*
