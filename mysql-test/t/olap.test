@@ -375,4 +375,19 @@ INSERT INTO t1 VALUES(0);
 SELECT 1 FROM t1 GROUP BY (DATE(NULL)) WITH ROLLUP;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #48131: crash group by with rollup, distinct,
+--echo #             filesort, with temporary tables
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (100);
+
+SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests
