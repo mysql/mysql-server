@@ -1,3 +1,39 @@
+2010-02-04	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, buf/buf0buf.c,
+	include/btr0btr.h, include/btr0cur.h, include/btr0pcur.h,
+	include/btr0pcur.ic, include/buf0buf.h, row/row0ins.c, row/row0sel.c:
+	Pass the file name and line number of the caller of the
+	b-tree cursor functions to the buffer pool requests, in order
+	to make the latch diagnostics more accurate.
+
+2010-02-03	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#35077 Very slow DROP TABLE (ALTER TABLE, OPTIMIZE TABLE)
+	on compressed tables
+
+2010-02-03	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Clean up CHECK TABLE error handling.
+
+2010-02-01	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.test,
+	mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc-44030.test,
+	mysql-test/innodb-autoinc-44030.result:
+	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
+	a negative value
+
+2010-01-27	The InnoDB Team
+
+	* include/row0mysql.h, log/log0recv.c, row/row0mysql.c:
+	Drop temporary tables at startup.
+	This addresses the third aspect of
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+
 2010-01-21	The InnoDB Team
 
 	* buf/buf0buf.c:

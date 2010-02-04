@@ -352,6 +352,8 @@ btr_cur_search_to_nth_level(
 	ulint		has_search_latch,/*!< in: info on the latch mode the
 				caller currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	page_t*		page;
@@ -589,7 +591,7 @@ search_loop:
 retry_page_get:
 	block = buf_page_get_gen(
 		space, zip_size, page_no, rw_latch, guess, buf_mode,
-		__FILE__, __LINE__, mtr);
+		file, line, mtr);
 
 	if (block == NULL) {
 		/* This must be a search to perform an insert/delete
@@ -818,13 +820,15 @@ func_exit:
 Opens a cursor at either end of an index. */
 UNIV_INTERN
 void
-btr_cur_open_at_index_side(
-/*=======================*/
+btr_cur_open_at_index_side_func(
+/*============================*/
 	ibool		from_left,	/*!< in: TRUE if open to the low end,
 					FALSE if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
 	btr_cur_t*	cursor,		/*!< in: cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -869,7 +873,7 @@ btr_cur_open_at_index_side(
 		page_t*		page;
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__, mtr);
+					 file, line, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
@@ -949,11 +953,13 @@ btr_cur_open_at_index_side(
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN
 void
-btr_cur_open_at_rnd_pos(
-/*====================*/
+btr_cur_open_at_rnd_pos_func(
+/*=========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	cursor,		/*!< in/out: B-tree cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -988,7 +994,7 @@ btr_cur_open_at_rnd_pos(
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__, mtr);
+					 file, line, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
@@ -3242,7 +3248,8 @@ btr_estimate_n_rows_in_range(
 
 		btr_cur_search_to_nth_level(index, 0, tuple1, mode1,
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					    &cursor, 0, &mtr);
+					    &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 	} else {
 		btr_cur_open_at_index_side(TRUE, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
@@ -3259,7 +3266,8 @@ btr_estimate_n_rows_in_range(
 
 		btr_cur_search_to_nth_level(index, 0, tuple2, mode2,
 					    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					    &cursor, 0, &mtr);
+					    &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 	} else {
 		btr_cur_open_at_index_side(FALSE, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
