@@ -549,7 +549,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
            Request
           /-------
          H|++++  WRITE_ALLOW_WRITE
-         e|+++-  WRITE_ALLOW_READ
+         e|++++  WRITE_ALLOW_READ
          l|+++-  WRITE_CONCURRENT_INSERT
          d|++++  WRITE_DELAYED
            ||||
@@ -572,8 +572,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
       if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
 	  (lock->write.data->type <= TL_WRITE_DELAYED &&
 	   (((int) lock_type <= (int) TL_READ_HIGH_PRIORITY) ||
-	    (lock->write.data->type != TL_WRITE_CONCURRENT_INSERT &&
-	     lock->write.data->type != TL_WRITE_ALLOW_READ))))
+	    (lock->write.data->type != TL_WRITE_CONCURRENT_INSERT))))
       {						/* Already got a write lock */
 	(*lock->read.last)=data;		/* Add to running FIFO */
 	data->prev=lock->read.last;
