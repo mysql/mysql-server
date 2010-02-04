@@ -59,23 +59,22 @@ namespace AQP
   }
 
   /**
-    Find the table access method that a given Item_field refers to. It is an
-    error to call this method for an item that does not refer to a table
-    access operation within the plan.
+    Find the table that a given Item_field refers to. 
+    Returns a negative value if field_item does not refer a
+    table within this Query_plan.
   */
-  const Table_access
-  Query_plan::get_referred_table_access(const Item_field* field_item) const
+  int32
+  Query_plan::get_referred_table(const Item_field* field_item) const
   {
-    DBUG_ENTER("Query_plan::get_referred_table_access");
+    DBUG_ENTER("Query_plan::get_referred_table");
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
-    int32 i= 0;
-    while (i < get_access_count()
-          && get_join_tab(i)->table->map != field_item->field->table->map)
-      i++;
-
-    DBUG_ASSERT(i < get_access_count());
-    DBUG_RETURN(get_table_access(i));
+    for (int32 i= 0; i < get_access_count(); i++)
+    {
+      if (get_join_tab(i)->table->map == field_item->field->table->map)
+        DBUG_RETURN(i);
+    }
+    DBUG_RETURN(-1);
   }
 
   /**
@@ -309,7 +308,7 @@ namespace AQP
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
     COND_EQUAL* const cond_equal=
-      plan->get_table_access(0).get_join_tab()->join->cond_equal;
+      plan->get_join_tab(0)->join->cond_equal;
 
     if (cond_equal!=NULL)
     {

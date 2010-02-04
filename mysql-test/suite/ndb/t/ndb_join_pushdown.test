@@ -168,6 +168,23 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
+## Join as 't1 ALL' -> 't2 RANGE' -> 't3 EQ_REF'
+## Possibly joinable starting with 't2 - RANGE' as root.
+## However t3's join condition 't3.a = t1.c' refers t1 which is
+## outside the scope of current queryplan.
+set ndb_join_pushdown=true;
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
+select *
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
+
+
+
 ## Create a non-ndb table used as a tool to force part of
 ## a query to be non-pushable.
 CREATE TABLE t1_myisam (
