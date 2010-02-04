@@ -11,15 +11,27 @@ main.information_schema                  # Bug#47449 2009-09-19 alik main.inform
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
+main.outfile_loaddata @solaris           # bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
+main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+
+perfschema.tampered_perfschema_table1 @windows # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
+perfschema.tampered_perfschema_table1 @solaris # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
 
 rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_innodb_bug30888 fails sporadically on Solaris
+rpl.rpl_killed_ddl @windows              # Bug#47638 2010-01-20 alik The rpl_killed_ddl test fails on Windows
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
+rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+rpl.rpl_slave_load_remove_tmpfile* @windows # Bug#50474 2010-01-20 alik rpl_slave_load_remove_tmpfile failed on windows debug enabled binary
+rpl.rpl_sync* @windows                    # Bug#50473 2010-01-20 alik rpl_sync fails on windows debug enabled binaries
 rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
+
+sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
 # Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
 # Usually the test cases from ndb and rpl_ndb test suites are not run in PB,

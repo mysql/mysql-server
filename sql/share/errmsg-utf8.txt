@@ -6070,8 +6070,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Statement may not be safe to log in statement format."
-        swe "Detta är inte säkert att logga i statement-format."
+        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: %s"
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6262,6 +6261,47 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
+ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: %s"
+ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+  eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.%s"
+ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+  eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
+ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
+
+ER_BINLOG_UNSAFE_LIMIT
+  eng "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
+ER_BINLOG_UNSAFE_INSERT_DELAYED
+  eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
+ER_BINLOG_UNSAFE_SYSTEM_TABLE
+  eng "Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave."
+ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS
+  eng "Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave."
+ER_BINLOG_UNSAFE_UDF
+  eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
+ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
+  eng "Statement uses a system variable whose value may differ on slave."
+ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+  eng "Statement uses a system function whose value may differ on slave."
+ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  eng "Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction."
+
+ER_MESSAGE_AND_STATEMENT
+  eng "%s Statement: %s"
+
+ER_SLAVE_CONVERSION_FAILED
+  eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
+ER_SLAVE_CANT_CREATE_CONVERSION
+  eng "Can't create conversion table for table '%-.192s.%-.192s'"
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+  eng "Cannot modify @@session.binlog_format inside a transaction"
 ER_PATH_LENGTH
   eng "The path specified for %.64s is too long."
 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  

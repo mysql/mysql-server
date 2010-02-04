@@ -23,6 +23,13 @@
 --echo # (TL_WRITE_ALLOW_WRITE) on several instances of the same table and
 --echo # statements which tried to acquire stronger write lock (TL_WRITE,
 --echo # TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
+#
+# Suppress warnings for INSERTs that use get_lock().
+#
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 --disable_warnings
 drop table if exists t1;
 drop view if exists v1;

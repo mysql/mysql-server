@@ -61,7 +61,7 @@ release_lock("lock_bug45143_wait")
 # Switch to connection 'con_bug45143_1'.
 # Reap INSERT statement.
 Warnings:
-Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 # Switch to connection 'con_bug45143_3'.
 # Reap LOCK TABLES statement.
 unlock tables;

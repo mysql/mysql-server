@@ -241,12 +241,6 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 }
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_format == var->save_result.ulonglong_value))
-    return false;
-
   /*
     If RBR and open temporary tables, their CREATE TABLE may not be in the
     binlog, so we can't toggle to SBR in this connection.
@@ -265,6 +259,21 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
   }
+  /*
+    Make the session variable 'binlog_format' read-only inside a transaction.
+  */
+  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  {
+    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+    return true;
+  }
+
+  if (check_has_super(self, thd, var))
+    return true;
+  if (var->type == OPT_GLOBAL ||
+      (thd->variables.binlog_format == var->save_result.ulonglong_value))
+    return false;
+
   return false;
 }
 
@@ -272,7 +281,7 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
                                            enum_var_type type)
 {
   if (type == OPT_SESSION)
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
   return false;
 }
 
@@ -1685,7 +1694,19 @@ static Sys_var_enum Slave_exec_mode(
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
+const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
+static Sys_var_set Slave_type_conversions(
+       "slave_type_conversions",
+       "Set of slave type conversions that are enabled. Legal values are:"
+       " ALL_LOSSY to enable lossy conversions and"
+       " ALL_NON_LOSSY to enable non-lossy conversions."
+       " If the variable is assigned the empty set, no conversions are"
+       " allowed and it is expected that the types match exactly.",
+       GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
+       slave_type_conversions_name,
+       DEFAULT(0));
 #endif
+
 
 static Sys_var_ulong Sys_slow_launch_time(
        "slow_launch_time",

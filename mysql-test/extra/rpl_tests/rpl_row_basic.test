@@ -6,6 +6,7 @@
 # First we test tables with only an index.
 #
 
+connection master;
 eval CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)$extra_index_t1) ENGINE = $type ;
 SELECT * FROM t1;
 sync_slave_with_master;
@@ -156,6 +157,12 @@ SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5
 # Testing special column types
 #
 
+if (`select char_length('$bit_field_special') > 0`) {
+  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
+  connection slave;
+  eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
+}
+
 connection master;
 eval CREATE TABLE t4 (C1 CHAR(1) PRIMARY KEY, B1 BIT(1), B2 BIT(1) NOT NULL DEFAULT 0, C2 CHAR(1) NOT NULL DEFAULT 'A') ENGINE = $type ;
 
@@ -163,6 +170,10 @@ INSERT INTO t4 SET C1 = 1;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 sync_slave_with_master;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
+
+if (`select char_length('$bit_field_special') > 0`) {
+  SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+}
 
 #
 # Testing conflicting operations
@@ -350,6 +361,10 @@ eval CREATE TABLE t7 (i INT NOT NULL,
                       c CHAR(255) CHARACTER SET utf8 NOT NULL,
                       j INT NOT NULL) ENGINE = $type ;
 
+connection slave;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
 --echo [expecting slave to replicate correctly]
 connection master;
 INSERT INTO t1 VALUES (1, "", 1);
@@ -370,17 +385,9 @@ let $diff_table_1=master:test.t2;
 let $diff_table_2=slave:test.t2;
 source include/diff_tables.inc;
 
---echo [expecting slave to stop]
-connection master;
-INSERT INTO t3 VALUES (1, "", 1);
-INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
-
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+
 connection master;
 RESET MASTER;
 connection slave;
@@ -600,7 +607,15 @@ sync_slave_with_master;
 
 connection master;
 
+# Since t1 contain a bit field, we have to do this trick to handle InnoDB
+if (`select char_length('$bit_field_special') > 0`) {
+  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
+  connection slave;
+  eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
+}
+
 --disable_warnings
+connection master;
 eval CREATE TABLE t1 (a bit) ENGINE=$type;
 INSERT IGNORE INTO t1 VALUES (NULL);
 INSERT INTO t1 ( a ) VALUES ( 0 );
@@ -644,6 +659,10 @@ UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
 --enable_warnings
 
 sync_slave_with_master;
+
+if (`select char_length('$bit_field_special') > 0`) {
+  SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+}
 
 let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;
