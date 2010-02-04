@@ -5179,11 +5179,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   Alter_info local_alter_info;
   bool res= TRUE;
   uint not_used;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  char tmp_path[FN_REFLEN];
-#endif
-  char ts_name[FN_LEN + 1];
-  myf flags= MY_DONT_OVERWRITE_FILE;
   DBUG_ENTER("mysql_create_like_table");
 
 
