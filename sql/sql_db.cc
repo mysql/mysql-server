@@ -181,7 +181,7 @@ uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
 static inline int write_to_binlog(THD *thd, char *query, uint q_len,
                                   char *db, uint db_len)
 {
-  Query_log_event qinfo(thd, query, q_len, 0, 0, 0);
+  Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
   return mysql_bin_log.write(&qinfo);
@@ -750,7 +750,7 @@ not_silent:
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, TRUE);
-      Query_log_event qinfo(thd, query, query_length, 0, 
+      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
 			    /* suppress_use */ TRUE, errcode);
 
       /*
@@ -842,10 +842,9 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   if (mysql_bin_log.is_open())
   {
-    thd->clear_error();
-    Query_log_event qinfo(thd, thd->query(), thd->query_length(), 0,
-			  /* suppress_use */ TRUE, 0);
-
+    int errcode= query_error_code(thd, TRUE); 
+    Query_log_event qinfo(thd, thd->query(), thd->query_length(), FALSE, TRUE,
+			  /* suppress_use */ TRUE, errcode);
     /*
       Write should use the database being created as the "current
       database" and not the threads current database, which is the
@@ -990,9 +989,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     if (mysql_bin_log.is_open())
     {
-      thd->clear_error();
-      Query_log_event qinfo(thd, query, query_length, 0, 
-			    /* suppress_use */ TRUE, 0);
+      int errcode= query_error_code(thd, TRUE);
+      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
+			    /* suppress_use */ TRUE, errcode);
       /*
         Write should use the database being created as the "current
         database" and not the threads current database, which is the
@@ -2009,7 +2008,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   {
     int errcode= query_error_code(thd, TRUE);
     Query_log_event qinfo(thd, thd->query(), thd->query_length(),
-                          0, TRUE, errcode);
+                          FALSE, TRUE, TRUE, errcode);
     thd->clear_error();
     error|= mysql_bin_log.write(&qinfo);
   }

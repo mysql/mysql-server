@@ -104,10 +104,11 @@ DEFS =			-DMYSQL_CLIENT_NO_THREADS \
 			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
 sql_src=log_event.h mysql_priv.h rpl_constants.h \
-	rpl_utility.h rpl_tblmap.h rpl_tblmap.cc \
+	rpl_tblmap.h rpl_tblmap.cc \
 	log_event.cc my_decimal.h my_decimal.cc \
 	log_event_old.h log_event_old.cc \
 	rpl_record_old.h rpl_record_old.cc \
+	rpl_utility.h rpl_utility.cc \
 	transaction.h
 strings_src=decimal.c dtoa.c
 

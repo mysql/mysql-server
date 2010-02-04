@@ -42,7 +42,7 @@ id
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;
 INSERT INTO t1 VALUES(9);
-ERROR HY000: Binary logging not possible. Message: Transaction level 'READ-COMMITTED' in InnoDB is not safe for binlog mode 'STATEMENT'
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
 COMMIT;
 COMMIT;
 DROP TABLE t1;

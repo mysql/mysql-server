@@ -59,22 +59,19 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
       We also call the mysql_reset_thd_for_next_command(), since this
       is the logical start of the next "statement". Note that this
-      call might reset the value of current_stmt_binlog_row_based, so
+      call might reset the value of current_stmt_binlog_format, so
       we need to do any changes to that value after this function.
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
-    {
-      thd->set_current_stmt_binlog_row_based();
-    }
+    thd->lex->set_stmt_row_injection();
 
     if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
     {
@@ -107,12 +104,19 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                             ptr->table, &conv_table))
         {
           thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+                             " - conv_table: %p",
+                             ptr->table->s->db.str,
+                             ptr->table->s->table_name.str, conv_table));
+        ptr->m_conv_table= conv_table;
       }
     }
 
@@ -227,7 +231,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->cache_stmt)
+    if (!ev->use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->variables.option_bits|= OPTION_KEEP_LOG;
@@ -254,7 +258,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1504,7 +1508,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: For this new scheme there should be no pending event:
         need to add code to assert that is the case.
        */
-      error= thd->binlog_flush_pending_rows_event(false);
+      error= thd->binlog_flush_pending_rows_event(FALSE);
       if (error)
       {
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -1549,18 +1553,22 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                            ptr->table, &conv_table))
         {
           thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+        ptr->m_conv_table= conv_table;
       }
     }
 
     /*
-      ... and then we add all the tables to the table map and remove
-      them from tables to lock.
+      ... and then we add all the tables to the table map but keep
+      them in the tables to lock list.
+
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
@@ -1716,7 +1724,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!cache_stmt)
+    if (!use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
       thd->variables.option_bits|= OPTION_KEEP_LOG;
@@ -1743,7 +1751,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1755,7 +1763,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     last_event_start_time here instead.
   */
   if (table && (table->s->primary_key == MAX_KEY) &&
-      !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
+      !use_trans_cache() && get_flags(STMT_END_F) == RLE_NO_FLAGS)
   {
     /*
       ------------ Temporary fix until WL#2975 is implemented ---------
@@ -1793,7 +1801,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    int binlog_error= thd->binlog_flush_pending_rows_event(true);
+    int binlog_error= thd->binlog_flush_pending_rows_event(TRUE);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -1822,7 +1830,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       event flushed.
     */
 
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
   }
 
