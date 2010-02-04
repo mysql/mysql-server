@@ -46,7 +46,7 @@ private:
   /** All acquired locks in the server. */
   HASH m_locks;
   /* Protects access to m_locks hash. */
-  pthread_mutex_t m_mutex;
+  mysql_mutex_t m_mutex;
 };
 
 
@@ -353,7 +353,7 @@ void mdl_destroy()
 
 void MDL_map::init()
 {
-  pthread_mutex_init(&m_mutex, NULL);
+  mysql_mutex_init(NULL /* pfs key */,&m_mutex, NULL);
   my_hash_init(&m_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
                mdl_locks_key, 0, 0);
 }
@@ -367,7 +367,7 @@ void MDL_map::init()
 void MDL_map::destroy()
 {
   DBUG_ASSERT(!m_locks.records);
-  pthread_mutex_destroy(&m_mutex);
+  mysql_mutex_destroy(&m_mutex);
   my_hash_free(&m_locks);
 }
 
@@ -389,7 +389,7 @@ MDL_lock* MDL_map::find_or_insert(const MDL_key *mdl_key)
   hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
 
 retry:
-  pthread_mutex_lock(&m_mutex);
+  mysql_mutex_lock(&m_mutex);
   if (!(lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
                                                           hash_value,
                                                           mdl_key->ptr(),
@@ -398,7 +398,7 @@ retry:
     lock= MDL_lock::create(mdl_key);
     if (!lock || my_hash_insert(&m_locks, (uchar*)lock))
     {
-      pthread_mutex_unlock(&m_mutex);
+      mysql_mutex_unlock(&m_mutex);
       MDL_lock::destroy(lock);
       return NULL;
     }
@@ -427,13 +427,13 @@ MDL_lock* MDL_map::find(const MDL_key *mdl_key)
   hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
 
 retry:
-  pthread_mutex_lock(&m_mutex);
+  mysql_mutex_lock(&m_mutex);
   if (!(lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
                                                           hash_value,
                                                           mdl_key->ptr(),
                                                           mdl_key->length())))
   {
-    pthread_mutex_unlock(&m_mutex);
+    mysql_mutex_unlock(&m_mutex);
     return NULL;
   }
 
@@ -457,7 +457,7 @@ retry:
 bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
 {
   DBUG_ASSERT(! lock->m_is_destroyed);
-  safe_mutex_assert_owner(&m_mutex);
+  mysql_mutex_assert_owner(&m_mutex);
 
   /*
     We increment m_ref_usage which is a reference counter protected by
@@ -465,7 +465,7 @@ bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
     m_is_destroyed is FALSE.
   */
   lock->m_ref_usage++;
-  pthread_mutex_unlock(&m_mutex);
+  mysql_mutex_unlock(&m_mutex);
 
   rw_wrlock(&lock->m_rwlock);
   lock->m_ref_release++;
@@ -520,13 +520,13 @@ void MDL_map::remove(MDL_lock *lock)
     MDL_lock::m_rwlock we can safely read the m_ref_usage
     member.
   */
-  pthread_mutex_lock(&m_mutex);
+  mysql_mutex_lock(&m_mutex);
   my_hash_delete(&m_locks, (uchar*) lock);
   lock->m_is_destroyed= TRUE;
   ref_usage= lock->m_ref_usage;
   ref_release= lock->m_ref_release;
   rw_unlock(&lock->m_rwlock);
-  pthread_mutex_unlock(&m_mutex);
+  mysql_mutex_unlock(&m_mutex);
   if (ref_usage == ref_release)
     MDL_lock::destroy(lock);
 }
@@ -547,8 +547,8 @@ MDL_context::MDL_context()
   m_signal(NO_WAKE_UP)
 {
   my_rwlock_init(&m_waiting_for_lock, NULL);
-  pthread_mutex_init(&m_signal_lock, NULL);
-  pthread_cond_init(&m_signal_cond, NULL);
+  mysql_mutex_init(NULL /* pfs key */, &m_signal_lock, NULL);
+  mysql_cond_init(NULL /* pfs key */, &m_signal_cond, NULL);
 }
 
 
@@ -569,8 +569,8 @@ void MDL_context::destroy()
   DBUG_ASSERT(m_tickets.is_empty());
 
   rwlock_destroy(&m_waiting_for_lock);
-  pthread_mutex_destroy(&m_signal_lock);
-  pthread_cond_destroy(&m_signal_cond);
+  mysql_mutex_destroy(&m_signal_lock);
+  mysql_cond_destroy(&m_signal_cond);
 }
 
 
@@ -729,16 +729,16 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
 
 static inline const char *mdl_enter_cond(THD *thd,
                                          st_my_thread_var *mysys_var,
-                                         pthread_cond_t *cond,
-                                         pthread_mutex_t *mutex,
+                                         mysql_cond_t *cond,
+                                         mysql_mutex_t *mutex,
                                          const char *calling_func,
                                          const char *calling_file,
                                          const unsigned int calling_line)
 {
-  safe_mutex_assert_owner(mutex);
+  mysql_mutex_assert_owner(mutex);
 
-  mysys_var->current_mutex= (mysql_mutex_t*) mutex;
-  mysys_var->current_cond= (mysql_cond_t*) cond;
+  mysys_var->current_mutex= mutex;
+  mysys_var->current_cond= cond;
 
   DEBUG_SYNC(thd, "mdl_enter_cond");
 
@@ -751,18 +751,18 @@ static inline const char *mdl_enter_cond(THD *thd,
 
 static inline void mdl_exit_cond(THD *thd,
                                  st_my_thread_var *mysys_var,
-                                 pthread_mutex_t *mutex,
+                                 mysql_mutex_t *mutex,
                                  const char* old_msg,
                                  const char *calling_func,
                                  const char *calling_file,
                                  const unsigned int calling_line)
 {
-  DBUG_ASSERT(mutex == (pthread_mutex_t*) mysys_var->current_mutex);
+  DBUG_ASSERT(mutex == mysys_var->current_mutex);
 
-  pthread_mutex_unlock(mutex);
+  mysql_mutex_unlock(mutex);
   mysql_mutex_lock(&mysys_var->mutex);
-  mysys_var->current_mutex= 0;
-  mysys_var->current_cond= 0;
+  mysys_var->current_mutex= NULL;
+  mysys_var->current_cond= NULL;
   mysql_mutex_unlock(&mysys_var->mutex);
 
   DEBUG_SYNC(thd, "mdl_exit_cond");
@@ -778,12 +778,12 @@ MDL_context::mdl_signal_type MDL_context::wait()
   st_my_thread_var *mysys_var= my_thread_var;
   mdl_signal_type result;
 
-  pthread_mutex_lock(&m_signal_lock);
+  mysql_mutex_lock(&m_signal_lock);
 
   old_msg= MDL_ENTER_COND(m_thd, mysys_var, &m_signal_cond, &m_signal_lock);
 
   while (! m_signal && !mysys_var->abort)
-    pthread_cond_wait(&m_signal_cond, &m_signal_lock);
+    mysql_cond_wait(&m_signal_cond, &m_signal_lock);
 
   result= m_signal;
 
@@ -800,14 +800,14 @@ MDL_context::mdl_signal_type MDL_context::timed_wait(ulong timeout)
   mdl_signal_type result;
   st_my_thread_var *mysys_var= my_thread_var;
 
-  pthread_mutex_lock(&m_signal_lock);
+  mysql_mutex_lock(&m_signal_lock);
 
   old_msg= MDL_ENTER_COND(m_thd, mysys_var, &m_signal_cond, &m_signal_lock);
 
   if (! m_signal)
   {
     set_timespec(abstime, timeout);
-    pthread_cond_timedwait(&m_signal_cond, &m_signal_lock, &abstime);
+    mysql_cond_timedwait(&m_signal_cond, &m_signal_lock, &abstime);
   }
 
   result= (m_signal != NO_WAKE_UP) ? m_signal : TIMEOUT_WAKE_UP;

@@ -520,10 +520,10 @@ public:
   */
   void awake(mdl_signal_type signal)
   {
-    pthread_mutex_lock(&m_signal_lock);
+    mysql_mutex_lock(&m_signal_lock);
     m_signal= signal;
-    pthread_cond_signal(&m_signal_cond);
-    pthread_mutex_unlock(&m_signal_lock);
+    mysql_cond_signal(&m_signal_cond);
+    mysql_mutex_unlock(&m_signal_lock);
   }
 
   void init(THD *thd_arg) { m_thd= thd_arg; }
@@ -636,8 +636,8 @@ private:
     notification by adding a ticket corresponding to the request
     to an appropriate queue of waiters).
   */
-  pthread_mutex_t m_signal_lock;
-  pthread_cond_t m_signal_cond;
+  mysql_mutex_t m_signal_lock;
+  mysql_cond_t m_signal_cond;
   mdl_signal_type m_signal;
 
 private:
@@ -675,9 +675,9 @@ private:
 
   void wait_reset()
   {
-    pthread_mutex_lock(&m_signal_lock);
+    mysql_mutex_lock(&m_signal_lock);
     m_signal= NO_WAKE_UP;
-    pthread_mutex_unlock(&m_signal_lock);
+    mysql_mutex_unlock(&m_signal_lock);
   }
 
   mdl_signal_type wait();
@@ -686,9 +686,9 @@ private:
   mdl_signal_type peek_signal()
   {
     mdl_signal_type result;
-    pthread_mutex_lock(&m_signal_lock);
+    mysql_mutex_lock(&m_signal_lock);
     result= m_signal;
-    pthread_mutex_unlock(&m_signal_lock);
+    mysql_mutex_unlock(&m_signal_lock);
     return result;
   }
 
