@@ -281,7 +281,7 @@ ENDIF()
 # For Makefile generators we default Debug build directory to ${buildroot}/../debug.
 
 GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
-SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug")
+SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
   
 IF(WIN32)
  SET(EXE ".exe")
