@@ -1505,7 +1505,7 @@ void close_thread_tables(THD *thd)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
+    (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1710,7 +1710,11 @@ void close_temporary_tables(THD *thd)
       qinfo.db= db.ptr();
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
+                     "Failed to write the DROP statement for temporary tables to binary log");
+      }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
@@ -3633,9 +3637,13 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         int errcode= query_error_code(thd, TRUE);
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query, (ulong)(end-query),
+                              FALSE, FALSE, errcode))
+        {
+          my_free(query, MYF(0));
+          return TRUE;
+        }
         my_free(query, MYF(0));
       }
       else
