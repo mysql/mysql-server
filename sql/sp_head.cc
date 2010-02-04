@@ -1788,6 +1788,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
+        err_status= TRUE;
       }
       reset_dynamic(&thd->user_var_events);
       /* Forget those values, in case more function calls are binlogged: */

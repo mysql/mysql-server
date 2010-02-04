@@ -1029,8 +1029,8 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 

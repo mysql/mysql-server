@@ -2892,7 +2892,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
