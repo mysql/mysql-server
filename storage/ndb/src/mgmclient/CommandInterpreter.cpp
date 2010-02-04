@@ -101,8 +101,6 @@ private:
   int  executePurge(char* parameters);
   int  executeConnect(char* parameters, bool interactive);
   int  executeShutdown(char* parameters);
-  void executeRun(char* parameters);
-  void executeInfo(char* parameters);
   void executeClusterLog(char* parameters);
 
 public:
@@ -133,14 +131,8 @@ public:
                       int *node_ids, int no_of_nodes);
   int  executeStart(Vector<BaseString> &command_list, unsigned command_pos,
                     int *node_ids, int no_of_nodes);
-
-  int  executeRep(char* parameters);
-
-  void executeCpc(char * parameters);
-
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
-
 public:
   bool connect(bool interactive);
   bool disconnect();
@@ -223,18 +215,6 @@ Ndb_mgmclient::disconnect()
 
 #include <debugger/EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
-
-int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, bool interactive, int *error)
-{
-  if (argc <= 0)
-    return 0;
-  BaseString _line(argv[0]);
-  for (int i= 1; i < argc; i++)
-  {
-    _line.appfmt(" %s", argv[i]);
-  }
-  return m_cmd->execute(_line.c_str(),_try_reconnect, interactive, error);
-}
 
 /*****************************************************************************
  * HELP
@@ -1089,6 +1069,24 @@ invalid_command(const char *cmd)
   ndbout << "Type HELP for help." << endl << endl;
 }
 
+
+static void
+split_args(const char* line, Vector<BaseString>& args)
+{
+  // Split the command line on space
+  BaseString tmp(line);
+  tmp.split(args);
+
+  // Remove any empty args which come from double
+  // spaces in the command line
+  // ie. "hello<space><space>world" becomes ("hello, "", "world")
+  //
+  for (unsigned i= 0; i < args.size(); i++)
+    if (args[i].length() == 0)
+      args.erase(i--);
+}
+
+
 int 
 CommandInterpreter::execute_impl(const char *_line, bool interactive) 
 {
@@ -1125,12 +1123,8 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   } while (do_continue);
   // if there is anything in the line proceed
   Vector<BaseString> command_list;
-  {
-    BaseString tmp(line);
-    tmp.split(command_list);
-    for (unsigned i= 0; i < command_list.size();)
-      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
-  }
+  split_args(line, command_list);
+
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
 
@@ -1989,16 +1983,11 @@ int
 CommandInterpreter::executeStop(int processId, const char *parameters,
                                 bool all) 
 {
-  int retval = 0;
-
   Vector<BaseString> command_list;
   if (parameters)
-  {
-    BaseString tmp(parameters);
-    tmp.split(command_list);
-    for (unsigned i= 0; i < command_list.size();)
-      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
-  }
+    split_args(parameters, command_list);
+
+  int retval;
   if (all)
     retval = executeStop(command_list, 0, 0, 0);
   else
@@ -2155,15 +2144,10 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
 				   bool all)
 {
   Vector<BaseString> command_list;
-  int retval = 0;
-
   if (parameters)
-  {
-    BaseString tmp(parameters);
-    tmp.split(command_list);
-    for (unsigned i= 0; i < command_list.size();)
-      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
-  }
+    split_args(parameters, command_list);
+
+  int retval;
   if (all)
     retval = executeRestart(command_list, 0, 0, 0);
   else
@@ -2440,7 +2424,8 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
   }
 
   Vector<BaseString> args;
-  BaseString(parameters).split(args);
+  split_args(parameters, args);
+
   int found = -1;
   unsigned len = args[0].length();
   for (unsigned i = 0; i < n_report_cmds; i++)
@@ -2823,9 +2808,9 @@ CommandInterpreter::executeEventReporting(int processId,
     ndbout << "Expected argument" << endl;
     return -1;
   }
-  BaseString tmp(parameters);
+
   Vector<BaseString> specs;
-  tmp.split(specs, " ");
+  split_args(parameters, specs);
 
   for (int i=0; i < (int) specs.size(); i++)
   {
@@ -2888,14 +2873,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   unsigned int input_backupId = 0;
 
   Vector<BaseString> args;
-  {
-    BaseString(parameters).split(args);
-    for (unsigned i= 0; i < args.size(); i++)
-      if (args[i].length() == 0)
-	args.erase(i--);
-      else
-	args[i].ndb_toupper();
-  }
+  if (parameters)
+    split_args(parameters, args);
+
+  for (unsigned i= 0; i < args.size(); i++)
+    args[i].ndb_toupper();
+
   int sz= args.size();
 
   int result;
