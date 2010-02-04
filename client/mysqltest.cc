@@ -287,7 +287,7 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
-  Q_MOVE_FILE, Q_SEND_EVAL,
+  Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -386,6 +386,7 @@ const char *command_names[]=
   "send_shutdown",
   "shutdown_server",
   "move_file",
+  "remove_files_wildcard",
   "send_eval",
 
   0
@@ -2885,6 +2886,81 @@ void do_remove_file(struct st_command *command)
   error= my_delete(ds_filename.str, MYF(0)) != 0;
   handle_command_error(command, error);
   dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_remove_files_wildcard
+  command	called command
+
+  DESCRIPTION
+  remove_files_wildcard <directory> [<file_name_pattern>]
+  Remove the files in <directory> optionally matching <file_name_pattern>
+*/
+
+void do_remove_files_wildcard(struct st_command *command)
+{
+  int error= 0;
+  uint i;
+  MY_DIR *dir_info;
+  FILEINFO *file;
+  char dir_separator[2];
+  static DYNAMIC_STRING ds_directory;
+  static DYNAMIC_STRING ds_wild;
+  static DYNAMIC_STRING ds_file_to_remove;
+  char dirname[FN_REFLEN];
+  
+  const struct command_arg rm_args[] = {
+    { "directory", ARG_STRING, TRUE, &ds_directory,
+      "Directory containing files to delete" },
+    { "filename", ARG_STRING, FALSE, &ds_wild, "File pattern to delete" }
+  };
+  DBUG_ENTER("do_remove_files_wildcard");
+
+  check_command_args(command, command->first_argument,
+                     rm_args, sizeof(rm_args)/sizeof(struct command_arg),
+                     ' ');
+  fn_format(dirname, ds_directory.str, "", "", MY_UNPACK_FILENAME);
+
+  DBUG_PRINT("info", ("listing directory: %s", dirname));
+  /* Note that my_dir sorts the list if not given any flags */
+  if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT))))
+  {
+    error= 1;
+    goto end;
+  }
+  init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
+  dir_separator[0]= FN_LIBCHAR;
+  dir_separator[1]= 0;
+  dynstr_append(&ds_file_to_remove, dir_separator);
+  for (i= 0; i < (uint) dir_info->number_off_files; i++)
+  {
+    file= dir_info->dir_entry + i;
+    /* Remove only regular files, i.e. no directories etc. */
+    /* if (!MY_S_ISREG(file->mystat->st_mode)) */
+    /* MY_S_ISREG does not work here on Windows, just skip directories */
+    if (MY_S_ISDIR(file->mystat->st_mode))
+      continue;
+    if (ds_wild.length &&
+        wild_compare(file->name, ds_wild.str, 0))
+      continue;
+    ds_file_to_remove.length= ds_directory.length + 1;
+    ds_file_to_remove.str[ds_directory.length + 1]= 0;
+    dynstr_append(&ds_file_to_remove, file->name);
+    DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
+    error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
+    if (error)
+      break;
+  }
+  my_dirend(dir_info);
+
+end:
+  handle_command_error(command, error);
+  dynstr_free(&ds_directory);
+  dynstr_free(&ds_wild);
+  dynstr_free(&ds_file_to_remove);
   DBUG_VOID_RETURN;
 }
 
@@ -7881,6 +7957,7 @@ int main(int argc, char **argv)
       case Q_ECHO: do_echo(command); command_executed++; break;
       case Q_SYSTEM: do_system(command); break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
+      case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;
