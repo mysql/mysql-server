@@ -1492,7 +1492,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
     Due to a bug in a threading library it could happen that a signal
     did not reach its target. A condition for this was that the same
     condition variable was used with different mutexes in
-    pthread_cond_wait(). Some time ago we changed LOCK_open to
+    mysql_cond_wait(). Some time ago we changed LOCK_open to
     LOCK_global_read_lock in global read lock handling. So COND_refresh
     was used with LOCK_open and LOCK_global_read_lock.
 

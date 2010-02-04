@@ -419,6 +419,38 @@ The following options may be given as the first argument:
                       default}
   --partition[=name]  Enable or disable partition plugin. Possible values are
                       ON, OFF, FORCE (don't start if the plugin fails to load).
+  --performance-schema 
+                      Enable the performance schema.
+  --performance-schema-events-waits-history-long-size=# 
+                      Number of rows in EVENTS_WAITS_HISTORY_LONG.
+  --performance-schema-events-waits-history-size=# 
+                      Number of rows per thread in EVENTS_WAITS_HISTORY.
+  --performance-schema-max-cond-classes=# 
+                      Maximum number of condition instruments.
+  --performance-schema-max-cond-instances=# 
+                      Maximum number of instrumented condition objects.
+  --performance-schema-max-file-classes=# 
+                      Maximum number of file instruments.
+  --performance-schema-max-file-handles=# 
+                      Maximum number of opened instrumented files.
+  --performance-schema-max-file-instances=# 
+                      Maximum number of instrumented files.
+  --performance-schema-max-mutex-classes=# 
+                      Maximum number of mutex instruments.
+  --performance-schema-max-mutex-instances=# 
+                      Maximum number of instrumented MUTEX objects.
+  --performance-schema-max-rwlock-classes=# 
+                      Maximum number of rwlock instruments.
+  --performance-schema-max-rwlock-instances=# 
+                      Maximum number of instrumented RWLOCK objects.
+  --performance-schema-max-table-handles=# 
+                      Maximum number of opened instrumented tables.
+  --performance-schema-max-table-instances=# 
+                      Maximum number of instrumented tables.
+  --performance-schema-max-thread-classes=# 
+                      Maximum number of thread instruments.
+  --performance-schema-max-thread-instances=# 
+                      Maximum number of instrumented threads.
   --pid-file=name     Pid file used by safe_mysqld
   --plugin-dir=name   Directory for plugins
   --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -718,220 +750,236 @@ The following options may be given as the first argument:
   -W, --warnings[=#]  Deprecated; use --log-warnings instead.
 
 Variables (--variable-name=value)
-and boolean options {FALSE|TRUE}    Value (after reading options)
------------------------------------ --------------------------------------
-abort-slave-event-count             0
-allow-suspicious-udfs               FALSE
-archive                             ON
-auto-increment-increment            1
-auto-increment-offset               1
-automatic-sp-privileges             TRUE
-back-log                            50
-big-tables                          FALSE
-bind-address                        (No default value)
-binlog-cache-size                   32768
-binlog-format                       STATEMENT
-binlog-row-event-max-size           1024
-blackhole                           ON
-bulk-insert-buffer-size             8388608
-character-set-client-handshake      TRUE
-character-set-filesystem            binary
-character-set-server                latin1
-character-sets-dir                  MYSQL_SHAREDIR/charsets/
-chroot                              (No default value)
-collation-server                    latin1_swedish_ci
-completion-type                     NO_CHAIN
-concurrent-insert                   AUTO
-connect-timeout                     10
-console                             FALSE
-date-format                         %Y-%m-%d
-datetime-format                     %Y-%m-%d %H:%i:%s
-default-character-set               latin1
-default-collation                   latin1_swedish_ci
-default-storage-engine              MyISAM
-default-time-zone                   (No default value)
-default-week-format                 0
-delay-key-write                     ON
-delayed-insert-limit                100
-delayed-insert-timeout              300
-delayed-queue-size                  1000
-disconnect-slave-event-count        0
-div-precision-increment             4
-enable-locking                      FALSE
-engine-condition-pushdown           TRUE
-event-scheduler                     OFF
-expire-logs-days                    0
-external-locking                    FALSE
-federated                           ON
-flush                               FALSE
-flush-time                          0
-ft-boolean-syntax                   + -><()~*:""&|
-ft-max-word-len                     84
-ft-min-word-len                     4
-ft-query-expansion-limit            20
-ft-stopword-file                    (No default value)
-gdb                                 FALSE
-general-log                         FALSE
-group-concat-max-len                1024
-help                                TRUE
-ignore-builtin-innodb               FALSE
-init-connect                        
-init-file                           (No default value)
-init-rpl-role                       MASTER
-init-slave                          
-interactive-timeout                 28800
-join-buffer-size                    131072
-keep-files-on-create                FALSE
-key-buffer-size                     8388608
-key-cache-age-threshold             300
-key-cache-block-size                1024
-key-cache-division-limit            100
-language                            MYSQL_SHAREDIR/
-large-pages                         FALSE
-lc-messages                         en_US
-lc-messages-dir                     MYSQL_SHAREDIR/
-lc-time-names                       en_US
-local-infile                        TRUE
-log-bin                             (No default value)
-log-bin-index                       (No default value)
-log-bin-trust-function-creators     FALSE
-log-error                           
-log-isam                            myisam.log
-log-output                          FILE
-log-queries-not-using-indexes       FALSE
-log-short-format                    FALSE
-log-slave-updates                   FALSE
-log-slow-admin-statements           FALSE
-log-slow-slave-statements           FALSE
-log-tc                              tc.log
-log-tc-size                         24576
-log-update                          (No default value)
-log-warnings                        1
-long-query-time                     10
-low-priority-updates                FALSE
-lower-case-table-names              1
-master-info-file                    master.info
-master-retry-count                  86400
-max-allowed-packet                  1048576
-max-binlog-cache-size               18446744073709547520
-max-binlog-dump-events              0
-max-binlog-size                     1073741824
-max-connect-errors                  10
-max-connections                     151
-max-delayed-threads                 20
-max-error-count                     64
-max-heap-table-size                 16777216
-max-join-size                       18446744073709551615
-max-length-for-sort-data            1024
-max-prepared-stmt-count             16382
-max-relay-log-size                  0
-max-seeks-for-key                   18446744073709551615
-max-sort-length                     1024
-max-sp-recursion-depth              0
-max-tmp-tables                      32
-max-user-connections                0
-max-write-lock-count                18446744073709551615
-memlock                             FALSE
-min-examined-row-limit              0
-multi-range-count                   256
-myisam-block-size                   1024
-myisam-data-pointer-size            6
-myisam-max-sort-file-size           9223372036853727232
-myisam-mmap-size                    18446744073709551615
-myisam-recover-options              OFF
-myisam-repair-threads               1
-myisam-sort-buffer-size             8388608
-myisam-stats-method                 nulls_unequal
-myisam-use-mmap                     FALSE
-net-buffer-length                   16384
-net-read-timeout                    30
-net-retry-count                     10
-net-write-timeout                   60
-new                                 FALSE
-old                                 FALSE
-old-alter-table                     FALSE
-old-passwords                       FALSE
-old-style-user-limits               FALSE
-optimizer-prune-level               1
-optimizer-search-depth              62
-optimizer-switch                    index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-partition                           ON
-plugin-dir                          MYSQL_LIBDIR/mysql/plugin
-plugin-load                         (No default value)
-port                                3306
-port-open-timeout                   0
-preload-buffer-size                 32768
-profiling-history-size              15
-query-alloc-block-size              8192
-query-cache-limit                   1048576
-query-cache-min-res-unit            4096
-query-cache-size                    0
-query-cache-type                    ON
-query-cache-wlock-invalidate        FALSE
-query-prealloc-size                 8192
-range-alloc-block-size              4096
-read-buffer-size                    131072
-read-only                           FALSE
-read-rnd-buffer-size                262144
-record-buffer                       131072
-relay-log                           (No default value)
-relay-log-index                     (No default value)
-relay-log-info-file                 relay-log.info
-relay-log-purge                     TRUE
-relay-log-recovery                  FALSE
-relay-log-space-limit               0
-replicate-same-server-id            FALSE
-report-host                         (No default value)
-report-password                     (No default value)
-report-port                         3306
-report-user                         (No default value)
-rpl-recovery-rank                   0
-safe-user-create                    FALSE
-secure-auth                         FALSE
-secure-file-priv                    (No default value)
-server-id                           0
-show-slave-auth-info                FALSE
-skip-grant-tables                   TRUE
-skip-networking                     FALSE
-skip-show-database                  FALSE
-skip-slave-start                    FALSE
-slave-compressed-protocol           FALSE
-slave-exec-mode                     STRICT
-slave-net-timeout                   3600
-slave-skip-errors                   (No default value)
-slave-transaction-retries           10
-slow-launch-time                    2
-slow-query-log                      FALSE
-socket                              /tmp/mysql.sock
-sort-buffer-size                    2097152
-sporadic-binlog-dump-fail           FALSE
-sql-mode                            
-symbolic-links                      FALSE
-sync-binlog                         0
-sync-frm                            TRUE
-sync-master-info                    0
-sync-relay-log                      0
-sync-relay-log-info                 0
-sysdate-is-now                      FALSE
-table-cache                         400
-table-definition-cache              400
-table-lock-wait-timeout             50
-table-open-cache                    400
-tc-heuristic-recover                COMMIT
-thread-cache-size                   0
-thread-handling                     one-thread-per-connection
-thread-stack                        262144
-time-format                         %H:%i:%s
-timed-mutexes                       FALSE
-tmp-table-size                      16777216
-transaction-alloc-block-size        8192
-transaction-isolation               REPEATABLE-READ
-transaction-prealloc-size           4096
-updatable-views-with-limit          YES
-use-symbolic-links                  FALSE
-verbose                             TRUE
-wait-timeout                        28800
-warnings                            1
+and boolean options {FALSE|TRUE}                  Value (after reading options)
+------------------------------------------------- ------------------------
+abort-slave-event-count                           0
+allow-suspicious-udfs                             FALSE
+archive                                           ON
+auto-increment-increment                          1
+auto-increment-offset                             1
+automatic-sp-privileges                           TRUE
+back-log                                          50
+big-tables                                        FALSE
+bind-address                                      (No default value)
+binlog-cache-size                                 32768
+binlog-format                                     STATEMENT
+binlog-row-event-max-size                         1024
+blackhole                                         ON
+bulk-insert-buffer-size                           8388608
+character-set-client-handshake                    TRUE
+character-set-filesystem                          binary
+character-set-server                              latin1
+character-sets-dir                                MYSQL_SHAREDIR/charsets/
+chroot                                            (No default value)
+collation-server                                  latin1_swedish_ci
+completion-type                                   NO_CHAIN
+concurrent-insert                                 AUTO
+connect-timeout                                   10
+console                                           FALSE
+date-format                                       %Y-%m-%d
+datetime-format                                   %Y-%m-%d %H:%i:%s
+default-character-set                             latin1
+default-collation                                 latin1_swedish_ci
+default-storage-engine                            MyISAM
+default-time-zone                                 (No default value)
+default-week-format                               0
+delay-key-write                                   ON
+delayed-insert-limit                              100
+delayed-insert-timeout                            300
+delayed-queue-size                                1000
+disconnect-slave-event-count                      0
+div-precision-increment                           4
+enable-locking                                    FALSE
+engine-condition-pushdown                         TRUE
+event-scheduler                                   OFF
+expire-logs-days                                  0
+external-locking                                  FALSE
+federated                                         ON
+flush                                             FALSE
+flush-time                                        0
+ft-boolean-syntax                                 + -><()~*:""&|
+ft-max-word-len                                   84
+ft-min-word-len                                   4
+ft-query-expansion-limit                          20
+ft-stopword-file                                  (No default value)
+gdb                                               FALSE
+general-log                                       FALSE
+group-concat-max-len                              1024
+help                                              TRUE
+ignore-builtin-innodb                             FALSE
+init-connect                                      
+init-file                                         (No default value)
+init-rpl-role                                     MASTER
+init-slave                                        
+interactive-timeout                               28800
+join-buffer-size                                  131072
+keep-files-on-create                              FALSE
+key-buffer-size                                   8388608
+key-cache-age-threshold                           300
+key-cache-block-size                              1024
+key-cache-division-limit                          100
+language                                          MYSQL_SHAREDIR/
+large-pages                                       FALSE
+lc-messages                                       en_US
+lc-messages-dir                                   MYSQL_SHAREDIR/
+lc-time-names                                     en_US
+local-infile                                      TRUE
+log-bin                                           (No default value)
+log-bin-index                                     (No default value)
+log-bin-trust-function-creators                   FALSE
+log-error                                         
+log-isam                                          myisam.log
+log-output                                        FILE
+log-queries-not-using-indexes                     FALSE
+log-short-format                                  FALSE
+log-slave-updates                                 FALSE
+log-slow-admin-statements                         FALSE
+log-slow-slave-statements                         FALSE
+log-tc                                            tc.log
+log-tc-size                                       24576
+log-update                                        (No default value)
+log-warnings                                      1
+long-query-time                                   10
+low-priority-updates                              FALSE
+lower-case-table-names                            1
+master-info-file                                  master.info
+master-retry-count                                86400
+max-allowed-packet                                1048576
+max-binlog-cache-size                             18446744073709547520
+max-binlog-dump-events                            0
+max-binlog-size                                   1073741824
+max-connect-errors                                10
+max-connections                                   151
+max-delayed-threads                               20
+max-error-count                                   64
+max-heap-table-size                               16777216
+max-join-size                                     18446744073709551615
+max-length-for-sort-data                          1024
+max-prepared-stmt-count                           16382
+max-relay-log-size                                0
+max-seeks-for-key                                 18446744073709551615
+max-sort-length                                   1024
+max-sp-recursion-depth                            0
+max-tmp-tables                                    32
+max-user-connections                              0
+max-write-lock-count                              18446744073709551615
+memlock                                           FALSE
+min-examined-row-limit                            0
+multi-range-count                                 256
+myisam-block-size                                 1024
+myisam-data-pointer-size                          6
+myisam-max-sort-file-size                         9223372036853727232
+myisam-mmap-size                                  18446744073709551615
+myisam-recover-options                            OFF
+myisam-repair-threads                             1
+myisam-sort-buffer-size                           8388608
+myisam-stats-method                               nulls_unequal
+myisam-use-mmap                                   FALSE
+net-buffer-length                                 16384
+net-read-timeout                                  30
+net-retry-count                                   10
+net-write-timeout                                 60
+new                                               FALSE
+old                                               FALSE
+old-alter-table                                   FALSE
+old-passwords                                     FALSE
+old-style-user-limits                             FALSE
+optimizer-prune-level                             1
+optimizer-search-depth                            62
+optimizer-switch                                  index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+partition                                         ON
+performance-schema                                FALSE
+performance-schema-events-waits-history-long-size 10000
+performance-schema-events-waits-history-size      10
+performance-schema-max-cond-classes               80
+performance-schema-max-cond-instances             1000
+performance-schema-max-file-classes               50
+performance-schema-max-file-handles               32768
+performance-schema-max-file-instances             10000
+performance-schema-max-mutex-classes              200
+performance-schema-max-mutex-instances            1000
+performance-schema-max-rwlock-classes             20
+performance-schema-max-rwlock-instances           1000
+performance-schema-max-table-handles              100000
+performance-schema-max-table-instances            50000
+performance-schema-max-thread-classes             50
+performance-schema-max-thread-instances           1000
+plugin-dir                                        MYSQL_LIBDIR/mysql/plugin
+plugin-load                                       (No default value)
+port                                              3306
+port-open-timeout                                 0
+preload-buffer-size                               32768
+profiling-history-size                            15
+query-alloc-block-size                            8192
+query-cache-limit                                 1048576
+query-cache-min-res-unit                          4096
+query-cache-size                                  0
+query-cache-type                                  ON
+query-cache-wlock-invalidate                      FALSE
+query-prealloc-size                               8192
+range-alloc-block-size                            4096
+read-buffer-size                                  131072
+read-only                                         FALSE
+read-rnd-buffer-size                              262144
+record-buffer                                     131072
+relay-log                                         (No default value)
+relay-log-index                                   (No default value)
+relay-log-info-file                               relay-log.info
+relay-log-purge                                   TRUE
+relay-log-recovery                                FALSE
+relay-log-space-limit                             0
+replicate-same-server-id                          FALSE
+report-host                                       (No default value)
+report-password                                   (No default value)
+report-port                                       3306
+report-user                                       (No default value)
+rpl-recovery-rank                                 0
+safe-user-create                                  FALSE
+secure-auth                                       FALSE
+secure-file-priv                                  (No default value)
+server-id                                         0
+show-slave-auth-info                              FALSE
+skip-grant-tables                                 TRUE
+skip-networking                                   FALSE
+skip-show-database                                FALSE
+skip-slave-start                                  FALSE
+slave-compressed-protocol                         FALSE
+slave-exec-mode                                   STRICT
+slave-net-timeout                                 3600
+slave-skip-errors                                 (No default value)
+slave-transaction-retries                         10
+slow-launch-time                                  2
+slow-query-log                                    FALSE
+socket                                            /tmp/mysql.sock
+sort-buffer-size                                  2097152
+sporadic-binlog-dump-fail                         FALSE
+sql-mode                                          
+symbolic-links                                    FALSE
+sync-binlog                                       0
+sync-frm                                          TRUE
+sync-master-info                                  0
+sync-relay-log                                    0
+sync-relay-log-info                               0
+sysdate-is-now                                    FALSE
+table-cache                                       400
+table-definition-cache                            400
+table-lock-wait-timeout                           50
+table-open-cache                                  400
+tc-heuristic-recover                              COMMIT
+thread-cache-size                                 0
+thread-handling                                   one-thread-per-connection
+thread-stack                                      262144
+time-format                                       %H:%i:%s
+timed-mutexes                                     FALSE
+tmp-table-size                                    16777216
+transaction-alloc-block-size                      8192
+transaction-isolation                             REPEATABLE-READ
+transaction-prealloc-size                         4096
+updatable-views-with-limit                        YES
+use-symbolic-links                                FALSE
+verbose                                           TRUE
+wait-timeout                                      28800
+warnings                                          1
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

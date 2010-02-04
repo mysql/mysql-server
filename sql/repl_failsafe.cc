@@ -83,9 +83,9 @@ static int init_failsafe_rpl_thread(THD* thd)
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   if (init_thr_lock() || thd->store_globals())
   {
@@ -413,9 +413,9 @@ mi_inited:
 err:
   mysql_mutex_unlock(log_lock);
   end_io_cache(&log);
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     mysql_file_close(file, MYF(MY_WME));
   if (last_file >= 0 && last_file != file)
