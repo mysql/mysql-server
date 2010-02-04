@@ -2319,7 +2319,7 @@ JOIN::destroy()
       anywhere else (as we need to keep the join is reusable).
     */
     tmp_table_param.cleanup();
-    tmp_table_param.copy_field= 0;
+    tmp_table_param.copy_field= tmp_join->tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
