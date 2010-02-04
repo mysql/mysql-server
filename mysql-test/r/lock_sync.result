@@ -60,6 +60,8 @@ release_lock("lock_bug45143_wait")
 1
 # Switch to connection 'con_bug45143_1'.
 # Reap INSERT statement.
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 # Switch to connection 'con_bug45143_3'.
 # Reap LOCK TABLES statement.
 unlock tables;
@@ -69,3 +71,23 @@ set debug_sync= 'RESET';
 set @@global.general_log= @old_general_log;
 drop view v1;
 drop table t1;
+#
+# Bug#50821 Deadlock between LOCK TABLES and ALTER TABLE
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1(id INT);
+CREATE TABLE t2(id INT);
+# Connection con2
+START TRANSACTION;
+SELECT * FROM t1;
+id
+# Connection default
+# Sending:
+ALTER TABLE t1 ADD COLUMN j INT;
+# Connection con2
+# This used to cause a deadlock.
+INSERT INTO t2 SELECT * FROM t1;
+COMMIT;
+# Connection default
+# Reaping ALTER TABLE t1 ADD COLUMN j INT
+DROP TABLE t1, t2;
