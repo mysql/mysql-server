@@ -2358,8 +2358,8 @@ page.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-buf_page_optimistic_get_func(
-/*=========================*/
+buf_page_optimistic_get(
+/*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed buffer block */
 	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is

@@ -202,20 +202,14 @@ with care. */
 #define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
-/**************************************************************//**
-NOTE! The following macros should be used instead of
-buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
-RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
-	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-buf_page_optimistic_get_func(
-/*=========================*/
+buf_page_optimistic_get(
+/*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed block */
 	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
