@@ -1731,7 +1731,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   if (!thd->killed)
   {
     I_List_iterator<THD> it(threads);
@@ -1784,7 +1784,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       }
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   thread_info *thd_info;
   time_t now= my_time(0);
@@ -1823,7 +1823,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
 
   if (!thd->killed)
   {
@@ -1898,13 +1898,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
       if (schema_table_store_record(thd, table))
       {
-        pthread_mutex_unlock(&LOCK_thread_count);
+        mysql_mutex_unlock(&LOCK_thread_count);
         DBUG_RETURN(1);
       }
     }
   }
 
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(0);
 }
 
@@ -2271,7 +2271,7 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   DBUG_ENTER("calc_sum_of_all_status");
 
   /* Ensure that thread id not killed during loop */
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
   I_List_iterator<THD> it(threads);
   THD *tmp;
@@ -2283,7 +2283,7 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   while ((tmp= it++))
     add_to_status(to, &tmp->status_var);
   
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
 

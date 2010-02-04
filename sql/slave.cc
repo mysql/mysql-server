@@ -1970,9 +1970,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -2672,9 +2672,9 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
@@ -2971,10 +2971,10 @@ err:
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   close_thread_tables(thd);
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->io_thd= 0;
@@ -3089,9 +3089,9 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   /*
     We are going to set slave_running to 1. Assuming slave I/O thread is
     alive and connected, this is going to make Seconds_Behind_Master be 0
@@ -3335,10 +3335,10 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
   set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and

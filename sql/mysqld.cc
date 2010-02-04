@@ -302,6 +302,7 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 #ifdef HAVE_PSI_INTERFACE
 #if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_namedpipes;
+static PSI_cond_key key_COND_handler_count;
 #endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 
 #if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
@@ -341,8 +342,7 @@ static bool binlog_format_used= false;
 
 LEX_STRING opt_init_connect, opt_init_slave;
 
-/* Not instrumented because of LOCK_thread_count */
-static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
+static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
 
@@ -601,8 +601,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-/* Not instrumented because of Bug#47396 */
-pthread_mutex_t LOCK_thread_count;
+mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t LOCK_mysql_create_db, LOCK_open,
   LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
   LOCK_error_log, LOCK_uuid_generator,
@@ -624,7 +623,7 @@ mysql_mutex_t LOCK_des_key_file;
 #endif
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
-pthread_cond_t COND_thread_count;
+mysql_cond_t COND_thread_count;
 mysql_cond_t COND_refresh, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
@@ -839,7 +838,7 @@ static uint thr_kill_signal;
 #undef	 getpid
 #include <process.h>
 
-static pthread_cond_t COND_handler_count;
+static mysql_cond_t COND_handler_count;
 static uint handler_count;
 static bool start_mode=0, use_opt_args;
 static int opt_argc;
@@ -979,7 +978,7 @@ static void close_connections(void)
 #if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
                       (ulong) select_thread));
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
 
   while (select_thread_in_use)
   {
@@ -995,18 +994,18 @@ static void close_connections(void)
     set_timespec(abstime, 2);
     for (uint tmp=0 ; tmp < 10 && select_thread_in_use; tmp++)
     {
-      error=pthread_cond_timedwait(&COND_thread_count,&LOCK_thread_count,
-				   &abstime);
+      error= mysql_cond_timedwait(&COND_thread_count, &LOCK_thread_count,
+                                  &abstime);
       if (error != EINTR)
 	break;
     }
 #ifdef EXTRA_DEBUG
     if (error != 0 && !count++)
-      sql_print_error("Got error %d from pthread_cond_timedwait",error);
+      sql_print_error("Got error %d from mysql_cond_timedwait", error);
 #endif
     close_server_sock();
   }
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 #endif /* __WIN__ */
 
 
@@ -1063,7 +1062,7 @@ static void close_connections(void)
   */
 
   THD *tmp;
-  (void) pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
@@ -1089,7 +1088,7 @@ static void close_connections(void)
       mysql_mutex_unlock(&tmp->mysys_var->mutex);
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   Events::deinit();
   end_slave();
@@ -1106,11 +1105,11 @@ static void close_connections(void)
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
-    (void) pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+    mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
     if (!(tmp=threads.get()))
     {
       DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
-      (void) pthread_mutex_unlock(&LOCK_thread_count);
+      mysql_mutex_unlock(&LOCK_thread_count);
       break;
     }
 #ifndef __bsdi__				// Bug in BSDI kernel
@@ -1125,17 +1124,17 @@ static void close_connections(void)
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
-    (void) pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
   /* All threads has now been aborted */
   DBUG_PRINT("quit",("Waiting for threads to die (count=%u)",thread_count));
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
-    (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
+    mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
   }
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
@@ -1478,12 +1477,12 @@ void clean_up(bool print_message)
   logger.cleanup_end();
   my_atomic_rwlock_destroy(&global_query_id_lock);
   my_atomic_rwlock_destroy(&thread_running_lock);
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
   /* do the broadcast inside the lock to ensure that my_end() is not called */
-  (void) pthread_cond_broadcast(&COND_thread_count);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
 
   /*
@@ -1524,7 +1523,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_lock_db);
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_open);
-  pthread_mutex_destroy(&LOCK_thread_count);
+  mysql_mutex_destroy(&LOCK_thread_count);
   mysql_mutex_destroy(&LOCK_mapped_file);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_delayed_insert);
@@ -1556,11 +1555,11 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_uuid_generator);
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
-  pthread_cond_destroy(&COND_thread_count);
+  mysql_cond_destroy(&COND_thread_count);
   mysql_cond_destroy(&COND_refresh);
   mysql_cond_destroy(&COND_global_read_lock);
-  pthread_cond_destroy(&COND_thread_cache);
-  pthread_cond_destroy(&COND_flush_thread_cache);
+  mysql_cond_destroy(&COND_thread_cache);
+  mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
 }
 #endif /*EMBEDDED_LIBRARY*/
@@ -1969,7 +1968,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 		      "(not connected)",
 		      errcode ? ER_DEFAULT(errcode) : ""));
   if (lock)
-    (void) pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
   thd->killed= THD::KILL_CONNECTION;
   if ((vio= thd->net.vio) != 0)
   {
@@ -1979,7 +1978,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
     vio_close(vio);			/* vio is freed in delete thd */
   }
   if (lock)
-    (void) pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
   if (MYSQL_CONNECTION_DONE_ENABLED())
   {
@@ -2026,7 +2025,7 @@ void unlink_thd(THD *thd)
   --connection_count;
   mysql_mutex_unlock(&LOCK_connection_count);
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
   DBUG_VOID_RETURN;
@@ -2051,7 +2050,7 @@ void unlink_thd(THD *thd)
 
 static bool cache_thread()
 {
-  safe_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_assert_owner(&LOCK_thread_count);
   if (cached_thread_count < thread_cache_size &&
       ! abort_loop && !kill_cached_threads)
   {
@@ -2059,10 +2058,10 @@ static bool cache_thread()
     DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
-      (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
+      mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
     cached_thread_count--;
     if (kill_cached_threads)
-      pthread_cond_signal(&COND_flush_thread_cache);
+      mysql_cond_signal(&COND_flush_thread_cache);
     if (wake_thread)
     {
       THD *thd;
@@ -2110,14 +2109,14 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
   unlink_thd(thd);
   if (put_in_cache)
     put_in_cache= cache_thread();
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (put_in_cache)
     DBUG_RETURN(0);                             // Thread is reused
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   my_thread_end();
-  (void) pthread_cond_broadcast(&COND_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
@@ -2127,15 +2126,15 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
 void flush_thread_cache()
 {
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   kill_cached_threads++;
   while (cached_thread_count)
   {
-    pthread_cond_broadcast(&COND_thread_cache);
-    pthread_cond_wait(&COND_flush_thread_cache,&LOCK_thread_count);
+    mysql_cond_broadcast(&COND_thread_cache);
+    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_count);
   }
   kill_cached_threads--;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 
@@ -2829,7 +2828,7 @@ static void start_signal_handler(void)
 #endif
 #endif
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   if ((error= mysql_thread_create(key_thread_signal_hand,
                                   &signal_thread, &thr_attr, signal_hand, 0)))
   {
@@ -2837,8 +2836,8 @@ static void start_signal_handler(void)
 		    error,errno);
     exit(1);
   }
-  (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   (void) pthread_attr_destroy(&thr_attr);
   DBUG_VOID_RETURN;
@@ -2896,11 +2895,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This works by waiting for start_signal_handler to free mutex,
     after which we signal it that we are ready.
     At this pointer there is no other threads running, so there
-    should not be any other pthread_cond_signal() calls.
+    should not be any other mysql_cond_signal() calls.
   */
-  pthread_mutex_lock(&LOCK_thread_count);
-  pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_broadcast(&COND_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
 
   (void) pthread_sigmask(SIG_BLOCK,&set,NULL);
   for (;;)
@@ -3693,7 +3692,7 @@ static int init_thread_environment()
                    &LOCK_mysql_create_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_thread_count, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_mapped_file, &LOCK_mapped_file, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
@@ -3739,11 +3738,11 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
-  pthread_cond_init(&COND_thread_count, NULL);
+  mysql_cond_init(key_COND_thread_count, &COND_thread_count, NULL);
   mysql_cond_init(key_COND_refresh, &COND_refresh, NULL);
   mysql_cond_init(key_COND_global_read_lock, &COND_global_read_lock, NULL);
-  pthread_cond_init(&COND_thread_cache, NULL);
-  pthread_cond_init(&COND_flush_thread_cache, NULL);
+  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
+  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
   mysql_cond_init(key_COND_manager, &COND_manager, NULL);
 #ifdef HAVE_REPLICATION
   mysql_mutex_init(key_LOCK_rpl_status, &LOCK_rpl_status, MY_MUTEX_INIT_FAST);
@@ -4342,8 +4341,8 @@ static void handle_connections_methods()
     unireg_abort(1);				// Will not return
   }
 
-  pthread_mutex_lock(&LOCK_thread_count);
-  (void) pthread_cond_init(&COND_handler_count,NULL);
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_cond_init(key_COND_handler_count, &COND_handler_count, NULL);
   handler_count=0;
   if (hPipe != INVALID_HANDLE_VALUE)
   {
@@ -4382,17 +4381,17 @@ static void handle_connections_methods()
 #endif 
 
   while (handler_count > 0)
-    pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
-  pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_cond_wait(&COND_handler_count, &LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
 
 void decrement_handler_count()
 {
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   handler_count--;
-  pthread_cond_signal(&COND_handler_count);
-  pthread_mutex_unlock(&LOCK_thread_count);  
+  mysql_cond_signal(&COND_handler_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
 }
 #else
@@ -4839,21 +4838,21 @@ int main(int argc, char **argv)
 #ifdef EXTRA_DEBUG2
   sql_print_error("Before Lock_thread_count");
 #endif
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("Got thread_count mutex"));
   select_thread_in_use=0;			// For close_connections
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-  (void) pthread_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
 #ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
 #endif /* __WIN__ */
 
   /* Wait until cleanup is done */
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   while (!ready_to_exit)
-    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
@@ -5127,13 +5126,13 @@ static void bootstrap(MYSQL_FILE *file)
     DBUG_VOID_RETURN;
   }
   /* Wait for thread to die */
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   while (in_bootstrap)
   {
-    pthread_cond_wait(&COND_thread_count, &LOCK_thread_count);
+    mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 #else
   thd->mysql= 0;
   do_handle_bootstrap(thd);
@@ -5171,10 +5170,10 @@ static bool read_init_file(char *file_name)
 
 void handle_connection_in_main_thread(THD *thd)
 {
-  safe_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   thd->start_utime= my_micro_time();
   do_handle_one_connection(thd);
 }
@@ -5191,7 +5190,7 @@ void create_thread_to_handle_connection(THD *thd)
     /* Get thread from cache */
     thread_cache.append(thd);
     wake_thread++;
-    pthread_cond_signal(&COND_thread_cache);
+    mysql_cond_signal(&COND_thread_cache);
   }
   else
   {
@@ -5213,7 +5212,7 @@ void create_thread_to_handle_connection(THD *thd)
                   error));
       thread_count--;
       thd->killed= THD::KILL_CONNECTION;			// Safety
-      pthread_mutex_unlock(&LOCK_thread_count);
+      mysql_mutex_unlock(&LOCK_thread_count);
 
       mysql_mutex_lock(&LOCK_connection_count);
       --connection_count;
@@ -5224,15 +5223,15 @@ void create_thread_to_handle_connection(THD *thd)
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER(ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
-      pthread_mutex_lock(&LOCK_thread_count);
+      mysql_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
       delete thd;
-      pthread_mutex_unlock(&LOCK_thread_count);
+      mysql_mutex_unlock(&LOCK_thread_count);
       return;
       /* purecov: end */
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("Thread created"));
 }
 
@@ -5280,7 +5279,7 @@ static void create_new_thread(THD *thd)
 
   /* Start a new thread to handle connection. */
 
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
 
   /*
     The initialization of thread_id is done in create_embedded_thd() for
@@ -7856,9 +7855,9 @@ void refresh_status(THD *thd)
     deadlocks.  Status reset becomes not atomic, but status data is
     not exact anyway.
   */
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   max_used_connections= thread_count-delayed_insert_threads;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 
@@ -7903,8 +7902,8 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages,
-  key_LOG_INFO_lock;
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data, key_LOCK_error_messages,
+  key_LOG_INFO_lock, key_LOCK_thread_count;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7955,9 +7954,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
-  { &key_TABLE_SHARE_mutex, "TABLE_SHARE::mutex", 0},
+  { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
-  { &key_LOG_INFO_lock, "LOG_INFO::lock", 0}
+  { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
+  { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7986,10 +7986,14 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
-  key_TABLE_SHARE_cond, key_user_level_lock_cond;
+  key_TABLE_SHARE_cond, key_user_level_lock_cond,
+  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 
 static PSI_cond_info all_server_conds[]=
 {
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+  { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 #ifdef HAVE_MMAP
   { &key_PAGE_cond, "PAGE::cond", 0},
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
@@ -8014,7 +8018,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0},
   { &key_relay_log_info_stop_cond, "Relay_log_info::stop_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
-  { &key_user_level_lock_cond, "User_level_lock::cond", 0}
+  { &key_user_level_lock_cond, "User_level_lock::cond", 0},
+  { &key_COND_thread_count, "COND_thread_count", PSI_FLAG_GLOBAL},
+  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
+  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,

@@ -13,6 +13,7 @@ information_schema
 “ú–{Œê
 ÆÎÝºÞ
 mysql
+performance_schema
 test
 USE `ÆÎÝºÞ`;
 USE `“ú–{Œê`;

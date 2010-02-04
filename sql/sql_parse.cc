@@ -526,11 +526,11 @@ end:
   delete thd;
 
 #ifndef EMBEDDED_LIBRARY
-  (void) pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
   in_bootstrap= FALSE;
-  (void) pthread_cond_broadcast(&COND_thread_count);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -6632,7 +6632,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
@@ -6644,7 +6644,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   if (tmp)
   {
 

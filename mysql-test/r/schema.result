@@ -9,6 +9,7 @@ information_schema
 foo
 mtr
 mysql
+performance_schema
 test
 drop schema foo;
 #

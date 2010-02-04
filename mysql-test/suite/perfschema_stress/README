@@ -1,0 +1,34 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+WL#4818 - Stress testing of PERFORMANCE_SCHEMA
+
+The performance schema storage engine is backed by data structures, we
+want to be sure that these data structures are not fragile under
+load.
+
+NFS1: 20 threads doing read of performance data (both mutex and
+disk), 5 threads changing what is being instrumented, 25 threads doing
+DML and DDL so that the statistics are updated. Connections should frequently
+disconnect or be KILLed, and reconnect.
+
+The database should not crash under any circumstance.
+
+How to run:
+
+MTR_VERSION=1 ./mtr --stress \
+                    --stress-suite=perfschema_stress \
+                    --stress-threads=50 \
+                    --stress-test-duration=3600
