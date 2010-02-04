@@ -989,7 +989,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"base64-output", OPT_BASE64_OUTPUT_MODE,
@@ -1013,7 +1013,7 @@ static struct my_option my_long_options[] =
     SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`;
   */
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (uchar**) &charsets_dir,
+   "Directory for character set files.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'd', "List entries for just this database (local log only).",
    (uchar**) &database, (uchar**) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -1067,9 +1067,9 @@ static struct my_option my_long_options[] =
    /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
    (ulonglong)(~(uint32)0), 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
-   "The protocol of connection (tcp,socket,pipe,memory).",
+   "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
+  {"read-from-remote-server", 'R', "Read binary logs from a MySQL server.",
    (uchar**) &remote_opt, (uchar**) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
@@ -1093,7 +1093,7 @@ static struct my_option my_long_options[] =
    "using --base64-output=never instead.",
    (uchar**) &short_form, (uchar**) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "The socket file to use for connection.",
    (uchar**) &sock, (uchar**) &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 
    0, 0},
   {"start-datetime", OPT_START_DATETIME,
@@ -1135,12 +1135,12 @@ that may lead to an endless loop.",
    (uchar**) &user, (uchar**) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
   {"verbose", 'v', "Reconstruct SQL statements out of row events. "
-                   "-v -v adds comments on column data types",
+                   "-v -v adds comments on column data types.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
-   "Used to reserve file descriptors for usage by this program",
+   "Used to reserve file descriptors for use by this program.",
    (uchar**) &open_files_limit, (uchar**) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -1239,11 +1239,11 @@ static void usage()
   print_version();
   puts("By Monty and Sasha, for your professional use\n\
 This software comes with NO WARRANTY:  This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
+and you are welcome to modify and redistribute it under the GPL license.\n");
 
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
-the mysql command line client\n\n");
+the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
