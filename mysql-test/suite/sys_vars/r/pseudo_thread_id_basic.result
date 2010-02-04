@@ -3,9 +3,6 @@ ERROR HY000: Variable 'pseudo_thread_id' is a SESSION variable
 select @@session.pseudo_thread_id between 1 and 10000;
 @@session.pseudo_thread_id between 1 and 10000
 1
-select @@session.pseudo_thread_id;
-@@session.pseudo_thread_id
-2
 should be empty
 show global variables like 'pseudo_thread_id';
 Variable_name	Value
