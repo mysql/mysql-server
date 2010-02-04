@@ -47,6 +47,7 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
 };
 
@@ -87,6 +88,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  0x0000, /* place holder for audit plugin */
   MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
@@ -96,6 +98,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  0x0000, /* place holder for audit plugin */
   MYSQL_REPLICATION_INTERFACE_VERSION,
 };
 
@@ -738,6 +741,14 @@ static bool plugin_add(MEM_ROOT *tmp_root,
                        name_len))
     {
       struct st_plugin_int *tmp_plugin_ptr;
+
+      if (plugin->type == MYSQL_AUDIT_PLUGIN)
+      {
+        /* Bug#49894 */
+        sql_print_error("Plugin type 'AUDIT' not supported by this server.");
+        goto err;
+      }
+
       if (*(int*)plugin->info <
           min_plugin_info_interface_version[plugin->type] ||
           ((*(int*)plugin->info) >> 8) >
