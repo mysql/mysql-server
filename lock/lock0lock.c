@@ -401,7 +401,7 @@ lock_deadlock_recursive(
 /*====================*/
 	trx_t*	start,		/*!< in: recursion starting point */
 	trx_t*	trx,		/*!< in: a transaction waiting for a lock */
-	lock_t*	wait_lock,	/*!< in: the lock trx is waiting to be granted */
+	lock_t*	wait_lock,	/*!< in:  lock that is waiting to be granted */
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_IS_START */
@@ -411,7 +411,7 @@ lock_deadlock_recursive(
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
-@return	TRUE if bit set */
+@return	TRUE if bit set also if i == ULINT_UNDEFINED return FALSE*/
 UNIV_INLINE
 ibool
 lock_rec_get_nth_bit(
@@ -1222,7 +1222,7 @@ lock_rec_get_first_on_page(
 
 /*********************************************************************//**
 Gets the next explicit lock request on a record.
-@return	next lock, NULL if none exists */
+@return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED */
 UNIV_INLINE
 lock_t*
 lock_rec_get_next(
@@ -3324,7 +3324,7 @@ lock_deadlock_recursive(
 /*====================*/
 	trx_t*	start,		/*!< in: recursion starting point */
 	trx_t*	trx,		/*!< in: a transaction waiting for a lock */
-	lock_t*	wait_lock,	/*!< in: the lock trx is waiting to be granted */
+	lock_t*	wait_lock,	/*!< in: lock that is waiting to be granted */
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_IS_START */
@@ -3332,10 +3332,10 @@ lock_deadlock_recursive(
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
 {
-	lock_t*	lock;
-	ulint	bit_no		= ULINT_UNDEFINED;
-	trx_t*	lock_trx;
 	ulint	ret;
+	lock_t*	lock;
+	trx_t*	lock_trx;
+	ulint	heap_no		= ULINT_UNDEFINED;
 
 	ut_a(trx);
 	ut_a(start);
@@ -3351,27 +3351,44 @@ lock_deadlock_recursive(
 
 	*cost = *cost + 1;
 
-	lock = wait_lock;
-
 	if (lock_get_type_low(wait_lock) == LOCK_REC) {
+		ulint		space;
+		ulint		page_no;
 
-		bit_no = lock_rec_find_set_bit(wait_lock);
+		heap_no = lock_rec_find_set_bit(wait_lock);
+		ut_a(heap_no != ULINT_UNDEFINED);
 
-		ut_a(bit_no != ULINT_UNDEFINED);
+		space = wait_lock->un_member.rec_lock.space;
+		page_no = wait_lock->un_member.rec_lock.page_no;
+
+		lock = lock_rec_get_first_on_page_addr(space, page_no);
+
+		/* Position the iterator on the first matching record lock. */
+		while (lock != NULL
+		       && lock != wait_lock
+		       && !lock_rec_get_nth_bit(lock, heap_no)) {
+
+			lock = lock_rec_get_next_on_page(lock);
+		}
+
+		if (lock == wait_lock) {
+			lock = NULL;
+		}
+
+		ut_ad(lock == NULL || lock_rec_get_nth_bit(lock, heap_no));
+
+	} else {
+		lock = wait_lock;
 	}
 
 	/* Look at the locks ahead of wait_lock in the lock queue */
 
 	for (;;) {
-		if (lock_get_type_low(lock) & LOCK_TABLE) {
+		/* Get previous table lock. */
+		if (heap_no == ULINT_UNDEFINED) {
 
-			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
-						lock);
-		} else {
-			ut_ad(lock_get_type_low(lock) == LOCK_REC);
-			ut_a(bit_no != ULINT_UNDEFINED);
-
-			lock = (lock_t*) lock_rec_get_prev(lock, bit_no);
+			lock = UT_LIST_GET_PREV(
+				un_member.tab_lock.locks, lock);
 		}
 
 		if (lock == NULL) {
@@ -3493,10 +3510,26 @@ lock_deadlock_recursive(
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
 					lock_trx->wait_lock, cost, depth + 1);
+
 				if (ret != 0) {
 
 					return(ret);
 				}
+			}
+		}
+		/* Get the next record lock to check. */
+		if (heap_no != ULINT_UNDEFINED) {
+
+			ut_a(lock != NULL);
+
+			do {
+				lock = lock_rec_get_next_on_page(lock);
+			} while (lock != NULL
+				&& lock != wait_lock
+				&& !lock_rec_get_nth_bit(lock, heap_no));
+
+			if (lock == wait_lock) {
+				lock = NULL;
 			}
 		}
 	}/* end of the 'for (;;)'-loop */

@@ -485,7 +485,7 @@ next_column:
 /****************************************************************//**
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running the
-query thread */
+query thread and in that case the thr is ALREADY in the running state. */
 UNIV_INTERN
 ibool
 row_mysql_handle_errors(
@@ -3363,6 +3363,99 @@ funct_exit:
 	return((int) err);
 }
 
+/*********************************************************************//**
+Drop all temporary tables during crash recovery. */
+UNIV_INTERN
+void
+row_mysql_drop_temp_tables(void)
+/*============================*/
+{
+	trx_t*	trx;
+	ulint	err;
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "dropping temporary tables";
+	row_mysql_lock_data_dictionary(trx);
+
+	err = que_eval_sql(
+		NULL,
+		"PROCEDURE DROP_TEMP_TABLES_PROC () IS\n"
+		"table_name CHAR;\n"
+		"table_id CHAR;\n"
+		"foreign_id CHAR;\n"
+		"index_id CHAR;\n"
+		"DECLARE CURSOR c IS SELECT NAME,ID FROM SYS_TABLES\n"
+		"WHERE N_COLS > 2147483647\n"
+		/* N_COLS>>31 is set unless ROW_FORMAT=REDUNDANT,
+		and MIX_LEN may be garbage for those tables */
+		"AND MIX_LEN=(MIX_LEN/2*2+1);\n"
+		/* MIX_LEN & 1 is set for temporary tables */
+#if DICT_TF2_TEMPORARY != 1
+# error "DICT_TF2_TEMPORARY != 1"
+#endif
+		"BEGIN\n"
+		"OPEN c;\n"
+		"WHILE 1=1 LOOP\n"
+		"	FETCH c INTO table_name, table_id;\n"
+		"	IF (SQL % NOTFOUND) THEN\n"
+		"		EXIT;\n"
+		"	END IF;\n"
+		"	WHILE 1=1 LOOP\n"
+		"		SELECT ID INTO index_id\n"
+		"		FROM SYS_INDEXES\n"
+		"		WHERE TABLE_ID = table_id\n"
+		"		LOCK IN SHARE MODE;\n"
+		"		IF (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		/* Do not drop tables for which there exist
+		foreign key constraints. */
+		"		SELECT ID INTO foreign_id\n"
+		"		FROM SYS_FOREIGN\n"
+		"		WHERE FOR_NAME = table_name\n"
+		"		AND TO_BINARY(FOR_NAME)\n"
+		"		  = TO_BINARY(table_name)\n;"
+		"		IF NOT (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		"		SELECT ID INTO foreign_id\n"
+		"		FROM SYS_FOREIGN\n"
+		"		WHERE REF_NAME = table_name\n"
+		"		AND TO_BINARY(REF_NAME)\n"
+		"		  = TO_BINARY(table_name)\n;"
+		"		IF NOT (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		"		DELETE FROM SYS_FIELDS\n"
+		"		WHERE INDEX_ID = index_id;\n"
+		"		DELETE FROM SYS_INDEXES\n"
+		"		WHERE ID = index_id\n"
+		"		AND TABLE_ID = table_id;\n"
+		"	END LOOP;\n"
+		"	DELETE FROM SYS_COLUMNS\n"
+		"	WHERE TABLE_ID = table_id;\n"
+		"	DELETE FROM SYS_TABLES\n"
+		"	WHERE ID = table_id;\n"
+		"END LOOP;\n"
+		"COMMIT WORK;\n"
+		"END;\n"
+		, FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to drop temporary tables:"
+			" error %lu occurred\n",
+			(ulong) err);
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_background(trx);
+}
+
 /*******************************************************************//**
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
@@ -3914,14 +4007,15 @@ Checks that the index contains entries in an ascending order, unique
 constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
 @return	TRUE if ok */
-static
+UNIV_INTERN
 ibool
-row_scan_and_check_index(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in MySQL */
-	dict_index_t*	index,		/*!< in: index */
-	ulint*		n_rows)		/*!< out: number of entries seen in the
-					current consistent read */
+row_check_index_for_mysql(
+/*======================*/
+	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
+						in MySQL handle */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint*			n_rows)		/*!< out: number of entries
+						seen in the consistent read */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -3942,31 +4036,9 @@ row_scan_and_check_index(
 
 	*n_rows = 0;
 
-	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
-		/* A newly created index may lack some delete-marked
-		records that may exist in the read view of
-		prebuilt->trx.  Thus, such indexes must not be
-		accessed by consistent read. */
-		return(is_ok);
-	}
-
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);
 
-	/* Make a dummy template in prebuilt, which we will use
-	in scanning the index entries */
-
-	prebuilt->index = index;
-	/* row_merge_is_index_usable() was already checked above. */
-	prebuilt->index_usable = TRUE;
-	prebuilt->sql_stat_start = TRUE;
-	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
-	prebuilt->n_template = 0;
-	prebuilt->need_to_access_clustered = FALSE;
-
-	dtuple_set_n_fields(prebuilt->search_tuple, 0);
-
-	prebuilt->select_lock_type = LOCK_NONE;
 	cnt = 1000;
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -4082,119 +4154,6 @@ not_ok:
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
-}
-
-/*********************************************************************//**
-Checks a table for corruption.
-@return	DB_ERROR or DB_SUCCESS */
-UNIV_INTERN
-ulint
-row_check_table_for_mysql(
-/*======================*/
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
-{
-	dict_table_t*	table		= prebuilt->table;
-	dict_index_t*	index;
-	ulint		n_rows;
-	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ulint		ret		= DB_SUCCESS;
-	ulint		old_isolation_level;
-
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			table->name);
-		return(DB_ERROR);
-	}
-
-	prebuilt->trx->op_info = "checking table";
-
-	old_isolation_level = prebuilt->trx->isolation_level;
-
-	/* We must run the index record counts at an isolation level
-	>= READ COMMITTED, because a dirty read can see a wrong number
-	of records in some index; to play safe, we use always
-	REPEATABLE READ here */
-
-	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		/* fputs("Validating index ", stderr);
-		ut_print_name(stderr, trx, FALSE, index->name);
-		putc('\n', stderr); */
-
-		if (!btr_validate_index(index, prebuilt->trx)) {
-			ret = DB_ERROR;
-		} else {
-			if (!row_scan_and_check_index(prebuilt,index, &n_rows)){
-				ret = DB_ERROR;
-			}
-
-			if (trx_is_interrupted(prebuilt->trx)) {
-				ret = DB_INTERRUPTED;
-				break;
-			}
-
-			/* fprintf(stderr, "%lu entries in index %s\n", n_rows,
-			index->name); */
-
-			if (index == dict_table_get_first_index(table)) {
-				n_rows_in_table = n_rows;
-			} else if (n_rows != n_rows_in_table) {
-
-				ret = DB_ERROR;
-
-				fputs("Error: ", stderr);
-				dict_index_name_print(stderr,
-						      prebuilt->trx, index);
-				fprintf(stderr,
-					" contains %lu entries,"
-					" should be %lu\n",
-					(ulong) n_rows,
-					(ulong) n_rows_in_table);
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	/* Restore the original isolation level */
-	prebuilt->trx->isolation_level = old_isolation_level;
-
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
-
-	if (!btr_search_validate()) {
-
-		ret = DB_ERROR;
-	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	prebuilt->trx->op_info = "";
-
-	return(ret);
 }
 
 /*********************************************************************//**

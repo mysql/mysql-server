@@ -1994,7 +1994,8 @@ row_ins_index_entry_low(
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode, &cursor, 0, &mtr);
+				    search_mode,
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insertion was made to the insert buffer already during
@@ -2053,7 +2054,8 @@ row_ins_index_entry_low(
 			btr_cur_search_to_nth_level(index, 0, entry,
 						    PAGE_CUR_LE,
 						    mode | BTR_INSERT,
-						    &cursor, 0, &mtr);
+						    &cursor, 0,
+						    __FILE__, __LINE__, &mtr);
 		}
 	}
 
@@ -2108,7 +2110,8 @@ function_exit:
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-					    BTR_MODIFY_TREE, &cursor, 0, &mtr);
+					    BTR_MODIFY_TREE, &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 		rec = btr_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
