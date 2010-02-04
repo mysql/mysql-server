@@ -233,7 +233,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; ALTER DEFINER=`root`@`localhost` EVENT evt COMMENT 'evt'
+master-bin.000001	#	Query	#	#	use `test`; ALTER EVENT evt COMMENT 'evt'
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
