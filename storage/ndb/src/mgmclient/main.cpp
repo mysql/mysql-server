@@ -72,6 +72,7 @@ static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
+static unsigned opt_verbose = 1;
 
 static struct my_option my_long_options[] =
 {
@@ -84,6 +85,10 @@ static struct my_option my_long_options[] =
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
     (uchar**) &_try_reconnect, (uchar**) &_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Control the amount of printout",
+    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void short_usage_sub(void)
@@ -164,7 +169,7 @@ int main(int argc, char** argv){
   // mgmapi installs its own SIGPIPE handler, the Ndb_mgmclient will
   // use 'ndb_mgm_set_ignore_sigpipe(handle, 0)'
   signal(SIGPIPE, handler);
-  com = new Ndb_mgmclient(opt_connect_str,1);
+  com = new Ndb_mgmclient(opt_connect_str,opt_verbose);
   int ret= 0;
   BaseString histfile;
   if (!opt_execute_str)
