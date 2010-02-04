@@ -59,10 +59,14 @@ injector::transaction::~transaction()
   my_free(the_memory, MYF(0));
 }
 
+/**
+   @retval 0 transaction committed
+   @retval 1 transaction rolled back
+ */
 int injector::transaction::commit()
 {
    DBUG_ENTER("injector::transaction::commit()");
-   m_thd->binlog_flush_pending_rows_event(true);
+   int error= m_thd->binlog_flush_pending_rows_event(true);
    /*
      Cluster replication does not preserve statement or
      transaction boundaries of the master.  Instead, a new
@@ -88,7 +92,7 @@ int injector::transaction::commit()
      close_thread_tables(m_thd);
      m_thd->mdl_context.release_transactional_locks();
    }
-   DBUG_RETURN(0);
+   DBUG_RETURN(error);
 }
 
 
@@ -115,16 +119,16 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 				      record_type record)
 {
    DBUG_ENTER("injector::transaction::write_row(...)");
-
-   if (int error= check_state(ROW_STATE))
+   int error= 0;
+   if (error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
-   m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
-                           cols, colcnt, record);
+   error= m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
+                                  cols, colcnt, record);
    m_thd->set_server_id(save_id);
-   DBUG_RETURN(0);
+   DBUG_RETURN(error);
 }
 
 
@@ -134,15 +138,16 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 {
    DBUG_ENTER("injector::transaction::delete_row(...)");
 
-   if (int error= check_state(ROW_STATE))
+   int error= 0;
+   if (error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
-   m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
-                            cols, colcnt, record);
+   error= m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
+                                   cols, colcnt, record);
    m_thd->set_server_id(save_id);
-   DBUG_RETURN(0);
+   DBUG_RETURN(error);
 }
 
 
@@ -152,15 +157,16 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 {
    DBUG_ENTER("injector::transaction::update_row(...)");
 
-   if (int error= check_state(ROW_STATE))
+   int error= 0;
+   if (error= check_state(ROW_STATE))
      DBUG_RETURN(error);
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
-   m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
-		            cols, colcnt, before, after);
+   error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
+                                   cols, colcnt, before, after);
    m_thd->set_server_id(save_id);
-   DBUG_RETURN(0);
+   DBUG_RETURN(error);
 }
 
 

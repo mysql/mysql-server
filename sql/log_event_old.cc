@@ -1504,7 +1504,15 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: For this new scheme there should be no pending event:
         need to add code to assert that is the case.
        */
-      thd->binlog_flush_pending_rows_event(false);
+      error= thd->binlog_flush_pending_rows_event(false);
+      if (error)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER(ER_SLAVE_FATAL_ERROR),
+                    "call to binlog_flush_pending_rows_event() failed");
+        thd->is_slave_error= 1;
+        DBUG_RETURN(error);
+      }
       TABLE_LIST *tables= rli->tables_to_lock;
       close_tables_for_reopen(thd, &tables, NULL);
 
@@ -1785,7 +1793,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    int binlog_error= thd->binlog_flush_pending_rows_event(true);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -1796,12 +1804,13 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if ((error= trans_commit_stmt(thd)))
+    if ((error= (binlog_error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd))))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
                   get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
+    error|= binlog_error;
 
     /*
       Now what if this is not a transactional engine? we still need to

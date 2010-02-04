@@ -178,13 +178,13 @@ uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
   Helper function to write a query to binlog used by mysql_rm_db()
 */
 
-static inline void write_to_binlog(THD *thd, char *query, uint q_len,
-                                   char *db, uint db_len)
+static inline int write_to_binlog(THD *thd, char *query, uint q_len,
+                                  char *db, uint db_len)
 {
   Query_log_event qinfo(thd, query, q_len, 0, 0, 0);
   qinfo.db= db;
   qinfo.db_len= db_len;
-  mysql_bin_log.write(&qinfo);
+  return mysql_bin_log.write(&qinfo);
 }  
 
 
@@ -774,7 +774,11 @@ not_silent:
       qinfo.db_len = strlen(db);
 
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        error= -1;
+        goto exit;
+      }
     }
     my_ok(thd, result);
   }
@@ -851,7 +855,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db_len = strlen(db);
 
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
-    mysql_bin_log.write(&qinfo);
+    if (error= mysql_bin_log.write(&qinfo))
+      goto exit;
   }
   my_ok(thd, result);
 
@@ -997,7 +1002,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       qinfo.db_len = strlen(db);
 
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        error= -1;
+        goto exit;
+      }
     }
     thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
@@ -1025,7 +1034,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         /* These DDL methods and logging protected with LOCK_mysql_create_db */
-        write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+        if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
+        {
+          error= -1;
+          goto exit;
+        }
         query_pos= query_data_start;
       }
 
@@ -1038,7 +1051,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     if (query_pos != query_data_start)
     {
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
-      write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+      if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
+      {
+        error= -1;
+        goto exit;
+      }
     }
   }
 
@@ -1994,7 +2011,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                           0, TRUE, errcode);
     thd->clear_error();
-    mysql_bin_log.write(&qinfo);
+    error|= mysql_bin_log.write(&qinfo);
   }
 
   /* Step9: Let's do "use newdb" if we renamed the current database */

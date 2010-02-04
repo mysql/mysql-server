@@ -524,8 +524,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
-  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-
+  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 
  err:
@@ -599,8 +599,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
-  write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-
+  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 err:
   mysql_rwlock_unlock(&THR_LOCK_udf);

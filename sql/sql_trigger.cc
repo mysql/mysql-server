@@ -511,7 +511,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 end:
   if (!result)
   {
-    write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
   /*

@@ -4377,8 +4377,9 @@ static int fast_end_partition(THD *thd, ulonglong copied,
     DBUG_RETURN(TRUE);                      /* The error has been reported */
 
   if ((!is_empty) && (!written_bin_log) &&
-      (!thd->lex->no_write_to_binlog))
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      (!thd->lex->no_write_to_binlog) &&
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+    DBUG_RETURN(TRUE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),
