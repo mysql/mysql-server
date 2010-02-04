@@ -384,12 +384,16 @@ void MDL_map::destroy()
 MDL_lock* MDL_map::find_or_insert(const MDL_key *mdl_key)
 {
   MDL_lock *lock;
+  my_hash_value_type hash_value;
+
+  hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
 
 retry:
   pthread_mutex_lock(&m_mutex);
-  if (!(lock= (MDL_lock*) my_hash_search(&m_locks,
-                                         mdl_key->ptr(),
-                                         mdl_key->length())))
+  if (!(lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
+                                                          hash_value,
+                                                          mdl_key->ptr(),
+                                                          mdl_key->length())))
   {
     lock= MDL_lock::create(mdl_key);
     if (!lock || my_hash_insert(&m_locks, (uchar*)lock))
@@ -418,12 +422,16 @@ retry:
 MDL_lock* MDL_map::find(const MDL_key *mdl_key)
 {
   MDL_lock *lock;
+  my_hash_value_type hash_value;
+
+  hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
 
 retry:
   pthread_mutex_lock(&m_mutex);
-  if (!(lock= (MDL_lock*) my_hash_search(&m_locks,
-                                         mdl_key->ptr(),
-                                         mdl_key->length())))
+  if (!(lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
+                                                          hash_value,
+                                                          mdl_key->ptr(),
+                                                          mdl_key->length())))
   {
     pthread_mutex_unlock(&m_mutex);
     return NULL;
