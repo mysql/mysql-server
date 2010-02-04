@@ -1718,6 +1718,19 @@ drop table t1;
 remove_file non_existing_file;
 
 # ----------------------------------------------------------------------------
+# test for remove_files_wildcard
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "remove_files_wildcard ;" | $MYSQL_TEST 2>&1
+
+--error 1
+remove_files_wildcard non_existing_dir;
+
+--error 1
+remove_files_wildcard non_existing_dir non_existing_file;
+
+# ----------------------------------------------------------------------------
 # test for write_file
 # ----------------------------------------------------------------------------
 --error 1
@@ -2384,9 +2397,14 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 cat_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
 
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt;
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
+list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file11.txt $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
+list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
+cat_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
+list_files $MYSQLTEST_VARDIR/tmp/testdir;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir;
+list_files $MYSQLTEST_VARDIR/tmp/testdir;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 #
