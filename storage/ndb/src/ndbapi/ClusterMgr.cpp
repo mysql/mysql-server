@@ -131,7 +131,7 @@ ClusterMgr::startThread() {
                                          (void**)this,
                                          0, // default stack size
                                          "ndb_clustermgr",
-                                         NDB_THREAD_PRIO_LOW);
+                                         NDB_THREAD_PRIO_HIGH);
   NdbMutex_Unlock(clusterMgrThreadMutex);
 }
 

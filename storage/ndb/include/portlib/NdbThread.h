@@ -169,6 +169,20 @@ int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
  */
 int NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id);
 
+/**
+ * Set properties for NDB_THREAD_PRIO_HIGH
+ *
+ * NOTE 1: should be set *prior* to starting thread
+ * NOTE 2: if these properties *can* be applied is not checked
+ *         if they can not, then it will be silently ignored
+ *
+ * @param spec <fifo | rr>[,<prio>]
+ *
+ * @return 0  - parse ok
+ *  return -1 - Invalid spec
+ */
+int NdbThread_SetHighPrioProperties(const char * spec);
+
 #ifdef	__cplusplus
 }
 #endif
