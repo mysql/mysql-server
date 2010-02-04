@@ -276,3 +276,39 @@ ELSE()
 ENDIF()
 ENDIF()
 
+# Optionally install mysqld from debug build run. outside of the current build dir 
+# (unless multi-config generator is used# like Visual Studio or Xcode). 
+# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
+
+GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
+SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug")
+  
+IF(WIN32)
+ SET(EXE ".exe")
+ELSE()
+ SET(EXE)
+ENDIF()
+
+IF(CMAKE_GENERATOR MATCHES "Makefiles")
+  SET(MYSQLD_DEBUG_EXE ${DEBUGBUILDDIR}/sql/mysqld${EXE})
+ELSE()
+  # Visual Studio and Xcode
+  SET(MYSQLD_DEBUG_EXE ${CMAKE_BINARY_DIR}/sql/Debug/mysqld${EXE})
+ENDIF()
+
+INSTALL(FILES ${MYSQLD_DEBUG_EXE}
+  DESTINATION ${INSTALL_SBINDIR}
+  RENAME mysqld-debug${EXE}
+  CONFIGURATIONS Release RelWithDebInfo
+  OPTIONAL)
+
+IF(WIN32)
+  STRING(REPLACE ".exe" ".pdb" MYSQLD_DEBUG_PDB ${MYSQLD_DEBUG_EXE})
+  INSTALL(FILES ${MYSQLD_DEBUG_PDB}
+  CONFIGURATIONS Release RelWithDebInfo
+  DESTINATION ${INSTALL_SBINDIR} 
+  RENAME mysqld-debug.pdb 
+  OPTIONAL)
+ENDIF()
+
+
