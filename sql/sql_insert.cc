@@ -1818,11 +1818,11 @@ public:
     mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_delayed_insert_cond, &cond, NULL);
     mysql_cond_init(key_delayed_insert_cond_client, &cond_client, NULL);
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     delayed_insert_threads++;
     delayed_lock= global_system_variables.low_priority_updates ?
                                           TL_WRITE_LOW_PRIORITY : TL_WRITE;
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
   ~Delayed_insert()
   {
@@ -1832,7 +1832,7 @@ public:
       delete row;
     if (table)
       close_thread_tables(&thd);
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
     mysql_cond_destroy(&cond_client);
@@ -1841,8 +1841,8 @@ public:
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
-    pthread_mutex_unlock(&LOCK_thread_count);
-    pthread_cond_broadcast(&COND_thread_count); /* Tell main we are ready */
+    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_cond_broadcast(&COND_thread_count); /* Tell main we are ready */
   }
 
   /* The following is for checking when we can delete ourselves */
@@ -1975,9 +1975,9 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     {
       if (!(di= new Delayed_insert()))
         goto end_create;
-      pthread_mutex_lock(&LOCK_thread_count);
+      mysql_mutex_lock(&LOCK_thread_count);
       thread_count++;
-      pthread_mutex_unlock(&LOCK_thread_count);
+      mysql_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name,
                                   MYF(MY_WME | ME_FATALERROR)), 0);
@@ -2411,12 +2411,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
   pthread_detach_this_thread();
   /* Add thread to THD list so that's it's visible in 'show processlist' */
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
   threads.append(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   mysql_thread_set_psi_id(thd->thread_id);
 

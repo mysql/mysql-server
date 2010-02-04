@@ -1,4 +1,4 @@
-/* Copyright 2002-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2002-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1751,9 +1751,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    pthread_mutex_lock(&LOCK_thread_count);
+    mysql_mutex_lock(&LOCK_thread_count);
     q= global_query_id;
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;

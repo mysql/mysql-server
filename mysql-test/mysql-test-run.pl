@@ -1,6 +1,21 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
 #
 ##############################################################################
 #
@@ -128,7 +143,9 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb";
+# If you add a new suite, please check TEST_DIRS in Makefile.am.
+#
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose

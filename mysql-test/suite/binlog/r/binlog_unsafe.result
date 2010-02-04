@@ -320,10 +320,10 @@ INSERT INTO t2 SET a = func_modify_t1();
 SHOW BINLOG EVENTS FROM 12283;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	12283	Query	1	12351	BEGIN
-master-bin.000001	12351	Table_map	1	12393	table_id: 41 (test.t2)
-master-bin.000001	12393	Table_map	1	12435	table_id: 42 (test.t1)
-master-bin.000001	12435	Write_rows	1	12473	table_id: 42
-master-bin.000001	12473	Write_rows	1	12511	table_id: 41 flags: STMT_END_F
+master-bin.000001	12351	Table_map	1	12393	table_id: 59 (test.t2)
+master-bin.000001	12393	Table_map	1	12435	table_id: 60 (test.t1)
+master-bin.000001	12435	Write_rows	1	12473	table_id: 60
+master-bin.000001	12473	Write_rows	1	12511	table_id: 59 flags: STMT_END_F
 master-bin.000001	12511	Query	1	12580	COMMIT
 DROP TABLE t1,t2;
 DROP FUNCTION func_modify_t1;
@@ -347,12 +347,12 @@ INSERT INTO t1 SET a = 2;
 SHOW BINLOG EVENTS FROM 13426;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	13426	Query	1	13494	BEGIN
-master-bin.000001	13494	Table_map	1	13535	table_id: 44 (test.t1)
-master-bin.000001	13535	Table_map	1	13577	table_id: 45 (test.t3)
-master-bin.000001	13577	Table_map	1	13619	table_id: 46 (test.t2)
-master-bin.000001	13619	Write_rows	1	13657	table_id: 46
-master-bin.000001	13657	Write_rows	1	13695	table_id: 45
-master-bin.000001	13695	Write_rows	1	13729	table_id: 44 flags: STMT_END_F
+master-bin.000001	13494	Table_map	1	13535	table_id: 62 (test.t1)
+master-bin.000001	13535	Table_map	1	13577	table_id: 63 (test.t3)
+master-bin.000001	13577	Table_map	1	13619	table_id: 64 (test.t2)
+master-bin.000001	13619	Write_rows	1	13657	table_id: 64
+master-bin.000001	13657	Write_rows	1	13695	table_id: 63
+master-bin.000001	13695	Write_rows	1	13729	table_id: 62 flags: STMT_END_F
 master-bin.000001	13729	Query	1	13798	COMMIT
 DROP TABLE t1,t2,t3;
 SET SESSION binlog_format = STATEMENT;

@@ -1,0 +1,66 @@
+drop table if exists t1;
+create table t1 (a int not null);
+insert into t1 values (1), (2), (3);
+SET GLOBAL query_cache_size=1355776;
+flush query cache;
+reset query cache;
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+spins
+NULL
+select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+name
+wait/io/file/csv/data
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+spins
+NULL
+select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+name
+wait/io/file/csv/data
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+SET GLOBAL query_cache_size= default;
+drop table t1;
