@@ -62,6 +62,7 @@ namespace AQP
   */
   class Query_plan
   {
+    friend class Equal_set_iterator;
   public:
 
     explicit Query_plan()
@@ -80,8 +81,7 @@ namespace AQP
       return m_access_count;
     }
 
-    const Table_access
-      get_referred_table_access(const Item_field* field_item) const;
+    int32 get_referred_table(const Item_field* field_item) const;
 
   private:
     /** Number of table access operations.*/
@@ -157,7 +157,7 @@ namespace AQP
   {
     friend class Query_plan;
     friend class Table_access_set;
-    friend class Equal_set_iterator;
+//  friend class Equal_set_iterator;
     friend inline bool equal(const Table_access*, const Table_access*);
   public:
 
@@ -206,10 +206,10 @@ namespace AQP
     const JOIN_TAB* get_join_tab() const;
 
     /** The first access operation in the plan. */
-    const JOIN_TAB* m_root_tab;
+    const JOIN_TAB* const m_root_tab;
 
     /** This operation corresponds to m_root_tab[m_tab_no].*/
-    int32 m_tab_no;
+    const int32 m_tab_no;
 
     /** The type of this operation.*/
     enum_access_type m_access_type;
@@ -230,16 +230,16 @@ namespace AQP
   public:
     explicit Table_access_set() :m_map(0){};
 
-    /** Add 'table_access' to the set.*/
-    void add(const Table_access* table_access)
+    /** Add 'tab_no' to the set.*/
+    void add(int32 tab_no)
     {
-      m_map|=  static_cast<table_map>(1) << table_access->m_tab_no;
+      m_map|=  static_cast<table_map>(1) << tab_no;
     }
 
-    /** Check if the set cointains 'table_access'.*/
-    bool contains(const Table_access* table_access) const
+    /** Check if the set cointains 'tab_no'.*/
+    bool contains(int32 tab_no) const
     {
-      return (m_map & (static_cast<table_map>(1) << table_access->m_tab_no))
+      return (m_map & (static_cast<table_map>(1) << tab_no))
 	!= 0;
     }
 
