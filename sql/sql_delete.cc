@@ -132,7 +132,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       (!thd->current_stmt_binlog_row_based &&
+       (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers()))))
   {
     /* Update the table->file->stats.records number */
@@ -386,7 +386,8 @@ cleanup:
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.modified_non_trans_table=
+      thd->transaction.all.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
@@ -415,15 +416,13 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query(), thd->query_length(),
-                                        is_trans, FALSE, errcode);
+                                        is_trans, FALSE, FALSE, errcode);
 
       if (log_result)
       {
 	error=1;
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
@@ -462,19 +461,6 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
-  /*
-    Statement-based replication of DELETE ... LIMIT is not safe as order of
-    rows is not defined, so in mixed mode we go to row-based.
-
-    Note that we may consider a statement as safe if ORDER BY primary_key
-    is present. However it may confuse users to see very similiar statements
-    replicated differently.
-  */
-  if (thd->lex->current_select->select_limit)
-  {
-    thd->lex->set_stmt_unsafe();
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-  }
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
@@ -823,6 +809,9 @@ void multi_delete::abort()
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     If rows from the first table only has been deleted and it is
     transactional, just do rollback.
@@ -853,10 +842,9 @@ void multi_delete::abort()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
-                              thd->query(), thd->query_length(),
-                              transactional_tables, FALSE, errcode);
+                               thd->query(), thd->query_length(),
+                               transactional_tables, FALSE, FALSE, errcode);
     }
-    thd->transaction.all.modified_non_trans_table= true;
   }
   DBUG_VOID_RETURN;
 }
@@ -1009,6 +997,9 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd_proc_info(thd, "end");
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     We must invalidate the query cache before binlog writing and
     ha_autocommit_...
@@ -1028,14 +1019,12 @@ bool multi_delete::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
-                            transactional_tables, FALSE, errcode) &&
+                            transactional_tables, FALSE, FALSE, errcode) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()
@@ -1060,11 +1049,11 @@ bool multi_delete::send_eof()
 
 static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 {
-  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  bool error, save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
   mysql_init_select(thd->lex);
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
   /* Delete all rows from table */
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
   /*
@@ -1077,7 +1066,8 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
     trans_rollback_stmt(thd);
     trans_rollback(thd);
   }
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
 
@@ -1254,10 +1244,10 @@ end:
     if (!error)
     {
       /* In RBR, the statement is not binlogged if the table is temporary. */
-      if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
+      if (!is_temporary_table || !thd->is_current_stmt_binlog_format_row())
         error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       if (!error)
-        my_ok(thd);		// This should return record count
+        my_ok(thd);             // This should return record count
     }
     if (has_mdl_lock)
       thd->mdl_context.release_transactional_locks();

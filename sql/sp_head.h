@@ -150,9 +150,8 @@ public:
     HAS_COMMIT_OR_ROLLBACK= 128,
     LOG_SLOW_STATEMENTS= 256,   // Used by events
     LOG_GENERAL_LOG= 512,        // Used by events
-    BINLOG_ROW_BASED_IF_MIXED= 1024,
-    HAS_SQLCOM_RESET= 2048,
-    HAS_SQLCOM_FLUSH= 4096
+    HAS_SQLCOM_RESET= 1024,
+    HAS_SQLCOM_FLUSH= 2048
   };
 
   /** TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
@@ -204,6 +203,11 @@ private:
   */
   ulong m_sp_cache_version;
   Stored_program_creation_ctx *m_creation_ctx;
+  /**
+    Boolean combination of (1<<flag), where flag is a member of
+    LEX::enum_binlog_stmt_unsafe.
+  */
+  uint32 unsafe_flags;
 
 public:
   inline Stored_program_creation_ctx *get_creation_ctx()
@@ -462,14 +466,19 @@ public:
   */
   void propagate_attributes(Query_tables_list *prelocking_ctx)
   {
+    DBUG_ENTER("sp_head::propagate_attributes");
     /*
       If this routine needs row-based binary logging, the entire top statement
       too (we cannot switch from statement-based to row-based only for this
       routine, as in statement-based the top-statement may be binlogged and
       the substatements not).
     */
-    if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      prelocking_ctx->set_stmt_unsafe();
+    DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
+                        prelocking_ctx->get_stmt_unsafe_flags()));
+    DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x",
+                        this, name(), unsafe_flags));
+    prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
+    DBUG_VOID_RETURN;
   }
 
   sp_pcontext *get_parse_context() { return m_pcont; }

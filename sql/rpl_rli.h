@@ -334,13 +334,21 @@ public:
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
 
-  inline table_def *get_tabledef(TABLE *tbl)
+  bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
   {
-    table_def *td= 0;
-    for (TABLE_LIST *ptr= tables_to_lock; ptr && !td; ptr= ptr->next_global)
-      if (ptr->table == tbl)
-        td= &((RPL_TABLE_LIST *)ptr)->m_tabledef;
-    return (td);
+    DBUG_ASSERT(tabledef_var && conv_table_var);
+    for (TABLE_LIST *ptr= tables_to_lock ; ptr != NULL ; ptr= ptr->next_global)
+      if (ptr->table == table_arg)
+      {
+        *tabledef_var= &static_cast<RPL_TABLE_LIST*>(ptr)->m_tabledef;
+        *conv_table_var= static_cast<RPL_TABLE_LIST*>(ptr)->m_conv_table;
+        DBUG_PRINT("debug", ("Fetching table data for table %s.%s:"
+                             " tabledef: %p, conv_table: %p",
+                             table_arg->s->db.str, table_arg->s->table_name.str,
+                             *tabledef_var, *conv_table_var));
+        return true;
+      }
+    return false;
   }
 
   /*

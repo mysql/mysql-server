@@ -166,22 +166,13 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
-  virtual int compatible_field_size(uint field_metadata,
-                                    const Relay_log_info *);
+  virtual bool compatible_field_size(uint metadata, Relay_log_info *rli,
+                                     uint16 mflags, int *order);
   virtual uint pack_length_from_metadata(uint field_metadata)
-  { return field_metadata; }
-  /*
-    This method is used to return the size of the data in a row-based
-    replication row record. The default implementation of returning 0 is
-    designed to allow fields that do not use metadata to return TRUE (1)
-    from compatible_field_size() which uses this function in the comparison.
-    The default value for field metadata for fields that do not have 
-    metadata is 0. Thus, 0 == 0 means the fields are compatible in size.
-
-    Note: While most classes that override this method return pack_length(),
-    the classes Field_string, Field_varstring, and Field_blob return 
-    field_length + 1, field_length, and pack_length_no_ptr() respectfully.
-  */
+  {
+    DBUG_ENTER("Field::pack_length_from_metadata");
+    DBUG_RETURN(field_metadata);
+  }
   virtual uint row_pack_length() { return 0; }
   virtual int save_field_metadata(uchar *first_byte)
   { return do_save_field_metadata(first_byte); }
@@ -618,6 +609,13 @@ public:
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
   uint is_equal(Create_field *new_field);
+  uint row_pack_length() { return pack_length(); }
+  uint32 pack_length_from_metadata(uint field_metadata) {
+    uint32 length= pack_length();
+    DBUG_PRINT("result", ("pack_length_from_metadata(%d): %u",
+                          field_metadata, length));
+    return length;
+  }
   int check_int(CHARSET_INFO *cs, const char *str, int length,
                 const char *int_end, int error);
   bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
@@ -782,8 +780,8 @@ public:
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() { return pack_length(); }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -1478,9 +1476,12 @@ public:
       return row_pack_length();
     return (((field_metadata >> 4) & 0x300) ^ 0x300) + (field_metadata & 0x00ff);
   }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
-  uint row_pack_length() { return (field_length + 1); }
+  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
+  uint row_pack_length() { return field_length; }
+  int pack_cmp(const uchar *a,const uchar *b,uint key_length,
+               my_bool insert_or_update);
+  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -1925,8 +1926,8 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length()
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+  bool compatible_field_size(uint metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -2029,7 +2030,8 @@ public:
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
-                          bool maybe_null, bool is_unsigned);
+                          bool maybe_null, bool is_unsigned,
+                          uint pack_length = ~0U);
 
   bool init(THD *thd, char *field_name, enum_field_types type, char *length,
             char *decimals, uint type_modifier, Item *default_value,

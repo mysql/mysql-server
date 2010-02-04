@@ -926,7 +926,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* Grab an exclusive MDL lock. */
   if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
@@ -1127,9 +1127,9 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       /* restore sql_mode when binloging */
       thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
-      if (thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             log_query.c_ptr(), log_query.length(),
-                            FALSE, FALSE, 0))
+                            FALSE, FALSE, FALSE, 0))
         ret= SP_INTERNAL_ERROR;
       thd->variables.sql_mode= 0;
     }
@@ -1176,7 +1176,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   /* Grab an exclusive MDL lock. */
   if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
@@ -1256,7 +1256,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     row-based replication. The flag will be reset at the end of the
     statement.
   */
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
 
   if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);

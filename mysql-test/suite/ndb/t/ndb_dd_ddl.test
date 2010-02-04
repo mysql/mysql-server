@@ -462,7 +462,7 @@ ENGINE = NDB;
 
 DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
-DROP DATABASE mysqltest2;
+DROP DATABASE IF EXISTS mysqltest2;
 
 --echo
 --echo # -----------------------------------------------------------------
