@@ -101,8 +101,6 @@ private:
   int  executePurge(char* parameters);
   int  executeConnect(char* parameters, bool interactive);
   int  executeShutdown(char* parameters);
-  void executeRun(char* parameters);
-  void executeInfo(char* parameters);
   void executeClusterLog(char* parameters);
 
 public:
@@ -133,11 +131,6 @@ public:
                       int *node_ids, int no_of_nodes);
   int  executeStart(Vector<BaseString> &command_list, unsigned command_pos,
                     int *node_ids, int no_of_nodes);
-
-  int  executeRep(char* parameters);
-
-  void executeCpc(char * parameters);
-
 public:
   bool connect(bool interactive);
   bool disconnect();
@@ -223,17 +216,6 @@ Ndb_mgmclient::disconnect()
 
 #include "MgmtErrorReporter.hpp"
 
-int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, bool interactive, int *error)
-{
-  if (argc <= 0)
-    return 0;
-  BaseString _line(argv[0]);
-  for (int i= 1; i < argc; i++)
-  {
-    _line.appfmt(" %s", argv[i]);
-  }
-  return m_cmd->execute(_line.c_str(),_try_reconnect, interactive, error);
-}
 
 /*****************************************************************************
  * HELP
