@@ -103,6 +103,7 @@ static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * 
 static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
 static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const char * data);
+static bool checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * data);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -161,6 +162,9 @@ ConfigInfo::m_SectionRules[] = {
   { DB_TOKEN,   fixBackupDataDir, 0 },
 
   { DB_TOKEN,   checkDbConstraints, 0 },
+
+  { API_TOKEN, checkThreadPrioSpec, 0 },
+  { MGM_TOKEN, checkThreadPrioSpec, 0 },
 
   { "TCP",  checkConnectionConstraints, 0 },
   { "SHM",  checkConnectionConstraints, 0 },
@@ -1957,6 +1961,15 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"
   },
 
+  {
+    CFG_HB_THREAD_PRIO,
+    "HeartbeatThreadPriority",
+    API_TOKEN,
+    "Specify thread properties of heartbeat thread",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_STRING,
+    0, 0, 0 },
 
   /****************************************************************************
    * MGM
@@ -2136,6 +2149,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "256K",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_HB_THREAD_PRIO,
+    "HeartbeatThreadPriority",
+    MGM_TOKEN,
+    "Specify thread properties of heartbeat thread",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_STRING,
+    0, 0, 0
   },
 
   /****************************************************************************
@@ -4283,6 +4307,28 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
     return false;
   } 
 
+  return true;
+}
+
+#include <NdbThread.h>
+
+static
+bool
+checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
+{
+  (void)unused;
+  const char * spec = 0;
+  if (ctx.m_currentSection->get("HeartbeatThreadPriority", &spec))
+  {
+    int ret = NdbThread_SetHighPrioProperties(spec);
+    NdbThread_SetHighPrioProperties(0); // reset
+    if (ret)
+    {
+      ctx.reportError("Unable to parse HeartbeatThreadPriority: %s", spec);
+      return false;
+    }
+    return true;
+  }
   return true;
 }
 
