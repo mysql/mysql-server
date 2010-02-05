@@ -5,8 +5,8 @@
 
 --source include/have_debug.inc
 
-call mtr.add_suppression("Out of memory at line .*, 'my_alloc.c'");
-call mtr.add_suppression("needed .* byte .*k., memory in use: .* bytes .*k");
+call mtr.add_suppression("Out of memory at line .*, '.*my_alloc.c'");
+call mtr.add_suppression("needed .* byte (.*k)., memory in use: .* bytes (.*k)");
 
 CREATE TABLE t1(a CHAR(255));
 INSERT INTO t1 VALUES ('a');

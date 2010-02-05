@@ -215,6 +215,11 @@ public:
   {
     return has_timestamp_args();
   }
+
+  virtual bool find_function_processor (uchar *arg)
+  {
+    return functype() == *(Functype *) arg;
+  }
 };
 
 
