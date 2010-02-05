@@ -92,9 +92,7 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 extern char NEAR _dig_vec_upper[];
 extern char NEAR _dig_vec_lower[];
 
-#ifdef BAD_STRING_COMPILER
-#define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
-#else
+#ifndef strmov
 #define strmov_overlapp(A,B) strmov(A,B)
 #define strmake_overlapp(A,B,C) strmake(A,B,C)
 #endif
@@ -152,12 +150,11 @@ extern	size_t strinstr(const char *str,const char *search);
 extern  size_t r_strinstr(const char *str, size_t from, const char *search);
 extern	char *strkey(char *dst,char *head,char *tail,char *flags);
 extern	char *strmake(char *dst,const char *src,size_t length);
-#ifndef strmake_overlapp
-extern	char *strmake_overlapp(char *dst,const char *src, size_t length);
-#endif
 
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
+#else
+extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
 extern	char *strnmov(char *dst,const char *src,size_t n);
 extern	char *strsuff(const char *src,const char *suffix);

@@ -1695,23 +1695,23 @@ SUCCESS
 drop table t2;
 create temporary table t2 (a int);
 execute stmt;
-ERROR 42S01: Table 't2' already exists
 call p_verify_reprepare_count(1);
 SUCCESS
 
 execute stmt;
 ERROR 42S01: Table 't2' already exists
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 drop temporary table t2;
 execute stmt;
-call p_verify_reprepare_count(1);
+ERROR 42S01: Table 't2' already exists
+call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 drop table t2;
