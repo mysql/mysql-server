@@ -2064,7 +2064,7 @@ select column_name from information_schema.columns
 where table_schema='test' and table_name='t2';
 column_name
 Warnings:
-Warning	1652	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
 # Finally, test for I_S query which does full-blown table open.
 #
 # Query below should not be blocked. Warning message should be

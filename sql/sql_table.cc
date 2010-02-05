@@ -5230,8 +5230,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
-                                       FALSE, 0)) ||
-      local_create_info.table_existed)
+                                       FALSE, 0)))
     goto err;
 
   /*
@@ -5239,6 +5238,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     non-temporary table.
   */
   DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+              local_create_info.table_existed ||
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
@@ -5271,33 +5271,42 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
         Open_table_context ot_ctx_unused(thd);
+
         /*
-          Here we open the destination table, on which we already have
-          exclusive metadata lock. This is needed for store_create_info()
-          to work. The table will be closed by close_thread_table() at
-          the end of this branch.
+          The condition avoids a crash as described in BUG#48506. Other
+          binlogging problems related to CREATE TABLE IF NOT EXISTS LIKE
+          when the existing object is a view will be solved by BUG 47442.
         */
-        if (open_table(thd, table, thd->mem_root, &ot_ctx_unused,
-                       MYSQL_OPEN_REOPEN))
-          goto err;
+        if (!table->view)
+        {
+          /*
+            Here we open the destination table, on which we already have
+            exclusive metadata lock. This is needed for store_create_info()
+            to work. The table will be closed by close_thread_table() at
+            the end of this branch.
+          */
+          if (open_table(thd, table, thd->mem_root, &ot_ctx_unused,
+                         MYSQL_OPEN_REOPEN))
+            goto err;
 
-        int result __attribute__((unused))=
-          store_create_info(thd, table, &query,
-                            create_info, FALSE /* show_database */);
+          int result __attribute__((unused))=
+            store_create_info(thd, table, &query,
+                              create_info, FALSE /* show_database */);
 
-        DBUG_ASSERT(result == 0); // store_create_info() always return 0
-        if (write_bin_log(thd, TRUE, query.ptr(), query.length()))
-          goto err;
+          DBUG_ASSERT(result == 0); // store_create_info() always return 0
+          if (write_bin_log(thd, TRUE, query.ptr(), query.length()))
+            goto err;
 
-        DBUG_ASSERT(thd->open_tables == table->table);
-        mysql_mutex_lock(&LOCK_open);
-        /*
-          When opening the table, we ignored the locked tables
-          (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table without
-          risking to close some locked table.
-        */
-        close_thread_table(thd, &thd->open_tables);
-        mysql_mutex_unlock(&LOCK_open);
+          DBUG_ASSERT(thd->open_tables == table->table);
+          mysql_mutex_lock(&LOCK_open);
+          /*
+            When opening the table, we ignored the locked tables
+            (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table without
+            risking to close some locked table.
+          */
+          close_thread_table(thd, &thd->open_tables);
+          mysql_mutex_unlock(&LOCK_open);
+        }
       }
       else                                      // Case 1
         if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
