@@ -1462,6 +1462,18 @@ ERROR 42S02: Unknown table 'no_such_table' in HANDLER
 handler no_such_table close;
 ERROR 42S02: Unknown table 'no_such_table' in HANDLER
 #
+# Bug#50907 Assertion `hash_tables->table->next == __null' on 
+#           HANDLER OPEN
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+HANDLER t2 OPEN;
+HANDLER t2 READ FIRST;
+i
+HANDLER t2 CLOSE;
+DROP TABLE t1, t2;
+#
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
 CREATE TABLE t1 AS SELECT 1 AS f1;
