@@ -139,7 +139,8 @@ disable_warnings;
 
 ######## DATABASE ########
 
-let $diff_statement= SHOW DATABASES LIKE 'd%';
+let $diff_statement= SELECT schema_name FROM information_schema.schemata
+                     WHERE schema_name LIKE 'd%' ORDER BY schema_name;
 
 send CREATE DATABASE d2;
 source include/kill_query_and_diff_master_slave.inc;
@@ -159,7 +160,8 @@ source include/kill_query_and_diff_master_slave.inc;
 ######## EVENT ########
 
 let $diff_statement= SELECT event_name, event_body, execute_at
-                     FROM information_schema.events where event_name like 'e%';
+                     FROM information_schema.events where event_name like 'e%'
+                     ORDER BY event_name;
 
 send CREATE EVENT e2
   ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
