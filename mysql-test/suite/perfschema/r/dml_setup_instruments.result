@@ -16,7 +16,8 @@ wait/synch/mutex/sql/LOCK_delayed_create	YES	YES
 wait/synch/mutex/sql/LOCK_delayed_insert	YES	YES
 select * from performance_schema.SETUP_INSTRUMENTS
 where name like 'Wait/Synch/Rwlock/sql/%'
-  order by name limit 10;
+  and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
+order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/rwlock/sql/LOCK_dboptions	YES	YES
 wait/synch/rwlock/sql/LOCK_grant	YES	YES
