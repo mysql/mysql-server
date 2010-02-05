@@ -11758,6 +11758,8 @@ join_read_system(JOIN_TAB *tab)
 {
   TABLE *table= tab->table;
   int error;
+  DBUG_ENTER("join_read_system");
+
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     if ((error=table->file->read_first_row(table->record[0],
@@ -11767,14 +11769,15 @@ join_read_system(JOIN_TAB *tab)
 	return report_error(table, error);
       mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
-      return -1;
+      DBUG_RETURN(-1);
     }
     store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
     restore_record(table,record[1]);			// restore old record
   table->null_row=0;
-  return table->status ? -1 : 0;
+  int rc = table->status ? -1 : 0;
+  DBUG_RETURN(rc);
 }
 
 
@@ -11796,6 +11799,7 @@ join_read_const(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
+  DBUG_ENTER("join_read_const");
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
@@ -11814,8 +11818,8 @@ join_read_const(JOIN_TAB *tab)
       mark_as_null_row(tab->table);
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-	return report_error(table, error);
-      return -1;
+	DBUG_RETURN(report_error(table, error));
+      DBUG_RETURN(-1);
     }
     store_record(table,record[1]);
   }
@@ -11825,7 +11829,8 @@ join_read_const(JOIN_TAB *tab)
     restore_record(table,record[1]);			// restore old record
   }
   table->null_row=0;
-  return table->status ? -1 : 0;
+  int rc = table->status ? -1 : 0;
+  DBUG_RETURN(rc);
 }
 
 
@@ -11905,13 +11910,16 @@ join_read_linked_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_key");
 
-  // 'read' itself is a NOOP: Already fetched through linked key operation
-  //  handler::read_pushed_next() unpack the prefetched row and set 'status'
+  // Fetch result from linked_key operation if not already present
+  if (table->status & STATUS_GARBAGE)
+  {
+    // 'read' itself is a NOOP: Already fetched through linked key operation
+    //  handler::read_pushed_next() unpack the prefetched row and set 'status'
 
-  int error= table->file->read_pushed_next(table->record[0]);
-  if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    DBUG_RETURN(report_error(table, error));
-
+    int error= table->file->read_pushed_next(table->record[0]);
+    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+      DBUG_RETURN(report_error(table, error));
+  }
   table->null_row=0;
   int rc = table->status ? -1 : 0;
   DBUG_RETURN(rc);
@@ -16565,7 +16573,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        uint pushed_joins = tab->table->file->has_pushed_joins();
+        uint pushed_joins= tab->table->file->has_pushed_joins();
         if (pushed_joins>0)
         {
           char buf[32];
