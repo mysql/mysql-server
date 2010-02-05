@@ -109,16 +109,31 @@ class NdbQueryOperationDef // Base class for all operation definitions
 {
 public:
 
+  /**
+   * Different access / query operation types
+   */
+  enum Type {
+    PrimaryKeyAccess,     ///< Read using pk
+    UniqueIndexAccess,    ///< Read using unique index
+    TableScan,            ///< Full table scan
+    OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
+  };
+
+  static const char* getTypeName(Type type);
+
   Uint32 getNoOfParentOperations() const;
   const NdbQueryOperationDef* getParentOperation(Uint32 i) const;
 
   Uint32 getNoOfChildOperations() const;
   const NdbQueryOperationDef* getChildOperation(Uint32 i) const;
 
+  Type getType() const;
+
   /**
    * Get table object for this operation
    */
   const NdbDictionary::Table* getTable() const;
+
   NdbQueryOperationDefImpl& getImpl() const;
 
 protected:
@@ -139,7 +154,7 @@ class NdbQueryLookupOperationDef : public NdbQueryOperationDef
 {
 public:
   /**
-   * Get possible index object for this operation
+   * Get index object for this operation
    */
   const NdbDictionary::Index* getIndex() const;
 
@@ -192,6 +207,11 @@ public:
 
   /** Get the result ordering for this operation.*/
   NdbScanOrdering getOrdering() const;
+
+  /**
+   * Get index object for this operation
+   */
+  const NdbDictionary::Index* getIndex() const;
 
 private:
   // Enforce object creation through NdbQueryBuilder factory 

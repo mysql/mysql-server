@@ -182,8 +182,8 @@ protected:
   virtual const NdbQueryLookupOperationDef& getInterface() const
   { return m_interface; }
 
-  virtual Type getType() const
-  { return PrimaryKeyAccess; }
+  virtual NdbQueryOperationDef::Type getType() const
+  { return NdbQueryOperationDef::PrimaryKeyAccess; }
 
   virtual bool isScanOperation() const
   { return false; }
@@ -217,8 +217,8 @@ private:
     m_index(index)
   {}
 
-  virtual Type getType() const
-  { return UniqueIndexAccess; }
+  virtual NdbQueryOperationDef::Type getType() const
+  { return NdbQueryOperationDef::UniqueIndexAccess; }
 
 private:
   const NdbIndexImpl& m_index;
@@ -236,8 +236,8 @@ public:
   virtual const NdbQueryTableScanOperationDef& getInterface() const
   { return m_interface; }
 
-  virtual Type getType() const
-  { return TableScan; }
+  virtual NdbQueryOperationDef::Type getType() const
+  { return NdbQueryOperationDef::TableScan; }
 
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const {
@@ -458,6 +458,31 @@ NdbQueryOperationDef::getChildOperation(Uint32 i) const
   return &::getImpl(*this).getChildOperation(i).getInterface();
 }
 
+const char* 
+NdbQueryOperationDef::getTypeName(Type type)
+{
+  switch(type)
+  {
+  case PrimaryKeyAccess:
+    return "PrimaryKeyAccess";
+  case UniqueIndexAccess:
+    return "UniqueIndexAccess";
+  case TableScan:
+    return "TableScan";
+  case OrderedIndexScan:
+    return "OrderedIndexScan";
+  default:
+    return "<Invalid NdbQueryOperationDef::Type value>";
+  }
+}
+
+
+NdbQueryOperationDef::Type
+NdbQueryOperationDef::getType() const
+{
+  return ::getImpl(*this).getType();
+}
+
 const NdbDictionary::Table*
 NdbQueryOperationDef::getTable() const
 {
@@ -482,6 +507,11 @@ NdbQueryIndexScanOperationDef::getOrdering() const
   return ::getImpl(*this).getOrdering();
 }
 
+const NdbDictionary::Index*
+NdbQueryIndexScanOperationDef::getIndex() const
+{
+  return ::getImpl(*this).getIndex();
+}
 
 /*******************************************
  * Implementation of NdbQueryBuilder factory
