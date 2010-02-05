@@ -245,7 +245,7 @@ my_bool my_use_symdir=0;	/* Set this if you want to use symdirs */
 #ifdef USE_SYMDIR
 void symdirget(char *dir)
 {
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN+1];
   char *pos=strend(dir);
   if (dir[0] && pos[-1] != FN_DEVCHAR && my_access(dir, F_OK))
   {
@@ -257,7 +257,7 @@ void symdirget(char *dir)
     *pos++=temp; *pos=0;	  /* Restore old filename */
     if (file >= 0)
     {
-      if ((length= my_read(file, buff, sizeof(buff), MYF(0))) > 0)
+      if ((length= my_read(file, buff, sizeof(buff) - 1, MYF(0))) > 0)
       {
 	for (pos= buff + length ;
 	     pos > buff && (iscntrl(pos[-1]) || isspace(pos[-1])) ;

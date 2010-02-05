@@ -96,22 +96,22 @@ NdbEventOperation::hasError() const
   return m_impl.m_has_error;
 }
 
-const bool NdbEventOperation::tableNameChanged() const
+bool NdbEventOperation::tableNameChanged() const
 {
   return m_impl.tableNameChanged();
 }
 
-const bool NdbEventOperation::tableFrmChanged() const
+bool NdbEventOperation::tableFrmChanged() const
 {
   return m_impl.tableFrmChanged();
 }
 
-const bool NdbEventOperation::tableFragmentationChanged() const
+bool NdbEventOperation::tableFragmentationChanged() const
 {
   return m_impl.tableFragmentationChanged();
 }
 
-const bool NdbEventOperation::tableRangeListChanged() const
+bool NdbEventOperation::tableRangeListChanged() const
 {
   return m_impl.tableRangeListChanged();
 }
