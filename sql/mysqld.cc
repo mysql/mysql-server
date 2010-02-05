@@ -5213,9 +5213,9 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
     create_new_thread(thd);
   }
-
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 
@@ -5311,8 +5311,9 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     create_new_thread(thd);
   }
   CloseHandle(connectOverlapped.hEvent);
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* __NT__ */
 
@@ -5548,9 +5549,9 @@ error:
   if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
   if (event_connect_answer)	CloseHandle(event_connect_answer);
   if (smem_event_connect_request) CloseHandle(smem_event_connect_request);
-
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* HAVE_SMEM */
 #endif /* EMBEDDED_LIBRARY */
