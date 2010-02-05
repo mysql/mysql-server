@@ -34,4 +34,36 @@ connection master;
 drop database mysqltest;
 sync_slave_with_master;
 
+#
+# Bug#49137
+# This test verifies if DROP MULTI TEMPORARY TABLE 
+# will cause different errors on master and slave, 
+# when one or more of these tables do not exist. 
+#
+
+connection master;
+DROP TEMPORARY TABLE IF EXISTS tmp1;
+CREATE TEMPORARY TABLE t1 ( a int );
+--error 1051
+DROP TEMPORARY TABLE t1, t2;
+--error 1051
+DROP TEMPORARY TABLE tmp2;
+sync_slave_with_master;
+
+connection slave;
+stop slave;
+wait_for_slave_to_stop;
+
+--echo **** On Master ****
+connection master;
+CREATE TEMPORARY TABLE tmp3 (a int);
+DROP TEMPORARY TABLE tmp3;
+
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+
+connection master;
+sync_slave_with_master;
+
 # End of 4.1 tests

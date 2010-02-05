@@ -9282,25 +9282,24 @@ interval:
         ;
 
 interval_time_stamp:
-          interval_time_st       {}
-        | FRAC_SECOND_SYM
-          { 
-            $$=INTERVAL_MICROSECOND; 
-            /*
-              FRAC_SECOND was mistakenly implemented with
-              a wrong resolution. According to the ODBC
-              standard it should be nanoseconds, not
-              microseconds. Changing it to nanoseconds
-              in MySQL would mean making TIMESTAMPDIFF
-              and TIMESTAMPADD to return DECIMAL, since
-              the return value would be too big for BIGINT
-              Hence we just deprecate the incorrect
-              implementation without changing its
-              resolution.
-            */
-            WARN_DEPRECATED(yythd, "6.2", "FRAC_SECOND", "MICROSECOND");
-          }
-        ;
+	interval_time_st	{}
+	| FRAC_SECOND_SYM	{ 
+                                  $$=INTERVAL_MICROSECOND; 
+                                  /*
+                                    FRAC_SECOND was mistakenly implemented with
+                                    a wrong resolution. According to the ODBC
+                                    standard it should be nanoseconds, not
+                                    microseconds. Changing it to nanoseconds
+                                    in MySQL would mean making TIMESTAMPDIFF
+                                    and TIMESTAMPADD to return DECIMAL, since
+                                    the return value would be too big for BIGINT
+                                    Hence we just deprecate the incorrect
+                                    implementation without changing its
+                                    resolution.
+                                  */
+                                  WARN_DEPRECATED(yythd, VER_CELOSIA, "FRAC_SECOND", "MICROSECOND");
+                                }
+	;
 
 interval_time_st:
           DAY_SYM         { $$=INTERVAL_DAY; }
