@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2001, 2003-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -120,6 +120,7 @@ SUFFIXES = .sh
 	  -e 's!@''SHARED_LIB_VERSION''@!@SHARED_LIB_VERSION@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
+	  -e 's!@''MYSQL_U_SCORE_VERSION''@!@MYSQL_U_SCORE_VERSION@!' \
 	  -e 's!@''MYSQL_COPYRIGHT_YEAR''@!@MYSQL_COPYRIGHT_YEAR@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
 	  -e 's!@''PERL_DBI_VERSION''@!@PERL_DBI_VERSION@!' \

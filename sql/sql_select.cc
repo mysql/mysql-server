@@ -523,7 +523,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode)
+  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -543,13 +543,26 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if (order)
   {
+    bool real_order= FALSE;
     ORDER *ord;
     for (ord= order; ord; ord= ord->next)
     {
       Item *item= *ord->item;
+      /*
+        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
+        there. Such fields don't contain any data to sort.
+      */
+      if (!real_order &&
+          (item->type() != Item::FIELD_ITEM ||
+           ((Item_field *) item)->field->maybe_null() ||
+           ((Item_field *) item)->field->sort_length()))
+        real_order= TRUE;
+
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
         item->split_sum_func(thd, ref_pointer_array, all_fields);
     }
+    if (!real_order)
+      order= NULL;
   }
 
   if (having && having->with_sum_func)
@@ -946,6 +959,7 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      const_tables= tables;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -3663,20 +3677,20 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       cond_func=(Item_func_match *)cond;
     else if (func->arg_count == 2)
     {
-      Item_func *arg0=(Item_func *)(func->arguments()[0]),
-                *arg1=(Item_func *)(func->arguments()[1]);
-      if (arg1->const_item()  &&
-           arg0->type() == Item::FUNC_ITEM            &&
-           arg0->functype() == Item_func::FT_FUNC     &&
+      Item *arg0=(Item *)(func->arguments()[0]),
+           *arg1=(Item *)(func->arguments()[1]);
+      if (arg1->const_item() && arg1->cols() == 1 &&
+           arg0->type() == Item::FUNC_ITEM &&
+           ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
           ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
            (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func=(Item_func_match *) arg0;
+        cond_func= (Item_func_match *) arg0;
       else if (arg0->const_item() &&
-                arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC   &&
+                arg1->type() == Item::FUNC_ITEM &&
+                ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
                ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
                 (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func=(Item_func_match *) arg1;
+        cond_func= (Item_func_match *) arg1;
     }
   }
   else if (cond->type() == Item::COND_ITEM)
@@ -7174,6 +7188,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
     table_map depend_map;
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
+    order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
         && !order->item[0]->with_sum_func)
