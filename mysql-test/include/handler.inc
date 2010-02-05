@@ -1500,3 +1500,25 @@ connection default;
 handler no_such_table read no_such_index first;
 --error ER_UNKNOWN_TABLE
 handler no_such_table close;
+
+
+--echo #
+--echo # Bug#50907 Assertion `hash_tables->table->next == __null' on 
+--echo #           HANDLER OPEN
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+# This used to trigger the assert
+HANDLER t2 OPEN;
+
+# This also used to trigger the assert
+HANDLER t2 READ FIRST;
+
+HANDLER t2 CLOSE;
+DROP TABLE t1, t2;
