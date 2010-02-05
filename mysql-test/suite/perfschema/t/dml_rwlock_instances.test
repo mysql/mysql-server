@@ -18,7 +18,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 #
+--replace_column 1 # 2 # 3 # 4 #
 select * from performance_schema.RWLOCK_INSTANCES limit 1;
 
 select * from performance_schema.RWLOCK_INSTANCES
