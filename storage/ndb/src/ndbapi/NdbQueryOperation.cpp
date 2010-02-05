@@ -989,7 +989,7 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
 
   const NdbQueryOperationDefImpl& rootDef = getRoot().getQueryOperationDef();
 
-  assert (rootDef.getType() == NdbQueryOperationDefImpl::OrderedIndexScan);
+  assert (rootDef.getType() == NdbQueryOperationDef::OrderedIndexScan);
   int startPos = m_keyInfo.getSize();
 //assert (startPos == 0);  // Assumed by ::checkPrunable
 
@@ -2504,7 +2504,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
     m_parents.push_back(&m_queryImpl.getQueryOperation(ix));
     m_queryImpl.getQueryOperation(ix).m_children.push_back(this);
   }
-  if(def.getType()==NdbQueryOperationDefImpl::OrderedIndexScan)
+  if(def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
     const NdbScanOrdering defOrdering = 
       static_cast<const NdbQueryIndexScanOperationDefImpl&>(def).getOrdering();
@@ -2994,7 +2994,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
    * serializedParams chunk. Each operations params are 
    * proceeded by 'length' for this operation.
    */
-  if (def.getType() == NdbQueryOperationDefImpl::UniqueIndexAccess)
+  if (def.getType() == NdbQueryOperationDef::UniqueIndexAccess)
   {
     // Reserve memory for LookupParameters, fill in contents later when
     // 'length' and 'requestInfo' has been calculated.
@@ -3046,7 +3046,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (m_params.getSize() > 0 &&
-      def.getType() == NdbQueryOperationDefImpl::PrimaryKeyAccess)
+      def.getType() == NdbQueryOperationDef::PrimaryKeyAccess)
   {
     // parameter values has been serialized as part of NdbTransaction::createQuery()
     // Only need to append it to rest of the serialized arguments
@@ -3256,7 +3256,7 @@ int
 NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
 {
   if(getQueryOperationDef().getType()
-     !=NdbQueryOperationDefImpl::OrderedIndexScan)
+     !=NdbQueryOperationDef::OrderedIndexScan)
   {
     getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;

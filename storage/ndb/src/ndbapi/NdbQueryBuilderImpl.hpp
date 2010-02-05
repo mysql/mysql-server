@@ -250,19 +250,11 @@ typedef const void* constVoidPtr;
 
 class NdbQueryOperationDefImpl
 {
+  friend class NdbQueryOperationDef;
   friend class NdbQueryOperationImpl;
   friend class NdbQueryImpl;
 
 public:
-  /**
-   * Different access / query operation types
-   */
-  enum Type {
-    PrimaryKeyAccess,     ///< Read using pk
-    UniqueIndexAccess,    ///< Read using unique index
-    TableScan,            ///< Full table scan
-    OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
-  };
 
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); }
@@ -283,7 +275,7 @@ public:
   { return m_ident; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
-  { if (getType()==UniqueIndexAccess) nodeId++;
+  { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
     m_id = nodeId++;
     return m_id;
   }
@@ -371,7 +363,7 @@ public:
 
 protected:
   // Get type of query operation
-  virtual Type getType() const = 0;
+  virtual NdbQueryOperationDef::Type getType() const = 0;
 
   // QueryTree building:
   // Append list of parent nodes to serialized code
@@ -445,8 +437,8 @@ public:
   virtual const NdbQueryIndexScanOperationDef& getInterface() const
   { return m_interface; }
 
-  virtual Type getType() const
-  { return OrderedIndexScan; }
+  virtual NdbQueryOperationDef::Type getType() const
+  { return NdbQueryOperationDef::OrderedIndexScan; }
 
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const;

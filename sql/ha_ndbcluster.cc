@@ -208,14 +208,26 @@ public:
                  const NdbQueryDef* queryDef)
   : m_plan(plan),
     m_count(count),
-    m_queryDef(queryDef) {}
+    m_queryDef(queryDef) {
+    DBUG_ASSERT(queryDef != NULL);
+  }
 
   ~ha_pushed_join()
   {
     if (m_queryDef)
       m_queryDef->release();
   }
+  
+  const AQP::Query_plan& getPlan() const
+  { return m_plan; }
 
+  uint getCount() const
+  { return m_count; }
+
+  const NdbQueryDef& getQueryDef() const
+  { return *m_queryDef; }
+
+private:
   const AQP::Query_plan m_plan; 
   const uint m_count;
   const NdbQueryDef* const m_queryDef;  // Definition of pushed join query
@@ -742,33 +754,9 @@ ha_ndbcluster::has_pushed_joins() const
   if (!m_pushed_join)
     return 0;
   else
-    return m_pushed_join->m_count;
+    return m_pushed_join->getCount();
 }
 
-int
-ha_ndbcluster::push_flag(enum ha_push_flag flag)
-{
-  DBUG_ENTER("push_flags");
-  switch (flag) {
-  case HA_PUSH_BLOCK_CONST_TABLE:
-    DBUG_RETURN(-1);
-
-  case HA_PUSH_DISABLE:
-    DBUG_PRINT("info", ("HA_PUSH_DISABLE"));
-    m_disable_pushed_join= TRUE;
-    break;
-
-  case HA_PUSH_ENABLE:
-    DBUG_PRINT("info", ("HA_PUSH_ENABLE"));
-    m_disable_pushed_join= FALSE;
-    break;
-
-  default:
-    DBUG_ASSERT(0);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(0);
-}
 
 bool
 ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
@@ -801,13 +789,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
 
     DBUG_RETURN(true);
   }
-  case HA_PUSH_DISABLE:
-    DBUG_PRINT("info", ("HA_PUSH_DISABLE"));
-    DBUG_RETURN(m_disable_pushed_join==TRUE);
-
-  case HA_PUSH_ENABLE:
-    DBUG_PRINT("info", ("HA_PUSH_ENABLE"));
-    DBUG_RETURN(m_disable_pushed_join==FALSE);
 
   default:
     DBUG_ASSERT(0);
@@ -2910,6 +2891,70 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
   DBUG_RETURN(true);
 }
 
+/**
+ * C++98 does not allow forward declarations of enum types. By using this 
+ * class instead of using NdbQueryOperationDef::Type directly, 
+ * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
+ */
+class NdbQueryOperationTypeWrapper
+{
+public:
+  /** Implcit conversion from NdbQueryOperationDef::Type.*/
+  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
+    :m_type(type)
+  {}
+
+  /** Implcit conversion to NdbQueryOperationDef::Type.*/
+  operator NdbQueryOperationDef::Type() const
+  { return m_type; }
+
+private:
+  const NdbQueryOperationDef::Type m_type;
+};
+
+
+/**
+ * Check if this table access operation (and a number of succeding operation)
+ * can be pushed to the cluster and executed there. This requires that there
+ * is an NdbQueryDefiniton and that it still matches the corresponds to the 
+ * type of operation that we intend to execute. (The MySQL server will 
+ * sometimes change its mind and replace a scan with a lookup or vice versa
+ * as it works its way into the nested loop join.)
+ *
+ * @param type This is the operation type that the server want to execute.
+ * @return True if the operation may be pushed.
+ */
+bool 
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
+{
+  bool pushable= FALSE;
+
+  if(m_pushed_join != NULL)
+  {
+    if (m_pushed_join->getQueryDef().getQueryOperation(0U)->getType() == type)
+    {
+      if(m_disable_pushed_join)
+      {
+        DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
+      }
+      else
+      {
+        pushable= TRUE;
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", 
+                 ("Cannot push join. Root operation changed from "
+                  "type %s to %s.",
+                  NdbQueryOperationDef::getTypeName(type),
+                  NdbQueryOperationDef::getTypeName(m_pushed_join->getQueryDef()
+                                    .getQueryOperation(0U)->getType())));
+    }
+  }
+  return pushable;
+}
+
 
 /**
   Read one record from NDB using primary key.
@@ -2928,8 +2973,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  
-  if (m_pushed_join && !m_disable_pushed_join)
+
+  if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess))
   {
     NdbQuery *query;
     if (!(query= pk_unique_index_read_key_pushed(table->s->primary_key, key, lm,
@@ -3327,8 +3372,23 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (m_pushed_join && !m_disable_pushed_join)
+  if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess))
   {
+#ifndef DBUG_OFF
+    /* 
+      Check that we are still using the same index as when we created the
+      NdbQueryOperationDef object.
+    */
+    const NdbQueryOperationDef* const root_operation= 
+      m_pushed_join->getQueryDef().getQueryOperation(0U);
+    
+    const NdbDictionary::Index* const expected_index=
+      static_cast<const NdbQueryLookupOperationDef*>(root_operation)
+      ->getIndex();
+
+    DBUG_ASSERT(m_index[active_index].unique_index == expected_index);
+#endif
+
     NdbQuery *query;
     if (!(query= pk_unique_index_read_key_pushed(active_index, key, lm, NULL)))
       ERR_RETURN(trans->getNdbError());
@@ -3649,8 +3709,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   DBUG_PRINT("info", 
              ("executing chain of %d unique key lookups."
               " First table is %s.", 
-              m_pushed_join->m_count,
-              m_pushed_join->m_plan.get_table_access(0).get_table_name())
+              m_pushed_join->getCount(),
+              m_pushed_join->getPlan().get_table_access(0).get_table_name())
              );
   NdbOperation::OperationOptions options;
   NdbOperation::OperationOptions *poptions = NULL;
@@ -3686,13 +3746,14 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     offset+= key_part->store_length;
   }
 
-  NdbQuery* const query= m_thd_ndb->trans->createQuery(m_pushed_join->m_queryDef, paramValues);
+  NdbQuery* const query= 
+    m_thd_ndb->trans->createQuery(&m_pushed_join->getQueryDef(), paramValues);
   if (unlikely(!query))
     DBUG_RETURN(NULL);
 
-  for (uint i = 0; i<m_pushed_join->m_count; i++)
+  for (uint i = 0; i < m_pushed_join->getCount(); i++)
   {
-    TABLE* tab= m_pushed_join->m_plan.get_table_access(i).get_table();
+    TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
     DBUG_ASSERT(tab->file->ht == ht);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -3839,16 +3900,31 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
-  if (m_pushed_join && !m_disable_pushed_join)
+  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
   {
     DBUG_PRINT("info", 
                ("executing chain of a index scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->m_count-1,
-                m_pushed_join->m_plan.get_table_access(0).get_table_name())
+                m_pushed_join->getCount() - 1,
+                m_pushed_join->getPlan().get_table_access(0).get_table_name())
               );
 
-    NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef);
+#ifndef DBUG_OFF
+    /*
+      Check that we are still using the same index as when we defined the 
+      NdbQueryOperationDef object.
+     */
+    const NdbQueryOperationDef* const root_operation= 
+      m_pushed_join->getQueryDef().getQueryOperation(0U);
+    
+    const NdbDictionary::Index* const expected_index=
+      static_cast<const NdbQueryIndexScanOperationDef*>(root_operation)
+      ->getIndex();
+
+    DBUG_ASSERT(m_index[active_index].index == expected_index);
+#endif
+
+    NdbQuery* const query= trans->createQuery(&m_pushed_join->getQueryDef());
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
@@ -3878,9 +3954,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       }
     }
 
-    for (uint i = 0; i<m_pushed_join->m_count; i++)
+    for (uint i = 0; i < m_pushed_join->getCount(); i++)
     {
-      TABLE* tab= m_pushed_join->m_plan.get_table_access(i).get_table();
+      TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -4053,16 +4129,16 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
-  if (m_pushed_join && !m_disable_pushed_join)
+  if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
     DBUG_PRINT("info", 
                ("executing chain of a table scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->m_count-1,
-                m_pushed_join->m_plan.get_table_access(0).get_table_name())
+                m_pushed_join->getCount() - 1,
+                m_pushed_join->getPlan().get_table_access(0).get_table_name())
                );
 
-    NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef);
+    NdbQuery* const query= trans->createQuery(&m_pushed_join->getQueryDef());
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
@@ -4114,9 +4190,9 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       }
     }
 
-    for (uint i = 0; i<m_pushed_join->m_count; i++)
+    for (uint i = 0; i < m_pushed_join->getCount(); i++)
     {
-      TABLE* tab= m_pushed_join->m_plan.get_table_access(i).get_table();
+      TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -12136,7 +12212,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
-    if ((m_pushed_join && m_pushed_join->m_queryDef->isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
+    if ((m_pushed_join && m_pushed_join->getQueryDef().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
         read_multi_needs_scan(cur_index_type, key_info, r))
     {
       if (!trans)
@@ -12174,17 +12250,19 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       /* Create the scan operation for the first scan range. */
-      if (m_pushed_join && !m_disable_pushed_join)
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
       {
         if (!m_active_query)
         {
           DBUG_PRINT("info", 
-                     ("executing chain of a index scan + %d primary key joins."
-                      " First table is %s.", 
-                      m_pushed_join->m_count-1,
-                      m_pushed_join->m_plan.get_table_access(0).get_table_name()));
+            ("executing chain of a index scan + %d primary key joins."
+             " First table is %s.", 
+             m_pushed_join->getCount() - 1,
+             m_pushed_join->getPlan().get_table_access(0).get_table_name()));
 
-          NdbQuery* const query= trans->createQuery(m_pushed_join->m_queryDef);
+          NdbQuery* const query= 
+            trans->createQuery(&m_pushed_join->getQueryDef());
+
           if (unlikely(!query))
             ERR_RETURN(trans->getNdbError());
           m_active_query= query;
@@ -12207,9 +12285,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             }
           }
 
-          for (uint i = 0; i<m_pushed_join->m_count; i++)
+          for (uint i = 0; i < m_pushed_join->getCount(); i++)
           {
-            TABLE* tab= m_pushed_join->m_plan.get_table_access(i).get_table();
+            TABLE* tab= 
+              m_pushed_join->getPlan().get_table_access(i).get_table();
             DBUG_ASSERT(tab->file->ht == ht);
             ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -12369,7 +12448,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u", i));
-      if (m_pushed_join && !m_disable_pushed_join)
+      if (m_pushed_join && 
+          !m_disable_pushed_join &&
+          !m_pushed_join->getQueryDef().isScanQuery())
       {
         const NdbQuery* query;
         if (!(query= pk_unique_index_read_key_pushed(active_index,
@@ -12379,6 +12460,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
       else
       {
+        if (m_pushed_join)
+        {
+          DBUG_PRINT("info", ("Cannot push join since operation was changed"
+                              " from scan to lookup."));
+        }
         const NdbOperation* op;
         if (!(op= pk_unique_index_read_key(active_index,
                                            r->start_key.key,
@@ -12394,8 +12480,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   buffer->end_of_used_area= row_buf;
 
-  if (m_pushed_join && !m_disable_pushed_join &&
-      m_pushed_join->m_queryDef->isScanQuery())
+  if (m_active_query != NULL &&         
+      m_pushed_join->getQueryDef().isScanQuery())
   {
 //  DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
 //                      m_active_query->getPruned()));

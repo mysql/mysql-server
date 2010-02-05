@@ -388,12 +388,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 /* Flag used for for push_flag() / test_push_flag() */
 enum ha_push_flag {
-  /*
-    Enables handler to execute a pushed join operation (if present) 
-    having this table as its parent table.
-  */
-  HA_PUSH_ENABLE,
-  HA_PUSH_DISABLE,
 
   /* Handler want to block const table optimization */
   HA_PUSH_BLOCK_CONST_TABLE
@@ -1858,7 +1852,7 @@ public:
 
   virtual bool test_push_flag(enum ha_push_flag flag) const
   {
-    return (flag == HA_PUSH_DISABLE);
+    return FALSE;
   }
 
  /*

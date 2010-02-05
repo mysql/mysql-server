@@ -49,6 +49,7 @@ class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
+class NdbQueryOperationTypeWrapper;
 
 namespace AQP{
   class Query_plan;
@@ -545,8 +546,6 @@ static void set_tabname(const char *pathname, char *tabname);
 
   virtual uint make_pushed_join(const AQP::Query_plan& plan);
 
-  int push_flag(enum ha_push_flag flag);
-
   bool test_push_flag(enum ha_push_flag flag) const;
 
   uint has_pushed_joins() const;
@@ -642,6 +641,7 @@ private:
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
+  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
   bool check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
@@ -875,7 +875,7 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  class ha_pushed_join *m_pushed_join;  // Pushed join definition
+  const class ha_pushed_join *m_pushed_join;  // Pushed join definition
   bool m_disable_pushed_join;           // Execution allowed?
 
   ha_ndbcluster_cond *m_cond;
