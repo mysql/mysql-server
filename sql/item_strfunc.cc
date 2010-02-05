@@ -42,6 +42,20 @@ C_MODE_END
 String my_empty_string("",default_charset_info);
 
 
+/*
+  Convert an array of bytes to a hexadecimal representation.
+
+  Used to generate a hexadecimal representation of a message digest.
+*/
+static void array_to_hex(char *to, const char *str, uint len)
+{
+  const char *str_end= str + len;
+  for (; str != str_end; ++str)
+  {
+    *to++= _dig_vec_lower[((uchar) *str) >> 4];
+    *to++= _dig_vec_lower[((uchar) *str) & 0x0F];
+  }
+}
 
 
 bool Item_str_func::fix_fields(THD *thd, Item **ref)
@@ -114,12 +128,7 @@ String *Item_func_md5::val_str(String *str)
       null_value=1;
       return 0;
     }
-    sprintf((char *) str->ptr(),
-	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-	    digest[0], digest[1], digest[2], digest[3],
-	    digest[4], digest[5], digest[6], digest[7],
-	    digest[8], digest[9], digest[10], digest[11],
-	    digest[12], digest[13], digest[14], digest[15]);
+    array_to_hex((char *) str->ptr(), (const char*) digest, 16);
     str->length((uint) 32);
     return str;
   }
@@ -160,15 +169,7 @@ String *Item_func_sha::val_str(String *str)
     if (!( str->alloc(SHA1_HASH_SIZE*2) ||
            (mysql_sha1_result(&context,digest))))
     {
-      sprintf((char *) str->ptr(),
-      "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\
-%02x%02x%02x%02x%02x%02x%02x%02x",
-           digest[0], digest[1], digest[2], digest[3],
-           digest[4], digest[5], digest[6], digest[7],
-           digest[8], digest[9], digest[10], digest[11],
-           digest[12], digest[13], digest[14], digest[15],
-           digest[16], digest[17], digest[18], digest[19]);
-
+      array_to_hex((char *) str->ptr(), (const char*) digest, SHA1_HASH_SIZE);
       str->length((uint)  SHA1_HASH_SIZE*2);
       null_value=0;
       return str;
@@ -677,8 +678,8 @@ String *Item_func_concat_ws::val_str(String *str)
 	     res->length() + sep_str->length() + res2->length())
     {
       /* We have room in str;  We can't get any errors here */
-      if (str == res2)
-      {						// This is quote uncommon!
+      if (str->ptr() == res2->ptr())
+      {						// This is quite uncommon!
 	str->replace(0,0,*sep_str);
 	str->replace(0,0,*res);
       }
@@ -1764,19 +1765,19 @@ String *Item_func_encode::val_str(String *str)
 
   null_value= 0;
   res= copy_if_not_alloced(str, res, res->length());
-  transform(res);
+  crypto_transform(res);
   sql_crypt.reinit();
 
   return res;
 }
 
-void Item_func_encode::transform(String *res)
+void Item_func_encode::crypto_transform(String *res)
 {
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
-void Item_func_decode::transform(String *res)
+void Item_func_decode::crypto_transform(String *res)
 {
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
