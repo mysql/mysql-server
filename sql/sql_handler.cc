@@ -322,8 +322,14 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     thd->mdl_context.set_needs_thr_lock_abort(TRUE);
   }
 
-  /* Assert that the above check prevent opening of views and merge tables. */
-  DBUG_ASSERT(hash_tables->table->next == NULL);
+  /*
+    Assert that the above check prevents opening of views and merge tables.
+    For temporary tables, TABLE::next can be set even if only one table
+    was opened for HANDLER as it is used to link them together
+    (see thd->temporary_tables).
+  */
+  DBUG_ASSERT(hash_tables->table->next == NULL ||
+              hash_tables->table->s->tmp_table);
   /*
     If it's a temp table, don't reset table->query_id as the table is
     being used by this handler. Otherwise, no meaning at all.
@@ -485,7 +491,8 @@ retry:
   /* save open_tables state */
   backup_open_tables= thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */
-  DBUG_ASSERT(hash_tables->table->next == NULL);
+  DBUG_ASSERT(hash_tables->table->next == NULL ||
+              hash_tables->table->s->tmp_table);
   /*
     mysql_lock_tables() needs thd->open_tables to be set correctly to
     be able to handle aborts properly.
