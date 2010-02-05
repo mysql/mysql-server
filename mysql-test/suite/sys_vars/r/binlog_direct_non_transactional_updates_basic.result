@@ -1,0 +1,76 @@
+SELECT @@GLOBAL.binlog_direct_non_transactional_updates;
+@@GLOBAL.binlog_direct_non_transactional_updates
+1
+'#---------------------BS_STVARS_002_01----------------------#'
+SET @start_value= @@global.binlog_direct_non_transactional_updates;
+SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);
+COUNT(@@GLOBAL.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_direct_non_transactional_updates);
+COUNT(@@SESSION.binlog_direct_non_transactional_updates)
+1
+1 Expected
+'#---------------------BS_STVARS_002_02----------------------#'
+SET @@GLOBAL.binlog_direct_non_transactional_updates=TRUE;
+SELECT @@GLOBAL.binlog_direct_non_transactional_updates;
+@@GLOBAL.binlog_direct_non_transactional_updates
+1
+SET @@SESSION.binlog_direct_non_transactional_updates=TRUE;
+SELECT @@SESSION.binlog_direct_non_transactional_updates;
+@@SESSION.binlog_direct_non_transactional_updates
+1
+'#---------------------BS_STVARS_002_03----------------------#'
+SELECT
+IF(@@GLOBAL.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+IF(@@GLOBAL.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);
+COUNT(@@GLOBAL.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_002_04----------------------#'
+SELECT
+IF(@@SESSION.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+IF(@@SESSION.binlog_direct_non_transactional_updates, "ON", "OFF") = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_direct_non_transactional_updates);
+COUNT(@@SESSION.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_direct_non_transactional_updates';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_002_05----------------------#'
+SELECT COUNT(@@binlog_direct_non_transactional_updates);
+COUNT(@@binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(@@local.binlog_direct_non_transactional_updates);
+COUNT(@@local.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_direct_non_transactional_updates);
+COUNT(@@SESSION.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);
+COUNT(@@GLOBAL.binlog_direct_non_transactional_updates)
+1
+1 Expected
+SET @@global.binlog_direct_non_transactional_updates= @start_value;

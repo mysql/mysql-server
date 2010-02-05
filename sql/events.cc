@@ -294,6 +294,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("Events::create_event");
 
   /*
@@ -334,8 +335,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE EVENT command.
   */
-  if (thd->is_current_stmt_binlog_format_row())
-    thd->clear_current_stmt_binlog_format_row();
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
+  thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
 
@@ -375,6 +376,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       {
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
+        /* Restore the state of binlog format */
+        thd->current_stmt_binlog_row_based= save_binlog_row_based;
         DBUG_RETURN(TRUE);
       }
       /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
@@ -383,6 +386,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     }
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(ret);
 }
@@ -412,6 +417,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
   int ret;
+  bool save_binlog_row_based;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
@@ -465,8 +471,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for UPDATE EVENT command.
   */
-  if (thd->is_current_stmt_binlog_format_row())
-    thd->clear_current_stmt_binlog_format_row();
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
+  thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
 
@@ -502,6 +508,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     }
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(ret);
 }
@@ -535,6 +543,7 @@ bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 {
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("Events::drop_event");
 
   /*
@@ -561,8 +570,8 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     Turn off row binlogging of this statement and use statement-based so
     that all supporting tables are updated for DROP EVENT command.
   */
-  if (thd->is_current_stmt_binlog_format_row())
-    thd->clear_current_stmt_binlog_format_row();
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
+  thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -575,6 +584,8 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(ret);
 }
 
@@ -768,7 +779,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_infoschema_db(thd->lex->select_lex.db) &&  // There is no events in I_S
+    if (!is_infoschema_db(thd->lex->select_lex.db) && // There is no events in I_S
         check_access(thd, EVENT_ACL, thd->lex->select_lex.db,
                      NULL, NULL, 0, 0))
       DBUG_RETURN(1);

@@ -374,6 +374,7 @@ typedef struct system_variables
   ulong group_concat_max_len;
 
   uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  my_bool binlog_direct_non_trans_update;
   uint completion_type;
   uint query_cache_type;
   uint tx_isolation;
