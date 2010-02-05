@@ -36,8 +36,11 @@ select * from performance_schema.SETUP_INSTRUMENTS
   and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
   order by name limit 10;
 
+# CRYPTO_dynlock_value::lock is dependent on the build (SSL)
+
 select * from performance_schema.SETUP_INSTRUMENTS
   where name like 'Wait/Synch/Rwlock/sql/%'
+  and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
   order by name limit 10;
 
 # COND_handler_count is dependent on the build (Windows only)

@@ -317,6 +317,10 @@ static PSI_thread_key key_thread_handle_con_sockets;
 #ifdef __WIN__
 static PSI_thread_key key_thread_handle_shutdown;
 #endif /* __WIN__ */
+
+#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+static PSI_rwlock_key key_rwlock_openssl;
+#endif
 #endif /* HAVE_PSI_INTERFACE */
 
 /* the default log output is log tables */
@@ -1561,7 +1565,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    rwlock_destroy(&openssl_stdlocks[i].lock);
+    mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
 #endif
 #endif
@@ -3753,7 +3757,7 @@ static int init_thread_environment()
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    my_rwlock_init(&openssl_stdlocks[i].lock, NULL);
+    mysql_rwlock_init(key_rwlock_openssl, &openssl_stdlocks[i].lock);
   CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
   CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
@@ -3807,7 +3811,7 @@ static unsigned long openssl_id_function()
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 { 
   openssl_lock_t *lock= new openssl_lock_t;
-  my_rwlock_init(&lock->lock, NULL);
+  mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
   return lock;
 }
 
@@ -3815,7 +3819,7 @@ static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
 				    int line)
 {
-  rwlock_destroy(&lock->lock);
+  mysql_rwlock_destroy(&lock->lock);
   delete lock;
 }
 
@@ -3841,16 +3845,16 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
   switch (mode) {
   case CRYPTO_LOCK|CRYPTO_READ:
     what = "read lock";
-    err = rw_rdlock(&lock->lock);
+    err= mysql_rwlock_rdlock(&lock->lock);
     break;
   case CRYPTO_LOCK|CRYPTO_WRITE:
     what = "write lock";
-    err = rw_wrlock(&lock->lock);
+    err= mysql_rwlock_wrlock(&lock->lock);
     break;
   case CRYPTO_UNLOCK|CRYPTO_READ:
   case CRYPTO_UNLOCK|CRYPTO_WRITE:
     what = "unlock";
-    err = rw_unlock(&lock->lock);
+    err= mysql_rwlock_unlock(&lock->lock);
     break;
   default:
     /* Unknown locking mode. */
@@ -7983,6 +7987,9 @@ PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
 
 static PSI_rwlock_info all_server_rwlocks[]=
 {
+#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
+#endif
   { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
