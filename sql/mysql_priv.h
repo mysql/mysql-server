@@ -1440,8 +1440,18 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
-#define is_infoschema_db(X) \
-  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
+inline bool is_infoschema_db(const char *name, size_t len)
+{
+  return (INFORMATION_SCHEMA_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         INFORMATION_SCHEMA_NAME.str, name));
+}
+
+inline bool is_infoschema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
 
 void initialize_information_schema_acl();
 
