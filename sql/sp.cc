@@ -908,6 +908,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
   bool store_failed= FALSE;
 
+  bool save_binlog_row_based;
+
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
@@ -925,6 +927,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   thd->clear_current_stmt_binlog_format_row();
 
   saved_count_cuted_fields= thd->count_cuted_fields;
@@ -1132,6 +1135,8 @@ done:
   thd->variables.sql_mode= saved_mode;
 
   close_thread_tables(thd);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(ret);
 }
 
@@ -1156,6 +1161,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1168,6 +1174,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   thd->clear_current_stmt_binlog_format_row();
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1186,6 +1193,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   }
 
   close_thread_tables(thd);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(ret);
 }
 
@@ -1212,6 +1221,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1223,6 +1233,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     row-based replication. The flag will be reset at the end of the
     statement.
   */
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   thd->clear_current_stmt_binlog_format_row();
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1257,6 +1268,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   }
 
   close_thread_tables(thd);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(ret);
 }
 

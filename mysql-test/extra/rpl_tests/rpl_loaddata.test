@@ -237,4 +237,18 @@ source include/diff_tables.inc;
 
 -- sync_slave_with_master
 
+# BUG#49479: LOAD DATA INFILE is binlogged without escaping field names
+-- source include/master-slave-reset.inc
+-- connection master
+use test;
+CREATE TABLE t1 (`key` TEXT, `text` TEXT);
+
+LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+
+-- sync_slave_with_master
+-- connection master
+DROP TABLE t1;
+-- sync_slave_with_master
+
 # End of 4.1 tests
