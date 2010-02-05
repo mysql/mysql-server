@@ -2718,6 +2718,7 @@ NdbQueryOperationImpl::setResultRowRef (
                        const unsigned char* result_mask)
 {
   m_resultRef = &bufRef;
+  *m_resultRef = NULL; // No result row yet
   return setResultRowBuf(rec, NULL, result_mask);
 }
 

@@ -1122,7 +1122,7 @@ drop table t1, t2;
   drop table t3;
 
 
-## Joins where the datatype of the EQ_REF columns are not a equal
+## Joins where the datatype of the EQ_REF columns are not identical
 ## should not be pushed
 ##
   create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
@@ -1158,5 +1158,48 @@ select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 drop table t3;
 
+
+create table t1 (k int primary key, b int) engine = ndb;
+insert into t1 values (1,1), (2,1), (3,1), (4,1);
+
+## Pushed join driven by a scan, with cached row lookups:
+## (Note: We force the Scan to not be pushed as the parent op
+## by making the join condition on t2 a non-FIELD_ITEM ('t1.b+0')
+## As all column 'b' has he same value (1), the scan will refer 
+## the same t2 (parent) row in every access. This will trigger the 
+## row caching in join_read_key() where we eliminate redundant lookups
+## where 'next row == current row'. In order to work for linked operations,
+## the value and status for all linked tables should be kept unaltered.
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.k = t1.b+0
+  straight_join t1 as t3 on t3.k = t2.b
+  straight_join t1 as t4 on t4.k = t1.b;
+--sorted_result
+select *
+from t1
+  straight_join t1 as t2 on t2.k = t1.b+0
+  straight_join t1 as t3 on t3.k = t2.b
+  straight_join t1 as t4 on t4.k = t1.b;
+
+## Similar example as above, except that access to 't2' is made
+## a const table access
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.k = t1.b+0
+  straight_join t1 as t3 on t3.k = t2.b
+  straight_join t1 as t4 on t4.k = t1.b
+where t2.k = 1;
+--sorted_result
+select *
+from t1
+  straight_join t1 as t2 on t2.k = t1.b+0
+  straight_join t1 as t3 on t3.k = t2.b
+  straight_join t1 as t4 on t4.k = t1.b
+where t2.k = 1;
+
+drop table t1;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
