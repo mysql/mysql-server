@@ -1905,7 +1905,9 @@ struct LEX: public Query_tables_list
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  uint fk_delete_opt, fk_update_opt, fk_match_option;
+  enum Foreign_key::fk_match_opt fk_match_option;
+  enum Foreign_key::fk_option fk_update_opt;
+  enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
   /*
