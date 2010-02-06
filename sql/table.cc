@@ -215,10 +215,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
   DBUG_ASSERT(db != NULL);
   DBUG_ASSERT(name != NULL);
 
-  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                     INFORMATION_SCHEMA_NAME.str,
-                     db->str) == 0))
+  if (is_infoschema_db(db->str, db->length))
     return TABLE_CATEGORY_INFORMATION;
 
   if ((db->length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
@@ -3933,7 +3930,8 @@ const char *Natural_join_column::db_name()
   DBUG_ASSERT(!strcmp(table_ref->db,
                       table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               is_infoschema_db(table_ref->table->s->db.str)));
+               is_infoschema_db(table_ref->table->s->db.str,
+                                table_ref->table->s->db.length)));
   return table_ref->db;
 }
 
@@ -4151,7 +4149,8 @@ const char *Field_iterator_table_ref::get_db_name()
   */
   DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               is_infoschema_db(table_ref->table->s->db.str)));
+               is_infoschema_db(table_ref->table->s->db.str,
+                                table_ref->table->s->db.length)));
 
   return table_ref->db;
 }

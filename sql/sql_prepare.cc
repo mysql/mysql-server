@@ -1679,6 +1679,10 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
+    /* Base table and temporary table are not in the same name space. */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      create_table->open_type= OT_BASE_ONLY;
+
     if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
                                        MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);

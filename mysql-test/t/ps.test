@@ -2014,6 +2014,22 @@ deallocate prepare stmt;
 drop table t1,t2;
 --echo #
 
+
+--echo #
+--echo # Bug #49570: Assertion failed: !(order->used & map)
+--echo # on re-execution of prepared statement
+--echo #
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(0), (1);
+PREPARE stmt FROM 
+  "SELECT 1 FROM t1 JOIN t1 t2 USING(a) GROUP BY t2.a, t1.a";
+EXECUTE stmt;
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests.
 
 #

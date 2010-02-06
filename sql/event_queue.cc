@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include "event_queue.h"
 #include "event_data_objects.h"
+#include "sql_audit.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -581,6 +582,9 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       /* There are no events in the queue */
       next_activation_at= 0;
 
+      /* Release any held audit resources before waiting */
+      mysql_audit_release(thd);
+
       /* Wait on condition until signaled. Release LOCK_queue while waiting. */
       cond_wait(thd, NULL, queue_empty_msg, SCHED_FUNC, __LINE__);
 
@@ -600,6 +604,10 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       */
       struct timespec top_time;
       set_timespec(top_time, next_activation_at - thd->query_start());
+
+      /* Release any held audit resources before waiting */
+      mysql_audit_release(thd);
+
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
 
       continue;

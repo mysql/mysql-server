@@ -32,6 +32,7 @@
 #include "slave.h"
 #include <my_bitmap.h>
 #include "log_event.h"
+#include "sql_audit.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
 #include <thr_alarm.h>
@@ -523,6 +524,7 @@ THD::THD()
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
 #ifndef EMBEDDED_LIBRARY
+  mysql_audit_init_thd(this);
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
@@ -1057,6 +1059,7 @@ THD::~THD()
 
   mdl_context.destroy();
   ha_close_connection(this);
+  mysql_audit_release(this);
   plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
@@ -1074,6 +1077,8 @@ THD::~THD()
     delete rli_fake;
     rli_fake= NULL;
   }
+  
+  mysql_audit_free_thd(this);
 #endif
 
   free_root(&main_mem_root, MYF(0));

@@ -2784,8 +2784,15 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     m_lex->mark_as_requiring_prelocking(NULL);
   }
   thd->rollback_item_tree_changes();
-  /* Update the state of the active arena. */
-  thd->stmt_arena->state= Query_arena::EXECUTED;
+  /*
+    Update the state of the active arena if no errors on
+    open_tables stage.
+  */
+  if (!res || !thd->is_error() ||
+      (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
+       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
+    thd->stmt_arena->state= Query_arena::EXECUTED;
 
   /*
     Merge here with the saved parent's values
