@@ -1592,6 +1592,7 @@ void st_select_lex::init_query()
   having= prep_having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
+  group_fix_field= 0;
   context.select_lex= this;
   context.init();
   /*

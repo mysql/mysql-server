@@ -287,6 +287,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
     all_fields        List of all fields used in select
     select            Current select
     ref_pointer_array Array of references to Items used in current select
+    group_list        GROUP BY list (is NULL by default)
 
   DESCRIPTION
     The function serves 3 purposes - adds fields referenced from inner
@@ -305,6 +306,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       function is aggregated in the select where the outer field was
       resolved or in some more inner select then the Item_direct_ref
       class should be used.
+      Also it should be used if we are grouping by a subquery containing
+      the outer field.
     The resolution is done here and not at the fix_fields() stage as
     it can be done only after sum functions are fixed and pulled up to
     selects where they are have to be aggregated.
@@ -321,7 +324,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                 Item **ref_pointer_array)
+                 Item **ref_pointer_array, ORDER *group_list)
 {
   Item_outer_ref *ref;
   bool res= FALSE;
@@ -368,6 +371,22 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
             direct_ref= TRUE;
             break;
           }
+        }
+      }
+    }
+    else
+    {
+      /*
+        Check if GROUP BY item trees contain the outer ref:
+        in this case we have to use Item_direct_ref instead of Item_ref.
+      */
+      for (ORDER *group= group_list; group; group= group->next)
+      {
+        if ((*group->item)->walk(&Item::find_item_processor, TRUE,
+                                 (uchar *) ref))
+        {
+          direct_ref= TRUE;
+          break;
         }
       }
     }
@@ -577,7 +596,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
 
   if (select_lex->inner_refs_list.elements &&
-      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array,
+                     group_list))
     DBUG_RETURN(-1);
 
   if (group_list)
@@ -14547,11 +14567,29 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
+    
+    group_fix_field= TRUE is to resolve aliases from the SELECT list
+    without creating of Item_ref-s: JOIN::exec() wraps aliased items
+    in SELECT list with Item_copy items. To re-evaluate such a tree
+    that includes Item_copy items we have to refresh Item_copy caches,
+    but:
+      - filesort() never refresh Item_copy items,
+      - end_send_group() checks every record for group boundary by the
+        test_if_group_changed function that obtain data from these
+        Item_copy items, but the copy_fields function that
+        refreshes Item copy items is called after group boundaries only -
+        that is a vicious circle.
+    So we prevent inclusion of Item_copy items.
   */
-  if (!order_item->fixed &&
+  bool save_group_fix_field= thd->lex->current_select->group_fix_field;
+  if (is_group_field)
+    thd->lex->current_select->group_fix_field= TRUE;
+  bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
-       thd->is_fatal_error))
+       thd->is_fatal_error));
+  thd->lex->current_select->group_fix_field= save_group_fix_field;
+  if (ret)
     return TRUE; /* Wrong field. */
 
   uint el= all_fields.elements;
