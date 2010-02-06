@@ -1522,3 +1522,23 @@ HANDLER t2 READ FIRST;
 
 HANDLER t2 CLOSE;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#50912 Assertion `ticket->m_type >= mdl_request->type'
+--echo #           failed on HANDLER + I_S
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT);
+HANDLER t1 OPEN;
+
+# This used to trigger the assert.
+SELECT table_name, table_comment FROM information_schema.tables
+  WHERE table_schema= 'test' AND table_name= 't1';
+
+HANDLER t1 CLOSE;
+DROP TABLE t1;
