@@ -1261,7 +1261,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   if ((ticket= find_ticket(mdl_request, &is_transactional)))
   {
     DBUG_ASSERT(ticket->m_lock);
-    DBUG_ASSERT(ticket->m_type >= mdl_request->type);
+    DBUG_ASSERT(ticket->has_stronger_or_equal_type(mdl_request->type));
     /*
       If the request is for a transactional lock, and we found
       a transactional lock, just reuse the found ticket.
@@ -1349,7 +1349,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     return TRUE;
 
   /* clone() is not supposed to be used to get a stronger lock. */
-  DBUG_ASSERT(ticket->m_type <= mdl_request->ticket->m_type);
+  DBUG_ASSERT(mdl_request->ticket->has_stronger_or_equal_type(ticket->m_type));
 
   ticket->m_lock= mdl_request->ticket->m_lock;
   mdl_request->ticket= ticket;

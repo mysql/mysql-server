@@ -1476,3 +1476,16 @@ HANDLER t2 READ FIRST;
 i
 HANDLER t2 CLOSE;
 DROP TABLE t1, t2;
+#
+# Bug#50912 Assertion `ticket->m_type >= mdl_request->type'
+#           failed on HANDLER + I_S
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT);
+HANDLER t1 OPEN;
+SELECT table_name, table_comment FROM information_schema.tables
+WHERE table_schema= 'test' AND table_name= 't1';
+table_name	table_comment
+t1	
+HANDLER t1 CLOSE;
+DROP TABLE t1;
