@@ -2135,10 +2135,10 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   mysql_cond_broadcast(&COND_thread_count);
 
-  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }

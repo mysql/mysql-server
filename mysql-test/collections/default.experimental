@@ -11,7 +11,7 @@ main.information_schema                  # Bug#47449 2009-09-19 alik main.inform
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
-main.outfile_loaddata @solaris           # bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
+main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
@@ -19,7 +19,6 @@ main.sp @solaris                         # Bug#47791 2010-01-20 alik Several tes
 perfschema.tampered_perfschema_table1 @windows # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
 perfschema.tampered_perfschema_table1 @solaris # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
 
-rpl.rpl_get_master_version_and_clock*    # Bug#49191 2009-12-01 Daogang rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
