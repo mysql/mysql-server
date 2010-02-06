@@ -645,7 +645,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
-  if (!my_strcasecmp(system_charset_info, db, INFORMATION_SCHEMA_NAME.str))
+  if (is_infoschema_db(db))
   {
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
     DBUG_RETURN(-1);
@@ -854,7 +854,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db_len = strlen(db);
 
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
-    if (error= mysql_bin_log.write(&qinfo))
+    if ((error= mysql_bin_log.write(&qinfo)))
       goto exit;
   }
   my_ok(thd, result);
@@ -1601,8 +1601,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     }
   }
 
-  if (my_strcasecmp(system_charset_info, new_db_name->str,
-                    INFORMATION_SCHEMA_NAME.str) == 0)
+  if (is_infoschema_db(new_db_name->str, new_db_name->length))
   {
     /* Switch the current database to INFORMATION_SCHEMA. */
 

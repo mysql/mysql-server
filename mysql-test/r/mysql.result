@@ -427,4 +427,10 @@ a:  b
   </row>
 </resultset>
 drop table t1;
-End of 5.0 tests
+
+Bug #47147: mysql client option --skip-column-names does not apply to vertical output
+
+*************************** 1. row ***************************
+1
+
+End of tests

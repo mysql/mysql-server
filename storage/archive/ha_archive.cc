@@ -1555,7 +1555,7 @@ int ha_archive::info(uint flag)
       stats.data_file_length= file_stat.st_size;
       stats.index_file_length=0;
       stats.mean_rec_length= stats.records ?
-        stats.data_file_length / stats.records : table->s->reclength;
+        ulong(stats.data_file_length / stats.records) : table->s->reclength;
     }
   }
 

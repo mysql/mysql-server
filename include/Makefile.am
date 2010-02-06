@@ -19,7 +19,8 @@ BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources probes_mysql_nodtrace.h
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
-			my_list.h my_alloc.h typelib.h mysql/plugin.h
+			my_list.h my_alloc.h typelib.h mysql/plugin.h \
+			mysql/plugin_audit.h mysql/plugin_ftparser.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \

@@ -3610,20 +3610,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (133, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (133, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (133, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3638,20 +3642,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (134, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (134, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (134, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (134, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (134, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (134, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (134, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3668,20 +3676,24 @@ SELECT fc_i_nt_5_suc (135, 4);
 fc_i_nt_5_suc (135, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(135,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (135, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(135,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (135, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(135,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (135, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3696,22 +3708,30 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (136, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (136, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (136, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',136),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (136, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3728,20 +3748,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (137, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (137, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (137, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3756,20 +3780,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (138, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (138, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (138, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (138, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (138, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (138, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (138, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3786,20 +3814,24 @@ SELECT fc_i_nt_5_suc (139, 4);
 fc_i_nt_5_suc (139, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(139,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (139, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(139,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (139, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(139,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (139, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3814,22 +3846,30 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (140, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (140, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (140, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',140),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (140, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3848,20 +3888,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(141,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(141,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(141,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3878,20 +3922,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (142, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (142, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(142,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (142, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(142,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (142, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(142,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3910,20 +3958,24 @@ SELECT fc_i_nt_5_suc (143, 4);
 fc_i_nt_5_suc (143, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(143,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(143,2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(143,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(143,2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(143,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(143,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3940,22 +3992,30 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (144, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(144,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(144,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',144),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(144,2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -3972,6 +4032,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
@@ -3979,15 +4042,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',145),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',145),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',145),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',145),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4002,6 +4066,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
@@ -4009,15 +4076,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',146),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',146),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',146),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',146),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (146, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4034,6 +4102,9 @@ SELECT fc_i_nt_5_suc (147, 4);
 fc_i_nt_5_suc (147, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(147,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
@@ -4041,15 +4112,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',147),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',147),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(147,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(147,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',147),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',147),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(147,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4064,6 +4136,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (148, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
@@ -4071,17 +4149,19 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',148),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4192,20 +4272,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (152, 4), (150, 4);
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (152, 4), (150, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> Ne << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (152, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (152, 4), (150, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Ne C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (152, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (152, 4), (150, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (152, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Ne C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4232,6 +4316,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4240,14 +4327,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (153, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (153, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (153, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4262,6 +4350,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (154, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (154, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4270,14 +4361,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (154, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (154, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (154, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (154, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (154, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4294,6 +4386,9 @@ SELECT fc_i_nt_5_suc (155, 4);
 fc_i_nt_5_suc (155, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(155,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4302,14 +4397,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (155, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(155,4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-func R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (155, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(155,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (155, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4324,6 +4420,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (156, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4332,16 +4434,18 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (156, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (156, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',156),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (156, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4358,6 +4462,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4366,14 +4473,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (157, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (157, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (157, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4388,6 +4496,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (158, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (158, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4396,14 +4507,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (158, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (158, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (158, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (158, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (158, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4420,6 +4532,9 @@ SELECT fc_i_nt_5_suc (159, 4);
 fc_i_nt_5_suc (159, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(159,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4428,14 +4543,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (159, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(159,4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-func R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (159, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(159,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (159, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4450,6 +4566,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (160, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4458,16 +4580,18 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (160, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (160, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',160),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (160, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4486,6 +4610,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4494,14 +4621,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(161,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(161,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(161,2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4518,6 +4646,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (162, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (162, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4526,14 +4657,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(162,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (162, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(162,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (162, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(162,2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4552,6 +4684,9 @@ SELECT fc_i_nt_5_suc (163, 4);
 fc_i_nt_5_suc (163, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(163,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4560,14 +4695,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(163,2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(163,4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-func R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(163,2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(163,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(163,2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4584,6 +4720,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (164, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4592,16 +4734,18 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(164,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(164,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',164),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(164,2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4618,6 +4762,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4627,15 +4774,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',165),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',165),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',165),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',165),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4650,6 +4798,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4659,15 +4810,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',166),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',166),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',166),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',166),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (166, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4684,6 +4836,9 @@ SELECT fc_i_nt_5_suc (167, 4);
 fc_i_nt_5_suc (167, 4)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(167,4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4693,15 +4848,16 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',167),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',167),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(167,4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-func R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(167,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',167),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',167),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(167,4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4716,6 +4872,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (168, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4725,17 +4887,19 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',168),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-proc R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -4844,6 +5008,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (172, 4), (170, 4);
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (172, 4), (170, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> Ne << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -4852,14 +5019,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (172, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (172, 4), (170, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Ne R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (172, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (172, 4), (170, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (172, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Ne R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -6936,20 +7104,24 @@ INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (233, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tN C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (233, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (233, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tN C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7177,20 +7349,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 241, 4, COUNT(*) FROM tt_1 UNION SELECT 233, 4, COUNT(*) FROM tt_1;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 241, 4, COUNT(*) FROM tt_1 UNION SELECT 233, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tNe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (241, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 241, 4, COUNT(*) FROM tt_1 UNION SELECT 233, 4, COUNT(*) FROM tt_1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tNe C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (241, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 241, 4, COUNT(*) FROM tt_1 UNION SELECT 233, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (241, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tNe C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7360,6 +7536,9 @@ INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -7368,14 +7547,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (247, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tN R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (247, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (247, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tN R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7607,6 +7787,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 255, 4, COUNT(*) FROM tt_1 UNION SELECT 247, 4, COUNT(*) FROM tt_1;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 255, 4, COUNT(*) FROM tt_1 UNION SELECT 247, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> tNe << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -7615,14 +7798,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (255, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 255, 4, COUNT(*) FROM tt_1 UNION SELECT 247, 4, COUNT(*) FROM tt_1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tNe R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (255, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 255, 4, COUNT(*) FROM tt_1 UNION SELECT 247, 4, COUNT(*) FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (255, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T tNe R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7832,20 +8016,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 262, 2, COUNT(*) FROM nt_1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B nT N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 262, 2, COUNT(*) FROM nt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 262, 2, COUNT(*) FROM nt_1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7864,20 +8052,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (263, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (263, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 263 --> 2", tt_3.info= "new text 263 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (263, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 263 --> 2", tt_3.info= "new text 263 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (263, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 263 --> 2", tt_3.info= "new text 263 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7894,20 +8086,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (264, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (264, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (264, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (264, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (264, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (264, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (264, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7924,20 +8120,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (265, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (265, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (265, 2, fc_i_tt_5_suc(265, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (265, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-func N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (265, 2, fc_i_tt_5_suc(265, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (265, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (265, 2, fc_i_tt_5_suc(265, 2))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7956,20 +8156,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (266, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (266, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 266 --> 2", nt_4.info= "new text 266 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (266, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 266 --> 2", nt_4.info= "new text 266 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (266, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 266 --> 2", nt_4.info= "new text 266 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -7986,20 +8190,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (267, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (267, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (267, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (267, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (267, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (267, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (267, 2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8016,20 +8224,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (268, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (268, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (268, 2, fc_i_nt_5_suc(268, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (268, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-func N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (268, 2, fc_i_nt_5_suc(268, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (268, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (268, 2, fc_i_nt_5_suc(268, 2))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8119,20 +8331,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (271, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (271, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (271, 2), (264, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (271, 4)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (271, 2), (264, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (271, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (271, 2), (264, 2)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8150,20 +8366,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (272, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (272, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (272, 2, ''), (268, 2, fc_i_tt_5_suc (272, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (272, 4)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-func N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (272, 2, ''), (268, 2, fc_i_tt_5_suc (272, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (272, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (272, 2, ''), (268, 2, fc_i_tt_5_suc (272, 2))
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8181,20 +8401,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (273, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (273, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (273, 2), (267, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (273, 4)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (273, 2), (267, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (273, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (273, 2), (267, 2)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8212,20 +8436,24 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (274, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (274, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (274, 2, ''), (268, 2, fc_i_nt_5_suc (274, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (274, 4)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-func N C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (274, 2, ''), (268, 2, fc_i_nt_5_suc (274, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (274, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (274, 2, ''), (268, 2, fc_i_nt_5_suc (274, 2))
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-func N C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8292,6 +8520,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8300,14 +8531,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 276, 2, COUNT(*) FROM nt_1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B nT N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 276, 2, COUNT(*) FROM nt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 276, 2, COUNT(*) FROM nt_1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B nT N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8326,6 +8558,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (277, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (277, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8334,14 +8569,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 277 --> 2", tt_3.info= "new text 277 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (277, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 277 --> 2", tt_3.info= "new text 277 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (277, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 277 --> 2", tt_3.info= "new text 277 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8358,6 +8594,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (278, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (278, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8366,14 +8605,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (278, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (278, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (278, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (278, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (278, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8390,6 +8630,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (279, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (279, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8398,14 +8641,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (279, 2, fc_i_tt_5_suc(279, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (279, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-func N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (279, 2, fc_i_tt_5_suc(279, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (279, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (279, 2, fc_i_tt_5_suc(279, 2))
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B NT-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8424,6 +8668,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (280, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (280, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8432,14 +8679,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 280 --> 2", nt_4.info= "new text 280 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (280, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 280 --> 2", nt_4.info= "new text 280 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (280, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 280 --> 2", nt_4.info= "new text 280 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8456,6 +8704,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (281, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (281, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8464,14 +8715,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (281, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (281, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (281, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (281, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (281, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8488,6 +8740,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (282, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (282, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8496,14 +8751,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (282, 2, fc_i_nt_5_suc(282, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (282, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-func N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (282, 2, fc_i_nt_5_suc(282, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (282, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (282, 2, fc_i_nt_5_suc(282, 2))
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B TN-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8597,6 +8853,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (285, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (285, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8605,14 +8864,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (285, 2), (278, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (285, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (285, 2), (278, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (285, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_4(trans_id, stmt_id) VALUES (285, 2), (278, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8630,6 +8890,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (286, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (286, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8638,14 +8901,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (286, 2, ''), (282, 2, fc_i_tt_5_suc (286, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (286, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-func N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (286, 2, ''), (282, 2, fc_i_tt_5_suc (286, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (286, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id, info) VALUES (286, 2, ''), (282, 2, fc_i_tt_5_suc (286, 2))
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B NeT-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8663,6 +8927,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (287, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (287, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8671,14 +8938,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (287, 2), (267, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (287, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (287, 2), (267, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (287, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_3(trans_id, stmt_id) VALUES (287, 2), (267, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-trig N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -8696,6 +8964,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (288, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (288, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
@@ -8704,14 +8975,15 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (288, 2, ''), (268, 2, fc_i_nt_5_suc (288, 2))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (288, 4)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-func N R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (288, 2, ''), (268, 2, fc_i_nt_5_suc (288, 2))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (288, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id, info) VALUES (288, 2, ''), (268, 2, fc_i_nt_5_suc (288, 2))
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B TeN-func N R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9801,6 +10073,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> S1 << -b-b-b-b-b-b-b-b-b-b-b-
 SAVEPOINT s1;
@@ -9821,7 +10096,6 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
@@ -9830,8 +10104,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N S1 T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
@@ -9855,6 +10131,9 @@ INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5);
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7);
@@ -9872,7 +10151,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -9880,9 +10158,11 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 N T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -10399,6 +10679,9 @@ Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 6);
@@ -10409,7 +10692,6 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 3)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10417,8 +10699,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (340, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10440,6 +10724,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 6);
@@ -10450,7 +10737,6 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 3)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10458,8 +10744,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM tt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (341, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-T T C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10583,6 +10871,9 @@ Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 6);
@@ -10593,7 +10884,6 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 3)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10601,8 +10891,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (346, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T IS-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10624,6 +10916,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1;;
 Got one of the listed errors
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> ISe-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 6);
@@ -10634,7 +10929,6 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 3)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10642,8 +10936,10 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, trans_id, USER() FROM nt_1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (347, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> trunc-CS-N B T ISe-N<-N T C << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10751,20 +11047,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -10797,6 +11097,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R1 << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO s1;
@@ -10811,17 +11114,18 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
 master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -10847,6 +11151,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5);
@@ -10857,15 +11164,16 @@ ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
