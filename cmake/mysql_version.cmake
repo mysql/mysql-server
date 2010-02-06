@@ -41,12 +41,13 @@ MACRO(GET_MYSQL_VERSION)
         STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION_STRING "${str}")
         IF(NOT VERSION_STRING)
           FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
-          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\]]+" VERSION_STRING "${str}")
+          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zAZ0-9]+" VERSION_STRING "${str}")
         ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()
 
+  
   IF(NOT VERSION_STRING)
     MESSAGE(FATAL_ERROR 
   "VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
