@@ -26,6 +26,7 @@
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
+#include "sql_audit.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"
 
@@ -955,6 +956,7 @@ static void close_server_sock();
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
+static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void end_ssl();
 #endif
 
@@ -1365,6 +1367,7 @@ void unireg_end(void)
 #endif
 }
 
+
 extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
@@ -1375,15 +1378,25 @@ extern "C" void unireg_abort(int exit_code)
     sql_print_error("Aborting\n");
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
+  mysqld_exit(exit_code);
+}
+
+static void mysqld_exit(int exit_code)
+{
+  /*
+    Important note: we wait for the signal thread to end,
+    but if a kill -15 signal was sent, the signal thread did
+    spawn the kill_server_thread thread, which is running concurrently.
+  */
   wait_for_signal_thread_to_end();
+  mysql_audit_finalize();
   clean_up_mutexes();
   clean_up_error_log_mutex();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
 
-#endif /*EMBEDDED_LIBRARY*/
-
+#endif /* !EMBEDDED_LIBRARY */
 
 void clean_up(bool print_message)
 {
@@ -2116,10 +2129,10 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   mysql_cond_broadcast(&COND_thread_count);
 
-  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
@@ -3024,6 +3037,8 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
     DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
     error= ER_UNKNOWN_ERROR;
   }
+
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
 
   if (thd)
   {
@@ -4584,6 +4599,9 @@ int main(int argc, char **argv)
   thr_kill_signal= SIGINT;
 #endif
 
+  /* Initialize audit interface globals. Audit plugins are inited later. */
+  mysql_audit_initialize();
+
   /*
     Perform basic logger initialization logger. Should be called after
     MY_INIT, as it initializes mutexes. Log tables are inited later.
@@ -4876,14 +4894,6 @@ int main(int argc, char **argv)
   }
 #endif
   clean_up(1);
-  /*
-    Important note: we wait for the signal thread to end,
-    but if a kill -15 signal was sent, the signal thread did
-    spawn the kill_server_thread thread, which is running concurrently.
-  */
-  wait_for_signal_thread_to_end();
-  clean_up_mutexes();
-  clean_up_error_log_mutex();
 #ifdef HAVE_PSI_INTERFACE
   /*
     Disable the instrumentation, to avoid recording events
@@ -4896,13 +4906,10 @@ int main(int argc, char **argv)
   }
   shutdown_performance_schema();
 #endif
-  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-
-  exit(0);
-  return(0);					/* purecov: deadcode */
+  mysqld_exit(0);
 }
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* !EMBEDDED_LIBRARY */
 
 
 /****************************************************************************

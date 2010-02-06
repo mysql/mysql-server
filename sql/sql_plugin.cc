@@ -16,6 +16,7 @@
 #include "sys_vars_shared.h"
 #include <my_pthread.h>
 #include <my_getopt.h>
+#include <mysql/plugin_audit.h>
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -48,11 +49,15 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
+
+extern int initialize_audit_plugin(st_plugin_int *plugin);
+extern int finalize_audit_plugin(st_plugin_int *plugin);
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -61,12 +66,14 @@ extern int finalize_schema_table(st_plugin_int *plugin);
 */
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0,0,initialize_schema_table
+  0,ha_initialize_handlerton,0,0,initialize_schema_table,
+  initialize_audit_plugin
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0,0,finalize_schema_table
+  0,ha_finalize_handlerton,0,0,finalize_schema_table,
+  finalize_audit_plugin
 };
 
 #ifdef HAVE_DLOPEN
@@ -88,7 +95,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUDIT_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -97,7 +105,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUDIT_INTERFACE_VERSION,
+  MYSQL_REPLICATION_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -1025,6 +1034,10 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   DBUG_ENTER("plugin_initialize");
 
   mysql_mutex_assert_owner(&LOCK_plugin);
+  uint state= plugin->state;
+  DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
+
+  mysql_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1043,8 +1056,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       goto err;
     }
   }
-
-  plugin->state= PLUGIN_IS_READY;
+  state= PLUGIN_IS_READY; // plugin->init() succeeded
 
   if (plugin->plugin->status_vars)
   {
@@ -1063,7 +1075,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     if (add_status_vars(array)) // add_status_vars makes a copy
       goto err;
 #else
-    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+    if (add_status_vars(plugin->plugin->status_vars))
+      goto err;
 #endif /* FIX_LATER */
   }
 
@@ -1086,10 +1099,13 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   ret= 0;
 
 err:
+  mysql_mutex_lock(&LOCK_plugin);
+  plugin->state= state;
+
   /* maintain the obsolete @@have_innodb variable */
   if (!my_strcasecmp(&my_charset_latin1, plugin->name.str, "InnoDB"))
-    have_innodb= plugin->state & PLUGIN_IS_READY ? SHOW_OPTION_YES
-                                                 : SHOW_OPTION_DISABLED;
+    have_innodb= state & PLUGIN_IS_READY ? SHOW_OPTION_YES
+                                         : SHOW_OPTION_DISABLED;
 
   DBUG_RETURN(ret);
 }
@@ -1422,26 +1438,22 @@ end:
 */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 {
+  THD thd;
   TABLE_LIST tables;
   TABLE *table;
   READ_RECORD read_record_info;
   int error;
-  THD *new_thd;
+  THD *new_thd= &thd;
 #ifdef EMBEDDED_LIBRARY
   bool table_exists;
 #endif /* EMBEDDED_LIBRARY */
   DBUG_ENTER("plugin_load");
 
-  if (!(new_thd= new THD))
-  {
-    sql_print_error("Can't allocate memory for plugin structures");
-    delete new_thd;
-    DBUG_VOID_RETURN;
-  }
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
+  bzero((char*) &thd.net, sizeof(thd.net));
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
 #ifdef EMBEDDED_LIBRARY
@@ -1496,7 +1508,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   new_thd->version--; // Force close to free memory
 end:
   close_thread_tables(new_thd);
-  delete new_thd;
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD, 0);
   DBUG_VOID_RETURN;
@@ -1758,7 +1769,6 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   }
   else
   {
-    DBUG_ASSERT(tmp->state == PLUGIN_IS_UNINITIALIZED);
     if (plugin_initialize(tmp))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
@@ -2169,7 +2179,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
   {
     if (value->val_int(value, (long long *)&result))
       goto err;
-    if (unlikely((result >= (ULL(1) << typelib->count)) &&
+    if (unlikely((result >= (1ULL << typelib->count)) &&
                  (typelib->count < sizeof(long)*8)))
       goto err;
   }
@@ -2254,10 +2264,6 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin);
 
-  /*
-    If the variable exists but the plugin it is associated with is not ready
-    then the intern_plugin_lock did not raise an error, so we do it here.
-  */
   if (!var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   DBUG_RETURN(var);
@@ -2720,7 +2726,7 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
   default:
     return NULL;
   }
-  return NULL;
+  return NULL;	/* Keep compiler happy */
 }
 
 
@@ -2881,7 +2887,7 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->typelib= ((sysvar_set_t*) opt)->typelib;
     options->def_value= ((sysvar_set_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
-    options->max_value= (ULL(1) << options->typelib->count) - 1;
+    options->max_value= (1ULL << options->typelib->count) - 1;
     break;
   case PLUGIN_VAR_BOOL:
     options->var_type= GET_BOOL;
@@ -2923,7 +2929,7 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->typelib= ((thdvar_set_t*) opt)->typelib;
     options->def_value= ((thdvar_set_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
-    options->max_value= (ULL(1) << options->typelib->count) - 1;
+    options->max_value= (1ULL << options->typelib->count) - 1;
     break;
   case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_BOOL;

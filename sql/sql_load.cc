@@ -684,7 +684,11 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       if (item->name)
+      {
+        pfields.append("`");
         pfields.append(item->name);
+        pfields.append("`");
+      }
       else
         item->print(&pfields, QT_ORDINARY);
     }
@@ -704,7 +708,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       val= lv++;
       if (n++)
         pfields.append(", ");
+      pfields.append("`");
       pfields.append(item->name);
+      pfields.append("`");
       pfields.append("=");
       val->print(&pfields, QT_ORDINARY);
     }
