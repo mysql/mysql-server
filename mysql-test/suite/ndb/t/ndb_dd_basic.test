@@ -532,4 +532,40 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
+# bug#31782 - tablespace with no files
+--echo === bug#31782 ===
+
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
 #End 5.1 test case
