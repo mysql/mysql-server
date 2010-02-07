@@ -34,6 +34,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 {
   bool error= 1;
+  bool binlog_error= 0;
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
@@ -174,11 +175,11 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   */
   pthread_mutex_unlock(&LOCK_open);
 
-  /* Lets hope this doesn't fail as the result will be messy */ 
   if (!silent && !error)
   {
-    write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    my_ok(thd);
+    binlog_error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+    if (!binlog_error)
+      my_ok(thd);
   }
 
   if (!error)
@@ -190,7 +191,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
 err:
   start_waiting_global_read_lock(thd);
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || binlog_error);
 }
 
 
