@@ -172,6 +172,10 @@ public:
             enum_log_type log_type,
             const char *new_name,
             enum cache_type io_cache_type_arg);
+  bool init_and_set_log_file_name(const char *log_name,
+                                  const char *new_name,
+                                  enum_log_type log_type_arg,
+                                  enum cache_type io_cache_type_arg);
   void init(enum_log_type log_type_arg,
             enum cache_type io_cache_type_arg);
   void close(uint exiting);
@@ -233,14 +237,15 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   pthread_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
+  char index_file_name[FN_REFLEN];
   /*
-    purge_temp is a temp file used in purge_logs so that the index file
+    purge_file is a temp file used in purge_logs so that the index file
     can be updated before deleting files from disk, yielding better crash
     recovery. It is created on demand the first time purge_logs is called
     and then reused for subsequent calls. It is cleaned up in cleanup().
   */
-  IO_CACHE purge_temp;
-  char index_file_name[FN_REFLEN];
+  IO_CACHE purge_index_file;
+  char purge_index_file_name[FN_REFLEN];
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -349,9 +354,10 @@ public:
             const char *new_name,
 	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg, ulong max_size,
-            bool null_created);
+            bool null_created,
+            bool need_mutex);
   bool open_index_file(const char *index_file_name_arg,
-                       const char *log_name);
+                       const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
   void new_file();
 
@@ -384,6 +390,16 @@ public:
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(Relay_log_info* rli, bool included);
+  int set_purge_index_file_name(const char *base_file_name);
+  int open_purge_index_file(bool destroy);
+  bool is_inited_purge_index_file();
+  int close_purge_index_file();
+  int clean_purge_index_file();
+  int sync_purge_index_file();
+  int register_purge_index_entry(const char* entry);
+  int register_create_index_entry(const char* entry);
+  int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
+                        bool need_mutex);
   bool reset_logs(THD* thd);
   void close(uint exiting);
 

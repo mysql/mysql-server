@@ -705,7 +705,7 @@ static int check_connection(THD *thd)
   ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
+    char buff[SERVER_VERSION_LENGTH + 1 + SCRAMBLE_LENGTH + 1 + 64];
     server_capabilites= CLIENT_BASIC_FLAGS;
 
     if (opt_using_transactions)

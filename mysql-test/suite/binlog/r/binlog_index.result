@@ -1,3 +1,8 @@
+call mtr.add_suppression('Attempting backtrace');
+call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
+call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');
+call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
+call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
 flush logs;
 flush logs;
 flush logs;
@@ -21,7 +26,6 @@ flush logs;
 *** must be a warning master-bin.000001 was not found ***
 Warnings:
 Warning	1612	Being purged log master-bin.000001 was not found
-Warning	1612	Being purged log master-bin.000001 was not found
 *** must show one record, of the active binlog, left in the index file after PURGE ***
 show binary logs;
 Log_name	File_size
@@ -34,7 +38,114 @@ purge binary logs TO 'master-bin.000002';
 ERROR HY000: Fatal error during log purge
 show warnings;
 Level	Code	Message
-Error	1377	a problem with deleting master-bin.000001; consider examining correspondence of your binlog index file to the actual binlog files
+Warning	1377	a problem with deleting master-bin.000001; consider examining correspondence of your binlog index file to the actual binlog files
 Error	1377	Fatal error during log purge
 reset master;
+# crash_purge_before_update_index
+flush logs;
+SET SESSION debug="+d,crash_purge_before_update_index";
+purge binary logs TO 'master-bin.000002';
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000001
+master-bin.000002
+master-bin.000003
+
+# crash_purge_non_critical_after_update_index
+flush logs;
+SET SESSION debug="+d,crash_purge_non_critical_after_update_index";
+purge binary logs TO 'master-bin.000004';
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000004
+master-bin.000005
+
+# crash_purge_critical_after_update_index
+flush logs;
+SET SESSION debug="+d,crash_purge_critical_after_update_index";
+purge binary logs TO 'master-bin.000006';
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+
+# crash_create_non_critical_before_update_index
+SET SESSION debug="+d,crash_create_non_critical_before_update_index";
+flush logs;
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+
+# crash_create_critical_before_update_index
+SET SESSION debug="+d,crash_create_critical_before_update_index";
+flush logs;
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+
+# crash_create_after_update_index
+SET SESSION debug="+d,crash_create_after_update_index";
+flush logs;
+ERROR HY000: Lost connection to MySQL server during query
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+
+#
+# This should put the server in unsafe state and stop
+# accepting any command. If we inject a fault at this
+# point and continue the execution the server crashes.
+# Besides the flush command does not report an error.
+#
+# fault_injection_registering_index
+SET SESSION debug="+d,fault_injection_registering_index";
+flush logs;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+master-bin.000012
+
+# fault_injection_updating_index
+SET SESSION debug="+d,fault_injection_updating_index";
+flush logs;
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+master-bin.000012
+master-bin.000013
+
+SET SESSION debug="";
 End of tests

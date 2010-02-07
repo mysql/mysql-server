@@ -782,12 +782,21 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
+        TABLE_SHARE *share= table->s;
+
         /*
           Fix delete marker. No need to restore rest of record since it will
           be overwritten by fill_record() anyway (and fill_record() does not
           use default values in this case).
         */
-	table->record[0][0]= table->s->default_values[0];
+        table->record[0][0]= share->default_values[0];
+
+        /* Fix undefined null_bits. */
+        if (share->null_bytes > 1 && share->last_null_bit_pos)
+        {
+          table->record[0][share->null_bytes - 1]= 
+            share->default_values[share->null_bytes - 1];
+        }
       }
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,
@@ -2734,10 +2743,11 @@ bool Delayed_insert::handle_inserts(void)
         will be binlogged together as one single Table_map event and one
         single Rows event.
       */
-      thd.binlog_query(THD::ROW_QUERY_TYPE,
-                       row->query.str, row->query.length,
-                       FALSE, FALSE, errcode);
-
+      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
+                           row->query.str, row->query.length,
+                           FALSE, FALSE, errcode))
+        goto err;
+      
       thd.time_zone_used = backup_time_zone_used;
       thd.variables.time_zone = backup_time_zone;
     }
@@ -2805,8 +2815,9 @@ bool Delayed_insert::handle_inserts(void)
 
     TODO: Move the logging to last in the sequence of rows.
    */
-  if (thd.current_stmt_binlog_row_based)
-    thd.binlog_flush_pending_rows_event(TRUE);
+  if (thd.current_stmt_binlog_row_based &&
+      thd.binlog_flush_pending_rows_event(TRUE))
+    goto err;
 
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
@@ -3258,16 +3269,21 @@ bool select_insert::send_eof()
     events are in the transaction cache and will be written when
     ha_autocommit_or_rollback() is issued below.
   */
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open() &&
+      (!error || thd->transaction.stmt.modified_non_trans_table))
   {
     int errcode= 0;
     if (!error)
       thd->clear_error();
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-    thd->binlog_query(THD::ROW_QUERY_TYPE,
+    if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query(), thd->query_length(),
-                      trans_table, FALSE, errcode);
+                      trans_table, FALSE, errcode))
+    {
+      table->file->ha_release_auto_increment();
+      DBUG_RETURN(1);
+    }
   }
   table->file->ha_release_auto_increment();
 
@@ -3336,9 +3352,10 @@ void select_insert::abort() {
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
-                            thd->query_length(),
-                            transactional_table, FALSE, errcode);
+          /* error of writing binary log is ignored */
+          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
+                                   thd->query_length(),
+                                   transactional_table, FALSE, errcode);
         }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
@@ -3593,7 +3610,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
-        ptr->binlog_show_create_table(tables, count);
+        if (int error= ptr->binlog_show_create_table(tables, count))
+          return error;
       }
       return 0;
     }
@@ -3700,7 +3718,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_RETURN(0);
 }
 
-void
+int
 select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
@@ -3739,12 +3757,13 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      query.ptr(), query.length(),
-                      /* is_trans */ TRUE,
-                      /* suppress_use */ FALSE,
-                      errcode);
+    result= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query.ptr(), query.length(),
+                              /* is_trans */ TRUE,
+                              /* suppress_use */ FALSE,
+                              errcode);
   }
+  return result;
 }
 
 void select_create::store_values(List<Item> &values)
@@ -3842,7 +3861,8 @@ void select_create::abort()
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
-  thd->binlog_flush_pending_rows_event(TRUE);
+  /* possible error of writing binary log is ignored deliberately */
+  (void)thd->binlog_flush_pending_rows_event(TRUE);
 
   if (m_plock)
   {

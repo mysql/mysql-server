@@ -1,0 +1,145 @@
+CREATE TABLE t1 (c1 char(50));
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 char(50))
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`c1`) ;file_id=#
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`c1`) ;file_id=#
+DROP TABLE t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+reset master;
+select last_insert_id();
+last_insert_id()
+0
+create table t1(a int not null auto_increment, b int, primary key(a) );
+load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
+select last_insert_id();
+last_insert_id()
+1
+create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+load data CONCURRENT infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
+create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
+insert into t3 select * from t2;
+select * from t1;
+a	b
+1	10
+2	15
+select * from t3;
+day	id	category	name
+2003-02-22	2461	b	a a a @ %  ' " a
+2003-03-22	2161	c	asdf
+2003-03-22	2416	a	bbbbb
+drop table t1;
+drop table t2;
+drop table t3;
+create table t1(a int, b int, unique(b));
+insert into t1 values(1,10);
+load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
+set global sql_slave_skip_counter=1;
+start slave;
+Last_SQL_Errno=0
+Last_SQL_Error
+
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
+stop slave;
+change master to master_user='test';
+change master to master_user='root';
+Last_SQL_Errno=0
+Last_SQL_Error
+
+set global sql_slave_skip_counter=1;
+start slave;
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
+stop slave;
+reset slave;
+Last_SQL_Errno=0
+Last_SQL_Error
+
+reset master;
+create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
+unique(day)) engine=MyISAM;
+load data CONCURRENT infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
+select * from t2;
+day	id	category	name
+2003-02-22	2461	b	a a a @ %  ' " a
+2003-03-22	2161	c	asdf
+start slave;
+select * from t2;
+day	id	category	name
+2003-02-22	2461	b	a a a @ %  ' " a
+2003-03-22	2161	c	asdf
+alter table t2 drop key day;
+delete from t2;
+load data CONCURRENT infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
+drop table t1, t2;
+drop table t1, t2;
+CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
+LOAD DATA CONCURRENT INFILE "../../std_data/words.dat" INTO TABLE t1;
+ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
+DROP TABLE IF EXISTS t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists b48297_db1;
+drop database if exists b42897_db2;
+create database b48297_db1;
+create database b42897_db2;
+use b48297_db1;
+CREATE TABLE t1 (c1 VARCHAR(256)) engine=MyISAM;;
+use b42897_db2;
+### assertion: works with cross-referenced database
+LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+use b48297_db1;
+### assertion: works with fully qualified name on current database
+LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+### assertion: works without fully qualified name on current database
+LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1;
+### create connection without default database
+### connect (conn2,localhost,root,,*NO-ONE*);
+### assertion: works without stating the default database
+LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
+### disconnect and switch back to master connection
+use b48297_db1;
+Comparing tables master:b48297_db1.t1 and slave:b48297_db1.t1
+DROP DATABASE b48297_db1;
+DROP DATABASE b42897_db2;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+use test;
+CREATE TABLE t1 (`key` TEXT, `text` TEXT);
+LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+key	text
+Field A	'Field B'
+Field 1	'Field 2' 
+Field 3	'Field 4'
+'Field 5' 	'Field 6'
+Field 6	 'Field 7'
+DROP TABLE t1;

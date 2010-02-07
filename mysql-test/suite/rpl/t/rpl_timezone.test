@@ -179,8 +179,11 @@ insert into t1 values('2008-12-23 19:39:39',1);
 --connection master1
 SET @@session.time_zone='+02:00';
 insert delayed into t1 values ('2008-12-23 19:39:39',2);
-# Forces table t1 to be closed and flushes the query cache.
-# This makes sure that 'delayed insert' is executed before next statement.
+
+# wait for the delayed insert to be executed
+let $wait_condition= SELECT date FROM t1 WHERE a=2;
+--source include/wait_condition.inc
+
 flush table t1;
 flush logs;
 select * from t1;
