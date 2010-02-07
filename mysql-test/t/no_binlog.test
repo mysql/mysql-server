@@ -1,3 +1,5 @@
+-- source include/not_embedded.inc
+
 # BUG#50780: 'show binary logs' debug assertion when binary logging is disabled
 
 -- error ER_NO_BINARY_LOGGING
