@@ -28,6 +28,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "rpl_rli.h"
+#include "sql_audit.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -42,7 +43,6 @@
 
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
-#define MAX_USER_HOST_SIZE 512
 #define MAX_TIME_SIZE 32
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 
@@ -199,7 +199,7 @@ private:
 class binlog_cache_data
 {
 public:
-  binlog_cache_data(): m_pending(0), before_stmt_pos (MY_OFF_T_UNDEF),
+  binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
   incident(FALSE)
   {
     cache_log.end_of_file= max_binlog_cache_size;
@@ -1157,7 +1157,6 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
   bool error= FALSE;
   Log_event_handler **current_handler= general_log_handler_list;
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
   time_t current_time;
 
@@ -1169,14 +1168,16 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
     unlock();
     return 0;
   }
-  user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                          sctx->priv_user ? sctx->priv_user : "", "[",
-                          sctx->user ? sctx->user : "", "] @ ",
-                          sctx->host ? sctx->host : "", " [",
-                          sctx->ip ? sctx->ip : "", "]", NullS) -
-                                                          user_host_buff;
+  user_host_len= make_user_name(thd, user_host_buff);
 
   current_time= my_time(0);
+
+  mysql_audit_general_log(thd, current_time,
+                          user_host_buff, user_host_len,
+                          command_name[(uint) command].str,
+                          command_name[(uint) command].length,
+                          query, query_length);
+                        
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
@@ -1752,7 +1753,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   */
   if (cache_mngr->stmt_cache.has_incident())
   {
-    mysql_bin_log.write_incident(thd, TRUE);
+    error= mysql_bin_log.write_incident(thd, TRUE);
     cache_mngr->reset_cache(&cache_mngr->stmt_cache);
   }
   else if (!cache_mngr->stmt_cache.empty())
@@ -1760,7 +1761,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     binlog_flush_stmt_cache(thd, cache_mngr);
   }
 
-  if (cache_mngr->trx_cache.empty()) 
+  if (cache_mngr->trx_cache.empty())
   {
     /* 
       we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
@@ -1768,7 +1769,6 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     cache_mngr->reset_cache(&cache_mngr->trx_cache);
     DBUG_RETURN(0);
   }
-
 
   if (mysql_bin_log.check_write_error(thd))
   {
@@ -1909,7 +1909,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->transaction.all.modified_non_trans_table || 
+  if (unlikely(thd->transaction.all.modified_non_trans_table ||
                (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
@@ -2650,7 +2650,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN));
+    strmake(buff, log_name, min(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;
@@ -3913,7 +3913,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       if (stat_area.st_mtime < purge_time) 
         strmake(to_log, 
                 log_info.log_file_name, 
-                sizeof(log_info.log_file_name));
+                sizeof(log_info.log_file_name) - 1);
       else
         break;
     }
@@ -4191,6 +4191,66 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
           query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
+/** 
+  This function checks if a transactional talbe was updated by the
+  current transaction.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a transactional table was updated, @c false otherwise.
+*/
+bool
+trans_has_updated_trans_table(const THD* thd)
+{
+  binlog_cache_mngr *const cache_mngr=
+    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+
+  return (cache_mngr ? my_b_tell (&cache_mngr->trx_cache.cache_log) : 0);
+}
+
+/** 
+  This function checks if a transactional talbe was updated by the
+  current statement.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a transactional table was updated, @c false otherwise.
+*/
+bool
+stmt_has_updated_trans_table(const THD *thd)
+{
+  Ha_trx_info *ha_info;
+
+  for (ha_info= thd->transaction.stmt.ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
+      return (TRUE);
+  }
+  return (FALSE);
+}
+
+/** 
+  This function checks if either a trx-cache or a non-trx-cache should
+  be used. If @c bin_log_direct_non_trans_update is active, the cache
+  to be used depends on the flag @c is_transactional. 
+
+  Otherswise, we use the trx-cache if either the @c is_transactional
+  is true or the trx-cache is not empty.
+
+  @param thd              The client thread.
+  @param is_transactional The changes are related to a trx-table.
+  @return
+    @c true if a trx-cache should be used, @c false otherwise.
+*/
+bool use_trans_cache(const THD* thd, bool is_transactional)
+{
+  binlog_cache_mngr *const cache_mngr=
+    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+
+  return
+    (thd->variables.binlog_direct_non_trans_update ? is_transactional :
+    (cache_mngr->trx_cache.empty() && !is_transactional ? FALSE : TRUE));
+}
 
 /*
   These functions are placed in this file since they need access to
@@ -4221,44 +4281,6 @@ int THD::binlog_setup_trx_data()
   cache_mngr= new (thd_get_ha_data(this, binlog_hton)) binlog_cache_mngr;
 
   DBUG_RETURN(0);
-}
-
-/** 
-    This function checks if a transactional talbe was updated by the
-    current transaction.
-
-    @param thd The client thread that executed the current statement.
-    @return
-      @c true if a transactional table was updated, @false otherwise.
-*/
-bool
-trans_has_updated_trans_table(THD* thd)
-{
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
-
-  return (cache_mngr ? my_b_tell (&cache_mngr->trx_cache.cache_log) : 0);
-}
-
-/** 
-    This function checks if a transactional talbe was updated by the
-    current statement.
-
-    @param thd The client thread that executed the current statement.
-    @return
-      @c true if a transactional table was updated, @false otherwise.
-*/
-bool
-stmt_has_updated_trans_table(THD *thd)
-{
-  Ha_trx_info *ha_info;
-
-  for (ha_info= thd->transaction.stmt.ha_list; ha_info; ha_info= ha_info->next())
-  {
-    if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
-      return (TRUE);
-  }
-  return (FALSE);
 }
 
 /*
@@ -4369,8 +4391,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
 
-  IO_CACHE *file= cache_mngr->get_binlog_cache_log(is_transactional);
-
+  IO_CACHE *file=
+    cache_mngr->get_binlog_cache_log(use_trans_cache(this, is_transactional));
   if ((error= the_event.write(file)))
     DBUG_RETURN(error);
 
@@ -4405,7 +4427,7 @@ THD::binlog_get_pending_rows_event(bool is_transactional) const
   if (cache_mngr)
   {
     binlog_cache_data *cache_data=
-      cache_mngr->get_binlog_cache_data(is_transactional);
+      cache_mngr->get_binlog_cache_data(use_trans_cache(this, is_transactional));
 
     rows= cache_data->pending();
   }
@@ -4434,7 +4456,7 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional)
   DBUG_ASSERT(cache_mngr);
 
   binlog_cache_data *cache_data=
-    cache_mngr->get_binlog_cache_data(is_transactional);
+    cache_mngr->get_binlog_cache_data(use_trans_cache(this, is_transactional));
 
   cache_data->set_pending(ev);
 }
@@ -4460,7 +4482,7 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
   DBUG_ASSERT(cache_mngr);
 
   binlog_cache_data *cache_data=
-    cache_mngr->get_binlog_cache_data(is_transactional);
+    cache_mngr->get_binlog_cache_data(use_trans_cache(thd, is_transactional));
 
   if (Rows_log_event* pending= cache_data->pending())
   {
@@ -4497,7 +4519,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_ASSERT(cache_mngr);
 
   binlog_cache_data *cache_data=
-    cache_mngr->get_binlog_cache_data(is_transactional);
+    cache_mngr->get_binlog_cache_data(use_trans_cache(thd, is_transactional));
 
   DBUG_PRINT("info", ("cache_mngr->pending(): 0x%lx", (long) cache_data->pending()));
 
@@ -4608,35 +4630,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_cache_mngr *const cache_mngr=
         (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-      /*
-        If we are about to use write rows, we just need to check the type of
-        the event (either transactional or non-transactional) in order to
-        choose the cache.
-      */
-      if (thd->is_current_stmt_binlog_format_row())
-      {
-        file= cache_mngr->get_binlog_cache_log(event_info->use_trans_cache());
-        cache_data= cache_mngr->get_binlog_cache_data(event_info->use_trans_cache());
-      }
-      /*
-        However, if we are about to write statements we need to consider other
-        things. We use the non-transactional cache when:
-
-        . the transactional cache is empty which means that there were no
-         early statement on behalf of the transaction.
-        . the respective event is tagged as non-transactional.
-      */
-      else if (cache_mngr->trx_cache.empty() &&
-               !event_info->use_trans_cache())
-      {
-        file= &cache_mngr->stmt_cache.cache_log;
-        cache_data=  &cache_mngr->stmt_cache;
-      }
-      else
-      {
-        file= &cache_mngr->trx_cache.cache_log;
-        cache_data= &cache_mngr->trx_cache;
-      }
+      bool is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
+      file= cache_mngr->get_binlog_cache_log(is_trans_cache);
+      cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
 
       thd->binlog_start_trans_and_stmt();
     }
@@ -4898,7 +4894,6 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   do
   {
-
     /*
       if we only got a partial header in the last iteration,
       get the other half now and process a full header.
@@ -5380,11 +5375,11 @@ bool flush_error_log()
   if (opt_error_log)
   {
     char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
     strmov(end, "-old");
     mysql_mutex_lock(&LOCK_error_log);
 #ifdef __WIN__
-    char err_temp[FN_REFLEN+4];
+    char err_temp[FN_REFLEN+5];
     /*
      On Windows is necessary a temporary file for to rename
      the current error file.

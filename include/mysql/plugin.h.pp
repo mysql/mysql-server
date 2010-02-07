@@ -76,6 +76,8 @@ struct st_mysql_plugin
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
 };
+#include "plugin_ftparser.h"
+#include "plugin.h"
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,
@@ -122,11 +124,6 @@ struct st_mysql_ftparser
   int (*init)(MYSQL_FTPARSER_PARAM *param);
   int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
-struct st_mysql_storage_engine
-{
-  int interface_version;
-};
-struct handlerton;
 struct st_mysql_daemon
 {
   int interface_version;
@@ -135,6 +132,11 @@ struct st_mysql_information_schema
 {
   int interface_version;
 };
+struct st_mysql_storage_engine
+{
+  int interface_version;
+};
+struct handlerton;
  struct Mysql_replication {
    int interface_version;
  };
