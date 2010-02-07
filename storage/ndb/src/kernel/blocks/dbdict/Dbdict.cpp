@@ -17055,6 +17055,15 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
 	break;
       }
     }
+
+    if (fg_ptr.p->m_type == DictTabInfo::Tablespace &&
+        f.FileSizeHi == 0 &&
+        f.FileSizeLo < fg_ptr.p->m_tablespace.m_extent_size)
+    {
+      jam();
+      op->m_errorCode = CreateFileRef::FileSizeTooSmall;
+      break;
+    }
     
     // Loop through all filenames...
     if(!c_obj_pool.seize(obj_ptr)){

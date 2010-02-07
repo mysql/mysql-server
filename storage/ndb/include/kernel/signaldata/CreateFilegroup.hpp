@@ -164,7 +164,8 @@ struct CreateFileRef {
     OutOfFileRecords = 751,
     InvalidFileType = 750,
     NotSupportedWhenDiskless = 775,
-    SingleUser = 299
+    SingleUser = 299,
+    FileSizeTooSmall = 1516
   };
   
   Uint32 senderData;
