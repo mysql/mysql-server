@@ -23,6 +23,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <mysql/plugin_audit.h>
 #include "log.h"
 #include "rpl_tblmap.h"
 
@@ -373,6 +374,7 @@ typedef struct system_variables
   ulong group_concat_max_len;
 
   uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  my_bool binlog_direct_non_trans_update;
   uint completion_type;
   uint query_cache_type;
   uint tx_isolation;
@@ -1834,6 +1836,20 @@ public:
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
+#endif
+
+#ifndef EMBEDDED_LIBRARY
+  /**
+    Array of active audit plugins which have been used by this THD.
+    This list is later iterated to invoke release_thd() on those
+    plugins.
+  */
+  DYNAMIC_ARRAY audit_class_plugins;
+  /**
+    Array of bits indicating which audit classes have already been
+    added to the list of audit plugins which are currently in use.
+  */
+  unsigned long audit_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)

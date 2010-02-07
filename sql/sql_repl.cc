@@ -917,11 +917,14 @@ impossible position";
 
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
-      case LOG_INFO_EOF:
-	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
-	break;
       case 0:
 	break;
+      case LOG_INFO_EOF:
+        if (mysql_bin_log.is_active(log_file_name))
+        {
+          loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
+          break;
+        }
       default:
 	errmsg = "could not find next log";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
