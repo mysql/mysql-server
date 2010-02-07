@@ -558,6 +558,8 @@ public:
     Uint64 m_file_size;
     Uint64 m_file_free;
     RopeHandle m_path;
+
+    Uint32 m_warningFlags; // move to op in 7.0
     
     Uint32 nextList;
     union {
@@ -597,6 +599,8 @@ public:
 	File_list::HeadPOD m_files;
       } m_logfilegroup;
     };
+
+    Uint32 m_warningFlags; // move to op in 7.0
     
     union {
       Uint32 nextPool;
