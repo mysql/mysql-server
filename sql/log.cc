@@ -1477,7 +1477,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
     {
       if (trx_data->has_incident())
-        mysql_bin_log.write_incident(thd, TRUE);
+        error= mysql_bin_log.write_incident(thd, TRUE);
       trx_data->reset();
     }
     else                                        // ...statement
@@ -2433,7 +2433,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN));
+    strmake(buff, log_name, min(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;
@@ -3683,7 +3683,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       if (stat_area.st_mtime < purge_time) 
         strmake(to_log, 
                 log_info.log_file_name, 
-                sizeof(log_info.log_file_name));
+                sizeof(log_info.log_file_name) - 1);
       else
         break;
     }
@@ -4306,12 +4306,20 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 #if defined(USING_TRANSACTIONS) 
     /*
       Should we write to the binlog cache or to the binlog on disk?
+
       Write to the binlog cache if:
-      - it is already not empty (meaning we're in a transaction; note that the
-     present event could be about a non-transactional table, but still we need
-     to write to the binlog cache in that case to handle updates to mixed
-     trans/non-trans table types the best possible in binlogging)
-      - or if the event asks for it (cache_stmt == TRUE).
+      1 - a transactional engine/table is updated (stmt_has_updated_trans_table == TRUE);
+      2 - or the event asks for it (cache_stmt == TRUE);
+      3 - or the cache is already not empty (meaning we're in a transaction;
+      note that the present event could be about a non-transactional table, but
+      still we need to write to the binlog cache in that case to handle updates
+      to mixed trans/non-trans table types).
+      
+      Write to the binlog on disk if only a non-transactional engine is
+      updated and:
+      1 - the binlog cache is empty or;
+      2 - --binlog-direct-non-transactional-updates is set and we are about to
+      use the statement format. When using the row format (cache_stmt == TRUE).
     */
     if (opt_using_transactions && thd)
     {
@@ -4322,8 +4330,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
       IO_CACHE *trans_log= &trx_data->trans_log;
       my_off_t trans_log_pos= my_b_tell(trans_log);
-      if (event_info->get_cache_stmt() || trans_log_pos != 0 ||
-          stmt_has_updated_trans_table(thd))
+      if (event_info->get_cache_stmt() || stmt_has_updated_trans_table(thd) ||
+          (!thd->variables.binlog_direct_non_trans_update &&
+            trans_log_pos != 0))
       {
         DBUG_PRINT("info", ("Using trans_log: cache: %d, trans_log_pos: %lu",
                             event_info->get_cache_stmt(),
@@ -4731,7 +4740,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   Incident_log_event ev(thd, incident, write_error_msg);
   if (lock)
     pthread_mutex_lock(&LOCK_log);
-  ev.write(&log_file);
+  error= ev.write(&log_file);
   if (lock)
   {
     if (!error && !(error= flush_and_sync(0)))
@@ -5089,11 +5098,11 @@ bool flush_error_log()
   if (opt_error_log)
   {
     char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
     strmov(end, "-old");
     VOID(pthread_mutex_lock(&LOCK_error_log));
 #ifdef __WIN__
-    char err_temp[FN_REFLEN+4];
+    char err_temp[FN_REFLEN+5];
     /*
      On Windows is necessary a temporary file for to rename
      the current error file.

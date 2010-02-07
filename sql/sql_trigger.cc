@@ -507,7 +507,7 @@ end:
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
