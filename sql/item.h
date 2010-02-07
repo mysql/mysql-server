@@ -506,6 +506,13 @@ public:
   char * name;			/* Name from select */
   /* Original item name (if it was renamed)*/
   char * orig_name;
+  /**
+     Intrusive list pointer for free list. If not null, points to the next
+     Item on some Query_arena's free list. For instance, stored procedures
+     have their own Query_arena's.
+
+     @see Query_arena::free_list
+   */
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -957,6 +964,32 @@ public:
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
+  /*
+    Check if an expression value depends on the current timezone. Used by
+    partitioning code to reject timezone-dependent expressions in a
+    (sub)partitioning function.
+  */
+  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  {
+    return FALSE;
+  }
+
+  /**
+    Find a function of a given type
+
+    @param   arg     the function type to search (enum Item_func::Functype)
+    @return
+      @retval TRUE   the function type we're searching for is found
+      @retval FALSE  the function type wasn't found
+
+    @description
+      This function can be used (together with Item::walk()) to find functions
+      in an item tree fragment.
+  */
+  virtual bool find_function_processor (uchar *arg)
+  {
+    return FALSE;
+  }
 
   /*
     For SP local variable returns pointer to Item representing its

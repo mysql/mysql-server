@@ -4243,7 +4243,7 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     uchar *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
     if (new_item && new_item != item)
-      li.replace(new_item);
+      current_thd->change_item_tree(li.ref(), new_item);
   }
   return Item_func::transform(transformer, arg_t);
 }
@@ -5244,7 +5244,8 @@ Item *Item_bool_rowready_func2::negated_item()
 }
 
 Item_equal::Item_equal(Item_field *f1, Item_field *f2)
-  : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
+  : Item_bool_func(), const_item(0), eval_item(0), cond_false(0),
+    compare_as_dates(FALSE)
 {
   const_item_cache= 0;
   fields.push_back(f1);
@@ -5257,6 +5258,7 @@ Item_equal::Item_equal(Item *c, Item_field *f)
   const_item_cache= 0;
   fields.push_back(f);
   const_item= c;
+  compare_as_dates= f->is_datetime();
 }
 
 
@@ -5271,8 +5273,44 @@ Item_equal::Item_equal(Item_equal *item_equal)
     fields.push_back(item);
   }
   const_item= item_equal->const_item;
+  compare_as_dates= item_equal->compare_as_dates;
   cond_false= item_equal->cond_false;
 }
+
+
+void Item_equal::compare_const(Item *c)
+{
+  if (compare_as_dates)
+  {
+    cmp.set_datetime_cmp_func(this, &c, &const_item);
+    cond_false= cmp.compare();
+  }
+  else
+  {
+    Item_func_eq *func= new Item_func_eq(c, const_item);
+    func->set_cmp_func();
+    func->quick_fix_field();
+    cond_false= !func->val_int();
+  }
+  if (cond_false)
+    const_item_cache= 1;
+}
+
+
+void Item_equal::add(Item *c, Item_field *f)
+{
+  if (cond_false)
+    return;
+  if (!const_item)
+  {
+    DBUG_ASSERT(f);
+    const_item= c;
+    compare_as_dates= f->is_datetime();
+    return;
+  }
+  compare_const(c);
+}
+
 
 void Item_equal::add(Item *c)
 {
@@ -5283,11 +5321,7 @@ void Item_equal::add(Item *c)
     const_item= c;
     return;
   }
-  Item_func_eq *func= new Item_func_eq(c, const_item);
-  func->set_cmp_func();
-  func->quick_fix_field();
-  if ((cond_false= !func->val_int()))
-    const_item_cache= 1;
+  compare_const(c);
 }
 
 void Item_equal::add(Item_field *f)

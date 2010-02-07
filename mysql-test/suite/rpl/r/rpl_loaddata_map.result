@@ -20,7 +20,7 @@ master-bin.000001	#	Query	#	#	use `test`; create table t2 (id int not null prima
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Append_block	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Append_block	#	#	;file_id=#;block_len=#
-master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (id) ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`id`) ;file_id=#
 ==== Verify results on slave ====
 [on slave]
 select count(*) from t2 /* 5 000 */;

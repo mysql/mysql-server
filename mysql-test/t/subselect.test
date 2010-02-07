@@ -3368,6 +3368,32 @@ WHERE a = 230;
 
 DROP TABLE t1, st1, st2;
 
+--echo #
+--echo # Bug #48709: Assertion failed in sql_select.cc:11782: 
+--echo #   int join_read_key(JOIN_TAB*)
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, int_key int);
+INSERT INTO t1 VALUES (10,1), (14,1);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, int_key int);
+INSERT INTO t2 VALUES (3,3), (5,NULL), (7,3);
+
+--echo # should have eq_ref for t1
+--replace_column 1 x 2 x 5 x 6 x 7 x 8 x 9 x 10 x
+EXPLAIN
+SELECT * FROM t2 outr
+WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
+ORDER BY outr.pk;
+
+--echo # should not crash on debug binaries
+SELECT * FROM t2 outr
+WHERE outr.int_key NOT IN (SELECT t1.pk FROM t1, t2)  
+ORDER BY outr.pk;
+
+DROP TABLE t1,t2;
+
+
 --echo End of 5.0 tests.
 
 #
@@ -3557,6 +3583,21 @@ INSERT INTO t1 SET a = 'aaaa';
 INSERT INTO t1 SET a = 'aaaa';
 SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #49512 : subquery with aggregate function crash 
+--echo #   subselect_single_select_engine::exec()
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES();
+
+--echo # should not crash
+SELECT 1 FROM t1 WHERE a <> SOME
+(
+ SELECT MAX((SELECT a FROM t1 LIMIT 1)) AS d
+ FROM t1,t1 a
+);
 DROP TABLE t1;
 
 --echo End of 5.1 tests.

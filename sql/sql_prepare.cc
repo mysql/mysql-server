@@ -1596,6 +1596,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     {
       lex->link_first_table_back(create_table, link_to_local);
       create_table->create= TRUE;
+      /* Base table and temporary table are not in the same name space. */
+      create_table->skip_temporary= true;
     }
 
     if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
