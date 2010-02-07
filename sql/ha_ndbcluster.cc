@@ -11509,6 +11509,54 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     }
   }
 
+  NdbDictionary::Dictionary::List tslist;
+  dict->listObjects(tslist, NdbDictionary::Object::Tablespace);
+  ndberr= dict->getNdbError();
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
+
+  for (i= 0; i < tslist.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element&elt= tslist.elements[i];
+
+    NdbDictionary::Tablespace ts= dict->getTablespace(elt.name);
+    ndberr= dict->getNdbError();
+    if (ndberr.classification != NdbError::NoError)
+    {
+      if (ndberr.classification == NdbError::SchemaError)
+        continue;
+      ERR_RETURN(ndberr);
+    }
+
+    init_fill_schema_files_row(table);
+    table->field[IS_FILES_FILE_TYPE]->set_notnull();
+    table->field[IS_FILES_FILE_TYPE]->store("TABLESPACE", 10,
+                                            system_charset_info);
+
+    table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
+    table->field[IS_FILES_TABLESPACE_NAME]->store(elt.name,
+                                                     strlen(elt.name),
+                                                     system_charset_info);
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->
+      store(ts.getDefaultLogfileGroup(),
+           strlen(ts.getDefaultLogfileGroup()),
+           system_charset_info);
+
+    table->field[IS_FILES_ENGINE]->set_notnull();
+    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                         ndbcluster_hton_name_length,
+                                         system_charset_info);
+
+    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+
+    table->field[IS_FILES_VERSION]->set_notnull();
+    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion());
+
+    schema_table_store_record(thd, table);
+  }
+
   NdbDictionary::Dictionary::List uflist;
   dict->listObjects(uflist, NdbDictionary::Object::Undofile);
   ndberr= dict->getNdbError();
