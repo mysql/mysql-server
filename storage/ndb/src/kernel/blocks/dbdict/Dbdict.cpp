@@ -15709,6 +15709,7 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     conf->senderData = trans_ptr.p->m_senderData;
     conf->filegroupId = fg_ptr.p->key;
     conf->filegroupVersion = fg_ptr.p->m_version;
+    conf->warningFlags = fg_ptr.p->m_warningFlags;
     
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
@@ -15724,6 +15725,7 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     conf->senderData = trans_ptr.p->m_senderData;
     conf->fileId = f_ptr.p->key;
     conf->fileVersion = f_ptr.p->m_version;
+    conf->warningFlags = f_ptr.p->m_warningFlags;
 
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_CONF, signal, 
@@ -16762,12 +16764,24 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
     fg_ptr.p->m_type = fg.FilegroupType;
     fg_ptr.p->m_version = op->m_obj_version;
     fg_ptr.p->m_name = obj_ptr.p->m_name;
+    fg_ptr.p->m_warningFlags = 0;
 
     switch(fg.FilegroupType){
     case DictTabInfo::Tablespace:
     {
       //fg.TS_DataGrow = group.m_grow_spec;
       fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
+      // round up to page size - Tsman::Tablespace::Tablespace
+      const Uint32 page_size = (Uint32)File_formats::NDB_PAGE_SIZE;
+      if (fg_ptr.p->m_tablespace.m_extent_size % page_size != 0 &&
+          !ERROR_INSERTED(6030))
+      {
+        jam();
+        fg_ptr.p->m_tablespace.m_extent_size +=
+          page_size - fg_ptr.p->m_tablespace.m_extent_size % page_size;
+        fg_ptr.p->m_warningFlags |= CreateFilegroupConf::WarnExtentRoundUp;
+      }
+      ndbout << "DD dict: ts id:" << op->m_obj_id << " extent bytes:" << fg_ptr.p->m_tablespace.m_extent_size << " warn:" << hex << fg_ptr.p->m_warningFlags << endl;
 
       Ptr<Filegroup> lg_ptr;
       if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
@@ -16804,6 +16818,17 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
     {
       jam();
       fg_ptr.p->m_logfilegroup.m_undo_buffer_size = fg.LF_UndoBufferSize;
+      // round up to page size - Lgman::alloc_logbuffer_memory
+      const Uint32 page_size = (Uint32)File_formats::NDB_PAGE_SIZE;
+      if (fg_ptr.p->m_logfilegroup.m_undo_buffer_size % page_size != 0 &&
+          !ERROR_INSERTED(6030))
+      {
+        jam();
+        fg_ptr.p->m_logfilegroup.m_undo_buffer_size +=
+          page_size - fg_ptr.p->m_logfilegroup.m_undo_buffer_size % page_size;
+        fg_ptr.p->m_warningFlags |= CreateFilegroupConf::WarnUndobufferRoundUp;
+      }
+      ndbout << "DD dict: fg id:" << op->m_obj_id << " undo buffer bytes:" << fg_ptr.p->m_logfilegroup.m_undo_buffer_size << " warn:" << hex << fg_ptr.p->m_warningFlags << endl;
       fg_ptr.p->m_logfilegroup.m_files.init();
       //fg.LF_UndoGrow = ;
       break;
@@ -17112,6 +17137,45 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
      */
     filePtr.p->key = op->m_obj_id;
     filePtr.p->m_file_size = ((Uint64)f.FileSizeHi) << 32 | f.FileSizeLo;
+    filePtr.p->m_warningFlags = 0;
+    if (fg_ptr.p->m_type == DictTabInfo::Tablespace)
+    {
+      // round down to page size and up to extent size - Tsman::open_file
+      const Uint64 page_size = (Uint64)File_formats::NDB_PAGE_SIZE;
+      const Uint64 extent_size = (Uint64)fg_ptr.p->m_tablespace.m_extent_size;
+      ndbrequire(extent_size != 0);
+      if (filePtr.p->m_file_size % page_size != 0 &&
+          !ERROR_INSERTED(6030))
+      {
+        jam();
+        filePtr.p->m_file_size /= page_size;
+        filePtr.p->m_file_size *= page_size;
+        filePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundDown;
+      }
+      if (filePtr.p->m_file_size % extent_size != 0 &&
+          !ERROR_INSERTED(6030))
+      {
+        jam();
+        filePtr.p->m_file_size +=
+          extent_size - filePtr.p->m_file_size % extent_size;
+        filePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundUp;
+      }
+      ndbout << "DD dict: file id:" << op->m_obj_id << " datafile bytes:" << filePtr.p->m_file_size << " warn:" << hex << filePtr.p->m_warningFlags << endl;
+    }
+    if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
+    {
+      // round down to page size - Lgman::Undofile::Undofile
+      const Uint64 page_size = (Uint64)File_formats::NDB_PAGE_SIZE;
+      if (filePtr.p->m_file_size % page_size != 0 &&
+          !ERROR_INSERTED(6030))
+      {
+        jam();
+        filePtr.p->m_file_size /= page_size;
+        filePtr.p->m_file_size *= page_size;
+        filePtr.p->m_warningFlags |= CreateFileConf::WarnUndofileRoundDown;
+      }
+      ndbout << "DD dict: file id:" << op->m_obj_id << " undofile bytes:" << filePtr.p->m_file_size << " warn:" << hex << filePtr.p->m_warningFlags << endl;
+    }
     filePtr.p->m_path = obj_ptr.p->m_name;
     filePtr.p->m_obj_ptr_i = obj_ptr.i;
     filePtr.p->m_filegroup_id = f.FilegroupId;

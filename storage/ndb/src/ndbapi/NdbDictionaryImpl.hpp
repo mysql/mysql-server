@@ -472,7 +472,8 @@ public:
 
 class NdbDictInterface {
 public:
-  NdbDictInterface(NdbError& err) : m_error(err) {
+  NdbDictInterface(NdbError& err, int& warn) :
+      m_error(err), m_warn(warn) {
     m_reference = 0;
     m_masterNodeId = 0;
     m_transporter= NULL;
@@ -562,6 +563,7 @@ public:
   
   const NdbError &getNdbError() const;  
   NdbError & m_error;
+  int & m_warn;
 private:
   Uint32 m_reference;
   Uint32 m_masterNodeId;
@@ -718,6 +720,7 @@ public:
   
   const NdbError & getNdbError() const;
   NdbError m_error;
+  int m_warn;
   Uint32 m_local_table_data_size;
 
   LocalDictCache m_localHash;
