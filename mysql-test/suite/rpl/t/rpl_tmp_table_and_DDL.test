@@ -1,0 +1,13 @@
+#
+# Bug#49132 
+# This test verifies if executing DDL statement before trying to manipulate
+# a temporary table causes row-based replication to break with error 'table
+# does not exist' base on myisam engine.
+#
+
+source include/master-slave.inc;
+source include/have_binlog_format_row.inc;
+
+LET $ENGINE_TYPE= MyISAM;
+source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
+

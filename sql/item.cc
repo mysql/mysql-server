@@ -5141,7 +5141,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr, unsigned_flag);
   }
-  return error;
+  return error ? error : (field->table->in_use->is_error() ? 2 : 0);
 }
 
 

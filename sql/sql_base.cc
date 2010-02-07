@@ -1336,7 +1336,7 @@ void close_thread_tables(THD *thd)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
+    (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1550,7 +1550,11 @@ void close_temporary_tables(THD *thd)
       qinfo.db= db.ptr();
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
+                     "Failed to write the DROP statement for temporary tables to binary log");
+      }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
@@ -4031,9 +4035,13 @@ retry:
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         int errcode= query_error_code(thd, TRUE);
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query, (ulong)(end-query),
+                              FALSE, FALSE, errcode))
+        {
+          my_free(query, MYF(0));
+          goto err;
+        }
         my_free(query, MYF(0));
       }
       else
@@ -5686,7 +5694,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
+      if (register_tree_change &&
+          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on

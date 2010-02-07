@@ -1580,7 +1580,9 @@ class Item_equal: public Item_bool_func
   List<Item_field> fields; /* list of equal field items                    */
   Item *const_item;        /* optional constant item equal to fields items */
   cmp_item *eval_item;
+  Arg_comparator cmp;
   bool cond_false;
+  bool compare_as_dates;
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
@@ -1589,6 +1591,8 @@ public:
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
   inline Item* get_const() { return const_item; }
+  void compare_const(Item *c);
+  void add(Item *c, Item_field *f);
   void add(Item *c);
   void add(Item_field *f);
   uint members();

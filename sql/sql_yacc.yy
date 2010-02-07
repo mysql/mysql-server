@@ -596,6 +596,35 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   DBUG_RETURN(result);
 }
 
+
+static bool add_create_index_prepare (LEX *lex, Table_ident *table)
+{
+  lex->sql_command= SQLCOM_CREATE_INDEX;
+  if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
+                                              TL_OPTION_UPDATING))
+    return TRUE;
+  lex->alter_info.reset();
+  lex->alter_info.flags= ALTER_ADD_INDEX;
+  lex->col_list.empty();
+  lex->change= NullS;
+  return FALSE;
+}
+
+
+static bool add_create_index (LEX *lex, Key::Keytype type, const char *name, 
+  KEY_CREATE_INFO *info= NULL, bool generated= 0)
+{
+  Key *key;
+  key= new Key(type, name, info ? info : &lex->key_create_info, generated, 
+               lex->col_list);
+  if (key == NULL)
+    return TRUE;
+
+  lex->alter_info.key_list.push_back(key);
+  lex->col_list.empty();
+  return FALSE;
+}
+
 %}
 %union {
   int  num;
@@ -1330,7 +1359,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-        key_type opt_unique_or_fulltext constraint_key_type
+        normal_key_type opt_unique constraint_key_type fulltext spatial
 
 %type <key_alg>
         btree_or_rtree
@@ -1429,7 +1458,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
-        init_key_options key_options key_opts key_opt key_using_alg
+        init_key_options normal_key_options normal_key_opts all_key_opt 
+        spatial_key_options fulltext_key_options normal_key_opt 
+        fulltext_key_opt spatial_key_opt fulltext_key_opts spatial_key_opts
+        key_using_alg
         server_def server_options_list server_option
         definer_opt no_definer definer
 END_OF_INPUT
@@ -1823,35 +1855,37 @@ create:
                                   $5->table.str);
             }
           }
-        | CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
+        | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
+          {
+            if (add_create_index_prepare(Lex, $7))
+              MYSQL_YYABORT;
+          }
+          '(' key_list ')' normal_key_options
+          {
+            if (add_create_index(Lex, $2, $4.str))
+              MYSQL_YYABORT;
+          }
+        | CREATE fulltext INDEX_SYM ident init_key_options ON
           table_ident
           {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_CREATE_INDEX;
-            if (!lex->current_select->add_table_to_list(lex->thd, $7,
-                                                        NULL,
-                                                        TL_OPTION_UPDATING))
+            if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->alter_info.flags= ALTER_ADD_INDEX;
-            lex->col_list.empty();
-            lex->change=NullS;
           }
-          '(' key_list ')' key_options
+          '(' key_list ')' fulltext_key_options
           {
-            LEX *lex=Lex;
-            Key *key;
-            if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index(Lex, $2, $4.str))
               MYSQL_YYABORT;
-            }
-            key= new Key($2, $4.str, &lex->key_create_info, 0,
-                         lex->col_list);
-            if (key == NULL)
+          }
+        | CREATE spatial INDEX_SYM ident init_key_options ON
+          table_ident
+          {
+            if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty();
+          }
+          '(' key_list ')' spatial_key_options
+          {
+            if (add_create_index(Lex, $2, $4.str))
+              MYSQL_YYABORT;
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -4077,7 +4111,7 @@ part_func_expr:
             lex->safe_to_cache_query= 1;
             if (not_corr_func)
             {
-              my_parse_error(ER(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             $$=$1;
@@ -4806,32 +4840,28 @@ column_def:
         ;
 
 key_def:
-          key_type opt_ident key_alg '(' key_list ')' key_options
+          normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
           {
-            LEX *lex=Lex;
-            if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index (Lex, $1, $2))
               MYSQL_YYABORT;
-            }
-            Key *key= new Key($1, $2, &lex->key_create_info, 0,
-                              lex->col_list);
-            if (key == NULL)
+          }
+        | fulltext opt_key_or_index opt_ident init_key_options 
+            '(' key_list ')' fulltext_key_options
+          {
+            if (add_create_index (Lex, $1, $3))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
+          }
+        | spatial opt_key_or_index opt_ident init_key_options 
+            '(' key_list ')' spatial_key_options
+          {
+            if (add_create_index (Lex, $1, $3))
+              MYSQL_YYABORT;
           }
         | opt_constraint constraint_key_type opt_ident key_alg
-          '(' key_list ')' key_options
+          '(' key_list ')' normal_key_options
           {
-            LEX *lex=Lex;
-            const char *key_name= $3 ? $3 : $1;
-            Key *key= new Key($2, key_name, &lex->key_create_info, 0,
-                              lex->col_list);
-            if (key == NULL)
+            if (add_create_index (Lex, $2, $3 ? $3 : $1))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
           }
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
@@ -4847,13 +4877,9 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            key= new Key(Key::MULTIPLE, key_name,
-                         &default_key_create_info, 1,
-                         lex->col_list);
-            if (key == NULL)
+            if (add_create_index (lex, Key::MULTIPLE, key_name, 
+                                  &default_key_create_info, 1))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= ALTER_FOREIGN_KEY;
           }
@@ -5421,19 +5447,8 @@ delete_option:
         | SET DEFAULT   { $$= (int) Foreign_key::FK_OPTION_DEFAULT;  }
         ;
 
-key_type:
+normal_key_type:
           key_or_index { $$= Key::MULTIPLE; }
-        | FULLTEXT_SYM opt_key_or_index { $$= Key::FULLTEXT; }
-        | SPATIAL_SYM opt_key_or_index
-          {
-#ifdef HAVE_SPATIAL
-            $$= Key::SPATIAL;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
-          }
         ;
 
 constraint_key_type:
@@ -5457,11 +5472,17 @@ keys_or_index:
         | INDEXES {}
         ;
 
-opt_unique_or_fulltext:
+opt_unique:
           /* empty */  { $$= Key::MULTIPLE; }
         | UNIQUE_SYM   { $$= Key::UNIQUE; }
-        | FULLTEXT_SYM { $$= Key::FULLTEXT;}
-        | SPATIAL_SYM
+        ;
+
+fulltext:
+          FULLTEXT_SYM { $$= Key::FULLTEXT;}
+        ;
+
+spatial:
+          SPATIAL_SYM
           {
 #ifdef HAVE_SPATIAL
             $$= Key::SPATIAL;
@@ -5490,14 +5511,34 @@ key_alg:
         | init_key_options key_using_alg
         ;
 
-key_options:
+normal_key_options:
           /* empty */ {}
-        | key_opts
+        | normal_key_opts
         ;
 
-key_opts:
-          key_opt
-        | key_opts key_opt
+fulltext_key_options:
+          /* empty */ {}
+        | fulltext_key_opts
+        ;
+
+spatial_key_options:
+          /* empty */ {}
+        | spatial_key_opts
+        ;
+
+normal_key_opts:
+          normal_key_opt
+        | normal_key_opts normal_key_opt
+        ;
+
+spatial_key_opts:
+          spatial_key_opt
+        | spatial_key_opts spatial_key_opt
+        ;
+
+fulltext_key_opts:
+          fulltext_key_opt
+        | fulltext_key_opts fulltext_key_opt
         ;
 
 key_using_alg:
@@ -5505,10 +5546,22 @@ key_using_alg:
         | TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
         ;
 
-key_opt:
-          key_using_alg
-        | KEY_BLOCK_SIZE opt_equal ulong_num
+all_key_opt:
+          KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
+        ;
+
+normal_key_opt:
+          all_key_opt
+        | key_using_alg
+        ;
+
+spatial_key_opt:
+          all_key_opt
+        ;
+
+fulltext_key_opt:
+          all_key_opt
         | WITH PARSER_SYM IDENT_sys
           {
             if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
@@ -8879,7 +8932,7 @@ interval_time_stamp:
                                     implementation without changing its
                                     resolution.
                                   */
-                                  WARN_DEPRECATED(yythd, "6.2", "FRAC_SECOND", "MICROSECOND");
+                                  WARN_DEPRECATED(yythd, VER_CELOSIA, "FRAC_SECOND", "MICROSECOND");
                                 }
 	;
 

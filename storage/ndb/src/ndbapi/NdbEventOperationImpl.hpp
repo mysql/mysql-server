@@ -361,10 +361,10 @@ public:
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
   int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
   int receive_event();
-  const bool tableNameChanged() const;
-  const bool tableFrmChanged() const;
-  const bool tableFragmentationChanged() const;
-  const bool tableRangeListChanged() const;
+  bool tableNameChanged() const;
+  bool tableFrmChanged() const;
+  bool tableFragmentationChanged() const;
+  bool tableRangeListChanged() const;
   Uint64 getGCI();
   Uint32 getAnyValue() const;
   Uint64 getLatestGCI();

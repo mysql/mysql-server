@@ -160,7 +160,7 @@ typedef uint rf_SetTimer;
 #define isnan(X) _isnan(X)
 #define finite(X) _finite(X)
 
-#ifndef UNDEF_THREAD_HACK
+#ifndef MYSQL_CLIENT_NO_THREADS
 #define THREAD
 #endif
 #define VOID_SIGHANDLER

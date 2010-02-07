@@ -153,13 +153,12 @@ source include/kill_query_and_diff_master_slave.inc;
 send DROP DATABASE d1;
 source include/kill_query_and_diff_master_slave.inc;
 
-send DROP DATABASE d2;
+send DROP DATABASE IF EXISTS d2;
 source include/kill_query_and_diff_master_slave.inc;
 
 ######## EVENT ########
 
-let $diff_statement= SELECT event_name, event_body, execute_at
-                     FROM information_schema.events where event_name like 'e%';
+let $diff_statement= SELECT event_name, event_body, execute_at FROM information_schema.events where event_name like 'e%';
 
 send CREATE EVENT e2
   ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
@@ -226,7 +225,7 @@ source include/kill_query_and_diff_master_slave.inc;
 send DROP PROCEDURE p1;
 source include/kill_query_and_diff_master_slave.inc;
 
-# Temporarily disabled, see comment above for DROP FUNCTION IF EXISTS
+# Temporarily disabled because of bug#43353, see comment above for DROP FUNCTION IF EXISTS
 #send DROP PROCEDURE IF EXISTS p2;
 #source include/kill_query_and_diff_master_slave.inc;
 
@@ -276,6 +275,11 @@ source include/kill_query_and_diff_master_slave.inc;
 # source include/kill_query_and_diff_master_slave.inc;
 
 ######## TRIGGER ########
+
+# Make sure table t4 exists
+connection master;
+CREATE TABLE IF NOT EXISTS t4 (a int);
+connection master1;
 
 let $diff_statement= SHOW TRIGGERS LIKE 'v%';
 

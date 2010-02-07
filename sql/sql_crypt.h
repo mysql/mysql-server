@@ -23,15 +23,15 @@ class SQL_CRYPT :public Sql_alloc
   struct rand_struct rand,org_rand;
   char decode_buff[256],encode_buff[256];
   uint shift;
-  void crypt_init(ulong *seed);
  public:
-  SQL_CRYPT(const char *seed, uint length);
+  SQL_CRYPT() {}
   SQL_CRYPT(ulong *seed)
   {
-    crypt_init(seed);
+    init(seed);
   }
   ~SQL_CRYPT() {}
-  void init() { shift=0; rand=org_rand; }
+  void init(ulong *seed);
+  void reinit() { shift=0; rand=org_rand; }
   void encode(char *str, uint length);
   void decode(char *str, uint length);
 };
