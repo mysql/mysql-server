@@ -490,4 +490,46 @@ ENGINE = NDB;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 
+# bug#31712 - datafile smaller than extent
+--echo === bug#31712 ===
+
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+
+--error ER_CREATE_FILEGROUP_FAILED
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 1M
+extent_size 2M
+engine ndb;
+show warnings;
+
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+
+--error ER_ALTER_FILEGROUP_FAILED
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 1M
+engine ndb;
+show warnings;
+
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+
+drop tablespace ts1
+engine ndb;
+
+drop logfile group lg1
+engine ndb;
+
 #End 5.1 test case
