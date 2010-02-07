@@ -37,6 +37,14 @@ The following options may be given as the first argument:
                       binary log during a transaction. If you often use big,
                       multi-statement transactions you can increase this to get
                       more performance
+  --binlog-direct-non-transactional-updates 
+                      Causes updates to non-transactional engines using
+                      statement format to be written directly to binary log.
+                      Before using this option make sure that there are no
+                      dependencies between transactional and non-transactional
+                      tables such as in the statement INSERT INTO t_myisam
+                      SELECT * FROM t_innodb; otherwise, slaves may diverge
+                      from the master.
   --binlog-do-db=name Tells the master it should log updates for the specified
                       database, and exclude all others not explicitly
                       mentioned.
@@ -772,6 +780,7 @@ back-log                                          50
 big-tables                                        FALSE
 bind-address                                      (No default value)
 binlog-cache-size                                 32768
+binlog-direct-non-transactional-updates           FALSE
 binlog-format                                     STATEMENT
 binlog-row-event-max-size                         1024
 blackhole                                         ON

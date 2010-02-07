@@ -1659,6 +1659,28 @@ SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
 OK
 SET TIMESTAMP=DEFAULT;
+#
+# Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
+#
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (id INT);
+CREATE USER nonpriv;
+USE test;
+# connected as nonpriv
+# Should return 0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
+COUNT(*)
+0
+USE INFORMATION_SCHEMA;
+# Should return 0
+SELECT COUNT(*) FROM TABLES WHERE TABLE_NAME='t1';
+COUNT(*)
+0
+# connected as root
+DROP USER nonpriv;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
 End of 5.1 tests.
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
