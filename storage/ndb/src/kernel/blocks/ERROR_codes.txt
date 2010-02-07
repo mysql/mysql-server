@@ -556,6 +556,9 @@ Dbdict:
 6005 Crash in participant @ CreateTabReq::CreateDrop
 6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
 
+6030 Do not round DD sizes in DBDICT. Check in ndb*out.log
+     that DBDICT and LGMAN/TSMAN round same way.
+
 6200 Set error code after handleTabInfoInit in master
 6201 Set error code after handleTabInfoInit in master (index)
 6202 Set error code before CREATE_FRAGMENTATION in master

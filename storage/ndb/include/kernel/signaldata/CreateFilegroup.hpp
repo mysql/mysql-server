@@ -98,12 +98,19 @@ struct CreateFilegroupConf {
    */
   friend bool printCREATE_FILEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
+
+  /* matches NdbDictionary.hpp */
+  enum {
+    WarnUndobufferRoundUp = 0x1,
+    WarnExtentRoundUp = 0x4
+  };
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 filegroupId;
   Uint32 filegroupVersion;
+  Uint32 warningFlags;
 };
 
 struct CreateFileReq {
@@ -194,12 +201,20 @@ struct CreateFileConf {
    */
   friend bool printCREATE_FILE_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
+
+  /* matches NdbDictionary.hpp */
+  enum {
+    WarnUndofileRoundDown = 0x2,
+    WarnDatafileRoundDown = 0x8,
+    WarnDatafileRoundUp = 0x10
+  };
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 fileId;
   Uint32 fileVersion;
+  Uint32 warningFlags;
 };
 
 #endif
