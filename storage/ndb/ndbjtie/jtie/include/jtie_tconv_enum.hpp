@@ -22,7 +22,6 @@
 #ifndef jtie_tconv_enum_hpp
 #define jtie_tconv_enum_hpp
 
-#include <stdint.h> // not using namespaces yet
 #include <jni.h>
 
 // ---------------------------------------------------------------------------

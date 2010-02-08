@@ -22,7 +22,6 @@
 #ifndef jtie_tconv_value_hpp
 #define jtie_tconv_value_hpp
 
-#include <stdint.h> // not using namespaces yet
 #include <jni.h>
 
 #include "jtie_tconv.hpp"

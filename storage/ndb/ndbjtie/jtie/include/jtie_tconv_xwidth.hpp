@@ -22,9 +22,9 @@
 #ifndef jtie_tconv_xwidth_hpp
 #define jtie_tconv_xwidth_hpp
 
-#include <stdint.h> // not using namespaces yet
 #include <jni.h>
 
+#include "jtie_stdint.h"
 #include "jtie_tconv_value.hpp"
 #include "jtie_tconv_ptrbybb.hpp"
 #include "jtie_tconv_refbybb.hpp"

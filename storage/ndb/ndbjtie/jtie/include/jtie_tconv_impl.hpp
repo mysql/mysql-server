@@ -62,7 +62,9 @@ template < typename J, typename C > struct is_supported_type_mapping;
  * compilation error.
  */
 template< typename J, typename C >
-struct Param {
+struct Param
+#if 0 // only document class template, to be defined by specialization
+{
     /**
      * Returns the C argument for a Java argument.
      *
@@ -82,7 +84,6 @@ struct Param {
      *     - no other convert() or the C delegate function must be called
      *     - the corresponding release() function must not be called
      */
-#if 0 // disabled on purpose, only document function
     static C
     convert(cstatus & s, J j, JNIEnv * env) {
         TRACE("C Param.convert(cstatus &, J, JNIEnv *)");
@@ -91,7 +92,6 @@ struct Param {
         static_assert(false, "missing specialization of parameter conversion");
         return 0;
     }
-#endif // disabled on purpose, only document function
 
     /**
      * Releases any resources allocated by the corresponding convert() call.
@@ -117,22 +117,15 @@ struct Param {
      *     - DeleteWeakGlobalRef
      *     - MonitorExit
      */
-#if 0 // disabled on purpose, only document function
     static void
     release(C c, J j, JNIEnv * env) {
         TRACE("void Param.release(C, J, JNIEnv *)");
         (void)c; (void)j; (void)env;
         static_assert(false, "missing specialization of parameter conversion");
     }
-#endif // disabled on purpose, only document function
-
-private:
-    // prohibit instantiation
-    Param() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
-};
+}
+#endif // only document class template, to be defined by specialization
+;
 
 /**
  * A class template with static functions for conversion of target objects
@@ -148,14 +141,15 @@ private:
  * compilation error.
  */
 template< typename J, typename C >
-struct Target {
+struct Target
+#if 0 // only document class template, to be defined by specialization
+{
     /**
      * Returns the C delegate of a Java wrapper object as target of a
      * method invocation.
      *
      * Pre + Post conditions: same as Param< J, C >::convert.
      */
-#if 0 // disabled on purpose, only document function
     static C &
     convert(cstatus & s, J j, JNIEnv * env) {
         TRACE("C & Target.convert(cstatus &, J, JNIEnv *)");
@@ -164,29 +158,21 @@ struct Target {
         static_assert(false, "missing specialization of target conversion");
         return 0;
     }
-#endif // disabled on purpose, only document function
 
     /**
      * Releases any resources allocated by the corresponding convert() call.
      *
      * Pre + Post conditions: same as Param< J, C >::release.
      */
-#if 0 // disabled on purpose, only document function
     static void
     release(C & c, J j, JNIEnv * env) {
         TRACE("void Target.release(C &, J, JNIEnv *)");
         (void)c; (void)j; (void)env;
         static_assert(false, "missing specialization of target conversion");
     }
-#endif // disabled on purpose, only document function
-
-private:
-    // prohibit instantiation
-    Target() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
-};
+}
+#endif // only document class template, to be defined by specialization
+;
 
 /**
  * A class template with static functions for conversion of function call
@@ -197,7 +183,9 @@ private:
  * compilation error.
  */
 template< typename J, typename C >
-struct Result {
+struct Result
+#if 0 // only document class template, to be defined by specialization
+{
     /**
      * Returns the Java result value for a C result.
      *
@@ -211,7 +199,6 @@ struct Result {
      *   In other words, any errors during the result conversion must be
      *   signaled by registering a Java exception with the VM.
      */
-#if 0 // disabled on purpose, only document function
     static J
     convert(C c, JNIEnv * env) {
         TRACE("J Result.convert(C, JNIEnv *)");
@@ -219,15 +206,9 @@ struct Result {
         static_assert(false, "missing specialization of result conversion");
         return 0;
     }
-#endif // disabled on purpose, only document function
-
-private:
-    // prohibit instantiation
-    Result() {
-        // prohibit unsupported template specializations
-        is_supported_type_mapping< J, C >();
-    }
-};
+}
+#endif // only document class template, to be defined by specialization
+;
 
 // Lessons learned:
 // 

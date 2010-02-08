@@ -22,7 +22,16 @@
 #ifndef CharsetMap_hpp
 #define CharsetMap_hpp
 
-#include <stdint.h>
+/*
+ * This API uses the C99 exact-width type aliases as defined in <stdint.h>.
+ * Unfortunately, some C/C++ compiler still lack a stdint.h header file.
+ * (For instance, MS Visual Studio until VS2010.)
+ *
+ * Since this API has no dependency upon NDBAPI, we do not want to use
+ * the exact-width type aliases from there but delegate to a generic helper
+ * file that handles the absence of the <stdint.h>.
+ */
+#include "mystdint.h"
 
 /**
  * Handles encoding issues for character data

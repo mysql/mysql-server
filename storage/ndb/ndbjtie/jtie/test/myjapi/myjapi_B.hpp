@@ -47,7 +47,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B0_f0s(JNIEnv * env, jclass cls) 
 {
     TRACE("jint Java_myjapi_B0_f0s(JNIEnv *, jclass)");
-    return gcall< ttrait_int32, &B0::f0s >(env, cls);
+    return gcall_fr< ttrait_int32, &B0::f0s >(env, cls);
     //return 20;
 }
 
@@ -55,7 +55,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B0_f0n(JNIEnv * env, jclass cls, jobject obj)
 {
     TRACE("jint Java_myjapi_B0_f0n(JNIEnv *, jclass, jobject)");
-    (void)cls; return gcall< ttrait_myjapi_B0_ct, ttrait_int32, &B0::f0n >(env, obj);
+    (void)cls; return gcall_mfr< ttrait_myjapi_B0_ct, ttrait_int32, &B0::f0n >(env, obj);
     //return 21;
 }
 
@@ -63,7 +63,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B0_f0v(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_myjapi_B0_f0v(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_B0_ct, ttrait_int32, &B0::f0v >(env, obj);
+    return gcall_mfr< ttrait_myjapi_B0_ct, ttrait_int32, &B0::f0v >(env, obj);
     //return 22;
 }
 
@@ -71,7 +71,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B1_f0s(JNIEnv * env, jclass cls) 
 {
     TRACE("jint Java_myjapi_B1_f0s(JNIEnv *, jclass)");
-    return gcall< ttrait_int32, &B1::f0s >(env, cls);
+    return gcall_fr< ttrait_int32, &B1::f0s >(env, cls);
     //return 30;
 }
 
@@ -79,7 +79,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B1_f0n(JNIEnv * env, jclass cls, jobject obj)
 {
     TRACE("jint Java_myjapi_B1_f0n(JNIEnv *, jclass, jobject)");
-    (void)cls; return gcall< ttrait_myjapi_B1_ct, ttrait_int32, &B1::f0n >(env, obj);
+    (void)cls; return gcall_mfr< ttrait_myjapi_B1_ct, ttrait_int32, &B1::f0n >(env, obj);
     //return 31;
 }
 
@@ -87,7 +87,7 @@ JNIEXPORT jint JNICALL
 Java_myjapi_B1_f0v(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_myjapi_B1_f0v(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_B1_ct, ttrait_int32, &B1::f0v >(env, obj);
+    return gcall_mfr< ttrait_myjapi_B1_ct, ttrait_int32, &B1::f0v >(env, obj);
     //return 32;
 }
 

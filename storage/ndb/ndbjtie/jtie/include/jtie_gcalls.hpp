@@ -30,6 +30,9 @@
 // generic wrapper function definitions
 // ---------------------------------------------------------------------------
 
+// XXX document workaround for MSVC's problems with template disambiguation:
+//   gcall -> gcall_fr, gcall_fv, gcall_mfr, gcall_mfv
+
 // XXX update comments below on alternate handling of const member functions
 
 // Design and Implementation Notes:
@@ -565,9 +568,9 @@ gset(JEPD, JFOPD CPL1(JFPD))
     template< CTL##n(TFPTD)                                             \
               void F(CSL##n(CFPT)) >                                    \
     inline void                                                         \
-    gcall(JEPD, JCPD CPL##n(JFPD))                                      \
+    gcall_fv(JEPD, JCPD CPL##n(JFPD))                                   \
     {                                                                   \
-        TRACE("void" " gcall(" SJET ", " SJCT SCPL##n(SJFPT) ")");      \
+        TRACE("void" " gcall_fv(" SJET ", " SJCT SCPL##n(SJFPT) ")");   \
         (void)env; (void)cls;                                           \
         SFD;                                                            \
         BSL##n(PARAM_CONV_BEGIN);                                       \
@@ -607,9 +610,9 @@ TFD_F(19)
               CTL##n(TFPTD)                                             \
               CFRT F(CSL##n(CFPT)) >                                    \
     inline JFRT                                                         \
-    gcall(JEPD, JCPD CPL##n(JFPD))                                      \
+    gcall_fr(JEPD, JCPD CPL##n(JFPD))                                   \
     {                                                                   \
-        TRACE(SJFRT " gcall(" SJET ", " SJCT SCPL##n(SJFPT) ")");       \
+        TRACE(SJFRT " gcall_fr(" SJET ", " SJCT SCPL##n(SJFPT) ")");    \
         (void)cls;                                                      \
         JARD;                                                           \
         SFD;                                                            \
@@ -661,9 +664,9 @@ TFD_FR(19)
               CTL##n(TFPTD)                                             \
               void (SCFOT::*F)(CSL##n(CFPT)) >                          \
     inline void                                                         \
-    gcall(JEPD, JFOPD CPL##n(JFPD))                                     \
+    gcall_mfv(JEPD, JFOPD CPL##n(JFPD))                                 \
     {                                                                   \
-        TRACE("void" " gcall(" SJET ", " SJFOT SCPL##n(SJFPT) ")");     \
+        TRACE("void" " gcall_mfv(" SJET ", " SJFOT SCPL##n(SJFPT) ")"); \
         SFD;                                                            \
         TARGET_CONV_BEGIN;                                              \
         BSL##n(PARAM_CONV_BEGIN);                                       \
@@ -714,9 +717,9 @@ TFD_MF(19)
               CTL##n(TFPTD)                                             \
               CFRT (SCFOT::*F)(CSL##n(CFPT)) >                          \
     inline JFRT                                                         \
-    gcall(JEPD, JFOPD CPL##n(JFPD))                                     \
+    gcall_mfr(JEPD, JFOPD CPL##n(JFPD))                                 \
     {                                                                   \
-        TRACE(SJFRT " gcall(" SJET ", " SJFOT SCPL##n(SJFPT) ")");      \
+        TRACE(SJFRT " gcall_mfr(" SJET ", " SJFOT SCPL##n(SJFPT) ")");  \
         JARD;                                                           \
         SFD;                                                            \
         TARGET_CONV_BEGIN;                                              \
@@ -864,7 +867,7 @@ gdelete(JEPD, JCPD, JFPD(1))
     gcreate(JEPD, JCPD CPL##n(JFPD))                                    \
     {                                                                   \
         TRACE(SJFRT " gcreate(" SJET ", " SJCT SCSL##n(SJFPT) ")");     \
-        return gcall< RT, CTL##n(TFPT)                                  \
+        return gcall_fr< RT, CTL##n(TFPT)                               \
                       &Constructor##n< CFRT CPL##n(CFPT) >::ccreate     \
                       >(env, cls CPL##n(JFP));                          \
         }

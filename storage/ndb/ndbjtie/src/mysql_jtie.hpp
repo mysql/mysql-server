@@ -80,7 +80,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
-    return gcall< ttrait_int, ttrait_char_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_void_0p_bb, ttrait_int, &::decimal_str2bin >(env, cls, p0, p1, p2, p3, p4, p5);
+    return gcall_fr< ttrait_int, ttrait_char_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_void_0p_bb, ttrait_int, &::decimal_str2bin >(env, cls, p0, p1, p2, p3, p4, p5);
 }
 
 /*
@@ -92,7 +92,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
-    return gcall< ttrait_int, ttrait_void_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_char_0p_bb, ttrait_int, &::decimal_bin2str >(env, cls, p0, p1, p2, p3, p4, p5);
+    return gcall_fr< ttrait_int, ttrait_void_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_char_0p_bb, ttrait_int, &::decimal_bin2str >(env, cls, p0, p1, p2, p3, p4, p5);
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ JNIEXPORT jstring JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv *, jobject, jint)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getName >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getName >(env, obj, p0);
 }
 
 /*
@@ -120,7 +120,7 @@ JNIEXPORT jstring JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv *, jobject, jint)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
 }
 
 /*
@@ -132,7 +132,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv * env, jobject obj, jstring p0)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv *, jobject, jstring)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_utf8cstring, &CharsetMap::getCharsetNumber >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_utf8cstring, &CharsetMap::getCharsetNumber >(env, obj, p0);
 }
 
 /*
@@ -144,7 +144,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv *, jobject)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF8CharsetNumber >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF8CharsetNumber >(env, obj);
 }
 
 /*
@@ -156,7 +156,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv *, jobject)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF16CharsetNumber >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF16CharsetNumber >(env, obj);
 }
 
 /*
@@ -168,7 +168,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv * env, jobject obj, jintArray p0, jint p1, jint p2, jobject p3, jobject p4)
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv *, jobject, jintArray, jint, jint, jobject, jobject)");
-    return gcall< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
 }
 
 /*

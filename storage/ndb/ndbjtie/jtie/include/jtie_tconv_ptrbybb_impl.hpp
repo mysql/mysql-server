@@ -24,10 +24,10 @@
 
 #include <assert.h> // not using namespaces yet
 #include <string.h> // not using namespaces yet
-#include <stdint.h> // not using namespaces yet
 #include <jni.h>
 
 #include "jtie_tconv_ptrbybb.hpp"
+#include "jtie_stdint.h"
 #include "jtie_tconv_impl.hpp"
 #include "jtie_tconv_idcache_impl.hpp"
 #include "jtie_tconv_utils_impl.hpp"

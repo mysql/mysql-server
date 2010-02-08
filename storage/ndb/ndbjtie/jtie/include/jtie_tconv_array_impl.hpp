@@ -23,7 +23,6 @@
 #define jtie_tconv_array_impl_hpp
 
 #include <assert.h> // not using namespaces yet
-#include <stdint.h> // not using namespaces yet
 #include <jni.h>
 
 #include "jtie_tconv_value.hpp"
