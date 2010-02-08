@@ -279,6 +279,11 @@ static void do_args(int argc, char *argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
+        } else if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);

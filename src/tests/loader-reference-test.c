@@ -157,6 +157,11 @@ static void do_args(int argc, char *argv[]) {
 	do_usage:
 	    fprintf(stderr, "Usage:\n%s\n", cmd);
 	    exit(resultcode);
+        } else if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
