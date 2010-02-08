@@ -22,7 +22,9 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 EXTRA_DIST = mysql_utils_unit_tests-t
 
 ## automake flags (overridden by per-target flags, added before user flags)
-AM_CPPFLAGS = -I../include
+AM_CPPFLAGS = -I../include \
+		-I$(top_srcdir)/storage/ndb/ndbjtie/utils
+
 
 ## create the unit test scripts during build already
 all-local:	scripts

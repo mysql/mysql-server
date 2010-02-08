@@ -84,7 +84,6 @@ int main()
     */    
     printf("UTF-8 charset num: %d     UTF-16 or UCS-2 charset num:  %d\n",
            utf8_num, utf16_num);
-    printf("MySQL must be build with UTF-8 and either UCS-2 or UTF-16");
     if((utf8_num == 0) || (utf16_num == 0)) exit(1);
 
     /* test csmap.getName()
@@ -130,7 +129,7 @@ int main()
     lengths[1] = 32;
     CharsetMap::RecodeStatus rr1 = csmap.recode(lengths, utf8_num, latin1_num, 
                                                 my_word_utf8, result_buff_1);
-    printf("Recode Test 1 - UTF-8 to Latin-1: %d %d %d \"%s\" => \"%s\" \n", 
+    printf("Recode Test 1 - UTF-8 to Latin-1: %d %ld %ld \"%s\" => \"%s\" \n", 
            rr1, lengths[0], lengths[1], my_word_utf8, result_buff_1);
     assert(rr1 == CharsetMap::RECODE_OK);
     assert(lengths[0] == 7);
@@ -142,7 +141,7 @@ int main()
     lengths[1] = 32;
     CharsetMap::RecodeStatus rr2 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_2);
-    printf("Recode Test 2 - Latin-1 to UTF-8: %d %d %d \"%s\" => \"%s\" \n", 
+    printf("Recode Test 2 - Latin-1 to UTF-8: %d %ld %ld \"%s\" => \"%s\" \n", 
            rr2, lengths[0], lengths[1], my_word_latin1, result_buff_2);
     assert(rr2 == CharsetMap::RECODE_OK);
     assert(lengths[0] == 6);
@@ -154,7 +153,7 @@ int main()
     lengths[1] = 4;
     CharsetMap::RecodeStatus rr3 = csmap.recode(lengths, latin1_num, utf8_num,
                                                 my_word_latin1, result_buff_too_small);
-    printf("Recode Test 3 - too-small buffer: %d %d %d \"%s\" => \"%s\" \n", 
+    printf("Recode Test 3 - too-small buffer: %d %ld %ld \"%s\" => \"%s\" \n", 
            rr3, lengths[0], lengths[1], my_word_latin1, result_buff_too_small);
     assert(rr3 == CharsetMap::RECODE_BUFF_TOO_SMALL);
     assert(lengths[0] == 3);
@@ -176,8 +175,4 @@ int main()
     assert(rr5 == CharsetMap::RECODE_BAD_SRC);
 
     CharsetMap::unload();
-
-    exit(0);
-
-    return 0;
 }

@@ -74,91 +74,91 @@ JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_print(JNIEnv * env, jobject obj)
 {
     TRACE("void Java_myjapi_CI_00024C0_print(JNIEnv *, jobject)");
-    gcall< ttrait_myjapi_CI_C0_ct, &C0::print >(env, obj);
+    gcall_mfv< ttrait_myjapi_CI_C0_ct, &C0::print >(env, obj);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cp, &C0::deliver_C0Cp >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cp, &C0::deliver_C0Cp >(env, obj);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cr, &C0::deliver_C0Cr >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cr, &C0::deliver_C0Cr >(env, obj);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cp, &C0::take_C0Cp >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cp, &C0::take_C0Cp >(env, obj, p0);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cr, &C0::take_C0Cr >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C0_ct, ttrait_myjapi_CI_C0_cr, &C0::take_C0Cr >(env, obj, p0);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_p, &C0::deliver_C0p >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_p, &C0::deliver_C0p >(env, obj);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_r, &C0::deliver_C0r >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_r, &C0::deliver_C0r >(env, obj);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0p(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0p(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_p, &C0::take_C0p >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_p, &C0::take_C0p >(env, obj, p0);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0r(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0r(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_r, &C0::take_C0r >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C0_t, ttrait_myjapi_CI_C0_r, &C0::take_C0r >(env, obj, p0);
 }
 
 JNIEXPORT jint JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0E1(JNIEnv * env, jclass cls)
 {
     TRACE("jint Java_myjapi_CI_00024C0_deliver_1C0E1(JNIEnv *, jclass)");
-    return gcall< ttrait_C0_C0E_iv, C0::deliver_C0E1 >(env, cls);
+    return gcall_fr< ttrait_C0_C0E_iv, C0::deliver_C0E1 >(env, cls);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0E1(JNIEnv * env, jclass cls, jint p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0E1(JNIEnv *, jclass, jint)");
-    gcall< ttrait_C0_C0E_iv, C0::take_C0E1 >(env, cls, p0);
+    gcall_fv< ttrait_C0_C0E_iv, C0::take_C0E1 >(env, cls, p0);
 }
 
 JNIEXPORT jint JNICALL
 Java_myjapi_CI_00024C0_deliver_1C0E1c(JNIEnv * env, jclass cls)
 {
     TRACE("jint Java_myjapi_CI_00024C0_deliver_1C0E1c(JNIEnv *, jclass)");
-    return gcall< ttrait_C0_C0E_c_iv, C0::deliver_C0E1c >(env, cls);
+    return gcall_fr< ttrait_C0_C0E_c_iv, C0::deliver_C0E1c >(env, cls);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_take_1C0E1c(JNIEnv * env, jclass cls, jint p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0E1c(JNIEnv *, jclass, jint)");
-    gcall< ttrait_C0_C0E_c_iv, C0::take_C0E1c >(env, cls, p0);
+    gcall_fv< ttrait_C0_C0E_c_iv, C0::take_C0E1c >(env, cls, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -181,56 +181,56 @@ JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cp, &C1::deliver_C1Cp >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cp, &C1::deliver_C1Cp >(env, obj);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cr, &C1::deliver_C1Cr >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cr, &C1::deliver_C1Cr >(env, obj);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cp, &C1::take_C1Cp >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cp, &C1::take_C1Cp >(env, obj, p0);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cr, &C1::take_C1Cr >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C1_ct, ttrait_myjapi_CI_C1_cr, &C1::take_C1Cr >(env, obj, p0);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_p, &C1::deliver_C1p >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_p, &C1::deliver_C1p >(env, obj);
 }
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv * env, jobject obj) 
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv *, jobject)");
-    return gcall< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_r, &C1::deliver_C1r >(env, obj);
+    return gcall_mfr< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_r, &C1::deliver_C1r >(env, obj);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C1_take_1C1p(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1p(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_p, &C1::take_C1p >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_p, &C1::take_C1p >(env, obj, p0);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C1_take_1C1r(JNIEnv * env, jobject obj, jobject p0) 
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1r(JNIEnv *, jobject, jobject)");
-    gcall< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_r, &C1::take_C1r >(env, obj, p0);
+    gcall_mfv< ttrait_myjapi_CI_C1_t, ttrait_myjapi_CI_C1_r, &C1::take_C1r >(env, obj, p0);
 }
 
 // ---------------------------------------------------------------------------

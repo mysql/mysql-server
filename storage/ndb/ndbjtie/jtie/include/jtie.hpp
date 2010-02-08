@@ -44,5 +44,7 @@
 #include "jtie_tconv_object_impl.hpp"
 #include "jtie_tconv_enum_impl.hpp"
 #include "jtie_tconv_idcache_impl.hpp"
+// template default implementation must come last, after specializations
+#include "jtie_tconv_impl_default.hpp"
 
 #endif // jtie_hpp
