@@ -1137,7 +1137,7 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 
 
 namespace AQP{
-  class Query_plan;
+  class Join_plan;
 };
 
 /**
@@ -1828,7 +1828,7 @@ public:
    If possible, push join sequence down to the table handler.
    Returns #tables included in generated pushed join.
   */
-  virtual uint make_pushed_join(const AQP::Query_plan& plan)
+  virtual uint make_pushed_join(const AQP::Join_plan& plan)
   { return 0; }
 
   /**

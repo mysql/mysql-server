@@ -200,50 +200,59 @@ struct st_ndb_status {
   long transaction_hint_count[MAX_NDB_NODES];
 };
 
+#define MAX_PUSHED_JOINS 32
+#define MAX_LINKED_KEYS  16
+
 class ha_pushed_join
 {
 public:
-  ha_pushed_join(const AQP::Query_plan& plan, 
+  ha_pushed_join(const AQP::Join_plan& plan, 
                  uint count,
-                 const NdbQueryDef* queryDef)
-  : m_plan(plan),
-    m_count(count),
-    m_queryDef(queryDef) {
-    DBUG_ASSERT(queryDef != NULL);
+                 const NdbQueryDef* query_def)
+  : m_count(count),
+    m_table_count(plan.get_access_count()),
+    m_query_def(query_def)
+  {
+    DBUG_ASSERT(query_def != NULL);
+    for(int i= 0; i < m_table_count; i++)
+    {
+      m_tables[i] = plan.get_table_access(i)->get_table();
+    }
   }
 
   ~ha_pushed_join()
   {
-    if (m_queryDef)
-      m_queryDef->release();
+    if (m_query_def)
+      m_query_def->release();
   }
   
-  const AQP::Query_plan& getPlan() const
-  { return m_plan; }
-
-  uint getCount() const
+  uint get_count() const
   { return m_count; }
 
-  const NdbQueryDef& getQueryDef() const
-  { return *m_queryDef; }
+  const NdbQueryDef& get_query_def() const
+  { return *m_query_def; }
+
+  TABLE* get_table(int i) const
+  { 
+    DBUG_ASSERT(i < m_table_count);
+    return m_tables[i];
+  }
 
 private:
-  const AQP::Query_plan m_plan; 
   const uint m_count;
-  const NdbQueryDef* const m_queryDef;  // Definition of pushed join query
+  const int m_table_count;
+  const NdbQueryDef* const m_query_def;  // Definition of pushed join query
+  st_table* m_tables[MAX_PUSHED_JOINS];
 };
 
 const char* get_referred_field_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->field_name;
 }
-const char* get_referred_table_name(const Item_field* field_item){
+const char* get_referred_table_access_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->table->alias;
 }
-
-#define MAX_PUSHED_JOINS 32
-#define MAX_LINKED_KEYS  16
 
 /***************************************************************
  *  field_ref_is_join_pushable()
@@ -264,20 +273,20 @@ const char* get_referred_table_name(const Item_field* field_item){
  * join_items[]
  ****************************************************************/
 static bool
-field_ref_is_join_pushable(const AQP::Query_plan& plan, 
+field_ref_is_join_pushable(const AQP::Join_plan& plan, 
                            int tab_no,
                            const Item* join_items[MAX_LINKED_KEYS+1],
-                           int32 &parent)
+                           const AQP::Table_access*& parent)
 {
   DBUG_ENTER("field_ref_is_join_pushable");
-  const AQP::Table_access table_access= plan.get_table_access(tab_no);
-  parent= -1;
+  const AQP::Table_access* const table_access= plan.get_table_access(tab_no);
+  parent= NULL;
 
-  if (table_access.get_access_type() != AQP::AT_PrimaryKeyLookup &&
-      table_access.get_access_type() != AQP::AT_UniqueIndexLookup)
+  if (table_access->get_access_type() != AQP::AT_PRIMARY_KEY_LOOKUP &&
+      table_access->get_access_type() != AQP::AT_UNIQUE_INDEX_LOOKUP)
     DBUG_RETURN(false);
 
-  if (table_access.get_no_of_key_fields() > MAX_LINKED_KEYS)
+  if (table_access->get_no_of_key_fields() > MAX_LINKED_KEYS)
   {
     DBUG_PRINT("info", ("  'key_parts >= MAX_LINKED_KEYS', "
                         "can't append table:%d", tab_no+1));
@@ -285,7 +294,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
   }
 
   DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", tab_no, 
-                      table_access.get_no_of_key_fields()));
+                      table_access->get_no_of_key_fields()));
 
   /**
    * Explore child references to parent operation(s). For all FIELD_ITEMs
@@ -293,7 +302,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
    * Such that the refered table may be used as a source for all child refs.
    *   *
    * 1) Collect (or-aggregate) the set of parents currently referred
-   *    by table_access.ref in 'current_linked_parents'.
+   *    by table_access->ref in 'current_linked_parents'.
    *
    * 2) For each FIELD_ITEM in childs 'ref.key' aggregate 'table->map'
    *    bitmask for the table currently refered and alternative parents 
@@ -310,17 +319,17 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
   AQP::Table_access_set all_common_parents;
   for(int32 i= 0; i<tab_no; i++)
   {
-    all_common_parents.add(i);
+    all_common_parents.add(plan.get_table_access(i));
   }
 
   for (int32 key_part_no= 0; 
-       key_part_no < table_access.get_no_of_key_fields(); 
+       key_part_no < table_access->get_no_of_key_fields(); 
        key_part_no++)
   {
     /* All parts of the key must be fields in some of the preceeding 
      * tables 
      */
-    const Item* const key_item= table_access.get_key_field(key_part_no);
+    const Item* const key_item= table_access->get_key_field(key_part_no);
     join_items[key_part_no]= key_item;
 
     if (key_item->const_item())
@@ -343,7 +352,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
                         key_item_field->field->field_name));
 
     if (!key_item_field->field
-        ->eq_def(table_access.get_key_part_info(key_part_no)->field))
+        ->eq_def(table_access->get_key_part_info(key_part_no)->field))
     {
       DBUG_PRINT("info", ("Item_field does not have same definition as EQ_REF'ed key"));
       DBUG_RETURN(false);
@@ -351,8 +360,9 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
 
     // 1) Calculate current parent referrences
     AQP::Table_access_set field_linked_parents;
-    int referred_table= plan.get_referred_table(key_item_field);
-    if (referred_table >= 0)
+    const AQP::Table_access* const referred_table= 
+      plan.get_referred_table_access(key_item_field);
+    if (referred_table != NULL)
     {
       field_linked_parents.add(referred_table);
       current_linked_parents.add(referred_table);
@@ -371,17 +381,19 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
     {
       if (substitute_field != key_item_field)
       {
-        int substitute_table= plan.get_referred_table(substitute_field);
-        if (substitute_table >= 0 && substitute_table < tab_no)
+        const AQP::Table_access* const substitute_table= 
+          plan.get_referred_table_access(substitute_field);
+        if (substitute_table !=NULL && 
+            substitute_table->get_access_no() < tab_no)
         {
           // Substitute is inside linked scope
           field_linked_parents.add(substitute_table);
           DBUG_PRINT("info", 
                      (" join_items[%d] %s.%s can be replaced with %s.%s",
                       key_part_no,
-                      get_referred_table_name(key_item_field),
+                      get_referred_table_access_name(key_item_field),
                       get_referred_field_name(key_item_field),
-                      get_referred_table_name(substitute_field),
+                      get_referred_table_access_name(substitute_field),
                       get_referred_field_name(substitute_field)));
         }
       }
@@ -422,22 +434,22 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
     DBUG_ASSERT(!all_common_parents.is_empty());
 
     // 1) Parent should be first table found in 'all_linked_parents'
-    int32 new_parent= -1;
+    const AQP::Table_access* new_parent= NULL;
 
     for(int32 i= 0; i < tab_no; i++)
     {
-      if (all_common_parents.contains(i))
+      if (all_common_parents.contains(plan.get_table_access(i)))
       {
-        new_parent= i;
+        new_parent= plan.get_table_access(i);
         break;
       }
     }
-    DBUG_ASSERT(new_parent >= 0);
+    DBUG_ASSERT(new_parent != NULL);
     parent= new_parent;
 
     // 2) Update join_items[] not already refering new_parent
     for (int32 key_part_no= 0; 
-         key_part_no < table_access.get_no_of_key_fields(); 
+         key_part_no < table_access->get_no_of_key_fields(); 
          key_part_no++)
     {
       DBUG_ASSERT(join_items[key_part_no]->const_item() || 
@@ -448,7 +460,8 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
         const Item_field* const join_item 
           = static_cast<const Item_field*>(join_items[key_part_no]);
         
-        int32 referred_table= plan.get_referred_table(join_item); 
+        const AQP::Table_access* const referred_table= 
+          plan.get_referred_table_access(join_item); 
         if (referred_table != new_parent)
         {
           AQP::Equal_set_iterator iter(&plan, join_item);
@@ -456,16 +469,17 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
           const Item_field* substitute_field= iter.next();
           while (substitute_field != NULL && !done)
           {
-            int32 substitute_table= plan.get_referred_table(substitute_field);
+            const AQP::Table_access* const substitute_table= 
+              plan.get_referred_table_access(substitute_field);
             if (substitute_table == new_parent)
             {
               DBUG_PRINT("info", 
                          (" Replacing join_items[%d] %s.%s with %s.%s",
                           key_part_no,
-                          join_item->field->table->alias,
-                          get_referred_table_name(join_item),
+                          //join_item->field->table->alias,
+                          get_referred_table_access_name(join_item),
                           get_referred_field_name(join_item),
-                          get_referred_table_name(substitute_field),
+                          get_referred_table_access_name(substitute_field),
                           get_referred_field_name(substitute_field)));
 
               join_items[key_part_no]= substitute_field;
@@ -479,7 +493,7 @@ field_ref_is_join_pushable(const AQP::Query_plan& plan,
     } // for all 'key_parts'
   }
 
-  join_items[table_access.get_no_of_key_fields()]= NULL;
+  join_items[table_access->get_no_of_key_fields()]= NULL;
   DBUG_RETURN(true);
 }
 
@@ -502,11 +516,11 @@ is_short_varsize(KEY_PART_INFO * kp)
 }
 
 uint
-ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
+ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
 {
   DBUG_ENTER("make_pushed_join");
   const Item* join_items[MAX_LINKED_KEYS+1];
-  int32 join_parent= -1;
+  const AQP::Table_access* join_parent= NULL;
 
   DBUG_ASSERT (m_pushed_join == NULL);
   if (!(current_thd->variables.ndb_join_pushdown))
@@ -515,26 +529,26 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
   if (plan.get_access_count() < 2)
     DBUG_RETURN(0);
 
-  const AQP::Table_access join_root=  plan.get_table_access(0);
-  const AQP::Table_access join_first= plan.get_table_access(1);
+  const AQP::Table_access* const join_root=  plan.get_table_access(0);
+  const AQP::Table_access* const join_first= plan.get_table_access(1);
 
-  if (join_root.get_access_type() == AQP::AT_Other)
+  if (join_root->get_access_type() == AQP::AT_OTHER)
   {
-    DBUG_PRINT("info", ("join_root.get_access_type() == AQP::AT_Other"
+    DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_OTHER"
                         " -> not pushable"));
     DBUG_RETURN(0);
   }
 
-  DBUG_ASSERT(join_root.get_access_type() != AQP::AT_Void);
+  DBUG_ASSERT(join_root->get_access_type() != AQP::AT_VOID);
 
-  if (join_first.get_handler()->ht != ht)
+  if (join_first->get_table()->file->ht != ht)
   {
     DBUG_PRINT("info", ("different SE -> not pushable"));
     DBUG_RETURN(0);
   }
 
   DBUG_PRINT("info", ("join_root:"));
-  DBUG_EXECUTE("info", join_root.dbug_print(););
+  DBUG_EXECUTE("info", join_root->dbug_print(););
 
   /****** TODO, END 'temporary limitations' *****************/
 
@@ -544,9 +558,9 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     DBUG_RETURN(0);
   }
   ha_ndbcluster* const handler1 
-    = static_cast<ha_ndbcluster*>(join_first.get_handler());
+    = static_cast<ha_ndbcluster*>(join_first->get_table()->file);
   if (uses_blob_value(table->read_set) ||
-      handler1->uses_blob_value(join_first.get_table()->read_set))
+      handler1->uses_blob_value(join_first->get_table()->read_set))
   {
     DBUG_PRINT("info", ("'read_set' contain BLOB columns -> not pushable"));
     DBUG_RETURN(0);
@@ -570,10 +584,10 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     MAX_PUSHED_JOINS :
     plan.get_access_count();
 
-  if (join_root.get_access_type() == AQP::AT_PrimaryKeyLookup ||
-      join_root.get_access_type() == AQP::AT_UniqueIndexLookup)
+  if (join_root->get_access_type() == AQP::AT_PRIMARY_KEY_LOOKUP ||
+      join_root->get_access_type() == AQP::AT_UNIQUE_INDEX_LOOKUP)
   {
-    const KEY *key= &table->key_info[join_root.get_index_no()];
+    const KEY *key= &table->key_info[join_root->get_index_no()];
     const NdbQueryOperand* root_key[10]= {NULL};
     for (uint i= 0; i < key->key_parts; i++)
     {
@@ -589,10 +603,10 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     root_key[key->key_parts]= NULL;
 
     // Primary key access assumed
-    if(join_root.get_access_type() == AQP::AT_PrimaryKeyLookup)
+    if(join_root->get_access_type() == AQP::AT_PRIMARY_KEY_LOOKUP)
     {
       DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
-      DBUG_ASSERT(join_root.get_index_no() == 
+      DBUG_ASSERT(join_root->get_index_no() == 
                   static_cast<int>(table->s->primary_key));
       operation_defs[0]= builder.readTuple(m_table, root_key);
     }
@@ -600,39 +614,39 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     {
       DBUG_PRINT("info", ("Root operation is 'unique-index-lookup'"));
       const NdbDictionary::Index* index 
-        = m_index[join_root.get_index_no()].unique_index;
+        = m_index[join_root->get_index_no()].unique_index;
       DBUG_ASSERT(index);
       operation_defs[0]= builder.readTuple(index, m_table, root_key);
     }
   }
-  else if (join_root.get_access_type() == AQP::AT_OrderedIndexScan)  // || JT_REF_OR_NULL?
+  else if (join_root->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)  // || JT_REF_OR_NULL?
   {
-    if(m_index[join_root.get_index_no()].index == NULL)
+    if(m_index[join_root->get_index_no()].index == NULL)
     {
       // 'pk' in (x,y,z) is not correctly handled in MRR result handling yet.
-      DBUG_PRINT("info", ("'m_index[join_root.get_index_no()].index "
+      DBUG_PRINT("info", ("'m_index[join_root->get_index_no()].index "
                           "== NULL' -> not pushable"));
       DBUG_RETURN(0);
     }
     DBUG_PRINT("info", ("Root operation is 'equal-range-lookup'"));
     DBUG_PRINT("info", ("Creating scanIndex on index id:%d, name:%s",
-                        join_root.get_index_no(), 
-                        m_index[join_root.get_index_no()].index->getName()));
+                        join_root->get_index_no(), 
+                        m_index[join_root->get_index_no()].index->getName()));
 
     // Bounds will be generated and supplied during execute
-    DBUG_ASSERT(join_root.get_index_no() >= 0);
-    DBUG_ASSERT(m_index[join_root.get_index_no()].index != NULL);
+    DBUG_ASSERT(join_root->get_index_no() >= 0);
+    DBUG_ASSERT(m_index[join_root->get_index_no()].index != NULL);
     operation_defs[0]= 
-      builder.scanIndex(m_index[join_root.get_index_no()].index, m_table);
+      builder.scanIndex(m_index[join_root->get_index_no()].index, m_table);
   }
-  else if(join_root.get_access_type() == AQP::AT_TableScan) 
+  else if(join_root->get_access_type() == AQP::AT_TABLE_SCAN) 
   {
     DBUG_PRINT("info", ("Root operation is 'table scan'"));
     operation_defs[0]= builder.scanTable(m_table);
   }
   else
   {
-    DBUG_ASSERT(join_root.get_access_type() == AQP::AT_Other);
+    DBUG_ASSERT(join_root->get_access_type() == AQP::AT_OTHER);
     DBUG_RETURN(0);
   }
 
@@ -643,9 +657,9 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
   int32 join_cnt;
   for (join_cnt= 1; join_cnt<max_joins; join_cnt++)
   {
-    const AQP::Table_access join_tab= plan.get_table_access(join_cnt);
+    const AQP::Table_access* const join_tab= plan.get_table_access(join_cnt);
     const ha_ndbcluster* const handler
-      = static_cast<ha_ndbcluster*>(join_tab.get_handler());
+      = static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
 
     if (join_cnt >= 2)    // First 2 tables are checked before we get here
     {
@@ -654,7 +668,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
         DBUG_PRINT("info", ("Table %d not same SE, not pushable", join_cnt));
         break;
       }
-      if (handler->uses_blob_value(join_tab.get_table()->read_set))
+      if (handler->uses_blob_value(join_tab->get_table()->read_set))
       {
         DBUG_PRINT("info", ("Table %d, 'read_set' contains BLOBs, not pushable", join_cnt));
         break;
@@ -672,18 +686,18 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     }
 
     DBUG_PRINT("info", ("join_cnt:%d, key_parts:%d", join_cnt, 
-                        join_tab.get_no_of_key_fields()));
+                        join_tab->get_no_of_key_fields()));
     // Find common parent operation for all 'ref.key_parts'
     // Key may refer any of the preceeding parent tables
     const NdbQueryOperationDef* parent= NULL;
-    if (join_parent >= 0)
+    if (join_parent != NULL)
     {
-      parent= operation_defs[join_parent];
+      parent= operation_defs[join_parent->get_access_no()];
     }
 
-    KEY *key= &handler->table->key_info[join_tab.get_index_no()];
+    KEY *key= &handler->table->key_info[join_tab->get_index_no()];
     KEY_PART_INFO *key_part= key->key_part;
-    DBUG_ASSERT(join_tab.get_no_of_key_fields() ==
+    DBUG_ASSERT(join_tab->get_no_of_key_fields() ==
                 static_cast<int32>(key->key_parts));
 
     const NdbQueryOperand* linked_key[MAX_LINKED_KEYS]= {NULL};
@@ -719,15 +733,15 @@ ha_ndbcluster::make_pushed_join(const AQP::Query_plan& plan)
     const NdbDictionary::Table* const table= handler->m_table;
  
     // Link on primary key or an unique index
-    if (join_tab.get_access_type() == AQP::AT_PrimaryKeyLookup)
+    if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY_LOOKUP)
     {
       operation_defs[join_cnt]= builder.readTuple(table, linked_key);
     }
     else
     {
-      DBUG_ASSERT(join_tab.get_access_type() == AQP::AT_UniqueIndexLookup);
+      DBUG_ASSERT(join_tab->get_access_type() == AQP::AT_UNIQUE_INDEX_LOOKUP);
       const NdbDictionary::Index* index
-        = handler->m_index[join_tab.get_index_no()].unique_index;
+        = handler->m_index[join_tab->get_index_no()].unique_index;
       DBUG_ASSERT(index != NULL);
       operation_defs[join_cnt]= builder.readTuple(index, table, linked_key);
     }
@@ -754,7 +768,7 @@ ha_ndbcluster::has_pushed_joins() const
   if (!m_pushed_join)
     return 0;
   else
-    return m_pushed_join->getCount();
+    return m_pushed_join->get_count();
 }
 
 
@@ -2931,7 +2945,7 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
 
   if(m_pushed_join != NULL)
   {
-    if (m_pushed_join->getQueryDef().getQueryOperation(0U)->getType() == type)
+    if (m_pushed_join->get_query_def().getQueryOperation(0U)->getType() == type)
     {
       if(m_disable_pushed_join)
       {
@@ -2948,7 +2962,7 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
                  ("Cannot push join. Root operation changed from "
                   "type %s to %s.",
                   NdbQueryOperationDef::getTypeName(type),
-                  NdbQueryOperationDef::getTypeName(m_pushed_join->getQueryDef()
+                  NdbQueryOperationDef::getTypeName(m_pushed_join->get_query_def()
                                     .getQueryOperation(0U)->getType())));
     }
   }
@@ -3380,7 +3394,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
       NdbQueryOperationDef object.
     */
     const NdbQueryOperationDef* const root_operation= 
-      m_pushed_join->getQueryDef().getQueryOperation(0U);
+      m_pushed_join->get_query_def().getQueryOperation(0U);
     
     const NdbDictionary::Index* const expected_index=
       static_cast<const NdbQueryLookupOperationDef*>(root_operation)
@@ -3554,10 +3568,9 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
 
     // Invalidate rows from linked operations.
     // ::read_pushed_next() will later unpack row and set propper status
-    for (uint i= 1; i<m_pushed_join->getCount(); i++)
+    for (uint i= 1; i<m_pushed_join->get_count(); i++)
     {
-      TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
-      tab->status= STATUS_GARBAGE;
+      m_pushed_join->get_table(i)->status= STATUS_GARBAGE;
    }
   }
   else if (result == NdbQuery::NextResult_scanComplete)
@@ -3717,8 +3730,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   DBUG_PRINT("info", 
              ("executing chain of %d unique key lookups."
               " First table is %s.", 
-              m_pushed_join->getCount(),
-              m_pushed_join->getPlan().get_table_access(0).get_table_name())
+              m_pushed_join->get_count(),
+              m_pushed_join->get_table(0)->alias)
              );
   NdbOperation::OperationOptions options;
   NdbOperation::OperationOptions *poptions = NULL;
@@ -3755,13 +3768,13 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   }
 
   NdbQuery* const query= 
-    m_thd_ndb->trans->createQuery(&m_pushed_join->getQueryDef(), paramValues);
+    m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
   if (unlikely(!query))
     DBUG_RETURN(NULL);
 
-  for (uint i = 0; i < m_pushed_join->getCount(); i++)
+  for (uint i = 0; i < m_pushed_join->get_count(); i++)
   {
-    TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
+    const TABLE* const tab= m_pushed_join->get_table(i);
     DBUG_ASSERT(tab->file->ht == ht);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -3913,8 +3926,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_PRINT("info", 
                ("executing chain of a index scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->getCount() - 1,
-                m_pushed_join->getPlan().get_table_access(0).get_table_name())
+                m_pushed_join->get_count() - 1,
+                m_pushed_join->get_table(0)->alias)
               );
 
 #ifndef DBUG_OFF
@@ -3923,7 +3936,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       NdbQueryOperationDef object.
      */
     const NdbQueryOperationDef* const root_operation= 
-      m_pushed_join->getQueryDef().getQueryOperation(0U);
+      m_pushed_join->get_query_def().getQueryOperation(0U);
     
     const NdbDictionary::Index* const expected_index=
       static_cast<const NdbQueryIndexScanOperationDef*>(root_operation)
@@ -3932,7 +3945,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_ASSERT(m_index[active_index].index == expected_index);
 #endif
 
-    NdbQuery* const query= trans->createQuery(&m_pushed_join->getQueryDef());
+    NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def());
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
@@ -3962,9 +3975,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       }
     }
 
-    for (uint i = 0; i < m_pushed_join->getCount(); i++)
+    for (uint i = 0; i < m_pushed_join->get_count(); i++)
     {
-      TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
+      const TABLE* const tab= m_pushed_join->get_table(i);
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -4142,11 +4155,11 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     DBUG_PRINT("info", 
                ("executing chain of a table scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->getCount() - 1,
-                m_pushed_join->getPlan().get_table_access(0).get_table_name())
+                m_pushed_join->get_count() - 1,
+                m_pushed_join->get_table(0)->alias)
                );
 
-    NdbQuery* const query= trans->createQuery(&m_pushed_join->getQueryDef());
+    NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def());
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
     m_active_query= query;
@@ -4198,9 +4211,9 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       }
     }
 
-    for (uint i = 0; i < m_pushed_join->getCount(); i++)
+    for (uint i = 0; i < m_pushed_join->get_count(); i++)
     {
-      TABLE* tab= m_pushed_join->getPlan().get_table_access(i).get_table();
+      const TABLE* const tab= m_pushed_join->get_table(i);
       DBUG_ASSERT(tab->file->ht == ht);
       ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -12220,7 +12233,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
-    if ((m_pushed_join && m_pushed_join->getQueryDef().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
+    if ((m_pushed_join && m_pushed_join->get_query_def().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
         read_multi_needs_scan(cur_index_type, key_info, r))
     {
       if (!trans)
@@ -12265,11 +12278,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           DBUG_PRINT("info", 
             ("executing chain of a index scan + %d primary key joins."
              " First table is %s.", 
-             m_pushed_join->getCount() - 1,
-             m_pushed_join->getPlan().get_table_access(0).get_table_name()));
+             m_pushed_join->get_count() - 1,
+             m_pushed_join->get_table(0)->alias));
 
           NdbQuery* const query= 
-            trans->createQuery(&m_pushed_join->getQueryDef());
+            trans->createQuery(&m_pushed_join->get_query_def());
 
           if (unlikely(!query))
             ERR_RETURN(trans->getNdbError());
@@ -12293,10 +12306,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             }
           }
 
-          for (uint i = 0; i < m_pushed_join->getCount(); i++)
+          for (uint i = 0; i < m_pushed_join->get_count(); i++)
           {
-            TABLE* tab= 
-              m_pushed_join->getPlan().get_table_access(i).get_table();
+            const TABLE* const tab= m_pushed_join->get_table(i);
             DBUG_ASSERT(tab->file->ht == ht);
             ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
@@ -12458,7 +12470,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u", i));
       if (m_pushed_join && 
           !m_disable_pushed_join &&
-          !m_pushed_join->getQueryDef().isScanQuery())
+          !m_pushed_join->get_query_def().isScanQuery())
       {
         const NdbQuery* query;
         if (!(query= pk_unique_index_read_key_pushed(active_index,
@@ -12489,7 +12501,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   buffer->end_of_used_area= row_buf;
 
   if (m_active_query != NULL &&         
-      m_pushed_join->getQueryDef().isScanQuery())
+      m_pushed_join->get_query_def().isScanQuery())
   {
 //  DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
 //                      m_active_query->getPruned()));

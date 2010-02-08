@@ -45,11 +45,6 @@ class Item_equal_iterator;
   execution plan that may be executed in the engine rather than in mysqld. By 
   using the AQP rather than the mysqld internals directly, the coupling between
   the engine and mysqld is reduced.
-
-  All AQP classes have life cycles independent from each other, meaning that
-  they may be created and destroyed in any order without causing any dangling
-  references between them. (They do, however, refer mysqld internal classes
-  and depend on their life cycles.)
 */
 namespace AQP
 {
@@ -60,18 +55,16 @@ namespace AQP
     sequence of n table access operations that will execute as a nested loop 
     join.
   */
-  class Query_plan
+  class Join_plan
   {
     friend class Equal_set_iterator;
   public:
 
-    explicit Query_plan()
-      :m_access_count(0), m_join_tabs(NULL)
-    {};
+    explicit Join_plan(const JOIN_TAB* join_tab, int32 access_count);
 
-    explicit Query_plan(const JOIN_TAB* join_tab, int32 access_count );
+    ~Join_plan();
 
-    const Table_access get_table_access(int32 access_no) const;
+    const Table_access* get_table_access(int32 access_no) const;
 
     /**
       @return The number of table access operations in the nested loop join.
@@ -81,7 +74,8 @@ namespace AQP
       return m_access_count;
     }
 
-    int32 get_referred_table(const Item_field* field_item) const;
+    const Table_access* 
+      get_referred_table_access(const Item_field* field_item) const;
 
   private:
     /** Number of table access operations.*/
@@ -91,11 +85,17 @@ namespace AQP
       Array of the JOIN_TABs that are the internal representation of table
       access operations.
     */
-    const JOIN_TAB* m_join_tabs;
+    const JOIN_TAB* const m_join_tabs;
+
+    Table_access* m_table_accesses;
 
     const JOIN_TAB* get_join_tab(int32 join_tab_no) const;
 
-  }; // class Query_plan
+    // No copying.
+    Join_plan(const Join_plan&);
+    Join_plan& operator=(const Join_plan&);
+  }; 
+  // class Join_plan
 
 
   /**
@@ -108,7 +108,7 @@ namespace AQP
   {
   public:
 
-    explicit Equal_set_iterator(const Query_plan* plan,
+    explicit Equal_set_iterator(const Join_plan* plan,
 				const Item_field* field_item);
 
     ~Equal_set_iterator();
@@ -127,7 +127,7 @@ namespace AQP
      */
     Item_equal_iterator* m_iterator;
 
-    // No copying
+    // No copying.
     Equal_set_iterator(const Equal_set_iterator&);
     Equal_set_iterator& operator=(const Equal_set_iterator&);
   }; 
@@ -137,40 +137,35 @@ namespace AQP
   enum enum_access_type
   {
     /** For default initialization.*/
-    AT_Void,
-    AT_PrimaryKeyLookup,
-    AT_UniqueIndexLookup,
-    AT_OrderedIndexScan,
-    AT_TableScan,
+    AT_VOID,
+    AT_PRIMARY_KEY_LOOKUP,
+    AT_UNIQUE_INDEX_LOOKUP,
+    AT_ORDERED_INDEX_SCAN,
+    AT_TABLE_SCAN,
     /**
       The access method has not yet been decided, or it has properties that
       otherwise prevents it from being pushed to a storage engine.
      */
-    AT_Other
+    AT_OTHER
   };
 
   /**
     This class represents an access operation on a table, such as a table
-    scan, or a scan or lookup via an index.
+    scan, or a scan or lookup via an index. A Table_access object is always
+    owned by a Join_plan object, such that the life time of the Table_access 
+    object ends when the life time of the owning Join_plan object ends.
    */
   class Table_access
   {
-    friend class Query_plan;
-    friend class Table_access_set;
-//  friend class Equal_set_iterator;
+    friend class Join_plan;
     friend inline bool equal(const Table_access*, const Table_access*);
   public:
-
-    explicit Table_access()
-      :m_root_tab(NULL),
-      m_tab_no(0),
-      m_access_type(AT_Void),
-      m_index_no(-1)
-    {}
 
     /** Get the type of this operation.*/
     enum_access_type get_access_type() const
     {
+      if (m_access_type == AT_VOID)
+	compute_type_and_index();
       return m_access_type;
     }
 
@@ -180,20 +175,12 @@ namespace AQP
 
     const KEY_PART_INFO* get_key_part_info(int32 field_no) const;
 
-    const char* get_table_name() const;
-
-    handler* get_handler() const;
-
-    /**
-      Get the number of the index to use for this access operation.
-    */
-    int32 get_index_no() const
-    {
-      DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
-		  m_access_type == AT_UniqueIndexLookup ||
-		  m_access_type == AT_OrderedIndexScan);
-      return m_index_no;
+    int32 get_access_no() const
+    { 
+      return m_tab_no;
     }
+
+    int32 get_index_no() const;
 
     st_table* get_table() const;
 
@@ -201,26 +188,39 @@ namespace AQP
 
   private:
 
+    /** The first access operation in the plan. */
+    const JOIN_TAB* m_root_tab;
+
+    /** This operation corresponds to m_root_tab[m_tab_no].*/
+    int32 m_tab_no;
+
+    /** The type of this operation.*/
+    mutable enum_access_type m_access_type;
+
+    /** The index to use for this operation (if applicable )*/
+    mutable int32 m_index_no;
+
     explicit Table_access(const JOIN_TAB* root_tab, int32 tab_no);
 
     const JOIN_TAB* get_join_tab() const;
 
-    /** The first access operation in the plan. */
-    const JOIN_TAB* const m_root_tab;
+    void compute_type_and_index() const;
 
-    /** This operation corresponds to m_root_tab[m_tab_no].*/
-    const int32 m_tab_no;
+    explicit Table_access()
+      :m_root_tab(NULL),
+      m_tab_no(0),
+      m_access_type(AT_VOID),
+      m_index_no(-1)
+    {}
 
-    /** The type of this operation.*/
-    enum_access_type m_access_type;
-
-    /** The index to use for this operation (if applicable )*/
-    int32 m_index_no;
+    /** No copying*/
+    Table_access(const Table_access&);
+    Table_access& operator=(const Table_access&);
   }; 
   // class Table_access
 
   /**
-    This class represents a subset of the access methods in a Query_plan.
+    This class represents a subset of the access methods in a Join_plan.
    */
   class Table_access_set
   {
@@ -230,16 +230,16 @@ namespace AQP
   public:
     explicit Table_access_set() :m_map(0){};
 
-    /** Add 'tab_no' to the set.*/
-    void add(int32 tab_no)
+    /** Add 'access' to the set.*/
+    void add(const Table_access* access)
     {
-      m_map|=  static_cast<table_map>(1) << tab_no;
+      m_map|=  static_cast<table_map>(1) << access->get_access_no();
     }
 
-    /** Check if the set cointains 'tab_no'.*/
-    bool contains(int32 tab_no) const
+    /** Check if the set cointains 'access'.*/
+    bool contains(const Table_access* access) const
     {
-      return (m_map & (static_cast<table_map>(1) << tab_no))
+      return (m_map & (static_cast<table_map>(1) << access->get_access_no()))
 	!= 0;
     }
 
@@ -263,11 +263,24 @@ namespace AQP
     @param access_no The index of the table access operation to fetch.
     @return The access_no'th table access operation.
   */
-  inline const Table_access Query_plan::get_table_access(int32 access_no) const
+  inline const Table_access* Join_plan::get_table_access(int32 access_no) const
   {
-    DBUG_ASSERT(m_join_tabs != NULL);
     DBUG_ASSERT(access_no < m_access_count);
-    return Table_access(m_join_tabs, access_no);
+    return m_table_accesses + access_no;
+  }
+
+  /**
+    Get the number of the index to use for this access operation.
+  */
+  inline int32 Table_access::get_index_no() const
+  {
+    if (m_access_type == AT_VOID)
+      compute_type_and_index();
+	
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
+		  m_access_type == AT_UNIQUE_INDEX_LOOKUP ||
+		  m_access_type == AT_ORDERED_INDEX_SCAN);
+    return m_index_no;
   }
 
   inline bool equal(const Table_access* access_a,
@@ -293,6 +306,7 @@ namespace AQP
     return result;
   }
 
-}; // namespace AQP
+}; 
+// namespace AQP
 
 #endif

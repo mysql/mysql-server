@@ -1630,7 +1630,7 @@ make_pushed_join(JOIN *join)
     }
     else              // Try to start a pushed join from current join_tab
     {
-      AQP::Query_plan plan(tab, join->tables-i);
+      AQP::Join_plan plan(tab, join->tables-i);
       pushed = table->file->make_pushed_join(plan);
     }
     pushed--;

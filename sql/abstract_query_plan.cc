@@ -37,9 +37,10 @@ namespace AQP
     @param join_tab Array of access methods constituting the nested loop join.
     @param access_count Length of array.
   */
-  Query_plan::Query_plan(const JOIN_TAB* join_tab, int32 access_count)
+  Join_plan::Join_plan(const JOIN_TAB* join_tab, int32 access_count)
     :m_access_count(access_count),
-    m_join_tabs(join_tab)
+     m_join_tabs(join_tab),
+     m_table_accesses(new Table_access[access_count])
   {
     /*
       This combination is assumed not to appear. If it does, code must
@@ -49,10 +50,22 @@ namespace AQP
                 || (m_join_tabs[0].type == JT_ALL)
                 || (m_join_tabs[0].select == NULL)
                 || (m_join_tabs[0].select->quick == NULL));
+
+    for(int32 i= 0; i < access_count; i++)
+    {
+      m_table_accesses[i].m_root_tab= join_tab; 
+      m_table_accesses[i].m_tab_no= i;
+    }
+  }
+
+  Join_plan::~Join_plan()
+  {
+    delete[] m_table_accesses;
+    m_table_accesses= NULL;
   }
 
   /** Get the JOIN_TAB of the n'th table access operation.*/
-  const JOIN_TAB* Query_plan::get_join_tab(int32 join_tab_no) const
+  const JOIN_TAB* Join_plan::get_join_tab(int32 join_tab_no) const
   {
     DBUG_ASSERT(join_tab_no < m_access_count);
     return m_join_tabs + join_tab_no;
@@ -61,20 +74,20 @@ namespace AQP
   /**
     Find the table that a given Item_field refers to. 
     Returns a negative value if field_item does not refer a
-    table within this Query_plan.
+    table within this Join_plan.
   */
-  int32
-  Query_plan::get_referred_table(const Item_field* field_item) const
+  const Table_access*
+  Join_plan::get_referred_table_access(const Item_field* field_item) const
   {
-    DBUG_ENTER("Query_plan::get_referred_table");
+    DBUG_ENTER("Join_plan::get_referred_table_access");
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
     for (int32 i= 0; i < get_access_count(); i++)
     {
       if (get_join_tab(i)->table->map == field_item->field->table->map)
-        DBUG_RETURN(i);
+        DBUG_RETURN(m_table_accesses + i);
     }
-    DBUG_RETURN(-1);
+    DBUG_RETURN(NULL);
   }
 
   /**
@@ -84,8 +97,8 @@ namespace AQP
   */
   int32 Table_access::get_no_of_key_fields() const
   {
-    DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
-                m_access_type == AT_UniqueIndexLookup);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
+                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
     return get_join_tab()->ref.key_parts;
   }
 
@@ -96,8 +109,8 @@ namespace AQP
   */
   const Item* Table_access::get_key_field(int32 field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
-                m_access_type == AT_UniqueIndexLookup);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
+                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     return get_join_tab()->ref.items[field_no];
   }
@@ -109,27 +122,11 @@ namespace AQP
   */
   const KEY_PART_INFO* Table_access::get_key_part_info(int32 field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PrimaryKeyLookup ||
-                m_access_type == AT_UniqueIndexLookup);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
+                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     const KEY* key= &get_join_tab()->table->key_info[get_join_tab()->ref.key];
     return &key->key_part[field_no];
-  }
-
-  /**
-    Get the name of the table that this operation accesses.
-  */
-  const char* Table_access::get_table_name() const
-  {
-    return get_join_tab()->table->alias;
-  }
-
-  /**
-    Get the handler object of this table access operation.
-  */
-  handler* Table_access::get_handler() const
-  {
-    return get_join_tab()->table->file;
   }
 
   /**
@@ -184,12 +181,9 @@ namespace AQP
 
 
   /**
-    @param root_tab The first access operation in the plan.
-    @param tab_no This operation corresponds to root_tab[tab_no].
+    Compute the access type and index (if apliccable) of this operation .
   */
-  Table_access::Table_access(const JOIN_TAB* root_tab, int32 tab_no)
-    :m_root_tab(root_tab),
-     m_tab_no(tab_no)
+  void Table_access::compute_type_and_index() const
   {
     DBUG_ENTER("Table_access::Table_access");
     /*
@@ -204,13 +198,13 @@ namespace AQP
       if (m_index_no == (int32)get_join_tab()->table->s->primary_key)
       {
         DBUG_PRINT("info", ("Operation %d is a primary key lookup.", m_tab_no));
-        m_access_type= AT_PrimaryKeyLookup;
+        m_access_type= AT_PRIMARY_KEY_LOOKUP;
       }
       else
       {
         DBUG_PRINT("info", ("Operation %d is a unique index lookup.",
                             m_tab_no));
-        m_access_type= AT_UniqueIndexLookup;
+        m_access_type= AT_UNIQUE_INDEX_LOOKUP;
       }
       break;
 
@@ -219,14 +213,14 @@ namespace AQP
       DBUG_ASSERT(get_join_tab()->ref.key >= 0);
       DBUG_ASSERT(get_join_tab()->ref.key < MAX_KEY);
       m_index_no= get_join_tab()->ref.key;
-      m_access_type= AT_OrderedIndexScan;
+      m_access_type= AT_ORDERED_INDEX_SCAN;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
     case JT_NEXT:
       DBUG_ASSERT(get_join_tab()->index < MAX_KEY);
       m_index_no=    get_join_tab()->index;
-      m_access_type= AT_OrderedIndexScan;
+      m_access_type= AT_ORDERED_INDEX_SCAN;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
@@ -241,7 +235,7 @@ namespace AQP
         DBUG_PRINT("info",
                    ("Operation %d has 'use_quick == 2' -> not pushable",
                     m_tab_no));
-        m_access_type= AT_Other;
+        m_access_type= AT_OTHER;
         m_index_no=    -1;
       }
       else
@@ -254,7 +248,7 @@ namespace AQP
           if (quick->index < MAX_KEY)
           {
             m_index_no=    quick->index;
-            m_access_type= AT_OrderedIndexScan;
+            m_access_type= AT_ORDERED_INDEX_SCAN;
           }
           else
           {
@@ -268,13 +262,13 @@ namespace AQP
             DBUG_ASSERT(quick->index == get_join_tab()->table->s->primary_key ||
                         quick->index == MAX_KEY);
             m_index_no=    get_join_tab()->table->s->primary_key;
-            m_access_type= AT_PrimaryKeyLookup;
+            m_access_type= AT_PRIMARY_KEY_LOOKUP;
           }
         }
         else
         {
           DBUG_PRINT("info", ("Operation %d is a table scan.", m_tab_no));
-          m_access_type= AT_TableScan;
+          m_access_type= AT_TABLE_SCAN;
         }
       }
       break;
@@ -287,7 +281,7 @@ namespace AQP
       DBUG_PRINT("info",
                  ("Operation %d has join_type %d. -> Not pushable.",
                   m_tab_no, get_join_tab()->type));
-      m_access_type= AT_Other;
+      m_access_type= AT_OTHER;
       m_index_no=    -1;
       break;
     }
@@ -300,7 +294,7 @@ namespace AQP
     @param plan Iterate over fields within this plan.
     @param field_item Iterate over Item_fields equal to this.
   */
-  Equal_set_iterator::Equal_set_iterator(const Query_plan* plan,
+  Equal_set_iterator::Equal_set_iterator(const Join_plan* plan,
                                          const Item_field* field_item)
     :m_next(NULL),
      m_iterator(NULL)
