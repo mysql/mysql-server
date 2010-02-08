@@ -1052,6 +1052,7 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
   bool error, save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
+  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
   mysql_init_select(thd->lex);
   thd->clear_current_stmt_binlog_format_row();
   /* Delete all rows from table */

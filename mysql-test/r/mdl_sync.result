@@ -2292,3 +2292,33 @@ SET DEBUG_SYNC= 'RESET';
 SET @@global.general_log= @old_general_log;
 SET @@global.log_output= @old_log_output;
 SET @@session.sql_log_off= @old_sql_log_off;
+#
+# Additional coverage for bug #50913 "Deadlock between
+# open_and_lock_tables_derived and MDL". The main test
+# case is in lock_multi.test
+#
+drop table if exists t1;
+set debug_sync= 'RESET';
+create table t1 (i int) engine=InnoDB;
+# Switching to connection 'con50913_1'.
+set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+# Sending:
+alter table t1 add column j int;
+# Switching to connection 'default'.
+# Wait until ALTER TABLE gets blocked on a sync point after
+# acquiring thr_lock.c lock.
+set debug_sync= 'now WAIT_FOR parked';
+# The below statement should wait on MDL lock and not deadlock on
+# thr_lock.c lock.
+# Sending:
+truncate table t1;
+# Switching to connection 'con50913_2'.
+# Wait until TRUNCATE TABLE is blocked on MDL lock.
+# Unblock ALTER TABLE.
+set debug_sync= 'now SIGNAL go';
+# Switching to connection 'con50913_1'.
+# Reaping ALTER TABLE.
+# Switching to connection 'default'.
+# Reaping TRUNCATE TABLE.
+set debug_sync= 'RESET';
+drop table t1;

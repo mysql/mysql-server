@@ -1347,7 +1347,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         anyway.
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
+      {
         tbl->lock_type= table->lock_type;
+        tbl->mdl_request.set_type((tbl->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+      }
       /*
         If the view is mergeable, we might want to
         INSERT/UPDATE/DELETE into tables of this view. Preserve the

@@ -800,5 +800,82 @@ DROP TABLE t1;
 DROP VIEW v1;
 
 
+--echo #
+--echo # Test for bug #50913 "Deadlock between open_and_lock_tables_derived
+--echo # and MDL". Also see additional coverage in mdl_sync.test.
+--echo # 
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1;
+--enable_warnings
+connect (con50913,localhost,root);
+connection default;
+create table t1 (i int);
+create view v1 as select i from t1;
+begin;
+select * from t1;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE gets blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column j int";
+--source include/wait_condition.inc
+--echo # The below statement should try to acquire SW lock on 't1'
+--echo # and therefore should get ER_LOCK_DEADLOCK error. Before
+--echo # bug fix it acquired SR lock and hung on thr_lock.c lock.
+--error ER_LOCK_DEADLOCK
+delete a from t1 as a where i = 1;
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Reaping ALTER TABLE;
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+begin;
+select * from v1;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Sending:
+--send alter table t1 drop column j
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE gets blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 drop column j";
+--source include/wait_condition.inc
+--echo # The below statement should try to acquire SW lock on 't1'
+--echo # and therefore should get ER_LOCK_DEADLOCK error. Before
+--echo # bug fix it acquired SR lock and hung on thr_lock.c lock.
+--error ER_LOCK_DEADLOCK
+insert into v1 values (1);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Reaping ALTER TABLE;
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con50913;
+drop view v1;
+drop table t1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
