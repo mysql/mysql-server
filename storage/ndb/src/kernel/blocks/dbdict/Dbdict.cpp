@@ -17072,7 +17072,9 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
           page_size - fg_ptr.p->m_tablespace.m_extent_size % page_size;
         fg_ptr.p->m_warningFlags |= CreateFilegroupConf::WarnExtentRoundUp;
       }
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout << "DD dict: ts id:" << op->m_obj_id << " extent bytes:" << fg_ptr.p->m_tablespace.m_extent_size << " warn:" << hex << fg_ptr.p->m_warningFlags << endl;
+#endif
 
       Ptr<Filegroup> lg_ptr;
       if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
@@ -17119,7 +17121,9 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op)
           page_size - fg_ptr.p->m_logfilegroup.m_undo_buffer_size % page_size;
         fg_ptr.p->m_warningFlags |= CreateFilegroupConf::WarnUndobufferRoundUp;
       }
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout << "DD dict: fg id:" << op->m_obj_id << " undo buffer bytes:" << fg_ptr.p->m_logfilegroup.m_undo_buffer_size << " warn:" << hex << fg_ptr.p->m_warningFlags << endl;
+#endif
       fg_ptr.p->m_logfilegroup.m_files.init();
       //fg.LF_UndoGrow = ;
       break;
@@ -17451,7 +17455,9 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
           extent_size - filePtr.p->m_file_size % extent_size;
         filePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundUp;
       }
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout << "DD dict: file id:" << op->m_obj_id << " datafile bytes:" << filePtr.p->m_file_size << " warn:" << hex << filePtr.p->m_warningFlags << endl;
+#endif
     }
     if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
     {
@@ -17465,7 +17471,9 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op)
         filePtr.p->m_file_size *= page_size;
         filePtr.p->m_warningFlags |= CreateFileConf::WarnUndofileRoundDown;
       }
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout << "DD dict: file id:" << op->m_obj_id << " undofile bytes:" << filePtr.p->m_file_size << " warn:" << hex << filePtr.p->m_warningFlags << endl;
+#endif
     }
     filePtr.p->m_path = obj_ptr.p->m_name;
     filePtr.p->m_obj_ptr_i = obj_ptr.i;
