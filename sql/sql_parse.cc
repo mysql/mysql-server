@@ -7061,6 +7061,9 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
     }
     walk->updating= target_tbl->updating;
     walk->lock_type= target_tbl->lock_type;
+    /* We can assume that tables to be deleted from are locked for write. */
+    DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
+    walk->mdl_request.set_type(MDL_SHARED_WRITE);
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
   DBUG_RETURN(FALSE);

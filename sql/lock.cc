@@ -153,6 +153,25 @@ int mysql_lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
     {
       system_count++;
     }
+
+    /*
+      If we are going to lock a non-temporary table we must own metadata
+      lock of appropriate type on it (I.e. for table to be locked for
+      write we must own metadata lock of MDL_SHARED_WRITE or stronger
+      type. For table to be locked for read we must own metadata lock
+      of MDL_SHARED_READ or stronger type).
+      The only exception are HANDLER statements which are allowed to
+      lock table for read while having only MDL_SHARED lock on it.
+    */
+    DBUG_ASSERT(t->s->tmp_table ||
+                thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                 t->s->db.str, t->s->table_name.str,
+                                 t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ) ||
+                (t->open_by_handler &&
+                 thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                  t->s->db.str, t->s->table_name.str,
+                                  MDL_SHARED)));
   }
 
   /*

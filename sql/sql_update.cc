@@ -1051,6 +1051,11 @@ reopen_tables:
         If we are using the binary log, we need TL_READ_NO_INSERT to get
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
+        We don't downgrade metadata lock from SW to SR in this case as
+        there is no guarantee that the same ticket is not used by
+        another table instance used by this statement which is going to
+        be write-locked (for example, trigger to be invoked might try
+        to update this table).
       */
       tl->lock_type= read_lock_type_for_table(thd, table);
       tl->updating= 0;

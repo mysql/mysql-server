@@ -3,6 +3,9 @@
 #
 --source include/have_debug_sync.inc
 
+# We need InnoDB tables for some of the tests.
+--source include/have_innodb.inc
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
@@ -3314,6 +3317,62 @@ disconnect con3;
 SET @@global.general_log= @old_general_log;
 SET @@global.log_output= @old_log_output;
 SET @@session.sql_log_off= @old_sql_log_off;
+
+
+--echo #
+--echo # Additional coverage for bug #50913 "Deadlock between
+--echo # open_and_lock_tables_derived and MDL". The main test
+--echo # case is in lock_multi.test
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+set debug_sync= 'RESET';
+connect (con50913_1,localhost,root);
+connect (con50913_2,localhost,root);
+connection default;
+create table t1 (i int) engine=InnoDB;
+
+--echo # Switching to connection 'con50913_1'.
+connection con50913_1;
+set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE gets blocked on a sync point after
+--echo # acquiring thr_lock.c lock.
+set debug_sync= 'now WAIT_FOR parked';
+--echo # The below statement should wait on MDL lock and not deadlock on
+--echo # thr_lock.c lock.
+--echo # Sending:
+--send truncate table t1
+
+--echo # Switching to connection 'con50913_2'.
+connection con50913_2;
+--echo # Wait until TRUNCATE TABLE is blocked on MDL lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "truncate table t1";
+--source include/wait_condition.inc
+--echo # Unblock ALTER TABLE.
+set debug_sync= 'now SIGNAL go';
+
+--echo # Switching to connection 'con50913_1'.
+connection con50913_1;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping TRUNCATE TABLE.
+--reap
+disconnect con50913_1;
+disconnect con50913_2;
+set debug_sync= 'RESET';
+drop table t1;
+
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

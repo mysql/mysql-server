@@ -2928,6 +2928,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
   lex->sql_command= SQLCOM_SHOW_FIELDS;
   res= open_normal_and_derived_tables(thd, show_table_list,
                                       (MYSQL_LOCK_IGNORE_FLUSH |
+                                       MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                                        (can_deadlock ?
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
@@ -3507,6 +3508,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               schema_table->i_s_requested_object;
             res= open_normal_and_derived_tables(thd, show_table_list,
                    (MYSQL_LOCK_IGNORE_FLUSH |
+                    MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                     (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
             lex->sql_command= save_sql_command;
             /*

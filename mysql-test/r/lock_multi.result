@@ -302,3 +302,49 @@ LOCK TABLES t1 WRITE;
 FLUSH TABLE t1;
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Test for bug #50913 "Deadlock between open_and_lock_tables_derived
+# and MDL". Also see additional coverage in mdl_sync.test.
+# 
+drop table if exists t1;
+drop view if exists v1;
+create table t1 (i int);
+create view v1 as select i from t1;
+begin;
+select * from t1;
+i
+# Switching to connection 'con50913'.
+# Sending:
+alter table t1 add column j int;
+# Switching to connection 'default'.
+# Wait until ALTER TABLE gets blocked.
+# The below statement should try to acquire SW lock on 't1'
+# and therefore should get ER_LOCK_DEADLOCK error. Before
+# bug fix it acquired SR lock and hung on thr_lock.c lock.
+delete a from t1 as a where i = 1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con50913'.
+# Reaping ALTER TABLE;
+# Switching to connection 'default'.
+begin;
+select * from v1;
+i
+# Switching to connection 'con50913'.
+# Sending:
+alter table t1 drop column j;
+# Switching to connection 'default'.
+# Wait until ALTER TABLE gets blocked.
+# The below statement should try to acquire SW lock on 't1'
+# and therefore should get ER_LOCK_DEADLOCK error. Before
+# bug fix it acquired SR lock and hung on thr_lock.c lock.
+insert into v1 values (1);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con50913'.
+# Reaping ALTER TABLE;
+# Switching to connection 'default'.
+drop view v1;
+drop table t1;
