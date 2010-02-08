@@ -2378,11 +2378,11 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
         used in the statement being prepared.
       */
       DBUG_ASSERT(!(flags & (MYSQL_OPEN_TAKE_UPGRADABLE_MDL |
-                             MYSQL_LOCK_IGNORE_FLUSH)));
+                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)));
 
       mdl_request->set_type(MDL_SHARED);
     }
-    else if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+    else if (flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)
     {
       DBUG_ASSERT(!(flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL));
       mdl_request->set_type(MDL_SHARED_HIGH_PRIO);

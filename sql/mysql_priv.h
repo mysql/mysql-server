@@ -2164,6 +2164,11 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0200
 /** Open tables using MDL_SHARED lock instead of one specified in parser. */
 #define MYSQL_OPEN_FORCE_SHARED_MDL             0x0400
+/**
+  Open tables using MDL_SHARED_HIGH_PRIO lock instead of one specified
+  in parser.
+*/
+#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\

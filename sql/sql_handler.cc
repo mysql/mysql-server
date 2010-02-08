@@ -124,6 +124,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
   {
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
+    tables->table->open_by_handler= 0;
     mysql_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, &tables->table))
     {
@@ -332,7 +333,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
               hash_tables->table->s->tmp_table);
   /*
     If it's a temp table, don't reset table->query_id as the table is
-    being used by this handler. Otherwise, no meaning at all.
+    being used by this handler. For non-temp tables we use this flag
+    in asserts.
   */
   hash_tables->table->open_by_handler= 1;
 
