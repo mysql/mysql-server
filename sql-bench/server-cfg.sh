@@ -249,6 +249,11 @@ sub connect
 		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
 
   $dbh->do("SET OPTION LOG_OFF=1,UPDATE_LOG=0");
+  if ($main::opt_connect_command ne "")
+  {
+    $dbh->do($main::opt_connect_command) or
+      die "Can't execute connect_command: $main::opt_connect_command  error: $DBI::errstr\n";
+  }
   return $dbh;
 }
 
