@@ -2055,6 +2055,13 @@ public:
      */			     
     const struct NdbError & getNdbError() const;
 
+    /**
+     * Get warning flags.  The value is valid only if the operation did
+     * not return an error and can return warnings.  The flags are
+     * specific to the operation.
+     */
+    int getWarningFlags() const;
+
     /** @} *******************************************************************/
 
     /** 
@@ -2288,6 +2295,18 @@ public:
      * @{
      */
     
+    /*
+     * The four "create" operations can return warning flags defined
+     * below.  See getWarningFlags().
+     */
+    enum {
+      WarnUndobufferRoundUp = 0x1,  // rounded up to kernel page size
+      WarnUndofileRoundDown = 0x2,  // rounded down to kernel page size
+      WarnExtentRoundUp = 0x4,      // rounded up to kernel page size
+      WarnDatafileRoundDown = 0x8,  // rounded down to kernel page size
+      WarnDatafileRoundUp = 0x10    // rounded up to extent size
+    };
+
     int createLogfileGroup(const LogfileGroup &, ObjectId* = 0);
     int dropLogfileGroup(const LogfileGroup&);
     LogfileGroup getLogfileGroup(const char * name);
