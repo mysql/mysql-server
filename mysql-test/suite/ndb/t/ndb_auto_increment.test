@@ -379,6 +379,8 @@ connection server2;
 drop trigger if exists tr1;
 --enable_warnings
 
+connection server1;
+
 #
 # Bug #47865  	SHOW CREATE TABLE does not show the current auto_increment number for ndb tables
 #
@@ -386,6 +388,18 @@ drop trigger if exists tr1;
 create table t1 (a int primary key auto_increment, b int) engine=ndb;
 
 insert into t1 values (null,1),(null,2),(null,3);
+
+show create table t1;
+
+drop table t1;
+
+#
+# Bug #50247      ALTER TABLE cannot change auto_increment
+#
+create table t1 (a int primary key auto_increment, b int) auto_increment=5
+engine=ndb;
+
+alter table t1 auto_increment=32000000;
 
 show create table t1;
 
