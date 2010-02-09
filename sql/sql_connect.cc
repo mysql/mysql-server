@@ -19,6 +19,7 @@
 */
 
 #include "mysql_priv.h"
+#include "sql_audit.h"
 #include "probes_mysql.h"
 
 #ifdef HAVE_OPENSSL
@@ -726,7 +727,7 @@ static int check_connection(THD *thd)
   ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
+    char buff[SERVER_VERSION_LENGTH + 1 + SCRAMBLE_LENGTH + 1 + 64];
     server_capabilites= CLIENT_BASIC_FLAGS;
 
     if (opt_using_transactions)
@@ -1169,6 +1170,7 @@ void do_handle_one_connection(THD *thd_arg)
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {
+      mysql_audit_release(thd);
       if (do_command(thd))
 	break;
     }

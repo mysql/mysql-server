@@ -17,6 +17,8 @@
 
 --source include/master-slave.inc
 
+CALL mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
+
 CREATE TABLE t1 (a VARCHAR(1000));
 
 # We replicate the connection_id in the query_log_event
@@ -41,7 +43,9 @@ INSERT INTO t1 VALUES
   (UTC_TIMESTAMP());
 
 # We replicate the random seed in a rand_log_event
+--disable_warnings
 INSERT INTO t1 VALUES (RAND());
+--enable_warnings
 # We replicate the last_insert_id in an intvar_log_event
 INSERT INTO t1 VALUES (LAST_INSERT_ID());
 

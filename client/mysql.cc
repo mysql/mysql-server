@@ -3612,7 +3612,8 @@ print_table_data_vertically(MYSQL_RES *result)
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
-      tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
+      if (column_names)
+        tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
         unsigned int i;
@@ -4282,7 +4283,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     if (*ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
-      strmov(ptr, ptr+1);
+      strmov_overlapp(ptr, ptr+1);
     }
     else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
