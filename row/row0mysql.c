@@ -3370,88 +3370,79 @@ void
 row_mysql_drop_temp_tables(void)
 /*============================*/
 {
-	trx_t*	trx;
-	ulint	err;
+	trx_t*		trx;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	mem_heap_t*	heap;
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "dropping temporary tables";
 	row_mysql_lock_data_dictionary(trx);
 
-	err = que_eval_sql(
-		NULL,
-		"PROCEDURE DROP_TEMP_TABLES_PROC () IS\n"
-		"table_name CHAR;\n"
-		"table_id CHAR;\n"
-		"foreign_id CHAR;\n"
-		"index_id CHAR;\n"
-		"DECLARE CURSOR c IS SELECT NAME,ID FROM SYS_TABLES\n"
-		"WHERE N_COLS > 2147483647\n"
-		/* N_COLS>>31 is set unless ROW_FORMAT=REDUNDANT,
-		and MIX_LEN may be garbage for those tables */
-		"AND MIX_LEN=(MIX_LEN/2*2+1);\n"
-		/* MIX_LEN & 1 is set for temporary tables */
-#if DICT_TF2_TEMPORARY != 1
-# error "DICT_TF2_TEMPORARY != 1"
-#endif
-		"BEGIN\n"
-		"OPEN c;\n"
-		"WHILE 1=1 LOOP\n"
-		"	FETCH c INTO table_name, table_id;\n"
-		"	IF (SQL % NOTFOUND) THEN\n"
-		"		EXIT;\n"
-		"	END IF;\n"
-		"	WHILE 1=1 LOOP\n"
-		"		SELECT ID INTO index_id\n"
-		"		FROM SYS_INDEXES\n"
-		"		WHERE TABLE_ID = table_id\n"
-		"		LOCK IN SHARE MODE;\n"
-		"		IF (SQL % NOTFOUND) THEN\n"
-		"			EXIT;\n"
-		"		END IF;\n"
+	heap = mem_heap_create(200);
 
-		/* Do not drop tables for which there exist
-		foreign key constraints. */
-		"		SELECT ID INTO foreign_id\n"
-		"		FROM SYS_FOREIGN\n"
-		"		WHERE FOR_NAME = table_name\n"
-		"		AND TO_BINARY(FOR_NAME)\n"
-		"		  = TO_BINARY(table_name)\n;"
-		"		IF NOT (SQL % NOTFOUND) THEN\n"
-		"			EXIT;\n"
-		"		END IF;\n"
+	mtr_start(&mtr);
 
-		"		SELECT ID INTO foreign_id\n"
-		"		FROM SYS_FOREIGN\n"
-		"		WHERE REF_NAME = table_name\n"
-		"		AND TO_BINARY(REF_NAME)\n"
-		"		  = TO_BINARY(table_name)\n;"
-		"		IF NOT (SQL % NOTFOUND) THEN\n"
-		"			EXIT;\n"
-		"		END IF;\n"
+	btr_pcur_open_at_index_side(
+		TRUE,
+		dict_table_get_first_index(dict_sys->sys_tables),
+		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
 
-		"		DELETE FROM SYS_FIELDS\n"
-		"		WHERE INDEX_ID = index_id;\n"
-		"		DELETE FROM SYS_INDEXES\n"
-		"		WHERE ID = index_id\n"
-		"		AND TABLE_ID = table_id;\n"
-		"	END LOOP;\n"
-		"	DELETE FROM SYS_COLUMNS\n"
-		"	WHERE TABLE_ID = table_id;\n"
-		"	DELETE FROM SYS_TABLES\n"
-		"	WHERE ID = table_id;\n"
-		"END LOOP;\n"
-		"COMMIT WORK;\n"
-		"END;\n"
-		, FALSE, trx);
+	for (;;) {
+		const rec_t*	rec;
+		const byte*	field;
+		ulint		len;
+		const char*	table_name;
+		dict_table_t*	table;
 
-	if (err != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Failed to drop temporary tables:"
-			" error %lu occurred\n",
-			(ulong) err);
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+		field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
+		if (len != 4 || !(mach_read_from_4(field) & 0x80000000UL)) {
+			continue;
+		}
+
+		/* Because this is not a ROW_FORMAT=REDUNDANT table,
+		the is_temp flag is valid.  Examine it. */
+
+		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
+		if (len != 4
+		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
+			continue;
+		}
+
+		/* This is a temporary table. */
+		field = rec_get_nth_field_old(rec, 0/*NAME*/, &len);
+		if (len == UNIV_SQL_NULL || len == 0) {
+			/* Corrupted SYS_TABLES.NAME */
+			continue;
+		}
+
+		table_name = mem_heap_strdupl(heap, (const char*) field, len);
+
+		btr_pcur_store_position(&pcur, &mtr);
+		btr_pcur_commit_specify_mtr(&pcur, &mtr);
+
+		table = dict_load_table(table_name);
+
+		if (table) {
+			row_drop_table_for_mysql(table_name, trx, FALSE);
+			trx_commit_for_mysql(trx);
+		}
+
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF,
+					  &pcur, &mtr);
 	}
 
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_background(trx);
 }

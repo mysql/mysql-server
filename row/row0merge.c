@@ -2031,38 +2031,79 @@ row_merge_drop_temp_indexes(void)
 /*=============================*/
 {
 	trx_t*		trx;
-	ulint		err;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
 
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in deleting the dictionary data from system
-	tables in Innobase. Deleting a row from SYS_INDEXES table also
-	frees the file segments of the B-tree associated with the index. */
-	static const char drop_temp_indexes[] =
-		"PROCEDURE DROP_TEMP_INDEXES_PROC () IS\n"
-		"indexid CHAR;\n"
-		"DECLARE CURSOR c IS SELECT ID FROM SYS_INDEXES\n"
-		"WHERE SUBSTR(NAME,0,1)='" TEMP_INDEX_PREFIX_STR "';\n"
-		"BEGIN\n"
-		"\tOPEN c;\n"
-		"\tWHILE 1=1 LOOP\n"
-		"\t\tFETCH c INTO indexid;\n"
-		"\t\tIF (SQL % NOTFOUND) THEN\n"
-		"\t\t\tEXIT;\n"
-		"\t\tEND IF;\n"
-		"\t\tDELETE FROM SYS_FIELDS WHERE INDEX_ID = indexid;\n"
-		"\t\tDELETE FROM SYS_INDEXES WHERE ID = indexid;\n"
-		"\tEND LOOP;\n"
-		"\tCLOSE c;\n"
-		"\tCOMMIT WORK;\n"
-		"END;\n";
-
+	/* Load the table definitions that contain partially defined
+	indexes, so that the data dictionary information can be checked
+	when accessing the tablename.ibd files. */
 	trx = trx_allocate_for_background();
 	trx->op_info = "dropping partially created indexes";
 	row_mysql_lock_data_dictionary(trx);
 
-	err = que_eval_sql(NULL, drop_temp_indexes, FALSE, trx);
-	ut_a(err == DB_SUCCESS);
+	mtr_start(&mtr);
 
+	btr_pcur_open_at_index_side(
+		TRUE,
+		dict_table_get_first_index(dict_sys->sys_indexes),
+		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+	for (;;) {
+		const rec_t*	rec;
+		const byte*	field;
+		ulint		len;
+		dulint		table_id;
+		dict_table_t*	table;
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+		field = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_NAME_FIELD,
+					      &len);
+		if (len == UNIV_SQL_NULL || len == 0
+		    || mach_read_from_1(field) != (ulint) TEMP_INDEX_PREFIX) {
+			continue;
+		}
+
+		/* This is a temporary index. */
+
+		field = rec_get_nth_field_old(rec, 0/*TABLE_ID*/, &len);
+		if (len != 8) {
+			/* Corrupted TABLE_ID */
+			continue;
+		}
+
+		table_id = mach_read_from_8(field);
+
+		btr_pcur_store_position(&pcur, &mtr);
+		btr_pcur_commit_specify_mtr(&pcur, &mtr);
+
+		table = dict_load_table_on_id(table_id);
+
+		if (table) {
+			dict_index_t*	index;
+
+			for (index = dict_table_get_first_index(table);
+			     index; index = dict_table_get_next_index(index)) {
+
+				if (*index->name == TEMP_INDEX_PREFIX) {
+					row_merge_drop_index(index, table, trx);
+					trx_commit_for_mysql(trx);
+				}
+			}
+		}
+
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF,
+					  &pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_background(trx);
 }
