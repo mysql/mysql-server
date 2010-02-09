@@ -1915,8 +1915,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
       case NdbQueryOperandImpl::Const:
       {
         appendedPattern |= DABits::NI_KEY_CONSTS;
-        const NdbConstOperandImpl& constOp 
-	  = *static_cast<const NdbConstOperandImpl*>(key);
+        const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(key);
      
         // No of words needed for storing the constant data.
         const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
@@ -1928,9 +1927,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
       case NdbQueryOperandImpl::Param:
       {
         appendedPattern |= DABits::NI_KEY_PARAMS;
-        paramCnt++;
-        const NdbParamOperandImpl& paramOp = *static_cast<const NdbParamOperandImpl*>(key);
-        serializedDef.append(QueryPattern::param(paramOp.getParamIx()));
+        serializedDef.append(QueryPattern::param(paramCnt++));
         break;
       }
       default:

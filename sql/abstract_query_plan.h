@@ -60,16 +60,16 @@ namespace AQP
     friend class Equal_set_iterator;
   public:
 
-    explicit Join_plan(const JOIN_TAB* join_tab, int32 access_count);
+    explicit Join_plan(const JOIN_TAB* join_tab, uint access_count);
 
     ~Join_plan();
 
-    const Table_access* get_table_access(int32 access_no) const;
+    const Table_access* get_table_access(uint access_no) const;
 
     /**
       @return The number of table access operations in the nested loop join.
     */
-    int32 get_access_count() const
+    uint get_access_count() const
     { 
       return m_access_count;
     }
@@ -79,7 +79,7 @@ namespace AQP
 
   private:
     /** Number of table access operations.*/
-    const int32 m_access_count;
+    const uint m_access_count;
 
     /** 
       Array of the JOIN_TABs that are the internal representation of table
@@ -89,7 +89,7 @@ namespace AQP
 
     Table_access* m_table_accesses;
 
-    const JOIN_TAB* get_join_tab(int32 join_tab_no) const;
+    const JOIN_TAB* get_join_tab(uint join_tab_no) const;
 
     // No copying.
     Join_plan(const Join_plan&);
@@ -169,13 +169,13 @@ namespace AQP
       return m_access_type;
     }
 
-    int32 get_no_of_key_fields() const;
+    uint get_no_of_key_fields() const;
 
-    const Item* get_key_field(int32 field_no) const;
+    const Item* get_key_field(uint field_no) const;
 
-    const KEY_PART_INFO* get_key_part_info(int32 field_no) const;
+    const KEY_PART_INFO* get_key_part_info(uint field_no) const;
 
-    int32 get_access_no() const
+    uint get_access_no() const
     { 
       return m_tab_no;
     }
@@ -192,7 +192,7 @@ namespace AQP
     const JOIN_TAB* m_root_tab;
 
     /** This operation corresponds to m_root_tab[m_tab_no].*/
-    int32 m_tab_no;
+    uint m_tab_no;
 
     /** The type of this operation.*/
     mutable enum_access_type m_access_type;
@@ -200,7 +200,7 @@ namespace AQP
     /** The index to use for this operation (if applicable )*/
     mutable int32 m_index_no;
 
-    explicit Table_access(const JOIN_TAB* root_tab, int32 tab_no);
+    explicit Table_access(const JOIN_TAB* root_tab, uint tab_no);
 
     const JOIN_TAB* get_join_tab() const;
 
@@ -263,7 +263,7 @@ namespace AQP
     @param access_no The index of the table access operation to fetch.
     @return The access_no'th table access operation.
   */
-  inline const Table_access* Join_plan::get_table_access(int32 access_no) const
+  inline const Table_access* Join_plan::get_table_access(uint access_no) const
   {
     DBUG_ASSERT(access_no < m_access_count);
     return m_table_accesses + access_no;
