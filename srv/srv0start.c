@@ -1570,6 +1570,14 @@ innobase_start_or_create_for_mysql(void)
 		dict_boot();
 		trx_sys_init_at_db_start();
 
+		/* Initialize the fsp free limit global variable in the log
+		system */
+		fsp_header_get_free_limit();
+
+		/* recv_recovery_from_checkpoint_finish needs trx lists which
+		are initialized in trx_sys_init_at_db_start(). */
+
+		recv_recovery_from_checkpoint_finish();
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -1585,26 +1593,14 @@ innobase_start_or_create_for_mysql(void)
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
-			We also determine the maximum tablespace id used.
-
-			TODO: We may have incomplete transactions in the
-			data dictionary tables. Does that harm the scanning of
-			the data dictionary below? */
+			We also determine the maximum tablespace id used. */
 
 			dict_check_tablespaces_and_store_max_id(
 				recv_needed_recovery);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
-		/* recv_recovery_from_checkpoint_finish needs trx lists which
-		are initialized in trx_sys_init_at_db_start(). */
-
-		recv_recovery_from_checkpoint_finish();
+		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
 		been set. In this case we initialize it to minimum
