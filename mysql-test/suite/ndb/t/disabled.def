@@ -10,7 +10,9 @@
 #
 ##############################################################################
 
-ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
+ndb_partition_error2      : Bug#40989 ndb_partition_error2 needs maintenance
+ndb_condition_pushdown    : Bug#49746 2010-02-08 alik ndb_condition_pushdown fails in mysql-next-mr
+
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 ndb_alter_table3          : Bug#45621 2009-06-10 alik A few test files are disabled due to WL#4284

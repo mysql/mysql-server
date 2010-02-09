@@ -308,7 +308,7 @@ ENGINE = NDB;
 
 DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
-DROP DATABASE IF EXISTS mysqltest2;
+DROP DATABASE mysqltest2;
 
 # -----------------------------------------------------------------
 # End 6.0 test
