@@ -5550,7 +5550,10 @@ err:
   Copy all changes detected by parser to the HA_ALTER_FLAGS
 */
 
-void setup_ha_alter_flags(Alter_info *alter_info, HA_ALTER_FLAGS *alter_flags)
+void setup_ha_alter_flags(TABLE *table,
+                          HA_CREATE_INFO *create_info,
+                          Alter_info *alter_info,
+                          HA_ALTER_FLAGS *alter_flags)
 {
   uint flags= alter_info->flags;
 
@@ -5588,6 +5591,9 @@ void setup_ha_alter_flags(Alter_info *alter_info, HA_ALTER_FLAGS *alter_flags)
     *alter_flags|= HA_ALTER_PARTITION;
   if (ALTER_FOREIGN_KEY & flags)
     *alter_flags|= HA_ALTER_FOREIGN_KEY;
+  if (create_info->auto_increment_value !=
+      table->file->stats.auto_increment_value)
+    *alter_flags|= HA_CHANGE_AUTOINCREMENT_VALUE;
   if (ALTER_TABLE_REORG & flags)
     *alter_flags|= HA_ALTER_TABLE_REORG;
 }
@@ -5689,7 +5695,7 @@ compare_tables(THD *thd,
     First we setup ha_alter_flags based on what was detected
     by parser
   */
-  setup_ha_alter_flags(alter_info, alter_flags);
+  setup_ha_alter_flags(table, create_info, alter_info, alter_flags);
 
 #ifndef DBUG_OFF
   {
