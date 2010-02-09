@@ -291,6 +291,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
     all_fields        List of all fields used in select
     select            Current select
     ref_pointer_array Array of references to Items used in current select
+    group_list        GROUP BY list (is NULL by default)
 
   DESCRIPTION
     The function serves 3 purposes - adds fields referenced from inner
@@ -309,6 +310,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       function is aggregated in the select where the outer field was
       resolved or in some more inner select then the Item_direct_ref
       class should be used.
+      Also it should be used if we are grouping by a subquery containing
+      the outer field.
     The resolution is done here and not at the fix_fields() stage as
     it can be done only after sum functions are fixed and pulled up to
     selects where they are have to be aggregated.
@@ -325,7 +328,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                 Item **ref_pointer_array)
+                 Item **ref_pointer_array, ORDER *group_list)
 {
   Item_outer_ref *ref;
   bool res= FALSE;
@@ -372,6 +375,22 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
             direct_ref= TRUE;
             break;
           }
+        }
+      }
+    }
+    else
+    {
+      /*
+        Check if GROUP BY item trees contain the outer ref:
+        in this case we have to use Item_direct_ref instead of Item_ref.
+      */
+      for (ORDER *group= group_list; group; group= group->next)
+      {
+        if ((*group->item)->walk(&Item::find_item_processor, TRUE,
+                                 (uchar *) ref))
+        {
+          direct_ref= TRUE;
+          break;
         }
       }
     }
@@ -581,7 +600,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
 
   if (select_lex->inner_refs_list.elements &&
-      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array,
+                     group_list))
     DBUG_RETURN(-1);
 
   if (group_list)
@@ -2337,7 +2357,13 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.copy_field= 0;
+    /*
+      We need to clean up tmp_table_param for reusable JOINs (having non-zero
+      and different from self tmp_join) because it's not being cleaned up
+      anywhere else (as we need to keep the join is reusable).
+    */
+    tmp_table_param.cleanup();
+    tmp_table_param.copy_field= tmp_join->tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
@@ -5946,6 +5972,12 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   const_table_map= 0;
   tmp_table_param.field_count= tmp_table_param.sum_func_count=
     tmp_table_param.func_count= 0;
+  /*
+    We need to destruct the copy_field (allocated in create_tmp_table())
+    before setting it to 0 if the join is not "reusable".
+  */
+  if (!tmp_join || tmp_join != this) 
+    tmp_table_param.cleanup(); 
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
@@ -11625,21 +11657,45 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
-    if (rc == NESTED_LOOP_OK &&
-        (!join_tab->cache.select || !join_tab->cache.select->skip_record()))
+    if (rc == NESTED_LOOP_OK)
     {
-      uint i;
-      reset_cache_read(&join_tab->cache);
-      for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
+      bool consider_record= !join_tab->cache.select || 
+        !join_tab->cache.select->skip_record();
+
+      /*
+        Check for error: skip_record() can execute code by calling
+        Item_subselect::val_*. We need to check for errors (if any)
+        after such call.
+      */
+      if (join->thd->is_error())
       {
-	read_cached_record(join_tab);
-	if (!select || !select->skip_record())
+        reset_cache_write(&join_tab->cache);
+        return NESTED_LOOP_ERROR;
+      }
+
+      if (consider_record)  
+      {
+        uint i;
+        reset_cache_read(&join_tab->cache);
+        for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
         {
-          rc= (join_tab->next_select)(join,join_tab+1,0);
-	  if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+          read_cached_record(join_tab);
+          if (!select || !select->skip_record())
           {
-            reset_cache_write(&join_tab->cache);
-            return rc;
+            /*
+              Check for error: skip_record() can execute code by calling
+              Item_subselect::val_*. We need to check for errors (if any)
+              after such call.
+              */
+            if (join->thd->is_error())
+              rc= NESTED_LOOP_ERROR;
+            else
+              rc= (join_tab->next_select)(join,join_tab+1,0);
+            if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+            {
+              reset_cache_write(&join_tab->cache);
+              return rc;
+            }
           }
         }
       }
@@ -12891,7 +12947,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
-  my_bool on_primary_key= FALSE;
+  my_bool on_pk_suffix= FALSE;
   DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
@@ -12913,11 +12969,12 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         key as a suffix to the secondary keys. If it has continue to check
         the primary key as a suffix.
       */
-      if (!on_primary_key &&
+      if (!on_pk_suffix &&
           (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-          table->s->primary_key != MAX_KEY)
+          table->s->primary_key != MAX_KEY &&
+          table->s->primary_key != idx)
       {
-        on_primary_key= TRUE;
+        on_pk_suffix= TRUE;
         key_part= table->key_info[table->s->primary_key].key_part;
         key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
@@ -12949,7 +13006,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  if (on_primary_key)
+  if (on_pk_suffix)
   {
     uint used_key_parts_secondary= table->key_info[idx].key_parts;
     uint used_key_parts_pk=
@@ -13438,8 +13495,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             select_limit= table_records;
           if (group)
           {
-            rec_per_key= used_key_parts ? keyinfo->rec_per_key[used_key_parts-1]
-                                        : 1;
+            /* 
+              Used_key_parts can be larger than keyinfo->key_parts
+              when using a secondary index clustered with a primary 
+              key (e.g. as in Innodb). 
+              See Bug #28591 for details.
+            */  
+            rec_per_key= used_key_parts &&
+                         used_key_parts <= keyinfo->key_parts ?
+                         keyinfo->rec_per_key[used_key_parts-1] : 1;
             set_if_bigger(rec_per_key, 1);
             /*
               With a grouping query each group containing on average
@@ -14617,11 +14681,29 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
+    
+    group_fix_field= TRUE is to resolve aliases from the SELECT list
+    without creating of Item_ref-s: JOIN::exec() wraps aliased items
+    in SELECT list with Item_copy items. To re-evaluate such a tree
+    that includes Item_copy items we have to refresh Item_copy caches,
+    but:
+      - filesort() never refresh Item_copy items,
+      - end_send_group() checks every record for group boundary by the
+        test_if_group_changed function that obtain data from these
+        Item_copy items, but the copy_fields function that
+        refreshes Item copy items is called after group boundaries only -
+        that is a vicious circle.
+    So we prevent inclusion of Item_copy items.
   */
-  if (!order_item->fixed &&
+  bool save_group_fix_field= thd->lex->current_select->group_fix_field;
+  if (is_group_field)
+    thd->lex->current_select->group_fix_field= TRUE;
+  bool ret= (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
-       thd->is_fatal_error))
+       thd->is_fatal_error));
+  thd->lex->current_select->group_fix_field= save_group_fix_field;
+  if (ret)
     return TRUE; /* Wrong field. */
 
   uint el= all_fields.elements;
