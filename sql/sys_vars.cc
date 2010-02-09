@@ -241,15 +241,25 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
   /*
-    If RBR and open temporary tables, their CREATE TABLE may not be in the
-    binlog, so we can't toggle to SBR in this connection.
+     If RBR and open temporary tables, their CREATE TABLE may not be in the
+     binlog, so we can't toggle to SBR in this connection.
+
+     If binlog_format=MIXED, there are open temporary tables, and an unsafe
+     statement is executed, then subsequent statements are logged in row
+     format and hence changes to temporary tables may be lost. So we forbid
+     switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
+     open temp tables and we are logging in row format.
   */
-  if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
-      thd->temporary_tables)
+  if (thd->temporary_tables && var->type == OPT_SESSION &&
+      var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
+      ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+        thd->is_current_stmt_binlog_format_row()) ||
+       thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
     return true;
   }
+
   /*
     if in a stored function/trigger, it's too late to change mode
   */
