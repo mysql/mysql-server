@@ -361,7 +361,25 @@ public:
   */
   bool no_const_tables; 
   
-  JOIN *tmp_join; ///< copy of this JOIN to be used with temporary tables
+  /**
+    Copy of this JOIN to be used with temporary tables.
+
+    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a subquery
+    that gets re-executed several times) and we know will use temporary tables
+    for materialization. The materialization to a temporary table overwrites the
+    JOIN structure to point to the temporary table after the materialization is
+    done. This is where tmp_join is used : it's a copy of the JOIN before the
+    materialization and is used in restoring before re-execution by overwriting
+    the current JOIN structure with the saved copy.
+    Because of this we should pay extra care of not freeing up helper structures
+    that are referenced by the original contents of the JOIN. We can check for
+    this by making sure the "current" join is not the temporary copy, e.g.
+    !tmp_join || tmp_join != join
+ 
+    We should free these sub-structures at JOIN::destroy() if the "current" join
+    has a copy is not that copy.
+  */
+  JOIN *tmp_join;
   ROLLUP rollup;				///< Used with rollup
 
   bool select_distinct;				///< Set if SELECT DISTINCT
