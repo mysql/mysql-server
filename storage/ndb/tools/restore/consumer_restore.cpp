@@ -1436,7 +1436,7 @@ BackupRestore::endOfTables(){
 
         return false;
       }
-      err << "Successfully created index `" << split_idx[3].c_str()
+      info << "Successfully created index `" << split_idx[3].c_str()
           << "` on `" << split[2].c_str() << "`" << endl;
     }
     else if (m_disable_indexes)
