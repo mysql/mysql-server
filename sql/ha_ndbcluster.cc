@@ -2812,22 +2812,30 @@ int
 ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 {
   DBUG_ENTER("ha_ndbcluster::set_auto_inc");
-  Ndb *ndb= get_ndb(thd);
   bool read_bit= bitmap_is_set(table->read_set, field->field_index);
   bitmap_set_bit(table->read_set, field->field_index);
   Uint64 next_val= (Uint64) field->val_int() + 1;
   if (!read_bit)
     bitmap_clear_bit(table->read_set, field->field_index);
+  DBUG_RETURN(set_auto_inc_val(thd, next_val));
+}
+
+inline
+int
+ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
+{
+  Ndb *ndb= get_ndb(thd);
+  DBUG_ENTER("ha_ndbcluster::set_auto_inc_val");
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_PRINT("info", 
              ("Trying to set next auto increment value to %s",
-              llstr(next_val, buff)));
+              llstr(value, buff)));
 #endif
-  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, next_val))
+  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, value))
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+    if (ndb->setAutoIncrementValue(m_table, g.range, value, TRUE)
         == -1)
       ERR_RETURN(ndb->getNdbError());
   }
@@ -10623,7 +10631,8 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_DROP_UNIQUE_INDEX |
     HA_ADD_COLUMN |
     HA_COLUMN_STORAGE |
-    HA_COLUMN_FORMAT;
+    HA_COLUMN_FORMAT |
+    HA_CHANGE_AUTOINCREMENT_VALUE;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -10803,12 +10812,26 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       ai=1;
   }
 
-  /* Check that row format didn't change */
-  if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-      get_row_type() != create_info->row_type)
+  if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
   {
-    DBUG_PRINT("info", ("Row format changed"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    /* Check that only auto_increment value was changed */
+    HA_ALTER_FLAGS change_auto_flags=
+      change_auto_flags | HA_CHANGE_AUTOINCREMENT_VALUE;
+    if ((*alter_flags & ~change_auto_flags).is_set())
+    {
+      DBUG_PRINT("info", ("Not only auto_increment value changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+  }
+  else
+  {
+    /* Check that row format didn't change */
+    if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+        get_row_type() != create_info->row_type)
+    {
+      DBUG_PRINT("info", ("Row format changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
   }
 
   DBUG_PRINT("info", ("Ndb supports ALTER on-line"));
@@ -11057,6 +11080,11 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
   DBUG_ASSERT(alter_data);
   error= alter_frm(thd, altered_table->s->path.str, alter_data);
+  if (!error &&
+      (*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
+  {
+    error= set_auto_inc_val(thd, create_info->auto_increment_value);
+  }
  err:
   if (error)
   {
