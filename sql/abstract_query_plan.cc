@@ -37,7 +37,7 @@ namespace AQP
     @param join_tab Array of access methods constituting the nested loop join.
     @param access_count Length of array.
   */
-  Join_plan::Join_plan(const JOIN_TAB* join_tab, int32 access_count)
+  Join_plan::Join_plan(const JOIN_TAB* join_tab, uint access_count)
     :m_access_count(access_count),
      m_join_tabs(join_tab),
      m_table_accesses(new Table_access[access_count])
@@ -51,7 +51,7 @@ namespace AQP
                 || (m_join_tabs[0].select == NULL)
                 || (m_join_tabs[0].select->quick == NULL));
 
-    for(int32 i= 0; i < access_count; i++)
+    for(uint i= 0; i < access_count; i++)
     {
       m_table_accesses[i].m_root_tab= join_tab; 
       m_table_accesses[i].m_tab_no= i;
@@ -65,7 +65,7 @@ namespace AQP
   }
 
   /** Get the JOIN_TAB of the n'th table access operation.*/
-  const JOIN_TAB* Join_plan::get_join_tab(int32 join_tab_no) const
+  const JOIN_TAB* Join_plan::get_join_tab(uint join_tab_no) const
   {
     DBUG_ASSERT(join_tab_no < m_access_count);
     return m_join_tabs + join_tab_no;
@@ -82,7 +82,7 @@ namespace AQP
     DBUG_ENTER("Join_plan::get_referred_table_access");
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
-    for (int32 i= 0; i < get_access_count(); i++)
+    for (uint i= 0; i < get_access_count(); i++)
     {
       if (get_join_tab(i)->table->map == field_item->field->table->map)
         DBUG_RETURN(m_table_accesses + i);
@@ -95,7 +95,7 @@ namespace AQP
     to call this method on an operation that is not an index lookup
     operation.
   */
-  int32 Table_access::get_no_of_key_fields() const
+  uint Table_access::get_no_of_key_fields() const
   {
     DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
                 m_access_type == AT_UNIQUE_INDEX_LOOKUP);
@@ -107,7 +107,7 @@ namespace AQP
     to call this method on an operation that is not an index lookup
     operation.
   */
-  const Item* Table_access::get_key_field(int32 field_no) const
+  const Item* Table_access::get_key_field(uint field_no) const
   {
     DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
                 m_access_type == AT_UNIQUE_INDEX_LOOKUP);
@@ -120,7 +120,7 @@ namespace AQP
     to call this method on an operation that is not an index lookup
     operation.
   */
-  const KEY_PART_INFO* Table_access::get_key_part_info(int32 field_no) const
+  const KEY_PART_INFO* Table_access::get_key_part_info(uint field_no) const
   {
     DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
                 m_access_type == AT_UNIQUE_INDEX_LOOKUP);
@@ -185,7 +185,7 @@ namespace AQP
   */
   void Table_access::compute_type_and_index() const
   {
-    DBUG_ENTER("Table_access::Table_access");
+    DBUG_ENTER("Table_access::compute_type_and_index");
     /*
       Identify the type of access operation and the index to use (if any).
     */
@@ -287,7 +287,7 @@ namespace AQP
     }
     DBUG_VOID_RETURN;
   }
-  // Table_access::Table_access()
+  // Table_access::compute_type_and_index()
 
 
   /**

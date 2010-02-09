@@ -2880,6 +2880,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
     switch(type){
     case QueryPattern::P_PARAM:
       jam();
+      ndbassert(val < paramCnt);
       err = appendColToSection(dst, row, val);
       break;
     case QueryPattern::P_DATA:
@@ -2965,6 +2966,7 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
     case QueryPattern::P_PARAM:
       jam();
       // NOTE: Converted to P_DATA by appendColToPattern
+      ndbassert(val < paramCnt);
       err = appendColToPattern(dst, row, val);
       pattern.ptr++;
       break;

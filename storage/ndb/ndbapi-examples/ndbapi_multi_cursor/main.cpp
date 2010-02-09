@@ -565,10 +565,14 @@ int testQueryBuilder(Ndb &myNdb)
 #ifdef USE_RECATTR
   printf("manager  emp_no: %d\n", key[0][1]->u_32_value());
   printf("employee emp_no: %d\n", key[1][0]->u_32_value());
+  assert(!key[0][1]->isNULL() && key[0][1]->u_32_value()==emp_no);
+  assert(!key[1][0]->isNULL() && key[1][0]->u_32_value()==emp_no);
 #else
   // NOW: Result is available in 'managerRow' buffer
   printf("manager  emp_no: %d\n", managerRow.emp_no);
   printf("employee emp_no: %d\n", employeeRow.emp_no);
+  assert(managerRow.emp_no==emp_no);
+  assert(employeeRow.emp_no==emp_no);
 #endif
 
   myQuery->close();
@@ -621,8 +625,9 @@ int testQueryBuilder(Ndb &myNdb)
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
 
-  void* paramList_q4[] = {&emp_no, dept_no};
+//void* paramList_q4[] = {&emp_no};
 //void* paramList_q4[] = {dept_no};
+  void* paramList_q4[] = {&emp_no, dept_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
@@ -675,10 +680,14 @@ int testQueryBuilder(Ndb &myNdb)
 #ifdef USE_RECATTR
   printf("employee emp_no: %d\n", value_q4[0][0]->u_32_value());
   printf("manager  emp_no: %d\n", value_q4[1][1]->u_32_value());
+  assert(!value_q4[0][0]->isNULL() && value_q4[0][0]->u_32_value()==emp_no);
+  assert(!value_q4[1][1]->isNULL() && value_q4[1][1]->u_32_value()==emp_no);
 
 #else
   printf("employee emp_no: %d\n", employeeRow.emp_no);
   printf("manager  emp_no: %d\n", managerRow.emp_no);
+  assert(managerRow.emp_no==emp_no);
+  assert(employeeRow.emp_no==emp_no);
 #endif
 
   myQuery->close();
@@ -761,8 +770,10 @@ int testQueryBuilder(Ndb &myNdb)
 
 #ifdef USE_RECATTR
   printf("employee emp_no: %d\n", value_q5[1]->u_32_value());
+  assert(!value_q5[1]->isNULL() && value_q5[1]->u_32_value()==emp_no);
 #else
   printf("employee emp_no: %d\n", managerRow.emp_no);
+  assert(managerRow.emp_no==emp_no);
 #endif
 
   myQuery->close();

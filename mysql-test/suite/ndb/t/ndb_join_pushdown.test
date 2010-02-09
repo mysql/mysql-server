@@ -186,6 +186,45 @@ from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
 
+## Some variants of the above where t3 has a join conditions in t1
+## where t1 is outside scope of pushed join (as above). However, in
+## these tests t3 is also linked with t2 through another join condition.
+## This makes t3 join pushable by specifying the value of t1.c as a
+## paramValue()
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
+
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
+where t1.a=1 and t1.d=1;
+--sorted_result
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
+where t1.a=1 and t1.d=1;
+
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
+--sorted_result
+select *
+from t1
+  straight_join t1 as t2 on t2.a = t1.b+0
+  straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 
 
 ## Create a non-ndb table used as a tool to force part of
