@@ -656,6 +656,11 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
+	if (UNIV_UNLIKELY(!innodb_table)) {
+		error = HA_ERR_NO_SUCH_TABLE;
+		goto err_exit;
+	}
+
 	/* Check if the index name is reserved. */
 	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
 		error = -1;
