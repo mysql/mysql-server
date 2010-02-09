@@ -366,7 +366,7 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
 protected:
-  virtual void transform(String *);
+  virtual void crypto_transform(String *);
 private:
   /** Provide a seed for the PRNG sequence. */
   bool seed();
@@ -379,7 +379,7 @@ public:
   Item_func_decode(Item *a, Item *seed): Item_func_encode(a, seed) {}
   const char *func_name() const { return "decode"; }
 protected:
-  void transform(String *);
+  void crypto_transform(String *);
 };
 
 

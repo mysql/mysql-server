@@ -130,8 +130,8 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Got one of the listed errors
-Got one of the listed errors
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 COMMIT;
@@ -139,10 +139,7 @@ BEGIN;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Got one of the listed errors
-Got one of the listed errors
 COMMIT;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
 source include/diff_master_slave.inc;
 ########################################################################################
 #                                        CLEAN

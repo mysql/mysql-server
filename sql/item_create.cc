@@ -4218,6 +4218,16 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
   if (item_list != NULL)
     arg_count= item_list->elements;
 
+  /*
+    When RAND() is binlogged, the seed is binlogged too.  So the
+    sequence of random numbers is the same on a replication slave as
+    on the master.  However, if several RAND() values are inserted
+    into a table, the order in which the rows are modified may differ
+    between master and slave, because the order is undefined.  Hence,
+    the statement is unsafe to log in statement format.
+  */
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+
   switch (arg_count) {
   case 0:
   {

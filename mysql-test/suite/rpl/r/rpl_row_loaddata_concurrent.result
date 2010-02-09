@@ -129,3 +129,20 @@ use b48297_db1;
 Comparing tables master:b48297_db1.t1 and slave:b48297_db1.t1
 DROP DATABASE b48297_db1;
 DROP DATABASE b42897_db2;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+use test;
+CREATE TABLE t1 (`key` TEXT, `text` TEXT);
+LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+key	text
+Field A	'Field B'
+Field 1	'Field 2' 
+Field 3	'Field 4'
+'Field 5' 	'Field 6'
+Field 6	 'Field 7'
+DROP TABLE t1;

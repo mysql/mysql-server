@@ -28,6 +28,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "sql_audit.h"
 #include "sql_prepare.h"
 #include "probes_mysql.h"
 #include "set_var.h"
@@ -623,8 +624,10 @@ void free_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/* This works because items are allocated with sql_alloc() */
-
+/**
+   This works because items are allocated with sql_alloc().
+   @note The function also handles null pointers (empty list).
+*/
 void cleanup_items(Item *item)
 {
   DBUG_ENTER("cleanup_items");  
@@ -1217,8 +1220,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     table_list.alias= table_list.table_name= conv_name.str;
     packet= arg_end + 1;
 
-    if (!my_strcasecmp(system_charset_info, table_list.db,
-                       INFORMATION_SCHEMA_NAME.str))
+    if (is_infoschema_db(table_list.db, table_list.db_length))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -1492,6 +1494,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->proc_info= "closing tables";
   /* Free tables */
   close_thread_tables(thd);
+
+  if (!thd->is_error() && !thd->killed_errno())
+    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
   log_slow_statement(thd);
 
@@ -2490,6 +2495,8 @@ case SQLCOM_PREPARE:
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        /* Base table and temporary table are not in the same name space. */
+        create_table->skip_temporary= 1;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3253,9 +3260,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->variables.option_bits |
+			(select_lex->options | thd->variables.option_bits |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->is_error();
       MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
@@ -3282,17 +3289,6 @@ end_with_restore_list:
     }
     else
     {
-      /*
-	If this is a slave thread, we may sometimes execute some 
-	DROP / * 40005 TEMPORARY * / TABLE
-	that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
-	MASTER TO), while the temporary table has already been dropped.
-	To not generate such irrelevant "table does not exist errors",
-	we silently add IF EXISTS if TEMPORARY was used.
-      */
-      if (thd->slave_thread)
-        lex->drop_if_exists= 1;
-
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
@@ -3887,7 +3883,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
           break;
       }
       my_ok(thd);
@@ -6282,8 +6278,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      INFORMATION_SCHEMA_NAME.str))
+  if (!ptr->derived && is_infoschema_db(ptr->db, ptr->db_length))
   {
     ST_SCHEMA_TABLE *schema_table;
     if (ptr->updating &&
@@ -6822,13 +6817,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
     }
-    
+
     if (thd)
     {
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-      
+
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -7001,7 +6996,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
  *write_to_binlog= tmp_write_to_binlog;
- return result;
+ /*
+   If the query was killed then this function must fail.
+ */
+ return result || (thd ? thd->killed : 0);
 }
 
 

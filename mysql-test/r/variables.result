@@ -571,7 +571,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
+Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;

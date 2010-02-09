@@ -2297,10 +2297,22 @@ bool Query_log_event::write(IO_CACHE* file)
     int8store(start, table_map_for_update);
     start+= 8;
   }
+  if (master_data_written != 0)
+  {
+    /*
+      Q_MASTER_DATA_WRITTEN_CODE only exists in relay logs where the master
+      has binlog_version<4 and the slave has binlog_version=4. See comment
+      for master_data_written in log_event.h for details.
+    */
+    *start++= Q_MASTER_DATA_WRITTEN_CODE;
+    int4store(start, master_data_written);
+    start+= 4;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
-    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update function
-    code_name in this file.
+    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
+    code_name() in this file.
    
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -2376,7 +2388,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
    lc_time_names_number(thd_arg->variables.lc_time_names->number),
    charset_database_number(0),
-   table_map_for_update((ulonglong)thd_arg->table_map_for_update)
+   table_map_for_update((ulonglong)thd_arg->table_map_for_update),
+   master_data_written(0)
 {
   time_t end_time;
 
@@ -2605,6 +2618,7 @@ code_name(int code)
   case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
+  case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -2642,7 +2656,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
    time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
-   table_map_for_update(0)
+   table_map_for_update(0), master_data_written(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -2698,6 +2712,18 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     DBUG_PRINT("info", ("Query_log_event has status_vars_len: %u",
                         (uint) status_vars_len));
     tmp-= 2;
+  } 
+  else
+  {
+    /*
+      server version < 5.0 / binlog_version < 4 master's event is 
+      relay-logged with storing the original size of the event in
+      Q_MASTER_DATA_WRITTEN_CODE status variable.
+      The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
+      event from the relay log.
+    */
+    DBUG_ASSERT(description_event->binlog_version < 4);
+    master_data_written= data_written;
   }
   /*
     We have parsed everything we know in the post header for QUERY_EVENT,
@@ -2788,6 +2814,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, 8);
       table_map_for_update= uint8korr(pos);
       pos+= 8;
+      break;
+    case Q_MASTER_DATA_WRITTEN_CODE:
+      CHECK_SPACE(pos, end, 4);
+      data_written= master_data_written= uint4korr(pos);
+      pos+= 4;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -3275,7 +3306,18 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
 
 compare_errors:
 
-     /*
+    /*
+      In the slave thread, we may sometimes execute some DROP / * 40005
+      TEMPORARY * / TABLE that come from parts of binlogs (likely if we
+      use RESET SLAVE or CHANGE MASTER TO), while the temporary table
+      has already been dropped. To ignore such irrelevant "table does
+      not exist errors", we silently clear the error if TEMPORARY was used.
+    */
+    if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
+        thd->is_error() && thd->stmt_da->sql_errno() == ER_BAD_TABLE_ERROR &&
+        !expected_error)
+      thd->stmt_da->reset_diagnostics_area();
+    /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
@@ -8045,10 +8087,10 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     plus one or three bytes (see pack.c:net_store_length) for number of 
     elements in the field metadata array.
   */
-  if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 3; 
-  else
+  if (m_field_metadata_size < 251)
     m_data_size+= m_field_metadata_size + 1; 
+  else
+    m_data_size+= m_field_metadata_size + 3; 
 
   bzero(m_null_bits, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
