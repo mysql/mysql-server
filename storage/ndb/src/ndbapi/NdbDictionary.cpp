@@ -2598,6 +2598,12 @@ NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
 }
 
+int
+NdbDictionary::Dictionary::getWarningFlags() const
+{
+  return m_impl.m_warn;
+}
+
 // printers
 
 NdbOut&
