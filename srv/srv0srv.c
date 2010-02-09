@@ -2524,7 +2524,10 @@ loop:
 						BUF_FLUSH_LIST,
 						n_flush,
 						IB_ULONGLONG_MAX);
-				skip_sleep = TRUE;
+
+				if (n_flush == PCT_IO(100)) {
+					skip_sleep = TRUE;
+				}
 			}
 		}
 
