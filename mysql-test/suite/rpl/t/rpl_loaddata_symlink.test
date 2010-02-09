@@ -4,6 +4,7 @@
 # if the path of the load data file is a symbolic link.
 #
 --source include/master-slave.inc
+--source include/not_windows.inc
 --source include/have_binlog_format_statement.inc
 
 create table t1(a int not null auto_increment, b int, primary key(a) );
