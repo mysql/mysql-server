@@ -13044,6 +13044,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       DBUG_PRINT("error", ("createTablespace returned %d", error));
       goto ndberror;
     }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnExtentRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Extent size rounded up to kernel page size");
+    }
     DBUG_PRINT("alter_info", ("Successfully created Tablespace"));
     errmsg= "DATAFILE";
     if (dict->createDatafile(ndb_df))
@@ -13059,6 +13066,21 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       
       DBUG_PRINT("error", ("createDatafile returned %d", error));
       goto ndberror2;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnDatafileRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Datafile size rounded up to extent size");
+    }
+    else /* produce only 1 message */
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnDatafileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Datafile size rounded down to extent size");
     }
     is_tablespace= 1;
     break;
@@ -13077,6 +13099,21 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       if (dict->createDatafile(ndb_df))
       {
 	goto ndberror;
+      }
+      if (dict->getWarningFlags() &
+          NdbDictionary::Dictionary::WarnDatafileRoundUp)
+      {
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            dict->getWarningFlags(),
+                            "Datafile size rounded up to extent size");
+      }
+      else /* produce only 1 message */
+      if (dict->getWarningFlags() &
+          NdbDictionary::Dictionary::WarnDatafileRoundDown)
+      {
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            dict->getWarningFlags(),
+                            "Datafile size rounded down to extent size");
       }
     }
     else if(alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_DROP_FILE)
@@ -13132,6 +13169,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     {
       goto ndberror;
     }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndobufferRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undo buffer size rounded up to kernel page size");
+    }
     DBUG_PRINT("alter_info", ("Successfully created Logfile Group"));
     if (set_up_undofile(alter_info, &ndb_uf))
     {
@@ -13149,6 +13193,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
 	dict->dropLogfileGroup(tmp);
       }
       goto ndberror2;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndofileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undofile size rounded down to kernel page size");
     }
     break;
   }
@@ -13171,6 +13222,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->createUndofile(ndb_uf))
     {
       goto ndberror;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndofileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undofile size rounded down to kernel page size");
     }
     break;
   }
@@ -13358,6 +13416,54 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
+  }
+
+  NdbDictionary::Dictionary::List tslist;
+  dict->listObjects(tslist, NdbDictionary::Object::Tablespace);
+  ndberr= dict->getNdbError();
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
+
+  for (i= 0; i < tslist.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element&elt= tslist.elements[i];
+
+    NdbDictionary::Tablespace ts= dict->getTablespace(elt.name);
+    ndberr= dict->getNdbError();
+    if (ndberr.classification != NdbError::NoError)
+    {
+      if (ndberr.classification == NdbError::SchemaError)
+        continue;
+      ERR_RETURN(ndberr);
+    }
+
+    init_fill_schema_files_row(table);
+    table->field[IS_FILES_FILE_TYPE]->set_notnull();
+    table->field[IS_FILES_FILE_TYPE]->store("TABLESPACE", 10,
+                                            system_charset_info);
+
+    table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
+    table->field[IS_FILES_TABLESPACE_NAME]->store(elt.name,
+                                                     strlen(elt.name),
+                                                     system_charset_info);
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->
+      store(ts.getDefaultLogfileGroup(),
+           strlen(ts.getDefaultLogfileGroup()),
+           system_charset_info);
+
+    table->field[IS_FILES_ENGINE]->set_notnull();
+    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                         ndbcluster_hton_name_length,
+                                         system_charset_info);
+
+    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+
+    table->field[IS_FILES_VERSION]->set_notnull();
+    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion());
+
+    schema_table_store_record(thd, table);
   }
 
   NdbDictionary::Dictionary::List uflist;

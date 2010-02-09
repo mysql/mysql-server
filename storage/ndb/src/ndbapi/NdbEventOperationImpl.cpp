@@ -813,7 +813,8 @@ NdbEventOperationImpl::receive_event()
       // create a table object
       NdbDictInterface::Tx tx_unused;
       NdbError error;
-      NdbDictInterface dif(tx_unused, error);
+      int warn;
+      NdbDictInterface dif(tx_unused, error, warn);
       NdbTableImpl *at;
       m_change_mask = m_data_item->sdata->changeMask;
       error.code = dif.parseTableInfo(&at,
