@@ -4,7 +4,7 @@
 #include <toku_assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifdef _WIN32
+#if TOKU_WINDOWS
 #include <io.h>
 #endif
 #include <sys/stat.h>
@@ -37,7 +37,7 @@ int test_main(int argc, char *argv[]) {
     r = close(fd);
     assert(r == 0);
 #endif
-#if defined(_WIN32)
+#if TOKU_WINDOWS
     assert(r == -1);
     
     r = close(fd);

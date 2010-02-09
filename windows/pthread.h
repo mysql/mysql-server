@@ -37,8 +37,8 @@
  * See the README file for an explanation of the pthreads-win32 version
  * numbering scheme and how the DLL is named etc.
  */
-#define PTW32_VERSION 2,8,0,0
-#define PTW32_VERSION_STRING "2, 8, 0, 0\0"
+#define PTW32_VERSION 2,9,0,0
+#define PTW32_VERSION_STRING "2, 9, 0, 0\0"
 
 /* There are three implementations of cancel cleanup.
  * Note that pthread.h is included in both application
@@ -104,7 +104,7 @@
 
 #define PTW32_LEVEL_MAX 3
 
-#if !defined(PTW32_LEVEL)
+#if ( defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112 )  || !defined(PTW32_LEVEL)
 #define PTW32_LEVEL PTW32_LEVEL_MAX
 /* Include everything */
 #endif
@@ -210,9 +210,6 @@ typedef unsigned long DWORD_PTR;
  * -----------------
  */
 
-//IF YOU GET AN ERROR on HAVE_CONFIG_H:
-//You used #include "toku_portability.h"    <-- WRONG
-//instead of #include <toku_portability.h>  <-- CORRECT
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif /* HAVE_CONFIG_H */
@@ -308,7 +305,7 @@ enum {
 #ifndef HAVE_STRUCT_TIMESPEC
 #define HAVE_STRUCT_TIMESPEC 1
 struct timespec {
-        long tv_sec;
+        time_t tv_sec;
         long tv_nsec;
 };
 #endif /* HAVE_STRUCT_TIMESPEC */
@@ -902,13 +899,13 @@ PTW32_DLLPORT int PTW32_CDECL pthread_attr_setschedparam (pthread_attr_t *attr,
 PTW32_DLLPORT int PTW32_CDECL pthread_attr_setschedpolicy (pthread_attr_t *,
                                          int);
 
-PTW32_DLLPORT int PTW32_CDECL pthread_attr_getschedpolicy (pthread_attr_t *,
+PTW32_DLLPORT int PTW32_CDECL pthread_attr_getschedpolicy (const pthread_attr_t *,
                                          int *);
 
 PTW32_DLLPORT int PTW32_CDECL pthread_attr_setinheritsched(pthread_attr_t * attr,
                                          int inheritsched);
 
-PTW32_DLLPORT int PTW32_CDECL pthread_attr_getinheritsched(pthread_attr_t * attr,
+PTW32_DLLPORT int PTW32_CDECL pthread_attr_getinheritsched(const pthread_attr_t * attr,
                                          int * inheritsched);
 
 PTW32_DLLPORT int PTW32_CDECL pthread_attr_setscope (pthread_attr_t *,
@@ -987,7 +984,7 @@ PTW32_DLLPORT int PTW32_CDECL pthread_mutexattr_setpshared (pthread_mutexattr_t 
                                           int pshared);
 
 PTW32_DLLPORT int PTW32_CDECL pthread_mutexattr_settype (pthread_mutexattr_t * attr, int kind);
-PTW32_DLLPORT int PTW32_CDECL pthread_mutexattr_gettype (pthread_mutexattr_t * attr, int *kind);
+PTW32_DLLPORT int PTW32_CDECL pthread_mutexattr_gettype (const pthread_mutexattr_t * attr, int *kind);
 
 /*
  * Barrier Attribute Functions
@@ -1187,6 +1184,10 @@ PTW32_DLLPORT void * PTW32_CDECL pthread_timechange_handler_np(void *);
  * Returns the Win32 HANDLE for the POSIX thread.
  */
 PTW32_DLLPORT HANDLE PTW32_CDECL pthread_getw32threadhandle_np(pthread_t thread);
+/*
+ * Returns the win32 thread ID for POSIX thread.
+ */
+PTW32_DLLPORT DWORD PTW32_CDECL pthread_getw32threadid_np (pthread_t thread);
 
 
 /*
@@ -1248,13 +1249,19 @@ PTW32_DLLPORT int PTW32_CDECL pthreadCancelableTimedWait (HANDLE waitHandle,
         ( strcpy( (_buf), ctime( (_clock) ) ),  \
           (_buf) )
 
+/*
+ * gmtime(tm) and localtime(tm) return 0 if tm represents
+ * a time prior to 1/1/1970.
+ */
 #define gmtime_r( _clock, _result ) \
-        ( *(_result) = *gmtime( (_clock) ), \
-          (_result) )
+        ( gmtime( (_clock) ) \
+             ? (*(_result) = *gmtime( (_clock) ), (_result) ) \
+             : (0) )
 
 #define localtime_r( _clock, _result ) \
-        ( *(_result) = *localtime( (_clock) ), \
-          (_result) )
+        ( localtime( (_clock) ) \
+             ? (*(_result) = *localtime( (_clock) ), (_result) ) \
+             : (0) )
 
 #define rand_r( _seed ) \
         ( _seed == _seed? rand() : rand() )

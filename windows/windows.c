@@ -23,6 +23,7 @@
 static int
 toku_malloc_init(void) {
     int r = 0;
+#if defined(_WIN32)
     //Set the heap (malloc/free/realloc) to use the low fragmentation mode.
     ULONG  HeapFragValue = 2;
 
@@ -34,6 +35,7 @@ toku_malloc_init(void) {
     //if (success==0) //Do some error output if necessary.
     if (!success)
         r = GetLastError();
+#endif
     return r;
 }
 
@@ -174,18 +176,17 @@ toku_os_gettid(void) {
 
 int 
 toku_os_get_max_process_data_size(uint64_t *maxdata) {
-#ifdef _WIN32
+#if defined(_WIN32)
     // the process gets 1/2 of the 32 bit address space.  
     // we are ignoring the 3GB feature for now.
     *maxdata = 1ULL << 31;
     return 0;
-#else
-#ifdef _WIN64
+#elif defined(_WIN64)
     *maxdata = ~0ULL;
     return 0;
 #else
+#error
     return EINVAL;
-#endif
 #endif
 }
 

@@ -21,7 +21,7 @@ static void __attribute__((destructor)) libtokudb_destroy(void) {
 
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if TOKU_WINDOWS
 #include <windows.h>
 #define UNUSED(x) x=x
 

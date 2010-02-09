@@ -19,20 +19,20 @@ toku_sync_fetch_and_decrement_int32(volatile int32_t *a) {
 }
 
 #define TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA 0
+
 //Vista has 64 bit atomic instruction functions.
 //64 bit windows should also have it, but we're using neither right now.
-#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA
-#define TOKU_WINDOWS_HAS_FAST_ATOMIC_64 1
+#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA || defined(_WIN64)
+#define TOKU_WINDOWS_HAS_ATOMIC_64 1
 #else
-#define TOKU_WINDOWS_HAS_FAST_ATOMIC_64 0
+#define TOKU_WINDOWS_HAS_ATOMIC_64 0
 #endif
 
 
 
 static inline uint64_t
 toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
-#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA
-    //Need Vista or later for this function to exist.
+#if TOKU_WINDOWS_HAS_ATOMIC_64
     return _InterlockedExchangeAdd64((int64_t*)a, b);
 #else
     //Temporarily just use 32 bit atomic instructions (treat the values as 32
@@ -44,8 +44,7 @@ toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
 
 static inline uint64_t
 toku_sync_fetch_and_increment_uint64(volatile uint64_t *a) {
-#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA
-    //Need Vista or later for this function to exist.
+#if TOKU_WINDOWS_HAS_ATOMIC_64
     return _InterlockedIncrement64((int64_t*)a);
 #else
     //Temporarily just use 32 bit atomic instructions (treat the values as 32

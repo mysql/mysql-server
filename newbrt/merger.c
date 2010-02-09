@@ -4,14 +4,12 @@
 
 /* See merger.h for a description of this module. */
 
+#include <toku_portability.h>
+#include "brttypes.h"
 #include "merger.h"
 #include <memory.h>
 #include <toku_assert.h>
 #include <string.h>
-
-typedef unsigned char BOOL;
-#define TRUE 1
-#define FALSE 0
 
 struct merger {
     int n_files;
@@ -84,7 +82,7 @@ static int merge_fill_dbt (MERGER m, int i)
     }
     // Got something, so we should be able to get the rest.
     if (m->keys[i].ulen < keylen) {
-	REALLOC_N(keylen, m->keys[i].data);
+	m->keys[i].data = toku_xrealloc(m->keys[i].data, keylen);
 	m->keys[i].ulen = keylen;
     }
     {
@@ -97,7 +95,7 @@ static int merge_fill_dbt (MERGER m, int i)
 	assert(n==1);
     }
     if (m->vals[i].ulen < vallen) {
-	REALLOC_N(vallen, m->vals[i].data);
+	m->vals[i].data = toku_xrealloc(m->vals[i].data, vallen);
 	m->vals[i].ulen = vallen;
     }
     {

@@ -45,23 +45,22 @@ LIBRARIES+= \
 	$(LIBRARY_S) \
 #Purposely here for \ at end of prev
 
+ifeq ($(OS_CHOICE),windows)
+#Does not support parallel builds for files in src.
+.NOTPARALLEL:;
+ifeq ($(DEBUG),0)
+WINYDB = $(IPO_YDB)
+else
+WINYDB = $(NOIPO_YDB)
+endif
+LIBRARIES += $(WINYDB)
+libtokudb.pdb :  $(WINYDB);
+endif
+
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
 ifeq ($(OS_CHOICE),windows)
     INSTALL_LIBRARIES += libtokudb.pdb.install
 endif
-
-ifeq ($(OS_CHOICE),windows)
-#Does not support parallel builds for files in src.
-.NOTPARALLEL:;
-    ifeq ($(DEBUG),0)
-	WINYDB = $(IPO_YDB)
-    else
-	WINYDB = $(NOIPO_YDB)
-    endif
-    LIBRARIES += $(WINYDB)
-libtokudb.pdb :  $(WINYDB);
-endif
-
 
 
 .PHONY:install_libs install.% build install local build_tests
@@ -84,9 +83,12 @@ install: libs install_libs ;
 .PHONY: local libs buildlocktrees
 libs: $(LIBRARIES) ;
 $(IPO_YDB) $(NOIPO_YDB) $(LIBRARIES): | export.def
-export.def: export.map
+
+#Generate export.def
+#Take everything from export.map, add snprintf and vsnprintf, and then convert into export.def format.
+export.def: export.map Makefile
 	echo "EXPORTS" > $@
-	cat export.map |sed -n "s/\([a-zA-Z_0-9][a-zA-Z_0-9]*\);/\t\1 @/g;/@/ P" |sed -n 'P;=' | sed '{;N;s/\n//;}' >> $@
+	cat export.map | sed 's/global:$$/global:\n   snprintf;\n   usleep;/' | sed -n "s/\([a-zA-Z_0-9][a-zA-Z_0-9]*\);/\t\1 @/g;/@/ P" |sort | sed -n 'P;=' | sed '{;N;s/\n//;}' >> $@
 	echo "" >> $@
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
@@ -133,6 +135,7 @@ strip: $(LIBRARY)
 	strip $<
 
 clean:
+	rm -f export.def
 	cd tests && $(MAKE) clean
 	cd lock_tree && $(MAKE) clean
 	cd range_tree && $(MAKE) clean

@@ -11,6 +11,7 @@
  *   a REFERENCE IMPLEMENTATION of the loader
  */
 
+#include <toku_portability.h>
 #include <stdio.h>
 #include <string.h>
 #include "ydb-internal.h"

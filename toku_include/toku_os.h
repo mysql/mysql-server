@@ -23,7 +23,7 @@ int toku_os_get_number_active_processors(void);
 int toku_os_get_pagesize(void);
 
 // Returns: the size of physical memory (in bytes)
-uint64_t toku_os_get_phys_memory_size(void);
+uint64_t toku_os_get_phys_memory_size(void) __attribute__((__visibility__("default")));
 
 // Returns the processor frequency in Hz
 // Returns 0 if success
@@ -58,7 +58,7 @@ int toku_os_get_max_rss(int64_t *maxrss);
 // Get the maximum size of the process data size (in bytes)
 // Success: returns 0 and sets *maxdata to the data size
 // Fail: returns an error number
-int toku_os_get_max_process_data_size(uint64_t *maxdata);
+int toku_os_get_max_process_data_size(uint64_t *maxdata) __attribute__((__visibility__("default")));
 
 int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("default")));
 
@@ -67,7 +67,7 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 //
 int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
-#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
+#if TOKU_WINDOWS
 #include <sys/types.h>
 #include <sys/stat.h>
 //Test if st_mode (from stat) is a directory

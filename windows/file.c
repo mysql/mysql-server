@@ -194,14 +194,14 @@ static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
 
-#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+#if !TOKU_WINDOWS_HAS_ATOMIC_64 
 static toku_pthread_mutex_t fsync_lock;
 #endif
 
 int
 toku_fsync_init(void) {
     int r = 0;
-#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+#if !TOKU_WINDOWS_HAS_ATOMIC_64 
     r = toku_pthread_mutex_init(&fsync_lock, NULL); assert(r == 0);
 #endif
     return r;
@@ -210,7 +210,7 @@ toku_fsync_init(void) {
 int
 toku_fsync_destroy(void) {
     int r = 0;
-#if !TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+#if !TOKU_WINDOWS_HAS_ATOMIC_64 
     r = toku_pthread_mutex_destroy(&fsync_lock); assert(r == 0);
 #endif
     return r;
@@ -240,7 +240,7 @@ toku_file_fsync(int fd) {
 	if (r) 
 	    assert(errno==EINTR);
     }
-#if TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+#if TOKU_WINDOWS_HAS_ATOMIC_64 
     toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
     toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
 #else

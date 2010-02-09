@@ -171,7 +171,7 @@ static int test_main (int argc, char *argv[]) {
             }
             sort_delimiter[0] = (char)temp;
             sort_delimiter[1] = '\0';
-#if defined(TOKU_WINDOWS) && TOKU_WINDOWS
+#if TOKU_WINDOWS
             if (!strcmp(sort_delimiter, "\n")) {
                 strcpy(sort_delimiter, "\r\n");
             }

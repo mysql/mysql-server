@@ -33,7 +33,7 @@ int test_main(int argc, char *argv[]) {
 
     WSAStartup(MAKEWORD(1, 0), &wsadata);
     s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    printf("s=%u\n", s);
+    printf("s=%"PRIu64"\n", s);
 
     for (i=0; i<1000; i++) {
         if (verbose) {

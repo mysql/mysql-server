@@ -1,7 +1,7 @@
 #ifndef _TOKU_HTONL_H
 #define _TOKU_HTONL_H
 
-#if !defined(_WIN32)
+#if !TOKU_WINDOWS
 #error
 #endif
 
