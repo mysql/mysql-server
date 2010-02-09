@@ -397,10 +397,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-    {
-      table->key_read=1;
       table->mark_columns_used_by_index(used_index);
-    }
     else
     {
       table->use_all_columns();
@@ -844,11 +841,7 @@ int mysql_update(THD *thd,
 err:
   delete select;
   free_underlaid_joins(thd, select_lex);
-  if (table->key_read)
-  {
-    table->key_read=0;
-    table->file->extra(HA_EXTRA_NO_KEYREAD);
-  }
+  table->set_keyread(FALSE);
   thd->abort_on_warning= 0;
   DBUG_RETURN(1);
 }

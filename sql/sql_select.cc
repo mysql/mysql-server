@@ -6639,10 +6639,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_CONST:				// Only happens with left join
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
-      {
-	table->key_read=1;
-	table->file->extra(HA_EXTRA_KEYREAD);
-      }
+        table->set_keyread(TRUE);
       break;
     case JT_ALL:
       /*
@@ -6703,10 +6700,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  if (tab->select && tab->select->quick &&
               tab->select->quick->index != MAX_KEY && //not index_merge
 	      table->covering_keys.is_set(tab->select->quick->index))
-	  {
-	    table->key_read=1;
-	    table->file->extra(HA_EXTRA_KEYREAD);
-	  }
+            table->set_keyread(TRUE);
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
@@ -6790,11 +6784,7 @@ void JOIN_TAB::cleanup()
   limit= 0;
   if (table)
   {
-    if (table->key_read)
-    {
-      table->key_read= 0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
+    table->set_keyread(FALSE);
     table->file->ha_index_or_rnd_end();
     /*
       We need to reset this for next select
@@ -11664,16 +11654,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	!table->no_keyread &&
         (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
-      table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD);
+      table->set_keyread(TRUE);
       tab->index= tab->ref.key;
     }
     error=join_read_const(tab);
-    if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
+    table->set_keyread(FALSE);
     if (error)
     {
       tab->info="unique row not found";
@@ -12028,12 +12013,8 @@ join_read_first(JOIN_TAB *tab)
 {
   int error;
   TABLE *table=tab->table;
-  if (!table->key_read && table->covering_keys.is_set(tab->index) &&
-      !table->no_keyread)
-  {
-    table->key_read=1;
-    table->file->extra(HA_EXTRA_KEYREAD);
-  }
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
+    table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.read_record=join_read_next;
   tab->read_record.table=table;
@@ -12067,12 +12048,8 @@ join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error;
-  if (!table->key_read && table->covering_keys.is_set(tab->index) &&
-      !table->no_keyread)
-  {
-    table->key_read=1;
-    table->file->extra(HA_EXTRA_KEYREAD);
-  }
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
+    table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
@@ -13490,11 +13467,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
            If ref_key used index tree reading only ('Using index' in EXPLAIN),
            and best_key doesn't, then revert the decision.
         */
-        if (!table->covering_keys.is_set(best_key) && table->key_read)
-        {
-          table->key_read= 0;
-          table->file->extra(HA_EXTRA_NO_KEYREAD);          
-        }        
+        if (!table->covering_keys.is_set(best_key))
+          table->set_keyread(FALSE);
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13507,10 +13481,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             select->quick= 0;
           }
           if (table->covering_keys.is_set(best_key))
-          {
-            table->key_read=1;
-            table->file->extra(HA_EXTRA_KEYREAD);
-          }
+            table->set_keyread(TRUE);
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
@@ -13684,11 +13655,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
         We can only use 'Only index' if quick key is same as ref_key
         and in index_merge 'Only index' cannot be used
       */
-      if (table->key_read && ((uint) tab->ref.key != select->quick->index))
-      {
-	table->key_read=0;
-	table->file->extra(HA_EXTRA_NO_KEYREAD);
-      }
+      if (((uint) tab->ref.key != select->quick->index))
+        table->set_keyread(FALSE);
     }
     else
     {
@@ -13744,11 +13712,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
   tab->join->examined_rows+=examined_rows;
-  if (table->key_read)				// Restore if we used indexes
-  {
-    table->key_read=0;
-    table->file->extra(HA_EXTRA_NO_KEYREAD);
-  }
+  table->set_keyread(FALSE); // Restore if we used indexes
   DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
