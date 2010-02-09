@@ -3100,6 +3100,7 @@ private:
   struct CreateFilegroupRec : public OpRec {
     bool m_parsed, m_prepared;
     CreateFilegroupImplReq m_request;
+    Uint32 m_warningFlags;
 
     // reflection
     static const OpInfo g_opInfo;
@@ -3113,6 +3114,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
+      m_warningFlags = 0;
     }
   };
 
@@ -3143,6 +3145,7 @@ private:
   struct CreateFileRec : public OpRec {
     bool m_parsed, m_prepared;
     CreateFileImplReq m_request;
+    Uint32 m_warningFlags;
 
     // reflection
     static const OpInfo g_opInfo;
@@ -3156,6 +3159,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
+      m_warningFlags = 0;
     }
   };
 
