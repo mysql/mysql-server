@@ -15,6 +15,8 @@
 #       Vs slave.                                                           #
 #############################################################################
 
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+
 # Begin clean up test section
 connection master;
 --disable_warnings
@@ -39,12 +41,16 @@ RETURN tmp;
 END|
 delimiter ;|
 
+--disable_warnings
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
+--enable_warnings
 
 SET AUTOCOMMIT=0;
 START TRANSACTION;
+--disable_warnings
 INSERT INTO test.t1 VALUES (null,test.f1());
+--enable_warnings
 ROLLBACK;
 SET AUTOCOMMIT=1;
 
