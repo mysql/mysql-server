@@ -292,7 +292,8 @@ uint explain_filename(THD* thd,
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
+                                            end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ", ", end_p - to_p);
@@ -305,7 +306,7 @@ uint explain_filename(THD* thd,
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
   {
-    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
@@ -322,18 +323,22 @@ uint explain_filename(THD* thd,
     if (name_type != NORMAL)
     {
       if (name_type == TEMP)
-        to_p= strnmov(to_p, ER(ER_TEMPORARY_NAME), end_p - to_p);
+        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
+                      end_p - to_p);
       else
-        to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
+        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
+                      end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
-    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
+                  end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
-      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
+                    end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
