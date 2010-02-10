@@ -1097,6 +1097,7 @@ end:
   if (table)
     close_thread_tables(thd);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
