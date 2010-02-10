@@ -6057,7 +6057,12 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 {
   COND *tmp;
   DBUG_ASSERT(cond != 0);
-  if (tab == root_tab)
+  /**
+   *  BEWARE: Temp fix for Bug#48971 in SPJ branch as permanent 
+   *  fix has not been merged to this branch yet.
+   *  Needed as this was a showstopper for further SPJ testing.
+   */
+  if (!tab || tab == root_tab || !cond) // Fix for Bug#48971
     return cond;
   if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
     tmp= new Item_func_trig_cond(tmp, &tab->found);
