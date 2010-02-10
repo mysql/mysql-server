@@ -120,6 +120,9 @@ show grants for rpl_do_grant2@localhost;
 # BUG42217  mysql.procs_priv does not get replicated
 #####################################################
 connection master; 
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+sync_slave_with_master;
+connection master;
 
 --disable_warnings
 DROP DATABASE IF EXISTS bug42217_db;
@@ -209,12 +212,19 @@ USE bug42217_db;
 DROP FUNCTION upgrade_del_func;
 DROP FUNCTION upgrade_alter_func;
 DROP DATABASE bug42217_db;
+-- sync_slave_with_master
+-- connection master
+
+# user was already dropped in the slave before
+# so no need to wait for the slave to replicate
+# this statement (if it did and we later synced
+# the slave it would end up in an error anyway)
 DROP USER 'create_rout_db'@'localhost';
 
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
-connection slave;
-USE mtr;
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+# finish entire clean up (remove binlogs)
+# so that we leave a pristine environment for the
+# following tests
+-- source include/master-slave-reset.inc
 
 # BUG#49119: Master crashes when executing 'REVOKE ... ON
 # {PROCEDURE|FUNCTION} FROM ...'

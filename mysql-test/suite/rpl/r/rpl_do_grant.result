@@ -89,6 +89,7 @@ show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
 show grants for rpl_do_grant2@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant2' on host 'localhost'
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
 DROP DATABASE IF EXISTS bug42217_db;
 CREATE DATABASE  bug42217_db;
 GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
@@ -166,9 +167,12 @@ DROP FUNCTION upgrade_del_func;
 DROP FUNCTION upgrade_alter_func;
 DROP DATABASE bug42217_db;
 DROP USER 'create_rout_db'@'localhost';
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
-USE mtr;
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 ######## BUG#49119 #######
 ### i) test case from the 'how to repeat section'
 stop slave;
