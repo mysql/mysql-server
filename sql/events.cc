@@ -377,6 +377,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
         /* Restore the state of binlog format */
+        DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
         if (save_binlog_row_based)
           thd->set_current_stmt_binlog_format_row();
         DBUG_RETURN(TRUE);
@@ -388,6 +389,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
@@ -511,6 +513,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
@@ -588,6 +591,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);

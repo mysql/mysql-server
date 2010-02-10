@@ -1136,6 +1136,7 @@ done:
 
   close_thread_tables(thd);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
@@ -1195,6 +1196,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   close_thread_tables(thd);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
@@ -1271,6 +1273,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   close_thread_tables(thd);
   /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
