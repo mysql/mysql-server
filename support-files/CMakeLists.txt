@@ -62,7 +62,7 @@ IF(UNIX)
     INSTALL(FILES magic DESTINATION ${inst_location})
   ENDIF()
 
-  INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal)
+  INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
   CONFIGURE_FILE(MySQL-shared-compat.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/MySQL-shared-compat.spec @ONLY)
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/mysql.spec @ONLY)
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/mysql.${VERSION}.spec @ONLY)
