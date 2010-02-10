@@ -1,0 +1,40 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
+    Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@" Language="1033" Manufacturer="MySQL AB">
+    <Package Id='*' Keywords='Installer' Description="MySQL Database Server"
+       Manufacturer='MySQL AB'
+       InstallerVersion='310' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
+    <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='ProgramFilesFolder'>
+        <Directory Id='directory.MySQL' Name='MySQL'>
+          <Directory Id='INSTALLDIR' Name='MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@'>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+	 <Directory Id="CommonAppDataFolder">
+        <Directory Id="directory.Data.MySQL" Name="MySQL">
+          <Directory Id="DATADIR" LongName="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" src=".\">
+            <Directory Id="DATADIR" Name=".">
+              <!-- *****************************************************************************************
+                   data directory
+                -->             
+              <Directory Id="DataDir" Name="data">
+                <Directory Id="mysql" Name="mysql">
+    <Feature  Id='Server' Level='1' Title="MySQL Server" Description="Install MySQL server" Display="expand">
+      <ComponentGroupRef Id='componentgroup.Server'/>
+      <Feature Level='1' Id='ClientPrograms' Title="Client Programs"  Description="Various helpful (commandline) tools including the mysql command line client" >
+         <ComponentRef Id="componentgroup.Client" />
+       </Feature>
+    </Feature>
+    <Feature Id='Devel' Level='1' Title="Development Components"
+             Description="Installs C/C++ header files and libraries">
+      <ComponentGroupRef Id='componentgroup.Development' />
+    </Feature>
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable Id="WixUIBannerBmp" Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminHeader.jpg" />
+    <WixVariable Id="WixUIDialogBmp" Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminBackground.jpg" />
+  </Product>
+</Wix>
