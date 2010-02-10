@@ -36,9 +36,9 @@ usmallint	65535
 umediumint	16777215
 uinteger	4294967295
 ubigint	18446744073709551615
-double	1.84467440737096e+19
-float	1.84467e+19
-real	18446744073709551616.00
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
 decimal	18446744073709551615.00
 #### [ on slave ]
 SELECT * FROM t1;
@@ -52,9 +52,9 @@ usmallint	65535
 umediumint	16777215
 uinteger	4294967295
 ubigint	18446744073709551615
-double	1.84467440737096e+19
-float	1.84467e+19
-real	18446744073709551616.00
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
 decimal	18446744073709551615.00
 #########################################
 ## assertion: master and slave tables are in sync
@@ -88,9 +88,9 @@ usmallint	65535
 umediumint	16777215
 uinteger	4294967295
 ubigint	18446744073709551615
-double	1.84467440737096e+19
-float	1.84467e+19
-real	18446744073709551616.00
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
 decimal	18446744073709551615.00
 #### [ on slave ]
 SELECT * FROM t1;
@@ -104,9 +104,9 @@ usmallint	65535
 umediumint	16777215
 uinteger	4294967295
 ubigint	18446744073709551615
-double	1.84467440737096e+19
-float	1.84467e+19
-real	18446744073709551616.00
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
 decimal	18446744073709551615.00
 #########################################
 ## assertion: master and slave tables are in sync
@@ -128,9 +128,9 @@ usmallint	0
 umediumint	0
 uinteger	0
 ubigint	0
-double	-9.22337203685478e+18
-float	-9.22337e+18
-real	-9223372036854775808.00
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #### [ on slave ]
 SELECT * FROM t1;
@@ -144,9 +144,9 @@ usmallint	0
 umediumint	0
 uinteger	0
 ubigint	0
-double	-9.22337203685478e+18
-float	-9.22337e+18
-real	-9223372036854775808.00
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #########################################
 ## assertion: master and slave tables are in sync
@@ -180,9 +180,9 @@ usmallint	0
 umediumint	0
 uinteger	0
 ubigint	0
-double	-9.22337203685478e+18
-float	-9.22337e+18
-real	-9223372036854775808.00
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #### [ on slave ]
 SELECT * FROM t1;
@@ -196,9 +196,9 @@ usmallint	0
 umediumint	0
 uinteger	0
 ubigint	0
-double	-9.22337203685478e+18
-float	-9.22337e+18
-real	-9223372036854775808.00
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #########################################
 ## assertion: master and slave tables are in sync
