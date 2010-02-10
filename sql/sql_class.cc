@@ -725,15 +725,12 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
-  if (!m_internal_handler)
-    return FALSE;
-
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
-       error_handler= m_internal_handler->m_prev_internal_handler)
+       error_handler= error_handler->m_prev_internal_handler)
   {
     if (error_handler->handle_error(sql_errno, message, level, this))
-    return TRUE;
+      return TRUE;
   }
 
   return FALSE;
