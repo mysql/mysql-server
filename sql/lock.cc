@@ -1049,10 +1049,14 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
     DBUG_RETURN(-1);
 
   table_list->table=table;
+  table->s->deleting= table_list->deleting;
 
   /* Return 1 if table is in use */
   DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,
-             check_in_use ? RTFC_NO_FLAG : RTFC_WAIT_OTHER_THREAD_FLAG)));
+                                           (check_in_use ?
+                                            RTFC_NO_FLAG :
+                                            RTFC_WAIT_OTHER_THREAD_FLAG),
+                                           table_list->deleting)));
 }
 
 

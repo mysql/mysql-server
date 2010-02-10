@@ -221,6 +221,7 @@ typedef struct st_mi_isam_share
   my_bool changed,                      /* If changed since lock */
     global_changed,                     /* If changed since open */
     not_flushed, temporary, delay_key_write, concurrent_insert;
+  my_bool deleting;                     /* we are going to delete this table */
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;          /* Locking for use with _locking */

@@ -1261,12 +1261,12 @@ ERROR HY000: Variable 'lower_case_table_names' is a read only variable
 #
 SHOW VARIABLES like 'myisam_recover_options';
 Variable_name	Value
-myisam_recover_options	OFF
+myisam_recover_options	DEFAULT
 SELECT @@session.myisam_recover_options;
 ERROR HY000: Variable 'myisam_recover_options' is a GLOBAL variable
 SELECT @@global.myisam_recover_options;
 @@global.myisam_recover_options
-OFF
+DEFAULT
 SET @@session.myisam_recover_options= 'x';
 ERROR HY000: Variable 'myisam_recover_options' is a read only variable
 SET @@global.myisam_recover_options= 'x';

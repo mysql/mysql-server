@@ -431,6 +431,7 @@ typedef struct st_table_share
   bool is_view;
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
+  bool deleting;                        /* going to delete this table */
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
 
@@ -1379,7 +1380,7 @@ struct TABLE_LIST
   */
   bool          create;
   bool          internal_tmp_table;
-
+  bool          deleting;               /* going to delete this table */
 
   /* View creation context. */
 

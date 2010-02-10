@@ -930,7 +930,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
       if (remove_table_from_cache(thd, table->db, table->table_name,
-                                  RTFC_OWNED_BY_THD_FLAG))
+                                  RTFC_OWNED_BY_THD_FLAG, table->deleting))
 	found=1;
     }
     if (!found)
@@ -8404,6 +8404,11 @@ void remove_db_from_cache(const char *db)
     if (!strcmp(table->s->db.str, db))
     {
       table->s->version= 0L;			/* Free when thread is ready */
+      /*
+        This functions only called from DROP DATABASE code, so we are going
+        to drop all tables so we mark them as deleting
+      */
+      table->s->deleting= TRUE;
       if (!table->in_use)
 	relink_unused(table);
     }
@@ -8446,7 +8451,7 @@ void flush_tables()
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-                             uint flags)
+                             uint flags, my_bool deleting)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
@@ -8540,7 +8545,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       }
     }
     while (unused_tables && !unused_tables->s->version)
+    {
+      unused_tables->s->deleting= deleting;
       VOID(hash_delete(&open_cache,(uchar*) unused_tables));
+    }
 
     DBUG_PRINT("info", ("Removing table from table_def_cache"));
     /* Remove table from table definition cache if it's not in use */
@@ -8734,7 +8742,8 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
                    lpt->table, TRUE);
-  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
+  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags,
+                               FALSE));
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
 }
@@ -8759,7 +8768,7 @@ void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   VOID(pthread_mutex_lock(&LOCK_open));
   remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
+                          RTFC_WAIT_OTHER_THREAD_FLAG, FALSE);
   VOID(pthread_mutex_unlock(&LOCK_open));
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :

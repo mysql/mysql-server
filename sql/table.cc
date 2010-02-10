@@ -1977,7 +1977,11 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
+  {
+    if (table->s->deleting)
+      table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     error=table->file->close();
+  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)

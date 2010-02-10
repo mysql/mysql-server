@@ -305,6 +305,12 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
+    /* Signals about intent to delete this table */
+    share->deleting= TRUE;
+    share->global_changed= FALSE;     /* force writing changed flag */
+    /* To force repair if reopened */
+    _ma_mark_file_changed(info);
+    /* Fall trough */
   case HA_EXTRA_PREPARE_FOR_RENAME:
   {
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);

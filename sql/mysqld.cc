@@ -7962,7 +7962,13 @@ static int mysql_init_variables(void)
   refresh_version= 1L;	/* Increments on each reload */
   global_query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
-  myisam_recover_options_str= sql_mode_str= "OFF";
+  sql_mode_str= "";
+
+  /* By default, auto-repair MyISAM tables after crash */
+  myisam_recover_options_str= "DEFAULT";
+  myisam_recover_options=     HA_RECOVER_DEFAULT;
+  ha_open_options|= HA_OPEN_ABORT_IF_CRASHED;
+
   myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
@@ -8616,26 +8622,31 @@ mysqld_get_one_option(int optid,
 #endif
   case OPT_MYISAM_RECOVER:
   {
-    if (!argument)
-    {
-      myisam_recover_options=    HA_RECOVER_DEFAULT;
-      myisam_recover_options_str= myisam_recover_typelib.type_names[0];
-    }
-    else if (!argument[0])
+    if (argument && (!argument[0] ||
+                     my_strcasecmp(system_charset_info, argument, "OFF") == 0))
     {
       myisam_recover_options= HA_RECOVER_NONE;
       myisam_recover_options_str= "OFF";
+      ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
     }
     else
     {
-      myisam_recover_options_str=argument;
-      myisam_recover_options=
-        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name,
-                              &error);
-      if (error)
-        return 1;
+      if (!argument)
+      {
+        myisam_recover_options=     HA_RECOVER_DEFAULT;
+        myisam_recover_options_str= myisam_recover_typelib.type_names[0];
+      }
+      else
+      {
+        myisam_recover_options_str=argument;
+        myisam_recover_options=
+          find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name,
+                                &error);
+        if (error)
+          return 1;
+      }
+      ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     }
-    ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
   }
   case OPT_CONCURRENT_INSERT:

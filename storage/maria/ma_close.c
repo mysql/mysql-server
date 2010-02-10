@@ -79,7 +79,7 @@ int maria_close(register MARIA_HA *info)
       if ((*share->once_end)(share))
         error= my_errno;
       if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                                 (share->temporary ?
+                                 ((share->temporary || share->deleting) ?
                                   FLUSH_IGNORE_CHANGED :
                                   FLUSH_RELEASE)))
         error= my_errno;

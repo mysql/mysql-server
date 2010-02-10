@@ -1880,6 +1880,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     TABLE_SHARE *share;
     table->db_type= NULL;
+
     if ((share= get_cached_table_share(table->db, table->table_name)))
       table->db_type= share->db_type();
 
@@ -1974,9 +1975,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       TABLE *locked_table;
       abort_locked_tables(thd, db, table->table_name);
+      table->deleting= TRUE;
       remove_table_from_cache(thd, db, table->table_name,
 	                      RTFC_WAIT_OTHER_THREAD_FLAG |
-			      RTFC_CHECK_KILLED_FLAG);
+			      RTFC_CHECK_KILLED_FLAG, FALSE);
       /*
         If the table was used in lock tables, remember it so that
         unlock_table_names can free it
@@ -4213,9 +4215,10 @@ void wait_while_table_is_used(THD *thd,TABLE *table,
   /* Wait until all there are no other threads that has this table open */
   remove_table_from_cache(thd, table->s->db.str,
                           table->s->table_name.str,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
+                          RTFC_WAIT_OTHER_THREAD_FLAG, FALSE);
   /* extra() call must come only after all instances above are closed */
-  VOID(table->file->extra(function));
+  if (function != HA_EXTRA_NOT_USED)
+    VOID(table->file->extra(function));
   DBUG_VOID_RETURN;
 }
 
@@ -4717,7 +4720,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       remove_table_from_cache(thd, table->table->s->db.str,
                               table->table->s->table_name.str,
                               RTFC_WAIT_OTHER_THREAD_FLAG |
-                              RTFC_CHECK_KILLED_FLAG);
+                              RTFC_CHECK_KILLED_FLAG, FALSE);
       thd->exit_cond(old_message);
       DBUG_EXECUTE_IF("wait_in_mysql_admin_table", wait_for_kill_signal(thd););
       if (thd->killed)
@@ -4975,7 +4978,8 @@ send_result_message:
         {
           pthread_mutex_lock(&LOCK_open);
           remove_table_from_cache(thd, table->table->s->db.str,
-                                  table->table->s->table_name.str, RTFC_NO_FLAG);
+                                  table->table->s->table_name.str,
+                                  RTFC_NO_FLAG, FALSE);
           pthread_mutex_unlock(&LOCK_open);
         }
         /* May be something modified consequently we have to invalidate cache */
@@ -6738,7 +6742,9 @@ view_err:
         from concurrent DDL statements.
       */
       VOID(pthread_mutex_lock(&LOCK_open));
-      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      wait_while_table_is_used(thd, table,
+                               thd->locked_tables ? HA_EXTRA_NOT_USED :
+                               HA_EXTRA_FORCE_REOPEN);
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
@@ -6746,7 +6752,9 @@ view_err:
       break;
     case DISABLE:
       VOID(pthread_mutex_lock(&LOCK_open));
-      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+      wait_while_table_is_used(thd, table,
+                               thd->locked_tables ? HA_EXTRA_NOT_USED :
+                               HA_EXTRA_FORCE_REOPEN);
       VOID(pthread_mutex_unlock(&LOCK_open));
       error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
@@ -7192,7 +7200,9 @@ view_err:
   else
   {
     VOID(pthread_mutex_lock(&LOCK_open));
-    wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
+    wait_while_table_is_used(thd, table, 
+                             thd->locked_tables ? HA_EXTRA_NOT_USED :
+                             HA_EXTRA_FORCE_REOPEN);
     VOID(pthread_mutex_unlock(&LOCK_open));
     thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
