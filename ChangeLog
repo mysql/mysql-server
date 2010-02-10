@@ -1,5 +1,11 @@
 2010-02-09	The InnoDB Team
 
+	* buf/buf0buf.c:
+	Fix Bug #38901 InnoDB logs error repeatedly when trying to load
+	page into buffer pool
+
+2010-02-09	The InnoDB Team
+
 	* srv/srv0srv.c:
 	Let the master thread sleep if the amount of work to be done is
 	calibrated as taking less than a second.
@@ -12,6 +18,12 @@
 	Pass the file name and line number of the caller of the
 	b-tree cursor functions to the buffer pool requests, in order
 	to make the latch diagnostics more accurate.
+
+2010-02-03	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#49001 SHOW INNODB STATUS deadlock info incorrect
+	when deadlock detection aborts
 
 2010-02-03	The InnoDB Team
 
