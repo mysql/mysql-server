@@ -3374,6 +3374,95 @@ set debug_sync= 'RESET';
 drop table t1;
 
 
+--echo #
+--echo # Test for bug #50998 "Deadlock in MDL code during test
+--echo #                      rqg_mdl_stability".
+--echo # Also provides coverage for the case when addition of
+--echo # waiting statement adds several loops in the waiters
+--echo # graph and therefore several searches for deadlock
+--echo # should be performed.
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+set debug_sync= 'RESET';
+connect (con1,localhost,root);
+connect (con2,localhost,root);
+connect (con3,localhost,root);
+connection default;
+create table t1 (i int);
+
+--echo # Switching to connection 'con1'.
+connection con1;
+begin;
+select * from t1;
+
+--echo # Switching to connection 'con2'.
+connection con2;
+begin;
+select * from t1;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Start ALTER TABLE which will acquire SNW lock and
+--echo # table lock and get blocked on sync point.
+set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Wait until ALTER TABLE gets blocked on a sync point.
+set debug_sync= 'now WAIT_FOR parked';
+--echo # Sending:
+--send insert into t1 values (1)
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Sending:
+--send insert into t1 values (1)
+
+--echo # Switching to connection 'con3'.
+connection con3;
+--echo # Wait until both 'con1' and 'con2' are blocked trying to acquire
+--echo # SW lock on the table.
+let $wait_condition=
+  select count(*) = 2 from information_schema.processlist
+  where state = "Waiting for table" and info = "insert into t1 values (1)";
+--source include/wait_condition.inc
+--echo # Unblock ALTER TABLE. Since it will try to upgrade SNW to X lock
+--echo # deadlock with two loops in waiting graph will occur. Both loops
+--echo # should be found and DML statements in both 'con1' and 'con2'
+--echo # should be aborted with ER_LOCK_DEADLOCK errors.
+set debug_sync= 'now SIGNAL go';
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reaping INSERT. It should end with ER_LOCK_DEADLOCK error and
+--echo # not wait indefinitely (as it happened before the bugfix).
+--error ER_LOCK_DEADLOCK
+--reap
+commit;
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Reaping INSERT.
+--error ER_LOCK_DEADLOCK
+--reap
+commit;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ALTER TABLE.
+--reap
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+connection default;
+set debug_sync= 'RESET';
+drop table t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
