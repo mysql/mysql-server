@@ -740,10 +740,12 @@ bool THD::handle_error(uint sql_errno, const char *message,
 }
 
 
-void THD::pop_internal_handler()
+Internal_error_handler *THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
+  Internal_error_handler *popped_handler= m_internal_handler;
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
+  return popped_handler;
 }
 
 extern "C"
