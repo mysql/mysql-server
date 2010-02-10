@@ -152,13 +152,13 @@ SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS})
+MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 IF(UNIX)
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient ${INSTALL_LIBDIR})
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
   IF(UNIX)
     # Name of shared library is mysqlclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
@@ -177,6 +177,6 @@ IF(NOT DISABLE_SHARED)
     #(mysqlclient in this case)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql ${INSTALL_LIBDIR})
+    INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql ${INSTALL_LIBDIR} SharedLibraries)
   ENDIF()
 ENDIF()

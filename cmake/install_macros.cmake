@@ -40,10 +40,74 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
   ENDIF()
 ENDMACRO()
 
+# Installs manpage for given file (either script or executable)
+# 
+FUNCTION(INSTALL_MANPAGE file)
+  IF(NOT UNIX)
+    RETURN()
+  ENDIF()
+  GET_FILENAME_COMPONENT(file_name "${file}" NAME)
+  SET(GLOB_EXPR 
+    ${CMAKE_SOURCE_DIR}/man/*${file}man.1*
+    ${CMAKE_SOURCE_DIR}/man/*${file}man.8*
+    ${CMAKE_BINARY_DIR}/man/*${file}man.1*
+    ${CMAKE_BINARY_DIR}/man/*${file}man.8*
+   )
+  IF(MYSQL_DOC_DIR)
+    SET(GLOB_EXPR 
+      ${MYSQL_DOC_DIR}/man/*${file}man.1*
+      ${MYSQL_DOC_DIR}/man/*${file}man.8*
+      ${MYSQL_DOC_DIR}/man/*${file}.1*
+      ${MYSQL_DOC_DIR}/man/*${file}.8*
+      ${GLOB_EXPR}
+      )
+   ENDIF()
+    
+  FILE(GLOB_RECURSE MANPAGES ${GLOB_EXPR})
+  IF(MANPAGES)
+    LIST(GET MANPAGES 0 MANPAGE)
+    STRING(REPLACE "${file}man.1" "${file}.1" MANPAGE "${MANPAGE}")
+    STRING(REPLACE "${file}man.8" "${file}.8" MANPAGE "${MANPAGE}")
+    IF(MANPAGE MATCHES "${file}.1")
+      SET(SECTION man1)
+    ELSE()
+      SET(SECTION man8)
+    ENDIF()
+    INSTALL(FILES "${MANPAGE}" DESTINATION "${INSTALL_MANDIR}/${SECTION}")
+  ENDIF()
+ENDFUNCTION()
+
+FUNCTION(INSTALL_SCRIPT)
+ CMAKE_PARSE_ARGUMENTS(ARG
+  "DESTINATION;COMPONENT"
+  ""
+  ${ARGN}
+  )
+  
+  SET(script ${ARG_DEFAULT_ARGS})
+  IF(NOT ARG_DESTINATION)
+    SET(ARG_DESTINATION ${INSTALL_BINDIR})
+  ENDIF()
+  IF(ARG_COMPONENT)
+    SET(COMP COMPONENT ${ARG_COMPONENT})
+  ELSE()
+    SET(COMP)
+  ENDIF()
+
+  INSTALL(FILES 
+    ${script}
+    DESTINATION ${ARG_DESTINATION}
+    PERMISSIONS OWNER_READ OWNER_WRITE 
+    OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE  ${COMP}
+  )
+  INSTALL_MANPAGE(${script})
+ENDFUNCTION()
+
 # Install symbolic link to CMake target. 
 # the link is created in the same directory as target
 # and extension will be the same as for target file.
-MACRO(INSTALL_SYMLINK linkbasename target destination)
+MACRO(INSTALL_SYMLINK linkbasename target destination component)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
@@ -69,7 +133,12 @@ IF(UNIX)
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
       "\${CMAKE_INSTALL_CONFIG_NAME}" output ${output})
   ENDIF()
-  INSTALL(FILES ${output} DESTINATION ${destination})
+  IF(component)
+    SET(COMP COMPONENT ${component})
+  ELSE()  
+    SET(COMP)
+  ENDIF()
+  INSTALL(FILES ${output} DESTINATION ${destination} ${COMP})
 ENDIF()
 ENDMACRO()
 
@@ -129,13 +198,11 @@ ENDMACRO()
 
 # Installs targets, also installs pdbs on Windows.
 #
-# More stuff can be added later, e.g signing
-# or pre-link custom targets (one example is creating 
-# version resource for windows executables)
+#
 
 FUNCTION(MYSQL_INSTALL_TARGETS)
   CMAKE_PARSE_ARGUMENTS(ARG
-    "DESTINATION"
+    "DESTINATION;COMPONENT"
   ""
   ${ARGN}
   )
@@ -147,15 +214,24 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
      MESSAGE(FATAL_ERROR "Need DESTINATION parameter for MYSQL_INSTALL_TARGETS")
   ENDIF()
 
-  # If signing is required, sign executables before installing
+ 
   FOREACH(target ${TARGETS})
-    IF(SIGNCODE AND SIGNCODE_ENABLED)
+    # If signing is required, sign executables before installing
+     IF(SIGNCODE AND SIGNCODE_ENABLED)
       SIGN_TARGET(${target})
     ENDIF()
+    # For Windows, add version info to executables
     ADD_VERSION_INFO(${target})
+    # Install man pages on Unix
+    IF(UNIX)
+      GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+      INSTALL_MANPAGE(${target_location})
+    ENDIF()
   ENDFOREACH()
-  
-  INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION})
+  IF(ARG_COMPONENT)
+    SET(COMP COMPONENT ${ARG_COMPONENT})
+  ENDIF()
+  INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION} ${COMP})
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
   INSTALL_DEBUG_SYMBOLS("${TARGETS}")
   SET(INSTALL_LOCATION)
