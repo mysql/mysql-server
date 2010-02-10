@@ -3200,14 +3200,17 @@ row_sel_try_search_shortcut_for_mysql(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
 
+#ifndef UNIV_SEARCH_DEBUG
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
 				   BTR_SEARCH_LEAF, pcur,
-#ifndef UNIV_SEARCH_DEBUG
 				   RW_S_LATCH,
-#else
-				   0,
-#endif
 				   mtr);
+#else /* UNIV_SEARCH_DEBUG */
+	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
+				   BTR_SEARCH_LEAF, pcur,
+				   0,
+				   mtr);
+#endif /* UNIV_SEARCH_DEBUG */
 	rec = btr_pcur_get_rec(pcur);
 
 	if (!page_rec_is_user_rec(rec)) {
