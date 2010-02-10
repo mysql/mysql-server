@@ -142,7 +142,7 @@ struct view {
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
    },
   { "memoryusage",
-    "SELECT node_id, \"DATA_MEMORY\", "
+    "SELECT node_id, \"DATA_MEMORY\" as memory_type, "
     "used, max "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources "
     "WHERE resource_id = 3 "
