@@ -1755,10 +1755,15 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
 
 bool MDL_context::find_deadlock()
 {
-  Deadlock_detection_context deadlock_ctx(this);
-
   while (1)
   {
+    /*
+      The fact that we use fresh instance of deadlock_ctx for each
+      search performed by find_deadlock() below is important, code
+      responsible for victim selection relies on this.
+    */
+    Deadlock_detection_context deadlock_ctx(this);
+
     if (! find_deadlock(&deadlock_ctx))
     {
       /* No deadlocks are found! */

@@ -2322,3 +2322,56 @@ set debug_sync= 'now SIGNAL go';
 # Reaping TRUNCATE TABLE.
 set debug_sync= 'RESET';
 drop table t1;
+#
+# Test for bug #50998 "Deadlock in MDL code during test
+#                      rqg_mdl_stability".
+# Also provides coverage for the case when addition of
+# waiting statement adds several loops in the waiters
+# graph and therefore several searches for deadlock
+# should be performed.
+drop table if exists t1;
+set debug_sync= 'RESET';
+create table t1 (i int);
+# Switching to connection 'con1'.
+begin;
+select * from t1;
+i
+# Switching to connection 'con2'.
+begin;
+select * from t1;
+i
+# Switching to connection 'default'.
+# Start ALTER TABLE which will acquire SNW lock and
+# table lock and get blocked on sync point.
+set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+# Sending:
+alter table t1 add column j int;
+# Switching to connection 'con1'.
+# Wait until ALTER TABLE gets blocked on a sync point.
+set debug_sync= 'now WAIT_FOR parked';
+# Sending:
+insert into t1 values (1);
+# Switching to connection 'con2'.
+# Sending:
+insert into t1 values (1);
+# Switching to connection 'con3'.
+# Wait until both 'con1' and 'con2' are blocked trying to acquire
+# SW lock on the table.
+# Unblock ALTER TABLE. Since it will try to upgrade SNW to X lock
+# deadlock with two loops in waiting graph will occur. Both loops
+# should be found and DML statements in both 'con1' and 'con2'
+# should be aborted with ER_LOCK_DEADLOCK errors.
+set debug_sync= 'now SIGNAL go';
+# Switching to connection 'con1'.
+# Reaping INSERT. It should end with ER_LOCK_DEADLOCK error and
+# not wait indefinitely (as it happened before the bugfix).
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+commit;
+# Switching to connection 'con2'.
+# Reaping INSERT.
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+commit;
+# Switching to connection 'default'.
+# Reap ALTER TABLE.
+set debug_sync= 'RESET';
+drop table t1;
