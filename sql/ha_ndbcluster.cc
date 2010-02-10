@@ -3194,22 +3194,30 @@ int
 ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 {
   DBUG_ENTER("ha_ndbcluster::set_auto_inc");
-  Ndb *ndb= get_ndb(thd);
   bool read_bit= bitmap_is_set(table->read_set, field->field_index);
   bitmap_set_bit(table->read_set, field->field_index);
   Uint64 next_val= (Uint64) field->val_int() + 1;
   if (!read_bit)
     bitmap_clear_bit(table->read_set, field->field_index);
+  DBUG_RETURN(set_auto_inc_val(thd, next_val));
+}
+
+inline
+int
+ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
+{
+  Ndb *ndb= get_ndb(thd);
+  DBUG_ENTER("ha_ndbcluster::set_auto_inc_val");
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_PRINT("info", 
              ("Trying to set next auto increment value to %s",
-              llstr(next_val, buff)));
+              llstr(value, buff)));
 #endif
-  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, next_val))
+  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, value))
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+    if (ndb->setAutoIncrementValue(m_table, g.range, value, TRUE)
         == -1)
       ERR_RETURN(ndb->getNdbError());
   }
@@ -6740,40 +6748,43 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
 
-  /*
-    Find any initial auto_increment value
-   */
-  for (uint i= 0; i < table->s->fields; i++) 
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    Field *field= table->field[i];
-    if (field->flags & AUTO_INCREMENT_FLAG)
+    /*
+      Find any initial auto_increment value
+    */
+    for (uint i= 0; i < table->s->fields; i++) 
     {
-      ulonglong auto_value;
-      uint retries= NDB_AUTO_INCREMENT_RETRIES;
-      int retry_sleep= 30; /* 30 milliseconds, transaction */
-      for (;;)
+      Field *field= table->field[i];
+      if (field->flags & AUTO_INCREMENT_FLAG)
       {
-        Ndb_tuple_id_range_guard g(m_share);
-        if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
+        ulonglong auto_value;
+        uint retries= NDB_AUTO_INCREMENT_RETRIES;
+        int retry_sleep= 30; /* 30 milliseconds, transaction */
+        for (;;)
         {
-          if (--retries && !thd->killed &&
-              ndb->getNdbError().status == NdbError::TemporaryError)
+          Ndb_tuple_id_range_guard g(m_share);
+          if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
           {
-            do_retry_sleep(retry_sleep);
-            continue;
+            if (--retries && !thd->killed &&
+                ndb->getNdbError().status == NdbError::TemporaryError)
+            {
+              do_retry_sleep(retry_sleep);
+              continue;
+            }
+            const NdbError err= ndb->getNdbError();
+            sql_print_error("Error %lu in ::update_create_info(): %s",
+                            (ulong) err.code, err.message);
+            DBUG_VOID_RETURN;
           }
-          const NdbError err= ndb->getNdbError();
-          sql_print_error("Error %lu in ::update_create_info(): %s",
-                          (ulong) err.code, err.message);
-          DBUG_VOID_RETURN;
+          break;
+        }
+        if (auto_value > 1)
+        {
+          create_info->auto_increment_value= auto_value;
         }
         break;
       }
-      if (auto_value > 1)
-      {
-        create_info->auto_increment_value= auto_value;
-      }
-      break;
     }
   }
 
@@ -12369,7 +12380,8 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_COLUMN_STORAGE |
     HA_COLUMN_FORMAT |
     HA_ADD_PARTITION |
-    HA_ALTER_TABLE_REORG;
+    HA_ALTER_TABLE_REORG |
+    HA_CHANGE_AUTOINCREMENT_VALUE;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -12586,20 +12598,26 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       ai=1;
   }
 
-  /* Check that auto_increment value was not changed */
-  if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-      create_info->auto_increment_value != 0)
+  if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
   {
-    DBUG_PRINT("info", ("Auto_increment value changed"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    /* Check that only auto_increment value was changed */
+    HA_ALTER_FLAGS change_auto_flags=
+      change_auto_flags | HA_CHANGE_AUTOINCREMENT_VALUE;
+    if ((*alter_flags & ~change_auto_flags).is_set())
+    {
+      DBUG_PRINT("info", ("Not only auto_increment value changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
   }
-
-  /* Check that row format didn't change */
-  if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-      get_row_type() != create_info->row_type)
+  else
   {
-    DBUG_PRINT("info", ("Row format changed"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    /* Check that row format didn't change */
+    if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+        get_row_type() != create_info->row_type)
+    {
+      DBUG_PRINT("info", ("Row format changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
   }
 
   DBUG_PRINT("info", ("Ndb supports ALTER on-line"));
@@ -12896,6 +12914,13 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
       DBUG_PRINT("info", ("Failed to commit schema transaction, error %u",
                           error));
       table->file->print_error(error, MYF(0));
+      goto err;
+    }
+    if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
+      error= set_auto_inc_val(thd, create_info->auto_increment_value);
+    if (error)
+    {
+      DBUG_PRINT("info", ("Failed to set auto_increment value"));
       goto err;
     }
   }
