@@ -347,7 +347,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.memoryusage
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`memoryusage` AS SELECT node_id, "DATA_MEMORY", used, max FROM ndbinfo.ndb$resources WHERE resource_id = 3 UNION SELECT node_id, "INDEX_MEMORY", used, total FROM ndbinfo.ndb$pools WHERE block_number = 248 AND pool_name = "Index memory" ','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`memoryusage` AS SELECT node_id, "DATA_MEMORY" as memory_type, used, max FROM ndbinfo.ndb$resources WHERE resource_id = 3 UNION SELECT node_id, "INDEX_MEMORY", used, total FROM ndbinfo.ndb$pools WHERE block_number = 248 AND pool_name = "Index memory" ','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
