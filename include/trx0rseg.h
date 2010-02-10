@@ -114,17 +114,6 @@ trx_rseg_list_and_array_init(
 /*=========================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
 	mtr_t*		mtr);		/*!< in: mtr */
-/****************************************************************//**
-Creates a new rollback segment to the database.
-@return	the created segment object, NULL if fail */
-UNIV_INTERN
-trx_rseg_t*
-trx_rseg_create(
-/*============*/
-	ulint	space,		/*!< in: space id */
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	id,		/*!< out: rseg id */
-	mtr_t*	mtr);		/*!< in: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 UNIV_INTERN
