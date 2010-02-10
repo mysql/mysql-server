@@ -1,3 +1,9 @@
+2010-02-09	The InnoDB Team
+
+	* srv/srv0srv.c:
+	Let the master thread sleep if the amount of work to be done is
+	calibrated as taking less than a second.
+
 2010-02-04	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, buf/buf0buf.c,
