@@ -5180,10 +5180,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       */
       if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
-      {
         thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
-        thd->set_current_stmt_binlog_format_row_if_mixed();
-      }
     }
 
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
