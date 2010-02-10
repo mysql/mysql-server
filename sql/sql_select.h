@@ -95,6 +95,10 @@ typedef struct st_table_ref
 } TABLE_REF;
 
 
+
+#define CACHE_BLOB      1        /* blob field  */
+#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
+
 /**
   CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
   table
@@ -103,8 +107,8 @@ typedef struct st_table_ref
 typedef struct st_cache_field {
   uchar *str;
   uint length, blob_length;
-  Field_blob *blob_field;
-  bool strip;
+  Field *field;
+  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
 } CACHE_FIELD;
 
 
