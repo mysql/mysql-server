@@ -616,7 +616,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
       if (is_short_varsize(key->key_part+i))
         DBUG_RETURN(0);
       root_key[i]= builder.paramValue();
-      if (!root_key[i])
+      if (unlikely(!root_key[i]))
         DBUG_RETURN(0);
     }
     root_key[key->key_parts]= NULL;
@@ -766,6 +766,8 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
             DBUG_RETURN(0);
           }
+          if (is_short_varsize(key_part))
+            DBUG_RETURN(0);
           referred_fields[fld_refs++]= field_item->field;
           linked_key[i]= builder.paramValue();
         }
