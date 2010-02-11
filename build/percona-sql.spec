@@ -645,7 +645,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 	sleep 5
 fi
 
-%post -n MySQL-server%{package_suffix}
+%post -n PerconaSQL-server%{package_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -748,7 +748,7 @@ sleep 2
 mkdir -p /var/lib/mysql-cluster
 %endif
 
-%preun -n MySQL-server%{package_suffix}
+%preun -n PerconaSQL-server%{package_suffix}
 if [ $1 = 0 ] ; then
 	# Stop MySQL before uninstalling it
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -773,7 +773,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{package_suffix}
+%files -n PerconaSQL-server%{package_suffix}
 %defattr(-,root,root,0755)
 
 %doc %{lic_files}
@@ -862,7 +862,7 @@ fi
 
 %attr(755, root, root) %{_datadir}/mysql/
 
-%files -n MySQL-client%{package_suffix}
+%files -n PerconaSQL-client%{package_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
@@ -890,10 +890,10 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
-%post -n MySQL-shared%{package_suffix}
+%post -n PerconaSQL-shared%{package_suffix}
 /sbin/ldconfig
 
-%postun -n MySQL-shared%{package_suffix}
+%postun -n PerconaSQL-shared%{package_suffix}
 /sbin/ldconfig
 
 %if %{CLUSTER_BUILD}
@@ -943,7 +943,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
 %endif
 
-%files -n MySQL-devel%{package_suffix}
+%files -n PerconaSQL-devel%{package_suffix}
 %defattr(-, root, root, 0755)
 %if %{commercial}
 %else
@@ -976,12 +976,12 @@ fi
 %{_libdir}/mysql/libndbclient.la
 %endif
 
-%files -n MySQL-shared%{package_suffix}
+%files -n PerconaSQL-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
 
-%files -n MySQL-test%{package_suffix}
+%files -n PerconaSQL-test%{package_suffix}
 %defattr(-, root, root, 0755)
 %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -1000,6 +1000,10 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Feb 11 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
+
+Package name changed to PerconaSQL
+
 * Tue Jan 05 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
 
 - Corrected emails
