@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # see: The MySQL Test Framework :: 7 Creating and Executing Unit Tests
-#   http://dev.mysql.com/doc/mysqltest/en/unit-test.html
+#   (MySQL Cluster Documentation)/mysqltest/en/unit-test.html
 # see: Test Anything Protocol (TAP)
 #   http://testanything.org/wiki/index.php/Main_Page
 #   http://en.wikipedia.org/wiki/Test_Anything_Protocol
