@@ -218,7 +218,8 @@ extern CHARSET_INFO *error_message_charset_info;
 
 enum Derivation
 {
-  DERIVATION_IGNORABLE= 5,
+  DERIVATION_IGNORABLE= 6,
+  DERIVATION_NUMERIC= 5,
   DERIVATION_COERCIBLE= 4,
   DERIVATION_SYSCONST= 3,
   DERIVATION_IMPLICIT= 2,
@@ -226,6 +227,8 @@ enum Derivation
   DERIVATION_EXPLICIT= 0
 };
 
+#define my_charset_numeric      my_charset_latin1
+#define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 typedef struct my_locale_errmsgs
 {
@@ -868,6 +871,16 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #endif
 #include "item.h"
 extern my_decimal decimal_zero;
+
+/* my_decimal.cc */
+bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
+                     uint fixed_dec, char filler, String *str,
+                     CHARSET_INFO *cs);
+inline bool str_set_decimal(const my_decimal *val, String *str,
+                            CHARSET_INFO *cs)
+{
+  return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
+}
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -2233,8 +2246,17 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
-timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+/* Character set-aware version of str_to_time() */
+bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+                 MYSQL_TIME *l_time, int *warning);
+/* Character set-aware version of str_to_datetime() */
+timestamp_type str_to_datetime(CHARSET_INFO *cs,
+                               const char *str, uint length,
+                               MYSQL_TIME *l_time, uint flags, int *was_cut);
+bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str,uint length,
+                           MYSQL_TIME *l_time);
+timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs,
+                                         const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
