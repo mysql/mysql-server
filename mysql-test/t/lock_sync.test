@@ -109,7 +109,13 @@ select release_lock("lock_bug45143_wait");
 --echo # Switch to connection 'con_bug45143_1'.
 connection con_bug45143_1;
 --echo # Reap INSERT statement.
+--echo # In Statement and Mixed replication mode we get here "Unsafe 
+--echo # for binlog" warnings. In row mode there are no warnings.
+--echo # Hide the discrepancy.
+--disable_warnings
 --reap
+--enable_warnings
+
 
 --echo # Switch to connection 'con_bug45143_3'.
 connection con_bug45143_3;
