@@ -217,7 +217,7 @@ Obsoletes: mysql-client MySQL-client MySQL-client-community MySQL-client-percona
 Provides: mysql-client MySQL-client PerconaSQL-client
 
 %description -n PerconaSQL-client%{package_suffix}
-This package contains the standard MySQL clients and administration tools. 
+This package contains the standard PerconaSQL clients and administration tools. 
 
 %{see_base}
 
@@ -233,7 +233,7 @@ Obsoletes: mysql-test MySQL-test MySQL-test-community MySQL-test-percona
 AutoReqProv: no
 
 %description -n PerconaSQL-test%{package_suffix}
-This package contains the MySQL regression test suite.
+This package contains the PerconaSQL regression test suite.
 
 %{see_base}
 
