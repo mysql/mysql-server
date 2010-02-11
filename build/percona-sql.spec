@@ -571,7 +571,7 @@ install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre -n MySQL-server%{package_suffix}
+%pre -n PerconaSQL-server%{package_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
