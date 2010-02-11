@@ -154,7 +154,7 @@ ulint
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr __attribute__((unused)), /*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
@@ -195,11 +195,13 @@ row_undo_mod_remove_clust_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		/* Note that since this operation is analogous to purge,
-		we can free also inherited externally stored fields:
-		hence the RB_NONE in the call below */
+		/* This operation is analogous to purge, we can free also
+		inherited externally stored fields */
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, RB_NONE, mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   thr_is_recv(thr)
+					   ? RB_RECOVERY_PURGE_REC
+					   : RB_NONE, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -376,10 +378,11 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 
-			/* No need to distinguish RB_RECOVERY here, because we
-			are deleting a secondary index record: the distinction
-			between RB_NORMAL and RB_RECOVERY only matters when
-			deleting a record that contains externally stored
+			/* No need to distinguish RB_RECOVERY_PURGE here,
+			because we are deleting a secondary index record:
+			the distinction between RB_NORMAL and
+			RB_RECOVERY_PURGE only matters when deleting a
+			record that contains externally stored
 			columns. */
 			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
