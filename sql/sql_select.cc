@@ -1611,16 +1611,19 @@ JOIN::optimize()
 static int
 make_pushed_join(JOIN *join)
 {
-  int pushed= 0;
-
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
 
-    if (pushed > 0)   // Is inside a previous sequence of pushed joins
+    if (!tab->table->file->member_of_pushed_join())
     {
-      // Replace 'read_key' access with it linked counterpart 
+      // Try to start a pushed join from current join_tab
+      AQP::Join_plan plan(tab, join->tables-i);
+      tab->table->file->make_pushed_join(plan);
+    }
+    else
+    {
+      // Replace 'read_key' access with its linked counterpart 
       // ... Which is effectively a NOOP as the row is read as part of the linked operation
       DBUG_ASSERT(tab->read_first_record==join_read_key ||
                   tab->read_first_record==join_read_const);
@@ -1628,12 +1631,6 @@ make_pushed_join(JOIN *join)
       tab->read_first_record= join_read_linked_key;
       tab->read_record.unlock_row= rr_unlock_row;
     }
-    else              // Try to start a pushed join from current join_tab
-    {
-      AQP::Join_plan plan(tab, join->tables-i);
-      pushed = table->file->make_pushed_join(plan);
-    }
-    pushed--;
   }
   return 0;
 }
@@ -11137,29 +11134,30 @@ enum_nested_loop_state
 sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   enum_nested_loop_state rc;
+  DBUG_ENTER("sub_select_cache");
 
   if (end_of_records)
   {
     rc= flush_cached_records(join,join_tab,FALSE);
     if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
       rc= sub_select(join,join_tab,end_of_records);
-    return rc;
+    DBUG_RETURN(rc);
   }
   if (join->thd->killed)		// If aborted by user
   {
     join->thd->send_kill_message();
-    return NESTED_LOOP_KILLED;                   /* purecov: inspected */
+    DBUG_RETURN(NESTED_LOOP_KILLED);                   /* purecov: inspected */
   }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
   {
     if (!store_record_in_cache(&join_tab->cache))
-      return NESTED_LOOP_OK;                     // There is more room in cache
-    return flush_cached_records(join,join_tab,FALSE);
+      DBUG_RETURN(NESTED_LOOP_OK);                     // There is more room in cache
+    DBUG_RETURN(flush_cached_records(join,join_tab,FALSE));
   }
   rc= flush_cached_records(join, join_tab, TRUE);
   if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
     rc= sub_select(join, join_tab, end_of_records);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 /**
@@ -16578,13 +16576,35 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        uint pushed_joins= tab->table->file->has_pushed_joins();
-        if (pushed_joins>0)
+        const handler* pushed_join= tab->table->file->member_of_pushed_join();
+        if (pushed_join)
         {
-          char buf[32];
-	  int len= my_snprintf(buf, sizeof(buf)-1,
-                               "; Pushed %d joins",
-                               pushed_joins);
+          char buf[64];
+          int len;
+          int pushed_id= 0;
+
+          for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
+          {
+            if (prev->table->file->has_pushed_joins() > 0)
+            {
+              pushed_id++;
+              if (prev->table->file->member_of_pushed_join() == pushed_join)
+                break;
+            }
+          }
+          uint pushed_count= tab->table->file->has_pushed_joins();
+          if (pushed_count > 0)
+          {
+	    len= my_snprintf(buf, sizeof(buf)-1,
+                             "; Parent of %d pushed join@%d",
+                             pushed_count, pushed_id);
+          }
+          else
+          {
+	    len= my_snprintf(buf, sizeof(buf)-1,
+                             "; Child of pushed join@%d",
+                             pushed_id);
+          }
           extra.append(buf,len);
         }
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 

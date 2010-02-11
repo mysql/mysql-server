@@ -19,8 +19,8 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -43,8 +43,8 @@ select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
 select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -71,9 +71,9 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -98,9 +98,9 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -125,9 +125,9 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -152,9 +152,9 @@ from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	Child of pushed join@1
 select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -183,8 +183,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -196,8 +196,8 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	Child of pushed join@1
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -238,8 +238,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -252,8 +252,8 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	Child of pushed join@1
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -297,8 +297,8 @@ join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.b	1	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Parent of 2 pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.b	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -362,9 +362,9 @@ from t1
 straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
 straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	Pushed 2 joins; Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -390,9 +390,9 @@ straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
 straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
 where t1.a=1 and t1.d=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	10	Using where with pushed condition
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	Pushed 2 joins; Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -407,8 +407,8 @@ straight_join t1 as t2 on t2.a = t1.b+0
 straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	func	1	Pushed 2 joins; Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	func	1	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1
 select *
 from t1
 straight_join t1 as t2 on t2.a = t1.b+0
@@ -496,8 +496,8 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,const	1	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	const,test.t2.b	1	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,const	1	Parent of 2 pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	const,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1_myisam as t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -512,8 +512,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.d = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -527,8 +527,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.a > 2 and t1.d = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	Child of pushed join@1
 select * 
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
@@ -541,8 +541,8 @@ from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.d = 3 
 order by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	Child of pushed join@1
 select * 
 from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.d = 3 
@@ -560,8 +560,8 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Parent of 2 pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	Child of pushed join@1
 select *
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -579,8 +579,8 @@ left join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Parent of 2 pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	Child of pushed join@1
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c
@@ -638,8 +638,8 @@ from t1 as t2
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t2.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	Child of pushed join@1
 select *
 from t1 as t2
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
@@ -655,10 +655,10 @@ y.a=x.d and y.b=x.b and
 z.a=y.d and 
 t1.a = z.d and t1.b=z.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	16	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
-1	SIMPLE	z	ref	PRIMARY	PRIMARY	4	test.y.d	1	Pushed 2 joins
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.z.d,test.z.b	1	
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
+1	SIMPLE	z	ref	PRIMARY	PRIMARY	4	test.y.d	1	Parent of 2 pushed join@2
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.z.d,test.z.b	1	Child of pushed join@2
 select * from t1 x, t1 y, t1 z, t1 where 
 y.a=x.d and y.b=x.b and 
 z.a=y.d and 
@@ -708,8 +708,8 @@ select * from t1 x, t1 y where
 x.a <= 2 and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	10	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
 select * from t1 x, t1 y where
 x.a <= 2 and
 y.a=x.d and y.b=x.b;
@@ -726,8 +726,8 @@ select * from t1 x, t1 y where
 (x.a <= 2 or x.a > 3) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
 select * from t1 x, t1 y where
 (x.a <= 2 or x.a > 3) and
 y.a=x.d and y.b=x.b;
@@ -747,8 +747,8 @@ select * from t1 x, t1 y where
 (x.a >= 2 or x.a < 3) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
 select * from t1 x, t1 y where
 (x.a >= 2 or x.a < 3) and
 y.a=x.d and y.b=x.b;
@@ -772,8 +772,8 @@ select * from t1 x, t1 y where
 (x.a <= 2 or x.a in (0,5,4)) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	50	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	50	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
 select * from t1 x, t1 y where
 (x.a <= 2 or x.a in (0,5,4)) and
 y.a=x.d and y.b=x.b;
@@ -793,8 +793,8 @@ select * from t1 x, t1 y where
 (x.a <= 2 or (x.a,x.b) in ((0,0),(5,0),(4,3))) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	PRIMARY	NULL	NULL	NULL	16	Pushed 2 joins; Using where
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	
+1	SIMPLE	x	ALL	PRIMARY	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
 select * from t1 x, t1 y where
 (x.a <= 2 or (x.a,x.b) in ((0,0),(5,0),(4,3))) and
 y.a=x.d and y.b=x.b;
@@ -815,9 +815,9 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.c,t1.d,
 t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -846,9 +846,9 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.c,t2.d,
 t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -876,9 +876,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a,t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -906,9 +906,9 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a,t2.b,
 t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -936,9 +936,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a desc,t1.b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -965,9 +965,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.b,t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -994,9 +994,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 explain
 select *
 from t1
@@ -1004,9 +1004,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 explain
 select t1.a, t1.b, count(*)
 from t1
@@ -1014,9 +1014,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select t1.a, t1.b, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1043,9 +1043,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Pushed 3 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select t1.a, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1063,9 +1063,9 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Pushed 3 joins; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	Child of pushed join@1; Using where
 select t1.b, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1115,9 +1115,9 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Pushed 3 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.y.d3	1	
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 3 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	Child of pushed join@1
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.y.d3	1	Child of pushed join@1
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 a3	b3	c3	d3	a3	b3	c3	d3	a	b
 31	47	1	31	31	47	1	31	31	47
@@ -1131,11 +1131,11 @@ z.a3=y.d3 and z.b3=y.b3 and
 z2.a3=z.d3 and z2.b3=z.b3 and
 t1.a = z2.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Pushed 5 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	
-1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	8	test.y.d3,test.x.b3	1	
-1	SIMPLE	z2	eq_ref	PRIMARY	PRIMARY	8	test.z.d3,test.y.b3	1	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.z2.d3	1	
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 5 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	Child of pushed join@1
+1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	8	test.y.d3,test.x.b3	1	Child of pushed join@1
+1	SIMPLE	z2	eq_ref	PRIMARY	PRIMARY	8	test.z.d3,test.y.b3	1	Child of pushed join@1; Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.z2.d3	1	Child of pushed join@1
 select *
 from t3 x, t3 y, t3 z, t3 z2, t1
 where y.a3=x.d3 and y.b3=x.b3 and
@@ -1167,16 +1167,16 @@ commit;
 explain
 select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	const,test.x.b3	1	
+1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	const,test.x.b3	1	Child of pushed join@1
 select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31
 explain
 select * from t1 x, t3 y where y.d3=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Pushed 2 joins
-1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b	1	
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b	1	Child of pushed join@1
 select * from t1 x, t3 y where y.d3=x.b;
 a	b	a3	b3	c3	d3
 31	47	47	63	2	47
@@ -1185,8 +1185,8 @@ a	b	a3	b3	c3	d3
 explain
 select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Pushed 2 joins
-1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	
+1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	Child of pushed join@1
 select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	47	63	2	47
@@ -1195,8 +1195,8 @@ select * from t3 x, t3 y
 where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
 and  (y.a3=x.d3 and y.b3=x.b3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	index_merge	PRIMARY,t3_d3	PRIMARY,t3_d3	8,4	NULL	2	Pushed 2 joins; Using sort_union(PRIMARY,t3_d3); Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	
+1	SIMPLE	x	index_merge	PRIMARY,t3_d3	PRIMARY,t3_d3	8,4	NULL	2	Parent of 2 pushed join@1; Using sort_union(PRIMARY,t3_d3); Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	Child of pushed join@1
 select * from t3 x, t3 y 
 where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
 and  (y.a3=x.d3 and y.b3=x.b3);
@@ -1206,8 +1206,8 @@ a3	b3	c3	d3	a3	b3	c3	d3
 explain
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	1	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	
+1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	1	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	Child of pushed join@1
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	47	63	2	47
@@ -1278,8 +1278,8 @@ from t1 where b in
 xor c > 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where
-2	DEPENDENT SUBQUERY	x	eq_ref	PRIMARY,b	PRIMARY	4	func	1	Pushed 2 joins; Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	y	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	Using where
+2	DEPENDENT SUBQUERY	x	eq_ref	PRIMARY,b	PRIMARY	4	func	1	Parent of 2 pushed join@1; Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	y	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	Child of pushed join@1; Using where
 select *
 from t1 where b in 
 (select x.a from t1 as x join t1 as y on (y.a = x.b))
@@ -1325,8 +1325,8 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t2.a = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of pushed join@1
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t2.a = t1.b;
@@ -1341,8 +1341,8 @@ from t1, t2
 where t2.a = t1.b
 and t1.a = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Pushed 2 joins
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of pushed join@1
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t2.a = t1.b
@@ -1354,8 +1354,8 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t1.a = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Pushed 2 joins
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Parent of 2 pushed join@1
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of pushed join@1
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t2.a = t1.b;
@@ -1370,8 +1370,8 @@ from t1, t2
 where t1.a = t2.b
 and t2.a = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Pushed 2 joins
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of pushed join@1
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t1.a = t2.b
@@ -1445,8 +1445,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1459,8 +1459,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1473,8 +1473,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1487,8 +1487,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1501,8 +1501,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1515,8 +1515,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1529,8 +1529,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1543,8 +1543,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1557,8 +1557,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1571,8 +1571,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1585,8 +1585,8 @@ insert into t3 values (0x3f, 0, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	1	2	47	47	1	2	47
@@ -1599,8 +1599,8 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3	2	47	47	3	2	47
@@ -1613,8 +1613,8 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3	2	47	47	3	2	47
@@ -1627,8 +1627,8 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.14	2	47	47	3.14	2	47
@@ -1641,8 +1641,8 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.14	2	47	47	3.14	2	47
@@ -1655,8 +1655,8 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	9	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	9	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
@@ -1669,8 +1669,8 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	10	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	10	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.1400	2	47	47	3.1400	2	47
@@ -1683,8 +1683,8 @@ insert into t3 values (0x3f, '2000-02-29', 3, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	2000-02-28	2	47	47	2000-02-28	2	47
@@ -1697,8 +1697,8 @@ insert into t3 values (0x3f, '2000-02-29 12:59:59', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	2000-02-28 23:59:00	2	47	47	2000-02-28 23:59:00	2	47
@@ -1711,8 +1711,8 @@ insert into t3 values (0x3f, '12:59:59', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	Child of pushed join@1
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	23:59:00	2	47	47	23:59:00	2	47
@@ -1725,8 +1725,8 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -1739,8 +1739,8 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -1753,8 +1753,8 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -1767,8 +1767,8 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	Using where
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	Child of pushed join@1; Using where
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
@@ -1780,8 +1780,8 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Pushed 2 joins
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	Using where
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	Child of pushed join@1; Using where
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -1816,8 +1816,8 @@ Dole	47	2	47	Dole	47	2	47
 explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	10	Pushed 2 joins; Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Using where with pushed condition
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
@@ -1831,10 +1831,10 @@ straight_join t1 as t2 on t2.k = t1.b+0
 straight_join t1 as t3 on t3.k = t2.b
 straight_join t1 as t4 on t4.k = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	Pushed 2 joins; Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	Parent of 2 pushed join@2; Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of pushed join@2
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of pushed join@1
 select *
 from t1
 straight_join t1 as t2 on t2.k = t1.b+0
@@ -1853,10 +1853,10 @@ straight_join t1 as t3 on t3.k = t2.b
 straight_join t1 as t4 on t4.k = t1.b
 where t2.k = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Pushed 2 joins
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@2
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of pushed join@2
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of pushed join@1
 select *
 from t1
 straight_join t1 as t2 on t2.k = t1.b+0

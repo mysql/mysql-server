@@ -1832,14 +1832,21 @@ public:
   { return 0; }
 
   /**
-   Reports #tables included in pushed join starting from 
+    Reports #tables included in pushed join starting from 
     this handler instance.
   */
   virtual uint has_pushed_joins() const
   { return 0; }
 
   /**
-   Do handler prefer ordered indexscan over filesort?
+    Is this handler instance part of a pushed join sequence
+    having the returned handler instance as parent?
+  */
+  virtual const handler* member_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    Do handler prefer ordered indexscan over filesort?
   */
   virtual bool prefer_index() const
   { return false; }
