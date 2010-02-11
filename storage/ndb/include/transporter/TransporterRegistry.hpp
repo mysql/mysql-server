@@ -181,6 +181,8 @@ public:
   const char *getPerformStateString(NodeId nodeId) const
   { return performStateString[(unsigned)performStates[nodeId]]; };
 
+  PerformState getPerformState(NodeId nodeId) const { return performStates[nodeId]; }
+
   /**
    * Get and set methods for PerformState
    */
