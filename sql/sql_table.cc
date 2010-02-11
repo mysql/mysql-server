@@ -3193,11 +3193,19 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL && column->length)
+        if (key->type == Key::SPATIAL)
         {
-          my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
+          if (column->length)
+          {
+            my_error(ER_WRONG_SUB_KEY, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+          if (!f_is_geom(sql_field->pack_flag))
+          {
+            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+        }
 
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
