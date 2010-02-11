@@ -145,7 +145,7 @@ check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
 
 
-ifeq ($(SKIP_1305),1)
+ifeq ($(TOKU_SKIP_1305),1)
 check_test1305:
 	@echo SKIPPED SLOW TEST $@
 else
