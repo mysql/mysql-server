@@ -188,7 +188,7 @@ Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server mysql MySQL MySQL-server PerconaSQL-server
-Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community
+Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community MySQL-server-percona
 
 %description -n PerconaSQL-server%{package_suffix}
 The PerconaSQL software delivers a very fast, multi-threaded, multi-user,
@@ -213,7 +213,7 @@ package "PerconaSQL-client%{package_suffix}" as well!
 %package -n PerconaSQL-client%{package_suffix}
 Summary: PerconaSQL - Client
 Group: Applications/Databases
-Obsoletes: mysql-client MySQL-client MySQL-client-community
+Obsoletes: mysql-client MySQL-client MySQL-client-community MySQL-client-percona
 Provides: mysql-client MySQL-client PerconaSQL-client
 
 %description -n PerconaSQL-client%{package_suffix}
@@ -229,7 +229,7 @@ Requires: mysql-client perl
 Summary: PerconaSQL - Test suite
 Group: Applications/Databases
 Provides: mysql-test MySQL-test PerconaSQL-test
-Obsoletes: mysql-test MySQL-test MySQL-test-community
+Obsoletes: mysql-test MySQL-test MySQL-test-community MySQL-test-percona
 AutoReqProv: no
 
 %description -n PerconaSQL-test%{package_suffix}
@@ -243,7 +243,7 @@ This package contains the MySQL regression test suite.
 Summary: PerconaSQL - Development header files and libraries
 Group: Applications/Databases
 Provides: mysql-devel MySQL-devel PerconaSQL-devel
-Obsoletes: mysql-devel MySQL-devel MySQL-devel-community
+Obsoletes: mysql-devel MySQL-devel MySQL-devel-community MySQL-devel-percona
 
 %description -n PerconaSQL-devel%{package_suffix}
 This package contains the development header files and libraries
@@ -260,7 +260,7 @@ Provides: mysql-shared MySQL-shared PerconaSQL-shared
 # Obsoletes below to correct old missing Provides:/Obsoletes
 Obsoletes: mysql-shared MySQL-shared-standard MySQL-shared-pro
 Obsoletes: MySQL-shared-pro-cert MySQL-shared-pro-gpl
-Obsoletes: MySQL-shared-pro-gpl-cert MySQL-shared MySQL-shared-community
+Obsoletes: MySQL-shared-pro-gpl-cert MySQL-shared MySQL-shared-community MySQL-shared-percona
 
 %description -n PerconaSQL-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain
