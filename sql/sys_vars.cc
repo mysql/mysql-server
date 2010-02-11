@@ -334,7 +334,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
     return true;
   if (var->type == OPT_GLOBAL ||
       (thd->variables.binlog_direct_non_trans_update ==
-       var->save_result.ulonglong_value))
+       static_cast<my_bool>(var->save_result.ulonglong_value)))
     return false;
 
   return false;
@@ -2966,14 +2966,14 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 static Sys_var_struct Sys_lc_messages(
        "lc_messages", "Set the language used for the error messages",
        SESSION_VAR(lc_messages), NO_CMD_LINE,
-       offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
+       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_struct Sys_lc_time_names(
        "lc_time_names", "Set the language used for the month "
        "names and the days of the week",
        SESSION_VAR(lc_time_names), NO_CMD_LINE,
-       offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
+       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_tz Sys_time_zone(

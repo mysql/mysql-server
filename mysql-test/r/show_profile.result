@@ -1,0 +1,10 @@
+SET profiling = 1;
+SELECT 1;
+1
+1
+SHOW PROFILES;
+Query_ID	Duration	Query
+1	#	SELECT 1
+SHOW PROFILE FOR QUERY 1;
+SHOW PROFILE CPU FOR QUERY 1;
+SET profiling = 0;
