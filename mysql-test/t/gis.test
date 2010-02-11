@@ -723,3 +723,48 @@ SELECT Polygon(1234512,'');
 SELECT Polygon(12345123,'');
 
 --echo End of 5.1 tests
+
+#
+# Bug #50574 5.5.x allows spatial indexes on non-spatial 
+#           columns, causing crashes!
+#
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+CREATE TABLE t1(
+  col0 BINARY NOT NULL,
+  col2 TIMESTAMP,
+  SPATIAL INDEX i1 (col0)
+) ENGINE=MyISAM;
+
+# Test other ways to add indices
+CREATE TABLE t1 (
+  col0 BINARY NOT NULL,
+  col2 TIMESTAMP
+) ENGINE=MyISAM;
+
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+CREATE SPATIAL INDEX idx0 ON t1(col0);
+
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+ALTER TABLE t1 ADD SPATIAL INDEX i1 (col0);
+
+CREATE TABLE t2 (
+  col0 INTEGER NOT NULL,
+  col1 POINT,
+  col2 POINT
+);
+
+--error ER_WRONG_ARGUMENTS
+CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
+
+--error ER_WRONG_ARGUMENTS
+CREATE TABLE t3 (
+  col0 INTEGER NOT NULL,
+  col1 POINT,
+  col2 LINESTRING,
+  SPATIAL INDEX i1 (col1, col2)
+);
+
+# cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+
