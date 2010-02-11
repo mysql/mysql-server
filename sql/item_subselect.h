@@ -67,14 +67,32 @@ protected:
   bool have_to_be_excluded;
   /* cache of constant state */
   bool const_item_cache;
-
+  
+  bool inside_first_fix_fields;
+  bool done_first_fix_fields;
 public:
-  /* 
-    References from inside the subquery to the select that this predicate is
-    in.  References to parent selects not included.
+  /* A reference from inside subquery predicate to somewhere outside of it */
+  class Ref_to_outside : public Sql_alloc
+  {
+  public:
+    st_select_lex *select; /* Select where the reference is pointing to */
+    /* 
+      What is being referred. This may be NULL when we're referring to an
+      aggregate function.
+    */ 
+    Item *item; 
+  };
+  /*
+    References from within this subquery to somewhere outside of it (i.e. to
+    parent select, grandparent select, etc)
   */
-  List<Item> refers_to;
-  int in_fix_fields;
+  List<Ref_to_outside> upper_refs;
+  st_select_lex *parent_select;
+  
+ /*
+   TRUE<=>Table Elimination has made it redundant to evaluate this select
+          (and so it is not part of QEP, etc)
+ */
   bool eliminated;
   
   /* changed engine indicator */
@@ -117,6 +135,9 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref);
+  bool mark_as_dependent(THD *thd, st_select_lex *select, Item *item);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -396,6 +417,8 @@ public:
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void update_used_tables();
   bool setup_engine();
   bool init_left_expr_cache();
   bool is_expensive_processor(uchar *arg);

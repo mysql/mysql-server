@@ -1841,9 +1841,8 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(st_select_lex *last, Item *dependency)
+bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency)
 {
-  SELECT_LEX *next_to_last;
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
@@ -1867,12 +1866,15 @@ void st_select_lex::mark_as_dependent(st_select_lex *last, Item *dependency)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
-    next_to_last= s;
+
+    Item_subselect *subquery_expr= s->master_unit()->item;
+    if (subquery_expr && subquery_expr->mark_as_dependent(thd, last, 
+                                                          dependency))
+      return TRUE;
   }
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
-  if (dependency)
-    next_to_last->master_unit()->item->refers_to.push_back(dependency);
+  return FALSE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }

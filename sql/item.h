@@ -1115,7 +1115,9 @@ public:
 
 
 /*
-  Class to be used to enumerate all field references in an item tree.
+  Class to be used to enumerate all field references in an item tree. This
+  includes references to outside but not fields of the tables within a
+  subquery.
   Suggested usage:
 
     class My_enumerator : public Field_enumerator 
@@ -2377,6 +2379,8 @@ public:
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { return (*ref)->walk(processor, walk_subquery, arg); }
+  bool enumerate_field_refs_processor(uchar *arg)
+  { return (*ref)->enumerate_field_refs_processor(arg); }
   virtual void print(String *str, enum_query_type query_type);
   bool result_as_longlong()
   {

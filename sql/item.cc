@@ -3647,7 +3647,7 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
                          substitution)
 */
 
-static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
+static bool mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
                               Item_ident *resolved_item,
                               Item_ident *mark_item)
 {
@@ -3658,7 +3658,9 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   /* store pointer on SELECT_LEX from which item is dependent */
   if (mark_item)
     mark_item->depended_from= last;
-  current->mark_as_dependent(last, resolved_item);
+  if (current->mark_as_dependent(thd, last, /** resolved_item psergey-thu
+    **/mark_item))
+    return TRUE;
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -3668,6 +3670,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
                  resolved_item->field_name,
                  current->select_number, last->select_number);
   }
+  return FALSE;
 }
 
 
@@ -4119,6 +4122,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                             ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
                              (Item_ident*) (*reference) :
                              0));
+                            
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables
@@ -4218,7 +4222,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
       return -1;
 
     mark_as_dependent(thd, last_checked_context->select_lex,
-                      context->select_lex, this,
+                      context->select_lex, rf,
                       rf);
     return 0;
   }
@@ -5998,7 +6002,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
-                          thd->lex->current_select, this, fld);
+                          thd->lex->current_select, fld, fld);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -6438,7 +6442,7 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
   if (depended_from == new_parent)
   {
     *ref= outer_ref;
-    outer_ref->fix_after_pullout(new_parent, ref);
+    (*ref)->fix_after_pullout(new_parent, ref);
   }
 }
 

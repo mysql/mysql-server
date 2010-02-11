@@ -39,8 +39,8 @@ inline Item * and_items(Item* cond, Item *item)
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), in_fix_fields(0), engine_changed(0), changed(0),
-  is_correlated(FALSE)
+  const_item_cache(1), inside_first_fix_fields(0), done_first_fix_fields(FALSE),
+  engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();
@@ -167,18 +167,23 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
-  if (!in_fix_fields)
-    refers_to.empty();
+  if (!done_first_fix_fields)
+  {
+    done_first_fix_fields= TRUE;
+    inside_first_fix_fields= TRUE;
+  }
+
   eliminated= FALSE;
+  parent_select= thd_param->lex->current_select;
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
   
-  in_fix_fields++;
   res= engine->prepare();
 
   // all transformation is done (used by prepared statements)
   changed= 1;
+  inside_first_fix_fields= FALSE;
 
   if (!res)
   {
@@ -210,14 +215,12 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, ref);
       thd->where= save_where;
-      in_fix_fields--;
       return ret;
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      in_fix_fields--;
       return TRUE;
     }
     fix_length_and_dec();
@@ -234,7 +237,6 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   fixed= 1;
 
 err:
-  in_fix_fields--;
   thd->where= save_where;
   return res;
 }
@@ -242,11 +244,12 @@ err:
 
 bool Item_subselect::enumerate_field_refs_processor(uchar *arg)
 {
-  List_iterator<Item> it(refers_to);
-  Item *item;
-  while ((item= it++))
+  List_iterator<Ref_to_outside> it(upper_refs);
+  Ref_to_outside *upper;
+  
+  while ((upper= it++))
   {
-    if (item->walk(&Item::enumerate_field_refs_processor, FALSE, arg))
+    if (upper->item->walk(&Item::enumerate_field_refs_processor, FALSE, arg))
       return TRUE;
   }
   return FALSE;
@@ -256,6 +259,142 @@ bool Item_subselect::mark_as_eliminated_processor(uchar *arg)
 {
   eliminated= TRUE;
   return FALSE;
+}
+
+
+bool Item_subselect::mark_as_dependent(THD *thd, st_select_lex *select, 
+                                       Item *item)
+{
+  if (inside_first_fix_fields)
+  {
+    is_correlated= TRUE;
+    Ref_to_outside *upper;
+    if (!(upper= new (thd->stmt_arena->mem_root) Ref_to_outside()))
+      return TRUE;
+    upper->select= select;
+    upper->item= item;
+    if (upper_refs.push_back(upper, thd->stmt_arena->mem_root))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+/*
+  Adjust attributes after our parent select has been merged into grandparent
+
+  DESCRIPTION
+    Subquery is a composite object which may be correlated, that is, it may
+    have
+    1. references to tables of the parent select (i.e. one that has the clause
+      with the subquery predicate)
+    2. references to tables of the grandparent select
+    3. references to tables of further ancestors.
+    
+    Before the pullout, this item indicates:
+    - #1 with table bits in used_tables()
+    - #2 and #3 with OUTER_REF_TABLE_BIT.
+
+    After parent has been merged with grandparent:
+    - references to parent and grandparent tables should be indicated with 
+      table bits.
+    - references to greatgrandparent and further ancestors - with
+      OUTER_REF_TABLE_BIT.
+*/
+
+void Item_subselect::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  recalc_used_tables(new_parent, TRUE);
+  parent_select= new_parent;
+}
+
+class Field_fixer: public Field_enumerator
+{
+public:
+  table_map used_tables; /* Collect used_tables here */
+  st_select_lex *new_parent; /* Select we're in */
+  virtual void visit_field(Field *field)
+  {
+    //for (TABLE_LIST *tbl= new_parent->leaf_tables; tbl; tbl= tbl->next_local)
+    //{
+    //  if (tbl->table == field->table)
+    //  {
+        used_tables|= field->table->map;
+    //    return;
+    //  }
+    //}
+    //used_tables |= OUTER_REF_TABLE_BIT;
+  }
+};
+
+
+/*
+  Recalculate used_tables_cache 
+*/
+
+void Item_subselect::recalc_used_tables(st_select_lex *new_parent, 
+                                        bool after_pullout)
+{
+  List_iterator<Ref_to_outside> it(upper_refs);
+  Ref_to_outside *upper;
+  
+  used_tables_cache= 0;
+  while ((upper= it++))
+  {
+    bool found= FALSE;
+    /*
+      Check if
+        1. the upper reference refers to the new immediate parent select, or
+        2. one of the further ancestors.
+
+      We rely on the fact that the tree of selects is modified by some kind of
+      'flattening', i.e. a process where child selects are merged into their
+      parents.
+      The merged selects are removed from the select tree but keep pointers to
+      their parents.
+    */
+    for (st_select_lex *sel= upper->select; sel; sel= sel->outer_select())
+    {
+      /* 
+        If we've reached the new parent select by walking upwards from
+        reference's original select, this means that the reference is now 
+        referring to the direct parent:
+      */
+      if (sel == new_parent)
+      {
+        found= TRUE;
+        /* 
+          upper->item may be NULL when we've referred to a grouping function,
+          in which case we don't care about what it's table_map really is,
+          because item->with_sum_func==1 will ensure correct placement of the
+          item.
+        */
+        if (upper->item)
+        {
+          // Now, iterate over fields and collect used_tables() attribute:
+          Field_fixer fixer;
+          fixer.used_tables= 0;
+          fixer.new_parent= new_parent;
+          upper->item->walk(&Item::enumerate_field_refs_processor, FALSE,
+                            (uchar*)&fixer);
+          used_tables_cache |= fixer.used_tables;
+          /*
+          if (after_pullout)
+            upper->item->fix_after_pullout(new_parent, &(upper->item));
+          upper->item->update_used_tables();
+          used_tables_cache |= upper->item->used_tables();
+          */
+        }
+      }
+    }
+    if (!found)
+      used_tables_cache|= OUTER_REF_TABLE_BIT;
+  }
+  /* 
+    Don't update const_tables_cache yet as we don't yet know which of the
+    parent's tables are constant. Parent will call update_used_tables() after
+    he has done const table detection, and that will be our chance to update
+    const_tables_cache.
+  */
 }
 
 bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
@@ -397,6 +536,7 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 
 void Item_subselect::update_used_tables()
 {
+  recalc_used_tables(parent_select, FALSE);
   if (!engine->uncacheable())
   {
     // did all used tables become static?
@@ -1843,6 +1983,18 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   return result || Item_subselect::fix_fields(thd_arg, ref);
 }
 
+void Item_in_subselect::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  left_expr->fix_after_pullout(new_parent, &left_expr);
+  Item_subselect::fix_after_pullout(new_parent, ref);
+}
+
+void Item_in_subselect::update_used_tables()
+{
+  Item_subselect::update_used_tables();
+  left_expr->update_used_tables();
+  used_tables_cache |= left_expr->used_tables();
+}
 
 /**
   Try to create an engine to compute the subselect via materialization,

@@ -681,3 +681,41 @@ WHERE int_nokey IN (SELECT it2.int_key
 DROP TABLE ot1, it1, it2;
 
 --echo # End of BUG#38075
+
+--echo #
+--echo # BUG#31480: Incorrect result for nested subquery when executed via semi join
+--echo #
+create table t1 (a int not null, b int not null);
+create table t2 (c int not null, d int not null);
+create table t3 (e int not null);
+
+insert into t1 values (1,10);
+insert into t1 values (2,10);
+insert into t1 values (1,20);
+insert into t1 values (2,20);
+insert into t1 values (3,20);
+insert into t1 values (2,30);
+insert into t1 values (4,40);
+
+insert into t2 values (2,10);
+insert into t2 values (2,20);
+insert into t2 values (4,10);
+insert into t2 values (5,10);
+insert into t2 values (3,20);
+insert into t2 values (2,40);
+
+insert into t3 values (10);
+insert into t3 values (30);
+insert into t3 values (10);
+insert into t3 values (20);
+
+explain extended
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+show warnings;
+
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+
+drop table t1, t2, t3;
+
