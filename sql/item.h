@@ -513,6 +513,9 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
   
+  /* Cache of the result of is_expensive(). */
+  int8 is_expensive_cache;
+  
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
   uint rsize;
 
@@ -878,9 +881,6 @@ public:
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
-  /* Cache of the result of is_expensive(). */
-  int8 is_expensive_cache;
-  
   virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
     return (this->*processor)(arg);
