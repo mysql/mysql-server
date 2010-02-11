@@ -68,7 +68,8 @@ NDBAPI_java = \
 		$(NDBAPI_DIR)/NdbIndexScanOperation.java \
 		$(NDBAPI_DIR)/NdbIndexScanOperationConst.java \
 		$(NDBAPI_DIR)/NdbInterpretedCode.java \
-		$(NDBAPI_DIR)/NdbInterpretedCodeConst.java \
+		$(NDBAPI_DIR)/NdbLockHandle.java \
+		$(NDBAPI_DIR)/NdbLockHandleConst.java \
 		$(NDBAPI_DIR)/NdbOperation.java \
 		$(NDBAPI_DIR)/NdbOperationConst.java \
 		$(NDBAPI_DIR)/NdbRecAttr.java \
