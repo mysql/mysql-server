@@ -2148,7 +2148,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(table->mdl_ticket))
+  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(
+             table->mdl_ticket, thd->variables.lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_open);
@@ -2362,7 +2363,8 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     mdl_requests.push_front(mdl_request);
     mdl_requests.push_front(global_request);
 
-    if (thd->mdl_context.acquire_locks(&mdl_requests))
+    if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
       return 1;
   }
   else
@@ -3843,7 +3845,8 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
   switch (m_action)
   {
     case OT_WAIT_MDL_LOCK:
-      result= thd->mdl_context.wait_for_lock(mdl_request);
+      result= thd->mdl_context.wait_for_lock(mdl_request,
+                                             thd->variables.lock_wait_timeout);
       break;
     case OT_WAIT_TDC:
       result= tdc_wait_for_old_versions(thd, &m_mdl_requests);
@@ -3862,7 +3865,9 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
         mdl_requests.push_front(&mdl_xlock_request);
         mdl_requests.push_front(&mdl_global_request);
 
-        if ((result= thd->mdl_context.acquire_locks(&mdl_requests)))
+        if ((result=
+             thd->mdl_context.acquire_locks(&mdl_requests,
+                                            thd->variables.lock_wait_timeout)))
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
@@ -3893,7 +3898,9 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
         mdl_requests.push_front(&mdl_xlock_request);
         mdl_requests.push_front(&mdl_global_request);
 
-        if ((result= thd->mdl_context.acquire_locks(&mdl_requests)))
+        if ((result=
+             thd->mdl_context.acquire_locks(&mdl_requests,
+                                            thd->variables.lock_wait_timeout)))
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
@@ -4381,7 +4388,8 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
     mdl_requests.push_front(global_request);
   }
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests))
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
     return TRUE;
 
   for (table= tables_start; table && table != tables_end;
@@ -8530,6 +8538,9 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
   TABLE_SHARE *share;
   const char *old_msg;
   MDL_request *mdl_request;
+  struct timespec abstime;
+  set_timespec(abstime, thd->variables.lock_wait_timeout);
+  int wait_result= 0;
 
   while (!thd->killed)
   {
@@ -8557,15 +8568,31 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
     }
     if (!mdl_request)
     {
+      /*
+        Reset wait_result here in case this was the final check
+        after getting a timeout from mysql_cond_timedwait().
+      */
+      wait_result= 0;
       mysql_mutex_unlock(&LOCK_open);
       break;
     }
+    if (wait_result == ETIMEDOUT || wait_result == ETIME)
+    {
+      /*
+        Test for timeout here instead of right after mysql_cond_timedwait().
+        This allows for a final iteration and a final check before reporting
+        ER_LOCK_WAIT_TIMEOUT.
+      */
+      mysql_mutex_unlock(&LOCK_open);
+      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+      break;
+    }
     old_msg= thd->enter_cond(&COND_refresh, &LOCK_open, "Waiting for table");
-    mysql_cond_wait(&COND_refresh, &LOCK_open);
+    wait_result= mysql_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
     /* LOCK_open mutex is unlocked by THD::exit_cond() as side-effect. */
     thd->exit_cond(old_msg);
   }
-  return thd->killed;
+  return thd->killed || wait_result == ETIMEDOUT || wait_result == ETIME;
 }
 
 

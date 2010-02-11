@@ -336,7 +336,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                      sql_lock->lock_count,
                                                      sql_lock->lock_count,
-                                                     thd->lock_id)];
+                                                     thd->lock_id,
+                                                     thd->variables.lock_wait_timeout)];
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
       if (sql_lock->table_count)
@@ -983,7 +984,8 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
 
   mdl_requests.push_front(&global_request);
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests))
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
     return 1;
 
   return 0;
@@ -1055,7 +1057,8 @@ bool lock_routine_name(THD *thd, bool is_function,
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests))
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
     return TRUE;
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
@@ -1258,7 +1261,8 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
                                                  MDL_SHARED));
     mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED);
 
-    if (thd->mdl_context.acquire_lock(&mdl_request))
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
     {
       /* Our thread was killed -- return back to initial state. */
       mysql_mutex_lock(&LOCK_global_read_lock);

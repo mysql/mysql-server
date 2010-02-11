@@ -3103,7 +3103,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
            thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
          !table->mdl_request.ticket && !can_deadlock)
   {
-    if ((error= thd->mdl_context.wait_for_lock(&table->mdl_request)))
+    if ((error=
+         thd->mdl_context.wait_for_lock(&table->mdl_request,
+                                        thd->variables.lock_wait_timeout)))
       break;
   }
   return error;
