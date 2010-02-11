@@ -4403,7 +4403,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     mdl_requests.push_front(&table_list->mdl_request);
     mdl_requests.push_front(&mdl_global_request);
 
-    if (thd->mdl_context.acquire_locks(&mdl_requests))
+    if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
 

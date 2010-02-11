@@ -877,5 +877,166 @@ drop view v1;
 drop table t1;
 
 
+--echo #
+--echo # Bug#45225 Locking: hang if drop table with no timeout
+--echo #
+--echo # These tests also provide function coverage for the
+--echo # lock_wait_timeout server variable.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id int);
+
+connect(con2, localhost, root,,);
+SET SESSION lock_wait_timeout= 1;
+
+--echo #
+--echo # Test 1: acquire exclusive lock
+--echo #
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLE t1;
+
+--echo # Connection default
+connection default;
+COMMIT;
+
+--echo #
+--echo # Test 2: upgrade shared lock
+--echo #
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SELECT * FROM t1;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 RENAME TO t2;
+
+--echo # Connection default
+connection default;
+COMMIT;
+
+--echo #
+--echo # Test 3: acquire shared lock
+--echo #
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 WRITE;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1(id) VALUES (2);
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # Test 4: table level locks
+--echo #
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 READ;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1(id) VALUES(4);
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # Test 5: Waiting on Table Definition Cache (TDC)
+--echo #
+
+connect(con3, localhost, root);
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 READ;
+
+--echo # Connection con3
+connection con3;
+--echo # Sending:
+--send FLUSH TABLES
+
+--echo # Connection con2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Flushing tables" AND info = "FLUSH TABLES";
+--source include/wait_condition.inc
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo # Connection con3
+connection con3;
+--echo # Reaping: FLUSH TABLES
+--reap
+
+--echo #
+--echo # Test 6: Timeouts in I_S queries
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE TABLE t2 (id INT);
+LOCK TABLE t2 WRITE;
+
+--echo # Connection con3
+connection con3;
+--echo # Sending:
+--send DROP TABLE t1, t2
+
+--echo # Connection con2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table" AND info = "DROP TABLE t1, t2";
+--source include/wait_condition.inc
+# Note: This query causes two timeouts.
+# 1: try_acquire_high_prio_shared_mdl_lock on t1
+# 2: recover_from_failed_open on t1
+SELECT table_name, table_comment FROM information_schema.tables
+  WHERE table_schema= 'test' AND table_name= 't1';
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo # Connection con3
+connection con3;
+--echo # Reaping: DROP TABLE t1, t2
+--reap
+
+--echo # Connection default
+connection default;
+--echo # Cleanup
+disconnect con2;
+disconnect con3;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

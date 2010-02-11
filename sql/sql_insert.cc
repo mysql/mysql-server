@@ -1823,6 +1823,12 @@ public:
     */
     thd.lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
     thd.set_current_stmt_binlog_format_row_if_mixed();
+    /*
+      Prevent changes to global.lock_wait_timeout from affecting
+      delayed insert threads as any timeouts in delayed inserts
+      are not communicated to the client.
+    */
+    thd.variables.lock_wait_timeout= LONG_TIMEOUT;
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety
@@ -2708,7 +2714,8 @@ bool Delayed_insert::handle_inserts(void)
   table->use_all_columns();
 
   thd_proc_info(&thd, "upgrading lock");
-  if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock))
+  if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock,
+                                   thd.variables.lock_wait_timeout))
   {
     /*
       This can happen if thread is killed either by a shutdown
@@ -2893,7 +2900,8 @@ bool Delayed_insert::handle_inserts(void)
 	  goto err;
 	}
 	query_cache_invalidate3(&thd, table, 1);
-	if (thr_reschedule_write_lock(*thd.lock->locks))
+	if (thr_reschedule_write_lock(*thd.lock->locks,
+                                thd.variables.lock_wait_timeout))
 	{
     /* This is not known to happen. */
     my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
