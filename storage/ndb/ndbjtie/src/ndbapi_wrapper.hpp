@@ -63,6 +63,14 @@ struct NdbApiWrapper {
         return obj.getNdbErrorLine();
     }
 
+    static const NdbLockHandle * getLockHandle0(const NdbOperation & obj) {
+        return obj.getLockHandle();
+    }
+    
+    static const NdbLockHandle * getLockHandle1(NdbOperation & obj) {
+        return obj.getLockHandle();
+    }
+
     // ----------------------------------------------------------------------
     // overloaded non-member functions
     // ----------------------------------------------------------------------
