@@ -1140,7 +1140,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 flush status;
 select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 count(*)
-4999
+5000
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
