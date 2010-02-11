@@ -348,3 +348,91 @@ commit;
 # Switching to connection 'default'.
 drop view v1;
 drop table t1;
+#
+# Bug#45225 Locking: hang if drop table with no timeout
+#
+# These tests also provide function coverage for the
+# lock_wait_timeout server variable.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int);
+SET SESSION lock_wait_timeout= 1;
+#
+# Test 1: acquire exclusive lock
+#
+# Connection default
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+# Connection 2
+DROP TABLE t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+COMMIT;
+#
+# Test 2: upgrade shared lock
+#
+# Connection default
+START TRANSACTION;
+SELECT * FROM t1;
+id
+1
+# Connection 2
+ALTER TABLE t1 RENAME TO t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+COMMIT;
+#
+# Test 3: acquire shared lock
+#
+# Connection default
+LOCK TABLE t1 WRITE;
+# Connection 2
+INSERT INTO t1(id) VALUES (2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+#
+# Test 4: table level locks
+#
+# Connection default
+LOCK TABLE t1 READ;
+# Connection 2
+INSERT INTO t1(id) VALUES(4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+#
+# Test 5: Waiting on Table Definition Cache (TDC)
+#
+# Connection default
+LOCK TABLE t1 READ;
+# Connection con3
+# Sending:
+FLUSH TABLES;
+# Connection con2
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+# Connection con3
+# Reaping: FLUSH TABLES
+#
+# Test 6: Timeouts in I_S queries
+#
+# Connection default
+CREATE TABLE t2 (id INT);
+LOCK TABLE t2 WRITE;
+# Connection con3
+# Sending:
+DROP TABLE t1, t2;
+# Connection con2
+SELECT table_name, table_comment FROM information_schema.tables
+WHERE table_schema= 'test' AND table_name= 't1';
+table_name	table_comment
+t1	Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+# Connection con3
+# Reaping: DROP TABLE t1, t2
+# Connection default
+# Cleanup

@@ -772,45 +772,25 @@ static inline void mdl_exit_cond(THD *thd,
 }
 
 
-MDL_context::mdl_signal_type MDL_context::wait()
+MDL_context::mdl_signal_type MDL_context::timed_wait(struct timespec
+                                                     *abs_timeout)
 {
   const char *old_msg;
-  st_my_thread_var *mysys_var= my_thread_var;
   mdl_signal_type result;
+  st_my_thread_var *mysys_var= my_thread_var;
+  int wait_result= 0;
 
   mysql_mutex_lock(&m_signal_lock);
 
   old_msg= MDL_ENTER_COND(m_thd, mysys_var, &m_signal_cond, &m_signal_lock);
 
-  while (! m_signal && !mysys_var->abort)
-    mysql_cond_wait(&m_signal_cond, &m_signal_lock);
+  while (!m_signal && !mysys_var->abort &&
+         wait_result != ETIMEDOUT && wait_result != ETIME)
+    wait_result= mysql_cond_timedwait(&m_signal_cond, &m_signal_lock,
+                                      abs_timeout);
 
-  result= m_signal;
-
-  MDL_EXIT_COND(m_thd, mysys_var, &m_signal_lock, old_msg);
-
-  return result;
-}
-
-
-MDL_context::mdl_signal_type MDL_context::timed_wait(ulong timeout)
-{
-  struct timespec abstime;
-  const char *old_msg;
-  mdl_signal_type result;
-  st_my_thread_var *mysys_var= my_thread_var;
-
-  mysql_mutex_lock(&m_signal_lock);
-
-  old_msg= MDL_ENTER_COND(m_thd, mysys_var, &m_signal_cond, &m_signal_lock);
-
-  if (! m_signal)
-  {
-    set_timespec(abstime, timeout);
-    mysql_cond_timedwait(&m_signal_cond, &m_signal_lock, &abstime);
-  }
-
-  result= (m_signal != NO_WAKE_UP) ? m_signal : TIMEOUT_WAKE_UP;
+  result= (m_signal != NO_WAKE_UP || mysys_var->abort) ?
+    m_signal : TIMEOUT_WAKE_UP;
 
   MDL_EXIT_COND(m_thd, mysys_var, &m_signal_lock, old_msg);
 
@@ -1197,15 +1177,17 @@ MDL_context::find_ticket(MDL_request *mdl_request,
 
   @param mdl_request [in/out] Lock request object for lock to be acquired
 
+  @param lock_wait_timeout [in] Seconds to wait before timeout.
+
   @retval  FALSE   Success. MDL_request::ticket points to the ticket
                    for the lock.
   @retval  TRUE    Failure (Out of resources or waiting is aborted),
 */
 
 bool
-MDL_context::acquire_lock(MDL_request *mdl_request)
+MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 {
-  return acquire_lock_impl(mdl_request);
+  return acquire_lock_impl(mdl_request, lock_wait_timeout);
 }
 
 
@@ -1397,6 +1379,8 @@ void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
 
   @param mdl_request  Request for the lock to be acqured.
 
+  @param lock_wait_timeout  Seconds to wait before timeout.
+
   @note Should not be used outside of MDL subsystem. Instead one
         should call acquire_lock() or acquire_locks()
         methods which ensure that conditions for deadlock-free
@@ -1406,13 +1390,17 @@ void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
   @retval TRUE   Failure
 */
 
-bool MDL_context::acquire_lock_impl(MDL_request *mdl_request)
+bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
+                                    ulong lock_wait_timeout)
 {
   MDL_lock *lock;
   MDL_ticket *ticket;
   bool not_used;
   st_my_thread_var *mysys_var= my_thread_var;
   MDL_key *key= &mdl_request->key;
+  struct timespec abs_timeout;
+  struct timespec abs_shortwait;
+  set_timespec(abs_timeout, lock_wait_timeout);
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
@@ -1464,16 +1452,31 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request)
     /* There is a shared or exclusive lock on the object. */
     DEBUG_SYNC(m_thd, "mdl_acquire_lock_wait");
 
-    bool is_deadlock= (find_deadlock() || timed_wait(1) == VICTIM_WAKE_UP);
+    bool is_deadlock= find_deadlock();
+    bool is_timeout= FALSE;
+    if (!is_deadlock)
+    {
+      set_timespec(abs_shortwait, 1);
+      bool timeout_is_near= cmp_timespec(abs_shortwait, abs_timeout) > 0;
+      mdl_signal_type wait_result=
+        timed_wait(timeout_is_near ? &abs_timeout : &abs_shortwait);
+
+      if (timeout_is_near && wait_result == TIMEOUT_WAKE_UP)
+        is_timeout= TRUE;
+      else if (wait_result == VICTIM_WAKE_UP)
+        is_deadlock= TRUE;
+    }
 
     stop_waiting();
 
-    if (is_deadlock || mysys_var->abort)
+    if (mysys_var->abort || is_deadlock || is_timeout)
     {
       lock->remove_ticket(&MDL_lock::m_waiting, ticket);
       MDL_ticket::destroy(ticket);
       if (is_deadlock)
         my_error(ER_LOCK_DEADLOCK, MYF(0));
+      else if (is_timeout)
+        my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       return TRUE;
     }
     rw_wrlock(&lock->m_rwlock);
@@ -1513,6 +1516,8 @@ extern "C" int mdl_request_ptr_cmp(const void* ptr1, const void* ptr2)
 
   @param  mdl_requests  List of requests for locks to be acquired.
 
+  @param lock_wait_timeout  Seconds to wait before timeout.
+
   @note The list of requests should not contain non-exclusive lock requests.
         There should not be any acquired locks in the context.
 
@@ -1522,7 +1527,8 @@ extern "C" int mdl_request_ptr_cmp(const void* ptr1, const void* ptr2)
   @retval TRUE   Failure
 */
 
-bool MDL_context::acquire_locks(MDL_request_list *mdl_requests)
+bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
+                                ulong lock_wait_timeout)
 {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **sort_buf, **p_req;
@@ -1552,7 +1558,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests)
 
   for (p_req= sort_buf; p_req < sort_buf + req_count; p_req++)
   {
-    if (acquire_lock_impl(*p_req))
+    if (acquire_lock_impl(*p_req, lock_wait_timeout))
       goto err;
   }
   my_free(sort_buf, MYF(0));
@@ -1578,6 +1584,8 @@ err:
   Used in ALTER TABLE, when a copy of the table with the
   new definition has been constructed.
 
+  @param lock_wait_timeout  Seconds to wait before timeout.
+
   @note In case of failure to upgrade lock (e.g. because upgrader
         was killed) leaves lock in its original state (locked in
         shared mode).
@@ -1592,7 +1600,8 @@ err:
 */
 
 bool
-MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket)
+MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
+                                              ulong lock_wait_timeout)
 {
   MDL_request mdl_xlock_request;
   MDL_ticket *mdl_svp= mdl_savepoint();
@@ -1614,7 +1623,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket)
 
   mdl_xlock_request.init(&mdl_ticket->m_lock->key, MDL_EXCLUSIVE);
 
-  if (acquire_lock_impl(&mdl_xlock_request))
+  if (acquire_lock_impl(&mdl_xlock_request, lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
   is_new_ticket= ! has_lock(mdl_svp, mdl_xlock_request.ticket);
@@ -1803,21 +1812,25 @@ bool MDL_context::find_deadlock()
 
   Does not acquire the locks!
 
+  @param lock_wait_timeout  Seconds to wait before timeout.
+
   @retval FALSE  Success. One can try to obtain metadata locks.
   @retval TRUE   Failure (thread was killed or deadlock is possible).
 */
 
 bool
-MDL_context::wait_for_lock(MDL_request *mdl_request)
+MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 {
   MDL_lock *lock;
   st_my_thread_var *mysys_var= my_thread_var;
+  struct timespec abs_timeout;
+  set_timespec(abs_timeout, lock_wait_timeout);
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(mdl_request->ticket == NULL);
 
-  while (!mysys_var->abort)
+  while (TRUE)
   {
     /*
       We have to check if there are some HANDLERs open by this thread
@@ -1860,19 +1873,32 @@ MDL_context::wait_for_lock(MDL_request *mdl_request)
     set_deadlock_weight(MDL_DEADLOCK_WEIGHT_DML);
     will_wait_for(pending_ticket);
 
-    bool is_deadlock= (find_deadlock() || wait() == VICTIM_WAKE_UP);
+    bool is_deadlock= find_deadlock();
+    bool is_timeout= FALSE;
+    if (!is_deadlock)
+    {
+      mdl_signal_type wait_result= timed_wait(&abs_timeout);
+      if (wait_result == TIMEOUT_WAKE_UP)
+        is_timeout= TRUE;
+      else if (wait_result == VICTIM_WAKE_UP)
+        is_deadlock= TRUE;
+    }
 
     stop_waiting();
 
     lock->remove_ticket(&MDL_lock::m_waiting, pending_ticket);
     MDL_ticket::destroy(pending_ticket);
-    if (is_deadlock)
+
+    if (mysys_var->abort || is_deadlock || is_timeout)
     {
-      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      if (is_deadlock)
+        my_error(ER_LOCK_DEADLOCK, MYF(0));
+      else if (is_timeout)
+        my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       return TRUE;
     }
   }
-  return mysys_var->abort;
+  return TRUE;
 }
 
 

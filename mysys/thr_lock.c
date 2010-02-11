@@ -389,13 +389,12 @@ static void wake_up_waiters(THR_LOCK *lock);
 
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
-              my_bool in_wait_list)
+              my_bool in_wait_list, ulong lock_wait_timeout)
 {
   struct st_my_thread_var *thread_var= my_thread_var;
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
-  my_bool can_deadlock= test(data->owner->info->n_cursors);
   const char *old_proc_info;
   DBUG_ENTER("wait_for_lock");
 
@@ -438,14 +437,10 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   old_proc_info= proc_info_hook(NULL, "Table lock",
                                 __func__, __FILE__, __LINE__);
 
-  if (can_deadlock)
-    set_timespec(wait_timeout, table_lock_wait_timeout);
+  set_timespec(wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
-    int rc= (can_deadlock ?
-             mysql_cond_timedwait(cond, &data->lock->mutex,
-                                  &wait_timeout) :
-             mysql_cond_wait(cond, &data->lock->mutex));
+    int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);
     /*
       We must break the wait if one of the following occurs:
       - the connection has been aborted (!thread_var->abort), but
@@ -517,7 +512,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
 
 enum enum_thr_lock_result
 thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
-         enum thr_lock_type lock_type)
+         enum thr_lock_type lock_type, ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
@@ -782,7 +777,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     goto end;
   }
   /* Can't get lock yet;  Wait for it */
-  DBUG_RETURN(wait_for_lock(wait_queue, data, 0));
+  DBUG_RETURN(wait_for_lock(wait_queue, data, 0, lock_wait_timeout));
 end:
   mysql_mutex_unlock(&lock->mutex);
   DBUG_RETURN(result);
@@ -1041,7 +1036,8 @@ static void sort_locks(THR_LOCK_DATA **data,uint count)
 
 
 enum enum_thr_lock_result
-thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
+thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner,
+               ulong lock_wait_timeout)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_lock");
@@ -1051,7 +1047,8 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
   /* lock everything */
   for (pos=data,end=data+count; pos < end ; pos++)
   {
-    enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type);
+    enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type,
+                                               lock_wait_timeout);
     if (result != THR_LOCK_SUCCESS)
     {						/* Aborted */
       thr_multi_unlock(data,(uint) (pos-data));
@@ -1472,7 +1469,8 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
 /* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
 
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
-                                     enum thr_lock_type new_lock_type)
+                                     enum thr_lock_type new_lock_type,
+                                     ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   DBUG_ENTER("thr_upgrade_write_delay_lock");
@@ -1515,13 +1513,14 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
   {
     check_locks(lock,"waiting for lock",0);
   }
-  DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1));
+  DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1, lock_wait_timeout));
 }
 
 
 /* downgrade a WRITE lock to a WRITE_DELAY lock if there is pending locks */
 
-my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data)
+my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
+                                  ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum thr_lock_type write_lock_type;
@@ -1553,7 +1552,8 @@ my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data)
   free_all_read_locks(lock,0);
 
   mysql_mutex_unlock(&lock->mutex);
-  DBUG_RETURN(thr_upgrade_write_delay_lock(data, write_lock_type));
+  DBUG_RETURN(thr_upgrade_write_delay_lock(data, write_lock_type,
+                                           lock_wait_timeout));
 }
 
 

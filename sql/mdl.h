@@ -466,13 +466,14 @@ public:
   void destroy();
 
   bool try_acquire_lock(MDL_request *mdl_request);
-  bool acquire_lock(MDL_request *mdl_request);
-  bool acquire_locks(MDL_request_list *requests);
-  bool upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket);
+  bool acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout);
+  bool acquire_locks(MDL_request_list *requests, ulong lock_wait_timeout);
+  bool upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
+                                        ulong lock_wait_timeout);
 
   bool clone_ticket(MDL_request *mdl_request);
 
-  bool wait_for_lock(MDL_request *mdl_request);
+  bool wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout);
 
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
@@ -644,7 +645,7 @@ private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_transactional);
   void release_locks_stored_before(MDL_ticket *sentinel);
-  bool acquire_lock_impl(MDL_request *mdl_request);
+  bool acquire_lock_impl(MDL_request *mdl_request, ulong lock_wait_timeout);
 
   bool find_deadlock();
 
@@ -680,8 +681,7 @@ private:
     mysql_mutex_unlock(&m_signal_lock);
   }
 
-  mdl_signal_type wait();
-  mdl_signal_type timed_wait(ulong timeout);
+  mdl_signal_type timed_wait(struct timespec *abs_timeout);
 
   mdl_signal_type peek_signal()
   {

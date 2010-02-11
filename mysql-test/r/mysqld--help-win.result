@@ -224,6 +224,9 @@ The following options may be given as the first argument:
                       the week.
   --local-infile      Enable LOAD DATA LOCAL INFILE
                       (Defaults to on; use --skip-local-infile to disable.)
+  --lock-wait-timeout=# 
+                      Timeout in seconds to wait for a lock before returning an
+                      error.
   -l, --log[=name]    Log connections and queries to file (deprecated option,
                       use --general-log/--general-log-file instead).
   --log-bin[=name]    Log update queries in binary format. Optional (but
@@ -842,6 +845,7 @@ lc-messages                                       en_US
 lc-messages-dir                                   MYSQL_SHAREDIR/
 lc-time-names                                     en_US
 local-infile                                      TRUE
+lock-wait-timeout                                 31536000
 log-bin                                           (No default value)
 log-bin-index                                     (No default value)
 log-bin-trust-function-creators                   FALSE

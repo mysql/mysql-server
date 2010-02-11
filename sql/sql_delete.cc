@@ -1210,7 +1210,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       mdl_requests.push_front(&mdl_request);
       mdl_requests.push_front(&mdl_global_request);
 
-      if (thd->mdl_context.acquire_locks(&mdl_requests))
+      if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                         thd->variables.lock_wait_timeout))
         DBUG_RETURN(TRUE);
 
       has_mdl_lock= TRUE;

@@ -853,6 +853,12 @@ static Sys_var_mybool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
        GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
+static Sys_var_ulong Sys_lock_wait_timeout(
+       "lock_wait_timeout",
+       "Timeout in seconds to wait for a lock before returning an error.",
+       SESSION_VAR(lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
+
 #ifdef HAVE_MLOCKALL
 static Sys_var_mybool Sys_locked_in_memory(
        "locked_in_memory",
