@@ -461,8 +461,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE FUNCTION command.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_rwlock_wrlock(&THR_LOCK_udf);
   if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
@@ -533,11 +533,15 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(1);
   }
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(0);
 
  err:
@@ -545,7 +549,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
     dlclose(dl);
   mysql_rwlock_unlock(&THR_LOCK_udf);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(1);
 }
 
@@ -573,8 +579,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for DROP FUNCTION command.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_rwlock_wrlock(&THR_LOCK_udf);
   if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
@@ -617,16 +623,22 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(1);
   }
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(0);
  err:
   mysql_rwlock_unlock(&THR_LOCK_udf);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(1);
 }
 
