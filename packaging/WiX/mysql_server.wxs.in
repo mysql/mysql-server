@@ -13,19 +13,10 @@
         </Directory>
       </Directory>
     </Directory>
-	 <Directory Id="CommonAppDataFolder">
-        <Directory Id="directory.Data.MySQL" Name="MySQL">
-          <Directory Id="DATADIR" LongName="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" src=".\">
-            <Directory Id="DATADIR" Name=".">
-              <!-- *****************************************************************************************
-                   data directory
-                -->             
-              <Directory Id="DataDir" Name="data">
-                <Directory Id="mysql" Name="mysql">
     <Feature  Id='Server' Level='1' Title="MySQL Server" Description="Install MySQL server" Display="expand">
       <ComponentGroupRef Id='componentgroup.Server'/>
       <Feature Level='1' Id='ClientPrograms' Title="Client Programs"  Description="Various helpful (commandline) tools including the mysql command line client" >
-         <ComponentRef Id="componentgroup.Client" />
+         <ComponentGroupRef Id="componentgroup.Client" />
        </Feature>
     </Feature>
     <Feature Id='Devel' Level='1' Title="Development Components"
