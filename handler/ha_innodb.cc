@@ -128,9 +128,6 @@ extern ib_int64_t	trx_sys_mysql_relay_log_pos;
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 
 #if MYSQL_VERSION_ID < 50124
 /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
@@ -921,36 +918,6 @@ convert_error_code_to_mysql(
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
-}
-
-/*************************************************************//**
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*************************************************************//**
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-In the InnoDB latching order, the mutex sits right above the
-kernel_mutex.  In debug builds, we assert that the kernel_mutex is
-released before this function is invoked. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*************************************************************//**
@@ -4744,24 +4711,29 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc <= col_max_value
-			    && auto_inc >= prebuilt->autoinc_last_value) {
+			if (auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
-				ut_a(prebuilt->autoinc_increment > 0);
+				/* This should filter out the negative
+				values set explicitly by the user. */
+				if (auto_inc <= col_max_value) {
+					ut_a(prebuilt->autoinc_increment > 0);
 
-				ulonglong	need;
-				ulonglong	offset;
+					ulonglong	need;
+					ulonglong	offset;
 
-				offset = prebuilt->autoinc_offset;
-				need = prebuilt->autoinc_increment;
+					offset = prebuilt->autoinc_offset;
+					need = prebuilt->autoinc_increment;
 
-				auto_inc = innobase_next_autoinc(
-					auto_inc, need, offset, col_max_value);
+					auto_inc = innobase_next_autoinc(
+						auto_inc,
+						need, offset, col_max_value);
 
-				err = innobase_set_max_autoinc(auto_inc);
+					err = innobase_set_max_autoinc(
+						auto_inc);
 
-				if (err != DB_SUCCESS) {
-					error = err;
+					if (err != DB_SUCCESS) {
+						error = err;
+					}
 				}
 			}
 			break;
