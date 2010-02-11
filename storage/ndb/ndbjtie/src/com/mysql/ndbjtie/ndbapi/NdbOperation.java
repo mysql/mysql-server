@@ -37,6 +37,8 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     public final native int/*_LockMode_*/ getLockMode() /*_const_*/;
     public final native int/*_AbortOption_*/ getAbortOption() /*_const_*/;
     public /*_virtual_*/ native NdbTransaction/*_NdbTransaction *_*/ getNdbTransaction() /*_const_*/;
+    public final native NdbLockHandle/*_const NdbLockHandle *_*/ getLockHandle() /*_const_*/;
+    public final native NdbLockHandle/*_const NdbLockHandle *_*/ getLockHandleM();
     public /*_virtual_*/ native int insertTuple();
     public /*_virtual_*/ native int updateTuple();
     public /*_virtual_*/ native int writeTuple();

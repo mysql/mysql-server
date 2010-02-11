@@ -56,4 +56,5 @@ public class NdbBlob extends Wrapper implements NdbBlobConst
     static public final native int getBlobEventName(ByteBuffer/*_char *_*/ bename, Ndb/*_Ndb *_*/ anNdb, String/*_const char *_*/ eventName, String/*_const char *_*/ columnName);
     public final native NdbBlob/*_NdbBlob *_*/ blobsFirstBlob();
     public final native NdbBlob/*_NdbBlob *_*/ blobsNextBlob();
+    public final native int close(boolean execPendingBlobOps /*= true*/);
 }

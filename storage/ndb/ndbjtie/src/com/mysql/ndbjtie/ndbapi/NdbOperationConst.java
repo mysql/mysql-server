@@ -58,4 +58,5 @@ public interface NdbOperationConst
     int/*_LockMode_*/ getLockMode() /*_const_*/;
     int/*_AbortOption_*/ getAbortOption() /*_const_*/;
     /*_virtual_*/ NdbTransaction/*_NdbTransaction *_*/ getNdbTransaction() /*_const_*/;
+    NdbLockHandle/*_const NdbLockHandle *_*/ getLockHandle() /*_const_*/;
 }

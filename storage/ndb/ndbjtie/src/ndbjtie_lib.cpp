@@ -99,6 +99,8 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbIndexScanOperation_IndexBound,
                                     "com/mysql/ndbjtie/ndbapi/NdbIndexScanOperation$IndexBound")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbInterpretedCode,
                                     "com/mysql/ndbjtie/ndbapi/NdbInterpretedCode")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbLockHandle,
+                                    "com/mysql/ndbjtie/ndbapi/NdbLockHandle")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_GetValueSpec,
