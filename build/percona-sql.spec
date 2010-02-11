@@ -134,7 +134,16 @@
 %define src_dir mysql-%{mysqlversion}
 
 Source1: percona-xtradb-%{pluginversion}-%{xtradbversion}.tar.gz
-Patch1: percona-support.patch
+Patch0: percona-support.patch
+
+Patch01: show_patches.patch
+Patch02: slow_extended.patch
+Patch03: profiling_slow.patch
+Patch04: microsec_process.patch
+Patch05: userstat.patch
+Patch06: optimizer_fix.patch
+Patch07: mysql-test_for_xtradb.diff
+
 
 %define perconaxtradbplugin percona-xtradb-%{pluginversion}-%{xtradbversion}.tar.gz
 
@@ -292,12 +301,20 @@ judgment as a high-performance consulting company.
 
 %setup -n %{src_dir}
 
+%patch01 -p1
+%patch02 -p1
+%patch03 -p1
+%patch04 -p1
+%patch05 -p1
+%patch06 -p1
+%patch07 -p1
+
 if [ "%{redhatversion}" = "5" ] ; then 
 tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-components=1
 else
 tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-path=1
 fi
-%patch1 -p1
+%patch0 -p1
 
 cd storage/innobase && bash -x ./setup.sh
 
