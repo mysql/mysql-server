@@ -24,9 +24,11 @@ FOREACH(comp ${CPACK_COMPONENTS_ALL})
  EXECUTE_PROCESS(
   COMMAND ${CMAKE_COMMAND} ${CONFIG_PARAM} -DCMAKE_INSTALL_COMPONENT=${comp}  
    -DCMAKE_INSTALL_PREFIX=  -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
+   OUTPUT_QUIET
   )
 ENDFOREACH()
 
+SET(INC_VAR 0)
 MACRO(MAKE_WIX_IDENTIFIER str varname)
   STRING(REPLACE "/" "." ${varname} "${str}")
   STRING(REGEX REPLACE "[^a-zA-Z_0-9.]" "_" ${varname} "${${varname}}")
@@ -35,9 +37,9 @@ MACRO(MAKE_WIX_IDENTIFIER str varname)
   # We have to cut down the length to 70 chars, since we add 2 char prefix
   # pretty often
   IF(len GREATER 70)
-   STRING(RANDOM r)
-   STRING(SUBSTRING  "${${varname}}" 0 65 shortstr)
-   SET(${varname} "${shortstr}${r}")
+   STRING(SUBSTRING  "${${varname}}" 0 67 shortstr)
+   MATH(EXPR INC_VAR ${INC_VAR}+1)
+   SET(${varname} "${shortstr}${INC_VAR}")
   ENDIF()
 ENDMACRO()
 
