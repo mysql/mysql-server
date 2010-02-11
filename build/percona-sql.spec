@@ -380,6 +380,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
+        --enable-profiling \
 %if %{?ndbug_comment:1}0
 	    $OPT_COMMENT \
 %endif
