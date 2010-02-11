@@ -104,10 +104,10 @@
 
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-%define server_suffix  -percona
-%define package_suffix -percona
-%define ndbug_comment MySQL Community Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
-%define debug_comment MySQL Community Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
+%define server_suffix  -51
+%define package_suffix -51
+%define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
+%define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define commercial 0
 %define YASSL_BUILD 1
 %define EMBEDDED_BUILD 0
@@ -142,18 +142,18 @@ Patch1: percona-support.patch
 # Main spec file section
 ##############################################################################
 
-Name:		MySQL%{package_suffix}
-Summary:	MySQL: a very fast and reliable SQL database server
+Name:		PerconaSQL%{package_suffix}
+Summary:	PerconaSQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
-License:	Copyright 2000-2008 MySQL AB, 2008 %{mysql_vendor}  All rights reserved.  Use is subject to license terms.  Under %{lic_type} license as shown in the Description field.
+License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
 Source:		%{src_dir}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} MySQL Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql
+Provides:	msqlormysql MySQL-server mysql PerconaSQL-server
 BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache
 
 # Think about what you use here since the first step is to
@@ -162,72 +162,52 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 # From the manual
 %description
-The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. MySQL Server
+The PerconaSQL software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. PerconaSQL Server
 is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software. MySQL is a trademark of
-%{mysql_vendor}
+as for embedding into mass-deployed software. 
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
-
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
+Percona Inc. provides commercial support of PerconaSQL Server.
+For more information visist our web site http://www.percona.com/
 
 ##############################################################################
 # Sub package definition
 ##############################################################################
 
-%package -n MySQL-server%{package_suffix}
+%package -n PerconaSQL-server%{package_suffix}
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
-Provides:	msqlormysql mysql-server mysql MySQL MySQL-server
+Provides:	msqlormysql mysql-server mysql MySQL MySQL-server PerconaSQL-server
 Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community
 
-%description -n MySQL-server%{package_suffix}
-The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. MySQL Server
+%description -n PerconaSQL-server%{package_suffix}
+The PerconaSQL software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. PerconaSQL Server
 is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software. MySQL is a trademark of
-%{mysql_vendor}
+as for embedding into mass-deployed software. 
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Percona Inc. provides commercial support of PerconaSQL Server.
+For more information visist our web site http://www.percona.com/
 
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
-
-For commercial support please contact Percona at http://www.percona.com/contacts.html
-
-This package includes the MySQL server binary 
+This package includes the PerconaSQL server binary 
 %if %{INNODB_BUILD}
-(configured including InnoDB)
+(configured including XtraDB)
 %endif
-as well as related utilities to run and administer a MySQL server.
+as well as related utilities to run and administer a PerconaSQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client%{package_suffix}" as well!
+package "PerconaSQL-client%{package_suffix}" as well!
 
 # ------------------------------------------------------------------------------
 
-%package -n MySQL-client%{package_suffix}
-Summary: MySQL - Client
+%package -n PerconaSQL-client%{package_suffix}
+Summary: PerconaSQL - Client
 Group: Applications/Databases
 Obsoletes: mysql-client MySQL-client MySQL-client-community
-Provides: mysql-client MySQL-client
+Provides: mysql-client MySQL-client PerconaSQL-client
 
-%description -n MySQL-client%{package_suffix}
+%description -n PerconaSQL-client%{package_suffix}
 This package contains the standard MySQL clients and administration tools. 
 
 %{see_base}
@@ -235,77 +215,54 @@ This package contains the standard MySQL clients and administration tools.
 
 # ------------------------------------------------------------------------------
 
-%package -n MySQL-test%{package_suffix}
+%package -n PerconaSQL-test%{package_suffix}
 Requires: mysql-client perl
-Summary: MySQL - Test suite
+Summary: PerconaSQL - Test suite
 Group: Applications/Databases
-Provides: mysql-test MySQL-test
+Provides: mysql-test MySQL-test PerconaSQL-test
 Obsoletes: mysql-test MySQL-test MySQL-test-community
 AutoReqProv: no
 
-%description -n MySQL-test%{package_suffix}
+%description -n PerconaSQL-test%{package_suffix}
 This package contains the MySQL regression test suite.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
-%package -n MySQL-devel%{package_suffix}
-Summary: MySQL - Development header files and libraries
+%package -n PerconaSQL-devel%{package_suffix}
+Summary: PerconaSQL - Development header files and libraries
 Group: Applications/Databases
-Provides: mysql-devel MySQL-devel
+Provides: mysql-devel MySQL-devel PerconaSQL-devel
 Obsoletes: mysql-devel MySQL-devel MySQL-devel-community
 
-%description -n MySQL-devel%{package_suffix}
+%description -n PerconaSQL-devel%{package_suffix}
 This package contains the development header files and libraries
-necessary to develop MySQL client applications.
+necessary to develop PerconaSQL client applications.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
-%package -n MySQL-shared%{package_suffix}
-Summary: MySQL - Shared libraries
+%package -n PerconaSQL-shared%{package_suffix}
+Summary: PerconaSQL - Shared libraries
 Group: Applications/Databases
-Provides: mysql-shared MySQL-shared
+Provides: mysql-shared MySQL-shared PerconaSQL-shared
 # Obsoletes below to correct old missing Provides:/Obsoletes
 Obsoletes: mysql-shared MySQL-shared-standard MySQL-shared-pro
 Obsoletes: MySQL-shared-pro-cert MySQL-shared-pro-gpl
 Obsoletes: MySQL-shared-pro-gpl-cert MySQL-shared MySQL-shared-community
 
-%description -n MySQL-shared%{package_suffix}
+%description -n PerconaSQL-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
 # ------------------------------------------------------------------------------
 
-%if %{EMBEDDED_BUILD}
-
-%package -n MySQL-embedded%{package_suffix}
-Requires: mysql-devel
-Summary: MySQL - Embedded library
-Group: Applications/Databases
-Provides: mysql-embedded MySQL-embedded
-Obsoletes: mysql-embedded MySQL-embedded
-Obsoletes: MySQL-embedded-classic MySQL-embedded-pro MySQL-embedded-community
-
-%description -n MySQL-embedded%{package_suffix}
-This package contains the MySQL server as an embedded library.
-
-The embedded MySQL server library makes it possible to run a
-full-featured MySQL server inside the client application.
-The main benefits are increased speed and more simple management
-for embedded applications.
-
-The API is identical for the embedded MySQL version and the
-client/server version.
-
-%endif
-
 %if %{PERCONA_PLUGIN_BUILD}
 
 %package -n Percona-XtraDB-%{pluginversion}-%{xtradbversion}
-Requires: mysql-devel
+Requires: PerconaSQL-devel
 Summary: Percona XtraDB Storage engine for MySQL
 Group: Applications/Databases
 Provides: percona-xtradb-plugin Percona-XtraDB-plugin
