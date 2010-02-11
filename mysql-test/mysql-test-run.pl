@@ -945,6 +945,11 @@ sub command_line_setup {
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir= cwd();
+  if ($glob_mysql_test_dir =~ / /)
+  {
+    die("Working directory \"$glob_mysql_test_dir\" contains space\n".
+	"Bailing out, cannot function properly with space in path");
+  }
   if (IS_CYGWIN)
   {
     # Use mixed path format i.e c:/path/to/
@@ -1480,6 +1485,12 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
+
+  # Need --user=root if running as *nix root user
+  if (!IS_WINDOWS and $> == 0)
+  {
+    mtr_add_arg($args, "--user=root");
+  }
 
   my $exe_mysqld= find_mysqld($basedir);
   my $cmd= join(" ", $exe_mysqld, @$args);

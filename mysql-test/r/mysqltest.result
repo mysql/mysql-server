@@ -147,9 +147,10 @@ hello
 hello
 ;;;;;;;;
 # MySQL: -- The
-mysqltest: At line 1: End of line junk detected: "6"
-mysqltest: At line 1: End of line junk detected: "6"
-mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument 'A comment
+show status' passed to 'sleep'
 mysqltest: At line 1: End of line junk detected: "sleep 7
 # Another comment
 "
@@ -354,8 +355,10 @@ here is the sourced script
 here is the sourced script
 "hello"
 "hello"
-mysqltest: At line 1: Missing argument to sleep
-mysqltest: At line 1: Missing argument to real_sleep
+mysqltest: At line 2: Invalid argument to sleep "xyz"
+mysqltest: At line 2: Invalid argument to real_sleep "xyz"
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'sleep'
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_sleep'
 mysqltest: At line 1: Invalid argument to sleep "abc"
 mysqltest: At line 1: Invalid argument to real_sleep "abc"
 1
