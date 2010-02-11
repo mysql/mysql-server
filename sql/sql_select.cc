@@ -1611,6 +1611,8 @@ JOIN::optimize()
 static int
 make_pushed_join(JOIN *join)
 {
+  int active_pushed_joins= 0;
+
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
@@ -1619,7 +1621,9 @@ make_pushed_join(JOIN *join)
     {
       // Try to start a pushed join from current join_tab
       AQP::Join_plan plan(tab, join->tables-i);
-      tab->table->file->make_pushed_join(plan);
+      uint pushed_joins= tab->table->file->make_pushed_join(plan);
+      if (pushed_joins > 0)
+        active_pushed_joins += (pushed_joins-1);
     }
     else
     {
@@ -1630,6 +1634,19 @@ make_pushed_join(JOIN *join)
       DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
       tab->read_first_record= join_read_linked_key;
       tab->read_record.unlock_row= rr_unlock_row;
+      active_pushed_joins--;
+    }
+    DBUG_ASSERT(active_pushed_joins>=0);
+
+    // Disable 'Using join buffer' if there are active pushed join sequence beyond
+    // the scope of the join buffer.
+    //
+    // FUTURE: We may extend the join buffer to also buffer rows from 
+    // pushed joins depending on, but not directly included in the buffered
+    // join rows.
+    if (active_pushed_joins > 0 && tab->next_select == sub_select_cache)
+    {
+      tab->next_select=sub_select;
     }
   }
   return 0;
