@@ -1108,19 +1108,6 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(21) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-select hex(concat(get_lock('a',0)));
-hex(concat(get_lock('a',0)))
-31
-select hex(concat(release_lock('a')));
-hex(concat(release_lock('a')))
-31
-create table t1 as select concat(get_lock('a',0)) as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(1) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
 select hex(concat(is_free_lock('xxxx')));
 hex(concat(is_free_lock('xxxx')))
 31
@@ -2299,13 +2286,13 @@ hex(concat(a))	a
 303130	010
 313030	100
 drop table t1;
-create table t1 (a tinyint(30) zerofill);
+create table t1 (a tinyint(4) zerofill);
 insert into t1 values (1), (10), (100);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
-303030303030303030303030303030303030303030303030303030303031	000000000000000000000000000001
-303030303030303030303030303030303030303030303030303030303130	000000000000000000000000000010
-303030303030303030303030303030303030303030303030303030313030	000000000000000000000000000100
+30303031	0001
+30303130	0010
+30313030	0100
 drop table t1;
 create table t1 (a decimal(10,2));
 insert into t1 values (123.45);
