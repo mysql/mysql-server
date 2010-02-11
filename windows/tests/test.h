@@ -1,4 +1,5 @@
 #include <toku_portability.h>
+#include <toku_assert.h>
 
 int test_main(int argc, char *argv[]);
 
