@@ -3295,22 +3295,21 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    }
 	  }
 	}
+        // Catch invalid use of partial keys 
 	else if (!f_is_geom(sql_field->pack_flag) &&
-                 ((column->length > length &&
-                   !Field::type_can_have_key_part (sql_field->sql_type)) ||
-                  ((f_is_packed(sql_field->pack_flag) ||
-                    ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
-                     (key_info->flags & HA_NOSAME))) &&
-                   column->length != length)))
-        {
-          /* Catch invalid uses of partial keys.
-             A key is identified as 'partial' if column->length != length.
-             A partial key is invalid if they data type does
-             not allow it, or the field is packed (as in MyISAM),
-             or the storage engine doesn't allow prefixed search and
-             the key is primary key.
-          */
-
+                 // is the key partial? 
+                 column->length != length &&
+                 // is prefix length bigger than field length? 
+                 (column->length > length ||
+                  // can the field have a partial key? 
+                  !Field::type_can_have_key_part (sql_field->sql_type) ||
+                  // a packed field can't be used in a partial key
+                  f_is_packed(sql_field->pack_flag) ||
+                  // does the storage engine allow prefixed search?
+                  ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+                   // and is this a 'unique' key?
+                   (key_info->flags & HA_NOSAME))))
+        {         
 	  my_message(ER_WRONG_SUB_KEY, ER(ER_WRONG_SUB_KEY), MYF(0));
 	  DBUG_RETURN(TRUE);
 	}
