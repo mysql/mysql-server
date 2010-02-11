@@ -43,6 +43,21 @@ void print_db_notices (void) {
     printf("#define %s %d\n", #name, bit);      \
 } while (0)
 
+#define dodefine_track_enum(flags, name) do {assert(!(flags[name])); \
+                                             flags[name] = 1;        \
+                                        printf("#define %s %d\n", #name, name);} while (0)
+#define dodefine_from_track_enum(flags, name) do {   \
+    uint32_t which;                             \
+    /* don't use 0 */                           \
+    for (which = 1; which < 256; which++) {     \
+        if (!(flags[which])) break;             \
+    }                                           \
+    assert(which < 256);                        \
+    flags[which] = 1;                           \
+    printf("#define %s %d\n", #name, which);    \
+} while (0)
+
+
 enum {
 	TOKUDB_OUT_OF_LOCKS         = -100000,
         TOKUDB_SUCCEEDED_EARLY      = -100001,
@@ -82,9 +97,13 @@ void print_defines (void) {
 
     dodefine(DB_KEYFIRST);
     dodefine(DB_KEYLAST);
-    dodefine(DB_NODUPDATA);
-    dodefine(DB_NOOVERWRITE);
-    printf("#define DB_YESOVERWRITE 254\n"); // tokudb
+    {
+        static uint8_t insert_flags[256];
+        dodefine_track_enum(insert_flags, DB_NOOVERWRITE);
+        dodefine_track_enum(insert_flags, DB_NODUPDATA);
+        dodefine_from_track_enum(insert_flags, DB_YESOVERWRITE);
+        dodefine_from_track_enum(insert_flags, DB_NOOVERWRITE_NO_ERROR);
+    }
     dodefine(DB_OPFLAGS_MASK);
 
     dodefine(DB_AUTO_COMMIT);

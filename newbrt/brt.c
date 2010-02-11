@@ -1233,6 +1233,7 @@ should_compare_both_keys (BRTNODE node, BRT_MSG cmd)
 // Effect: Return nonzero if we need to compare both the key and the value.
 {
     switch (cmd->type) {
+    case BRT_INSERT_NO_OVERWRITE:
     case BRT_INSERT:
         return node->flags & TOKU_DB_DUPSORT;
     case BRT_DELETE_BOTH:
@@ -1520,6 +1521,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     node->u.l.seqinsert = 0;
 
     switch (cmd->type) {
+    case BRT_INSERT_NO_OVERWRITE:
     case BRT_INSERT:
         if (doing_seqinsert) {
             idx = toku_omt_size(node->u.l.buffer);
@@ -1909,6 +1911,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
 
     //TODO: Accessing type directly
     switch (cmd->type) {
+    case BRT_INSERT_NO_OVERWRITE: 
     case BRT_INSERT:
     case BRT_DELETE_BOTH:
     case BRT_ABORT_BOTH:
@@ -2629,7 +2632,7 @@ toku_brt_broadcast_commit_all (BRT brt)
 
 // Effect: Insert the key-val pair into brt.
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
-    return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN, TRUE);
+    return toku_brt_maybe_insert(brt, key, val, txn, FALSE, ZERO_LSN, TRUE, BRT_INSERT);
 }
 
 static void
@@ -2660,7 +2663,8 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     return r;
 }
 
-int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
+int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type) {
+    assert(type==BRT_INSERT || type==BRT_INSERT_NO_OVERWRITE);
     int r = 0;
     XIDS message_xids;
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2688,7 +2692,12 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
     if (do_logging && logger) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
-        r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        if (type == BRT_INSERT) {
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        }
+        else {
+            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
+        }
         if (r!=0) return r;
     }
 
@@ -2696,7 +2705,7 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
     if (oplsn_valid && oplsn.lsn <= treelsn.lsn) {
         r = 0;
     } else {
-        BRT_MSG_S brtcmd = { BRT_INSERT, message_xids, .u.id={key,val}};
+        BRT_MSG_S brtcmd = { type, message_xids, .u.id={key,val}};
         r = toku_brt_root_put_cmd(brt, &brtcmd);
     }
     return r;

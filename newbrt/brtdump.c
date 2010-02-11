@@ -112,6 +112,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 switch ((enum brt_msg_type)typ) {
 				 case BRT_NONE: printf("NONE"); goto ok;
 				 case BRT_INSERT: printf("INSERT"); goto ok;
+				 case BRT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
 				 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
 				 case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
 				 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;

@@ -85,6 +85,7 @@ enum brt_msg_type {
     BRT_COMMIT_BROADCAST_ALL = 8, // Broadcast to all leafentries, (commit all transactions).
     BRT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
     BRT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
+    BRT_INSERT_NO_OVERWRITE = 11,
 };
 
 typedef struct xids_t *XIDS;

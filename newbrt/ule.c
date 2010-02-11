@@ -154,6 +154,13 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
     ule_do_implicit_promotions(ule, xids);
     enum brt_msg_type type = brt_msg_get_type(msg);
     switch (type) {
+    case BRT_INSERT_NO_OVERWRITE: {
+        UXR old_innermost_uxr = ule_get_innermost_uxr(ule);
+        //If something exists, quit (no overwrite).
+        if (uxr_is_insert(old_innermost_uxr)) break;
+        //else it is just an insert, so
+        //fall through to BRT_INSERT on purpose.
+    }
     case BRT_INSERT: ;
 	u_int32_t vallen = brt_msg_get_vallen(msg);
 	void * valp      = brt_msg_get_val(msg);

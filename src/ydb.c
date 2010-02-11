@@ -4259,6 +4259,9 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key, DBT *UU(val),
             r = toku_ydb_do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
         }
     }
+    else if (overwrite_flag==DB_NOOVERWRITE_NO_ERROR) {
+        r = 0;
+    }
     else {
         //Other flags are not (yet) supported.
         r = EINVAL;
@@ -4293,7 +4296,11 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     }
     if (r==0) {
         //Insert into the brt.
-        r = toku_brt_insert(db->i->brt, key, val, txn ? db_txn_struct_i(txn)->tokutxn : 0);
+        TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+        enum brt_msg_type type = BRT_INSERT;
+        if (flags==DB_NOOVERWRITE_NO_ERROR)
+            type = BRT_INSERT_NO_OVERWRITE;
+        r = toku_brt_maybe_insert(db->i->brt, key, val, ttxn, FALSE, ZERO_LSN, TRUE, type);
     }
     return r;
 }
@@ -4326,6 +4333,11 @@ env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
                                               &keys[which_db],      &vals[which_db],
                                               lock_flags[which_db], remaining_flags[which_db]);
         if (r!=0) goto cleanup;
+        if (remaining_flags[which_db] == DB_NOOVERWRITE_NO_ERROR) {
+            //put_multiple does not support delaying the no error, since we would
+            //have to log the flag in the put_multiple.
+            r = EINVAL; goto cleanup;
+        }
         //Do locking if necessary.
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
@@ -4346,7 +4358,7 @@ env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
     for (which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
         num_inserts++;
-        r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+        r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
         if (r!=0) goto cleanup;
     }
 
