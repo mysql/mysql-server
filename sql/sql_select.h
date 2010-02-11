@@ -282,13 +282,11 @@ typedef struct st_join_table {
   }
   bool check_rowid_field()
   {
-/* !!!NB igor: enable the code in this comment after backporting the SJ code 
     if (keep_current_rowid && !used_rowid_fields)
     {
       used_rowid_fields= 1;
       used_fieldlength+= table->file->ref_length;
     }
-*/    
     return test(used_rowid_fields);
   }
   bool is_inner_table_of_semi_join_with_first_match()
