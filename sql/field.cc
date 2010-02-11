@@ -1705,11 +1705,10 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   uint store_length;
   copy->str=ptr;
   copy->length=pack_length();
-  copy->blob_field=0;
+  copy->field= this;
   if (flags & BLOB_FLAG)
   {
-    copy->blob_field=(Field_blob*) this;
-    copy->strip=0;
+    copy->type= CACHE_BLOB;
     copy->length-= table->s->blob_ptr_size;
     return copy->length;
   }
@@ -1717,15 +1716,15 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
   {
-    copy->strip=1;				/* Remove end space */
+    copy->type= CACHE_STRIPPED;
     store_length= 2;
   }
   else
   {
-    copy->strip=0;
+    copy->type= 0;
     store_length= 0;
   }
-  return copy->length+ store_length;
+  return copy->length + store_length;
 }
 
 
