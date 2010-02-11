@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (C) 2009-2010 Sun Microsystems, Inc
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ insert into t1 (id) values (1), (2), (3), (4), (5), (6), (7), (8);
 
 # Stop recording data, so the select below don't add noise.
 update performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO';
+# Disable all consumers, for long standing waits
+update performance_schema.SETUP_CONSUMERS set enabled = 'NO';
 
 # Helper to debug
 set @dump_all=FALSE;
@@ -132,14 +134,14 @@ SELECT EVENT_NAME, e.SUM_TIMER_WAIT, SUM(i.SUM_TIMER_WAIT)
 FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.SUM_TIMER_WAIT <> SUM(i.SUM_TIMER_WAIT))
+HAVING (e.SUM_TIMER_WAIT < SUM(i.SUM_TIMER_WAIT))
 OR @dump_all;
 
 SELECT EVENT_NAME, e.MIN_TIMER_WAIT, MIN(i.MIN_TIMER_WAIT)
 FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.MIN_TIMER_WAIT <> MIN(i.MIN_TIMER_WAIT))
+HAVING (e.MIN_TIMER_WAIT > MIN(i.MIN_TIMER_WAIT))
 AND (MIN(i.MIN_TIMER_WAIT) != 0)
 OR @dump_all;
 
@@ -147,7 +149,7 @@ SELECT EVENT_NAME, e.MAX_TIMER_WAIT, MAX(i.MAX_TIMER_WAIT)
 FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.MAX_TIMER_WAIT <> MAX(i.MAX_TIMER_WAIT))
+HAVING (e.MAX_TIMER_WAIT < MAX(i.MAX_TIMER_WAIT))
 OR @dump_all;
 
 --echo "Verifying waits aggregate consistency (thread)"
@@ -157,7 +159,7 @@ FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
 USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.SUM_TIMER_WAIT <> SUM(t.SUM_TIMER_WAIT))
+HAVING (e.SUM_TIMER_WAIT < SUM(t.SUM_TIMER_WAIT))
 OR @dump_all;
 
 SELECT EVENT_NAME, e.MIN_TIMER_WAIT, MIN(t.MIN_TIMER_WAIT)
@@ -165,7 +167,7 @@ FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
 USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.MIN_TIMER_WAIT <> MIN(t.MIN_TIMER_WAIT))
+HAVING (e.MIN_TIMER_WAIT > MIN(t.MIN_TIMER_WAIT))
 AND (MIN(t.MIN_TIMER_WAIT) != 0)
 OR @dump_all;
 
@@ -174,7 +176,7 @@ FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
 JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
 USING (EVENT_NAME)
 GROUP BY EVENT_NAME
-HAVING (e.MAX_TIMER_WAIT <> MAX(t.MAX_TIMER_WAIT))
+HAVING (e.MAX_TIMER_WAIT < MAX(t.MAX_TIMER_WAIT))
 OR @dump_all;
 
 

@@ -4392,7 +4392,7 @@ best_access_path(JOIN      *join,
               */
               if (table->quick_keys.is_set(key) &&
                   (const_part & ((1 << table->quick_key_parts[key])-1)) ==
-                  ((1 << table->quick_key_parts[key])-1) &&
+                  (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
               {
