@@ -970,7 +970,7 @@ double my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
   *endptr= b;
   res= my_strtod(buf, endptr, err);
-  *endptr= nptr + (size_t) (*endptr- buf);
+  *endptr= nptr + cs->mbminlen * (size_t) (*endptr- buf);
   return res;
 }
 
