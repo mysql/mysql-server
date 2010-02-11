@@ -16250,12 +16250,12 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   if (error)
   {
     /* create_internal_tmp_table_from_heap will generate error if needed */
-    if (sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_internal_tmp_table_from_heap(thd, sjtbl->tmp_table,
+    if (!sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
+      DBUG_RETURN(1); /* Duplicate */
+    if (create_internal_tmp_table_from_heap(thd, sjtbl->tmp_table,
                                             sjtbl->start_recinfo,
                                             &sjtbl->recinfo, error, 1))
       DBUG_RETURN(-1);
-    DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
