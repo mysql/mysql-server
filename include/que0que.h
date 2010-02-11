@@ -30,6 +30,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "data0data.h"
 #include "dict0types.h"
 #include "trx0trx.h"
+#include "trx0roll.h"
 #include "srv0srv.h"
 #include "usr0types.h"
 #include "que0types.h"
@@ -215,6 +216,16 @@ trx_t*
 thr_get_trx(
 /*========*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/*******************************************************************//**
+Determines if this thread is rolling back an incomplete transaction
+in crash recovery.
+@return TRUE if thr is rolling back an incomplete transaction in crash
+recovery */
+UNIV_INLINE
+ibool
+thr_is_recv(
+/*========*/
+	const que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************************//**
 Gets the type of a graph node. */
 UNIV_INLINE
