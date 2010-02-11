@@ -14149,7 +14149,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
       {
 	used_fields--;
 	length+=field->fill_cache_field(copy);
-	if (copy->blob_field)
+	if (copy->type == CACHE_BLOB)
 	  (*blob_ptr++)=copy;
 	if (field->real_maybe_null())
 	  null_fields++;
@@ -14164,8 +14164,8 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     {						/* must copy null bits */
       copy->str= tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
-      copy->strip=0;
-      copy->blob_field=0;
+      copy->type=0;
+      copy->field=0;
       length+=copy->length;
       copy++;
       cache->fields++;
@@ -14175,8 +14175,8 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     {
       copy->str= (uchar*) &tables[i].table->null_row;
       copy->length=sizeof(tables[i].table->null_row);
-      copy->strip=0;
-      copy->blob_field=0;
+      copy->type=0;
+      copy->field=0;
       length+=copy->length;
       copy++;
       cache->fields++;
@@ -14201,9 +14201,10 @@ used_blob_length(CACHE_FIELD **ptr)
   uint length,blob_length;
   for (length=0 ; *ptr ; ptr++)
   {
-    (*ptr)->blob_length=blob_length=(*ptr)->blob_field->get_length();
+    Field_blob *field_blob= (Field_blob *) (*ptr)->field;
+    (*ptr)->blob_length=blob_length= field_blob->get_length();
     length+=blob_length;
-    (*ptr)->blob_field->get_ptr(&(*ptr)->str);
+    field_blob->get_ptr(&(*ptr)->str);
   }
   return length;
 }
@@ -14232,30 +14233,35 @@ store_record_in_cache(JOIN_CACHE *cache)
   cache->records++;
   for (copy=cache->field ; copy < end_field; copy++)
   {
-    if (copy->blob_field)
+    if (copy->type == CACHE_BLOB)
     {
+      Field_blob *blob_field= (Field_blob *) copy->field;
       if (last_record)
       {
-	copy->blob_field->get_image(pos, copy->length+sizeof(char*), 
-				    copy->blob_field->charset());
+	blob_field->get_image(pos, copy->length+sizeof(char*), 
+                              blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->get_image(pos, copy->length, // blob length
-				    copy->blob_field->charset());
+	blob_field->get_image(pos, copy->length, // blob length
+                              blob_field->charset());
 	memcpy(pos+copy->length,copy->str,copy->blob_length);  // Blob data
 	pos+=copy->length+copy->blob_length;
       }
     }
     else
     {
-      if (copy->strip)
+      if (copy->type == CACHE_STRIPPED)
       {
 	uchar *str,*end;
-	for (str=copy->str,end= str+copy->length;
-	     end > str && end[-1] == ' ' ;
-	     end--) ;
+        Field *field= copy->field;
+        if (field && field->maybe_null() && field->is_null())
+          end= str= copy->str;
+        else
+          for (str=copy->str,end= str+copy->length;
+               end > str && end[-1] == ' ' ;
+               end--) ;
 	length=(uint) (end-str);
 	memcpy(pos+2, str, length);
         int2store(pos, length);
@@ -14304,23 +14310,24 @@ read_cached_record(JOIN_TAB *tab)
        copy < end_field;
        copy++)
   {
-    if (copy->blob_field)
+    if (copy->type == CACHE_BLOB)
     {
+      Field_blob *blob_field= (Field_blob *) copy->field;
       if (last_record)
       {
-	copy->blob_field->set_image(pos, copy->length+sizeof(char*),
-				    copy->blob_field->charset());
+	blob_field->set_image(pos, copy->length+sizeof(char*),
+                              blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->set_ptr(pos, pos+copy->length);
-	pos+=copy->length+copy->blob_field->get_length();
+	blob_field->set_ptr(pos, pos+copy->length);
+	pos+=copy->length + blob_field->get_length();
       }
     }
     else
     {
-      if (copy->strip)
+      if (copy->type == CACHE_STRIPPED)
       {
         length= uint2korr(pos);
 	memcpy(copy->str, pos+2, length);
