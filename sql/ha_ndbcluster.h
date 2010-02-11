@@ -549,6 +549,9 @@ static void set_tabname(const char *pathname, char *tabname);
   bool test_push_flag(enum ha_push_flag flag) const;
 
   uint has_pushed_joins() const;
+  const handler* member_of_pushed_join() const
+  { return m_pushed_join_member;
+  }
 
   bool prefer_index() const;
 
@@ -875,8 +878,9 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  const class ha_pushed_join *m_pushed_join;  // Pushed join definition
-  bool m_disable_pushed_join;           // Execution allowed?
+  const class ha_pushed_join *m_pushed_join;  // Pushed join def. if I am parent
+  const handler *m_pushed_join_member;   // Handler being parent.
+  bool m_disable_pushed_join;            // Execution allowed?
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
