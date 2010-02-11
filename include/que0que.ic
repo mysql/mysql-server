@@ -38,6 +38,20 @@ thr_get_trx(
 	return(thr->graph->trx);
 }
 
+/*******************************************************************//**
+Determines if this thread is rolling back an incomplete transaction
+in crash recovery.
+@return TRUE if thr is rolling back an incomplete transaction in crash
+recovery */
+UNIV_INLINE
+ibool
+thr_is_recv(
+/*========*/
+	const que_thr_t*	thr)	/*!< in: query thread */
+{
+	return(trx_is_recv(thr->graph->trx));
+}
+
 /***********************************************************************//**
 Gets the first thr in a fork. */
 UNIV_INLINE
