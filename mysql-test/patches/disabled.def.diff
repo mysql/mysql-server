@@ -1,8 +1,12 @@
---- mysql-test/t/disabled.def.orig      2009-12-16 13:21:00.000000000 -0500
-+++ mysql-test/t/disabled.def   2010-01-03 11:58:54.000000000 -0500
-@@ -13,3 +13,5 @@
+diff -Nur mysql-test/t/disabled.def.orig mysql-test/t/disabled.def
+--- mysql-test/t/disabled.def.orig      2010-01-15 12:46:09.000000000 -0500
++++ mysql-test/t/disabled.def   2010-01-31 14:09:18.000000000 -0500
+@@ -11,3 +11,8 @@
+ ##############################################################################
+ kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
  query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
- rpl_killed_ddl           : Bug#45520: rpl_killed_ddl fails sporadically in pb2
- innodb-autoinc           : Bug#49267 2009-12-02 test fails on windows because of different case mode
 +read_many_rows_innodb    : Bug#433409 2009-09-20 the test fails on 5.1.37 https://bugs.launchpad.net/bugs/433409
 +log_tables-big           : Bug#48646 2009-12-12 mysql-test main.log_tables-big fails on 5.1.40
++information_schema       : Conflict with 5.1-percona-patch
++information_schema_db    : Conflict with 5.1-percona-patch
++mysqlshow                : Conflict with 5.1-percona-patch
