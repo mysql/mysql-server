@@ -301,7 +301,7 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-show variables like 'maria%';
+select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "maria%" and variable_name not like "maria_used_for_temp_tables" order by 1;
 Variable_name	Value
 maria_block_size	8192
 maria_checkpoint_interval	30
@@ -309,16 +309,15 @@ maria_force_start_after_recovery_failures	0
 maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036853727232
-maria_page_checksum	OFF
 maria_pagecache_age_threshold	300
 maria_pagecache_buffer_size	8384512
 maria_pagecache_division_limit	100
+maria_page_checksum	OFF
 maria_recover	OFF
 maria_repair_threads	1
 maria_sort_buffer_size	8388608
 maria_stats_method	nulls_unequal
 maria_sync_log_dir	NEWFILE
-maria_used_for_temp_tables	ON
 show status like 'maria%';
 Variable_name	Value
 Maria_pagecache_blocks_not_flushed	#
