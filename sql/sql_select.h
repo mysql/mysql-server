@@ -736,10 +736,11 @@ public:
      we need to check for errors executing it and react accordingly
     */
     if (!res && table->in_use->is_error())
-      res= 2;
+      res= 1; /* STORE_KEY_FATAL */
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null() || item->null_value;
-    return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
+    return ((err != 0 || res < 0 || res > 2) ? STORE_KEY_FATAL : 
+            (store_key_result) res);
   }
 };
 
@@ -775,10 +776,10 @@ protected:
         we need to check for errors executing it and react accordingly
         */
       if (!err && to_field->table->in_use->is_error())
-        err= 2;
+        err= 1; /* STORE_KEY_FATAL */
     }
     null_key= to_field->is_null() || item->null_value;
-    return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
+    return ((err < 0 || err > 2) ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };
 
