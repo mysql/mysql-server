@@ -3955,14 +3955,17 @@ int ha_tokudb::read_full_row(uchar * buf) {
     //
     // assumes key is stored in this->last_key
     //
-    error = share->file->getf_set(
-        share->file, 
-        transaction, 
-        0, 
-        &last_key, 
-        smart_dbt_callback_rowread_ptquery, 
-        &info
-        );
+    lockretry {
+        error = share->file->getf_set(
+            share->file, 
+            transaction, 
+            0, 
+            &last_key, 
+            smart_dbt_callback_rowread_ptquery, 
+            &info
+            );
+        lockretry_wait;
+    }
     if (error) {
         table->status = STATUS_NOT_FOUND;
         TOKUDB_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
@@ -4487,7 +4490,11 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     info.buf = buf;
     info.keynr = primary_key;
 
-    error = share->file->getf_set(share->file, transaction, 0, key, smart_dbt_callback_rowread_ptquery, &info);
+    lockretry {
+        error = share->file->getf_set(share->file, transaction, 0, key, smart_dbt_callback_rowread_ptquery, &info);
+        lockretry_wait;
+    }
+
     if (error == DB_NOTFOUND) {
         error = HA_ERR_KEY_NOT_FOUND;
         goto cleanup;
