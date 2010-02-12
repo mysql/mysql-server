@@ -20,7 +20,7 @@
    @mainpage                            NDB API Programmers' Guide
 
    This guide assumes a basic familiarity with MySQL Cluster concepts found
-   on http://dev.mysql.com/doc/mysql/en/mysql-cluster.html.
+   in the MySQL Cluster documentation.
    Some of the fundamental ones are also described in section @ref secConcepts.
 
    The NDB API is a MySQL Cluster application interface 
