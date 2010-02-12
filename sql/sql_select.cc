@@ -12316,6 +12316,12 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     int error;
+    if (join->tables &&
+        join->join_tab->is_using_loose_index_scan())
+    {
+      /* Copy non-aggregated fields when loose index scan is used. */
+      copy_fields(&join->tmp_table_param);
+    }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
