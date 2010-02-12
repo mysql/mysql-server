@@ -342,6 +342,14 @@ enum enum_translog_status
   TRANSLOG_SHUTDOWN  /* going to shutdown the loghandler */
 };
 extern enum enum_translog_status translog_status;
+extern ulonglong translog_syncs; /* Number of sync()s */
+
+void translog_soft_sync(my_bool mode);
+void translog_hard_group_commit(my_bool mode);
+int translog_soft_sync_start(void);
+void  translog_soft_sync_end(void);
+void translog_sync();
+void translog_set_group_commit_interval(uint32 interval);
 
 /*
   all the rest added because of recovery; should we make
@@ -439,6 +447,14 @@ typedef struct st_log_record_type_descriptor
 
 extern LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 
+typedef enum
+{
+  TRANSLOG_GCOMMIT_NONE,
+  TRANSLOG_GCOMMIT_HARD,
+  TRANSLOG_GCOMMIT_SOFT
+} enum_maria_group_commit;
+extern ulong maria_group_commit;
+extern ulong maria_group_commit_interval;
 typedef enum
 {
   TRANSLOG_PURGE_IMMIDIATE,

@@ -306,6 +306,8 @@ Variable_name	Value
 maria_block_size	8192
 maria_checkpoint_interval	30
 maria_force_start_after_recovery_failures	0
+maria_group_commit	none
+maria_group_commit_interval	0
 maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036853727232
@@ -328,6 +330,7 @@ Maria_pagecache_read_requests	#
 Maria_pagecache_reads	#
 Maria_pagecache_write_requests	#
 Maria_pagecache_writes	#
+Maria_transaction_log_syncs	#
 create table t1 (b char(0));
 insert into t1 values(NULL),("");
 select length(b) from t1;
