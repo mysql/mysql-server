@@ -2313,4 +2313,17 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+#
+# BUG#49628 - corrupt table after legal SQL, LONGTEXT column
+#
+CREATE TABLE t1(a INT, b LONGTEXT, UNIQUE(a));
+REPLACE INTO t1 VALUES
+(1, REPEAT('a', 129015)),(1, NULL),
+(2, NULL),(3, NULL),(4, NULL),(5, NULL),(6, NULL),(7, NULL),
+(1, REPEAT('b', 129016)),(1, NULL),
+(1, REPEAT('c', 129015)),(1, REPEAT('d', 129015));
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
 End of 5.1 tests
