@@ -58,7 +58,7 @@ static MYSQL_THDVAR_ULONGLONG(write_lock_wait,
   NULL, 
   5000, // default
   0, // min?
-  1<<63, // max
+  ULONGLONG_MAX, // max
   1 // blocksize
   );
 
