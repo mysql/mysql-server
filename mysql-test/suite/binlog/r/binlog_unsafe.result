@@ -3241,6 +3241,9 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 INSERT INTO t1 VALUES (VERSION());
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+INSERT INTO t1 VALUES (RAND());
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
 DELETE FROM t1;
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES

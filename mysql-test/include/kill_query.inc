@@ -52,7 +52,7 @@ if (`SELECT '$debug_lock' != ''`)
 
 # reap the result of the waiting query
 connection $connection_name;
-error 0, 1317, 1307, 1306, 1334, 1305;
+error 0, 1317, 1307, 1306, 1334, 1305, 1034;
 reap;
 
 connection master;

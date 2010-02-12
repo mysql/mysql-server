@@ -220,7 +220,8 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
-                   (cs->number=get_collation_number_internal(cs->name))))
+                   (cs->number=get_collation_number_internal(cs->name))) &&
+      cs->number < array_elements(all_charsets))
   {
     if (!all_charsets[cs->number])
     {
@@ -321,7 +322,6 @@ static int add_collation(CHARSET_INFO *cs)
 #define MY_CHARSET_INDEX "Index.xml"
 
 const char *charsets_dir= NULL;
-static int charset_initialized=0;
 
 
 static my_bool my_read_charset_file(const char *filename, myf myflags)
@@ -399,63 +399,37 @@ static void *cs_alloc(size_t size)
 }
 
 
-#ifdef __NETWARE__
-my_bool STDCALL init_available_charsets(myf myflags)
-#else
-static my_bool init_available_charsets(myf myflags)
-#endif
+static my_pthread_once_t charsets_initialized= MY_PTHREAD_ONCE_INIT;
+
+static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-  my_bool error=FALSE;
-  /*
-    We have to use charset_initialized to not lock on THR_LOCK_charset
-    inside get_internal_charset...
-  */
-  if (!charset_initialized)
+  CHARSET_INFO **cs;
+
+  bzero(&all_charsets,sizeof(all_charsets));
+  init_compiled_charsets(MYF(0));
+      
+  /* Copy compiled charsets */
+  for (cs=all_charsets;
+       cs < all_charsets+array_elements(all_charsets)-1 ;
+       cs++)
   {
-    CHARSET_INFO **cs;
-    /*
-      To make things thread safe we are not allowing other threads to interfere
-      while we may changing the cs_info_table
-    */
-    pthread_mutex_lock(&THR_LOCK_charset);
-    if (!charset_initialized)
+    if (*cs)
     {
-      bzero(&all_charsets,sizeof(all_charsets));
-      init_compiled_charsets(myflags);
-      
-      /* Copy compiled charsets */
-      for (cs=all_charsets;
-           cs < all_charsets+array_elements(all_charsets)-1 ;
-           cs++)
-      {
-        if (*cs)
-        {
-          if (cs[0]->ctype)
-            if (init_state_maps(*cs))
-              *cs= NULL;
-        }
-      }
-      
-      strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
-      error= my_read_charset_file(fname,myflags);
-      charset_initialized=1;
+      if (cs[0]->ctype)
+        if (init_state_maps(*cs))
+          *cs= NULL;
     }
-    pthread_mutex_unlock(&THR_LOCK_charset);
   }
-  return error;
-}
-
-
-void free_charsets(void)
-{
-  charset_initialized=0;
+      
+  strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
+  my_read_charset_file(fname, MYF(0));
 }
 
 
 uint get_collation_number(const char *name)
 {
-  init_available_charsets(MYF(0));
+  my_pthread_once(&charsets_initialized, init_available_charsets);
   return get_collation_number_internal(name);
 }
 
@@ -463,7 +437,7 @@ uint get_collation_number(const char *name)
 uint get_charset_number(const char *charset_name, uint cs_flags)
 {
   CHARSET_INFO **cs;
-  init_available_charsets(MYF(0));
+  my_pthread_once(&charsets_initialized, init_available_charsets);
   
   for (cs= all_charsets;
        cs < all_charsets+array_elements(all_charsets)-1 ;
@@ -480,7 +454,7 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 const char *get_charset_name(uint charset_number)
 {
   CHARSET_INFO *cs;
-  init_available_charsets(MYF(0));
+  my_pthread_once(&charsets_initialized, init_available_charsets);
 
   cs=all_charsets[charset_number];
   if (cs && (cs->number == charset_number) && cs->name )
@@ -538,7 +512,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   if (cs_number == default_charset_info->number)
     return default_charset_info;
 
-  (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
+  my_pthread_once(&charsets_initialized, init_available_charsets);
   
   if (!cs_number || cs_number >= array_elements(all_charsets)-1)
     return NULL;
@@ -560,7 +534,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 {
   uint cs_number;
   CHARSET_INFO *cs;
-  (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
+  my_pthread_once(&charsets_initialized, init_available_charsets);
 
   cs_number=get_collation_number(cs_name);
   cs= cs_number ? get_internal_charset(cs_number,flags) : NULL;
@@ -585,7 +559,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   DBUG_ENTER("get_charset_by_csname");
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
-  (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
+  my_pthread_once(&charsets_initialized, init_available_charsets);
 
   cs_number= get_charset_number(cs_name, cs_flags);
   cs= cs_number ? get_internal_charset(cs_number, flags) : NULL;
