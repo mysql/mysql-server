@@ -6316,3 +6316,6 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot change the binlog direct flag inside a stored function or trigger"
+ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
+  eng "A SPATIAL index may only contain a geometrical type column"
+
