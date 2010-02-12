@@ -116,6 +116,8 @@
 %define NORMAL_TEST_MODE test-bt
 %define DEBUG_TEST_MODE test-bt-debug
 
+%define release 1.glibc23
+
 %define mysql_license GPL
 %define src_dir mysql-%{mysql_version}
 
