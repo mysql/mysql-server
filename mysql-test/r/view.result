@@ -3868,6 +3868,12 @@ Note	1599	View `test`.`v2` has no creation context
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
 DROP FUNCTION f1;
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES ();
+CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
+ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
