@@ -51,6 +51,16 @@ static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_
 static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, MEM_ROOT * mem_root);
 static MYSQL_THDVAR_BOOL(commit_sync, PLUGIN_VAR_THDLOCAL, "sync on txn commit", 
                          /* check */ NULL, /* update */ NULL, /* default*/ TRUE);
+static MYSQL_THDVAR_ULONGLONG(write_lock_wait,
+  0,
+  "time waiting for write lock",
+  NULL, 
+  NULL, 
+  5000, // default
+  0, // min?
+  1<<63, // max
+  1 // blocksize
+  );
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
@@ -429,6 +439,11 @@ bool tokudb_flush_logs(handlerton * hton) {
     result = 0;
 exit:
     TOKUDB_DBUG_RETURN(result);
+}
+
+ulonglong get_write_lock_wait_time (THD* thd) {
+    ulonglong ret_val = THDVAR(thd, write_lock_wait);
+    return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
 }
 
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
@@ -1016,6 +1031,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
+    MYSQL_SYSVAR(write_lock_wait),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),

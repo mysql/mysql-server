@@ -50,9 +50,9 @@ static const char *ha_tokudb_exts[] = {
 };
 
 #define lockretryN(N) \
-  for (int lockretrycount=0; lockretrycount<(N); lockretrycount++)
+  for (ulonglong lockretrycount=0; lockretrycount<(N/(1<<3) + 1); lockretrycount++)
 
-#define lockretry lockretryN(100)
+#define lockretry lockretryN(800)
 
 #define lockretry_wait \
         if (error != DB_LOCK_NOTGRANTED) { \
@@ -60,6 +60,12 @@ static const char *ha_tokudb_exts[] = {
         } \
         if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) { \
             TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, lockretrycount); \
+        } \
+        if (lockretrycount%200 == 0) { \
+            if (ha_thd()->killed) { \
+                error = DB_LOCK_NOTGRANTED; \
+                break; \
+            } \
         } \
         usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
 
@@ -3009,6 +3015,7 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
     THD *thd = ha_thd();
     bool is_replace_into;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
         (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
@@ -3035,7 +3042,7 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
     }
  
 
-    lockretry {
+    lockretryN(wait_lock_time){
         error = share->file->put(
             share->file, 
             txn, 
@@ -3073,7 +3080,7 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
             bzero((void *) &row, sizeof(row));
         }
 
-        lockretry {
+        lockretryN(wait_lock_time){
             error = share->key_file[keynr]->put(
                 share->key_file[keynr], 
                 txn,
@@ -3101,6 +3108,7 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
     int error;
     bool is_replace_into;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
     is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
         (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
@@ -3111,19 +3119,22 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
         share->mult_put_flags[primary_key] = DB_NOOVERWRITE;
     }
     
-    error = db_env->put_multiple(
-        db_env, 
-        NULL, 
-        txn, 
-        pk_key, 
-        pk_val,
-        curr_num_DBs, 
-        share->key_file, 
-        mult_key_dbt,
-        mult_rec_dbt,
-        share->mult_put_flags, 
-        NULL
-        );
+    lockretryN(wait_lock_time){
+        error = db_env->put_multiple(
+            db_env, 
+            NULL, 
+            txn, 
+            pk_key, 
+            pk_val,
+            curr_num_DBs, 
+            share->key_file, 
+            mult_key_dbt,
+            mult_rec_dbt,
+            share->mult_put_flags, 
+            NULL
+            );
+        lockretry_wait;
+    }
 
     //
     // We break if we hit an error, unless it is a dup key error
@@ -3310,6 +3321,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     DBT rec_dbts[MAX_KEY + 1];
     u_int32_t curr_db_index;
     bool use_put_multiple = share->version > 2;
+    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     LINT_INIT(error);
     bzero((void *) &row, sizeof(row));
@@ -3456,14 +3468,16 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                 // make sure that for clustering keys, we are using DB_YESOVERWRITE,
                 // therefore making this put an overwrite if the key has not changed
                 //
-                error = share->key_file[keynr]->put(
-                    share->key_file[keynr], 
-                    txn,
-                    &key,
-                    &row, 
-                    put_flags
-                    );
-                
+                lockretryN(wait_lock_time){
+                    error = share->key_file[keynr]->put(
+                        share->key_file[keynr], 
+                        txn,
+                        &key,
+                        &row, 
+                        put_flags
+                        );
+                    lockretry_wait;
+                }
                 //
                 // We break if we hit an error, unless it is a dup key error
                 // and MySQL told us to ignore duplicate key errors
@@ -3483,19 +3497,22 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     }
 
     if (use_put_multiple) {
-        error = db_env->put_multiple(
-            db_env, 
-            NULL, 
-            txn, 
-            &prim_key, 
-            &prim_row,
-            curr_db_index, 
-            dbs, 
-            key_dbts,
-            rec_dbts,
-            mult_put_flags, 
-            NULL
-            );
+        lockretryN(wait_lock_time){
+            error = db_env->put_multiple(
+                db_env, 
+                NULL, 
+                txn, 
+                &prim_key, 
+                &prim_row,
+                curr_db_index, 
+                dbs, 
+                key_dbts,
+                rec_dbts,
+                mult_put_flags, 
+                NULL
+                );
+            lockretry_wait;
+        }
     }
     if (!error) {
         trx->stmt_progress.updated++;
@@ -3540,18 +3557,25 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     int error;
     DBT key;
     bool has_null;
+    ulonglong wait_lock_time = get_write_lock_wait_time(ha_thd());
     DBUG_PRINT("enter", ("index: %d", keynr));
     DBUG_PRINT("primary", ("index: %d", primary_key));
     DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
 
     if (keynr == primary_key) {  // Unique key
         DBUG_PRINT("Primary key", ("index: %d", keynr));
-        error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , DB_DELETE_ANY);
+        lockretryN(wait_lock_time){
+            error = share->key_file[keynr]->del(share->key_file[keynr], trans, prim_key , DB_DELETE_ANY);
+            lockretry_wait;
+        }
     }
     else {
         DBUG_PRINT("Secondary key", ("index: %d", keynr));
         create_dbt_key_from_table(&key, keynr, key_buff2, record, &has_null);
-        error = share->key_file[keynr]->del(share->key_file[keynr], trans, &key , DB_DELETE_ANY);
+        lockretryN(wait_lock_time){
+            error = share->key_file[keynr]->del(share->key_file[keynr], trans, &key , DB_DELETE_ANY);
+            lockretry_wait;
+        }
     }
     TOKUDB_DBUG_RETURN(error);
 }
