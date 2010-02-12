@@ -107,6 +107,8 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbIndexScanOperation::IndexBound,
                                c_m_n_n_NdbIndexScanOperation_IndexBound)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbInterpretedCode,
                                c_m_n_n_NdbInterpretedCode)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbLockHandle,
+                               c_m_n_n_NdbLockHandle)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation,
                                c_m_n_n_NdbOperation)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::GetValueSpec,
@@ -803,6 +805,18 @@ Java_com_mysql_ndbjtie_ndbapi_NdbBlob_blobsNextBlob(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbBlob_blobsNextBlob(JNIEnv *, jobject)");
     return gcall_mfr< ttrait_c_m_n_n_NdbBlob_t, ttrait_c_m_n_n_NdbBlob_p, &NdbBlob::blobsNextBlob >(env, obj);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbBlob
+ * Method:    close
+ * Signature: (Z)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbBlob_close(JNIEnv * env, jobject obj, jboolean p0)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbBlob_close(JNIEnv *, jobject, jboolean)");
+    return gcall_mfr< ttrait_c_m_n_n_NdbBlob_t, ttrait_int, ttrait_bool, &NdbBlob::close >(env, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -6063,6 +6077,37 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbTransaction(JNIEnv * env, jobje
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
+ * Method:    getLockHandle
+ * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbLockHandle;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getLockHandle(JNIEnv * env, jobject obj)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getLockHandle(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_c_m_n_n_NdbLockHandle_cp, &NdbOperation::getLockHandle >(env, obj);
+#else
+    return gcall_fr< ttrait_c_m_n_n_NdbLockHandle_cp, ttrait_c_m_n_n_NdbOperation_cr, &NdbApiWrapper::getLockHandle0 >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
+ * Method:    getLockHandleM
+ * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbLockHandle;
+ */
+JNIEXPORT jobject JNICALL Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getLockHandleM(JNIEnv * env, jobject obj)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getLockHandleM(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_c_m_n_n_NdbLockHandle_cp, &NdbOperation::getLockHandle >(env, obj);
+#else
+    return gcall_fr< ttrait_c_m_n_n_NdbLockHandle_cp, ttrait_c_m_n_n_NdbOperation_r, &NdbApiWrapper::getLockHandle1 >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    insertTuple
  * Signature: ()I
  */
@@ -8006,6 +8051,30 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_scanIndex(JNIEnv * env, jobject obj
     return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cp, NdbScanOperation.ScanOptionsConst[]/*_const NdbScanOperation.ScanOptions *_*/, ttrait_Uint32, &NdbTransaction::scanIndex >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 }
 #endif // MMM! array support, error: parse error in template argument list
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
+ * Method:    unlock
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbLockHandleConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_unlock(JNIEnv * env, jobject obj, jobject p0, jint p1)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_unlock(JNIEnv *, jobject, jobject, jint)");
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbLockHandle_cp, ttrait_c_m_n_n_NdbOperation_AbortOption_iv/*_enum_*/, &NdbTransaction::unlock >(env, obj, p0, p1);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
+ * Method:    releaseLockHandle
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbLockHandleConst;)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_releaseLockHandle(JNIEnv * env, jobject obj, jobject p0)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_releaseLockHandle(JNIEnv *, jobject, jobject)");
+    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_int, ttrait_c_m_n_n_NdbLockHandle_cp, &NdbTransaction::releaseLockHandle >(env, obj, p0);
+}
 
 // ---------------------------------------------------------------------------
 
