@@ -995,10 +995,10 @@ void print_defaults(const char *conf_file, const char **groups)
     }
   }
   puts("\nThe following options may be given as the first argument:\n\
---print-defaults	Print the program argument list and exit\n\
---no-defaults		Don't read default options from any options file\n\
---defaults-file=#	Only read default options from the given file #\n\
---defaults-extra-file=# Read this file after the global files are read");
+--print-defaults        Print the program argument list and exit.\n\
+--no-defaults           Don't read default options from any option file.\n\
+--defaults-file=#       Only read default options from the given file #.\n\
+--defaults-extra-file=# Read this file after the global files are read.");
 }
 
 #include <help_end.h>

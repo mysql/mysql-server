@@ -612,8 +612,8 @@ static struct my_option my_long_options[] =
     (uchar**) &num_of_query, (uchar**) &num_of_query, 0,
     GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"only-print", OPT_MYSQL_ONLY_PRINT,
-    "This causes mysqlslap to not connect to the databases, but instead print "
-      "out what it would have done instead.",
+    "Do not connect to the databases, but instead print out what would have "
+     "been done.",
     (uchar**) &opt_only_print, (uchar**) &opt_only_print, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"password", 'p',
@@ -647,7 +647,7 @@ static struct my_option my_long_options[] =
     (uchar**) &pre_system,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
-    "The protocol of connection (tcp,socket,pipe,memory).",
+    "The protocol to use for connection (tcp, socket, pipe, memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"query", 'q', "Query to run or file containing query to run.",
     (uchar**) &user_supplied_query, (uchar**) &user_supplied_query,
@@ -661,7 +661,7 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Run program in silent mode - no output.",
     (uchar**) &opt_silent, (uchar**) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "The socket file to use for connection.",
     (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -692,8 +692,8 @@ static void usage(void)
 {
   print_version();
   puts("Copyright (C) 2005 MySQL AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Run a query multiple times against the server\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
   my_print_help(my_long_options);
