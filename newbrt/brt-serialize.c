@@ -1112,6 +1112,7 @@ static u_int32_t
 serialize_brt_header_min_size (u_int32_t version) {
     u_int32_t size = 0;
     switch(version) {
+        case BRT_LAYOUT_VERSION_12:
         case BRT_LAYOUT_VERSION_11:
 	    size += 4;  // original_version
 	    // fall through to add up bytes in previous version
