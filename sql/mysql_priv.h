@@ -1438,6 +1438,7 @@ bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
 void mysql_ha_flush(THD *thd);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
+void mysql_ha_move_tickets_after_trans_sentinel(THD *thd);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8

@@ -3312,6 +3312,22 @@ void THD::set_query_id(query_id_t new_query_id)
 
 
 /**
+  Leave explicit LOCK TABLES or prelocked mode and restore value of
+  transaction sentinel in MDL subsystem.
+*/
+
+void THD::leave_locked_tables_mode()
+{
+  locked_tables_mode= LTM_NONE;
+  /* Make sure we don't release the global read lock when leaving LTM. */
+  mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
+  /* Also ensure that we don't release metadata locks for open HANDLERs. */
+  if (handler_tables_hash.records)
+    mysql_ha_move_tickets_after_trans_sentinel(this);
+}
+
+
+/**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
   @param  thd   Thread handle

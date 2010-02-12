@@ -3283,14 +3283,6 @@ end_with_restore_list:
     break;
   case SQLCOM_LOCK_TABLES:
     thd->locked_tables_list.unlock_locked_tables(thd);
-    /*
-      As of 5.5, entering LOCK TABLES mode implicitly closes all
-      open HANDLERs. Both HANDLER code and LOCK TABLES mode use
-      the sentinel mechanism in MDL subsystem and thus could not be
-      used at the same time. All HANDLER operations are prohibited
-      under LOCK TABLES anyway.
-    */
-    mysql_ha_cleanup(thd);
     /* we must end the trasaction first, regardless of anything */
     if (trans_commit_implicit(thd))
       goto error;

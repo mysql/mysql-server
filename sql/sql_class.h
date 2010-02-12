@@ -2683,17 +2683,11 @@ public:
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
-    DBUG_ASSERT(handler_tables_hash.records == 0);
 
     mdl_context.set_trans_sentinel();
     locked_tables_mode= mode_arg;
   }
-  void leave_locked_tables_mode()
-  {
-    locked_tables_mode= LTM_NONE;
-    /* Make sure we don't release the global read lock when leaving LTM. */
-    mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
-  }
+  void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
 private:
 
