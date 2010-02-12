@@ -19,6 +19,7 @@ insert into t2 values (1, "Master t2 a=1 at c=1", 1, '1');
 insert into t2 values (2, "Master t2 a=2 at c=1", 1, '12');
 insert into t2 values (3, "Master t2 a=3 at c=1", 1, '123');
 commit;
+--sync_slave_with_master
 
 --echo *** master - update all
 --connection master
@@ -65,9 +66,11 @@ begin;
 insert into t1 values (1, "Master t1 a=1 at X=10", 10, '111');
 insert into t1 values (2, "Master t1 a=2 at X=10", 10, '111222');
 insert into t1 values (3, "Master t1 a=3 at X=10", 10, '111222333');
+insert into t1 values (4, "Master t1 a=4 at X=10", 10, '111222333');
 insert into t2 values (1, "Master t2 a=1 at c=10", 10, '111');
 insert into t2 values (2, "Master t2 a=2 at c=10", 10, '111222');
 insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
+insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
 commit;
 
 --echo *** slave - check conflict info, no conflicts yet
@@ -84,9 +87,11 @@ begin;
 update t1 set b="Slave t1 a=1 at X=12", X=12 where a=1 and d='111';
 update t1 set b="Slave t1 a=2 at X=12", X=12 where a=2 and d='111222';
 update t1 set b="Slave t1 a=3 at X=12", X=12 where a=3 and d='111222333';
+update t1 set b="Slave t1 a=4 at X=12", X=12 where a=4 and d='111222333';
 update t2 set b="Slave t2 a=1 at c=12", c=12 where a=1;
 update t2 set b="Slave t2 a=2 at c=12", c=12 where a=2;
 update t2 set b="Slave t2 a=3 at c=12", c=12 where a=3;
+update t2 set b="Slave t2 a=4 at c=12", c=12 where a=4;
 commit;
 
 --echo *** master - update some data to cause conflicts
@@ -95,9 +100,11 @@ begin;
 update t1 set b="Master t1 a=1 at X=11", X=11 where a=1 and d='111';
 update t1 set b="Master t1 a=2 at X=11", X=11 where a=2 and d='111222';
 update t1 set b="Master t1 a=3 at X=11", X=11 where a=3 and d='111222333';
+delete from t1 where a = 4;
 update t2 set b="Master t2 a=1 at c=11", c=11 where a=1;
 update t2 set b="Master t2 a=2 at c=11", c=11 where a=2;
 update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
+delete from t2 where a = 4;
 commit;
 
 --echo *** slave - check conflict info, there should be some
@@ -110,6 +117,7 @@ select * from t1 order by a, d;
 select * from t2 order by a, d;
 --echo *** slave - correct some data to correspond to the master
 update t1 set b="Slave t1 a=1 at X=11", X=11 where a=1 and d='111';
+delete from t1 where a = 4;
 
 --echo *** master - update some data, use higher timestamp
 --connection master

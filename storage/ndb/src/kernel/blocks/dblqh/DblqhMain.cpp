@@ -4022,8 +4022,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
      * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
      * --------------------------------------------------------------------- */
-    Int32 tmp = TdistKey - tfragDistKey;
-    tmp = (tmp < 0 ? - tmp : tmp);
+    Uint8 tmp = (TdistKey - tfragDistKey) & 255;
     if ((tmp <= 1) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0);
       return;
@@ -18146,23 +18145,9 @@ void Dblqh::initialiseLogFile(Signal* signal)
 /* ========================================================================= */
 void Dblqh::initialiseLogPage(Signal* signal) 
 {
-  if (clogPageFileSize != 0) {
-    for (logPagePtr.i = 0; logPagePtr.i < clogPageFileSize; logPagePtr.i++) {
-      refresh_watch_dog();
-      ptrAss(logPagePtr, logPageRecord);
-      logPagePtr.p->logPageWord[ZNEXT_PAGE] = logPagePtr.i + 1;
-      logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST]= 1;
-      logPagePtr.p->logPageWord[ZPOS_IN_WRITING]= 0;
-    }//for
-    logPagePtr.i = clogPageFileSize - 1;
-    ptrAss(logPagePtr, logPageRecord);
-    logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
-    cfirstfreeLogPage = 0;
-  } else {
-    jam();
-    cfirstfreeLogPage = RNIL;
-  }//if
-  cnoOfLogPages = clogPageFileSize;
+  /**
+   * Moved into initRecords()
+   */
 }//Dblqh::initialiseLogPage()
 
 /* ========================================================================= 

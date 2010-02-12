@@ -89,7 +89,7 @@ private:
 
   NdbMutex m_mutex;
 
-#define XX_RL_COUNT 4
+#define XX_RL_COUNT 6
   /**
    * Return pointer to free page data on page
    */

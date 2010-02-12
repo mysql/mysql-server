@@ -3146,22 +3146,30 @@ int
 ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 {
   DBUG_ENTER("ha_ndbcluster::set_auto_inc");
-  Ndb *ndb= get_ndb(thd);
   bool read_bit= bitmap_is_set(table->read_set, field->field_index);
   bitmap_set_bit(table->read_set, field->field_index);
   Uint64 next_val= (Uint64) field->val_int() + 1;
   if (!read_bit)
     bitmap_clear_bit(table->read_set, field->field_index);
+  DBUG_RETURN(set_auto_inc_val(thd, next_val));
+}
+
+inline
+int
+ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
+{
+  Ndb *ndb= get_ndb(thd);
+  DBUG_ENTER("ha_ndbcluster::set_auto_inc_val");
 #ifndef DBUG_OFF
   char buff[22];
   DBUG_PRINT("info", 
              ("Trying to set next auto increment value to %s",
-              llstr(next_val, buff)));
+              llstr(value, buff)));
 #endif
-  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, next_val))
+  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, value))
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+    if (ndb->setAutoIncrementValue(m_table, g.range, value, TRUE)
         == -1)
       ERR_RETURN(ndb->getNdbError());
   }
@@ -3819,15 +3827,16 @@ ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
                                       uchar *new_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(new_data, code);
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 
@@ -3837,9 +3846,9 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
                                      uchar *data,
                                      NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
+  case CFT_NDB_MAX_DEL_WIN:
     return row_conflict_fn_max(data, code);
   case CFT_NDB_OLD:
     /*
@@ -3850,6 +3859,7 @@ ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif
@@ -3859,7 +3869,6 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
                                       const uchar *old_data,
                                       NdbInterpretedCode *code)
 {
-  DBUG_ASSERT(cft == CFT_NDB_MAX || cft == CFT_NDB_OLD);
   switch (cft) {
   case CFT_NDB_MAX:
     /*
@@ -3868,11 +3877,23 @@ ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
       on the old data.
     */
     return row_conflict_fn_old(old_data, code);
+  case CFT_NDB_MAX_DEL_WIN:
+  {
+    /**
+     * let delete always win
+     */
+    int r = code->interpret_exit_ok();
+    DBUG_ASSERT(r == 0);
+    r = code->finalise();
+    DBUG_ASSERT(r == 0);
+    return r;
+  }
   case CFT_NDB_OLD:
     return row_conflict_fn_old(old_data, code);
   case CFT_NDB_UNDEF:
     abort();
   }
+  DBUG_ASSERT(false);
   return 1;
 }
 #endif /* HAVE_NDB_BINLOG */
@@ -6628,40 +6649,43 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
 
-  /*
-    Find any initial auto_increment value
-   */
-  for (uint i= 0; i < table->s->fields; i++) 
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    Field *field= table->field[i];
-    if (field->flags & AUTO_INCREMENT_FLAG)
+    /*
+      Find any initial auto_increment value
+    */
+    for (uint i= 0; i < table->s->fields; i++) 
     {
-      ulonglong auto_value;
-      uint retries= NDB_AUTO_INCREMENT_RETRIES;
-      int retry_sleep= 30; /* 30 milliseconds, transaction */
-      for (;;)
+      Field *field= table->field[i];
+      if (field->flags & AUTO_INCREMENT_FLAG)
       {
-        Ndb_tuple_id_range_guard g(m_share);
-        if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
+        ulonglong auto_value;
+        uint retries= NDB_AUTO_INCREMENT_RETRIES;
+        int retry_sleep= 30; /* 30 milliseconds, transaction */
+        for (;;)
         {
-          if (--retries && !thd->killed &&
-              ndb->getNdbError().status == NdbError::TemporaryError)
+          Ndb_tuple_id_range_guard g(m_share);
+          if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
           {
-            do_retry_sleep(retry_sleep);
-            continue;
+            if (--retries && !thd->killed &&
+                ndb->getNdbError().status == NdbError::TemporaryError)
+            {
+              do_retry_sleep(retry_sleep);
+              continue;
+            }
+            const NdbError err= ndb->getNdbError();
+            sql_print_error("Error %lu in ::update_create_info(): %s",
+                            (ulong) err.code, err.message);
+            DBUG_VOID_RETURN;
           }
-          const NdbError err= ndb->getNdbError();
-          sql_print_error("Error %lu in ::update_create_info(): %s",
-                          (ulong) err.code, err.message);
-          DBUG_VOID_RETURN;
+          break;
+        }
+        if (auto_value > 1)
+        {
+          create_info->auto_increment_value= auto_value;
         }
         break;
       }
-      if (auto_value > 1)
-      {
-        create_info->auto_increment_value= auto_value;
-      }
-      break;
     }
   }
 
@@ -12176,7 +12200,8 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_DROP_UNIQUE_INDEX |
     HA_ADD_COLUMN |
     HA_COLUMN_STORAGE |
-    HA_COLUMN_FORMAT;
+    HA_COLUMN_FORMAT |
+    HA_CHANGE_AUTOINCREMENT_VALUE;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -12356,20 +12381,26 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       ai=1;
   }
 
-  /* Check that auto_increment value was not changed */
-  if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-      create_info->auto_increment_value != 0)
+  if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
   {
-    DBUG_PRINT("info", ("Auto_increment value changed"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    /* Check that only auto_increment value was changed */
+    HA_ALTER_FLAGS change_auto_flags=
+      change_auto_flags | HA_CHANGE_AUTOINCREMENT_VALUE;
+    if ((*alter_flags & ~change_auto_flags).is_set())
+    {
+      DBUG_PRINT("info", ("Not only auto_increment value changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
   }
-
-  /* Check that row format didn't change */
-  if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-      get_row_type() != create_info->row_type)
+  else
   {
-    DBUG_PRINT("info", ("Row format changed"));
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    /* Check that row format didn't change */
+    if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+        get_row_type() != create_info->row_type)
+    {
+      DBUG_PRINT("info", ("Row format changed"));
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
   }
 
   DBUG_PRINT("info", ("Ndb supports ALTER on-line"));
@@ -12614,6 +12645,11 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
   DBUG_ASSERT(alter_data);
   error= alter_frm(thd, altered_table->s->path.str, alter_data);
+  if (!error &&
+      (*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
+  {
+    error= set_auto_inc_val(thd, create_info->auto_increment_value);
+  }
  err:
   if (error)
   {
@@ -12741,6 +12777,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       DBUG_PRINT("error", ("createTablespace returned %d", error));
       goto ndberror;
     }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnExtentRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Extent size rounded up to kernel page size");
+    }
     DBUG_PRINT("alter_info", ("Successfully created Tablespace"));
     errmsg= "DATAFILE";
     if (dict->createDatafile(ndb_df))
@@ -12756,6 +12799,21 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       
       DBUG_PRINT("error", ("createDatafile returned %d", error));
       goto ndberror2;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnDatafileRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Datafile size rounded up to extent size");
+    }
+    else /* produce only 1 message */
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnDatafileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Datafile size rounded down to extent size");
     }
     is_tablespace= 1;
     break;
@@ -12774,6 +12832,21 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       if (dict->createDatafile(ndb_df))
       {
 	goto ndberror;
+      }
+      if (dict->getWarningFlags() &
+          NdbDictionary::Dictionary::WarnDatafileRoundUp)
+      {
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            dict->getWarningFlags(),
+                            "Datafile size rounded up to extent size");
+      }
+      else /* produce only 1 message */
+      if (dict->getWarningFlags() &
+          NdbDictionary::Dictionary::WarnDatafileRoundDown)
+      {
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            dict->getWarningFlags(),
+                            "Datafile size rounded down to extent size");
       }
     }
     else if(alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_DROP_FILE)
@@ -12829,6 +12902,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     {
       goto ndberror;
     }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndobufferRoundUp)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undo buffer size rounded up to kernel page size");
+    }
     DBUG_PRINT("alter_info", ("Successfully created Logfile Group"));
     if (set_up_undofile(alter_info, &ndb_uf))
     {
@@ -12846,6 +12926,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
 	dict->dropLogfileGroup(tmp);
       }
       goto ndberror2;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndofileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undofile size rounded down to kernel page size");
     }
     break;
   }
@@ -12868,6 +12955,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->createUndofile(ndb_uf))
     {
       goto ndberror;
+    }
+    if (dict->getWarningFlags() &
+        NdbDictionary::Dictionary::WarnUndofileRoundDown)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          dict->getWarningFlags(),
+                          "Undofile size rounded down to kernel page size");
     }
     break;
   }
@@ -13055,6 +13149,54 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
+  }
+
+  NdbDictionary::Dictionary::List tslist;
+  dict->listObjects(tslist, NdbDictionary::Object::Tablespace);
+  ndberr= dict->getNdbError();
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
+
+  for (i= 0; i < tslist.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element&elt= tslist.elements[i];
+
+    NdbDictionary::Tablespace ts= dict->getTablespace(elt.name);
+    ndberr= dict->getNdbError();
+    if (ndberr.classification != NdbError::NoError)
+    {
+      if (ndberr.classification == NdbError::SchemaError)
+        continue;
+      ERR_RETURN(ndberr);
+    }
+
+    init_fill_schema_files_row(table);
+    table->field[IS_FILES_FILE_TYPE]->set_notnull();
+    table->field[IS_FILES_FILE_TYPE]->store("TABLESPACE", 10,
+                                            system_charset_info);
+
+    table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
+    table->field[IS_FILES_TABLESPACE_NAME]->store(elt.name,
+                                                     strlen(elt.name),
+                                                     system_charset_info);
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->
+      store(ts.getDefaultLogfileGroup(),
+           strlen(ts.getDefaultLogfileGroup()),
+           system_charset_info);
+
+    table->field[IS_FILES_ENGINE]->set_notnull();
+    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                         ndbcluster_hton_name_length,
+                                         system_charset_info);
+
+    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+
+    table->field[IS_FILES_VERSION]->set_notnull();
+    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion());
+
+    schema_table_store_record(thd, table);
   }
 
   NdbDictionary::Dictionary::List uflist;

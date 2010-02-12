@@ -798,6 +798,9 @@ Tsman::open_file(Signal* signal,
   lo = bytes & 0xFFFFFFFF;
   req->file_size_hi = hi;
   req->file_size_lo = lo;
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout << "DD tsman: file id:" << ptr.p->m_file_id << " datafile pages/bytes:" << data_pages << "/" << data_pages*File_formats::NDB_PAGE_SIZE << " extent pages:" << extent_pages << endl;
+#endif
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
@@ -1460,7 +1463,11 @@ Tsman::Tablespace::Tablespace(Tsman* ts, Lgman* lg,
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   
-  m_extent_size = DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);}
+  m_extent_size = DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:" << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE  << endl;
+#endif
+}
 
 Tsman::Datafile::Datafile(const struct CreateFileImplReq* req)
 {

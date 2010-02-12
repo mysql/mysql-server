@@ -6175,7 +6175,7 @@ master-ssl",
    "Specify number of autoincrement values that are prefetched.",
    (uchar**) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (uchar**) &max_system_variables.ndb_autoincrement_prefetch_sz,
-   0, GET_ULONG, REQUIRED_ARG, 1, 1, 256, 0, 0, 0},
+   0, GET_ULONG, REQUIRED_ARG, 1, 1, 65536, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",
