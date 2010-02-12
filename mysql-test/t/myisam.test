@@ -1184,6 +1184,20 @@ SELECT a FROM t1;
 CHECK TABLE t1;
 DROP TABLE t1; 
 
+
+--echo #
+--echo # Bug #49465: valgrind warnings and incorrect live checksum...
+--echo #
+CREATE TABLE t1(
+a VARCHAR(1), b VARCHAR(1), c VARCHAR(1),
+f VARCHAR(1), g VARCHAR(1), h VARCHAR(1),
+i VARCHAR(1), j VARCHAR(1), k VARCHAR(1)) CHECKSUM=1;
+INSERT INTO t1 VALUES('', '', '', '', '', '', '', '', '');
+CHECKSUM TABLE t1 QUICK;
+CHECKSUM TABLE t1 EXTENDED;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 

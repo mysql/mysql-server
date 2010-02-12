@@ -117,13 +117,13 @@ static void parse_option(const char *option_str,
   while (*ptr == '-')
     ++ptr;
 
-  strmake(option_name_buf, ptr, MAX_OPTION_LEN + 1);
+  strmake(option_name_buf, ptr, MAX_OPTION_LEN);
 
   eq_pos= strchr(ptr, '=');
   if (eq_pos)
   {
     option_name_buf[eq_pos - ptr]= 0;
-    strmake(option_value_buf, eq_pos + 1, MAX_OPTION_LEN + 1);
+    strmake(option_value_buf, eq_pos + 1, MAX_OPTION_LEN);
   }
   else
   {
