@@ -357,7 +357,6 @@ main(int argc, const char** argv){
         do_begin(ndb2, trans_arg);
       do
       {
-        ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	switch(pOp->getEventType())
 	{
 	case NdbDictionary::Event::TE_INSERT:
@@ -376,15 +375,20 @@ main(int argc, const char** argv){
             do_update(trans_arg, pOp);
 	  break;
 	case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_ALTER:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_DROP:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_NODE_FAILURE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	case NdbDictionary::Event::TE_SUBSCRIBE:
 	case NdbDictionary::Event::TE_UNSUBSCRIBE:
+          ndbout_c("Received event: %s", event_name(pOp->getEventType(), buf));
 	  break;
 	default:
 	  /* We should REALLY never get here. */

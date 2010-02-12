@@ -135,6 +135,7 @@ enum enum_conflict_fn_type
   CFT_NDB_UNDEF = 0
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
+  ,CFT_NDB_MAX_DEL_WIN
 };
 
 /* NdbOperation custom data which points out handler and record. */
@@ -671,6 +672,7 @@ private:
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
   int set_auto_inc(THD *thd, Field *field);
+  int set_auto_inc_val(THD *thd, Uint64 value);
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);

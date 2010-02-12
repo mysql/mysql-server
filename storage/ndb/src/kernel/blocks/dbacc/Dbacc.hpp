@@ -963,7 +963,6 @@ private:
   Page8Ptr slPageptr;
   Page8Ptr spPageptr;
   Uint32 cfirstfreepage;
-  Uint32 cfreepage;
   Uint32 cpagesize;
   Uint32 cnoOfAllocatedPages;
 /* --------------------------------------------------------------------------------- */
