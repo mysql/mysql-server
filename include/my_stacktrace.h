@@ -23,7 +23,7 @@
     (defined(__alpha__) && defined(__GNUC__))
 #define HAVE_STACKTRACE 1
 #endif
-#elif defined(__WIN__) || defined(__sun)
+#elif defined(__WIN__) || defined(HAVE_PRINTSTACK)
 #define HAVE_STACKTRACE 1
 #endif
 

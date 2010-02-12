@@ -544,5 +544,36 @@ SELECT count(*) FROM t1 WHERE
 
 DROP TABLE t1,t2,t3;
 
+#
+# BUG#50351 - ft_min_word_len=2 Causes query to hang
+#
+CREATE TABLE t1 (a VARCHAR(4), FULLTEXT(a));
+INSERT INTO t1 VALUES
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
+('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('awrd'),('cwrd'),
+('awrd');
+SELECT COUNT(*) FROM t1 WHERE MATCH(a) AGAINST("+awrd bwrd* +cwrd*" IN BOOLEAN MODE);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #49445: Assertion failed: 0, file .\item_row.cc, line 55 with 
+--echo #   fulltext search and row op
+--echo #
+
+CREATE TABLE t1(a CHAR(1),FULLTEXT(a));
+SELECT 1 FROM t1 WHERE MATCH(a) AGAINST ('') AND ROW(a,a) > ROW(1,1);
+DROP TABLE t1;
+
 
 --echo End of 5.1 tests
