@@ -2255,9 +2255,12 @@ int ha_maria::extra(enum ha_extra_function operation)
     extern_lock(F_UNLOCK) (which resets file->trn) followed by maria_close()
     without calling commit/rollback in between.  If file->trn is not set
     we can't remove file->share from the transaction list in the extra() call.
+
+    table->in_use is not set in the case this is a done as part of closefrm()
+    as part of drop table.
   */
 
-  if (!file->trn &&
+  if (file->s->now_transactional && !file->trn && table->in_use && 
       (operation == HA_EXTRA_PREPARE_FOR_DROP ||
        operation == HA_EXTRA_PREPARE_FOR_RENAME))
   {

@@ -430,8 +430,9 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
   if (share->bitmap.file.file >= 0)
   {
     if (flush_pagecache_blocks(share->pagecache, &share->bitmap.file,
-                               share->temporary ? FLUSH_IGNORE_CHANGED :
-                               FLUSH_RELEASE))
+                               ((share->temporary || share->deleting) ?
+                                FLUSH_IGNORE_CHANGED :
+                                FLUSH_RELEASE)))
       res= 1;
     /*
       File must be synced as it is going out of the maria_open_list and so

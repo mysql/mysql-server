@@ -5542,6 +5542,8 @@ sub usage ($) {
   if ( $message )
   {
     print STDERR "$message\n";
+    print STDERR "For full list of options, use $0 --help\n";
+    exit;      
   }
 
   print <<HERE;

@@ -1652,7 +1652,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 #define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
 #define RTFC_CHECK_KILLED_FLAG      0x0004
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
+                             uint flags, my_bool deleting);
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1

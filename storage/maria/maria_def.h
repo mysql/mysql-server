@@ -390,6 +390,7 @@ typedef struct st_maria_share
   my_bool now_transactional;
   my_bool have_versioning;
   my_bool key_del_used;                         /* != 0 if key_del is locked */
+  my_bool deleting;                     /* we are going to delete this table */
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);

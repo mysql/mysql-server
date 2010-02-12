@@ -609,7 +609,7 @@ AC_CHECK_TOOL([NM], [nm])
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a | grep _nss_files_getaliasent_r1`
+  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a 2>&1 | grep _nss_files_getaliasent_r1`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"

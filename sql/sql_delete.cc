@@ -1088,6 +1088,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN + 1];
   TABLE *table;
+  TABLE_LIST *tbl;
   bool error;
   uint path_length;
   bool is_temporary_table= false;
@@ -1107,6 +1108,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
+
+    for (tbl= table_list; tbl; tbl= tbl->next_local)
+      tbl->deleting= TRUE; /* to trigger HA_PREPARE_FOR_DROP */
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 

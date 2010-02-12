@@ -600,6 +600,7 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/**< Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
+const char *opt_thread_handling= thread_handling_typelib.type_names[0];
 
 /** name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -7321,7 +7322,8 @@ The minimum value for this variable is 4096.",
    1024, 0},
   {"thread_handling", OPT_THREAD_HANDLING,
    "Define threads usage for handling queries:  "
-   "one-thread-per-connection or no-threads", 0, 0,
+   "one-thread-per-connection or no-threads",
+   (uchar**) &opt_thread_handling, (uchar**) &opt_thread_handling,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,
    "1 = YES = Don't issue an error message (warning only) if a VIEW without presence of a key of the underlying table is used in queries with a LIMIT clause for updating. 0 = NO = Prohibit update of a VIEW, which does not contain a key of the underlying table and the query uses a LIMIT clause (usually get from GUI tools).",
@@ -8004,7 +8006,13 @@ static int mysql_init_variables(void)
   refresh_version= 1L;	/* Increments on each reload */
   global_query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
-  myisam_recover_options_str= sql_mode_str= "OFF";
+  sql_mode_str= "";
+
+  /* By default, auto-repair MyISAM tables after crash */
+  myisam_recover_options_str= "DEFAULT";
+  myisam_recover_options=     HA_RECOVER_DEFAULT;
+  ha_open_options|= HA_OPEN_ABORT_IF_CRASHED;
+
   myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
@@ -8659,26 +8667,31 @@ mysqld_get_one_option(int optid,
 #endif
   case OPT_MYISAM_RECOVER:
   {
-    if (!argument)
-    {
-      myisam_recover_options=    HA_RECOVER_DEFAULT;
-      myisam_recover_options_str= myisam_recover_typelib.type_names[0];
-    }
-    else if (!argument[0])
+    if (argument && (!argument[0] ||
+                     my_strcasecmp(system_charset_info, argument, "OFF") == 0))
     {
       myisam_recover_options= HA_RECOVER_NONE;
       myisam_recover_options_str= "OFF";
+      ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
     }
     else
     {
-      myisam_recover_options_str=argument;
-      myisam_recover_options=
-        find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name,
-                              &error);
-      if (error)
-        return 1;
+      if (!argument)
+      {
+        myisam_recover_options=     HA_RECOVER_DEFAULT;
+        myisam_recover_options_str= myisam_recover_typelib.type_names[0];
+      }
+      else
+      {
+        myisam_recover_options_str=argument;
+        myisam_recover_options=
+          find_bit_type_or_exit(argument, &myisam_recover_typelib, opt->name,
+                                &error);
+        if (error)
+          return 1;
+      }
+      ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     }
-    ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
   }
   case OPT_CONCURRENT_INSERT:
@@ -8753,14 +8766,15 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling=
-      SCHEDULER_ONE_THREAD_PER_CONNECTION;
+    global_system_variables.thread_handling= SCHEDULER_NO_THREADS;
+    opt_thread_handling= thread_handling_typelib.type_names[global_system_variables.thread_handling];
     break;
   case OPT_THREAD_HANDLING:
   {
     int id;
     if (!find_opt_type(argument, &thread_handling_typelib, opt->name, &id))
       global_system_variables.thread_handling= id - 1;
+    opt_thread_handling= thread_handling_typelib.type_names[global_system_variables.thread_handling];
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
