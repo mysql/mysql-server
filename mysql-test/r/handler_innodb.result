@@ -788,12 +788,10 @@ handler t1 open;
 handler t2 open;
 handler t3 open;
 #
-# LOCK TABLES implicitly closes all handlers.
+# No HANDLER sql is allowed under LOCK TABLES.
+# But it does not implicitly closes all handlers.
 #
-lock table t3 read;
-#
-# No HANDLER sql is available under lock tables anyway.
-#
+lock table t1 read;
 handler t1 open;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 handler t1 read next;
@@ -802,18 +800,24 @@ handler t2 close;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 handler t3 open;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-# After UNLOCK TABLES no handlers are around, they were
-# implicitly closed.
+# After UNLOCK TABLES handlers should be around and
+# we should be able to continue reading through them.
 unlock tables;
-drop temporary table t3;
 handler t1 read next;
-ERROR 42S02: Unknown table 't1' in HANDLER
+a
+1
+handler t1 close;
+handler t2 read next;
+a
+1
 handler t2 close;
-ERROR 42S02: Unknown table 't2' in HANDLER
 handler t3 read next;
-ERROR 42S02: Unknown table 't3' in HANDLER
+a
+1
+handler t3 close;
+drop temporary table t3;
 #
-# Other operations also implicitly close handler:
+# Other operations that implicitly close handler:
 #
 # TRUNCATE
 #
@@ -923,6 +927,104 @@ NULL	5
 handler t1 close;
 unlock tables;
 #
+# Let us also check that these operations behave in similar
+# way under LOCK TABLES.
+#
+# TRUNCATE under LOCK TABLES.
+#
+handler t1 open;
+lock tables t1 write;
+truncate table t1;
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+handler t1 open;
+#
+# CREATE TRIGGER under LOCK TABLES.
+#
+lock tables t1 write;
+create trigger t1_ai after insert on t1 for each row set @a=1;
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# DROP TRIGGER under LOCK TABLES.
+#
+handler t1 open;
+lock tables t1 write;
+drop trigger t1_ai;
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# ALTER TABLE under LOCK TABLES.
+# 
+handler t1 open;
+lock tables t1 write;
+alter table t1 drop column b;
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# ANALYZE TABLE under LOCK TABLES.
+# 
+handler t1 open;
+lock tables t1 write;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# OPTIMIZE TABLE under LOCK TABLES.
+# 
+handler t1 open;
+lock tables t1 write;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# REPAIR TABLE under LOCK TABLES.
+# 
+handler t1 open;
+lock tables t1 write;
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+#
+# DROP TABLE under LOCK TABLES, naturally.
+# 
+handler t1 open;
+lock tables t1 write;
+drop table t1;
+unlock tables;
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+create table t1 (a int, b int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+#
+# FLUSH TABLE doesn't close the table but loses the position
+# 
+handler t1 open;
+handler t1 read a prev;
+a	b
+5	NULL
+lock tables t1 write;
+flush table t1;
+unlock tables;
+handler t1 read a prev;
+a	b
+5	NULL
+handler t1 close;
+#
 # Explore the effect of HANDLER locks on concurrent DDL
 #
 handler t1 open;
@@ -936,11 +1038,11 @@ drop table t1 ;
 # Waitng for 'drop table t1' to get blocked...
 # --> connection default
 handler t1 read a prev;
-b	a
-NULL	5
+a	b
+5	NULL
 handler t1 read a prev;
-b	a
-NULL	4
+a	b
+4	NULL
 handler t1 close;
 # --> connection con1
 # Reaping 'drop table t1'...
@@ -1383,6 +1485,10 @@ ERROR 42S02: Table 'test.not_exists_write' doesn't exist
 # We still have the read lock.
 drop table t1;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
+handler t1 read next;
+a	b
+1	1
+handler t1 close;
 handler t1 open;
 select a from t2;
 a
@@ -1489,3 +1595,75 @@ table_name	table_comment
 t1	
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+#
+# Test for bug #50908 "Assertion `handler_tables_hash.records == 0'
+#                      failed in enter_locked_tables_mode".
+#
+drop tables if exists t1, t2;
+drop function if exists f1;
+create table t1 (i int);
+insert into t1 values (1), (2);
+create table t2 (j int);
+insert into t2 values (1);
+create function f1() returns int return (select count(*) from t2);
+# Check that open HANDLER survives statement executed in
+# prelocked mode.
+handler t1 open;
+handler t1 read next;
+i
+1
+# The below statement were aborted due to an assertion failure.
+select f1() from t2;
+f1()
+1
+handler t1 read next;
+i
+2
+handler t1 close;
+# Check that the same happens under GLOBAL READ LOCK.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+i
+1
+select f1() from t2;
+f1()
+1
+handler t1 read next;
+i
+2
+unlock tables;
+handler t1 close;
+# Now, check that the same happens if LOCK TABLES is executed.
+handler t1 open;
+handler t1 read next;
+i
+1
+lock table t2 read;
+select * from t2;
+j
+1
+unlock tables;
+handler t1 read next;
+i
+2
+handler t1 close;
+# Finally, check scenario with GRL and LOCK TABLES.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+i
+1
+lock table t2 read;
+select * from t2;
+j
+1
+# This unlocks both tables and GRL.
+unlock tables;
+handler t1 read next;
+i
+2
+handler t1 close;
+# Clean-up.
+drop function f1;
+drop tables t1, t2;

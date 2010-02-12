@@ -804,12 +804,10 @@ handler t1 open;
 handler t2 open;
 handler t3 open;
 --echo #
---echo # LOCK TABLES implicitly closes all handlers.
+--echo # No HANDLER sql is allowed under LOCK TABLES.
+--echo # But it does not implicitly closes all handlers.
 --echo #
-lock table t3 read;
---echo #
---echo # No HANDLER sql is available under lock tables anyway.
---echo #
+lock table t1 read;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t1 open;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
@@ -818,18 +816,18 @@ handler t1 read next;
 handler t2 close;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t3 open;
---echo # After UNLOCK TABLES no handlers are around, they were
---echo # implicitly closed.
+--echo # After UNLOCK TABLES handlers should be around and
+--echo # we should be able to continue reading through them.
 unlock tables;
-drop temporary table t3;
---error ER_UNKNOWN_TABLE
 handler t1 read next;
---error ER_UNKNOWN_TABLE
+handler t1 close;
+handler t2 read next;
 handler t2 close;
---error ER_UNKNOWN_TABLE
 handler t3 read next;
+handler t3 close;
+drop temporary table t3;
 --echo #
---echo # Other operations also implicitly close handler:
+--echo # Other operations that implicitly close handler:
 --echo #
 --echo # TRUNCATE
 --echo #
@@ -921,6 +919,93 @@ flush tables with read lock;
 handler t1 read a prev;
 handler t1 close;
 unlock tables;
+--echo #
+--echo # Let us also check that these operations behave in similar
+--echo # way under LOCK TABLES.
+--echo #
+--echo # TRUNCATE under LOCK TABLES.
+--echo #
+handler t1 open;
+lock tables t1 write;
+truncate table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+handler t1 open;
+--echo #
+--echo # CREATE TRIGGER under LOCK TABLES.
+--echo #
+lock tables t1 write;
+create trigger t1_ai after insert on t1 for each row set @a=1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TRIGGER under LOCK TABLES.
+--echo #
+handler t1 open;
+lock tables t1 write;
+drop trigger t1_ai;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ALTER TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+alter table t1 drop column b;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ANALYZE TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+analyze table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # OPTIMIZE TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+optimize table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # REPAIR TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+repair table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TABLE under LOCK TABLES, naturally.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+drop table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+create table t1 (a int, b int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+--echo #
+--echo # FLUSH TABLE doesn't close the table but loses the position
+--echo # 
+handler t1 open;
+handler t1 read a prev;
+lock tables t1 write;
+flush table t1;
+unlock tables;
+handler t1 read a prev;
+handler t1 close;
 --echo #
 --echo # Explore the effect of HANDLER locks on concurrent DDL
 --echo #
@@ -1433,6 +1518,8 @@ lock table not_exists_write read;
 --echo # We still have the read lock.
 --error ER_CANT_UPDATE_WITH_READLOCK
 drop table t1;
+handler t1 read next;
+handler t1 close;
 handler t1 open;
 select a from t2;
 handler t1 read next;
@@ -1542,3 +1629,55 @@ SELECT table_name, table_comment FROM information_schema.tables
 
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #50908 "Assertion `handler_tables_hash.records == 0'
+--echo #                      failed in enter_locked_tables_mode".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+drop function if exists f1;
+--enable_warnings
+create table t1 (i int);
+insert into t1 values (1), (2);
+create table t2 (j int);
+insert into t2 values (1);
+create function f1() returns int return (select count(*) from t2);
+--echo # Check that open HANDLER survives statement executed in
+--echo # prelocked mode.
+handler t1 open;
+handler t1 read next;
+--echo # The below statement were aborted due to an assertion failure.
+select f1() from t2;
+handler t1 read next;
+handler t1 close;
+--echo # Check that the same happens under GLOBAL READ LOCK.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+select f1() from t2;
+handler t1 read next;
+unlock tables;
+handler t1 close;
+--echo # Now, check that the same happens if LOCK TABLES is executed.
+handler t1 open;
+handler t1 read next;
+lock table t2 read;
+select * from t2;
+unlock tables;
+handler t1 read next;
+handler t1 close;
+--echo # Finally, check scenario with GRL and LOCK TABLES.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+lock table t2 read;
+select * from t2;
+--echo # This unlocks both tables and GRL.
+unlock tables;
+handler t1 read next;
+handler t1 close;
+--echo # Clean-up.
+drop function f1;
+drop tables t1, t2;
