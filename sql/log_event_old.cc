@@ -107,14 +107,24 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                             ptr->table, &conv_table))
         {
+          DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
+                               ptr->table->s->db.str,
+                               ptr->table->s->table_name.str));
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+                             " - conv_table: %p",
+                             ptr->table->s->db.str,
+                             ptr->table->s->table_name.str, conv_table));
+        ptr->m_conv_table= conv_table;
       }
     }
 
@@ -1578,7 +1588,9 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                            ptr->table, &conv_table))
         {
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
@@ -1586,12 +1598,14 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+        ptr->m_conv_table= conv_table;
       }
     }
 
     /*
-      ... and then we add all the tables to the table map and remove
-      them from tables to lock.
+      ... and then we add all the tables to the table map but keep
+      them in the tables to lock list.
+
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
