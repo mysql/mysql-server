@@ -1656,9 +1656,9 @@ void log_slow_statement(THD *thd)
 
   /*
     Do not log administrative statements unless the appropriate option is
-    set; do not log into slow log if reading from backup.
+    set.
   */
-  if (thd->enable_slow_log && !thd->user_time)
+  if (thd->enable_slow_log)
   {
     ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
@@ -3352,9 +3352,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->options |
+			(select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->is_error();
       if (res)
@@ -3988,7 +3988,7 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        if (res= write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
           break;
       }
       my_ok(thd);

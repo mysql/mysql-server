@@ -355,6 +355,9 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     */
     if (!(azopen(&archive_tmp, share->data_file_name, O_RDONLY|O_BINARY)))
     {
+      *rc= my_errno ? my_errno : -1;
+      pthread_mutex_unlock(&archive_mutex);
+      my_free(share, MYF(0));
       DBUG_RETURN(NULL);
     }
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
@@ -504,16 +507,18 @@ int ha_archive::open(const char *name, int mode, uint open_options)
     For now we have to refuse to open such table to avoid
     potential data loss.
   */
-  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
-      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
+  switch (rc)
   {
-    /* purecov: begin inspected */
+  case 0:
+    break;
+  case HA_ERR_CRASHED_ON_USAGE:
+    if (open_options & HA_OPEN_FOR_REPAIR)
+      break;
+    /* fall through */
+  case HA_ERR_TABLE_NEEDS_UPGRADE:
     free_share();
-    DBUG_RETURN(rc);
-    /* purecov: end */    
-  }
-  else if (rc == HA_ERR_OUT_OF_MEM)
-  {
+    /* fall through */
+  default:
     DBUG_RETURN(rc);
   }
 
