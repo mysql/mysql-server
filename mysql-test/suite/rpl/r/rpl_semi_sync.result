@@ -120,8 +120,27 @@ min(a)
 select max(a) from t1;
 max(a)
 300
+
+# BUG#50157
+# semi-sync replication crashes when replicating a transaction which
+# include 'CREATE TEMPORARY TABLE `MyISAM_t` SELECT * FROM `Innodb_t` ;
+[ on master ]
+SET SESSION AUTOCOMMIT= 0;
+CREATE TABLE t2(c1 INT) ENGINE=innodb;
+BEGIN;
+
+# Even though it is in a transaction, this statement is binlogged into binlog
+# file immediately.
+CREATE TEMPORARY TABLE t3 SELECT c1 FROM t2 where 1=1;
+
+# These statements will not be binlogged until the transaction is committed
+INSERT INTO t2 VALUES(11);
+INSERT INTO t2 VALUES(22);
+COMMIT;
+DROP TABLE t2, t3;
+SET SESSION AUTOCOMMIT= 1;
 #
-# Test semi-sync master will switch OFF after one transacton
+# Test semi-sync master will switch OFF after one transaction
 # timeout waiting for slave reply.
 #
 include/stop_slave.inc
@@ -135,7 +154,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	301
+Rpl_semi_sync_master_yes_tx	304
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -150,7 +169,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	301
+Rpl_semi_sync_master_yes_tx	304
 insert into t1 values (100);
 [ master status should be OFF ]
 show status like 'Rpl_semi_sync_master_status';
@@ -161,7 +180,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	301
+Rpl_semi_sync_master_yes_tx	304
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
@@ -194,7 +213,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	301
+Rpl_semi_sync_master_yes_tx	304
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -213,7 +232,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	302
+Rpl_semi_sync_master_yes_tx	305
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 [ Semi-sync master status variables after FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
