@@ -837,3 +837,27 @@ void mysql_ha_cleanup(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Move tickets for metadata locks corresponding to open HANDLERs
+  after transaction sentinel in order to protect them from being
+  released at the end of transaction.
+
+  @param thd Thread identifier.
+*/
+
+void mysql_ha_move_tickets_after_trans_sentinel(THD *thd)
+{
+  TABLE_LIST *hash_tables;
+  DBUG_ENTER("mysql_ha_move_tickets_after_trans_sentinel");
+
+  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  {
+    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    if (hash_tables->table && hash_tables->table->mdl_ticket)
+      thd->mdl_context.
+             move_ticket_after_trans_sentinel(hash_tables->table->mdl_ticket);
+  }
+  DBUG_VOID_RETURN;
+}
+
