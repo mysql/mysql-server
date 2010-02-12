@@ -835,15 +835,12 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
   m_pushed_join= new ha_pushed_join(plan, pushed_joins, fld_refs, referred_fields, query_def);
 
-  for (uint i= 0; i < plan.get_access_count(); i++)
+  for (uint i = 0; i < push_cnt; i++)
   {
-    const AQP::Table_access* const join_tab= plan.get_table_access(i);
-    if (pushed_joins.contains(join_tab))
-    {
-      ha_ndbcluster* const handler=
-        static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
-      handler->m_pushed_join_member= this;
-    }
+    const TABLE* const tab= m_pushed_join->get_table(i);
+    DBUG_ASSERT(tab->file->ht == ht);
+    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+    handler->m_pushed_join_member= this;
   }
 
   DBUG_RETURN(push_cnt);
@@ -3659,7 +3656,7 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
     for (uint i= 1; i<m_pushed_join->get_join_count(); i++)
     {
       m_pushed_join->get_table(i)->status= STATUS_GARBAGE;
-   }
+    }
   }
   else if (result == NdbQuery::NextResult_scanComplete)
   {
@@ -3687,7 +3684,6 @@ ha_ndbcluster::read_pushed_next(uchar *buf)
   {
     table->status= STATUS_NOT_FOUND;
   }
-
   return 0;
 }
 
@@ -3829,6 +3825,12 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   DBUG_ASSERT(m_thd_ndb->trans);
   DBUG_ASSERT(idx < MAX_KEY);
 
+  if (m_active_query)
+  {
+    m_active_query->close(FALSE);
+    m_active_query= NULL;
+  }
+
   if (table_share->primary_key == MAX_KEY)
   {
     get_hidden_fields_keyop(&options, gets);
@@ -3866,10 +3868,12 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     paramValues[key_def->key_parts+i]= field->ptr;
   }
 
+  DBUG_ASSERT(m_active_query==NULL);
   NdbQuery* const query= 
     m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
   if (unlikely(!query))
     DBUG_RETURN(NULL);
+  m_active_query= query;
 
   for (uint i = 0; i < m_pushed_join->get_join_count(); i++)
   {
@@ -3893,7 +3897,6 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     return NULL;
 #endif
 
-//m_active_query = query;
   DBUG_RETURN(query);
 }
 
@@ -4055,6 +4058,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       paramValues[i]= field->ptr;
     }
 
+    DBUG_ASSERT(m_active_query==NULL);
     NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
@@ -4280,6 +4284,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       paramValues[i]= field->ptr;
     }
 
+    DBUG_ASSERT(m_active_query==NULL);
     NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
@@ -5925,7 +5930,10 @@ int ha_ndbcluster::index_init(uint index, bool sorted)
 int ha_ndbcluster::index_end()
 {
   DBUG_ENTER("ha_ndbcluster::index_end");
-  DBUG_RETURN(close_scan());
+  if (m_pushed_join)
+    DBUG_RETURN(0); // Pushed join may have unread child results
+  else
+    DBUG_RETURN(close_scan());
 }
 
 /**
@@ -6204,7 +6212,10 @@ int ha_ndbcluster::close_scan()
 int ha_ndbcluster::rnd_end()
 {
   DBUG_ENTER("rnd_end");
-  DBUG_RETURN(close_scan());
+  if (m_pushed_join)
+    DBUG_RETURN(0); // Pushed join may have unread child results
+  else
+    DBUG_RETURN(close_scan());
 }
 
 
@@ -6577,6 +6588,7 @@ int ha_ndbcluster::reset()
   {
     m_cond->cond_clear();
   }
+  DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join)
   {
     delete m_pushed_join;
@@ -9453,6 +9465,7 @@ ha_ndbcluster::~ha_ndbcluster()
     m_cond= NULL;
   }
   DBUG_PRINT("info", ("Deleting pushed joins"));
+  DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join)
   {
     delete m_pushed_join;
@@ -9460,7 +9473,6 @@ ha_ndbcluster::~ha_ndbcluster()
   }
   DBUG_VOID_RETURN;
 }
-
 
 
 void
@@ -12308,7 +12320,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
 
-  DBUG_ASSERT(!m_active_query);
+  DBUG_ASSERT(m_active_query == NULL);;
   m_active_query= 0;
   m_multi_cursor= 0;
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
@@ -12415,6 +12427,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             paramValues[i]= field->ptr;
           }
 
+          DBUG_ASSERT(m_active_query==NULL);
           NdbQuery* const query= 
             trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
 

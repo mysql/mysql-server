@@ -164,8 +164,7 @@ public:
    *  - Is a lookup query which has been executed. (single row fetched)
    */
   bool hasCompleted() const
-  { return m_state >= Closed ||
-           (!m_queryDef.isScanQuery() && m_state >= Executing); 
+  { return (m_state >= Closed); 
   }
   
 private:
