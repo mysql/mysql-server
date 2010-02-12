@@ -3241,7 +3241,7 @@ int ha_tokudb::write_row(uchar * record) {
         if (error) { goto cleanup; }
     }
 
-    if (curr_num_DBs == 1 || share->version <= 2) {
+    if (curr_num_DBs == 1) {
         error = insert_rows_to_dictionaries(record,&prim_key, &row, txn);
         if (error) { goto cleanup; }
     }
@@ -3320,7 +3320,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     DBT key_dbts[MAX_KEY + 1];
     DBT rec_dbts[MAX_KEY + 1];
     u_int32_t curr_db_index;
-    bool use_put_multiple = share->version > 2;
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     LINT_INIT(error);
@@ -3365,7 +3364,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
         if (error) {
             goto cleanup;
         }
-    }    
+    }
     txn = using_ignore ? sub_trans : transaction;
 
 
@@ -3397,20 +3396,11 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (error) { goto cleanup; }
 
 
-    if (use_put_multiple) {
-        dbs[0] = share->key_file[primary_key];
-        key_dbts[0] = prim_key;
-        rec_dbts[0] = prim_row;
-        mult_put_flags[0] = primary_key_changed ? DB_NOOVERWRITE : DB_YESOVERWRITE;
-    }
-    else {
-        u_int32_t put_flags = primary_key_changed ? DB_NOOVERWRITE : DB_YESOVERWRITE;
-        error = share->file->put(share->file, txn, &prim_key, &prim_row, put_flags);
-        if (error) { 
-            last_dup_key = primary_key;
-            goto cleanup; 
-        }
-    }
+    dbs[0] = share->key_file[primary_key];
+    key_dbts[0] = prim_key;
+    rec_dbts[0] = prim_row;
+    mult_put_flags[0] = primary_key_changed ? DB_NOOVERWRITE : DB_YESOVERWRITE;
+
     curr_db_index = 1;
     // Update all other keys
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
@@ -3452,67 +3442,28 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
                 }
             }
 
-            if (!use_put_multiple) {
-                u_int32_t put_flags;
-                put_flags = DB_YESOVERWRITE;
-                create_dbt_key_from_table(&key, keynr, key_buff2, new_row, &has_null);
-
-                if (table->key_info[keynr].flags & HA_CLUSTERING) {
-                    error = pack_row(&row, (const uchar *) new_row, keynr);
-                    if (error){ goto cleanup; }
-                }
-                else {
-                    bzero((void *) &row, sizeof(row));
-                }
-                //
-                // make sure that for clustering keys, we are using DB_YESOVERWRITE,
-                // therefore making this put an overwrite if the key has not changed
-                //
-                lockretryN(wait_lock_time){
-                    error = share->key_file[keynr]->put(
-                        share->key_file[keynr], 
-                        txn,
-                        &key,
-                        &row, 
-                        put_flags
-                        );
-                    lockretry_wait;
-                }
-                //
-                // We break if we hit an error, unless it is a dup key error
-                // and MySQL told us to ignore duplicate key errors
-                //
-                if (error) {
-                    last_dup_key = keynr;
-                    goto cleanup;
-                }
-            }
-            else {
-                dbs[curr_db_index] = share->key_file[keynr];
-                key_dbts[curr_db_index] = mult_key_dbt[keynr];
-                rec_dbts[curr_db_index] = mult_rec_dbt[keynr];
-                curr_db_index++;
-            }
+            dbs[curr_db_index] = share->key_file[keynr];
+            key_dbts[curr_db_index] = mult_key_dbt[keynr];
+            rec_dbts[curr_db_index] = mult_rec_dbt[keynr];
+            curr_db_index++;
         }
     }
 
-    if (use_put_multiple) {
-        lockretryN(wait_lock_time){
-            error = db_env->put_multiple(
-                db_env, 
-                NULL, 
-                txn, 
-                &prim_key, 
-                &prim_row,
-                curr_db_index, 
-                dbs, 
-                key_dbts,
-                rec_dbts,
-                mult_put_flags, 
-                NULL
-                );
-            lockretry_wait;
-        }
+    lockretryN(wait_lock_time){
+        error = db_env->put_multiple(
+            db_env, 
+            NULL, 
+            txn, 
+            &prim_key, 
+            &prim_row,
+            curr_db_index, 
+            dbs, 
+            key_dbts,
+            rec_dbts,
+            mult_put_flags, 
+            NULL
+            );
+        lockretry_wait;
     }
     if (!error) {
         trx->stmt_progress.updated++;
