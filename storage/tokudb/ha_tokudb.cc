@@ -3008,7 +3008,7 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
+int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
     int error;
     DBT row, key;
     u_int32_t put_flags;
@@ -3017,16 +3017,12 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
+    assert(curr_num_DBs == 1);
+    
     is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
         (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
-    //
-    // first the primary key (because it must be unique, has highest chance of failure)
-    //
     put_flags = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace_into) {
-        put_flags = DB_YESOVERWRITE;
-    }
     //
     // optimization for "REPLACE INTO..." command
     // if the command is "REPLACE INTO" and the only table
@@ -3037,10 +3033,9 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
     // to do. We cannot do this if curr_num_DBs > 1, because then we lose
     // consistency between indexes
     //
-    if (is_replace_into && (curr_num_DBs == 1)) {
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) || is_replace_into) {
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
-    }
- 
+    } 
 
     lockretryN(wait_lock_time){
         error = share->file->put(
@@ -3056,48 +3051,6 @@ int ha_tokudb::insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_v
     if (error) {
         last_dup_key = primary_key;
         goto cleanup;
-    }
-
-    //
-    // now insertion for rest of indexes
-    //
-    for (uint keynr = 0; keynr < table_share->keys; keynr++) {
-        bool has_null;
-        
-        if (keynr == primary_key) {
-            continue;
-        }
-
-        create_dbt_key_from_table(&key, keynr, mult_key_buff[keynr], record, &has_null); 
-
-        put_flags = DB_YESOVERWRITE;
-
-        if (table->key_info[keynr].flags & HA_CLUSTERING) {
-            error = pack_row(&row, (const uchar *) record, keynr);
-            if (error) { goto cleanup; }
-        }
-        else {
-            bzero((void *) &row, sizeof(row));
-        }
-
-        lockretryN(wait_lock_time){
-            error = share->key_file[keynr]->put(
-                share->key_file[keynr], 
-                txn,
-                &key,
-                &row,
-                put_flags
-                );
-            lockretry_wait;
-        }
-        //
-        // We break if we hit an error, unless it is a dup key error
-        // and MySQL told us to ignore duplicate key errors
-        //
-        if (error) {
-            last_dup_key = keynr;
-            goto cleanup;
-        }
     }
 
 cleanup:
@@ -3164,6 +3117,9 @@ int ha_tokudb::write_row(uchar * record) {
     DB_TXN* txn = NULL;
     tokudb_trx_data *trx = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    bool create_sub_trans = false;
+    bool is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
+        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
     //
     // some crap that needs to be done because MySQL does not properly abstract
@@ -3219,14 +3175,15 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    if (using_ignore) {
+    create_sub_trans = (using_ignore && !(is_replace_into && curr_num_DBs == 1));
+    if (create_sub_trans) {
         error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
             goto cleanup;
         }
     }
     
-    txn = using_ignore ? sub_trans : transaction;    
+    txn = create_sub_trans ? sub_trans : transaction;    
 
     //
     // make sure the buffers for the rows are big enough
@@ -3242,7 +3199,7 @@ int ha_tokudb::write_row(uchar * record) {
     }
 
     if (curr_num_DBs == 1) {
-        error = insert_rows_to_dictionaries(record,&prim_key, &row, txn);
+        error = insert_row_to_main_dictionary(record,&prim_key, &row, txn);
         if (error) { goto cleanup; }
     }
     else {
