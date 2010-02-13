@@ -104,7 +104,7 @@ JAVA_DEFAULT32 = java -d32
 NDBJTIE_O = "$(NDBJTIE)/.libs/ndbjtie_lib.o"
 RUN_CLASSPATH0 = "$(NDBJTIE_TEST_JAR):$(NDBJTIE_JAR)"
 JAVA_CLASSPATH0 = -classpath "\"$(RUN_CLASSPATH0)\""
-JAVA_LIBPATH0 = -Djava.library.path="\"../src/.libs\""
+JAVA_LIBPATH0 = -Djava.library.path="\"../../.libs\""
 #JAVA_LIBPATH0 = -Djava.library.path="\"$(ndblibdir)\""
 
 ## dependencies
@@ -119,7 +119,7 @@ JAVA_LIBPATH1 = $(JAVA_LIBPATH0)
 # test uninstalled jars and libraries as a pre-install sanity test
 RUN_CLASSPATH2 = "$(NDBJTIE_TEST_JAR):$(MYJAPI_JAR):$(NDBJTIE_JAR)"
 JAVA_CLASSPATH2 = -classpath "\"$(RUN_CLASSPATH2)\""
-JAVA_LIBPATH2 = -Djava.library.path="\"$(MYJAPI)/.libs:../src/.libs\""
+JAVA_LIBPATH2 = -Djava.library.path="\"$(MYJAPI)/.libs:../../.libs\""
 
 ## dependencies
 # test uninstalled jars and libraries as a pre-install sanity test
