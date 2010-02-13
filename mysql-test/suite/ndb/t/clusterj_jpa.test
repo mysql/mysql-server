@@ -24,7 +24,7 @@
 --let JAVA_CLASSPATH_4=$NDBJTIE_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
---let JAVA_JVM_OPTS_1= -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_JVM_OPTS_1= -Djava.library.path="$NDBCLIENT_LIB_DIR"
 --let JAVA_JVM_OPTS_2= -Dopenjpa.ConnectionDriverName="com.mysql.jdbc.Driver"
 --let JAVA_JVM_OPTS_3= -Dopenjpa.ConnectionURL="jdbc:mysql://localhost:$MASTER_MYPORT/test?user=root"
 --let JAVA_JVM_OPTS_4= -Dopenjpa.ndb.connectString="$NDB_CONNECTSTRING"

@@ -14,7 +14,7 @@
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni
 --let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
---let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR"
 --let JAVA_CLASS= testsuite.clusterj.AllTests
 --let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 

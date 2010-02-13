@@ -22,18 +22,13 @@ my $basedir = dirname($mysql_test_dir);
 #
 #my $ver = $ENV{MYSQL_SERVER_VERSION};
 my $ndbjtie_jar = my_find_file($basedir,
-                            ["storage/ndb/ndbjtie/src", "share/mysql/java"],
+                            ["storage/ndb/src/ndbjtie", "share/mysql/java"],
                             "ndbjtie.jar", NOT_REQUIRED);
 
 my $ndbclient_lib = my_find_file($basedir,
                                 ["storage/ndb/src/.libs", "lib/mysql"],
                                 ["libndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
                                 NOT_REQUIRED);
-
-my $ndbjtie_lib = my_find_file($basedir,
-                               ["storage/ndb/ndbjtie/src/.libs", "lib/mysql"],
-                               ["libndbjtie.dll", "libndbjtie.so", "libndbjtie.dylib"],
-                               NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_ndbjtie_result.inc", "w") or die;
 if ($ndbjtie_jar) {
@@ -45,13 +40,11 @@ if ($ndbjtie_jar) {
   print $F "skip Could not find ndbjtie jar file\n";
 }
 
-if ($ndbjtie_lib && $ndbclient_lib) {
-  my $ndbjtie_lib_dir = dirname($ndbjtie_lib);
+if ($ndbclient_lib) {
   my $ndbclient_lib_dir = dirname($ndbclient_lib);
-  print $F "--let \$NDBJTIE_LIB_DIR= $ndbjtie_lib_dir\n";
   print $F "--let \$NDBCLIENT_LIB_DIR= $ndbclient_lib_dir\n";
 } else {
-    print $F "skip Did not find libndbjtie or libndbclient\n";
+    print $F "skip Did not find libndbclient\n";
 }
 $F->close();
 

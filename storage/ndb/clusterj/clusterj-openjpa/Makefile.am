@@ -47,7 +47,9 @@ clusterj_openjpa_java = \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPABrokerFactory.java \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAProductDerivation.java \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAStoreQuery.java \
-  $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAUtility.java \
+  $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAUtility.java 
+
+clusterj_openjpa_tests = \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BasicTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BigIntegerTypesTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/BlobTest.java \
@@ -75,6 +77,7 @@ EXTRA_DIST = \
   $(clusterj_openjpa_res)/META-INF/services/* \
   $(clusterj_openjpa_res)/com/mysql/clusterj/openjpa/Bundle.properties \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/*.java \
+  $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/*.java \
   pom.xml
 
 $(MANIFEST):
@@ -96,10 +99,8 @@ classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 $(clusterj_openjpa_version_JAR) : classclusterj_openjpa.stamp $(MANIFEST)
 	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
 	-C $(JAVAROOT) com/mysql/clusterj/openjpa \
-	-C $(JAVAROOT) com/mysql/clusterj/openjpatest \
 	-C $(clusterj_openjpa_res) com/mysql/clusterj/openjpa/Bundle.properties \
-	-C $(clusterj_openjpa_res) META-INF \
-	-C $(clusterj_openjpa_test_res) META-INF
+	-C $(clusterj_openjpa_res) META-INF 
 	$(LN_CP_F) -f $(clusterj_openjpa_version_JAR) $(clusterj_openjpa_JAR)
 
 ## create a versioned link

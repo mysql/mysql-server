@@ -307,6 +307,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_MSG_RESULT([])
   MYSQL_CHECK_NDB_JTIE
   have_ndb_jtie=no
+  NDBJTIE_LIBS=""
   case "$ndb_jtie" in
     yes )
       if test X"$ndb_java_supported" = Xyes
@@ -376,6 +377,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     fi
   fi
 
+  if test x"$have_ndb_jtie" = xyes
+  then
+    NDBJTIE_OPT="ndbjtie"
+    NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
+  fi
+
   if test x"$have_openjpa" != xno
   then
     OPENJPA_OPT="clusterj-openjpa"
@@ -391,6 +398,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
 
+  AC_SUBST(NDBJTIE_OPT)
+  AC_SUBST(NDBJTIE_LIBS)
   AC_SUBST(CLUSTERJ_TESTS)
   AC_SUBST(OPENJPA_OPT)
 
@@ -534,7 +543,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   if test X"$have_ndb_jtie" = Xyes
   then
-    ndb_opt_subdirs="$ndb_opt_subdirs ndbjtie"
+    ndb_opt_subdirs="$ndb_opt_subdirs"
   fi
   if test X"$have_clusterj" = Xyes
   then
