@@ -20,10 +20,13 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 ## ----------------------------------------------------------------------
 
 ## all subdirectories that have been configured (have a generated Makefile)
-DIST_SUBDIRS = test
+DIST_SUBDIRS = . test
 
 ## all subdirectories in DIST_SUBDIRS that should be built
 SUBDIRS = . test
+
+## files to be distributed and not covered in the automatic rules
+EXTRA_DIST = $(JTIE_DIR)/*.java
 
 ## ----------------------------------------------------------------------
 
@@ -66,10 +69,6 @@ $(JTIE_JAR): classjtie.stamp $(MANIFEST)
 	rm -f $@; @JAR@ cvf $@  \
           -C $(JAVAROOT) com/mysql/jtie
 	$(LN_CP_F) -f $(JTIE_JAR) jtie.jar
-
-
-## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = $(JTIE_DIR)/*.java
 
 ## generate JNI header files (for development only)
 javah: $(MYJAPI_CLASSES)
