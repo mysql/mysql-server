@@ -22,7 +22,7 @@ clusterj_tie_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/test/jav
 
 clusterj_tie_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/main/resources
 
-CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/ndbjtie/src/ndbjtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/ndbjtie/jtie/src/jtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar
+CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/src/ndbjtie/ndbjtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/src/ndbjtie/jtie/jtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar
 
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/target/classes
 

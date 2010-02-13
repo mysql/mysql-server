@@ -21,11 +21,11 @@ my $basedir = dirname($mysql_test_dir);
 # Check if the needed tests are available
 #
 my $jtie_junit = my_find_file($basedir,
-                            ["storage/ndb/ndbjtie/test", "share/mysql/java"],
+                            ["storage/ndb/src/ndbjtie/test", "share/mysql/java"],
                             "ndbjtie-test.jar", NOT_REQUIRED);
 
 my $jtie_unload_junit = my_find_file($basedir,
-                            ["storage/ndb/ndbjtie/jtie/test/unload", "share/mysql/java"],
+                            ["storage/ndb/src/ndbjtie/jtie/test/unload", "share/mysql/java"],
                             "jtie-test-unload.jar", NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_ndbjtie_junit_result.inc", "w") or die;

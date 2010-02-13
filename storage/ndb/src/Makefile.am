@@ -14,7 +14,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SUBDIRS = common mgmapi ndbapi . kernel mgmclient mgmsrv cw
+SUBDIRS = common mgmapi ndbapi @NDBJTIE_OPT@ . kernel mgmclient mgmsrv cw
+
+DIST_SUBDIRS = common mgmapi ndbapi ndbjtie . kernel mgmclient mgmsrv cw
+
 EXTRA_DIST = CMakeLists.txt
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
@@ -37,7 +40,9 @@ libndbclient_la_LIBADD =  \
               common/mgmcommon/libmgmsrvcommon.la \
               common/logger/liblogger.la       \
               common/portlib/libportlib.la      \
-              common/util/libgeneral.la  @ZLIB_LIBS@
+              common/util/libgeneral.la \
+              @NDBJTIE_LIBS@ \
+              @ZLIB_LIBS@ 
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

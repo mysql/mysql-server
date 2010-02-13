@@ -37,7 +37,7 @@ public class ClusterConnectionImpl
 
     /** Load the ndbjtie system library */
     static {
-        loadSystemLibrary("ndbjtie");
+        loadSystemLibrary("ndbclient");
     }
 
     /** My message translator */

@@ -10,7 +10,7 @@
 --let JAVA_CLASSPATH_1=$NDBJTIE_JUNIT_JAR
 --let JAVA_CLASSPATH_2=$NDBJTIE_UNLOAD_JUNIT_JAR
 --let JAVA_JVM_OPTS=-ea -Xcheck:jni -Djtie.unit.ndb.connectstring=$NDB_CONNECTSTRING
---let JAVA_JVM_OPTS_1=-Djava.library.path="$NDBCLIENT_LIB_DIR:$NDBJTIE_LIB_DIR"
+--let JAVA_JVM_OPTS_1=-Djava.library.path="$NDBCLIENT_LIB_DIR"
 
 --let JAVA_CLASS=test.NdbJTieSmokeTest
 --source suite/ndb/include/run_java.inc
