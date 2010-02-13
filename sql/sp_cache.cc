@@ -175,8 +175,9 @@ sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name)
     sp_cache_invalidate()
       
   NOTE
-    This is called when a VIEW definition is modifed. We can't destroy sp_head
-    objects here as one may modify VIEW definitions from prelocking-free SPs.
+    This is called when a VIEW definition is created or modified (and in some
+    other contexts). We can't destroy sp_head objects here as one may modify
+    VIEW definitions from prelocking-free SPs.
 */
 
 void sp_cache_invalidate()
