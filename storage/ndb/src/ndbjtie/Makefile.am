@@ -20,7 +20,7 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 ## ----------------------------------------------------------------------
 
 ## all subdirectories that have been configured (have a generated Makefile)
-DIST_SUBDIRS = jtie mysql test
+DIST_SUBDIRS = jtie mysql . test
 
 ## all subdirectories in DIST_SUBDIRS that should be built
 SUBDIRS = jtie mysql . test
