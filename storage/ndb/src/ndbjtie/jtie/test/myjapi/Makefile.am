@@ -121,8 +121,8 @@ AM_CPPFLAGS = \
 ##   argument to a manual -rpath option must be an absolute path, so, e.g.
 ##   $(top_srcdir)/..., which resolves to a relative path, cannot be used;
 ##   hence, we fall back on using the pkglib_ prefix and install the lib.
-#pkglib_LTLIBRARIES = libmyjapi.la
-noinst_LTLIBRARIES = libmyjapi.la
+pkglib_LTLIBRARIES = libmyjapi.la
+#noinst_LTLIBRARIES = libmyjapi.la
 #check_LTLIBRARIES = libmyjapi.la
 
 ## source files to build the library (added to distribuition by default)
@@ -132,11 +132,11 @@ libmyjapi_la_SOURCES = myjapi_lib.cpp
 #libmyjapi_la_CPPFLAGS = $(AM_CPPFLAGS)
 
 ## extra libtool objects (.lo) or libtool libraries (.la)
-#libmyjapi_la_LIBADD = ../myapi/libmyapi.la
+libmyjapi_la_LIBADD = ../myapi/libmyapi.la
 
 ## mode-specific libtool options (overrides AM_LDFLAGS)
-#libmyjapi_la_LDFLAGS = -no-undefined ## build self-contained library
-#libmyjapi_la_LDFLAGS += -shared ## only create a shared library
+libmyjapi_la_LDFLAGS = -no-undefined ## build self-contained library
+libmyjapi_la_LDFLAGS += -shared ## only create a shared library
 ## libmyjapi_la_LDFLAGS = -static ## only create a static library
 ## libmyjapi_la_LDFLAGS = -rpath . ## only absolute run-paths are allowed
 
@@ -183,10 +183,9 @@ test_myjapi.sh: Makefile
 
 ## cleanup
 MOSTLYCLEANFILES = $(MYJAPI_DIR)/*.class $(TEST_DIR)/*.class *.log
-CLEANFILES = classmyjapi.stamp jtie-test-myjapi.jar $(MYJAPI_JAR) $(TESTS)
+CLEANFILES = classmyjapi.stamp *.jar $(MYJAPI_JAR) $(TESTS)
 
 mostlyclean-local: 
 	rm -rf $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/test/myjapi/target
-
 
 ## ----------------------------------------------------------------------
