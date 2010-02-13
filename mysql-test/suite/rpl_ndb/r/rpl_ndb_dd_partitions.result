@@ -524,7 +524,7 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 --- Check Update on slave ---
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 id	hex(b1)	vc	bc	d	f	total	y	t
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14
+412	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2006-02-22
 --- Remove a record from t1 on master ---
 DELETE FROM t1 WHERE id = 42;
 --- Show current count on master for t1 ---

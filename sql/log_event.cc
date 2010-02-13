@@ -4717,10 +4717,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
-    bzero((char*) &tables,sizeof(tables));
-    tables.db= thd->strmake(thd->db, thd->db_length);
-    tables.alias = tables.table_name = (char*) table_name;
-    tables.lock_type = TL_WRITE;
+    tables.init_one_table(thd->db, table_name, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
@@ -5495,7 +5492,9 @@ void User_var_log_event::pack_info(Protocol* protocol)
     case INT_RESULT:
       if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))
         return;
-      event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
+      event_len= longlong10_to_str(uint8korr(val), buf + val_offset, 
+                                   ((flags & User_var_log_event::UNSIGNED_F) ? 
+                                    10 : -10))-buf;
       break;
     case DECIMAL_RESULT:
     {
@@ -5553,12 +5552,14 @@ User_var_log_event(const char* buf,
   :Log_event(buf, description_event)
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
+  const char *start= buf;
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
   name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
   buf+= UV_NAME_LEN_SIZE + name_len;
   is_null= (bool) *buf;
+  flags= User_var_log_event::UNDEF_F;    // defaults to UNDEF_F
   if (is_null)
   {
     type= STRING_RESULT;
@@ -5574,6 +5575,27 @@ User_var_log_event(const char* buf,
 		       UV_CHARSET_NUMBER_SIZE);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
 		   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
+
+    /**
+      We need to check if this is from an old server
+      that did not pack information for flags.
+      We do this by checking if there are extra bytes
+      after the packed value. If there are we take the
+      extra byte and it's value is assumed to contain
+      the flags value.
+
+      Old events will not have this extra byte, thence,
+      we keep the flags set to UNDEF_F.
+    */
+    uint bytes_read= ((val + val_len) - start);
+    DBUG_ASSERT(bytes_read==data_written || 
+                bytes_read==(data_written-1));
+    if ((data_written - bytes_read) > 0)
+    {
+      flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE +
+                    val_len);
+    }
   }
 }
 
@@ -5585,6 +5607,7 @@ bool User_var_log_event::write(IO_CACHE* file)
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
   uchar buf2[max(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
+  uint unsigned_len= 0;
   uint buf1_length;
   ulong event_length;
 
@@ -5606,6 +5629,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       break;
     case INT_RESULT:
       int8store(buf2, *(longlong*) val);
+      unsigned_len= 1;
       break;
     case DECIMAL_RESULT:
     {
@@ -5630,13 +5654,14 @@ bool User_var_log_event::write(IO_CACHE* file)
   }
 
   /* Length of the whole event */
-  event_length= sizeof(buf)+ name_len + buf1_length + val_len;
+  event_length= sizeof(buf)+ name_len + buf1_length + val_len + unsigned_len;
 
   return (write_header(file, event_length) ||
           my_b_safe_write(file, (uchar*) buf, sizeof(buf))   ||
 	  my_b_safe_write(file, (uchar*) name, name_len)     ||
 	  my_b_safe_write(file, (uchar*) buf1, buf1_length) ||
-	  my_b_safe_write(file, pos, val_len));
+	  my_b_safe_write(file, pos, val_len) ||
+          my_b_safe_write(file, &flags, unsigned_len));
 }
 #endif
 
@@ -5677,7 +5702,8 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case INT_RESULT:
       char int_buf[22];
-      longlong10_to_str(uint8korr(val), int_buf, -10);
+      longlong10_to_str(uint8korr(val), int_buf, 
+                        ((flags & User_var_log_event::UNSIGNED_F) ? 10 : -10));
       my_b_printf(&cache, ":=%s%s\n", int_buf, print_event_info->delimiter);
       break;
     case DECIMAL_RESULT:
@@ -5824,7 +5850,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT, 0);
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
+                (flags & User_var_log_event::UNSIGNED_F));
   free_root(thd->mem_root,0);
 
   return 0;
@@ -6491,9 +6518,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
                   {
-                    mysql_file_close(fd, MYF(0));
-                    fd= -1;
-                    mysql_file_delete(0, fname, MYF(0));
+                    my_delete_allow_opened(fname, MYF(0));
                   });
 
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))

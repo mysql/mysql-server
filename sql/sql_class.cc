@@ -3536,7 +3536,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
   DBUG_PRINT("info", ("query: %s", query()));
-  DBUG_PRINT("info", ("variables.binlog_format: %ld",
+  DBUG_PRINT("info", ("variables.binlog_format: %u",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
@@ -3677,7 +3677,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       lock history on the slave will be different from the master.
     */
     if (mixed_engine ||
-        trans_has_updated_trans_table(this) && !all_trans_engines)
+        (trans_has_updated_trans_table(this) && !all_trans_engines))
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     DBUG_PRINT("info", ("flags_all_set: 0x%llx", flags_all_set));
@@ -3807,7 +3807,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
                         "and (options & OPTION_BIN_LOG) = 0x%llx "
-                        "and binlog_format = %ld "
+                        "and binlog_format = %u "
                         "and binlog_filter->db_ok(db) = %d",
                         mysql_bin_log.is_open(),
                         (variables.option_bits & OPTION_BIN_LOG),

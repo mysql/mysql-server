@@ -935,8 +935,6 @@ static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
-static void init_error_log_mutex();
-static void clean_up_error_log_mutex();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
 void handle_connections_sockets();
@@ -1352,6 +1350,18 @@ extern "C" sig_handler print_signal_warning(int sig)
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+static void init_error_log_mutex()
+{
+  mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
+}
+
+
+static void clean_up_error_log_mutex()
+{
+  mysql_mutex_destroy(&LOCK_error_log);
+}
+
 
 /**
   cleanup all memory and end program nicely.
@@ -3367,7 +3377,7 @@ static int init_common_variables()
     set the def_value member to 0 in my_long_options and initialize it
     to the correct value here.
   */
-  default_storage_engine="MyISAM";
+  default_storage_engine= const_cast<char *>("MyISAM");
 
   /*
     Add server status variables to the dynamic list of
@@ -3708,15 +3718,6 @@ You should consider changing lower_case_table_names to 1 or 2",
   return 0;
 }
 
-static void init_error_log_mutex()
-{
-  mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
-}
-
-static void clean_up_error_log_mutex()
-{
-  mysql_mutex_destroy(&LOCK_error_log);
-}
 
 static int init_thread_environment()
 {

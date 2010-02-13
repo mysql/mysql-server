@@ -235,6 +235,7 @@ typedef struct my_locale_errmsgs
 
 extern char err_shared_dir[];
 
+/** @note Keep this a POD-type because we use offsetof() on it */
 typedef struct my_locale_st
 {
   uint  number;
