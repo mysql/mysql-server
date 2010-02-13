@@ -18,7 +18,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 #
+--replace_column 1 # 2 # 3 #
 select * from performance_schema.MUTEX_INSTANCES limit 1;
 
 select * from performance_schema.MUTEX_INSTANCES
