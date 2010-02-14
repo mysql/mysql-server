@@ -10959,17 +10959,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
            is_last_prefix != 0);
 
-  if (result == 0)
-  {
-    /*
-      Partially mimic the behavior of end_select_send. Copy the
-      field data from Item_field::field into Item_field::result_field
-      of each non-aggregated field (the group fields, and optionally
-      other fields in non-ANSI SQL mode).
-    */
-    copy_fields(&join->tmp_table_param);
-  }
-  else if (result == HA_ERR_KEY_NOT_FOUND)
+  if (result == HA_ERR_KEY_NOT_FOUND)
     result= HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(result);

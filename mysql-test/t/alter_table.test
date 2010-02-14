@@ -1089,3 +1089,31 @@ ALTER TABLE t1
   ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
   AUTO_INCREMENT = 1;
 DROP TABLE t1;
+
+
+#
+# Bug#50542 5.5.x doesn't check length of key prefixes: 
+#           corruption and crash results
+#
+# This case is related to Bug#31031 (above)
+# A statement where the index key is larger/wider than
+# the column type, should cause an error
+#
+--error ER_WRONG_SUB_KEY
+CREATE TABLE t1 (a CHAR(1), PRIMARY KEY (a(255)));
+
+# Test other variants of creating indices
+CREATE TABLE t1 (a CHAR(1));
+#  ALTER TABLE
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t1 ADD PRIMARY KEY (a(20));
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t1 ADD KEY (a(20));
+#  CREATE INDEX
+--error ER_WRONG_SUB_KEY
+CREATE UNIQUE INDEX i1 ON t1 (a(20));
+--error ER_WRONG_SUB_KEY
+CREATE INDEX i2 ON t1 (a(20));
+# cleanup
+DROP TABLE t1;
+
