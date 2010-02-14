@@ -190,8 +190,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 {
   Trans_param param;
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
-  if (is_real_trans)
-    param.flags |= TRANS_IS_REAL_TRANS;
+
+  param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
 
   Trans_binlog_info *log_info=
     my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
@@ -218,8 +218,8 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   Trans_param param;
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
-  if (is_real_trans)
-    param.flags |= TRANS_IS_REAL_TRANS;
+
+  param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
 
   Trans_binlog_info *log_info=
     my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
@@ -228,7 +228,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   param.log_pos= log_info ? log_info->log_pos : 0;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_commit, thd, (&param));
+  FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
 
   /*
     This is the end of a real transaction or autocommit statement, we
