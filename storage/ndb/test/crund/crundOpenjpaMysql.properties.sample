@@ -1,0 +1,14 @@
+
+#exclude=navA->B0,navA->B0_opt
+
+# OpenJPA - MySQL JDBC connection settings
+openjpa.ConnectionURL=jdbc:mysql://localhost/crunddb
+openjpa.ConnectionDriverName=com.mysql.jdbc.Driver
+openjpa.ConnectionUserName=md
+openjpa.ConnectionPassword=
+# set the general logging level to only show warnings.
+#openjpa.Log=DefaultLevel=WARN,SQL=TRACE
+openjpa.Log=DefaultLevel=WARN
+openjpa.ConnectionRetainMode=transaction
+# what does this do?
+#openjpa.DataCache=false

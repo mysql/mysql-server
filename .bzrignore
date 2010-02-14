@@ -3095,5 +3095,10 @@ storage/ndb/src/ndbjtie/**/*.log
 storage/ndb/src/ndbjtie/jtie/test/myapi/myapi_test
 storage/ndb/clusterj/MANIFEST.MF
 storage/ndb/clusterj/**/MANIFEST.MF
+storage/ndb/test/crund/*.properties
+storage/ndb/test/crund/*.cnf
+storage/ndb/test/crund/*.ini
+storage/ndb/test/crund/lib
+storage/ndb/test/crund/results
 libmysqld/examples/mysqltest.cc
 libmysqld/debug_sync.cc
