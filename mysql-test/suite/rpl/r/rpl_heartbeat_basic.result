@@ -266,16 +266,18 @@ Reload master
 Heartbeat event received
 
 *** Circular replication ***
-RESET MASTER;
-CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1, MASTER_LOG_FILE='MASTER_BINLOG';
-RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='SLAVE_BINLOG';
 include/start_slave.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(2, 'on slave');
 SELECT * FROM t1 ORDER BY a;

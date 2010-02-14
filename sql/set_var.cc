@@ -174,6 +174,7 @@ static bool sys_update_general_log_path(THD *thd, set_var * var);
 static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
+static uchar *get_myisam_mmap_size(THD *thd);
 
 /*
   Variable definition list
@@ -207,6 +208,8 @@ static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
+static sys_var_thd_bool sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
+                                                           &SV::binlog_direct_non_trans_update);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -926,6 +929,10 @@ sys_var_str sys_var_slow_log_path(&vars, "slow_query_log_file", sys_check_log_pa
 				  opt_slow_logname);
 static sys_var_log_output sys_var_log_output_state(&vars, "log_output", &log_output_options,
 					    &log_output_typelib, 0);
+static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
+                                                     OPT_GLOBAL,
+                                                     SHOW_LONGLONG,
+                                                     get_myisam_mmap_size);
 
 
 bool sys_var::check(THD *thd, set_var *var)
@@ -1294,6 +1301,25 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
   bool result= sys_var_thd_enum::check(thd, var);
   if (!result)
     result= check_log_update(thd, var);
+  /*
+    If RBR and open temporary tables, their CREATE TABLE may not be in the
+    binlog, so we can't toggle to SBR in this connection.
+
+    If binlog_format=MIXED, there are open temporary tables, and an unsafe
+    statement is executed, then subsequent statements are logged in row
+    format and hence changes to temporary tables may be lost. So we forbid
+    switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
+    open temp tables and we are logging in row format.
+  */
+  if (thd->temporary_tables && var->type == OPT_SESSION &&
+      var->save_result.ulong_value == BINLOG_FORMAT_STMT &&
+      ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+        thd->is_current_stmt_binlog_format_row()) ||
+       thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+  {
+    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
+    return 1;
+  }
   return result;
 }
 
@@ -1303,23 +1329,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     Under certain circumstances, the variable is read-only (unchangeable):
   */
   THD *thd= current_thd;
-  /*
-    If RBR and open temporary tables, their CREATE TABLE may not be in the
-    binlog, so we can't toggle to SBR in this connection.
-    The test below will also prevent SET GLOBAL, well it was not easy to test
-    if global or not here.
-    And this test will also prevent switching from RBR to RBR (a no-op which
-    should not happen too often).
-
-    If we don't have row-based replication compiled in, the variable
-    is always read-only.
-  */
-  if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
-      thd->temporary_tables)
-  {
-    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
-    return 1;
-  }
   /*
     if in a stored function/trigger, it's too late to change mode
   */
@@ -2503,9 +2512,9 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
   bool res;
 
   if (this == &sys_var_log)
-    WARN_DEPRECATED(thd, 7, 0, "@@log", "'@@general_log'");
+    WARN_DEPRECATED(thd, VER_CELOSIA, "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
-    WARN_DEPRECATED(thd, 7, 0, "@@log_slow_queries", "'@@slow_query_log'");
+    WARN_DEPRECATED(thd, VER_CELOSIA, "@@log_slow_queries", "'@@slow_query_log'");
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
@@ -2522,9 +2531,9 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
 void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 {
   if (this == &sys_var_log)
-    WARN_DEPRECATED(thd, 7, 0, "@@log", "'@@general_log'");
+    WARN_DEPRECATED(thd, VER_CELOSIA, "@@log", "'@@general_log'");
   else if (this == &sys_var_log_slow)
-    WARN_DEPRECATED(thd, 7, 0, "@@log_slow_queries", "'@@slow_query_log'");
+    WARN_DEPRECATED(thd, VER_CELOSIA, "@@log_slow_queries", "'@@slow_query_log'");
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
@@ -3238,6 +3247,12 @@ static uchar *get_tmpdir(THD *thd)
     return (uchar *)opt_mysql_tmpdir;
   return (uchar*)mysql_tmpdir;
 }
+
+static uchar *get_myisam_mmap_size(THD *thd)
+{
+  return (uchar *)&myisam_mmap_size;
+}
+
 
 /****************************************************************************
   Main handling of variables:

@@ -380,7 +380,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
   }
   DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx  my_errno: %d",
-                      (long) myisam, my_errno));
+                      my_errno ? NULL : (long) myisam, my_errno));
 
  err:
   DBUG_RETURN(my_errno ? NULL : myisam);

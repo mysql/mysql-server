@@ -31,6 +31,15 @@
 # endif
 #endif
 
+/* Version numbers for deprecation messages */
+#define VER_CELOSIA "5.6"
+
+#define WARN_DEPRECATED(Ver,Old,New)                                      \
+  do {                                                                    \
+    printf("Warning: The option '%s' is deprecated and will be removed " \
+           "in a future release. Please use %s instead.\n", (Old), (New)); \
+  } while(0);
+
 enum options_client
 {
   OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
@@ -48,8 +57,8 @@ enum options_client
   OPT_PROMPT, OPT_IGN_LINES,OPT_TRANSACTION,OPT_MYSQL_PROTOCOL,
   OPT_SHARED_MEMORY_BASE_NAME, OPT_FRM, OPT_SKIP_OPTIMIZATION,
   OPT_COMPATIBLE, OPT_RECONNECT, OPT_DELIMITER, OPT_SECURE_AUTH,
-  OPT_OPEN_FILES_LIMIT, OPT_SET_CHARSET, OPT_CREATE_OPTIONS, OPT_SERVER_ARG,
-  OPT_START_POSITION, OPT_STOP_POSITION, OPT_START_DATETIME, OPT_STOP_DATETIME,
+  OPT_OPEN_FILES_LIMIT, OPT_SET_CHARSET, OPT_SERVER_ARG,
+  OPT_POSITION, OPT_STOP_POSITION, OPT_START_DATETIME, OPT_STOP_DATETIME,
   OPT_SIGINT_IGNORE, OPT_HEXBLOB, OPT_ORDER_BY_PRIMARY, OPT_COUNT,
 #ifdef HAVE_NDBCLUSTER_DB
   OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING,
@@ -80,5 +89,7 @@ enum options_client
   OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
   OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
   OPT_WRITE_BINLOG, OPT_DUMP_DATE,
+  OPT_FIRST_SLAVE,
+  OPT_ALL,
   OPT_MAX_CLIENT_OPTION
 };
