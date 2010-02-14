@@ -65,11 +65,21 @@ Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed i
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 0
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
+1
 SET @@global.log_slow_queries = 1;
 Warnings:
 Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
+1
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_004_07----------------------#'
 SET @@global.log_slow_queries = TRUE;
@@ -78,12 +88,22 @@ Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed i
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 1
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
+1
 SET @@global.log_slow_queries = FALSE;
 Warnings:
 Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 0
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
+1
 '#---------------------FN_DYNVARS_004_08----------------------#'
 SET @@global.log_slow_queries = ON;
 Warnings:
