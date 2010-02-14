@@ -1,0 +1,8 @@
+
+# throws exceptions, see NdbjLoad.java
+#exclude=navA->B0,navA->B0_forceSend,navA->B0_alt,navA->B0_alt_forceSend
+
+# NDB/J connection settings
+ndb.mgmdConnect=localhost
+ndb.catalog=crunddb
+ndb.schema=def

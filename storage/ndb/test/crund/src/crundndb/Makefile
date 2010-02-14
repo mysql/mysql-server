@@ -1,0 +1,114 @@
+#------------------------------------------------------------------------------
+
+# read the generic settings
+include	../../Makefile.defaults
+include	../../env.properties
+
+#------------------------------------------------------------------------------
+
+#  API_PKG_PATH	= com/mysql/cluster
+
+  DDEFINES 	=
+
+  DELIVERABLES	= libcrundndb.a libcrundndb.$(DLL_SUFFIX) Driver 
+
+  GENERATED_H	= com_mysql_cluster_crund_NdbApiLoad.h
+
+  CLEAN		= core *.o $(GENERATED_H)
+
+  MOSTLYCLEAN	= $(DELIVERABLES) *.dSYM *% log_*
+
+  DISTCLEAN	= *~ *% */*~
+
+  INCLUDES	= $(JAVA_INCLUDEOPTS) -I. -I"$(MARTINS_LITTLE_HELPERS)"	\
+		  $(NDB_INCLUDEOPT0) $(NDB_INCLUDEOPT1)
+
+# for library dependencies, LOADLIBES and LDLIBS have been used historically
+# this convention is used sometimes: use
+#   LDLIBS for project-wide libs (like -lc or -lm)
+#   LOADLIBES for libs for the individual case
+# check with non-gnu makes: use of LOADLIBES, LDLIBS
+  LDLIBS	= -L${NDB_LIBDIR} -lndbclient
+# XXX undefined symbols when linking with 
+#  LOADLIBES	= -L$(MARTINS_LITTLE_HELPERS) -lutils
+# XXX which seems to be the same as
+#  LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.dylib
+# XXX but linking statically is fine:
+  LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.a
+
+#------------------------------------------------------------------------------
+
+.PHONY:	all depend dep run.driver valgrind.driver
+
+all:	$(DELIVERABLES)
+
+dep depend:	$(GENERATED_H)
+
+com_mysql_cluster_crund_NdbApiLoad.h:
+	cd ../.. && ant dep
+
+#com_mysql_cluster_NdbApiLoad.h:	$(API_PKG_PATH)/NdbApiLoad.class
+#	$(COMPILE.javah) com.mysql.cluster.NdbApiLoad
+#
+#$(API_PKG_PATH)/NdbApiLoad.class:	\
+#		$(API_PKG_PATH)/NdbApiLoad.java
+#	$(COMPILE.java) $<
+
+run.driver:	Driver
+	LD_LIBRARY_PATH=${NDB_LIBDIR} ./Driver \
+	-p ../../crundRun.properties -p ../../crundNdbapi.properties
+
+valgrind.driver:	Driver
+	LD_LIBRARY_PATH=${NDB_LIBDIR} valgrind --leak-check=full --show-reachable=yes ./Driver -p ../../crund.properties
+
+Driver:	libcrundndb.a
+
+# can list multiple archive members: lib.a(a.o b.o ...) lib.a(c.o)...
+libcrundndb.a:	libcrundndb.a(Operations.o)	\
+		libcrundndb.a(com_mysql_cluster_crund_NdbApiLoad.o)
+
+# XXX cleanup & refactorize this rule!
+# LINK.o
+#libcrundndb.so:	Operations.o com_mysql_cluster_crund_NdbApiLoad.o
+#libcrundndb.so:	libcrundndb.a
+libcrundndb.so:	Operations.cpp
+	$(LINK.cpp) \
+	-fPIC -shared \
+	-L${NDB_LIBDIR} \
+	-lndbclient \
+	-o libcrundndb.so \
+	Operations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
+
+libcrundndb.dylib:	Operations.cpp
+	$(LINK.cpp) \
+	-fPIC -shared -dynamiclib \
+	-L${NDB_LIBDIR} \
+	-lndbclient \
+	-o libcrundndb.dylib \
+	Operations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
+
+# Solaris cc?
+# -#          <!-- verbose mode -->
+# -G          <!-- create shared object -->
+# cc \
+# 	-# \
+# 	-I. \
+# 	-I${JAVA_HOME}/include \
+# 	-I${JAVA_HOME}/include/solaris \
+# 	-I${NDB_INCLUDE} \
+# 	-I${NDB_INCLUDE}/ndbapi \
+# 	-L${NDB_LIB} \
+# 	-lndbclient \
+# 	-G \
+# 	-o libcrundndb.so \
+# 	../src/crundndb/*.cpp
+
+#------------------------------------------------------------------------------
+
+.depend:
+	touch $@
+
+# read local dependencies
+-include	.depend
+
+#------------------------------------------------------------------------------

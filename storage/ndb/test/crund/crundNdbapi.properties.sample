@@ -1,0 +1,10 @@
+
+#exclude=navA->B0,navA->B0_forceSend,navA->B0_alt,navA->B0_alt_forceSend
+#exclude=navA->B0_alt,navA->B0_alt_forceSend
+#exclude=navA->B0_alt_forceSend
+#exclude=navA->B0,navA->B0alt
+
+# NDBAPI connection settings
+ndb.mgmdConnect=localhost
+ndb.catalog=crunddb
+ndb.schema=def
