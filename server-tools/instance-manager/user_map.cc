@@ -25,7 +25,7 @@
 User::User(const LEX_STRING *user_name_arg, const char *password)
 {
   user_length= (uint8) (strmake(user, user_name_arg->str,
-                                USERNAME_LENGTH + 1) - user);
+                                USERNAME_LENGTH) - user);
   set_password(password);
 }
 

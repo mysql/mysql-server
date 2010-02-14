@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "debug_sync.h"
 
 /* Return 0 if row hasn't changed */
 
@@ -829,7 +830,7 @@ int mysql_update(THD *thd,
 
   if (error < 0)
   {
-    char buff[STRING_BUFFER_USUAL_SIZE];
+    char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
@@ -1131,8 +1132,11 @@ reopen_tables:
       items from 'fields' list, so the cleanup above is necessary to.
     */
     cleanup_items(thd->free_list);
-
+    cleanup_items(thd->stmt_arena->free_list);
     close_tables_for_reopen(thd, &table_list);
+
+    DEBUG_SYNC(thd, "multi_update_reopen_tables");
+
     goto reopen_tables;
   }
 
@@ -1852,9 +1856,10 @@ void multi_update::abort()
         into repl event.
       */
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-      thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, FALSE, errcode);
+      /* the error of binary logging is ignored */
+      (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
+                              thd->query(), thd->query_length(),
+                              transactional_tables, FALSE, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= TRUE;
   }

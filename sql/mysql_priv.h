@@ -111,35 +111,20 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-/*
-  Generates a warning that a feature is deprecated. After a specified
-  version asserts that the feature is removed.
+/* Version numbers for deprecation messages */
+#define VER_BETONY  "5.5"
+#define VER_CELOSIA "5.6"
 
-  Using it as
-
-  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
-
-  Will result in a warning
- 
-  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
-   use 'GOOD' instead"
-
-   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-   Note that the version is TWO numbers, separated with a comma
-   (two macro arguments, that is)
-*/
-#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
-  do {                                                                      \
-    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
-    if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
-                        ER_WARN_DEPRECATED_SYNTAX,                          \
-                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
-                        (Old), #VerHi "." #VerLo, (New));                   \
-    else                                                                    \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in MySQL %s. Please use %s instead.",              \
-                        (Old), #VerHi "." #VerLo, (New));                   \
+#define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
+  do {                                                                               \
+    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
+    if (((uchar*)Thd) != NULL)                                                         \
+      push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
+                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
+                        (Old), (Ver), (New));                                        \
+    else                                                                             \
+      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
+                        "in a future release. Please use %s instead.", (Old), (New)); \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -957,9 +942,9 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length,
-                   bool is_trans= FALSE);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length,
+                  bool is_trans= FALSE);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1341,8 +1326,18 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
-#define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
+inline bool is_schema_db(const char *name, size_t len)
+{
+  return (INFORMATION_SCHEMA_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         INFORMATION_SCHEMA_NAME.str, name));  
+}
+
+inline bool is_schema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
 
 /* sql_prepare.cc */
 

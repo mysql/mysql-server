@@ -839,9 +839,10 @@ void multi_delete::abort()
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-      thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, FALSE, errcode);
+      /* possible error of writing binary log is ignored deliberately */
+      (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
+                              thd->query(), thd->query_length(),
+                              transactional_tables, FALSE, FALSE, errcode);
     }
   }
   DBUG_VOID_RETURN;
@@ -1161,8 +1162,9 @@ end:
           TRUNCATE must always be statement-based binlogged (not row-based) so
           we don't test current_stmt_binlog_format.
         */
-        write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-      my_ok(thd);		// This should return record count
+        error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      if (!error)
+        my_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);

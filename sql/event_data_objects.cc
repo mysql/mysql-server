@@ -1401,7 +1401,7 @@ Event_job_data::execute(THD *thd, bool drop)
 #endif
 
   if (check_access(thd, EVENT_ACL, dbname.str,
-                   0, 0, 0, is_schema_db(dbname.str)))
+                   0, 0, 0, is_schema_db(dbname.str, dbname.length)))
   {
     /*
       This aspect of behavior is defined in the worklog,

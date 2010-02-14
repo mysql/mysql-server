@@ -19,3 +19,4 @@ slave-net-timeout=120
 
 log-bin=mysqld-bin
 
+binlog-direct-non-transactional-updates
