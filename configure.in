@@ -839,7 +839,7 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
- memory.h pwd.h select.h \
+ memory.h pwd.h select.h poll.h \
  stdlib.h stddef.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
