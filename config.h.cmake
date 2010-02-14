@@ -46,6 +46,7 @@
 #cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
+#cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PORT_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_SCHED_H 1
