@@ -5,6 +5,12 @@
 source include/have_debug.inc;
 source include/master-slave.inc;
 
+-- disable_query_log
+CALL mtr.add_suppression("Failed to locate old binlog or relay log files");
+CALL mtr.add_suppression('MYSQL_BIN_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index.');
+-- enable_query_log
+sync_slave_with_master;
+
 #
 # test checks that 
 # a. there is no crash when find_log_pos() returns with an error
@@ -49,13 +55,5 @@ purge binary logs to 'master-bin.000001';
 
 SET @@debug="";
 purge binary logs to 'master-bin.000001';
-
---disable_query_log
-call mtr.add_suppression("Failed to locate old binlog or relay log files");
-call mtr.add_suppression("MYSQL_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index");
-connection slave;
-call mtr.add_suppression("Failed to locate old binlog or relay log files");
-call mtr.add_suppression("MYSQL_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index");
---enable_query_log
 
 --echo End of the tests
