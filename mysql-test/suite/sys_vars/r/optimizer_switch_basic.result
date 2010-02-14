@@ -21,21 +21,33 @@ select * from information_schema.session_variables where variable_name='optimize
 VARIABLE_NAME	VARIABLE_VALUE
 OPTIMIZER_SWITCH	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
 set global optimizer_switch=10;
+set session optimizer_switch=5;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
 index_merge=off,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=off
-set session optimizer_switch=5;
 select @@session.optimizer_switch;
 @@session.optimizer_switch
 index_merge=on,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=off,engine_condition_pushdown=off
 set global optimizer_switch="index_merge_sort_union=on";
+set session optimizer_switch="index_merge=off";
 select @@global.optimizer_switch;
 @@global.optimizer_switch
 index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
-set session optimizer_switch="index_merge=off";
 select @@session.optimizer_switch;
 @@session.optimizer_switch
 index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=off,engine_condition_pushdown=off
+show global variables like 'optimizer_switch';
+Variable_name	Value
+optimizer_switch	index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+show session variables like 'optimizer_switch';
+Variable_name	Value
+optimizer_switch	index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=off,engine_condition_pushdown=off
+select * from information_schema.global_variables where variable_name='optimizer_switch';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_SWITCH	index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off
+select * from information_schema.session_variables where variable_name='optimizer_switch';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_SWITCH	index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=off,engine_condition_pushdown=off
 set session optimizer_switch="default";
 select @@session.optimizer_switch;
 @@session.optimizer_switch
