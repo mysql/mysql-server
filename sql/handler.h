@@ -1851,9 +1851,6 @@ public:
   virtual bool prefer_index() const
   { return false; }
 
-  virtual int read_pushed_next(uchar *buf)
-  { return -1; }
-
   virtual int push_flag(enum ha_push_flag flag)
   { return -1; }
 

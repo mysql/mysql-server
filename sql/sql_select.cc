@@ -153,7 +153,6 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
-static int join_read_linked_key(JOIN_TAB *tab);
 static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
@@ -1617,7 +1616,11 @@ make_pushed_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
 
-    if (!tab->table->file->member_of_pushed_join())
+    if (tab->table->file->member_of_pushed_join())
+    {
+      active_pushed_joins--;
+    }
+    else
     {
       // Try to start a pushed join from current join_tab
       AQP::Join_plan plan(tab, join->tables-i);
@@ -1625,21 +1628,9 @@ make_pushed_join(JOIN *join)
       if (pushed_joins > 0)
         active_pushed_joins += (pushed_joins-1);
     }
-    else
-    {
-      // Replace 'read_key' access with its linked counterpart 
-      // ... Which is effectively a NOOP as the row is read as part of the linked operation
-      DBUG_ASSERT(tab->read_first_record==join_read_key ||
-                  tab->read_first_record==join_read_const);
-      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
-      tab->read_first_record= join_read_linked_key;
-      tab->read_record.unlock_row= rr_unlock_row;
-      active_pushed_joins--;
-    }
-    DBUG_ASSERT(active_pushed_joins>=0);
 
-    // Disable 'Using join buffer' if there are active pushed join sequence beyond
-    // the scope of the join buffer.
+    // Disable 'Using join buffer' if there are active pushed join sequence
+    // across the scope of the join buffer.
     //
     // FUTURE: We may extend the join buffer to also buffer rows from 
     // pushed joins depending on, but not directly included in the buffered
@@ -1649,6 +1640,7 @@ make_pushed_join(JOIN *join)
       tab->next_select=sub_select;
     }
   }
+  DBUG_ASSERT(active_pushed_joins==0);
   return 0;
 }
 
@@ -11924,28 +11916,6 @@ join_read_key_unlock_row(st_join_table *tab)
 }
 
 
-static int
-join_read_linked_key(JOIN_TAB *tab)
-{
-  TABLE *table= tab->table;
-  DBUG_ENTER("join_read_linked_key");
-
-  // Fetch result from linked_key operation if not already present
-  if (table->status & STATUS_GARBAGE)
-  {
-    // 'read' itself is a NOOP: Already fetched through linked key operation
-    //  handler::read_pushed_next() unpack the prefetched row and set 'status'
-
-    int error= table->file->read_pushed_next(table->record[0]);
-    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      DBUG_RETURN(report_error(table, error));
-  }
-  table->null_row=0;
-  int rc = table->status ? -1 : 0;
-  DBUG_RETURN(rc);
-}
-
-
 /*
   ref access method implementation: "read_first" function
 
@@ -16593,7 +16563,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        const handler* pushed_join= tab->table->file->member_of_pushed_join();
+        const handler* pushed_join= table->file->member_of_pushed_join();
         if (pushed_join)
         {
           char buf[64];
