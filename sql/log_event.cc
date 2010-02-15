@@ -6528,7 +6528,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write", 
-                  my_close(fd,MYF(0)); fd= -1; my_delete(fname, MYF(0)););
+                  my_delete_allow_opened(fname, MYF(0)););
 
   if (my_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
