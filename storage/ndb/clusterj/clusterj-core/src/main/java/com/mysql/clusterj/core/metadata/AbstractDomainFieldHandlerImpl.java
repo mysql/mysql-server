@@ -623,7 +623,11 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
-            op.setBytes(fmd.storeColumn, (byte[]) value);
+            if (value == null) {
+                op.setNull(fmd.storeColumn);
+            } else {
+                op.setBytes(fmd.storeColumn, (byte[]) value);
+            }
         }
 
         public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler, Operation op) {
