@@ -28,6 +28,12 @@
 #include "procedure.h"
 #include <myisam.h>
 
+#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#include "../storage/maria/ha_maria.h"
+#define TMP_ENGINE_HTON maria_hton
+#else
+#define TMP_ENGINE_HTON myisam_hton
+#endif
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
@@ -1195,7 +1201,6 @@ enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
 enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
                                       bool end_of_records);
-int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 
 enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
@@ -1329,74 +1334,6 @@ typedef struct st_rollup
   List<Item> *fields;
 } ROLLUP;
 
-/*
-  Temporary table used by semi-join DuplicateElimination strategy
-
-  This consists of the temptable itself and data needed to put records
-  into it. The table's DDL is as follows:
-
-    CREATE TABLE tmptable (col VARCHAR(n) BINARY, PRIMARY KEY(col));
-
-  where the primary key can be replaced with unique constraint if n exceeds
-  the limit (as it is always done for query execution-time temptables).
-
-  The record value is a concatenation of rowids of tables from the join we're
-  executing. If a join table is on the inner side of the outer join, we
-  assume that its rowid can be NULL and provide means to store this rowid in
-  the tuple.
-*/
-
-class SJ_TMP_TABLE : public Sql_alloc
-{
-public:
-  /*
-    Array of pointers to tables whose rowids compose the temporary table
-    record.
-  */
-  class TAB
-  {
-  public:
-    JOIN_TAB *join_tab;
-    uint rowid_offset;
-    ushort null_byte;
-    uchar null_bit;
-  };
-  TAB *tabs;
-  TAB *tabs_end;
-  
-  /* 
-    is_confluent==TRUE means this is a special case where the temptable record
-    has zero length (and presence of a unique key means that the temptable can
-    have either 0 or 1 records). 
-    In this case we don't create the physical temptable but instead record
-    its state in SJ_TMP_TABLE::have_confluent_record.
-  */
-  bool is_confluent;
-
-  /* 
-    When is_confluent==TRUE: the contents of the table (whether it has the
-    record or not).
-  */
-  bool have_confluent_row;
-  
-  /* table record parameters */
-  uint null_bits;
-  uint null_bytes;
-  uint rowid_len;
-
-  /* The temporary table itself (NULL means not created yet) */
-  TABLE *tmp_table;
-  
-  /*
-    These are the members we got from temptable creation code. We'll need
-    them if we'll need to convert table from HEAP to MyISAM/Maria.
-  */
-  ENGINE_COLUMNDEF *start_recinfo;
-  ENGINE_COLUMNDEF *recinfo;
-
-  /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
-};
 
 #define SJ_OPT_NONE 0
 #define SJ_OPT_DUPS_WEEDOUT 1
@@ -1711,7 +1648,6 @@ public:
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
-  void remove_subq_pushed_predicates(Item **where);
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -1763,11 +1699,6 @@ void TEST_join(JOIN *join);
 
 /* Extern functions in sql_select.cc */
 bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
-TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
-			ORDER *group, bool distinct, bool save_sum_fields,
-			ulonglong select_options, ha_rows rows_limit,
-			char* alias);
-void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
@@ -1776,10 +1707,6 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item **func_ptr);
-bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
-                                         ENGINE_COLUMNDEF *start_recinfo,
-                                         ENGINE_COLUMNDEF **recinfo, 
-                                         int error, bool ignore_last_dupp_key_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
@@ -1955,13 +1882,59 @@ int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
 int join_init_read_record(JOIN_TAB *tab);
 void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key);
+inline Item * and_items(Item* cond, Item *item)
+{
+  return (cond? (new Item_cond_and(cond, item)) : item);
+}
+bool choose_plan(JOIN *join,table_map join_tables);
+void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
+                           double *record_count_arg);
+void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
+                                table_map last_remaining_tables, 
+                                bool first_alt, uint no_jbuf_before,
+                                double *reopt_rec_count, double *reopt_cost,
+                                double *sj_inner_fanout);
+Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
+                            bool *inherited_fl);
+bool test_if_ref(COND *root_cond, 
+                 Item_field *left_item,Item *right_item);
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
 }
 
+/* Table elimination entry point function */
 void eliminate_tables(JOIN *join);
 
+/* Index Condition Pushdown entry point function */
 void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
+
+/****************************************************************************
+  Temporary table support for SQL Runtime
+ ***************************************************************************/
+
+#define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
+#define AVG_STRING_LENGTH_TO_PACK_ROWS   64
+#define RATIO_TO_PACK_ROWS	       2
+#define MIN_STRING_LENGTH_TO_PACK_ROWS   10
+
+TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+			ORDER *group, bool distinct, bool save_sum_fields,
+			ulonglong select_options, ha_rows rows_limit,
+			char* alias);
+void free_tmp_table(THD *thd, TABLE *entry);
+bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
+                                         ENGINE_COLUMNDEF *start_recinfo,
+                                         ENGINE_COLUMNDEF **recinfo, 
+                                         int error, bool ignore_last_dupp_key_error);
+bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
+                               ENGINE_COLUMNDEF *start_recinfo,
+                               ENGINE_COLUMNDEF **recinfo, 
+                               ulonglong options);
+bool open_tmp_table(TABLE *table);
+void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
+
+
+
 

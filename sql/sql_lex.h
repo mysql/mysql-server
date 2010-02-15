@@ -605,7 +605,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
-  List<TABLE_LIST> sj_nests;
+  List<TABLE_LIST> sj_nests;      /* Semi-join nests within this join */
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected

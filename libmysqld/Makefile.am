@@ -58,6 +58,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	log_event.cc rpl_record.cc \
 	log_event_old.cc rpl_record_old.cc \
 	protocol.cc net_serv.cc opt_range.cc \
+        opt_subselect.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
 	sql_profile.cc \

@@ -29,6 +29,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "opt_subselect.h"
 
 
 /*****************************************************************************

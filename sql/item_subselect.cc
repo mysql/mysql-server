@@ -31,10 +31,6 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-inline Item * and_items(Item* cond, Item *item)
-{
-  return (cond? (new Item_cond_and(cond, item)) : item);
-}
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
@@ -1899,7 +1895,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     object, but we can't know it here, but here we need address correct
     reference on left expresion.
 
-    //psergey: he means confluent cases like "... IN (SELECT 1)"
+    //psergey: he means degenerate cases like "... IN (SELECT 1)"
   */
   if (!optimizer)
   {

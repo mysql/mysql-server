@@ -1922,3 +1922,7 @@ libmysqld/examples/mysqltest.cc
 extra/libevent/event-config.h
 libmysqld/opt_table_elimination.cc
 libmysqld/ha_federatedx.cc
+libmysqld/multi_range_read.cc
+libmysqld/opt_index_cond_pushdown.cc
+libmysqld/opt_subselect.cc
+libmysqld/sql_join_cache.cc

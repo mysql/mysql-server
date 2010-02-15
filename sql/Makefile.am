@@ -60,6 +60,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
+                        opt_subselect.h \
 			rpl_reporting.h \
 			log.h log_slow.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
@@ -102,7 +103,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			unireg.cc des_key_file.cc \
 			log_event.cc rpl_record.cc \
 			log_event_old.cc rpl_record_old.cc \
-			discover.cc time.cc opt_range.cc opt_sum.cc \
+			discover.cc time.cc opt_range.cc opt_subselect.cc \
+                        opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
