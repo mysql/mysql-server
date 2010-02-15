@@ -94,3 +94,20 @@ unlock tables;
 set global general_log= @old_general_log;
 set global read_only= @old_read_only;
 End of 5.1 tests
+#
+# Additional test for bug #51136 "Crash in pthread_rwlock_rdlock
+#                                 on TEMPORARY + HANDLER + LOCK + SP".
+# Also see the main test for this bug in include/handler.inc.
+#
+drop tables if exists t1, t2;
+create table t1 (i int);
+create temporary table t2 (j int);
+flush tables with read lock;
+lock table t2 read;
+# This commit should not release any MDL locks.
+commit;
+# The below statement crashed before the bug fix as it
+# has attempted to release global shared metadata lock
+# which was already released by commit.
+unlock tables;
+drop tables t1, t2;
