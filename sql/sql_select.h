@@ -769,7 +769,7 @@ protected:
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
-          err= res;
+          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
       }
       /*
         Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
@@ -779,7 +779,7 @@ protected:
         err= 1; /* STORE_KEY_FATAL */
     }
     null_key= to_field->is_null() || item->null_value;
-    return ((err < 0 || err > 2) ? STORE_KEY_FATAL : (store_key_result) err);
+    return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };
 
