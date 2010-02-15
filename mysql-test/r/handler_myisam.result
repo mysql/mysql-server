@@ -1664,6 +1664,24 @@ handler t1 close;
 drop function f1;
 drop tables t1, t2;
 #
+# Test for bug #51136 "Crash in pthread_rwlock_rdlock on TEMPORARY +
+#                      HANDLER + LOCK + SP".
+# Also see additional coverage for this bug in flush.test.
+#
+drop tables if exists t1, t2;
+create table t1 (i int);
+create temporary table t2 (j int);
+handler t1 open;
+lock table t2 read;
+# This commit should not release any MDL locks.
+commit;
+unlock tables;
+# The below statement crashed before the bug fix as it
+# has attempted to release metadata lock which was
+# already released by commit.
+handler t1 close;
+drop tables t1, t2;
+#
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
 CREATE TABLE t1 AS SELECT 1 AS f1;
