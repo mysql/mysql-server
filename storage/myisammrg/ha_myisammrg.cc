@@ -458,6 +458,18 @@ int ha_myisammrg::add_children_list(void)
   */
   if (thd->lex->query_tables_last == &parent_l->next_global)
     thd->lex->query_tables_last= this->children_last_l;
+  /*
+    The branch below works only when re-executing a prepared
+    statement or a stored routine statement:
+    We've just modified query_tables_last. Keep it in sync with
+    query_tables_last_own, if it was set by the prelocking code.
+    This ensures that the check that prohibits double updates (*)
+    can correctly identify what tables belong to the main statement.
+    (*) A double update is, e.g. when a user issues UPDATE t1 and
+    t1 has an AFTER UPDATE trigger that also modifies t1.
+  */
+  if (thd->lex->query_tables_own_last == &parent_l->next_global)
+    thd->lex->query_tables_own_last= this->children_last_l;
 
 end:
   DBUG_RETURN(0);
@@ -887,6 +899,15 @@ int ha_myisammrg::detach_children(void)
     */
     if (thd->lex->query_tables_last == this->children_last_l)
       thd->lex->query_tables_last= this->children_l->prev_global;
+
+    /*
+      If the statement requires prelocking, and prelocked
+      tables were added right after merge children, modify the
+      last own table pointer to point at prev_global of the merge
+      parent.
+    */
+    if (thd->lex->query_tables_own_last == this->children_last_l)
+      thd->lex->query_tables_own_last= this->children_l->prev_global;
 
     /* Terminate child list. So it cannot be tried to remove again. */
     *this->children_last_l= NULL;
