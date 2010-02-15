@@ -21933,8 +21933,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::LOGBUFFERS_TABLEID:
   {
     const size_t entry_size = sizeof(LogPageRecord);
-    const  Uint64 free = cnoOfLogPages;
-    const Uint64 total = clogPageFileSize;
+    const Uint64 free = cnoOfLogPages;
+    const Uint64 total = clogPageCount;
     const Uint64 high = 0; // TODO
 
     Ndbinfo::Row row(signal, req);
