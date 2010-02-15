@@ -74,7 +74,20 @@ public:
   MDL_context *start;
   MDL_context *victim;
   uint current_search_depth;
-  static const uint MAX_SEARCH_DEPTH= 1000;
+  /**
+    Maximum depth for deadlock searches. After this depth is
+    achieved we will unconditionally declare that there is a
+    deadlock.
+
+    @note This depth should be small enough to avoid stack
+          being exhausted by recursive search algorithm.
+
+    TODO: Find out what is the optimal value for this parameter.
+          Current value is safe, but probably sub-optimal,
+          as there is an anecdotal evidence that real-life
+          deadlocks are even shorter typically.
+  */
+  static const uint MAX_SEARCH_DEPTH= 32;
 };
 
 
