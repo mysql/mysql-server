@@ -1532,6 +1532,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
 {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **sort_buf, **p_req;
+  MDL_ticket *mdl_svp= mdl_savepoint();
   ssize_t req_count= static_cast<ssize_t>(mdl_requests->elements());
 
   if (req_count == 0)
@@ -1565,12 +1566,16 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
   return FALSE;
 
 err:
-  /* Release locks we have managed to acquire so far. */
+  /*
+    Release locks we have managed to acquire so far.
+    Use rollback_to_savepoint() since there may be duplicate
+    requests that got assigned the same ticket.
+  */
+  rollback_to_savepoint(mdl_svp);
+  /* Reset lock requests back to its initial state. */
   for (req_count= p_req - sort_buf, p_req= sort_buf;
        p_req < sort_buf + req_count; p_req++)
   {
-    release_lock((*p_req)->ticket);
-    /* Reset lock request back to its initial state. */
     (*p_req)->ticket= NULL;
   }
   my_free(sort_buf, MYF(0));
