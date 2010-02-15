@@ -11,7 +11,7 @@
 # Creation Date: 2008-03-16                                                    #
 # Author:  Salman Rawala                                                       #
 #                                                                              #
-# Description: Test Cases of Dynamic System Variable "log_slow_queries"          #
+# Description: Test Cases of Dynamic System Variable "log_slow_queries"        #
 #              that checks behavior of this variable in the following ways     #
 #              * Default Value                                                 #
 #              * Valid & Invalid values                                        #
@@ -20,6 +20,10 @@
 #                                                                              #
 # Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
 #              server-options.html#option_mysqld_event-scheduler               #
+#                                                                              #
+#                                                                              #
+# 2010-01-20 OBN - Added check for variable value matching I_S tables after    #
+#                  variable value change                                       #
 #                                                                              #
 ################################################################################
 
@@ -116,8 +120,14 @@ WHERE VARIABLE_NAME='log_slow_queries';
 
 SET @@global.log_slow_queries = 0;
 SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
 SET @@global.log_slow_queries = 1;
 SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
 
 --echo '#---------------------FN_DYNVARS_004_07----------------------#'
 ################################################################### 
@@ -126,8 +136,14 @@ SELECT @@global.log_slow_queries;
 
 SET @@global.log_slow_queries = TRUE;
 SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
 SET @@global.log_slow_queries = FALSE;
 SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
 
 --echo '#---------------------FN_DYNVARS_004_08----------------------#'
 ##############################################################################

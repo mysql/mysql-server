@@ -745,8 +745,9 @@ ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=3
-master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (bug27417(2))
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -762,8 +763,9 @@ count(*)
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=4
-master-bin.000001	#	Query	#	#	use `test`; delete from t2 where a=bug27417(3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 5 */;
 count(*)
@@ -785,6 +787,10 @@ insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -796,6 +802,10 @@ insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -807,8 +817,11 @@ ERROR 23000: Duplicate entry '4' for key 'b'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Intvar	#	#	INSERT_ID=4
-master-bin.000001	#	Query	#	#	use `test`; update t3 set b=b+bug27417(1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 2 */;
 count(*)
@@ -822,6 +835,10 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 4 */;
 count(*)
 4
@@ -835,7 +852,7 @@ UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
-1
+2
 drop table t4;
 delete from t1;
 delete from t2;
@@ -849,6 +866,11 @@ delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -865,6 +887,10 @@ delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -882,6 +908,10 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
 drop function bug27417;
