@@ -44,7 +44,7 @@ void Dbacc::initData()
   scanRec = 0;
   tabrec = 0;
 
-  cnoOfAllocatedPages = cpagesize = 0;
+  cnoOfAllocatedPages = cpagesize = cpageCount = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
@@ -71,6 +71,8 @@ void Dbacc::initRecords()
      * 2) Add chunks to cfirstfreepage-list
      */
     cfirstfreepage = RNIL;
+    cpagesize = 0;
+    cpageCount = 0;
     for (Int32 i = chunkcnt - 1; i >= 0; i--)
     {
       Ptr<GlobalPage> pagePtr;
@@ -85,16 +87,12 @@ void Dbacc::initRecords()
         base[j].word32[0] = ptrI + j + 1;
       }
 
-      if (cfirstfreepage == RNIL)
-      {
-        base[cnt-1].word32[0] = RNIL;
-        cfirstfreepage = ptrI;
-      }
-      else
-      {
-        base[cnt-1].word32[0] = cfirstfreepage;
-        cfirstfreepage = ptrI;
-      }
+      base[cnt-1].word32[0] = cfirstfreepage;
+      cfirstfreepage = ptrI;
+
+      cpageCount += cnt;
+      if (ptrI + cnt > cpagesize)
+        cpagesize = ptrI + cnt;
     }
   }
 
