@@ -113,7 +113,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
     jam();
     Uint32 cnt = signal->theData[1];
     static int c_currentMemUsed = 0;
-    int now = cpagesize ? (cnoOfAllocatedPages * 100)/cpagesize : 0;
+    int now = cpageCount ? (cnoOfAllocatedPages * 100)/cpageCount : 0;
     const int thresholds[] = { 99, 90, 80, 0};
     
     Uint32 i = 0;
@@ -8203,7 +8203,7 @@ Dbacc::reportMemoryUsage(Signal* signal, int gth){
   signal->theData[1] = gth;
   signal->theData[2] = sizeof(* rpPageptr.p);
   signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = cpagesize;
+  signal->theData[4] = cpageCount;
   signal->theData[5] = DBACC;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }
