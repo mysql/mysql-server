@@ -971,6 +971,7 @@ private:
   Page8Ptr spPageptr;
   Uint32 cfirstfreepage;
   Uint32 cpagesize;
+  Uint32 cpageCount;
   Uint32 cnoOfAllocatedPages;
   Uint32 cnoOfAllocatedPagesMax;
 /* --------------------------------------------------------------------------------- */
