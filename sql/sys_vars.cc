@@ -1944,13 +1944,6 @@ static Sys_var_ulong Sys_table_cache_size(
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
        BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_table_lock_wait_timeout(
-       "table_lock_wait_timeout",
-       "Timeout in seconds to wait for a table level lock before returning an "
-       "error. Used only if the connection has active cursors",
-       GLOBAL_VAR(table_lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024*1024*1024), DEFAULT(50), BLOCK_SIZE(1));
-
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
