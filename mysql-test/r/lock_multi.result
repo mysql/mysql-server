@@ -436,3 +436,29 @@ UNLOCK TABLES;
 # Reaping: DROP TABLE t1, t2
 # Connection default
 # Cleanup
+#
+# Test for bug #51134 "Crash in MDL_lock::destroy on a concurrent
+#                      DDL workload".
+#
+drop tables if exists t1, t2, t3;
+create table t3 (i int);
+# Switching to connection 'con1'
+# Lock 't3' so upcoming RENAME is blocked.
+lock table t3 read;
+# Switching to connection 'con2'
+# Remember ID for this connection.
+# Start statement which will try to acquire two instances
+# of X metadata lock on the same object.
+# Sending:
+rename tables t1 to t2, t2 to t3;;
+# Switching to connection 'default'
+# Wait until RENAME TABLE is blocked on table 't3'.
+# Kill RENAME TABLE.
+kill query ID;
+# Switching to connection 'con2'
+# RENAME TABLE should be aborted but should not crash.
+ERROR 70100: Query execution was interrupted
+# Switching to connection 'con1'
+unlock tables;
+# Switching to connection 'default'
+drop table t3;
