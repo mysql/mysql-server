@@ -2751,6 +2751,7 @@ private:
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
   UintR clogPageFileSize;
+  Uint32 clogPageCount;
 
 #define ZPAGE_REF_FILE_SIZE 20
   PageRefRecord *pageRefRecord;
