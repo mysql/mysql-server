@@ -83,7 +83,6 @@ multiple read locks.
 
 my_bool thr_lock_inited=0;
 ulong locks_immediate = 0L, locks_waited = 0L;
-ulong table_lock_wait_timeout;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 
 /* The following constants are only for debug output */
