@@ -295,7 +295,8 @@ uint explain_filename(THD* thd,
   {
     if (explain_mode == EXPLAIN_ALL_VERBOSE)
     {
-      to_p= strnmov(to_p, ER(ER_DATABASE_NAME), end_p - to_p);
+      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_DATABASE_NAME),
+                                            end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, db_name, db_name_len);
       to_p= strnmov(to_p, ", ", end_p - to_p);
@@ -308,7 +309,7 @@ uint explain_filename(THD* thd,
   }
   if (explain_mode == EXPLAIN_ALL_VERBOSE)
   {
-    to_p= strnmov(to_p, ER(ER_TABLE_NAME), end_p - to_p);
+    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, table_name, table_name_len);
   }
@@ -325,18 +326,22 @@ uint explain_filename(THD* thd,
     if (name_type != NORMAL)
     {
       if (name_type == TEMP)
-        to_p= strnmov(to_p, ER(ER_TEMPORARY_NAME), end_p - to_p);
+        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
+                      end_p - to_p);
       else
-        to_p= strnmov(to_p, ER(ER_RENAMED_NAME), end_p - to_p);
+        to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_RENAMED_NAME),
+                      end_p - to_p);
       to_p= strnmov(to_p, " ", end_p - to_p);
     }
-    to_p= strnmov(to_p, ER(ER_PARTITION_NAME), end_p - to_p);
+    to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_PARTITION_NAME),
+                  end_p - to_p);
     *(to_p++)= ' ';
     to_p= add_identifier(thd, to_p, end_p, part_name, part_name_len);
     if (subpart_name)
     {
       to_p= strnmov(to_p, ", ", end_p - to_p);
-      to_p= strnmov(to_p, ER(ER_SUBPARTITION_NAME), end_p - to_p);
+      to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_SUBPARTITION_NAME),
+                    end_p - to_p);
       *(to_p++)= ' ';
       to_p= add_identifier(thd, to_p, end_p, subpart_name, subpart_name_len);
     }
@@ -3269,11 +3274,19 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL && column->length)
+        if (key->type == Key::SPATIAL)
         {
-          my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
+          if (column->length)
+          {
+            my_error(ER_WRONG_SUB_KEY, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+          if (!f_is_geom(sql_field->pack_flag))
+          {
+            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+        }
 
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
@@ -3368,22 +3381,21 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    }
 	  }
 	}
+        // Catch invalid use of partial keys 
 	else if (!f_is_geom(sql_field->pack_flag) &&
-                 ((column->length > length &&
-                   !Field::type_can_have_key_part (sql_field->sql_type)) ||
-                  ((f_is_packed(sql_field->pack_flag) ||
-                    ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
-                     (key_info->flags & HA_NOSAME))) &&
-                   column->length != length)))
-        {
-          /* Catch invalid uses of partial keys.
-             A key is identified as 'partial' if column->length != length.
-             A partial key is invalid if they data type does
-             not allow it, or the field is packed (as in MyISAM),
-             or the storage engine doesn't allow prefixed search and
-             the key is primary key.
-          */
-
+                 // is the key partial? 
+                 column->length != length &&
+                 // is prefix length bigger than field length? 
+                 (column->length > length ||
+                  // can the field have a partial key? 
+                  !Field::type_can_have_key_part (sql_field->sql_type) ||
+                  // a packed field can't be used in a partial key
+                  f_is_packed(sql_field->pack_flag) ||
+                  // does the storage engine allow prefixed search?
+                  ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+                   // and is this a 'unique' key?
+                   (key_info->flags & HA_NOSAME))))
+        {         
 	  my_message(ER_WRONG_SUB_KEY, ER(ER_WRONG_SUB_KEY), MYF(0));
 	  DBUG_RETURN(TRUE);
 	}
@@ -6470,7 +6482,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         thd->clear_error();
         Query_log_event qinfo(thd, thd->query(), thd->query_length(),
                               FALSE, TRUE, FALSE, 0);
-        if (error= mysql_bin_log.write(&qinfo))
+        if ((error= mysql_bin_log.write(&qinfo)))
           goto view_err_unlock;
       }
       my_ok(thd);

@@ -131,6 +131,26 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
 #define RUSAGE_USEC(tv)  ((tv).tv_sec*1000*1000 + (tv).tv_usec)
 #define RUSAGE_DIFF_USEC(tv1, tv2) (RUSAGE_USEC((tv1))-RUSAGE_USEC((tv2)))
 
+#ifdef _WIN32
+static ULONGLONG FileTimeToQuadWord(FILETIME *ft)
+{
+  // Overlay FILETIME onto a ULONGLONG.
+  union {
+    ULONGLONG qwTime;
+    FILETIME ft;
+  } u;
+
+  u.ft = *ft;
+  return u.qwTime;
+}
+
+
+// Get time difference between to FILETIME objects in seconds.
+static double GetTimeDiffInSeconds(FILETIME *a, FILETIME *b)
+{
+  return ((FileTimeToQuadWord(a) - FileTimeToQuadWord(b)) / 1e7);
+}
+#endif
 
 PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char
                                    *status_arg)
@@ -221,6 +241,12 @@ void PROF_MEASUREMENT::collect()
   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
 #ifdef HAVE_GETRUSAGE
   getrusage(RUSAGE_SELF, &rusage);
+#elif defined(_WIN32)
+  FILETIME ftDummy;
+  // NOTE: Get{Process|Thread}Times has a granularity of the clock interval,
+  // which is typically ~15ms. So intervals shorter than that will not be
+  // measurable by this function.
+  GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
 #endif
 }
 
@@ -586,6 +612,23 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
                                                         (1000.0*1000),
                         &cpu_stime_decimal);
 
+      table->field[4]->store_decimal(&cpu_utime_decimal);
+      table->field[5]->store_decimal(&cpu_stime_decimal);
+      table->field[4]->set_notnull();
+      table->field[5]->set_notnull();
+#elif defined(_WIN32)
+      my_decimal cpu_utime_decimal, cpu_stime_decimal;
+
+      double2my_decimal(E_DEC_FATAL_ERROR,
+                        GetTimeDiffInSeconds(&entry->ftUser,
+                                             &previous->ftUser),
+                        &cpu_utime_decimal);
+      double2my_decimal(E_DEC_FATAL_ERROR,
+                        GetTimeDiffInSeconds(&entry->ftKernel,
+                                             &previous->ftKernel),
+                        &cpu_stime_decimal);
+
+      // Store the result.
       table->field[4]->store_decimal(&cpu_utime_decimal);
       table->field[5]->store_decimal(&cpu_stime_decimal);
       table->field[4]->set_notnull();

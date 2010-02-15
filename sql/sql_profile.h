@@ -165,6 +165,8 @@ private:
   char *status;
 #ifdef HAVE_GETRUSAGE
   struct rusage rusage;
+#elif defined(_WIN32)
+  FILETIME ftKernel, ftUser;
 #endif
 
   char *function;

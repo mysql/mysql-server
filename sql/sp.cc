@@ -928,8 +928,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* Grab an exclusive MDL lock. */
   if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
@@ -1144,7 +1144,9 @@ done:
 
   close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
@@ -1182,8 +1184,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* Grab an exclusive MDL lock. */
   if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
@@ -1221,7 +1223,9 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
@@ -1266,8 +1270,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     row-based replication. The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
@@ -1326,7 +1330,9 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 err:
   close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 

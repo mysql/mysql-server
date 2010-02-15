@@ -1111,13 +1111,15 @@ public:
     */
     BINLOG_STMT_UNSAFE_SYSTEM_TABLE,
     /**
-      Update of two autoincrement columns is unsafe.  With one
-      autoincrement column, we store the counter in the binlog so that
-      slave can restore the correct value.  But we can only store one
-      such counter per statement, so updating more than one
-      autoincrement column is not safe.
+      Inserting into an autoincrement column in a stored routine is unsafe.
+      Even with just one autoincrement column, if the routine is invoked more than 
+      once slave is not guaranteed to execute the statement graph same way as 
+      the master.
+      And since it's impossible to estimate how many times a routine can be invoked at 
+      the query pre-execution phase (see lock_tables), the statement is marked
+      pessimistically unsafe. 
     */
-    BINLOG_STMT_UNSAFE_TWO_AUTOINC_COLUMNS,
+    BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS,
     /**
       Using a UDF (user-defined function) is unsafe.
     */
@@ -1913,7 +1915,9 @@ struct LEX: public Query_tables_list
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  uint fk_delete_opt, fk_update_opt, fk_match_option;
+  enum Foreign_key::fk_match_opt fk_match_option;
+  enum Foreign_key::fk_option fk_update_opt;
+  enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
   /*

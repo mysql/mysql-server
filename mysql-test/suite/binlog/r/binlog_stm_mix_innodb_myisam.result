@@ -520,10 +520,10 @@ end|
 reset master;
 insert into t2 values (bug27417(1));
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 insert into t2 select bug27417(2);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -543,7 +543,7 @@ count(*)
 2
 delete from t2 where a=bug27417(3);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -560,7 +560,7 @@ count(*)
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7
@@ -784,10 +784,10 @@ end|
 reset master;
 insert into t2 values (bug27417(1));
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 insert into t2 select bug27417(2);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -806,7 +806,7 @@ count(*)
 2
 delete from t2 where a=bug27417(3);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -822,7 +822,7 @@ count(*)
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7

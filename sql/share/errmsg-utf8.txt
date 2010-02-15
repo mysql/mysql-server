@@ -6280,8 +6280,8 @@ ER_BINLOG_UNSAFE_INSERT_DELAYED
   eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
   eng "Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave."
-ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS
-  eng "Statement updates two AUTO_INCREMENT columns. This is unsafe because the generated value cannot be predicted by slave."
+ER_BINLOG_UNSAFE_AUTOINC_COLUMNS
+  eng "Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically."
 ER_BINLOG_UNSAFE_UDF
   eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
 ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
@@ -6318,3 +6318,6 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot change the binlog direct flag inside a stored function or trigger"
+ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
+  eng "A SPATIAL index may only contain a geometrical type column"
+

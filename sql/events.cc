@@ -326,8 +326,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE EVENT command.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
 
@@ -368,7 +368,9 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
         /* Restore the state of binlog format */
-        thd->current_stmt_binlog_row_based= save_binlog_row_based;
+        DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+        if (save_binlog_row_based)
+          thd->set_current_stmt_binlog_format_row();
         DBUG_RETURN(TRUE);
       }
       /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
@@ -378,7 +380,9 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(ret);
 }
@@ -455,8 +459,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for UPDATE EVENT command.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
 
@@ -493,7 +497,9 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(ret);
 }
@@ -540,8 +546,8 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     Turn off row binlogging of this statement and use statement-based so
     that all supporting tables are updated for DROP EVENT command.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -555,7 +561,9 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
