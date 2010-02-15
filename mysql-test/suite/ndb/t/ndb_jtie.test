@@ -2,6 +2,7 @@
 # Run the NDB JTie JUnit tests from MTR
 #
 
+--source include/not_embedded.inc
 --source suite/ndb/include/have_java.inc
 --source suite/ndb/include/have_ndbjtie.inc
 --source suite/ndb/include/have_ndbjtie_junit.inc
