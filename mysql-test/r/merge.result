@@ -2466,7 +2466,9 @@ UNLOCK TABLES;
 DROP TRIGGER t2_ai;
 DROP TABLE tm1, t1, t2;
 #
-# Don't select MERGE child when trying to get prelocked table.
+# Don't allow an update of a MERGE child in a trigger
+# if the table's already being modified by the main
+# statement.
 #
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
@@ -2475,19 +2477,45 @@ CREATE TRIGGER tm1_ai AFTER INSERT ON tm1
 FOR EACH ROW INSERT INTO t1 VALUES(11);
 LOCK TABLE tm1 WRITE, t1 WRITE;
 INSERT INTO tm1 VALUES (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 SELECT * FROM tm1;
 c1
 1
-11
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE, tm1 WRITE;
+INSERT INTO tm1 VALUES (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+SELECT * FROM tm1;
+c1
+1
+1
+UNLOCK TABLES;
+DROP TRIGGER tm1_ai;
+DROP TABLE tm1, t1;
+#
+# Don't select MERGE child when trying to get a prelocked table.
+#
+# Due to a limitation demonstrated by the previous test
+# we can no longer use a write-locked prelocked table.
+# The test is kept for historical purposes.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TRIGGER tm1_ai AFTER INSERT ON tm1
+FOR EACH ROW SELECT max(c1) FROM t1 INTO @var;
+LOCK TABLE tm1 WRITE, t1 WRITE;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
 UNLOCK TABLES;
 LOCK TABLE t1 WRITE, tm1 WRITE;
 INSERT INTO tm1 VALUES (1);
 SELECT * FROM tm1;
 c1
 1
-11
 1
-11
 UNLOCK TABLES;
 DROP TRIGGER tm1_ai;
 DROP TABLE tm1, t1;
@@ -2499,7 +2527,7 @@ CREATE TABLE t5 (c1 INT) ENGINE=MyISAM;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2,t3,t4,t5)
 INSERT_METHOD=LAST;
 CREATE TRIGGER t2_au AFTER UPDATE ON t2
-FOR EACH ROW INSERT INTO t3 VALUES(33);
+FOR EACH ROW SELECT MAX(c1) FROM t1 INTO @var;
 CREATE FUNCTION f1() RETURNS INT
 RETURN (SELECT MAX(c1) FROM t4);
 LOCK TABLE tm1 WRITE, t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE, t5 WRITE;
@@ -2517,7 +2545,6 @@ c1
 1
 4
 3
-33
 4
 5
 DROP TRIGGER t2_au;
@@ -2553,4 +2580,29 @@ ERROR HY000: Unable to open underlying table which is differently defined or of 
 DROP TABLE t1, t3;
 # Connection default.
 # Disconnecting con1, all mdl_tickets must have been released.
+#
+# A test case for Bug#47648   main.merge fails sporadically
+#
+# Make sure we correctly maintain lex->query_tables_last_own.
+#
+create table t1 (c1 int not null);
+create table t2 (c1 int not null);
+create table t3 (c1 int not null);
+create function f1 () returns int return (select max(c1) from t3);
+create table t4 (c1 int not null) engine=merge union=(t1,t2) insert_method=last ;
+select * from t4 where c1 < f1();
+c1
+prepare stmt from "select * from t4 where c1 < f1()";
+execute stmt;
+c1
+execute stmt;
+c1
+execute stmt;
+c1
+drop function f1;
+execute stmt;
+ERROR 42000: FUNCTION test.f1 does not exist
+execute stmt;
+ERROR 42000: FUNCTION test.f1 does not exist
+drop table t4, t3, t2, t1;
 End of 6.0 tests
