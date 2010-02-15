@@ -21,13 +21,25 @@ select * from information_schema.session_variables where variable_name='max_join
 VARIABLE_NAME	VARIABLE_VALUE
 MAX_JOIN_SIZE	18446744073709551615
 set global max_join_size=10;
+set session max_join_size=20;
 select @@global.max_join_size;
 @@global.max_join_size
 10
-set session max_join_size=20;
 select @@session.max_join_size;
 @@session.max_join_size
 20
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	10
+show session variables like 'max_join_size';
+Variable_name	Value
+max_join_size	20
+select * from information_schema.global_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	10
+select * from information_schema.session_variables where variable_name='max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	20
 set global max_join_size=1.1;
 ERROR 42000: Incorrect argument type to variable 'max_join_size'
 set global max_join_size=1e1;
