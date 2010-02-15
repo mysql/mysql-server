@@ -501,7 +501,7 @@ public:
 
   void set_trans_sentinel()
   {
-    m_trans_sentinel= mdl_savepoint();
+    m_trans_sentinel= m_tickets.front();
   }
   MDL_ticket *trans_sentinel() const { return m_trans_sentinel; }
 
