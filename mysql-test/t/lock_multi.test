@@ -1038,5 +1038,59 @@ disconnect con2;
 disconnect con3;
 
 
+--echo #
+--echo # Test for bug #51134 "Crash in MDL_lock::destroy on a concurrent
+--echo #                      DDL workload".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2, t3;
+--enable_warnings
+connect (con1, localhost, root, , );
+connect (con2, localhost, root, , );
+connection default;
+create table t3 (i int);
+
+--echo # Switching to connection 'con1'
+connection con1;
+--echo # Lock 't3' so upcoming RENAME is blocked.
+lock table t3 read;
+
+--echo # Switching to connection 'con2'
+connection con2;
+--echo # Remember ID for this connection.
+let $ID= `select connection_id()`;
+--echo # Start statement which will try to acquire two instances
+--echo # of X metadata lock on the same object.
+--echo # Sending:
+--send rename tables t1 to t2, t2 to t3;
+
+--echo # Switching to connection 'default'
+connection default;
+--echo # Wait until RENAME TABLE is blocked on table 't3'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename tables t1 to t2, t2 to t3";
+--source include/wait_condition.inc
+--echo # Kill RENAME TABLE.
+--replace_result $ID ID
+eval kill query $ID;
+
+--echo # Switching to connection 'con2'
+connection con2;
+--echo # RENAME TABLE should be aborted but should not crash.
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--echo # Switching to connection 'con1'
+connection con1;
+unlock tables;
+
+--echo # Switching to connection 'default'
+connection default;
+disconnect con1;
+disconnect con2;
+drop table t3;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
