@@ -1681,3 +1681,25 @@ handler t1 close;
 --echo # Clean-up.
 drop function f1;
 drop tables t1, t2;
+
+
+--echo #
+--echo # Test for bug #51136 "Crash in pthread_rwlock_rdlock on TEMPORARY +
+--echo #                      HANDLER + LOCK + SP".
+--echo # Also see additional coverage for this bug in flush.test.
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create temporary table t2 (j int);
+handler t1 open;
+lock table t2 read;
+--echo # This commit should not release any MDL locks.
+commit;
+unlock tables;
+--echo # The below statement crashed before the bug fix as it
+--echo # has attempted to release metadata lock which was
+--echo # already released by commit.
+handler t1 close;
+drop tables t1, t2;
