@@ -83,7 +83,6 @@ enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
 
 
 extern ulong max_write_lock_count;
-extern ulong table_lock_wait_timeout;
 extern my_bool thr_lock_inited;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
