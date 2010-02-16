@@ -268,6 +268,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     pthread_mutex_lock(&share->intern_lock);
     /* Flush pages that we don't need anymore */
     if (flush_key_blocks(share->key_cache, share->kfile,
+                         &share->dirty_part_map,
 			 (function == HA_EXTRA_PREPARE_FOR_DROP ?
                           FLUSH_IGNORE_CHANGED : FLUSH_RELEASE)))
     {
@@ -326,7 +327,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
+      flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+                       FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
 #endif

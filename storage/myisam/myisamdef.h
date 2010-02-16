@@ -174,6 +174,8 @@ typedef struct st_mi_isam_share
    *index_file_name;
   uchar *file_map;                       /* mem-map of file if possible */
   KEY_CACHE *key_cache;                 /* ref to the current key cache */
+  /* To mark the key cache partitions containing dirty pages for this file */ 
+  ulonglong dirty_part_map;   
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   /* Function to use for a row checksum. */
@@ -733,7 +735,8 @@ void mi_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...));
 #ifdef THREAD
 pthread_handler_t thr_find_all_keys(void *arg);
 #endif
-int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file);
+int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file,
+                 ulonglong *dirty_part_map);
 #ifdef __cplusplus
 }
 #endif
