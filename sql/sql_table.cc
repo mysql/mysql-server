@@ -22,9 +22,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_show.h"
-#if defined(ENABLED_DEBUG_SYNC)
 #include "debug_sync.h"
-#endif
 
 #ifdef __WIN__
 #include <io.h>
