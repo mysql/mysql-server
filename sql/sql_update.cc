@@ -207,6 +207,7 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
+  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
   for ( ; ; )
@@ -223,11 +224,11 @@ int mysql_update(THD *thd,
       /* convert to multiupdate */
       DBUG_RETURN(2);
     }
-    if (!lock_tables(thd, table_list, table_count, &need_reopen))
+    if (!lock_tables(thd, table_list, table_count, 0, &need_reopen))
       break;
     if (!need_reopen)
       DBUG_RETURN(1);
-    close_tables_for_reopen(thd, &table_list);
+    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
   }
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -967,9 +968,10 @@ int mysql_multi_update_prepare(THD *thd)
     count in open_tables()
   */
   uint  table_count= lex->table_count;
-  const bool using_lock_tables= thd->locked_tables != 0;
+  const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   bool need_reopen= FALSE;
+  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
@@ -1049,6 +1051,11 @@ reopen_tables:
         If we are using the binary log, we need TL_READ_NO_INSERT to get
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
+        We don't downgrade metadata lock from SW to SR in this case as
+        there is no guarantee that the same ticket is not used by
+        another table instance used by this statement which is going to
+        be write-locked (for example, trigger to be invoked might try
+        to update this table).
       */
       tl->lock_type= read_lock_type_for_table(thd, table);
       tl->updating= 0;
@@ -1089,7 +1096,7 @@ reopen_tables:
 
   /* now lock and fill tables */
   if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, &need_reopen))
+      lock_tables(thd, table_list, table_count, 0, &need_reopen))
   {
     if (!need_reopen)
       DBUG_RETURN(TRUE);
@@ -1106,10 +1113,6 @@ reopen_tables:
     Item *item;
     while ((item= it++))
       item->cleanup();
-
-    /* We have to cleanup translation tables of views. */
-    for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
-      tbl->cleanup_items();
 
     /*
       To not to hog memory (as a result of the 
@@ -1139,7 +1142,7 @@ reopen_tables:
     */
     cleanup_items(thd->free_list);
     cleanup_items(thd->stmt_arena->free_list);
-    close_tables_for_reopen(thd, &table_list);
+    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
 
     DEBUG_SYNC(thd, "multi_update_reopen_tables");
 

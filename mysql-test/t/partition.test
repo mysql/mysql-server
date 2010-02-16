@@ -95,6 +95,19 @@ show indexes from t1;
 drop table t1;
 
 #
+# Bug#40181: hang if create index
+#
+create table t1 (a int)
+partition by hash (a);
+create index i on t1 (a);
+insert into t1 values (1);
+insert into t1 select * from t1;
+--error ER_DUP_KEYNAME
+create index i on t1 (a);
+create index i2 on t1 (a);
+drop table t1;
+
+#
 # Bug#36001: Partitions: spelling and using some error messages
 #
 --error ER_FOREIGN_KEY_ON_PARTITIONED

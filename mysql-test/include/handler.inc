@@ -518,12 +518,15 @@ connect (flush,localhost,root,,);
 connection flush;
 --echo connection: flush
 --send flush tables;
-connection default;
---echo connection: default
+connect (waiter,localhost,root,,);
+connection waiter;
+--echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Flushing tables";
 --source include/wait_condition.inc
+connection default;
+--echo connection: default
 handler t2 open;
 handler t2 read first;
 handler t1 read next;
@@ -540,7 +543,7 @@ disconnect flush;
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1, t0;
 --enable_warnings
 create table t1 (c1 int);
 --echo connection: default
@@ -549,24 +552,47 @@ handler t1 read first;
 connect (flush,localhost,root,,);
 connection flush;
 --echo connection: flush
---send rename table t1 to t2;
-connection default;
---echo connection: default
+--send rename table t1 to t0;
+connection waiter;
+--echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table" and info = "rename table t1 to t0";
 --source include/wait_condition.inc
-handler t2 open;
-handler t2 read first;
---error ER_NO_SUCH_TABLE
-handler t1 read next;
-handler t1 close;
-handler t2 close;
+connection default;
+--echo connection: default
+--echo #
+--echo # RENAME placed two pending locks and waits.
+--echo # When HANDLER t0 OPEN does open_tables(), it calls
+--echo # mysql_ha_flush(), which in turn closes the open HANDLER for t1.
+--echo # RENAME TABLE gets unblocked. If it gets scheduled quickly
+--echo # and manages to complete before open_tables()
+--echo # of HANDLER t0 OPEN, open_tables() and therefore the whole
+--echo # HANDLER t0 OPEN succeeds. Otherwise open_tables() 
+--echo # notices a pending or active exclusive metadata lock on t2
+--echo # and the whole HANDLER t0 OPEN fails with ER_LOCK_DEADLOCK
+--echo # error.
+--echo #
+--error 0, ER_LOCK_DEADLOCK
+handler t0 open;
+--error 0, ER_UNKNOWN_TABLE
+handler t0 close;
+--echo connection: flush
 connection flush;
 reap;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--error ER_UNKNOWN_TABLE
+handler t1 close;
 connection default;
-drop table t2;
+drop table t0;
+connection flush;
 disconnect flush;
+--source include/wait_until_disconnected.inc
+connection waiter;
+disconnect waiter;
+--source include/wait_until_disconnected.inc
+connection default;
 
 #
 # Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
@@ -699,26 +725,60 @@ handler t1 read a next;
 # Bug#41112: crash in mysql_ha_close_table/get_lock_data with alter table
 #
 
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+connection default;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+--echo # First test case which is supposed trigger the execution
+--echo # path on which problem was discovered.
 create table t1 (a int);
 insert into t1 values (1);
 handler t1 open;
-connect(con1,localhost,root,,);
+connection con1;
+lock table t1 write;
 send alter table t1 engine=memory;
-connection default;
+connection con2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "rename result table" and info = "alter table t1 engine=memory";
+  where state = "Waiting for table" and info = "alter table t1 engine=memory";
 --source include/wait_condition.inc
+connection default;
 --error ER_ILLEGAL_HA
 handler t1 read a next;
 handler t1 close;
 connection con1;
 --reap
+unlock tables;
+drop table t1;
+--echo # Now test case which was reported originally but which no longer
+--echo # triggers execution path which has caused the problem.
+connection default;
+create table t1 (a int, key(a));
+insert into t1 values (1);
+handler t1 open;
+connection con1;
+send alter table t1 engine=memory;
+connection con2;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 engine=memory";
+--source include/wait_condition.inc
+connection default;
+--echo # Since S metadata lock was already acquired at HANDLER OPEN time
+--echo # and TL_READ lock requested by HANDLER READ is compatible with
+--echo # ALTER's TL_WRITE_ALLOW_READ the below statement should succeed
+--echo # without waiting. The old version of table should be used in it.
+handler t1 read a next;
+handler t1 close;
+connection con1;
 drop table t1;
 disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
 --source include/wait_until_disconnected.inc
 connection default;
 
@@ -729,3 +789,917 @@ USE information_schema;
 --error ER_WRONG_USAGE
 HANDLER COLUMNS OPEN;
 USE test;
+
+--echo #
+--echo # Add test coverage for HANDLER and LOCK TABLES, HANDLER and DDL.
+--echo #
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+create table t2 (a int, key a (a)) select * from t1; 
+create temporary table t3 (a int, key a (a)) select * from t2;
+handler t1 open;
+handler t2 open;
+handler t3 open;
+--echo #
+--echo # No HANDLER sql is allowed under LOCK TABLES.
+--echo # But it does not implicitly closes all handlers.
+--echo #
+lock table t1 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t1 open;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t1 read next;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t2 close;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t3 open;
+--echo # After UNLOCK TABLES handlers should be around and
+--echo # we should be able to continue reading through them.
+unlock tables;
+handler t1 read next;
+handler t1 close;
+handler t2 read next;
+handler t2 close;
+handler t3 read next;
+handler t3 close;
+drop temporary table t3;
+--echo #
+--echo # Other operations that implicitly close handler:
+--echo #
+--echo # TRUNCATE
+--echo #
+handler t1 open;
+truncate table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+handler t1 open;
+--echo #
+--echo # CREATE TRIGGER
+--echo #
+create trigger t1_ai after insert on t1 for each row set @a=1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TRIGGER
+--echo #
+handler t1 open;
+drop trigger t1_ai;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ALTER TABLE
+--echo # 
+handler t1 open;
+alter table t1 add column b int;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ANALYZE TABLE
+--echo # 
+handler t1 open;
+analyze table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # OPTIMIZE TABLE
+--echo # 
+handler t1 open;
+optimize table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # REPAIR TABLE
+--echo # 
+handler t1 open;
+repair table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TABLE, naturally.
+--echo # 
+handler t1 open;
+drop table t1;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+create table t1 (a int, b int, key a (a)) select a from t2;
+--echo #
+--echo # RENAME TABLE, naturally
+--echo # 
+handler t1 open;
+rename table t1 to t3;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # CREATE TABLE (even with IF NOT EXISTS clause,
+--echo # and the table exists).
+--echo # 
+handler t2 open;
+create table if not exists t2 (a int);
+--error ER_UNKNOWN_TABLE
+handler t2 read next;
+rename table t3 to t1;
+drop table t2;
+--echo #
+--echo # FLUSH TABLE doesn't close the table but loses the position
+--echo # 
+handler t1 open;
+handler t1 read a prev;
+flush table t1;
+handler t1 read a prev;
+handler t1 close;
+--echo #
+--echo # FLUSH TABLES WITH READ LOCK behaves like FLUSH TABLE.
+--echo # 
+handler t1 open;
+handler t1 read a prev;
+flush tables with read lock;
+handler t1 read a prev;
+handler t1 close;
+unlock tables;
+--echo #
+--echo # Let us also check that these operations behave in similar
+--echo # way under LOCK TABLES.
+--echo #
+--echo # TRUNCATE under LOCK TABLES.
+--echo #
+handler t1 open;
+lock tables t1 write;
+truncate table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+handler t1 open;
+--echo #
+--echo # CREATE TRIGGER under LOCK TABLES.
+--echo #
+lock tables t1 write;
+create trigger t1_ai after insert on t1 for each row set @a=1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TRIGGER under LOCK TABLES.
+--echo #
+handler t1 open;
+lock tables t1 write;
+drop trigger t1_ai;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ALTER TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+alter table t1 drop column b;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # ANALYZE TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+analyze table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # OPTIMIZE TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+optimize table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # REPAIR TABLE under LOCK TABLES.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+repair table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+--echo #
+--echo # DROP TABLE under LOCK TABLES, naturally.
+--echo # 
+handler t1 open;
+lock tables t1 write;
+drop table t1;
+unlock tables;
+--error ER_UNKNOWN_TABLE
+handler t1 read next;
+create table t1 (a int, b int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+--echo #
+--echo # FLUSH TABLE doesn't close the table but loses the position
+--echo # 
+handler t1 open;
+handler t1 read a prev;
+lock tables t1 write;
+flush table t1;
+unlock tables;
+handler t1 read a prev;
+handler t1 close;
+--echo #
+--echo # Explore the effect of HANDLER locks on concurrent DDL
+--echo #
+handler t1 open;
+--echo # Establishing auxiliary connections con1, con2, con3
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
+--echo # --> connection con1;
+connection con1;
+--echo # Sending:
+--send drop table t1 
+--echo # We can't use connection 'default' as wait_condition will 
+--echo # autoclose handlers.
+--echo # --> connection con2 
+connection con2;
+--echo # Waitng for 'drop table t1' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+--source include/wait_condition.inc
+--echo # --> connection default
+connection default;
+handler t1 read a prev;
+handler t1 read a prev;
+handler t1 close;
+--echo # --> connection con1
+connection con1;
+--echo # Reaping 'drop table t1'...
+--reap
+--echo # --> connection default
+connection default;
+--echo #
+--echo # Explore the effect of HANDLER locks in parallel with SELECT 
+--echo #
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+begin;
+select * from t1;
+handler t1 open;
+handler t1 read a prev;
+handler t1 read a prev;
+handler t1 close;
+--echo # --> connection con1;
+connection con1;
+--echo # Sending:
+--send drop table t1 
+--echo # --> connection con2 
+connection con2;
+--echo # Waiting for 'drop table t1' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+--source include/wait_condition.inc
+--echo # --> connection default
+connection default;
+--echo # We can still use the table, it's part of the transaction
+select * from t1;
+--echo # Such are the circumstances that t1 is a part of transaction,
+--echo # thus we can reopen it in the handler
+handler t1 open;
+--echo # We can commit the transaction, it doesn't close the handler
+--echo # and doesn't let DROP to proceed.
+commit;
+handler t1 read a prev;
+handler t1 read a prev;
+handler t1 read a prev;
+handler t1 close;
+--echo # --> connection con1
+connection con1;
+--echo # Now drop can proceed
+--echo # Reaping 'drop table t1'...
+--reap
+--echo # --> connection default
+connection default;
+--echo #
+--echo # Demonstrate that HANDLER locks and transaction locks
+--echo # reside in the same context, and we don't back-off
+--echo # when have transaction or handler locks.
+--echo #
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+create table t0 (a int, key a (a));
+insert into t0 (a) values (1), (2), (3), (4), (5);
+begin;
+select * from t1;
+--echo # --> connection con2 
+connection con2;
+--echo # Sending:
+send rename table t0 to t3, t1 to t0, t3 to t1;
+--echo # --> connection con1 
+connection con1;
+--echo # Waiting for 'rename table ...' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='rename table t0 to t3, t1 to t0, t3 to t1';
+--source include/wait_condition.inc
+--echo # --> connection default
+connection default;
+--error ER_LOCK_DEADLOCK
+handler t0 open;
+--error ER_LOCK_DEADLOCK
+select * from t0;
+handler t1 open;
+commit;
+handler t1 close;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'rename table ...'...
+--reap
+--echo # --> connection default
+connection default;
+handler t1 open;
+handler t1 read a prev;
+handler t1 close;
+drop table t0;
+--echo #
+--echo # Originally there was a deadlock error in this test.
+--echo # With implementation of deadlock detector
+--echo # we no longer deadlock, but block and wait on a lock.
+--echo # The HANDLER is auto-closed as soon as the connection
+--echo # sees a pending conflicting lock against it.
+--echo #
+create table t2 (a int, key a (a));
+handler t1 open;
+--echo # --> connection con1
+connection con1;
+lock tables t2 read;
+--echo # --> connection con2
+connection con2;
+--echo # Sending 'drop table t2'...
+--send drop table t2
+--echo # --> connection con1
+connection con1;
+--echo # Waiting for 'drop table t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+--source include/wait_condition.inc
+--echo # --> connection default
+connection default;
+--echo # Sending 'select * from t2'
+send select * from t2;
+--echo # --> connection con1
+connection con1;
+--echo # Waiting for 'select * from t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='select * from t2';
+unlock tables;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'drop table t2'...
+--reap
+--echo # --> connection default
+connection default;
+--echo # Reaping 'select * from t2'
+--error ER_NO_SUCH_TABLE
+reap;
+handler t1 close;
+
+--echo #
+--echo # ROLLBACK TO SAVEPOINT releases transactional locks,
+--echo # but has no effect on open HANDLERs
+--echo #
+create table t2 like t1;
+create table t3 like t1;
+begin;
+--echo # Have something before the savepoint
+select * from t3;
+savepoint sv;
+handler t1 open;
+handler t1 read a first;
+handler t1 read a next;
+select * from t2;
+--echo # --> connection con1
+connection con1;
+--echo # Sending:
+--send drop table t1
+--echo # --> connection con2
+connection con2;
+--echo # Sending:
+--send drop table t2
+--echo # --> connection default
+connection default;
+--echo # Let DROP TABLE statements sync in. We must use
+--echo # a separate connection for that, because otherwise SELECT
+--echo # will auto-close the HANDLERs, becaues there are pending
+--echo # exclusive locks against them.
+--echo # --> connection con3
+connection con3;
+--echo # Waiting for 'drop table t1' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+--source include/wait_condition.inc
+--echo # Waiting for 'drop table t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+--source include/wait_condition.inc
+--echo # Demonstrate that t2 lock was released and t2 was dropped
+--echo # after ROLLBACK TO SAVEPOINT
+--echo # --> connection default
+connection default;
+rollback to savepoint sv;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'drop table t2'...
+--reap
+--echo # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
+--echo # lock.
+--echo # --> connection default
+connection default;
+handler t1 read a next;
+handler t1 read a next;
+--echo # Demonstrate that the drop will go through as soon as we close the 
+--echo # HANDLER
+handler t1 close;
+--echo # connection con1
+connection con1;
+--echo # Reaping 'drop table t1'...
+--reap
+--echo # --> connection default
+connection default;
+commit;
+drop table t3;
+--echo #
+--echo # A few special cases when using SAVEPOINT/ROLLBACK TO
+--echo # SAVEPOINT and HANDLER.
+--echo #
+--echo # Show that rollback to the savepoint taken in the beginning
+--echo # of the transaction doesn't release mdl lock on
+--echo # the HANDLER that was opened later.
+--echo #
+create table t1 (a int, key a(a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+create table t2 like t1;
+begin;
+savepoint sv;
+handler t1 open;
+handler t1 read a first;
+handler t1 read a next;
+select * from t2;
+--echo # --> connection con1
+connection con1;
+--echo # Sending:
+--send drop table t1
+--echo # --> connection con2
+connection con2;
+--echo # Sending:
+--send drop table t2
+--echo # --> connection default
+connection default;
+--echo # Let DROP TABLE statements sync in. We must use
+--echo # a separate connection for that, because otherwise SELECT
+--echo # will auto-close the HANDLERs, becaues there are pending
+--echo # exclusive locks against them.
+--echo # --> connection con3
+connection con3;
+--echo # Waiting for 'drop table t1' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+--source include/wait_condition.inc
+--echo # Waiting for 'drop table t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+--source include/wait_condition.inc
+--echo # Demonstrate that t2 lock was released and t2 was dropped
+--echo # after ROLLBACK TO SAVEPOINT
+--echo # --> connection default
+connection default;
+rollback to savepoint sv;
+--echo # --> connection con2
+connection con2;
+--echo # Reaping 'drop table t2'...
+--reap
+--echo # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
+--echo # lock.
+--echo # --> connection default
+connection default;
+handler t1 read a next;
+handler t1 read a next;
+--echo # Demonstrate that the drop will go through as soon as we close the 
+--echo # HANDLER
+handler t1 close;
+--echo # connection con1
+connection con1;
+--echo # Reaping 'drop table t1'...
+--reap
+--echo # --> connection default
+connection default;
+commit;
+--echo #
+--echo # Show that rollback to the savepoint taken in the beginning
+--echo # of the transaction works properly (no valgrind warnins, etc),
+--echo # even though it's done after the HANDLER mdl lock that was there
+--echo # at the beginning is released and added again.
+--echo #
+create table t1 (a int, key a(a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+create table t2 like t1;
+create table t3 like t1;
+insert into t3 (a) select a from t1;
+begin;
+handler t1 open;
+savepoint sv;
+handler t1 read a first;
+select * from t2;
+handler t1 close;
+handler t3 open;
+handler t3 read a first;
+rollback to savepoint sv;
+--echo # --> connection con1
+connection con1;
+drop table t1, t2;
+--echo # Sending:
+--send drop table t3
+--echo # Let DROP TABLE statement sync in.
+--echo # --> connection con2
+connection con2;
+--echo # Waiting for 'drop table t3' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t3';
+--source include/wait_condition.inc
+--echo # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
+--echo # lock.
+--echo # --> connection default
+connection default;
+handler t3 read a next;
+--echo # Demonstrate that the drop will go through as soon as we close the 
+--echo # HANDLER
+handler t3 close;
+--echo # connection con1
+connection con1;
+--echo # Reaping 'drop table t3'...
+--reap
+--echo # --> connection default
+connection default;
+commit;
+
+--echo # 
+--echo # If we have to wait on an exclusive locks while having
+--echo # an open HANDLER, ER_LOCK_DEADLOCK is reported.
+--echo #
+create table t1 (a int, key a(a));
+create  table t2 like t1;
+handler t1 open;
+--echo # --> connection con1
+connection con1;
+lock table t1 write, t2 write;
+--echo # --> connection default
+connection default;
+send drop table t2;
+--echo # --> connection con2
+connection con2;
+--echo # Waiting for 'drop table t2' to get blocked...
+let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+--source include/wait_condition.inc
+--echo # --> connection con1
+connection con1;
+--error ER_LOCK_DEADLOCK
+drop table t1;
+unlock tables;
+--echo # --> connection default 
+connection default;
+reap;
+
+--echo # Demonstrate that there is no deadlock with FLUSH TABLE,
+--echo # even though it is waiting for the other table to go away
+create table t2 like t1;
+--echo # Sending:
+--send flush table t2
+--echo # --> connection con2
+connection con2;
+drop table t1;
+--echo # --> connection con1
+connection con1;
+unlock tables;
+--echo # --> connection default
+connection default;
+--echo # Reaping 'flush table t2'...
+--reap
+drop table t2;
+
+--echo # 
+--echo # Bug #46224 HANDLER statements within a transaction might 
+--echo #            lead to deadlocks
+--echo #
+create table t1 (a int, key a(a));
+insert into t1 values (1), (2);
+
+--echo # --> connection default
+connection default;
+begin;
+select * from t1;
+handler t1 open;
+
+--echo # --> connection con1
+connection con1;
+--echo # Sending:
+--send lock tables t1 write
+
+--echo # --> connection con2
+connection con2;
+--echo # Check that 'lock tables t1 write' waits until transaction which
+--echo # has read from the table commits.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "lock tables t1 write";
+--source include/wait_condition.inc
+
+--echo # --> connection default
+connection default;
+--echo # The below 'handler t1 read ...' should not be blocked as
+--echo # 'lock tables t1 write' has not succeeded yet.
+handler t1 read a next;
+
+--echo # Unblock 'lock tables t1 write'.
+commit;
+
+--echo # --> connection con1
+connection con1;
+--echo # Reap 'lock tables t1 write'.
+--reap
+
+--echo # --> connection default
+connection default;
+--echo # Sending:
+--send handler t1 read a next
+
+--echo # --> connection con1
+connection con1;
+--echo # Waiting for 'handler t1 read a next' to get blocked...
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Table lock" and info = "handler t1 read a next";
+--source include/wait_condition.inc
+
+--echo # The below 'drop table t1' should be able to proceed without
+--echo # waiting as it will force HANDLER to be closed.
+drop table t1;
+unlock tables;
+
+--echo # --> connection default 
+connection default;
+--echo # Reaping 'handler t1 read a next'...
+--error ER_NO_SUCH_TABLE
+--reap
+handler t1 close;
+
+--echo # --> connection con1
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # --> connection con2
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # --> connection con3
+connection con3;
+disconnect con3;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # A temporary table test.
+--echo # Check that we don't loose positions of HANDLER opened
+--echo # against a temporary table.
+--echo #
+create table t1 (a int, b int, key a (a));
+insert into t1 (a) values (1), (2), (3), (4), (5);
+create temporary table t2 (a int, b int, key a (a));
+insert into t2 (a) select a from t1;
+handler t1 open;
+handler t1 read a next;
+handler t2 open;
+handler t2 read a next;
+flush table t1;
+handler t2 read a next;
+--echo # Sic: the position is lost
+handler t1 read a next;
+select * from t1;
+--echo # Sic: the position is not lost
+handler t2 read a next;
+--error ER_CANT_REOPEN_TABLE
+select * from t2;
+handler t2 read a next;
+drop table t1;
+drop temporary table t2;
+
+--echo #
+--echo # A test for lock_table_names()/unlock_table_names() function.
+--echo # It should work properly in presence of open HANDLER.
+--echo #
+create table t1 (a int, b int, key a (a));
+create table t2 like t1;
+create table t3 like t1;
+create table t4 like t1;
+handler t1 open;
+handler t2 open;
+rename table t4 to t5, t3 to t4, t5 to t3;
+handler t1 read first;
+handler t2 read first;
+drop table t1, t2, t3, t4;
+
+--echo #
+--echo # A test for FLUSH TABLES WITH READ LOCK and HANDLER statements.
+--echo #
+set autocommit=0;
+create table t1 (a int, b int, key a (a));
+insert into t1 (a, b) values (1, 1), (2, 1), (3, 2), (4, 2), (5, 5);
+create table t2 like t1;
+insert into t2 (a, b) select a, b from t1;
+create table t3 like t1;
+insert into t3 (a, b) select a, b from t1;
+commit;
+flush tables with read lock;
+handler t1 open;
+lock table t1 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t1 read next;
+--echo # This implicitly leaves LOCK TABLES but doesn't drop the GLR
+--error ER_NO_SUCH_TABLE
+lock table not_exists_write read;
+--echo # We still have the read lock.
+--error ER_CANT_UPDATE_WITH_READLOCK
+drop table t1;
+handler t1 read next;
+handler t1 close;
+handler t1 open;
+select a from t2;
+handler t1 read next;
+flush tables with read lock;
+handler t2 open;
+flush tables with read lock;
+handler t1 read next;
+select a from t3;
+handler t2 read next;
+handler t1 close;
+rollback;
+handler t2 close;
+--error ER_CANT_UPDATE_WITH_READLOCK
+drop table t1;
+commit;
+flush tables;
+--error ER_CANT_UPDATE_WITH_READLOCK
+drop table t1;
+unlock tables;
+drop table t1;
+set autocommit=default;
+drop table t2, t3;
+
+--echo # 
+--echo # HANDLER statement and operation-type aware metadata locks.
+--echo # Check that when we clone a ticket for HANDLER we downrade
+--echo # the lock.
+--echo #
+--echo # Establish an auxiliary connection con1.
+connect (con1,localhost,root,,);
+--echo # -> connection default
+connection default;
+create table t1 (a int, b int, key a (a));
+insert into t1 (a, b) values (1, 1), (2, 1), (3, 2), (4, 2), (5, 5);
+begin;
+insert into t1 (a, b) values (6, 6);
+handler t1 open;
+handler t1 read a last;
+insert into t1 (a, b) values (7, 7);
+handler t1 read a last;
+commit;
+--echo # -> connection con1
+connection con1;
+--echo # Demonstrate that the HANDLER doesn't hold MDL_SHARED_WRITE.
+lock table t1 write;
+unlock tables;
+--echo # -> connection default
+connection default;
+handler t1 read a prev;
+handler t1 close;
+--echo # Cleanup.
+drop table t1;
+--echo # -> connection con1
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # -> connection default
+connection default;
+
+--echo #
+--echo # A test for Bug#50555 "handler commands crash server in
+--echo # my_hash_first()". 
+--echo #
+--error ER_UNKNOWN_TABLE
+handler no_such_table read no_such_index first;
+--error ER_UNKNOWN_TABLE
+handler no_such_table close;
+
+
+--echo #
+--echo # Bug#50907 Assertion `hash_tables->table->next == __null' on 
+--echo #           HANDLER OPEN
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+# This used to trigger the assert
+HANDLER t2 OPEN;
+
+# This also used to trigger the assert
+HANDLER t2 READ FIRST;
+
+HANDLER t2 CLOSE;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#50912 Assertion `ticket->m_type >= mdl_request->type'
+--echo #           failed on HANDLER + I_S
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT);
+HANDLER t1 OPEN;
+
+# This used to trigger the assert.
+SELECT table_name, table_comment FROM information_schema.tables
+  WHERE table_schema= 'test' AND table_name= 't1';
+
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #50908 "Assertion `handler_tables_hash.records == 0'
+--echo #                      failed in enter_locked_tables_mode".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+drop function if exists f1;
+--enable_warnings
+create table t1 (i int);
+insert into t1 values (1), (2);
+create table t2 (j int);
+insert into t2 values (1);
+create function f1() returns int return (select count(*) from t2);
+--echo # Check that open HANDLER survives statement executed in
+--echo # prelocked mode.
+handler t1 open;
+handler t1 read next;
+--echo # The below statement were aborted due to an assertion failure.
+select f1() from t2;
+handler t1 read next;
+handler t1 close;
+--echo # Check that the same happens under GLOBAL READ LOCK.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+select f1() from t2;
+handler t1 read next;
+unlock tables;
+handler t1 close;
+--echo # Now, check that the same happens if LOCK TABLES is executed.
+handler t1 open;
+handler t1 read next;
+lock table t2 read;
+select * from t2;
+unlock tables;
+handler t1 read next;
+handler t1 close;
+--echo # Finally, check scenario with GRL and LOCK TABLES.
+flush tables with read lock;
+handler t1 open;
+handler t1 read next;
+lock table t2 read;
+select * from t2;
+--echo # This unlocks both tables and GRL.
+unlock tables;
+handler t1 read next;
+handler t1 close;
+--echo # Clean-up.
+drop function f1;
+drop tables t1, t2;
+
+
+--echo #
+--echo # Test for bug #51136 "Crash in pthread_rwlock_rdlock on TEMPORARY +
+--echo #                      HANDLER + LOCK + SP".
+--echo # Also see additional coverage for this bug in flush.test.
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create temporary table t2 (j int);
+handler t1 open;
+lock table t2 read;
+--echo # This commit should not release any MDL locks.
+commit;
+unlock tables;
+--echo # The below statement crashed before the bug fix as it
+--echo # has attempted to release metadata lock which was
+--echo # already released by commit.
+handler t1 close;
+drop tables t1, t2;

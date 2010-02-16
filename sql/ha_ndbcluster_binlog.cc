@@ -266,7 +266,7 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
-  DBUG_ASSERT(!thd->prelocked_mode);
+  DBUG_ASSERT(!thd->locked_tables_mode);
 
   mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
@@ -286,7 +286,13 @@ static void run_query(THD *thd, char *buf, char *end,
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
+
+  /*
+    After executing statement we should unlock and close tables open
+    by it as well as release meta-data locks obtained by it.
+  */
   close_thread_tables(thd);
+
   /*
     XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
     can not be called from within a statement, and
@@ -926,7 +932,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
     ndb_binlog_tables_inited= TRUE;
     if (opt_ndb_extra_logging)
       sql_print_information("NDB Binlog: ndb tables writable");
-    close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+    close_cached_tables(NULL, NULL, TRUE, FALSE);
     mysql_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
     mysql_cond_signal(&injector_cond);
@@ -1740,7 +1746,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       bzero((char*) &table_list,sizeof(table_list));
       table_list.db= (char *)dbname;
       table_list.alias= table_list.table_name= (char *)tabname;
-      close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
+      close_cached_tables(thd, &table_list, TRUE, FALSE);
 
       if ((error= ndbcluster_binlog_open_table(thd, share,
                                                table_share, table, 1)))
@@ -1846,7 +1852,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, FALSE, FALSE);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
@@ -1967,7 +1973,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             bzero((char*) &table_list,sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
-            close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+            close_cached_tables(thd, &table_list, FALSE, FALSE);
           }
           /* ndb_share reference temporary free */
           if (share)
@@ -2084,7 +2090,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       mysql_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
-      close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
+      close_cached_tables(NULL, NULL, FALSE, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
       ndb_handle_schema_change(thd, ndb, pOp, tmp_share);
@@ -2241,7 +2247,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           bzero((char*) &table_list,sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+          close_cached_tables(thd, &table_list, FALSE, FALSE);
         }
         if (schema_type != SOT_ALTER_TABLE)
           break;
@@ -2328,22 +2334,21 @@ struct ndb_binlog_index_row {
 /*
   Open the ndb_binlog_index table
 */
-static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
-                             TABLE **ndb_binlog_index)
+static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
 {
   static char repdb[]= NDB_REP_DB;
   static char reptable[]= NDB_REP_TABLE;
   const char *save_proc_info= thd->proc_info;
+  TABLE_LIST *tables= &binlog_tables;
 
-  bzero((char*) tables, sizeof(*tables));
-  tables->db= repdb;
-  tables->alias= tables->table_name= reptable;
-  tables->lock_type= TL_WRITE;
+  tables->init_one_table(repdb, strlen(repdb), reptable, strlen(reptable),
+                         reptable, TL_WRITE);
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
+
   tables->required_type= FRMTYPE_TABLE;
   uint counter;
   thd->clear_error();
-  if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
+  if (simple_open_n_lock_tables(thd, tables))
   {
     if (thd->killed)
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
@@ -2377,28 +2382,11 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   ulong saved_options= thd->variables.option_bits;
   thd->variables.option_bits&= ~OPTION_BIN_LOG;
 
-  for ( ; ; ) /* loop for need_reopen */
+  if (!ndb_binlog_index && open_ndb_binlog_index(thd, &ndb_binlog_index))
   {
-    if (!ndb_binlog_index && open_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
-    {
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
-
-    if (lock_tables(thd, &binlog_tables, 1, &need_reopen))
-    {
-      if (need_reopen)
-      {
-        TABLE_LIST *p_binlog_tables= &binlog_tables;
-        close_tables_for_reopen(thd, &p_binlog_tables);
-        ndb_binlog_index= 0;
-        continue;
-      }
-      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
-    break;
+    sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+    error= -1;
+    goto add_ndb_binlog_index_err;
   }
 
   /*
@@ -2423,10 +2411,6 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
     goto add_ndb_binlog_index_err;
   }
 
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-  thd->variables.option_bits= saved_options;
-  return 0;
 add_ndb_binlog_index_err:
   close_thread_tables(thd);
   ndb_binlog_index= 0;
@@ -3902,9 +3886,6 @@ restart:
   }
   {
     static char db[]= "";
-    thd->db= db;
-    if (ndb_binlog_running)
-      open_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index);
     thd->db= db;
   }
   do_ndbcluster_binlog_close_connection= BCCC_running;

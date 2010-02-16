@@ -215,6 +215,12 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: Get master clock failed with error:.*"),
  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
  ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+   BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
+   table cause warnings in errlog
+   Note: This is a temporary suppression until Bug#42147 can be 
+   fixed properly. See bug page for more information.
+  */
+ ("Found lock of type 6 that is write and read locked"),
 
  ("THE_LAST_SUPPRESSION")||
 

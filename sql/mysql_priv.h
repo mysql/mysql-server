@@ -935,15 +935,6 @@ bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
 
-enum enum_mysql_completiontype {
-  ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
-  COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
-};
-
-bool begin_trans(THD *thd);
-bool end_active_trans(THD *thd);
-int end_trans(THD *thd, enum enum_mysql_completiontype completion);
-
 Item *negate_expression(THD *thd, Item *expr);
 
 /* log.cc */
@@ -1069,7 +1060,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                          bool drop_temporary, bool drop_view, bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
-void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
                       char *new_table_name, char *new_table_alias,
@@ -1097,6 +1087,7 @@ bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
+void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
@@ -1111,11 +1102,8 @@ bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
-void wait_while_table_is_used(THD *thd, TABLE *table,
-                              enum ha_extra_function function);
-bool table_cache_init(void);
-void table_cache_free(void);
 bool table_def_init(void);
+void table_def_start_shutdown(void);
 void table_def_free(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
@@ -1240,10 +1228,9 @@ int prepare_create_field(Create_field *sql_field,
 			 longlong table_flags);
 CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                     HA_CREATE_INFO *create_info);
-bool mysql_create_table(THD *thd,const char *db, const char *table_name,
+bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
-                        Alter_info *alter_info,
-                        bool tmp_table, uint select_field_count);
+                        Alter_info *alter_info);
 bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
@@ -1297,37 +1284,26 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
-                             uint key_length, uint db_flags, int *error);
-void release_table_share(TABLE_SHARE *share, enum release_type type);
+                             uint key_length, uint db_flags, int *error,
+                             my_hash_value_type hash_value);
+void release_table_share(TABLE_SHARE *share);
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
-TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
-		  bool *refresh, uint flags);
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
-TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
-                                      uint key_length);
-bool lock_table_name_if_not_cached(THD *thd, const char *db,
-                                   const char *table_name, TABLE **table);
-TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
-void detach_merge_children(TABLE *table, bool clear_refs);
-bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
-                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
-bool reopen_table(TABLE *table);
-bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
+bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
+                Open_table_context *backoff, uint flags);
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+                   char *cache_key, uint cache_key_length,
+                   MEM_ROOT *mem_root, uint flags);
+TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
+TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+                                  const char *table_name,
+                                  bool no_error);
 thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name);
-void close_handle_and_leave_table_as_lock(TABLE *table);
 bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint db_stat, uint prgflag,
                   uint ha_open_flags, TABLE *outparam,
                   TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table, bool wait_for_name_lock);
-TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
-void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_mutex);
 extern Field *not_found_field;
@@ -1461,8 +1437,9 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 void mysql_ha_flush(THD *thd);
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
+void mysql_ha_move_tickets_after_trans_sentinel(THD *thd);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
@@ -1491,9 +1468,12 @@ void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
 bool add_proc_to_list(THD *thd, Item *item);
-void unlink_open_table(THD *thd, TABLE *find, bool unlock);
+bool wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function);
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name);
+void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
+                               bool remove_from_locked_tables);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -1572,24 +1552,43 @@ int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
                         mysql_cond_t *cond);
-int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
-/* open_and_lock_tables with optional derived handling */
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
-/* simple open_and_lock_tables without derived handling */
-inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
+                Prelocking_strategy *prelocking_strategy);
+inline bool
+open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
 {
-  return open_and_lock_tables_derived(thd, tables, FALSE);
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_tables(thd, tables, counter, flags, &prelocking_strategy);
+}
+/* open_and_lock_tables with optional derived handling */
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags,
+                                 Prelocking_strategy *prelocking_strategy);
+inline bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                        bool derived, uint flags)
+{
+  DML_prelocking_strategy prelocking_strategy;
+
+  return open_and_lock_tables_derived(thd, tables, derived, flags,
+                                      &prelocking_strategy);
+}
+/* simple open_and_lock_tables without derived handling */
+inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables_derived(thd, tables, FALSE, 0);
 }
 /* open_and_lock_tables with derived handling */
-inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  return open_and_lock_tables_derived(thd, tables, TRUE);
+  return open_and_lock_tables_derived(thd, tables, TRUE, 0);
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type);
+                                thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
-int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
+bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
+                bool *need_reopen);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(handlerton *base, char *path);
@@ -1597,7 +1596,8 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
-void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
+                             MDL_ticket *mdl_savepoint);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
@@ -1609,10 +1609,10 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
+void mark_tmp_table_for_reuse(TABLE *table);
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
-void remove_db_from_cache(const char *db);
 void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_log_name(char *buff, const char *name, const char* log_ext);
@@ -1640,13 +1640,10 @@ char *generate_partition_syntax(partition_info *part_info,
                                 Alter_info *alter_info);
 #endif
 
-/* bits for last argument to remove_table_from_cache() */
-#define RTFC_NO_FLAG                0x0000
-#define RTFC_OWNED_BY_THD_FLAG      0x0001
-#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
-#define RTFC_CHECK_KILLED_FLAG      0x0004
-bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
+enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
+                                 TDC_RT_REMOVE_UNUSED};
+void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
+                      const char *db, const char *table_name);
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1
@@ -1660,7 +1657,7 @@ void create_subpartition_name(char *out, const char *in1,
 
 typedef struct st_lock_param_type
 {
-  TABLE_LIST table_list;
+  TABLE_LIST *table_list;
   ulonglong copied;
   ulonglong deleted;
   THD *thd;
@@ -1671,7 +1668,6 @@ typedef struct st_lock_param_type
   const char *db;
   const char *table_name;
   uchar *pack_frm_data;
-  enum thr_lock_type old_lock_type;
   uint key_count;
   uint db_options;
   size_t pack_frm_len;
@@ -1765,19 +1761,18 @@ extern mysql_mutex_t LOCK_gdl;
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
-void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
 /* Functions to work with system tables. */
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                                 Open_tables_state *backup);
-void close_system_tables(THD *thd, Open_tables_state *backup);
+                                 Open_tables_backup *backup);
+void close_system_tables(THD *thd, Open_tables_backup *backup);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 
-TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_state *backup);
-void close_log_table(THD *thd, Open_tables_state *backup);
+TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
+void close_log_table(THD *thd, Open_tables_backup *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders);
+                         bool wait_for_refresh);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
@@ -2104,14 +2099,15 @@ extern DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 
 extern String null_string;
-extern HASH open_cache, lock_db_cache;
+extern HASH table_def_cache, lock_db_cache;
 extern TABLE *unused_tables;
+extern uint  table_cache_count;
 extern const char* any_db;
 extern const LEX_STRING view_type;
 extern scheduler_functions thread_scheduler;
 extern TYPELIB thread_handling_typelib;
-extern uint8 uc_update_queries[SQLCOM_END+1];
 extern uint sql_command_flags[];
+extern uint server_command_flags[];
 extern TYPELIB log_output_typelib;
 extern const char *log_output_names[];
 
@@ -2150,16 +2146,44 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 /* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
-#define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
-#define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
-#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0010
-#define MYSQL_LOCK_PERF_SCHEMA                  0x0020
+#define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
+#define MYSQL_LOCK_PERF_SCHEMA                  0x0010
+#define MYSQL_OPEN_TAKE_UPGRADABLE_MDL          0x0020
+/**
+  Do not try to acquire a metadata lock on the table: we
+  already have one.
+*/
+#define MYSQL_OPEN_HAS_MDL_LOCK                 0x0040
+/**
+  If in locked tables mode, ignore the locked tables and get
+  a new instance of the table.
+*/
+#define MYSQL_OPEN_GET_NEW_TABLE                0x0080
+/** Don't look up the table in the list of temporary tables. */
+#define MYSQL_OPEN_SKIP_TEMPORARY               0x0100
+/** Fail instead of waiting when conficting metadata lock is discovered. */
+#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0200
+/** Open tables using MDL_SHARED lock instead of one specified in parser. */
+#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0400
+/**
+  Open tables using MDL_SHARED_HIGH_PRIO lock instead of one specified
+  in parser.
+*/
+#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
+
+/** Please refer to the internals manual. */
+#define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
+                            MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |\
+                            MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
+                            MYSQL_OPEN_GET_NEW_TABLE |\
+                            MYSQL_OPEN_SKIP_TEMPORARY |\
+                            MYSQL_OPEN_HAS_MDL_LOCK)
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
-void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table,
-                       bool always_unlock);
+void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock);
 void mysql_lock_downgrade_write(THD *thd, TABLE *table,
                                 thr_lock_type new_lock_type);
@@ -2167,30 +2191,15 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack);
-bool lock_global_read_lock(THD *thd);
-void unlock_global_read_lock(THD *thd);
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                              bool is_not_commit);
-void start_waiting_global_read_lock(THD *thd);
-bool make_global_read_lock_block_commit(THD *thd);
-bool set_protect_against_global_read_lock(void);
-void unset_protect_against_global_read_lock(void);
 void broadcast_refresh(void);
 
 /* Lock based on name */
-int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
-int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use);
-void unlock_table_name(THD *thd, TABLE_LIST *table_list);
-bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
-void unlock_table_names(THD *thd, TABLE_LIST *table_list,
-			TABLE_LIST *last_table);
-bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
-bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
-                                                     TABLE_LIST *table_list);
-bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
-                                                     int key_length);
+void unlock_table_names(THD *thd);
 
+/* Lock based on stored routine name */
+bool lock_routine_name(THD *thd, bool is_function, const char *db,
+                       const char *name);
 
 /* old unireg functions */
 
@@ -2694,7 +2703,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages,
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data, key_LOCK_error_messages,
   key_LOCK_thread_count;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

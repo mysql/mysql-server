@@ -212,11 +212,7 @@ SET autocommit=OFF;
 START TRANSACTION;
 INSERT INTO t1 VALUES (NULL, 'first row t2');
 SET autocommit=OFF;
+SET SESSION lock_wait_timeout= 1;
 ALTER TABLE t1 AUTO_INCREMENT = 10;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-INSERT INTO t1 VALUES (NULL, 'second row t2');
-SELECT a,b FROM t1 ORDER BY a;
-a	b
-1	first row t2
-2	second row t2
 DROP TABLE t1;

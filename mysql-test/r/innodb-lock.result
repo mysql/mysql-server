@@ -25,6 +25,12 @@ id	x
 0	2
 commit;
 drop table t1;
+#
+# Old lock method (where LOCK TABLE was ignored by InnoDB) no longer
+# works due to fix for bugs  #46272 "MySQL 5.4.4, new MDL: unnecessary
+# deadlock" and bug #37346 "innodb does not detect deadlock between
+# update and alter table".
+#
 set @@innodb_table_locks=0;
 create table t1 (id integer primary key, x integer) engine=INNODB;
 insert into t1 values(0, 0),(1,1),(2,2);
@@ -32,26 +38,27 @@ commit;
 SELECT * from t1 where id = 0 FOR UPDATE;
 id	x
 0	0
+# Connection 'con2'.
 set autocommit=0;
 set @@innodb_table_locks=0;
-lock table t1 write;
-update t1 set x=10 where id = 2;
-SELECT * from t1 where id = 2;
-id	x
-2	2
-UPDATE t1 set x=3 where id = 2;
-commit;
-SELECT * from t1;
-id	x
-0	0
-1	1
-2	3
-commit;
-unlock tables;
-commit;
+# The following statement should block because SQL-level lock
+# is taken on t1 which will wait until concurrent transaction
+# is commited.
+# Sending:
+lock table t1 write;;
+# Connection 'con1'.
+# Wait until LOCK TABLE is blocked on SQL-level lock.
+# We should be able to do UPDATEs and SELECTs within transaction.
+update t1 set x=1 where id = 0;
 select * from t1;
 id	x
-0	0
+0	1
 1	1
-2	10
+2	2
+# Unblock LOCK TABLE.
+commit;
+# Connection 'con2'.
+# Reap LOCK TABLE.
+unlock tables;
+# Connection 'con1'.
 drop table t1;
