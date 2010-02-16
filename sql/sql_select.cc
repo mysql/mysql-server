@@ -9822,7 +9822,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
-  uint total_uneven_bit_length= 0;
+  /*
+    total_uneven_bit_length is uneven bit length for visible fields
+    hidden_uneven_bit_length is uneven bit length for hidden fields
+  */
+  uint total_uneven_bit_length= 0, hidden_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
   /* Treat sum functions as normal ones when loose index scan is used. */
   save_sum_fields|= param->precomputed_group_by;
@@ -10099,6 +10103,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       param->hidden_field_count= fieldnr;
       null_count= 0;
+      /*
+        On last hidden field we store uneven bit length in
+        hidden_uneven_bit_length and proceed calculation of
+        uneven bits for visible fields into
+        total_uneven_bit_length variable.
+      */
+      hidden_uneven_bit_length= total_uneven_bit_length;
+      total_uneven_bit_length= 0;
     }
   }
   DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
@@ -10144,7 +10156,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     else
       null_count++;
   }
-  hidden_null_pack_length=(hidden_null_count+7)/8;
+  hidden_null_pack_length= (hidden_null_count + 7 +
+                            hidden_uneven_bit_length) / 8;
   null_pack_length= (hidden_null_pack_length +
                      (null_count + total_uneven_bit_length + 7) / 8);
   reclength+=null_pack_length;
