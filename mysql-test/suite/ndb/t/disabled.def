@@ -15,3 +15,4 @@ ndb_condition_pushdown    : Bug#49746 2010-02-08 alik ndb_condition_pushdown fai
 
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
+ndb_alter_table3          : Bug#45621 2009-06-10 alik A few test files are disabled due to WL#4284

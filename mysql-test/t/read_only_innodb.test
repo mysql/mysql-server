@@ -33,7 +33,7 @@ set global read_only=1;
 connection con1;
 select @@global.read_only;
 select * from table_11733 ;
--- error ER_OPTION_PREVENTS_STATEMENT
+--error ER_OPTION_PREVENTS_STATEMENT
 COMMIT;
 
 connection default;
