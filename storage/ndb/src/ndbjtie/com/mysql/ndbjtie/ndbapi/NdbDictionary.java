@@ -245,8 +245,6 @@ public class NdbDictionary extends Wrapper
         int/*_Uint32_*/ getFragmentDataLen() /*_const_*/;
         ByteBuffer/*_const void *_*/ getRangeListData() /*_const_*/;
         int/*_Uint32_*/ getRangeListDataLen() /*_const_*/;
-        ByteBuffer/*_const void *_*/ getTablespaceData() /*_const_*/;
-        int/*_Uint32_*/ getTablespaceDataLen() /*_const_*/;
         NdbRecordConst/*_const NdbRecord *_*/ getDefaultRecord() /*_const_*/;
         boolean getLinearFlag() /*_const_*/;
         int/*_Uint32_*/ getFragmentCount() /*_const_*/;
@@ -258,7 +256,6 @@ public class NdbDictionary extends Wrapper
         /*_virtual_*/ int getObjectVersion() /*_const_*/;
         int/*_Uint32_*/ getDefaultNoPartitionsFlag() /*_const_*/;
         /*_virtual_*/ int getObjectId() /*_const_*/;
-        int/*_Uint32_*/ getTablespaceNamesLen() /*_const_*/;
         long/*_Uint64_*/ getMaxRows() /*_const_*/;
         long/*_Uint64_*/ getMinRows() /*_const_*/;
         int/*_SingleUserMode_*/ getSingleUserMode() /*_const_*/;
@@ -287,8 +284,6 @@ public class NdbDictionary extends Wrapper
         public final native int/*_Uint32_*/ getFragmentDataLen() /*_const_*/;
         public final native ByteBuffer/*_const void *_*/ getRangeListData() /*_const_*/;
         public final native int/*_Uint32_*/ getRangeListDataLen() /*_const_*/;
-        public final native ByteBuffer/*_const void *_*/ getTablespaceData() /*_const_*/;
-        public final native int/*_Uint32_*/ getTablespaceDataLen() /*_const_*/;
         public final native NdbRecordConst/*_const NdbRecord *_*/ getDefaultRecord() /*_const_*/;
         public final native boolean getLinearFlag() /*_const_*/;
         public final native int/*_Uint32_*/ getFragmentCount() /*_const_*/;
@@ -300,7 +295,6 @@ public class NdbDictionary extends Wrapper
         public /*_virtual_*/ native int getObjectVersion() /*_const_*/;
         public final native int/*_Uint32_*/ getDefaultNoPartitionsFlag() /*_const_*/;
         public /*_virtual_*/ native int getObjectId() /*_const_*/;
-        public final native int/*_Uint32_*/ getTablespaceNamesLen() /*_const_*/;
         public final native long/*_Uint64_*/ getMaxRows() /*_const_*/;
         public final native long/*_Uint64_*/ getMinRows() /*_const_*/;
         public final native int/*_SingleUserMode_*/ getSingleUserMode() /*_const_*/;
@@ -327,9 +321,6 @@ public class NdbDictionary extends Wrapper
         public final native void setDefaultNoPartitionsFlag(int/*_Uint32_*/ indicator);
         public final native int setFrm(ByteBuffer/*_const void *_*/ data, int/*_Uint32_*/ len);
         public final native int setFragmentData(ByteBuffer/*_const void *_*/ data, int/*_Uint32_*/ len);
-        public final native int setTablespaceNames(ByteBuffer/*_const void *_*/ data, int/*_Uint32_*/ len);
-        public final native ByteBuffer/*_const void *_*/ getTablespaceNames();
-        public final native int setTablespaceData(ByteBuffer/*_const void *_*/ data, int/*_Uint32_*/ len);
         public final native int setRangeListData(ByteBuffer/*_const void *_*/ data, int/*_Uint32_*/ len);
         // MMM declared but not implemented in NDBAPI: public final native void setObjectType(int/*_Object.Type_*/ type);
         public final native void setMaxRows(long/*_Uint64_*/ maxRows);
@@ -722,8 +713,8 @@ public class NdbDictionary extends Wrapper
         public final native boolean supportedAlterTable(TableConst/*_const Table &_*/ f, TableConst/*_const Table &_*/ t);
         public final native void removeCachedTable(String/*_const char *_*/ table);
         public final native void removeCachedIndex(String/*_const char *_*/ index, String/*_const char *_*/ table);
-        public final native int createIndex(IndexConst/*_const Index &_*/ index);
-        public final native int createIndex(IndexConst/*_const Index &_*/ index, TableConst/*_const Table &_*/ table);
+        public final native int createIndex(IndexConst/*_const Index &_*/ index, boolean offline /*_= false_*/);
+        public final native int createIndex(IndexConst/*_const Index &_*/ index, TableConst/*_const Table &_*/ table, boolean offline /*_= false_*/);
         public final native int dropIndex(String/*_const char *_*/ indexName, String/*_const char *_*/ tableName);
         public final native int createLogfileGroup(LogfileGroupConst/*_const LogfileGroup &_*/ p0, ObjectId/*_ObjectId *_*/ p1 /*_= 0_*/);
         public final native int dropLogfileGroup(LogfileGroupConst/*_const LogfileGroup &_*/ p0);
