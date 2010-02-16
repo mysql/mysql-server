@@ -349,7 +349,7 @@ trx_print(
 				   use the default max length */
 
 /** Type of data dictionary operation */
-enum trx_dict_op {
+typedef enum trx_dict_op {
 	/** The transaction is not modifying the data dictionary. */
 	TRX_DICT_OP_NONE = 0,
 	/** The transaction is creating a table or an index, or
@@ -361,7 +361,7 @@ enum trx_dict_op {
 	existing table.  In crash recovery, the data dictionary
 	must be locked, but the table must not be dropped. */
 	TRX_DICT_OP_INDEX = 2
-};
+} trx_dict_op_t;
 
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
@@ -463,72 +463,81 @@ rolling back after a database recovery */
 
 struct trx_struct{
 	ulint		magic_n;
-	/* All the next fields are protected by the kernel mutex, except the
-	undo logs which are protected by undo_mutex */
-	const char*	op_info;	/*!< English text describing the
-					current operation, or an empty
-					string */
-	unsigned	is_purge:1;	/*!< 0=user transaction, 1=purge */
-	unsigned	is_recovered:1;	/*!< 0=normal transaction,
-					1=recovered, must be rolled back */
-	unsigned	conc_state:2;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
-	unsigned	que_state:2;	/*!< valid when conc_state == TRX_ACTIVE:
-					TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
-					... */
-	unsigned	isolation_level:2;/* TRX_ISO_REPEATABLE_READ, ... */
-	unsigned	check_foreigns:1;/* normally TRUE, but if the user
+
+	/* These fields are not protected by any mute. */
+	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
+	ulint		check_foreigns;/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
-	unsigned	check_unique_secondary:1;
+	ulint		check_unique_secondary;
 					/* normally TRUE, but if the user
 					wants to speed up inserts by
 					suppressing unique key checks
 					for secondary indexes when we decide
 					if we can use the insert buffer for
 					them, we set this FALSE */
-	unsigned	support_xa:1;	/*!< normally we do the XA two-phase
+	ulint		support_xa;	/*!< normally we do the XA two-phase
 					commit steps, but by setting this to
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
-	unsigned	flush_log_later:1;/* In 2PC, we hold the
+	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
 					defer flush of the logs to disk
 					until after we release the
 					mutex. */
-	unsigned	must_flush_log_later:1;/* this flag is set to TRUE in
+	ulint		must_flush_log_later;/* this flag is set to TRUE in
 					trx_commit_off_kernel() if
 					flush_log_later was TRUE, and there
 					were modifications by the transaction;
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
-	unsigned	dict_operation:2;/**< @see enum trx_dict_op */
-	unsigned	duplicates:2;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	unsigned	active_trans:2;	/*!< 1 - if a transaction in MySQL
+	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
+	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
 					was taken */
-	unsigned	has_search_latch:1;
+	ulint		has_search_latch;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
-	unsigned	declared_to_be_inside_innodb:1;
+	ulint		deadlock_mark;	/*!< a mark field used in deadlock
+					checking algorithm.  */
+
+	/* Fields protected by the srv_conc_mutex. */
+	ulint		declared_to_be_inside_innodb;
 					/* this is TRUE if we have declared
 					this transaction in
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
-	unsigned	handling_signals:1;/* this is TRUE as long as the trx
-					is handling signals */
-	unsigned	dict_operation_lock_mode:2;
+
+	/* Fields set when we are holding the kernel mutex, undo log mutex
+	and when not holding the mutex. */
+	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
+
+	/* Fields covered by the dictionary mutex. */
+	ulint		dict_operation_lock_mode;
 					/* 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock */
-	unsigned	deadlock_mark:1;/*!< a mark field used in deadlock
-					checking algorithm. Always protected
-					by the kernel_mutex. */
+
+	/* All the next fields are protected by the kernel mutex, except the
+	undo logs which are protected by undo_mutex */
+	const char*	op_info;	/*!< English text describing the
+					current operation, or an empty
+					string */
+	ulint		is_purge;	/*!< 0=user transaction, 1=purge */
+	ulint		is_recovered;	/*!< 0=normal transaction,
+					1=recovered, must be rolled back */
+	ulint		conc_state;	/*!< state of the trx from the point
+					of view of concurrency control:
+					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					... */
+	ulint		que_state;	/*!< valid when conc_state
+					== TRX_ACTIVE: TRX_QUE_RUNNING,
+				       	TRX_QUE_LOCK_WAIT, ... */
+	ulint		handling_signals;/* this is TRUE as long as the trx
+					is handling signals */
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
