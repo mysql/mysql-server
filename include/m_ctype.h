@@ -50,7 +50,7 @@ extern "C" {
 #define MY_PUT_MB2(s, code)   { *((uint16*)(s))= (code); }
 #else
 #define MB2(x)                (x)
-#define MY_PUT_MB2(s, code)   { s[0]= code >> 8; s[1]= code & 0xFF; }
+#define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
 #endif
 
 
