@@ -4,12 +4,6 @@
 
 -- source include/not_embedded.inc
 
-#
-# Produce output
-#
-
-select 1;
-
 # The following fails sporadically because 'check-testcase' runs
 # queries before this test and there is no way to guarantee that any
 # previous process finishes.  The purpose of the test is not clearly
@@ -36,6 +30,8 @@ select 1;
 #execute stmt1;
 #deallocate prepare stmt1;
 
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was not locked with LOCK TABLES");
+
 #
 # Bug#43835: SHOW VARIABLES does not include 0 for slave_skip_errors
 #
@@ -43,3 +39,18 @@ select 1;
 SHOW VARIABLES like 'slave_skip_errors';
 
 # End of 5.1 tests
+
+--echo #
+--echo # WL#4284: Transactional DDL locking
+--echo #
+--echo # FLUSH PRIVILEGES should not implicitly unlock locked tables.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+flush privileges;
+unlock tables;
+drop table t1;

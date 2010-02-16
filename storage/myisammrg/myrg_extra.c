@@ -75,12 +75,17 @@ int myrg_reset(MYRG_INFO *info)
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_reset");
 
-  if (!info->children_attached)
-    DBUG_RETURN(1);
   info->cache_in_use=0;
   info->current_table=0;
   info->last_used_table= info->open_tables;
-  
+
+  /*
+    This is normally called with detached children.
+    Return OK as this is the normal case.
+  */
+  if (!info->children_attached)
+    DBUG_RETURN(0);
+
   for (file=info->open_tables ; file != info->end_table ; file++)
   {
     int error;
