@@ -331,7 +331,7 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__(JNIEnv * env, jobject obj)
  * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbErrorConst;Ljava/nio/ByteBuffer;I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbErrorDetail(JNIEnv * env, jobject obj, jobject p0, jobject p1, jint p2) 
+Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbErrorDetail(JNIEnv * env, jobject obj, jobject p0, jobject p1, jint p2)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbErrorDetail(JNIEnv *, jobject, jobject, jobject, jint)");
     return gcall_mfr< ttrait_c_m_n_n_Ndb_ct, ttrait_utf8cstring, ttrait_c_m_n_n_NdbError_cr, ttrait_char_0p_bb, ttrait_Uint32, &Ndb::getNdbErrorDetail >(env, obj, p0, p1, p2);
@@ -502,9 +502,9 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
  * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;[Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptrConst;Ljava/nio/ByteBuffer;I)Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv * env, jobject obj, jobject p0, jobjectArray p1, jobject p2, jint p3)
+Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv * env, jobject obj, jobject p0, jobjectArray p1, jobject p2, jint p3)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobjectArray, jobject, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobjectArray, jobject, jint)");
     return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1, p2, p3); // MMM! not supported yet: array of objects Key_part_ptr[]
 }
 #endif // MMM! not supported yet: array of objects Key_part_ptr[]
@@ -1219,7 +1219,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_getLength(JNIEnv * env, 
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Column_ct, ttrait_int, &NdbDictionary::Column::getLength >(env, obj);
 }
 
-/* 
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
  * Method:    getCharsetNumber
  * Signature: ()I
@@ -1961,29 +1961,29 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JN
 }
 #endif // !SKIP_IF_MSVC
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    createIndex
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;)I
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;Z)I
+ */
 JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2(JNIEnv * env, jobject obj, jobject p0)
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Z(JNIEnv * env, jobject obj, jobject p0, jboolean p1)
 {
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Index_cr, &NdbDictionary::Dictionary::createIndex >(env, obj, p0);
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Z(JNIEnv *, jobject, jobject, jboolean)");
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Index_cr, ttrait_bool, &NdbDictionary::Dictionary::createIndex >(env, obj, p0, p1);
 }
-*/
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    createIndex
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;)I
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;Z)I
+ */
 JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2(JNIEnv * env, jobject obj, jobject p0, jobject p1)
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Z(JNIEnv * env, jobject obj, jobject p0, jobject p1, jboolean p2)
 {
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2(JNIEnv *, jobject, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Index_cr, ttrait_c_m_n_n_NdbDictionary_Table_cr, &NdbDictionary::Dictionary::createIndex >(env, obj, p0, p1);
+    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_createIndex__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_IndexConst_2Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Z(JNIEnv *, jobject, jobject, jobject, jboolean)");
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Index_cr, ttrait_c_m_n_n_NdbDictionary_Table_cr, ttrait_bool, &NdbDictionary::Dictionary::createIndex >(env, obj, p0, p1, p2);
 }
-*/
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
@@ -3623,17 +3623,17 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getFrmLength(JNIEnv * env
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32, &NdbDictionary::Table::getFrmLength >(env, obj);
 }
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getFragmentData
  * Signature: ()Ljava/nio/ByteBuffer;
+ */
 JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getFragmentData(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getFragmentData(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_void_1cp_bb, &NdbDictionary::Table::getFragmentData >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32_0cp_bb, &NdbDictionary::Table::getFragmentData >(env, obj);
 }
- */
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -3647,17 +3647,17 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getFragmentDataLen(JNIEnv
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32, &NdbDictionary::Table::getFragmentDataLen >(env, obj);
 }
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getRangeListData
  * Signature: ()Ljava/nio/ByteBuffer;
+ */
 JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getRangeListData(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getRangeListData(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_void_1cp_bb, &NdbDictionary::Table::getRangeListData >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Int32_0cp_bb, &NdbDictionary::Table::getRangeListData >(env, obj);
 }
- */
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -3670,30 +3670,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getRangeListDataLen(JNIEn
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getRangeListDataLen(JNIEnv *, jobject)");
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32, &NdbDictionary::Table::getRangeListDataLen >(env, obj);
 }
-
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getTablespaceData
- * Signature: ()Ljava/nio/ByteBuffer;
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceData(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceData(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_void_1cp_bb, &NdbDictionary::Table::getTablespaceData >(env, obj);
-}
- */
-
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getTablespaceDataLen
- * Signature: ()I
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceDataLen(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceDataLen(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32, &NdbDictionary::Table::getTablespaceDataLen >(env, obj);
-}
- */
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -3814,18 +3790,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getObjectId(JNIEnv * env,
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getObjectId(JNIEnv *, jobject)");
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_int, &NdbDictionary::Table::getObjectId >(env, obj);
 }
-
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getTablespaceNamesLen
- * Signature: ()I
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceNamesLen(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceNamesLen(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_Uint32, &NdbDictionary::Table::getTablespaceNamesLen >(env, obj);
-}
- */
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -4119,65 +4083,29 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setFrm(JNIEnv * env, jobj
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_void_1cp_bb, ttrait_Uint32, &NdbDictionary::Table::setFrm >(env, obj, p0, p1);
 }
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    setFragmentData
  * Signature: (Ljava/nio/ByteBuffer;I)I
+ */
 JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setFragmentData(JNIEnv * env, jobject obj, jobject p0, jint p1)
 {
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setFragmentData(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_void_1cp_bb, ttrait_Uint32, &NdbDictionary::Table::setFragmentData >(env, obj, p0, p1);
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_Uint32_0cp_bb, ttrait_Uint32, &NdbDictionary::Table::setFragmentData >(env, obj, p0, p1);
 }
- */
 
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    setTablespaceNames
- * Signature: (Ljava/nio/ByteBuffer;I)I
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setTablespaceNames(JNIEnv * env, jobject obj, jobject p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setTablespaceNames(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_void_1cp_bb, ttrait_Uint32, &NdbDictionary::Table::setTablespaceNames >(env, obj, p0, p1);
-}
- */
-
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getTablespaceNames
- * Signature: ()Ljava/nio/ByteBuffer;
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceNames(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTablespaceNames(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_void_1cp_bb, &NdbDictionary::Table::getTablespaceNames >(env, obj);
-}
- */
-
-/* TODO
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    setTablespaceData
- * Signature: (Ljava/nio/ByteBuffer;I)I
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setTablespaceData(JNIEnv * env, jobject obj, jobject p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setTablespaceData(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_void_1cp_bb, ttrait_Uint32, &NdbDictionary::Table::setTablespaceData >(env, obj, p0, p1);
-}
- */
-
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    setRangeListData
  * Signature: (Ljava/nio/ByteBuffer;I)I
+ */
 JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setRangeListData(JNIEnv * env, jobject obj, jobject p0, jint p1)
 {
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_setRangeListData(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_void_1cp_bb, ttrait_Uint32, &NdbDictionary::Table::setRangeListData >(env, obj, p0, p1);
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_int, ttrait_Int32_0cp_bb, ttrait_Uint32, &NdbDictionary::Table::setRangeListData >(env, obj, p0, p1);
 }
- */
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -4803,51 +4731,54 @@ Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_getEventType(JNIEnv * env, jobje
     return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_c_m_n_n_NdbDictionary_Event_TableEvent_iv/*_enum_*/, &NdbEventOperation::getEventType >(env, obj);
 }
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
  * Method:    tableNameChanged
  * Signature: ()Z
+ */
 JNIEXPORT jboolean JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableNameChanged(JNIEnv * env, jobject obj)
 {
     TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableNameChanged(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool_c, &NdbEventOperation::tableNameChanged >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool, &NdbEventOperation::tableNameChanged >(env, obj);
 }
-*/
 
-/* TODO
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
  * Method:    tableFrmChanged
  * Signature: ()Z
+ */
 JNIEXPORT jboolean JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableFrmChanged(JNIEnv * env, jobject obj)
 {
     TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableFrmChanged(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool_c, &NdbEventOperation::tableFrmChanged >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool, &NdbEventOperation::tableFrmChanged >(env, obj);
 }
-*/
-/* TODO
+
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
  * Method:    tableFragmentationChanged
  * Signature: ()Z
+ */
 JNIEXPORT jboolean JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableFragmentationChanged(JNIEnv * env, jobject obj)
 {
     TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableFragmentationChanged(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool_c, &NdbEventOperation::tableFragmentationChanged >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool, &NdbEventOperation::tableFragmentationChanged >(env, obj);
 }
-*/
-/* TODO
+
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
  * Method:    tableRangeListChanged
  * Signature: ()Z
+ */
 JNIEXPORT jboolean JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableRangeListChanged(JNIEnv * env, jobject obj)
 {
     TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbEventOperation_tableRangeListChanged(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool_c, &NdbEventOperation::tableRangeListChanged >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbEventOperation_ct, ttrait_bool, &NdbEventOperation::tableRangeListChanged >(env, obj);
 }
-*/
+
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbEventOperation
  * Method:    getGCI
@@ -6025,7 +5956,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getTable(JNIEnv * env, jobject obj)
 }
 
 #if 0
-/* 
+/*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getType
  * Signature: ()I
@@ -6034,8 +5965,7 @@ JNIEXPORT jint JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getType(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getType(JNIEnv *, jobject)");
-    //MMM const return
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_c_m_n_n_NdbOperation_Type_c_iv/*_enum_*/, &NdbOperation::getType >(env, obj);
+    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_c_m_n_n_NdbOperation_Type_c_iv/*_enum_*/, &NdbOperation::getType >(env, obj); // MMM const return
 }
 #endif
 
