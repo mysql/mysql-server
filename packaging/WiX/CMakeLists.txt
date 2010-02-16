@@ -4,10 +4,10 @@ IF(NOT WIN32)
 ENDIF()
 
 FIND_PATH(WIX_DIR heat.exe
- 	$ENV{WIX_DIR}/bin
- 	$ENV{ProgramFiles}/wix/bin
-	"$ENV{ProgramFiles}/Windows Installer XML v3/bin"
-	"$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
+   $ENV{WIX_DIR}/bin
+   $ENV{ProgramFiles}/wix/bin
+  "$ENV{ProgramFiles}/Windows Installer XML v3/bin"
+  "$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
 )
 
 IF(NOT WIX_DIR)
@@ -31,6 +31,12 @@ ENDIF()
 ADD_CUSTOM_TARGET(
   MSI
   COMMAND set VS_UNICODE_OUTPUT=
-  COMMAND ${CMAKE_COMMAND} ${CONFIG_PARAM} -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
+  COMMAND ${CMAKE_COMMAND} -DCPACK_WIX_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake ${CONFIG_PARAM} -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
+)
+
+ADD_CUSTOM_TARGET(
+  MSI_ESSENTIALS
+  COMMAND set VS_UNICODE_OUTPUT=
+  COMMAND ${CMAKE_COMMAND} -DESSENTIALS=1 -DCPACK_WIX_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake ${CONFIG_PARAM} -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
 

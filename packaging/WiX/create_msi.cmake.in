@@ -7,12 +7,143 @@ SET(CMAKE_CFG_INTDIR "@CMAKE_CFG_INTDIR@")
 SET(MAJOR_VERSION "@MAJOR_VERSION@")
 SET(MINOR_VERSION "@MINOR_VERSION@")
 SET(PATCH "@PATCH@")
+SET(CMAKE_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@)
+
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  SET(Win64 " Win64='yes'")
+  SET(Platform x64)
+  SET(PlatformProgramFilesFolder ProgramFiles64Folder)
+ELSE()
+  SET(Platform x86)
+  SET(PlatformProgramFilesFolder ProgramFilesFolder)
+  SET(Win64)
+ENDIF()
 
 SET(ENV{VS_UNICODE_OUTPUT})
+
 INCLUDE(${CMAKE_BINARY_DIR}/CPackConfig.cmake)
+
+IF(CPACK_WIX_CONFIG)
+  INCLUDE(${CPACK_WIX_CONFIG})
+ENDIF()
+
+IF(NOT CPACK_WIX_UI)
+  SET(CPACK_WIX_UI "WixUI_Mondo")
+ENDIF()
+
+SET(WIX_FEATURES)
+FOREACH(comp ${CPACK_COMPONENTS_ALL})
+ STRING(TOUPPER "${comp}" comp_upper)
+ IF(NOT CPACK_COMPONENT_${comp_upper}_GROUP)
+   SET(WIX_FEATURE_${comp_upper}_COMPONENTS "${comp}")
+   SET(CPACK_COMPONENT_${comp_upper}_HIDDEN 1)
+   SET(CPACK_COMPONENT_GROUP_${comp_upper}_DISPLAY_NAME ${CPACK_COMPONENT_${comp_upper}_DISPLAY_NAME})
+   SET(CPACK_COMPONENT_GROUP_${comp_upper}_DESCRIPTION ${CPACK_COMPONENT_${comp_upper}_DESCRIPTION})
+   SET(CPACK_COMPONENT_GROUP_${comp_upper}_WIX_LEVEL ${CPACK_COMPONENT_${comp_upper}_WIX_LEVEL})
+   SET(WIX_FEATURES ${WIX_FEATURES} WIX_FEATURE_${comp_upper})
+ ELSE()
+   SET(FEATURE_NAME WIX_FEATURE_${CPACK_COMPONENT_${comp_upper}_GROUP})
+   SET(WIX_FEATURES ${WIX_FEATURES} ${FEATURE_NAME})
+   LIST(APPEND ${FEATURE_NAME}_COMPONENTS ${comp})
+ ENDIF()
+ENDFOREACH()
+
+LIST(REMOVE_DUPLICATES WIX_FEATURES)
+
+SET(CPACK_WIX_FEATURES)
+
+FOREACH(f ${WIX_FEATURES})
+ STRING(TOUPPER "${f}" f_upper)
+ STRING(REPLACE "WIX_FEATURE_" "" f_upper ${f_upper})
+ IF (CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME)
+  SET(TITLE ${CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME})
+ ELSE()
+  SET(TITLE  CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME)
+ ENDIF()
+
+ IF (CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION)
+  SET(DESCRIPTION ${CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION})
+ ELSE()
+  SET(DESCRIPTION CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION)
+ ENDIF()
+ IF(CPACK_COMPONENT_${f_upper}_WIX_LEVEL)
+   SET(Level ${CPACK_COMPONENT_${f_upper}_WIX_LEVEL})
+ ELSE()
+   SET(Level 1)
+ ENDIF()
+ IF(CPACK_COMPONENT_GROUP_${f_upper}_HIDDEN)
+   SET(DISPLAY "Display='hidden'")
+   SET(TITLE ${f_upper})
+   SET(DESCRIPTION ${f_upper})
+ ELSE()
+   SET(DISPLAY)
+   IF(CPACK_COMPONENT_GROUP_${f_upper}_EXPANDED)
+    SET(DISPLAY "Display='expand'")
+   ENDIF()
+   IF (CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME)
+    SET(TITLE ${CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME})
+   ELSE()
+     SET(TITLE  CPACK_COMPONENT_GROUP_${f_upper}_DISPLAY_NAME)
+   ENDIF()
+   IF (CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION)
+     SET(DESCRIPTION ${CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION})
+   ELSE()
+     SET(DESCRIPTION CPACK_COMPONENT_GROUP_${f_upper}_DESCRIPTION)
+   ENDIF()
+ ENDIF()
+ 
+ SET(CPACK_WIX_FEATURES 
+ "${CPACK_WIX_FEATURES}
+   <Feature  Id='${f_upper}'
+     Title='${TITLE}'
+     Description='${DESCRIPTION}'
+     Level='${Level}' ${DISPLAY} >"
+  )
+ FOREACH(c ${${f}_COMPONENTS})
+   STRING(TOUPPER "${c}" c_upper)
+   IF (CPACK_COMPONENT_${c_upper}_DISPLAY_NAME)
+    SET(TITLE ${CPACK_COMPONENT_${c_upper}_DISPLAY_NAME})
+   ELSE()
+    SET(TITLE CPACK_COMPONENT_${c_upper}_DISPLAY_NAME)
+   ENDIF()
+
+   IF (CPACK_COMPONENT_${c_upper}_DESCRIPTION)
+     SET(DESCRIPTION ${CPACK_COMPONENT_${c_upper}_DESCRIPTION})
+   ELSE()
+     SET(DESCRIPTION CPACK_COMPONENT_${c_upper}_DESCRIPTION)
+   ENDIF()
+   IF(CPACK_COMPONENT_${c_upper}_WIX_LEVEL)
+    SET(Level ${CPACK_COMPONENT_${c_upper}_WIX_LEVEL})
+   ELSE()
+    SET(Level 1)
+   ENDIF()
+   IF(CPACK_COMPONENT_${c_upper}_HIDDEN)
+   SET(CPACK_WIX_FEATURES
+   "${CPACK_WIX_FEATURES} 
+     <ComponentGroupRef Id='componentgroup.${c}'/>")
+   ELSE()
+   SET(CPACK_WIX_FEATURES
+   "${CPACK_WIX_FEATURES} 
+    <Feature Id='${c}' 
+       Title='${TITLE}'
+       Description='${DESCRIPTION}'
+       Level='${Level}'>
+       <ComponentGroupRef Id='componentgroup.${c}'/>
+    </Feature>")
+  ENDIF()
+  
+  ENDFOREACH()
+   SET(CPACK_WIX_FEATURES
+   "${CPACK_WIX_FEATURES}
+   </Feature>
+   ") 
+ENDFOREACH()
+
+
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server.wxs.in 
  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs)
+ 
 
 IF(CMAKE_INSTALL_CONFIG_NAME)
   SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}")
@@ -27,6 +158,12 @@ FOREACH(comp ${CPACK_COMPONENTS_ALL})
    OUTPUT_QUIET
   )
 ENDFOREACH()
+
+MACRO(GENERATE_GUID VarName)
+ EXECUTE_PROCESS(COMMAND uuidgen -c 
+ OUTPUT_VARIABLE ${VarName}
+ OUTPUT_STRIP_TRAILING_WHITESPACE)
+ENDMACRO()
 
 SET(INC_VAR 0)
 MACRO(MAKE_WIX_IDENTIFIER str varname)
@@ -43,7 +180,8 @@ MACRO(MAKE_WIX_IDENTIFIER str varname)
   ENDIF()
 ENDMACRO()
 
-FUNCTION(TRAVERSE_FILES dir topdir file file_comp dir_root)
+
+FUNCTION(TRAVERSE_FILES dir topdir file file_comp file_default_component dir_root)
   FILE(GLOB all_files ${dir}/*)
   IF(NOT all_files)
     RETURN()
@@ -52,26 +190,42 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp dir_root)
   IF(dir_rel)
    MAKE_DIRECTORY(${dir_root}/${dir_rel})
    MAKE_WIX_IDENTIFIER("${dir_rel}" id)
-   FILE(APPEND ${file} "<DirectoryRef Id='D.${id}'>\n")
+   SET(DirectoryRefId  "D.${id}")
   ELSE()
-   FILE(APPEND ${file} "<DirectoryRef Id='INSTALLDIR'>\n")
+   SET(DirectoryRefId "INSTALLDIR")
   ENDIF()
-  
+  FILE(APPEND ${file} "<DirectoryRef Id='${DirectoryRefId}'>\n")
+ 
+  SET(NONEXEFILES)
   FOREACH(f ${all_files})
     IF(NOT IS_DIRECTORY ${f})
       FILE(RELATIVE_PATH rel ${topdir} ${f})
       MAKE_WIX_IDENTIFIER("${rel}" id)
       FILE(TO_NATIVE_PATH ${f} f_native)
-      FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*'>\n")
-      FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
-      FILE(APPEND ${file} "  </Component>\n")
-      FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
+      GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
+      # According to MSDN each DLL or EXE should be in the own component
+      IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
+
+        FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
+        FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
+        FILE(APPEND ${file} "  </Component>\n")
+        FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
+     ELSE()
+      SET(NONEXEFILES  "${NONEXEFILES}\n<File Id='F.${id}' Source='${f_native}'/>" )
+      ENDIF()
     ENDIF()
   ENDFOREACH()
   FILE(APPEND ${file} "</DirectoryRef>\n")
+  IF(NONEXEFILES)
+    GENERATE_GUID(guid)
+    SET(ComponentId "C._files_${COMP_NAME}.${DirectoryRefId}")
+    FILE(APPEND ${file_default_component} 
+    "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' ${Win64}>${NONEXEFILES}\n</Component></DirectoryRef>\n")
+	FILE(APPEND ${file_comp} "  <ComponentRef Id='${ComponentId}'/>\n")
+  ENDIF()
   FOREACH(f ${all_files})
     IF(IS_DIRECTORY ${f})
-      TRAVERSE_FILES(${f} ${topdir} ${file} ${file_comp} ${dir_root})
+      TRAVERSE_FILES(${f} ${topdir} ${file} ${file_comp} ${file_default_component} ${dir_root})
     ENDIF()
   ENDFOREACH()
 ENDFUNCTION()
@@ -101,9 +255,14 @@ FOREACH(d ${DIRS})
   GET_FILENAME_COMPONENT(d_name ${d} NAME)
   FILE(WRITE 
   ${abs}/${d_name}.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n<Fragment>\n")
+   FILE(WRITE 
+  ${abs}/${d_name}_default_component.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'><Fragment>")
   FILE(WRITE 
-  ${abs}/${d_name}_component_group.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n<Fragment>\n<ComponentGroup Id='componentgroup.${d_name}'>\n")
-  TRAVERSE_FILES(${d} ${d} ${abs}/${d_name}.wxs ${abs}/${d_name}_component_group.wxs "${abs}/dirs")
+  ${abs}/${d_name}_component_group.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+    <Fragment>\n<ComponentGroup Id='componentgroup.${d_name}'>")
+  SET(COMP_NAME ${d_name})
+  TRAVERSE_FILES(${d} ${d} ${abs}/${d_name}.wxs ${abs}/${d_name}_component_group.wxs  ${abs}/${d_name}_default_component.wxs "${abs}/dirs")
+  FILE(APPEND  ${abs}/${d_name}_default_component.wxs   "\n</Fragment>\n</Wix>")
   FILE(APPEND  ${abs}/${d_name}.wxs   " </Fragment>\n</Wix>")
   FILE(APPEND  ${abs}/${d_name}_component_group.wxs   "</ComponentGroup>\n</Fragment>\n</Wix>") 
 ENDFOREACH()
