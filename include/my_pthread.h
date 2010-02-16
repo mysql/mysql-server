@@ -102,6 +102,19 @@ struct timespec {
   (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
 
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -415,6 +428,33 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.ts_sec > TS2.ts_sec || \
+    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
+   ((TS1.ts_sec < TS2.ts_sec || \
+     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
+#else
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */

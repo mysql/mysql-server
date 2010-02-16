@@ -653,8 +653,14 @@ bool mysqld_help(THD *thd, const char *mask)
   tables[3].alias= tables[3].table_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
+  init_mdl_requests(tables);
 
-  Open_tables_state open_tables_state_backup;
+  /*
+    HELP must be available under LOCK TABLES. 
+    Reset and backup the current open tables state to
+    make it possible.
+  */
+  Open_tables_backup open_tables_state_backup;
   if (open_system_tables_for_read(thd, tables, &open_tables_state_backup))
     goto error2;
 
