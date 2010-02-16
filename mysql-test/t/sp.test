@@ -1308,9 +1308,11 @@ select f3()|
 select id, f3() from t1 as t11 order by id|
 # Degenerate cases work too :)
 select f0()|
+# But these should not (particularly views should be locked explicitly).
+--error ER_TABLE_NOT_LOCKED
 select * from v0|
+--error ER_TABLE_NOT_LOCKED
 select *, f0() from v0, (select 123) as d1|
-# But these should not !
 --error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
 --error ER_TABLE_NOT_LOCKED
@@ -8515,4 +8517,85 @@ SELECT comment FROM mysql.proc WHERE name = "p1";
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
 
 DROP PROCEDURE p1;
+
+
+--echo #
+--echo # Bug #47313 assert in check_key_in_view during CALL procedure
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS t1, t2_unrelated;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+
+--echo # t1 refers to the view
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(1);
+
+CREATE TEMPORARY TABLE t1 (f1 INT);
+
+--echo # t1 still refers to the view since it was inlined
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(2);
+
+DROP VIEW t1;
+
+--echo # t1 now refers to the temporary table
+CALL p1(3);
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+--echo # Now test what happens if the sp cache is invalidated.
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+CREATE VIEW v2_unrelated AS SELECT 1 AS r1;
+
+--echo # Load the procedure into the sp cache
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(4);
+
+CREATE TEMPORARY TABLE t1 (f1 int);
+
+ALTER VIEW v2_unrelated AS SELECT 2 AS r1;
+
+--echo # Alter view causes the sp cache to be invalidated.
+--echo # Now t1 refers to the temporary table, not the view.
+CALL p1(5);
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP VIEW t1, v2_unrelated;
+DROP PROCEDURE p1;
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE TEMPORARY TABLE t1 (f1 INT);
+
+--echo # t1 refers to the temporary table
+CALL p1(6);
+
+CREATE VIEW t1 AS SELECT 10 AS f1;
+
+--echo # Create view causes the sp cache to be invalidated.
+--echo # t1 still refers to the temporary table since it shadows the view.
+CALL p1(7);
+
+DROP VIEW t1;
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
 

@@ -118,6 +118,71 @@ connection master;
 FLUSH LOGS;
 
 DROP DATABASE mysqltest1;
--- source include/master-slave-end.inc
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#39675 rename tables on innodb tables with pending 
+--echo # transactions causes slave data issue.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY auto_increment,
+  b INT DEFAULT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id INT PRIMARY KEY auto_increment,
+  b INT DEFAULT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (b) VALUES (1),(2),(3);
+
+BEGIN;
+INSERT INTO t1(b) VALUES (4);
+
+--echo -------- switch to master1 --------
+connection master1;
+--send RENAME TABLE t1 TO t3, t2 TO t1;
+
+--echo -------- switch to master --------
+connection master;
+# Need to wait until RENAME is received
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "RENAME TABLE t1 TO t3, t2 TO t1" and
+  state = "Waiting for table";
+--source include/wait_condition.inc
+
+COMMIT;
+
+--echo -------- switch to master1 --------
+connection master1;
+--reap
+
+--echo -------- switch to master --------
+connection master;
+SELECT * FROM t1;
+SELECT * FROM t3;
+
+sync_slave_with_master;
+
+--echo -------- switch to slave --------
+connection slave;
+SELECT * FROM t1;
+SELECT * FROM t3;
+
+--echo -------- switch to master --------
+connection master;
+DROP TABLE t1;
+DROP TABLE t3;
+
+--echo End of 6.0 tests
+
+--source include/master-slave-end.inc

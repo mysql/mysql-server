@@ -81,9 +81,10 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/scheduler.cc ../sql/sql_audit.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
-	   ../sql/rpl_utility.cc
+	       ../sql/rpl_utility.cc
            ../sql/sys_vars.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+           ../sql/mdl.cc ../sql/transaction.cc
            ${GEN_SOURCES}
            ${MYSYS_LIBWRAP_SOURCE}
 )
