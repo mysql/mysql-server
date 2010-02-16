@@ -27,1105 +27,3461 @@
 
 struct NdbApiWrapper {
 
-    // ----------------------------------------------------------------------
-    // const overloaded member functions
-    // ----------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-    static NdbBlob * getBlobHandle0(const NdbOperation & obj, const char * anAttrName) {
-        return obj.getBlobHandle(anAttrName);
-    }
-    
-    static NdbBlob * getBlobHandle1(const NdbOperation & obj, Uint32 anAttrId) {
-        return obj.getBlobHandle(anAttrId);
-    }    
+//#include "com_mysql_ndbjtie_ndbapi_NDBAPI.h"
 
-    static NdbBlob * getBlobHandle2(NdbOperation & obj, const char * anAttrName) {
-        return obj.getBlobHandle(anAttrName);
-    }
-    
-    static NdbBlob * getBlobHandle3(NdbOperation & obj, Uint32 anAttrId) {
-        return obj.getBlobHandle(anAttrId);
-    }
-    
-    static int listIndexes(const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & list, const char * tableName) {
-        return obj.listIndexes(list, tableName);
-    }
-    
-    static int listEvents(const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & list) {
-        return obj.listEvents(list);
-    }
-    
-    static int listObjects(const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & list, NdbDictionary::Object::Type type = NdbDictionary::Object::TypeUndefined) {
-        return obj.listObjects(list, type);
+    static bool
+    create_instance
+    ( Ndb_cluster_connection * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return ::create_instance(p0, p1, p2, p3);
     }
 
-    static int getNdbErrorLine(const NdbOperation & obj) {
+    static void
+    drop_instance
+    (  )
+    {
+        ::drop_instance();
+    }
+
+    static Ndb *
+    get_ndb_object
+    ( Uint32 & p0, const char * p1, const char * p2 )
+    {
+        return ::get_ndb_object(p0, p1, p2);
+    }
+
+    static void
+    return_ndb_object
+    ( Ndb * p0, Uint32 p1 )
+    {
+        ::return_ndb_object(p0, p1);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_Ndb.h"
+
+    static const char *
+    Ndb__getDatabaseName
+    ( const Ndb & obj )
+    {
+        return obj.getDatabaseName();
+    }
+
+    static const char *
+    Ndb__getDatabaseSchemaName
+    ( const Ndb & obj )
+    {
+        return obj.getDatabaseSchemaName();
+    }
+
+    static NdbDictionary::Dictionary *
+    Ndb__getDictionary
+    ( const Ndb & obj )
+    {
+        return obj.getDictionary();
+    }
+
+    static const NdbError &
+    Ndb__getNdbError
+    ( const Ndb & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static const char *
+    Ndb__getNdbErrorDetail
+    ( const Ndb & obj, const NdbError & p0, char * p1, Uint32 p2 )
+    {
+        return obj.getNdbErrorDetail(p0, p1, p2);
+    }
+
+    static int
+    Ndb__setDatabaseName
+    ( Ndb & obj, const char * p0 )
+    {
+        return obj.setDatabaseName(p0);
+    }
+
+    static int
+    Ndb__setDatabaseSchemaName
+    ( Ndb & obj, const char * p0 )
+    {
+        return obj.setDatabaseSchemaName(p0);
+    }
+
+    static int
+    Ndb__init
+    ( Ndb & obj, int p0 )
+    {
+        return obj.init(p0);
+    }
+
+    static NdbEventOperation *
+    Ndb__createEventOperation
+    ( Ndb & obj, const char * p0 )
+    {
+        return obj.createEventOperation(p0);
+    }
+
+    static int
+    Ndb__dropEventOperation
+    ( Ndb & obj, NdbEventOperation * p0 )
+    {
+        return obj.dropEventOperation(p0);
+    }
+
+    static int
+    Ndb__pollEvents
+    ( Ndb & obj, int p0, Uint64 * p1 )
+    {
+        return obj.pollEvents(p0, p1);
+    }
+
+    static NdbEventOperation *
+    Ndb__nextEvent
+    ( Ndb & obj )
+    {
+        return obj.nextEvent();
+    }
+
+    static bool
+    Ndb__isConsistent
+    ( Ndb & obj, Uint64 & p0 )
+    {
+        return obj.isConsistent(p0);
+    }
+
+    static bool
+    Ndb__isConsistentGCI
+    ( Ndb & obj, Uint64 p0 )
+    {
+        return obj.isConsistentGCI(p0);
+    }
+
+    static const NdbEventOperation *
+    Ndb__getGCIEventOperations
+    ( Ndb & obj, Uint32 * p0, Uint32 * p1 )
+    {
+        return obj.getGCIEventOperations(p0, p1);
+    }
+
+    static NdbTransaction *
+    Ndb__startTransaction
+    ( Ndb & obj, const NdbDictionary::Table * p0, const char * p1, Uint32 p2 )
+    {
+        return obj.startTransaction(p0, p1, p2);
+    }
+
+    static NdbTransaction *
+    Ndb__startTransaction
+    ( Ndb & obj, const NdbDictionary::Table * p0, const Ndb::Key_part_ptr * p1, void * p2, Uint32 p3 )
+    {
+        return obj.startTransaction(p0, p1, p2, p3);
+    }
+
+    static NdbTransaction *
+    Ndb__startTransaction
+    ( Ndb & obj, const NdbDictionary::Table * p0, Uint32 p1 )
+    {
+        return obj.startTransaction(p0, p1);
+    }
+
+    static int
+    Ndb__computeHash
+    ( Uint32 * p0, const NdbDictionary::Table * p1, const Ndb::Key_part_ptr * p2, void * p3, Uint32 p4 )
+    {
+        return Ndb::computeHash(p0, p1, p2, p3, p4);
+    }
+
+    static void
+    Ndb__closeTransaction
+    ( Ndb & obj, NdbTransaction * p0 )
+    {
+        obj.closeTransaction(p0);
+    }
+
+    static const NdbError &
+    Ndb__getNdbError
+    ( Ndb & obj, int p0 )
+    {
+        return obj.getNdbError(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbBlob.h"
+
+    static const NdbError &
+    NdbBlob__getNdbError
+    ( const NdbBlob & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static const NdbOperation *
+    NdbBlob__getNdbOperation
+    ( const NdbBlob & obj )
+    {
+        return obj.getNdbOperation();
+    }
+
+    static NdbBlob::State
+    NdbBlob__getState
+    ( NdbBlob & obj )
+    {
+        return obj.getState();
+    }
+
+    static void
+    NdbBlob__getVersion
+    ( NdbBlob & obj, int & p0 )
+    {
+        obj.getVersion(p0);
+    }
+
+    static int
+    NdbBlob__getValue
+    ( NdbBlob & obj, void * p0, Uint32 p1 )
+    {
+        return obj.getValue(p0, p1);
+    }
+
+    static int
+    NdbBlob__setValue
+    ( NdbBlob & obj, const void * p0, Uint32 p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbBlob__getNull
+    ( NdbBlob & obj, int & p0 )
+    {
+        return obj.getNull(p0);
+    }
+
+    static int
+    NdbBlob__setNull
+    ( NdbBlob & obj )
+    {
+        return obj.setNull();
+    }
+
+    static int
+    NdbBlob__getLength
+    ( NdbBlob & obj, Uint64 & p0 )
+    {
+        return obj.getLength(p0);
+    }
+
+    static int
+    NdbBlob__truncate
+    ( NdbBlob & obj, Uint64 p0 )
+    {
+        return obj.truncate(p0);
+    }
+
+    static int
+    NdbBlob__getPos
+    ( NdbBlob & obj, Uint64 & p0 )
+    {
+        return obj.getPos(p0);
+    }
+
+    static int
+    NdbBlob__setPos
+    ( NdbBlob & obj, Uint64 p0 )
+    {
+        return obj.setPos(p0);
+    }
+
+    static int
+    NdbBlob__readData
+    ( NdbBlob & obj, void * p0, Uint32 & p1 )
+    {
+        return obj.readData(p0, p1);
+    }
+
+    static int
+    NdbBlob__writeData
+    ( NdbBlob & obj, const void * p0, Uint32 p1 )
+    {
+        return obj.writeData(p0, p1);
+    }
+
+    static const NdbDictionary::Column *
+    NdbBlob__getColumn
+    ( NdbBlob & obj )
+    {
+        return obj.getColumn();
+    }
+
+    static int
+    NdbBlob__getBlobTableName
+    ( char * p0, Ndb * p1, const char * p2, const char * p3 )
+    {
+        return NdbBlob::getBlobTableName(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbBlob__getBlobEventName
+    ( char * p0, Ndb * p1, const char * p2, const char * p3 )
+    {
+        return NdbBlob::getBlobEventName(p0, p1, p2, p3);
+    }
+
+    static NdbBlob *
+    NdbBlob__blobsFirstBlob
+    ( NdbBlob & obj )
+    {
+        return obj.blobsFirstBlob();
+    }
+
+    static NdbBlob *
+    NdbBlob__blobsNextBlob
+    ( NdbBlob & obj )
+    {
+        return obj.blobsNextBlob();
+    }
+
+    static int
+    NdbBlob__close
+    ( NdbBlob & obj, bool p0 )
+    {
+        return obj.close(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary.h"
+
+    static NdbDictionary::RecordType
+    NdbDictionary__getRecordType
+    ( const NdbRecord * p0 )
+    {
+        return NdbDictionary::getRecordType(p0);
+    }
+
+    static const char *
+    NdbDictionary__getRecordTableName
+    ( const NdbRecord * p0 )
+    {
+        return NdbDictionary::getRecordTableName(p0);
+    }
+
+    static const char *
+    NdbDictionary__getRecordIndexName
+    ( const NdbRecord * p0 )
+    {
+        return NdbDictionary::getRecordIndexName(p0);
+    }
+
+    static bool
+    NdbDictionary__getFirstAttrId
+    ( const NdbRecord * p0, Uint32 & p1 )
+    {
+        return NdbDictionary::getFirstAttrId(p0, p1);
+    }
+
+    static bool
+    NdbDictionary__getNextAttrId
+    ( const NdbRecord * p0, Uint32 & p1 )
+    {
+        return NdbDictionary::getNextAttrId(p0, p1);
+    }
+
+    static bool
+    NdbDictionary__getOffset
+    ( const NdbRecord * p0, Uint32 p1, Uint32 & p2 )
+    {
+        return NdbDictionary::getOffset(p0, p1, p2);
+    }
+
+    static bool
+    NdbDictionary__getNullBitOffset
+    ( const NdbRecord * p0, Uint32 p1, Uint32 & p2, Uint32 & p3 )
+    {
+        return NdbDictionary::getNullBitOffset(p0, p1, p2, p3);
+    }
+
+    static const char *
+    NdbDictionary__getValuePtr
+    ( const NdbRecord * p0, const char * p1, Uint32 p2 )
+    {
+        return NdbDictionary::getValuePtr(p0, p1, p2);
+    }
+
+    static bool
+    NdbDictionary__isNull
+    ( const NdbRecord * p0, const char * p1, Uint32 p2 )
+    {
+        return NdbDictionary::isNull(p0, p1, p2);
+    }
+
+    static int
+    NdbDictionary__setNull
+    ( const NdbRecord * p0, char * p1, Uint32 p2, bool p3 )
+    {
+        return NdbDictionary::setNull(p0, p1, p2, p3);
+    }
+
+    static Uint32
+    NdbDictionary__getRecordRowLength
+    ( const NdbRecord * p0 )
+    {
+        return NdbDictionary::getRecordRowLength(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+
+    static const char *
+    NdbDictionary__Column__getName
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getName();
+    }
+
+    static bool
+    NdbDictionary__Column__getNullable
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getNullable();
+    }
+
+    static bool
+    NdbDictionary__Column__getPrimaryKey
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getPrimaryKey();
+    }
+
+    static int
+    NdbDictionary__Column__getColumnNo
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getColumnNo();
+    }
+
+    static bool
+    NdbDictionary__Column__equal
+    ( const NdbDictionary::Column & obj, const NdbDictionary::Column & p0 )
+    {
+        return obj.equal(p0);
+    }
+
+    static NdbDictionary::Column::Type
+    NdbDictionary__Column__getType
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getType();
+    }
+
+    static int
+    NdbDictionary__Column__getPrecision
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getPrecision();
+    }
+
+    static int
+    NdbDictionary__Column__getScale
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getScale();
+    }
+
+    static int
+    NdbDictionary__Column__getLength
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getLength();
+    }
+
+    static int
+    NdbDictionary__Column__getCharsetNumber
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getCharsetNumber();
+    }
+
+    static int
+    NdbDictionary__Column__getInlineSize
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getInlineSize();
+    }
+
+    static int
+    NdbDictionary__Column__getPartSize
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getPartSize();
+    }
+
+    static int
+    NdbDictionary__Column__getStripeSize
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getStripeSize();
+    }
+
+    static int
+    NdbDictionary__Column__getSize
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getSize();
+    }
+
+    static bool
+    NdbDictionary__Column__getPartitionKey
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getPartitionKey();
+    }
+
+    static NdbDictionary::Column::ArrayType
+    NdbDictionary__Column__getArrayType
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getArrayType();
+    }
+
+    static NdbDictionary::Column::StorageType
+    NdbDictionary__Column__getStorageType
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getStorageType();
+    }
+
+    static bool
+    NdbDictionary__Column__getDynamic
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getDynamic();
+    }
+
+    static bool
+    NdbDictionary__Column__getIndexSourced
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getIndexSourced();
+    }
+
+    static int
+    NdbDictionary__Column__setName
+    ( NdbDictionary::Column & obj, const char * p0 )
+    {
+        return obj.setName(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setNullable
+    ( NdbDictionary::Column & obj, bool p0 )
+    {
+        obj.setNullable(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setPrimaryKey
+    ( NdbDictionary::Column & obj, bool p0 )
+    {
+        obj.setPrimaryKey(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setType
+    ( NdbDictionary::Column & obj, NdbDictionary::Column::Type p0 )
+    {
+        obj.setType(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setPrecision
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setPrecision(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setScale
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setScale(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setLength
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setLength(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setInlineSize
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setInlineSize(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setPartSize
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setPartSize(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setStripeSize
+    ( NdbDictionary::Column & obj, int p0 )
+    {
+        obj.setStripeSize(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setPartitionKey
+    ( NdbDictionary::Column & obj, bool p0 )
+    {
+        obj.setPartitionKey(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setArrayType
+    ( NdbDictionary::Column & obj, NdbDictionary::Column::ArrayType p0 )
+    {
+        obj.setArrayType(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setStorageType
+    ( NdbDictionary::Column & obj, NdbDictionary::Column::StorageType p0 )
+    {
+        obj.setStorageType(p0);
+    }
+
+    static void
+    NdbDictionary__Column__setDynamic
+    ( NdbDictionary::Column & obj, bool p0 )
+    {
+        obj.setDynamic(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile.h"
+
+    static const char *
+    NdbDictionary__Datafile__getPath
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getPath();
+    }
+
+    static Uint64
+    NdbDictionary__Datafile__getSize
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getSize();
+    }
+
+    static Uint64
+    NdbDictionary__Datafile__getFree
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getFree();
+    }
+
+    static const char *
+    NdbDictionary__Datafile__getTablespace
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getTablespace();
+    }
+
+    static void
+    NdbDictionary__Datafile__getTablespaceId
+    ( const NdbDictionary::Datafile & obj, NdbDictionary::ObjectId * p0 )
+    {
+        obj.getTablespaceId(p0);
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Datafile__getObjectStatus
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__Datafile__getObjectVersion
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__Datafile__getObjectId
+    ( const NdbDictionary::Datafile & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static void
+    NdbDictionary__Datafile__setPath
+    ( NdbDictionary::Datafile & obj, const char * p0 )
+    {
+        obj.setPath(p0);
+    }
+
+    static void
+    NdbDictionary__Datafile__setSize
+    ( NdbDictionary::Datafile & obj, Uint64 p0 )
+    {
+        obj.setSize(p0);
+    }
+
+    static int
+    NdbDictionary__Datafile__setTablespace
+    ( NdbDictionary::Datafile & obj, const char * p0 )
+    {
+        return obj.setTablespace(p0);
+    }
+
+    static int
+    NdbDictionary__Datafile__setTablespace
+    ( NdbDictionary::Datafile & obj, const NdbDictionary::Tablespace & p0 )
+    {
+        return obj.setTablespace(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
+
+    static int
+    NdbDictionary__Dictionary__listObjects
+    ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0, NdbDictionary::Object::Type p1 )
+    {
+        return obj.listObjects(p0, p1);
+    }
+
+    static const NdbError &
+    NdbDictionary__Dictionary__getNdbError
+    ( const NdbDictionary::Dictionary & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static const NdbDictionary::Table *
+    NdbDictionary__Dictionary__getTable
+    ( const NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        return obj.getTable(p0);
+    }
+
+    static const NdbDictionary::Index *
+    NdbDictionary__Dictionary__getIndex
+    ( const NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
+    {
+        return obj.getIndex(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__listIndexes
+    ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0, const char * p1 )
+    {
+        return obj.listIndexes(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__listEvents
+    ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0 )
+    {
+        return obj.listEvents(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createEvent
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Event & p0 )
+    {
+        return obj.createEvent(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropEvent
+    ( NdbDictionary::Dictionary & obj, const char * p0, int p1 )
+    {
+        return obj.dropEvent(p0, p1);
+    }
+
+    static const NdbDictionary::Event *
+    NdbDictionary__Dictionary__getEvent
+    ( NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        return obj.getEvent(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createTable
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Table & p0 )
+    {
+        return obj.createTable(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__optimizeTable
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Table & p0, NdbDictionary::OptimizeTableHandle & p1 )
+    {
+        return obj.optimizeTable(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__optimizeIndex
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index & p0, NdbDictionary::OptimizeIndexHandle & p1 )
+    {
+        return obj.optimizeIndex(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropTable
+    ( NdbDictionary::Dictionary & obj, NdbDictionary::Table & p0 )
+    {
+        return obj.dropTable(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropTable
+    ( NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        return obj.dropTable(p0);
+    }
+
+    static bool
+    NdbDictionary__Dictionary__supportedAlterTable
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Table & p0, const NdbDictionary::Table & p1 )
+    {
+        return obj.supportedAlterTable(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Dictionary__removeCachedTable
+    ( NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        obj.removeCachedTable(p0);
+    }
+
+    static void
+    NdbDictionary__Dictionary__removeCachedIndex
+    ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
+    {
+        obj.removeCachedIndex(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createIndex
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index & p0, bool p1 )
+    {
+        return obj.createIndex(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createIndex
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index & p0, const NdbDictionary::Table & p1, bool p2 )
+    {
+        return obj.createIndex(p0, p1, p2);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropIndex
+    ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
+    {
+        return obj.dropIndex(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createLogfileGroup
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::LogfileGroup & p0, NdbDictionary::ObjectId * p1 )
+    {
+        return obj.createLogfileGroup(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropLogfileGroup
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::LogfileGroup & p0 )
+    {
+        return obj.dropLogfileGroup(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createTablespace
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Tablespace & p0, NdbDictionary::ObjectId * p1 )
+    {
+        return obj.createTablespace(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropTablespace
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Tablespace & p0 )
+    {
+        return obj.dropTablespace(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createDatafile
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Datafile & p0, bool p1, NdbDictionary::ObjectId * p2 )
+    {
+        return obj.createDatafile(p0, p1, p2);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropDatafile
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Datafile & p0 )
+    {
+        return obj.dropDatafile(p0);
+    }
+
+    static int
+    NdbDictionary__Dictionary__createUndofile
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Undofile & p0, bool p1, NdbDictionary::ObjectId * p2 )
+    {
+        return obj.createUndofile(p0, p1, p2);
+    }
+
+    static int
+    NdbDictionary__Dictionary__dropUndofile
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Undofile & p0 )
+    {
+        return obj.dropUndofile(p0);
+    }
+
+    static NdbRecord *
+    NdbDictionary__Dictionary__createRecord
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Table * p0, const NdbDictionary::RecordSpecification * p1, Uint32 p2, Uint32 p3, Uint32 p4 )
+    {
+        return obj.createRecord(p0, p1, p2, p3, p4);
+    }
+
+    static NdbRecord *
+    NdbDictionary__Dictionary__createRecord
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index * p0, const NdbDictionary::Table * p1, const NdbDictionary::RecordSpecification * p2, Uint32 p3, Uint32 p4, Uint32 p5 )
+    {
+        return obj.createRecord(p0, p1, p2, p3, p4, p5);
+    }
+
+    static NdbRecord *
+    NdbDictionary__Dictionary__createRecord
+    ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index * p0, const NdbDictionary::RecordSpecification * p1, Uint32 p2, Uint32 p3, Uint32 p4 )
+    {
+        return obj.createRecord(p0, p1, p2, p3, p4);
+    }
+
+    static void
+    NdbDictionary__Dictionary__releaseRecord
+    ( NdbDictionary::Dictionary & obj, NdbRecord * p0 )
+    {
+        obj.releaseRecord(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
+
+    static const char *
+    NdbDictionary__Event__getName
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getName();
+    }
+
+    static const NdbDictionary::Table *
+    NdbDictionary__Event__getTable
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getTable();
+    }
+
+    static const char *
+    NdbDictionary__Event__getTableName
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getTableName();
+    }
+
+    static bool
+    NdbDictionary__Event__getTableEvent
+    ( const NdbDictionary::Event & obj, NdbDictionary::Event::TableEvent p0 )
+    {
+        return obj.getTableEvent(p0);
+    }
+
+    static NdbDictionary::Event::EventDurability
+    NdbDictionary__Event__getDurability
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getDurability();
+    }
+
+    static NdbDictionary::Event::EventReport
+    NdbDictionary__Event__getReport
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getReport();
+    }
+
+    static int
+    NdbDictionary__Event__getNoOfEventColumns
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getNoOfEventColumns();
+    }
+
+    static const NdbDictionary::Column *
+    NdbDictionary__Event__getEventColumn
+    ( const NdbDictionary::Event & obj, unsigned int p0 )
+    {
+        return obj.getEventColumn(p0);
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Event__getObjectStatus
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__Event__getObjectVersion
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__Event__getObjectId
+    ( const NdbDictionary::Event & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static int
+    NdbDictionary__Event__setName
+    ( NdbDictionary::Event & obj, const char * p0 )
+    {
+        return obj.setName(p0);
+    }
+
+    static void
+    NdbDictionary__Event__setTable
+    ( NdbDictionary::Event & obj, const NdbDictionary::Table & p0 )
+    {
+        obj.setTable(p0);
+    }
+
+    static int
+    NdbDictionary__Event__setTable
+    ( NdbDictionary::Event & obj, const char * p0 )
+    {
+        return obj.setTable(p0);
+    }
+
+    static void
+    NdbDictionary__Event__addTableEvent
+    ( NdbDictionary::Event & obj, NdbDictionary::Event::TableEvent p0 )
+    {
+        obj.addTableEvent(p0);
+    }
+
+    static void
+    NdbDictionary__Event__setDurability
+    ( NdbDictionary::Event & obj, NdbDictionary::Event::EventDurability p0 )
+    {
+        obj.setDurability(p0);
+    }
+
+    static void
+    NdbDictionary__Event__setReport
+    ( NdbDictionary::Event & obj, NdbDictionary::Event::EventReport p0 )
+    {
+        obj.setReport(p0);
+    }
+
+    static void
+    NdbDictionary__Event__addEventColumn
+    ( NdbDictionary::Event & obj, unsigned int p0 )
+    {
+        obj.addEventColumn(p0);
+    }
+
+    static void
+    NdbDictionary__Event__addEventColumn
+    ( NdbDictionary::Event & obj, const char * p0 )
+    {
+        obj.addEventColumn(p0);
+    }
+
+    static void
+    NdbDictionary__Event__addEventColumns
+    ( NdbDictionary::Event & obj, int p0, const char * * p1 )
+    {
+        obj.addEventColumns(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Event__mergeEvents
+    ( NdbDictionary::Event & obj, bool p0 )
+    {
+        obj.mergeEvents(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Index.h"
+
+    static const char *
+    NdbDictionary__Index__getName
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getName();
+    }
+
+    static const char *
+    NdbDictionary__Index__getTable
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getTable();
+    }
+
+    static unsigned int
+    NdbDictionary__Index__getNoOfColumns
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getNoOfColumns();
+    }
+
+    static const NdbDictionary::Column *
+    NdbDictionary__Index__getColumn
+    ( const NdbDictionary::Index & obj, unsigned int p0 )
+    {
+        return obj.getColumn(p0);
+    }
+
+    static NdbDictionary::Index::Type
+    NdbDictionary__Index__getType
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getType();
+    }
+
+    static bool
+    NdbDictionary__Index__getLogging
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getLogging();
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Index__getObjectStatus
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__Index__getObjectVersion
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__Index__getObjectId
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static const NdbRecord *
+    NdbDictionary__Index__getDefaultRecord
+    ( const NdbDictionary::Index & obj )
+    {
+        return obj.getDefaultRecord();
+    }
+
+    static int
+    NdbDictionary__Index__setName
+    ( NdbDictionary::Index & obj, const char * p0 )
+    {
+        return obj.setName(p0);
+    }
+
+    static int
+    NdbDictionary__Index__setTable
+    ( NdbDictionary::Index & obj, const char * p0 )
+    {
+        return obj.setTable(p0);
+    }
+
+    static int
+    NdbDictionary__Index__addColumn
+    ( NdbDictionary::Index & obj, const NdbDictionary::Column & p0 )
+    {
+        return obj.addColumn(p0);
+    }
+
+    static int
+    NdbDictionary__Index__addColumnName
+    ( NdbDictionary::Index & obj, const char * p0 )
+    {
+        return obj.addColumnName(p0);
+    }
+
+    static int
+    NdbDictionary__Index__addColumnNames
+    ( NdbDictionary::Index & obj, unsigned int p0, const char * * p1 )
+    {
+        return obj.addColumnNames(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Index__setType
+    ( NdbDictionary::Index & obj, NdbDictionary::Index::Type p0 )
+    {
+        obj.setType(p0);
+    }
+
+    static void
+    NdbDictionary__Index__setLogging
+    ( NdbDictionary::Index & obj, bool p0 )
+    {
+        obj.setLogging(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup.h"
+
+    static const char *
+    NdbDictionary__LogfileGroup__getName
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getName();
+    }
+
+    static Uint32
+    NdbDictionary__LogfileGroup__getUndoBufferSize
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getUndoBufferSize();
+    }
+
+    static const NdbDictionary::AutoGrowSpecification &
+    NdbDictionary__LogfileGroup__getAutoGrowSpecification
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getAutoGrowSpecification();
+    }
+
+    static Uint64
+    NdbDictionary__LogfileGroup__getUndoFreeWords
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getUndoFreeWords();
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__LogfileGroup__getObjectStatus
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__LogfileGroup__getObjectVersion
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__LogfileGroup__getObjectId
+    ( const NdbDictionary::LogfileGroup & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static void
+    NdbDictionary__LogfileGroup__setName
+    ( NdbDictionary::LogfileGroup & obj, const char * p0 )
+    {
+        obj.setName(p0);
+    }
+
+    static void
+    NdbDictionary__LogfileGroup__setUndoBufferSize
+    ( NdbDictionary::LogfileGroup & obj, Uint32 p0 )
+    {
+        obj.setUndoBufferSize(p0);
+    }
+
+    static void
+    NdbDictionary__LogfileGroup__setAutoGrowSpecification
+    ( NdbDictionary::LogfileGroup & obj, const NdbDictionary::AutoGrowSpecification & p0 )
+    {
+        obj.setAutoGrowSpecification(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Object.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId.h"
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__ObjectId__getObjectStatus
+    ( const NdbDictionary::ObjectId & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__ObjectId__getObjectVersion
+    ( const NdbDictionary::ObjectId & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__ObjectId__getObjectId
+    ( const NdbDictionary::ObjectId & obj )
+    {
+        return obj.getObjectId();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle.h"
+
+    static int
+    NdbDictionary__OptimizeIndexHandle__next
+    ( NdbDictionary::OptimizeIndexHandle & obj )
+    {
+        return obj.next();
+    }
+
+    static int
+    NdbDictionary__OptimizeIndexHandle__close
+    ( NdbDictionary::OptimizeIndexHandle & obj )
+    {
+        return obj.close();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle.h"
+
+    static int
+    NdbDictionary__OptimizeTableHandle__next
+    ( NdbDictionary::OptimizeTableHandle & obj )
+    {
+        return obj.next();
+    }
+
+    static int
+    NdbDictionary__OptimizeTableHandle__close
+    ( NdbDictionary::OptimizeTableHandle & obj )
+    {
+        return obj.close();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Table.h"
+
+    static const char *
+    NdbDictionary__Table__getName
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getName();
+    }
+
+    static int
+    NdbDictionary__Table__getTableId
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getTableId();
+    }
+
+    static const NdbDictionary::Column *
+    NdbDictionary__Table__getColumn
+    ( const NdbDictionary::Table & obj, const char * p0 )
+    {
+        return obj.getColumn(p0);
+    }
+
+    static const NdbDictionary::Column *
+    NdbDictionary__Table__getColumn
+    ( const NdbDictionary::Table & obj, int p0 )
+    {
+        return obj.getColumn(p0);
+    }
+
+    static bool
+    NdbDictionary__Table__getLogging
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getLogging();
+    }
+
+    static NdbDictionary::Object::FragmentType
+    NdbDictionary__Table__getFragmentType
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFragmentType();
+    }
+
+    static int
+    NdbDictionary__Table__getKValue
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getKValue();
+    }
+
+    static int
+    NdbDictionary__Table__getMinLoadFactor
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getMinLoadFactor();
+    }
+
+    static int
+    NdbDictionary__Table__getMaxLoadFactor
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getMaxLoadFactor();
+    }
+
+    static int
+    NdbDictionary__Table__getNoOfColumns
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getNoOfColumns();
+    }
+
+    static int
+    NdbDictionary__Table__getNoOfPrimaryKeys
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getNoOfPrimaryKeys();
+    }
+
+    static const char *
+    NdbDictionary__Table__getPrimaryKey
+    ( const NdbDictionary::Table & obj, int p0 )
+    {
+        return obj.getPrimaryKey(p0);
+    }
+
+    static bool
+    NdbDictionary__Table__equal
+    ( const NdbDictionary::Table & obj, const NdbDictionary::Table & p0 )
+    {
+        return obj.equal(p0);
+    }
+
+    static const void *
+    NdbDictionary__Table__getFrmData
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFrmData();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getFrmLength
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFrmLength();
+    }
+
+    static const Uint32 *
+    NdbDictionary__Table__getFragmentData
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFragmentData();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getFragmentDataLen
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFragmentDataLen();
+    }
+
+    static const Int32 *
+    NdbDictionary__Table__getRangeListData
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getRangeListData();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getRangeListDataLen
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getRangeListDataLen();
+    }
+
+    static const NdbRecord *
+    NdbDictionary__Table__getDefaultRecord
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getDefaultRecord();
+    }
+
+    static bool
+    NdbDictionary__Table__getLinearFlag
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getLinearFlag();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getFragmentCount
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getFragmentCount();
+    }
+
+    static const char *
+    NdbDictionary__Table__getTablespaceName
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getTablespaceName();
+    }
+
+    static bool
+    NdbDictionary__Table__getTablespace
+    ( const NdbDictionary::Table & obj, Uint32 * p0, Uint32 * p1 )
+    {
+        return obj.getTablespace(p0, p1);
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Table__getObjectStatus
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static void
+    NdbDictionary__Table__setStatusInvalid
+    ( const NdbDictionary::Table & obj )
+    {
+        obj.setStatusInvalid();
+    }
+
+    static int
+    NdbDictionary__Table__getObjectVersion
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getDefaultNoPartitionsFlag
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getDefaultNoPartitionsFlag();
+    }
+
+    static int
+    NdbDictionary__Table__getObjectId
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static Uint64
+    NdbDictionary__Table__getMaxRows
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getMaxRows();
+    }
+
+    static Uint64
+    NdbDictionary__Table__getMinRows
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getMinRows();
+    }
+
+    static NdbDictionary::Table::SingleUserMode
+    NdbDictionary__Table__getSingleUserMode
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getSingleUserMode();
+    }
+
+    static bool
+    NdbDictionary__Table__getRowGCIIndicator
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getRowGCIIndicator();
+    }
+
+    static bool
+    NdbDictionary__Table__getRowChecksumIndicator
+    ( const NdbDictionary::Table & obj )
+    {
+        return obj.getRowChecksumIndicator();
+    }
+
+    static Uint32
+    NdbDictionary__Table__getPartitionId
+    ( const NdbDictionary::Table & obj, Uint32 p0 )
+    {
+        return obj.getPartitionId(p0);
+    }
+
+    static NdbDictionary::Column *
+    NdbDictionary__Table__getColumn
+    ( NdbDictionary::Table & obj, int p0 )
+    {
+        return obj.getColumn(p0);
+    }
+
+    static NdbDictionary::Column *
+    NdbDictionary__Table__getColumn
+    ( NdbDictionary::Table & obj, const char * p0 )
+    {
+        return obj.getColumn(p0);
+    }
+
+    static int
+    NdbDictionary__Table__setName
+    ( NdbDictionary::Table & obj, const char * p0 )
+    {
+        return obj.setName(p0);
+    }
+
+    static int
+    NdbDictionary__Table__addColumn
+    ( NdbDictionary::Table & obj, const NdbDictionary::Column & p0 )
+    {
+        return obj.addColumn(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setLogging
+    ( NdbDictionary::Table & obj, bool p0 )
+    {
+        obj.setLogging(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setLinearFlag
+    ( NdbDictionary::Table & obj, Uint32 p0 )
+    {
+        obj.setLinearFlag(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setFragmentCount
+    ( NdbDictionary::Table & obj, Uint32 p0 )
+    {
+        obj.setFragmentCount(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setFragmentType
+    ( NdbDictionary::Table & obj, NdbDictionary::Object::FragmentType p0 )
+    {
+        obj.setFragmentType(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setKValue
+    ( NdbDictionary::Table & obj, int p0 )
+    {
+        obj.setKValue(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setMinLoadFactor
+    ( NdbDictionary::Table & obj, int p0 )
+    {
+        obj.setMinLoadFactor(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setMaxLoadFactor
+    ( NdbDictionary::Table & obj, int p0 )
+    {
+        obj.setMaxLoadFactor(p0);
+    }
+
+    static int
+    NdbDictionary__Table__setTablespaceName
+    ( NdbDictionary::Table & obj, const char * p0 )
+    {
+        return obj.setTablespaceName(p0);
+    }
+
+    static int
+    NdbDictionary__Table__setTablespace
+    ( NdbDictionary::Table & obj, const NdbDictionary::Tablespace & p0 )
+    {
+        return obj.setTablespace(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setDefaultNoPartitionsFlag
+    ( NdbDictionary::Table & obj, Uint32 p0 )
+    {
+        obj.setDefaultNoPartitionsFlag(p0);
+    }
+
+    static int
+    NdbDictionary__Table__setFrm
+    ( NdbDictionary::Table & obj, const void * p0, Uint32 p1 )
+    {
+        return obj.setFrm(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Table__setFragmentData
+    ( NdbDictionary::Table & obj, const Uint32 * p0, Uint32 p1 )
+    {
+        return obj.setFragmentData(p0, p1);
+    }
+
+    static int
+    NdbDictionary__Table__setRangeListData
+    ( NdbDictionary::Table & obj, const Int32 * p0, Uint32 p1 )
+    {
+        return obj.setRangeListData(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Table__setMaxRows
+    ( NdbDictionary::Table & obj, Uint64 p0 )
+    {
+        obj.setMaxRows(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setMinRows
+    ( NdbDictionary::Table & obj, Uint64 p0 )
+    {
+        obj.setMinRows(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setSingleUserMode
+    ( NdbDictionary::Table & obj, NdbDictionary::Table::SingleUserMode p0 )
+    {
+        obj.setSingleUserMode(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setRowGCIIndicator
+    ( NdbDictionary::Table & obj, bool p0 )
+    {
+        obj.setRowGCIIndicator(p0);
+    }
+
+    static void
+    NdbDictionary__Table__setRowChecksumIndicator
+    ( NdbDictionary::Table & obj, bool p0 )
+    {
+        obj.setRowChecksumIndicator(p0);
+    }
+
+    static int
+    NdbDictionary__Table__aggregate
+    ( NdbDictionary::Table & obj, NdbError & p0 )
+    {
+        return obj.aggregate(p0);
+    }
+
+    static int
+    NdbDictionary__Table__validate
+    ( NdbDictionary::Table & obj, NdbError & p0 )
+    {
+        return obj.validate(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace.h"
+
+    static const char *
+    NdbDictionary__Tablespace__getName
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getName();
+    }
+
+    static Uint32
+    NdbDictionary__Tablespace__getExtentSize
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getExtentSize();
+    }
+
+    static const NdbDictionary::AutoGrowSpecification &
+    NdbDictionary__Tablespace__getAutoGrowSpecification
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getAutoGrowSpecification();
+    }
+
+    static const char *
+    NdbDictionary__Tablespace__getDefaultLogfileGroup
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getDefaultLogfileGroup();
+    }
+
+    static Uint32
+    NdbDictionary__Tablespace__getDefaultLogfileGroupId
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getDefaultLogfileGroupId();
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Tablespace__getObjectStatus
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__Tablespace__getObjectVersion
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__Tablespace__getObjectId
+    ( const NdbDictionary::Tablespace & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static void
+    NdbDictionary__Tablespace__setName
+    ( NdbDictionary::Tablespace & obj, const char * p0 )
+    {
+        obj.setName(p0);
+    }
+
+    static void
+    NdbDictionary__Tablespace__setExtentSize
+    ( NdbDictionary::Tablespace & obj, Uint32 p0 )
+    {
+        obj.setExtentSize(p0);
+    }
+
+    static void
+    NdbDictionary__Tablespace__setAutoGrowSpecification
+    ( NdbDictionary::Tablespace & obj, const NdbDictionary::AutoGrowSpecification & p0 )
+    {
+        obj.setAutoGrowSpecification(p0);
+    }
+
+    static void
+    NdbDictionary__Tablespace__setDefaultLogfileGroup
+    ( NdbDictionary::Tablespace & obj, const char * p0 )
+    {
+        obj.setDefaultLogfileGroup(p0);
+    }
+
+    static void
+    NdbDictionary__Tablespace__setDefaultLogfileGroup
+    ( NdbDictionary::Tablespace & obj, const NdbDictionary::LogfileGroup & p0 )
+    {
+        obj.setDefaultLogfileGroup(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile.h"
+
+    static const char *
+    NdbDictionary__Undofile__getPath
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getPath();
+    }
+
+    static Uint64
+    NdbDictionary__Undofile__getSize
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getSize();
+    }
+
+    static const char *
+    NdbDictionary__Undofile__getLogfileGroup
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getLogfileGroup();
+    }
+
+    static void
+    NdbDictionary__Undofile__getLogfileGroupId
+    ( const NdbDictionary::Undofile & obj, NdbDictionary::ObjectId * p0 )
+    {
+        obj.getLogfileGroupId(p0);
+    }
+
+    static NdbDictionary::Object::Status
+    NdbDictionary__Undofile__getObjectStatus
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getObjectStatus();
+    }
+
+    static int
+    NdbDictionary__Undofile__getObjectVersion
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getObjectVersion();
+    }
+
+    static int
+    NdbDictionary__Undofile__getObjectId
+    ( const NdbDictionary::Undofile & obj )
+    {
+        return obj.getObjectId();
+    }
+
+    static void
+    NdbDictionary__Undofile__setPath
+    ( NdbDictionary::Undofile & obj, const char * p0 )
+    {
+        obj.setPath(p0);
+    }
+
+    static void
+    NdbDictionary__Undofile__setSize
+    ( NdbDictionary::Undofile & obj, Uint64 p0 )
+    {
+        obj.setSize(p0);
+    }
+
+    static void
+    NdbDictionary__Undofile__setLogfileGroup
+    ( NdbDictionary::Undofile & obj, const char * p0 )
+    {
+        obj.setLogfileGroup(p0);
+    }
+
+    static void
+    NdbDictionary__Undofile__setLogfileGroup
+    ( NdbDictionary::Undofile & obj, const NdbDictionary::LogfileGroup & p0 )
+    {
+        obj.setLogfileGroup(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbError.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbEventOperation.h"
+
+    static int
+    NdbEventOperation__isOverrun
+    ( const NdbEventOperation & obj )
+    {
+        return obj.isOverrun();
+    }
+
+    static bool
+    NdbEventOperation__isConsistent
+    ( const NdbEventOperation & obj )
+    {
+        return obj.isConsistent();
+    }
+
+    static NdbDictionary::Event::TableEvent
+    NdbEventOperation__getEventType
+    ( const NdbEventOperation & obj )
+    {
+        return obj.getEventType();
+    }
+
+    static bool
+    NdbEventOperation__tableNameChanged
+    ( const NdbEventOperation & obj )
+    {
+        return obj.tableNameChanged();
+    }
+
+    static bool
+    NdbEventOperation__tableFrmChanged
+    ( const NdbEventOperation & obj )
+    {
+        return obj.tableFrmChanged();
+    }
+    static bool
+    NdbEventOperation__tableFragmentationChanged
+    ( const NdbEventOperation & obj )
+    {
+        return obj.tableFragmentationChanged();
+    }
+    static bool
+    NdbEventOperation__tableRangeListChanged
+    ( const NdbEventOperation & obj )
+    {
+        return obj.tableRangeListChanged();
+    }
+
+    static Uint64
+    NdbEventOperation__getGCI
+    ( const NdbEventOperation & obj )
+    {
+        return obj.getGCI();
+    }
+
+    static Uint32
+    NdbEventOperation__getAnyValue
+    ( const NdbEventOperation & obj )
+    {
+        return obj.getAnyValue();
+    }
+
+    static Uint64
+    NdbEventOperation__getLatestGCI
+    ( const NdbEventOperation & obj )
+    {
+        return obj.getLatestGCI();
+    }
+
+    static const NdbError &
+    NdbEventOperation__getNdbError
+    ( const NdbEventOperation & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static NdbEventOperation::State
+    NdbEventOperation__getState
+    ( NdbEventOperation & obj )
+    {
+        return obj.getState();
+    }
+
+    static void
+    NdbEventOperation__mergeEvents
+    ( NdbEventOperation & obj, bool p0 )
+    {
+        obj.mergeEvents(p0);
+    }
+
+    static int
+    NdbEventOperation__execute
+    ( NdbEventOperation & obj )
+    {
+        return obj.execute();
+    }
+
+    static NdbRecAttr *
+    NdbEventOperation__getValue
+    ( NdbEventOperation & obj, const char * p0, char * p1 )
+    {
+        return obj.getValue(p0, p1);
+    }
+
+    static NdbRecAttr *
+    NdbEventOperation__getPreValue
+    ( NdbEventOperation & obj, const char * p0, char * p1 )
+    {
+        return obj.getPreValue(p0, p1);
+    }
+
+    static NdbBlob *
+    NdbEventOperation__getBlobHandle
+    ( NdbEventOperation & obj, const char * p0 )
+    {
+        return obj.getBlobHandle(p0);
+    }
+
+    static NdbBlob *
+    NdbEventOperation__getPreBlobHandle
+    ( NdbEventOperation & obj, const char * p0 )
+    {
+        return obj.getPreBlobHandle(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbIndexOperation.h"
+
+    static const NdbDictionary::Index *
+    NdbIndexOperation__getIndex
+    ( const NdbIndexOperation & obj )
+    {
+        return obj.getIndex();
+    }
+
+    static int
+    NdbIndexOperation__insertTuple
+    ( NdbIndexOperation & obj )
+    {
+        return obj.insertTuple();
+    }
+
+    static int
+    NdbIndexOperation__readTuple
+    ( NdbIndexOperation & obj, NdbOperation::LockMode p0 )
+    {
+        return obj.readTuple(p0);
+    }
+
+    static int
+    NdbIndexOperation__updateTuple
+    ( NdbIndexOperation & obj )
+    {
+        return obj.updateTuple();
+    }
+
+    static int
+    NdbIndexOperation__deleteTuple
+    ( NdbIndexOperation & obj )
+    {
+        return obj.deleteTuple();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation.h"
+
+    static bool
+    NdbIndexScanOperation__getSorted
+    ( const NdbIndexScanOperation & obj )
+    {
+        return obj.getSorted();
+    }
+
+    static bool
+    NdbIndexScanOperation__getDescending
+    ( const NdbIndexScanOperation & obj )
+    {
+        return obj.getDescending();
+    }
+
+    static int
+    NdbIndexScanOperation__readTuples
+    ( NdbIndexScanOperation & obj, NdbOperation::LockMode p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.readTuples(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbIndexScanOperation__setBound
+    ( NdbIndexScanOperation & obj, const char * p0, int p1, const void * p2 )
+    {
+        return obj.setBound(p0, p1, p2);
+    }
+
+    static int
+    NdbIndexScanOperation__setBound
+    ( NdbIndexScanOperation & obj, Uint32 p0, int p1, const void * p2 )
+    {
+        return obj.setBound(p0, p1, p2);
+    }
+
+    static int
+    NdbIndexScanOperation__end_of_bound
+    ( NdbIndexScanOperation & obj, Uint32 p0 )
+    {
+        return obj.end_of_bound(p0);
+    }
+
+    static int
+    NdbIndexScanOperation__get_range_no
+    ( NdbIndexScanOperation & obj )
+    {
+        return obj.get_range_no();
+    }
+
+    static int
+    NdbIndexScanOperation__setBound
+    ( NdbIndexScanOperation & obj, const NdbRecord * p0, const NdbIndexScanOperation::IndexBound & p1 )
+    {
+        return obj.setBound(p0, p1);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbInterpretedCode.h"
+
+    static const NdbDictionary::Table *
+    NdbInterpretedCode__getTable
+    ( const NdbInterpretedCode & obj )
+    {
+        return obj.getTable();
+    }
+
+    static const NdbError &
+    NdbInterpretedCode__getNdbError
+    ( const NdbInterpretedCode & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static Uint32
+    NdbInterpretedCode__getWordsUsed
+    ( const NdbInterpretedCode & obj )
+    {
+        return obj.getWordsUsed();
+    }
+
+    static int
+    NdbInterpretedCode__load_const_null
+    ( NdbInterpretedCode & obj, Uint32 p0 )
+    {
+        return obj.load_const_null(p0);
+    }
+
+    static int
+    NdbInterpretedCode__load_const_u16
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.load_const_u16(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__load_const_u32
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.load_const_u32(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__load_const_u64
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint64 p1 )
+    {
+        return obj.load_const_u64(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__read_attr
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.read_attr(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__read_attr
+    ( NdbInterpretedCode & obj, Uint32 p0, const NdbDictionary::Column * p1 )
+    {
+        return obj.read_attr(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__write_attr
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.write_attr(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__write_attr
+    ( NdbInterpretedCode & obj, const NdbDictionary::Column * p0, Uint32 p1 )
+    {
+        return obj.write_attr(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__add_reg
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.add_reg(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__sub_reg
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.sub_reg(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__def_label
+    ( NdbInterpretedCode & obj, int p0 )
+    {
+        return obj.def_label(p0);
+    }
+
+    static int
+    NdbInterpretedCode__branch_label
+    ( NdbInterpretedCode & obj, Uint32 p0 )
+    {
+        return obj.branch_label(p0);
+    }
+
+    static int
+    NdbInterpretedCode__branch_ge
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_ge(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_gt
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_gt(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_le
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_le(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_lt
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_lt(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_eq
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_eq(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_ne
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1, Uint32 p2 )
+    {
+        return obj.branch_ne(p0, p1, p2);
+    }
+
+    static int
+    NdbInterpretedCode__branch_ne_null
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.branch_ne_null(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__branch_eq_null
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.branch_eq_null(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_eq
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_eq(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_ne
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_ne(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_lt
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_lt(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_le
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_le(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_gt
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_gt(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_ge
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_ge(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_eq_null
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.branch_col_eq_null(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_ne_null
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.branch_col_ne_null(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_like
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_like(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__branch_col_notlike
+    ( NdbInterpretedCode & obj, const void * p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.branch_col_notlike(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbInterpretedCode__interpret_exit_ok
+    ( NdbInterpretedCode & obj )
+    {
+        return obj.interpret_exit_ok();
+    }
+
+    static int
+    NdbInterpretedCode__interpret_exit_nok
+    ( NdbInterpretedCode & obj, Uint32 p0 )
+    {
+        return obj.interpret_exit_nok(p0);
+    }
+
+    static int
+    NdbInterpretedCode__interpret_exit_nok
+    ( NdbInterpretedCode & obj )
+    {
+        return obj.interpret_exit_nok();
+    }
+
+    static int
+    NdbInterpretedCode__interpret_exit_last_row
+    ( NdbInterpretedCode & obj )
+    {
+        return obj.interpret_exit_last_row();
+    }
+
+    static int
+    NdbInterpretedCode__add_val
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.add_val(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__add_val
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint64 p1 )
+    {
+        return obj.add_val(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__sub_val
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
+    {
+        return obj.sub_val(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__sub_val
+    ( NdbInterpretedCode & obj, Uint32 p0, Uint64 p1 )
+    {
+        return obj.sub_val(p0, p1);
+    }
+
+    static int
+    NdbInterpretedCode__def_sub
+    ( NdbInterpretedCode & obj, Uint32 p0 )
+    {
+        return obj.def_sub(p0);
+    }
+
+    static int
+    NdbInterpretedCode__call_sub
+    ( NdbInterpretedCode & obj, Uint32 p0 )
+    {
+        return obj.call_sub(p0);
+    }
+
+    static int
+    NdbInterpretedCode__ret_sub
+    ( NdbInterpretedCode & obj )
+    {
+        return obj.ret_sub();
+    }
+
+    static int
+    NdbInterpretedCode__finalise
+    ( NdbInterpretedCode & obj )
+    {
+        return obj.finalise();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
+
+    static NdbBlob *
+    NdbOperation__getBlobHandle__0 // disambiguate overloaded const/non-const
+    ( const NdbOperation & obj, const char * p0 )
+    {
+        return obj.getBlobHandle(p0);
+    }
+
+    static NdbBlob *
+    NdbOperation__getBlobHandle__1 // disambiguate overloaded const/non-const
+    ( const NdbOperation & obj, Uint32 p0 )
+    {
+        return obj.getBlobHandle(p0);
+    }
+
+    static const NdbError &
+    NdbOperation__getNdbError
+    ( const NdbOperation & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static int
+    NdbOperation__getNdbErrorLine
+    ( const NdbOperation & obj )
+    {
         return obj.getNdbErrorLine();
     }
 
-    static const NdbLockHandle * getLockHandle0(const NdbOperation & obj) {
+    static const char *
+    NdbOperation__getTableName
+    ( const NdbOperation & obj )
+    {
+        return obj.getTableName();
+    }
+
+    static const NdbDictionary::Table *
+    NdbOperation__getTable
+    ( const NdbOperation & obj )
+    {
+        return obj.getTable();
+    }
+
+    static NdbOperation::Type
+    NdbOperation__getType
+    ( const NdbOperation & obj )
+    {
+        return obj.getType();
+    }
+
+    static NdbOperation::LockMode
+    NdbOperation__getLockMode
+    ( const NdbOperation & obj )
+    {
+        return obj.getLockMode();
+    }
+
+    static NdbOperation::AbortOption
+    NdbOperation__getAbortOption
+    ( const NdbOperation & obj )
+    {
+        return obj.getAbortOption();
+    }
+
+    static NdbTransaction *
+    NdbOperation__getNdbTransaction
+    ( const NdbOperation & obj )
+    {
+        return obj.getNdbTransaction();
+    }
+
+    static const NdbLockHandle *
+    NdbOperation__getLockHandle__0 // disambiguate overloaded const/non-const
+    ( const NdbOperation & obj )
+    {
         return obj.getLockHandle();
     }
-    
-    static const NdbLockHandle * getLockHandle1(NdbOperation & obj) {
+
+    static const NdbLockHandle *
+    NdbOperation__getLockHandle__1 // disambiguate overloaded const/non-const
+    ( NdbOperation & obj )
+    {
         return obj.getLockHandle();
     }
 
-    // ----------------------------------------------------------------------
-    // overloaded non-member functions
-    // ----------------------------------------------------------------------
-
-    static int getBlobTableName(char * btname, Ndb * anNdb, const char * tableName, const char * columnName) {
-        return NdbBlob::getBlobTableName(btname, anNdb, tableName, columnName);
-    }
-    
-    static int getBlobEventName(char * bename, Ndb * anNdb, const char * eventName, const char * columnName) {
-        return NdbBlob::getBlobEventName(bename, anNdb, eventName, columnName);
+    static int
+    NdbOperation__insertTuple
+    ( NdbOperation & obj )
+    {
+        return obj.insertTuple();
     }
 
-    static const char * getValuePtr(const NdbRecord * record, const char * row, Uint32 attrId) {
-        return NdbDictionary::getValuePtr(record, row, attrId);
+    static int
+    NdbOperation__updateTuple
+    ( NdbOperation & obj )
+    {
+        return obj.updateTuple();
     }
 
-    // ----------------------------------------------------------------------
-    // overloaded member functions
-    // ----------------------------------------------------------------------
-
-#if 0 // XXXXX ToDo: need to define wrappers for these functions
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_Ndb
- * Method:    getNdbError
- * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbErrorConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_Ndb_ct, ttrait_c_m_n_n_NdbError_cr, &Ndb::getNdbError >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_Ndb
- * Method:    startTransaction
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;Ljava/nio/ByteBuffer;I)Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Ljava_nio_ByteBuffer_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jint p2)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_char_0cp_bb, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1, p2);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_Ndb
- * Method:    startTransaction
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;I)Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2I(JNIEnv * env, jobject obj, jobject p0, jint p1)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2I(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_Ndb
- * Method:    getNdbError
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbErrorConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__I(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__I(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbError_cr, ttrait_int, &Ndb::getNdbError >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile
- * Method:    setTablespace
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Datafile_t, ttrait_int, ttrait_utf8cstring, &NdbDictionary::Datafile::setTablespace >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile
- * Method:    setTablespace
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TablespaceConst;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_TablespaceConst_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_TablespaceConst_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Datafile_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Tablespace_cr, &NdbDictionary::Datafile::setTablespace >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
- * Method:    getTable
- * Signature: (Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getTable(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getTable(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_ct, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_utf8cstring, &NdbDictionary::Dictionary::getTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
- * Method:    dropTable
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/Table;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_Table_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_Table_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Table_r, &NdbDictionary::Dictionary::dropTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
- * Method:    dropTable
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_int, ttrait_utf8cstring, &NdbDictionary::Dictionary::dropTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
- * Method:    removeCachedTable
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedTable(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedTable(JNIEnv *, jobject, jstring)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_utf8cstring, &NdbDictionary::Dictionary::removeCachedTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
- * Method:    removeCachedIndex
- * Signature: (Ljava/lang/String;Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JNIEnv * env, jobject obj, jstring p0, jstring p1)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JNIEnv *, jobject, jstring, jstring)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_utf8cstring, ttrait_utf8cstring, &NdbDictionary::Dictionary::removeCachedIndex >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
- * Method:    setTable
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2(JNIEnv *, jobject, jobject)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Event_t, ttrait_c_m_n_n_NdbDictionary_Table_cr, &NdbDictionary::Event::setTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
- * Method:    setTable
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Event_t, ttrait_int, ttrait_utf8cstring, &NdbDictionary::Event::setTable >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
- * Method:    addEventColumn
- * Signature: (I)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__I(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__I(JNIEnv *, jobject, jint)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Event_t, ttrait_uint, &NdbDictionary::Event::addEventColumn >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
- * Method:    addEventColumn
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Event_t, ttrait_utf8cstring, &NdbDictionary::Event::addEventColumn >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getColumn
- * Signature: (Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/ColumnConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_utf8cstring, &NdbDictionary::Table::getColumn >(env, obj, p0); // call of overloaded const/non-const method
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getColumn
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/ColumnConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__I(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__I(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_ct, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_int, &NdbDictionary::Table::getColumn >(env, obj, p0); // call of overloaded const/non-const method
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getColumnM
- * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/Column;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__I(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__I(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_c_m_n_n_NdbDictionary_Column_p, ttrait_int, &NdbDictionary::Table::getColumn >(env, obj, p0); // call of overloaded const/non-const method
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
- * Method:    getColumnM
- * Signature: (Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/Column;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Table_t, ttrait_c_m_n_n_NdbDictionary_Column_p, ttrait_utf8cstring, &NdbDictionary::Table::getColumn >(env, obj, p0); // call of overloaded const/non-const method
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace
- * Method:    setDefaultLogfileGroup
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGroup__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGroup__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Tablespace_t, ttrait_utf8cstring, &NdbDictionary::Tablespace::setDefaultLogfileGroup >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace
- * Method:    setDefaultLogfileGroup
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/LogfileGroupConst;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGroup__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroupConst_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGroup__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroupConst_2(JNIEnv *, jobject, jobject)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Tablespace_t, ttrait_c_m_n_n_NdbDictionary_LogfileGroup_cr, &NdbDictionary::Tablespace::setDefaultLogfileGroup >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile
- * Method:    setLogfileGroup
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Undofile_t, ttrait_utf8cstring, &NdbDictionary::Undofile::setLogfileGroup >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile
- * Method:    setLogfileGroup
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/LogfileGroupConst;)V
- */
-JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroupConst_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroupConst_2(JNIEnv *, jobject, jobject)");
-    gcall_mfv< ttrait_c_m_n_n_NdbDictionary_Undofile_t, ttrait_c_m_n_n_NdbDictionary_LogfileGroup_cr, &NdbDictionary::Undofile::setLogfileGroup >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexOperation
- * Method:    readTuple
- * Signature: (I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexOperation_readTuple(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbIndexOperation_readTuple(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbIndexOperation_t, ttrait_int, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, &NdbIndexOperation::readTuple >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
- * Method:    readTuples
- * Signature: (IIII)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_readTuples(JNIEnv * env, jobject obj, jint p0, jint p1, jint p2, jint p3)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_readTuples(JNIEnv *, jobject, jint, jint, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbIndexScanOperation_t, ttrait_int, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbIndexScanOperation::readTuples >(env, obj, p0, p1, p2, p3);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
- * Method:    setBound
- * Signature: (Ljava/lang/String;ILjava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Ljava_lang_String_2ILjava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jstring p0, jint p1, jobject p2)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Ljava_lang_String_2ILjava_nio_ByteBuffer_2(JNIEnv *, jobject, jstring, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbIndexScanOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_int, ttrait_void_1cp_bb, &NdbIndexScanOperation::setBound >(env, obj, p0, p1, p2);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
- * Method:    setBound
- * Signature: (IILjava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__IILjava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jint p0, jint p1, jobject p2)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__IILjava_nio_ByteBuffer_2(JNIEnv *, jobject, jint, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbIndexScanOperation_t, ttrait_int, ttrait_Uint32, ttrait_int, ttrait_void_1cp_bb, &NdbIndexScanOperation::setBound >(env, obj, p0, p1, p2);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
- * Method:    setBound
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbRecordConst;Lcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation/IndexBoundConst;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Lcom_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBoundConst_2(JNIEnv * env, jobject obj, jobject p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Lcom_mysql_ndbjtie_ndbapi_NdbRecordConst_2Lcom_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBoundConst_2(JNIEnv *, jobject, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbIndexScanOperation_t, ttrait_int, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cr, &NdbIndexScanOperation::setBound >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    read_attr
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint32, &NdbInterpretedCode::read_attr >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    read_attr
- * Signature: (ILcom/mysql/ndbjtie/ndbapi/NdbDictionary/ColumnConst;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__ILcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2(JNIEnv * env, jobject obj, jint p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__ILcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2(JNIEnv *, jobject, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_c_m_n_n_NdbDictionary_Column_cp, &NdbInterpretedCode::read_attr >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    write_attr
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint32, &NdbInterpretedCode::write_attr >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    write_attr
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/ColumnConst;I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2I(JNIEnv * env, jobject obj, jobject p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2I(JNIEnv *, jobject, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_Uint32, &NdbInterpretedCode::write_attr >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    interpret_exit_nok
- * Signature: (I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__I(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__I(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, &NdbInterpretedCode::interpret_exit_nok >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    interpret_exit_nok
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, &NdbInterpretedCode::interpret_exit_nok >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    add_val
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint32, &NdbInterpretedCode::add_val >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    add_val
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint64, &NdbInterpretedCode::add_val >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    sub_val
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint32, &NdbInterpretedCode::sub_val >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
- * Method:    sub_val
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbInterpretedCode_t, ttrait_int, ttrait_Uint32, ttrait_Uint64, &NdbInterpretedCode::sub_val >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    getNdbErrorLine
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbErrorLine(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbErrorLine(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_int, &NdbOperation::getNdbErrorLine >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    readTuple
- * Signature: (I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_readTuple(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_readTuple(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, &NdbOperation::readTuple >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (Ljava/lang/String;Ljava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jstring p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jstring, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_char_1cp_bb, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (Ljava/lang/String;I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2I(JNIEnv * env, jobject obj, jstring p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2I(JNIEnv *, jobject, jstring, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_Int32, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (Ljava/lang/String;J)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2J(JNIEnv * env, jobject obj, jstring p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2J(JNIEnv *, jobject, jstring, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_Int64, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (ILjava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__ILjava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jint p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__ILjava_nio_ByteBuffer_2(JNIEnv *, jobject, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_char_1cp_bb, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_Int32, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    equal
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_Int64, &NdbOperation::equal >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    getValue
- * Signature: (Ljava/lang/String;Ljava/nio/ByteBuffer;)Lcom/mysql/ndbjtie/ndbapi/NdbRecAttr;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jstring p0, jobject p1)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jstring, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_c_m_n_n_NdbRecAttr_p, ttrait_utf8cstring, ttrait_char_1p_bb, &NdbOperation::getValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    getValue
- * Signature: (ILjava/nio/ByteBuffer;)Lcom/mysql/ndbjtie/ndbapi/NdbRecAttr;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__ILjava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jint p0, jobject p1)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__ILjava_nio_ByteBuffer_2(JNIEnv *, jobject, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_c_m_n_n_NdbRecAttr_p, ttrait_Uint32, ttrait_char_1p_bb, &NdbOperation::getValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    getValue
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/ColumnConst;Ljava/nio/ByteBuffer;)Lcom/mysql/ndbjtie/ndbapi/NdbRecAttr;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jobject p0, jobject p1)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_ColumnConst_2Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_c_m_n_n_NdbRecAttr_p, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_char_1p_bb, &NdbOperation::getValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (Ljava/lang/String;Ljava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jstring p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jstring, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_char_1cp_bb, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (Ljava/lang/String;I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2I(JNIEnv * env, jobject obj, jstring p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2I(JNIEnv *, jobject, jstring, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_Int32, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (Ljava/lang/String;J)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2J(JNIEnv * env, jobject obj, jstring p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2J(JNIEnv *, jobject, jstring, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_Int64, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (Ljava/lang/String;F)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2F(JNIEnv * env, jobject obj, jstring p0, jfloat p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2F(JNIEnv *, jobject, jstring, jfloat)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_float, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (Ljava/lang/String;D)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2D(JNIEnv * env, jobject obj, jstring p0, jdouble p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2D(JNIEnv *, jobject, jstring, jdouble)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_utf8cstring, ttrait_double, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (ILjava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ILjava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jint p0, jobject p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ILjava_nio_ByteBuffer_2(JNIEnv *, jobject, jint, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_char_1cp_bb, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_Int32, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_Int64, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (IF)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IF(JNIEnv * env, jobject obj, jint p0, jfloat p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IF(JNIEnv *, jobject, jint, jfloat)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_float, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
- * Method:    setValue
- * Signature: (ID)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ID(JNIEnv * env, jobject obj, jint p0, jdouble p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ID(JNIEnv *, jobject, jint, jdouble)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_t, ttrait_int, ttrait_Uint32, ttrait_double, &NdbOperation::setValue >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    eq
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::eq >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    ne
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::ne >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    lt
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::lt >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    le
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::le >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    gt
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::gt >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    ge
- * Signature: (II)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__II(JNIEnv * env, jobject obj, jint p0, jint p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__II(JNIEnv *, jobject, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint32, &NdbScanFilter::ge >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    eq
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::eq >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    ne
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::ne >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    lt
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::lt >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    le
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::le >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    gt
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::gt >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
- * Method:    ge
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__IJ(JNIEnv * env, jobject obj, jint p0, jlong p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__IJ(JNIEnv *, jobject, jint, jlong)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanFilter_t, ttrait_int, ttrait_int, ttrait_Uint64, &NdbScanFilter::ge >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    readTuples
- * Signature: (IIII)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_readTuples(JNIEnv * env, jobject obj, jint p0, jint p1, jint p2, jint p3)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_readTuples(JNIEnv *, jobject, jint, jint, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_int, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbScanOperation::readTuples >(env, obj, p0, p1, p2, p3);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    nextResult
- * Signature: (ZZ)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResult(JNIEnv * env, jobject obj, jboolean p0, jboolean p1)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResult(JNIEnv *, jobject, jboolean, jboolean)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_int, ttrait_bool, ttrait_bool, &NdbScanOperation::nextResult >(env, obj, p0, p1);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    lockCurrentTuple
- * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_p, &NdbScanOperation::lockCurrentTuple >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    lockCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;)Lcom/mysql/ndbjtie/ndbapi/NdbOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbTransaction_p, &NdbScanOperation::lockCurrentTuple >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    updateCurrentTuple
- * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_p, &NdbScanOperation::updateCurrentTuple >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    updateCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;)Lcom/mysql/ndbjtie/ndbapi/NdbOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbTransaction_p, &NdbScanOperation::updateCurrentTuple >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    deleteCurrentTuple
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_int, &NdbScanOperation::deleteCurrentTuple >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
- * Method:    deleteCurrentTuple
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_ndbjtie_ndbapi_NdbTransaction_2(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbScanOperation_t, ttrait_int, ttrait_c_m_n_n_NdbTransaction_p, &NdbScanOperation::deleteCurrentTuple >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getNdbErrorOperation
- * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbOperationConst;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbErrorOperation(JNIEnv * env, jobject obj)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbErrorOperation(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_ct, ttrait_c_m_n_n_NdbOperation_cp, &NdbTransaction::getNdbErrorOperation >(env, obj); // call of overloaded const/non-const method
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getNdbOperation
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;)Lcom/mysql/ndbjtie/ndbapi/NdbOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbOperation(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbOperation(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, &NdbTransaction::getNdbOperation >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getNdbScanOperation
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbScanOperation(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbScanOperation(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, &NdbTransaction::getNdbScanOperation >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getNdbIndexScanOperation
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;)Lcom/mysql/ndbjtie/ndbapi/NdbIndexScanOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexScanOperation(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexScanOperation(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbDictionary_Index_cp, &NdbTransaction::getNdbIndexScanOperation >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getNdbIndexOperation
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;)Lcom/mysql/ndbjtie/ndbapi/NdbIndexOperation;
- */
-JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexOperation(JNIEnv * env, jobject obj, jobject p0)
-{
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexOperation(JNIEnv *, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbIndexOperation_p, ttrait_c_m_n_n_NdbDictionary_Index_cp, &NdbTransaction::getNdbIndexOperation >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    execute
- * Signature: (III)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_execute(JNIEnv * env, jobject obj, jint p0, jint p1, jint p2)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_execute(JNIEnv *, jobject, jint, jint, jint)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_int, ttrait_c_m_n_n_NdbTransaction_ExecType_iv/*_enum_*/, ttrait_c_m_n_n_NdbOperation_AbortOption_iv/*_enum_*/, ttrait_int, &NdbTransaction::execute >(env, obj, p0, p1, p2);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
- * Method:    getGCI
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getGCI__(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getGCI__(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_int, &NdbTransaction::getGCI >(env, obj);
-}
-
-#endif // XXXXX ToDo: need to define wrappers for these functions
+    static int
+    NdbOperation__writeTuple
+    ( NdbOperation & obj )
+    {
+        return obj.writeTuple();
+    }
+
+    static int
+    NdbOperation__deleteTuple
+    ( NdbOperation & obj )
+    {
+        return obj.deleteTuple();
+    }
+
+    static int
+    NdbOperation__readTuple
+    ( NdbOperation & obj, NdbOperation::LockMode p0 )
+    {
+        return obj.readTuple(p0);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, const char * p0, const char * p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, const char * p0, Int32 p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, const char * p0, Int64 p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, Uint32 p0, const char * p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, Uint32 p0, Int32 p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static int
+    NdbOperation__equal
+    ( NdbOperation & obj, Uint32 p0, Int64 p1 )
+    {
+        return obj.equal(p0, p1);
+    }
+
+    static NdbRecAttr *
+    NdbOperation__getValue
+    ( NdbOperation & obj, const char * p0, char * p1 )
+    {
+        return obj.getValue(p0, p1);
+    }
+
+    static NdbRecAttr *
+    NdbOperation__getValue
+    ( NdbOperation & obj, Uint32 p0, char * p1 )
+    {
+        return obj.getValue(p0, p1);
+    }
+
+    static NdbRecAttr *
+    NdbOperation__getValue
+    ( NdbOperation & obj, const NdbDictionary::Column * p0, char * p1 )
+    {
+        return obj.getValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, const char * p0, const char * p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, const char * p0, Int32 p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, const char * p0, Int64 p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, const char * p0, float p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, const char * p0, double p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, Uint32 p0, const char * p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, Uint32 p0, Int32 p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, Uint32 p0, Int64 p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, Uint32 p0, float p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static int
+    NdbOperation__setValue
+    ( NdbOperation & obj, Uint32 p0, double p1 )
+    {
+        return obj.setValue(p0, p1);
+    }
+
+    static NdbBlob *
+    NdbOperation__getBlobHandle__2 // disambiguate overloaded const/non-const
+    ( NdbOperation & obj, const char * p0 )
+    {
+        return obj.getBlobHandle(p0);
+    }
+
+    static NdbBlob *
+    NdbOperation__getBlobHandle__3 // disambiguate overloaded const/non-const
+    ( NdbOperation & obj, Uint32 p0 )
+    {
+        return obj.getBlobHandle(p0);
+    }
+
+    static int
+    NdbOperation__setAbortOption
+    ( NdbOperation & obj, NdbOperation::AbortOption p0 )
+    {
+        return obj.setAbortOption(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbRecAttr.h"
+
+    static const NdbDictionary::Column *
+    NdbRecAttr__getColumn
+    ( const NdbRecAttr & obj )
+    {
+        return obj.getColumn();
+    }
+
+    static NdbDictionary::Column::Type
+    NdbRecAttr__getType
+    ( const NdbRecAttr & obj )
+    {
+        return obj.getType();
+    }
+
+    static Uint32
+    NdbRecAttr__get_size_in_bytes
+    ( const NdbRecAttr & obj )
+    {
+        return obj.get_size_in_bytes();
+    }
+
+    static int
+    NdbRecAttr__isNULL
+    ( const NdbRecAttr & obj )
+    {
+        return obj.isNULL();
+    }
+
+    static Int64
+    NdbRecAttr__int64_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.int64_value();
+    }
+
+    static Int32
+    NdbRecAttr__int32_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.int32_value();
+    }
+
+    static Int32
+    NdbRecAttr__medium_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.medium_value();
+    }
+
+    static short
+    NdbRecAttr__short_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.short_value();
+    }
+
+    static char
+    NdbRecAttr__char_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.char_value();
+    }
+
+    static Int8
+    NdbRecAttr__int8_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.int8_value();
+    }
+
+    static Uint64
+    NdbRecAttr__u_64_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_64_value();
+    }
+
+    static Uint32
+    NdbRecAttr__u_32_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_32_value();
+    }
+
+    static Uint32
+    NdbRecAttr__u_medium_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_medium_value();
+    }
+
+    static Uint16
+    NdbRecAttr__u_short_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_short_value();
+    }
+
+    static Uint8
+    NdbRecAttr__u_char_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_char_value();
+    }
+
+    static Uint8
+    NdbRecAttr__u_8_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.u_8_value();
+    }
+
+    static float
+    NdbRecAttr__float_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.float_value();
+    }
+
+    static double
+    NdbRecAttr__double_value
+    ( const NdbRecAttr & obj )
+    {
+        return obj.double_value();
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"
+
+    static const NdbError &
+    NdbScanFilter__getNdbError
+    ( const NdbScanFilter & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static const NdbInterpretedCode *
+    NdbScanFilter__getInterpretedCode
+    ( const NdbScanFilter & obj )
+    {
+        return obj.getInterpretedCode();
+    }
+
+    static NdbOperation *
+    NdbScanFilter__getNdbOperation
+    ( const NdbScanFilter & obj )
+    {
+        return obj.getNdbOperation();
+    }
+
+    static int
+    NdbScanFilter__begin
+    ( NdbScanFilter & obj, NdbScanFilter::Group p0 )
+    {
+        return obj.begin(p0);
+    }
+
+    static int
+    NdbScanFilter__end
+    ( NdbScanFilter & obj )
+    {
+        return obj.end();
+    }
+
+    static int
+    NdbScanFilter__istrue
+    ( NdbScanFilter & obj )
+    {
+        return obj.istrue();
+    }
+
+    static int
+    NdbScanFilter__isfalse
+    ( NdbScanFilter & obj )
+    {
+        return obj.isfalse();
+    }
+
+    static int
+    NdbScanFilter__cmp
+    ( NdbScanFilter & obj, NdbScanFilter::BinaryCondition p0, int p1, const void * p2, Uint32 p3 )
+    {
+        return obj.cmp(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbScanFilter__eq
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.eq(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__ne
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.ne(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__lt
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.lt(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__le
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.le(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__gt
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.gt(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__ge
+    ( NdbScanFilter & obj, int p0, Uint32 p1 )
+    {
+        return obj.ge(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__eq
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.eq(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__ne
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.ne(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__lt
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.lt(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__le
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.le(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__gt
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.gt(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__ge
+    ( NdbScanFilter & obj, int p0, Uint64 p1 )
+    {
+        return obj.ge(p0, p1);
+    }
+
+    static int
+    NdbScanFilter__isnull
+    ( NdbScanFilter & obj, int p0 )
+    {
+        return obj.isnull(p0);
+    }
+
+    static int
+    NdbScanFilter__isnotnull
+    ( NdbScanFilter & obj, int p0 )
+    {
+        return obj.isnotnull(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation.h"
+
+    static NdbTransaction *
+    NdbScanOperation__getNdbTransaction
+    ( const NdbScanOperation & obj )
+    {
+        return obj.getNdbTransaction();
+    }
+
+    static int
+    NdbScanOperation__readTuples
+    ( NdbScanOperation & obj, NdbOperation::LockMode p0, Uint32 p1, Uint32 p2, Uint32 p3 )
+    {
+        return obj.readTuples(p0, p1, p2, p3);
+    }
+
+    static int
+    NdbScanOperation__nextResult
+    ( NdbScanOperation & obj, bool p0, bool p1 )
+    {
+        return obj.nextResult(p0, p1);
+    }
+
+    static void
+    NdbScanOperation__close
+    ( NdbScanOperation & obj, bool p0, bool p1 )
+    {
+        obj.close(p0, p1);
+    }
+
+    static NdbOperation *
+    NdbScanOperation__lockCurrentTuple
+    ( NdbScanOperation & obj )
+    {
+        return obj.lockCurrentTuple();
+    }
+
+    static NdbOperation *
+    NdbScanOperation__lockCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0 )
+    {
+        return obj.lockCurrentTuple(p0);
+    }
+
+    static NdbOperation *
+    NdbScanOperation__updateCurrentTuple
+    ( NdbScanOperation & obj )
+    {
+        return obj.updateCurrentTuple();
+    }
+
+    static NdbOperation *
+    NdbScanOperation__updateCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0 )
+    {
+        return obj.updateCurrentTuple(p0);
+    }
+
+    static int
+    NdbScanOperation__deleteCurrentTuple
+    ( NdbScanOperation & obj )
+    {
+        return obj.deleteCurrentTuple();
+    }
+
+    static int
+    NdbScanOperation__deleteCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0 )
+    {
+        return obj.deleteCurrentTuple(p0);
+    }
+
+    static const NdbOperation *
+    NdbScanOperation__lockCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0, const NdbRecord * p1, char * p2, const Uint8 * p3, const NdbOperation::OperationOptions * p4, Uint32 p5 )
+    {
+        return obj.lockCurrentTuple(p0, p1, p2, p3, p4, p5);
+    }
+
+    static const NdbOperation *
+    NdbScanOperation__updateCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0, const NdbRecord * p1, const char * p2, const Uint8 * p3, const NdbOperation::OperationOptions * p4, Uint32 p5 )
+    {
+        return obj.updateCurrentTuple(p0, p1, p2, p3, p4, p5);
+    }
+
+    static const NdbOperation *
+    NdbScanOperation__deleteCurrentTuple
+    ( NdbScanOperation & obj, NdbTransaction * p0, const NdbRecord * p1, char * p2, const Uint8 * p3, const NdbOperation::OperationOptions * p4, Uint32 p5 )
+    {
+        return obj.deleteCurrentTuple(p0, p1, p2, p3, p4, p5);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
+
+    static const NdbError &
+    NdbTransaction__getNdbError
+    ( const NdbTransaction & obj )
+    {
+        return obj.getNdbError();
+    }
+
+    static const NdbOperation *
+    NdbTransaction__getNdbErrorOperation
+    ( const NdbTransaction & obj )
+    {
+        return obj.getNdbErrorOperation();
+    }
+
+    static const NdbOperation *
+    NdbTransaction__getNextCompletedOperation
+    ( const NdbTransaction & obj, const NdbOperation * p0 )
+    {
+        return obj.getNextCompletedOperation(p0);
+    }
+
+    static NdbOperation *
+    NdbTransaction__getNdbOperation
+    ( NdbTransaction & obj, const NdbDictionary::Table * p0 )
+    {
+        return obj.getNdbOperation(p0);
+    }
+
+    static NdbScanOperation *
+    NdbTransaction__getNdbScanOperation
+    ( NdbTransaction & obj, const NdbDictionary::Table * p0 )
+    {
+        return obj.getNdbScanOperation(p0);
+    }
+
+    static NdbIndexScanOperation *
+    NdbTransaction__getNdbIndexScanOperation
+    ( NdbTransaction & obj, const NdbDictionary::Index * p0 )
+    {
+        return obj.getNdbIndexScanOperation(p0);
+    }
+
+    static NdbIndexOperation *
+    NdbTransaction__getNdbIndexOperation
+    ( NdbTransaction & obj, const NdbDictionary::Index * p0 )
+    {
+        return obj.getNdbIndexOperation(p0);
+    }
+
+    static int
+    NdbTransaction__execute
+    ( NdbTransaction & obj, NdbTransaction::ExecType p0, NdbOperation::AbortOption p1, int p2 )
+    {
+        return obj.execute(p0, p1, p2);
+    }
+
+    static int
+    NdbTransaction__refresh
+    ( NdbTransaction & obj )
+    {
+        return obj.refresh();
+    }
+
+    static void
+    NdbTransaction__close
+    ( NdbTransaction & obj )
+    {
+        obj.close();
+    }
+
+    static int
+    NdbTransaction__getGCI
+    ( NdbTransaction & obj, Uint64 * p0 )
+    {
+        return obj.getGCI(p0);
+    }
+
+    static Uint64
+    NdbTransaction__getTransactionId
+    ( NdbTransaction & obj )
+    {
+        return obj.getTransactionId();
+    }
+
+    static NdbTransaction::CommitStatusType
+    NdbTransaction__commitStatus
+    ( NdbTransaction & obj )
+    {
+        return obj.commitStatus();
+    }
+
+    static int
+    NdbTransaction__getNdbErrorLine
+    ( NdbTransaction & obj )
+    {
+        return obj.getNdbErrorLine();
+    }
+
+    static const NdbOperation *
+    NdbTransaction__readTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, char * p3, NdbOperation::LockMode p4, const Uint8 * p5, const NdbOperation::OperationOptions * p6, Uint32 p7 )
+    {
+        return obj.readTuple(p0, p1, p2, p3, p4, p5, p6, p7);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__insertTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, const char * p3, const Uint8 * p4, const NdbOperation::OperationOptions * p5, Uint32 p6 )
+    {
+        return obj.insertTuple(p0, p1, p2, p3, p4, p5, p6);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__insertTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const Uint8 * p2, const NdbOperation::OperationOptions * p3, Uint32 p4 )
+    {
+        return obj.insertTuple(p0, p1, p2, p3, p4);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__updateTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, const char * p3, const Uint8 * p4, const NdbOperation::OperationOptions * p5, Uint32 p6 )
+    {
+        return obj.updateTuple(p0, p1, p2, p3, p4, p5, p6);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__writeTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, const char * p3, const Uint8 * p4, const NdbOperation::OperationOptions * p5, Uint32 p6 )
+    {
+        return obj.writeTuple(p0, p1, p2, p3, p4, p5, p6);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__deleteTuple
+    ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, char * p3, const Uint8 * p4, const NdbOperation::OperationOptions * p5, Uint32 p6 )
+    {
+        return obj.deleteTuple(p0, p1, p2, p3, p4, p5, p6);
+    }
+
+    static NdbScanOperation *
+    NdbTransaction__scanTable
+    ( NdbTransaction & obj, const NdbRecord * p0, NdbOperation::LockMode p1, const Uint8 * p2, const NdbScanOperation::ScanOptions * p3, Uint32 p4 )
+    {
+        return obj.scanTable(p0, p1, p2, p3, p4);
+    }
+
+    static NdbIndexScanOperation *
+    NdbTransaction__scanIndex
+    ( NdbTransaction & obj, const NdbRecord * p0, const NdbRecord * p1, NdbOperation::LockMode p2, const Uint8 * p3, const NdbIndexScanOperation::IndexBound * p4, const NdbScanOperation::ScanOptions * p5, Uint32 p6 )
+    {
+        return obj.scanIndex(p0, p1, p2, p3, p4, p5, p6);
+    }
+
+    static const NdbOperation *
+    NdbTransaction__unlock
+    ( NdbTransaction & obj, const NdbLockHandle * p0, NdbOperation::AbortOption p1 )
+    {
+        return obj.unlock(p0, p1);
+    }
+
+    static int
+    NdbTransaction__releaseLockHandle
+    ( NdbTransaction & obj, const NdbLockHandle * p0 )
+    {
+        return obj.releaseLockHandle(p0);
+    }
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr.h"
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
+
+    static int
+    Ndb_cluster_connection__get_latest_error
+    ( const Ndb_cluster_connection & obj )
+    {
+        return obj.get_latest_error();
+    }
+
+    static const char *
+    Ndb_cluster_connection__get_latest_error_msg
+    ( const Ndb_cluster_connection & obj )
+    {
+        return obj.get_latest_error_msg();
+    }
+
+    static void
+    Ndb_cluster_connection__set_name
+    ( Ndb_cluster_connection & obj, const char * p0 )
+    {
+        obj.set_name(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__set_timeout
+    ( Ndb_cluster_connection & obj, int p0 )
+    {
+        return obj.set_timeout(p0);
+    }
+
+    static int
+    Ndb_cluster_connection__connect
+    ( Ndb_cluster_connection & obj, int p0, int p1, int p2 )
+    {
+        return obj.connect(p0, p1, p2);
+    }
+
+    static int
+    Ndb_cluster_connection__wait_until_ready
+    ( Ndb_cluster_connection & obj, int p0, int p1 )
+    {
+        return obj.wait_until_ready(p0, p1);
+    }
+
+    static void
+    Ndb_cluster_connection__lock_ndb_objects
+    ( Ndb_cluster_connection & obj )
+    {
+        obj.lock_ndb_objects();
+    }
+
+    static void
+    Ndb_cluster_connection__unlock_ndb_objects
+    ( Ndb_cluster_connection & obj )
+    {
+        obj.unlock_ndb_objects();
+    }
+
+    static const Ndb *
+    Ndb_cluster_connection__get_next_ndb_object
+    ( Ndb_cluster_connection & obj, const Ndb * p0 )
+    {
+        return obj.get_next_ndb_object(p0);
+    }
+
+// ---------------------------------------------------------------------------
 
 };
 
