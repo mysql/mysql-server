@@ -425,6 +425,7 @@ trx_lists_init_at_db_start(void)
 	trx_undo_t*	undo;
 	trx_t*		trx;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	UT_LIST_INIT(trx_sys->trx_list);
 
 	/* Look from the rollback segments if there exist undo logs for
