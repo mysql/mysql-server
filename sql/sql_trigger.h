@@ -144,8 +144,10 @@ public:
   void mark_fields_used(trg_event_type event);
 
   friend class Item_trigger_field;
-  friend int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                                            TABLE_LIST *table);
+
+  bool add_tables_and_routines_for_triggers(THD *thd,
+                                            Query_tables_list *prelocking_ctx,
+                                            TABLE_LIST *table_list);
 
 private:
   bool prepare_record1_accessors(TABLE *table);

@@ -161,10 +161,7 @@ void udf_init()
   new_thd->store_globals();
   new_thd->set_db(db, sizeof(db)-1);
 
-  bzero((uchar*) &tables,sizeof(tables));
-  tables.alias= tables.table_name= (char*) "func";
-  tables.lock_type = TL_READ;
-  tables.db= db;
+  tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
@@ -506,9 +503,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* create entry in mysql.func table */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) "func";
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
   /* Allow creation of functions even if we can't open func table */
   if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
     goto err;
@@ -599,9 +594,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (udf->dlhandle && !find_udf_dl(udf->dl))
     dlclose(udf->dlhandle);
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db=(char*) "mysql";
-  tables.table_name= tables.alias= (char*) "func";
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
+
   if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
     goto err;
   table->use_all_columns();
@@ -615,11 +609,12 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     if ((error = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
-  close_thread_tables(thd);
-
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
-  /* Binlog the drop function. */
+  /*
+    Binlog the drop function. Keep the table open and locked
+    while binlogging, to avoid binlog inconsistency.
+  */
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /* Restore the state of binlog format */
@@ -633,7 +628,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(0);
- err:
+err:
   mysql_rwlock_unlock(&THR_LOCK_udf);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
