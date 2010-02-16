@@ -244,6 +244,7 @@ IF(MSVC)
 ENDIF()
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
+SET(mysql_config_COMPONENT COMPONENT Development)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured 
@@ -256,15 +257,18 @@ IF(WIN32)
   SET(SH_FILES mysql_convert_table_format mysqld_multi)
 
   FOREACH(file ${PLIN_FILES})
+    IF(NOT ${file}_COMPONENT)
+      SET(${file}_COMPONENT Server_Scripts)
+    ENDIF()
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
       ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
-    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl)
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 
   FOREACH(file ${SH_FILES})
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh
        ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
-    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl)
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 ELSE()
   # On Unix, most of the files end up in the bin directory
