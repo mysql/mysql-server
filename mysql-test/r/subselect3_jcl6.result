@@ -877,7 +877,7 @@ Level	Code	Message
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
 Error	1054	Unknown column 'c' in 'field list'
-Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from dual group by `c`) AS `(SELECT COUNT(a) FROM 
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `t1`.`c`) AS `(SELECT COUNT(a) FROM 
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
 )` from `test`.`t1` group by `test`.`t1`.`b`) `y`
 DROP TABLE t1;
@@ -1122,7 +1122,7 @@ insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; Using MRR; LooseScan
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using MRR; LooseScan
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer
 drop table t1, t3, t4;
