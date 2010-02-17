@@ -4,10 +4,16 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
-# Remember to also update version.c in ndb.
-# When changing major version number please also check switch statement
-# in mysqlbinlog::check_master_version().
+dnl Various people throughout the community may parse configure.in to
+dnl get the MySQL version from the source branch.  If the formatting
+dnl of this line is going to be changed, please announce the change to
+dnl internals@lists.mysql.com in advance of pushing the change.
+dnl
+dnl When changing the major version number please also check the switch
+dnl statement in mysqlbinlog::check_master_version().  You may also need
+dnl to update version.c in ndb.
 AC_INIT([MySQL Server], [5.1.45], [], [mysql])
+
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
