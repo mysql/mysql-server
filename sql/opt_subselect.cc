@@ -2199,7 +2199,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
   */
   sjm->sjm_table_param.init();
   sjm->sjm_table_param.field_count= item_list.elements;
-  // psergey-merge: the following is not in 5.x: sjm->sjm_table_param.bit_fields_as_long= TRUE;
+  sjm->sjm_table_param.bit_fields_as_long= TRUE;
   List_iterator<Item> it(item_list);
   Item *right_expr;
   while((right_expr= it++))

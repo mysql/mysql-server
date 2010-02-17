@@ -2710,11 +2710,18 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /*
+    If TRUE, create_tmp_field called from create_tmp_table will convert
+    all BIT fields to 64-bit longs. This is a workaround the limitation
+    that MEMORY tables cannot index BIT columns.
+  */
+  bool bit_fields_as_long;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -2745,7 +2752,7 @@ public:
 
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias);
+                           const char *alias, bool bit_fields_as_long);
 };
 
 /* Base subselect interface class */

@@ -10963,7 +10963,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                          group != 0,
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
-                         item->marker == 4, force_copy_fields,
+                         /*
+                           If item->marker == 4 then we force create_tmp_field
+                           to create a 64-bit longs for BIT fields because HEAP
+                           tables can't index BIT fields directly. We do the same
+                           for distinct, as we want the distinct index to be
+                           usable in this case too.
+                         */
+                         item->marker == 4  || param->bit_fields_as_long, // psergey-feb17
+                         force_copy_fields,
                          param->convert_blob_length);
 
       if (!new_field)
@@ -17838,6 +17846,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* Add "filtered" field to item_list. */
         if (join->thd->lex->describe & DESCRIBE_EXTENDED)
         {
+          /*
+            psergey-todo: 
+              in the code above, we cast to integer when asssigning to
+              examined_rows. 
+              In the code below, we may divide original value but result of
+              conversion of the same value to integer, which may produce a
+              value that's greater than 100%, which looks very odd.
+              I'm not fixing this right away because that might trigger a wave
+              of small EXPLAIN EXTENDED output changes, which I don't have time
+              to deal with right now.
+          */
           float f= 0.0; 
           if (examined_rows)
             f= (float) (100.0 * join->best_positions[i].records_read /

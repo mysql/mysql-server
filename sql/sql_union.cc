@@ -103,6 +103,8 @@ bool select_union::flush()
       is_union_distinct  if set, the temporary table will eliminate
                          duplicates on insert
       options            create options
+      table_alias        name of the temporary table
+      bit_fields_as_long convert bit fields to ulonglong
 
   DESCRIPTION
     Create a temporary table that is used to store the result of a UNION,
@@ -116,11 +118,13 @@ bool select_union::flush()
 bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
-                                  const char *alias)
+                                  const char *alias,
+                                   bool bit_fields_as_long)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
@@ -350,7 +354,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, ""))
+                                          create_options, "", FALSE))
       goto err;
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
