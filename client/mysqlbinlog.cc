@@ -1077,11 +1077,6 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    (uchar**) &port, (uchar**) &port, 0, GET_INT, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"position", 'j', "Deprecated. Use --start-position instead.",
-   (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
-   REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
-   /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-   (ulonglong)(~(uint32)0), 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1120,7 +1115,7 @@ static struct my_option my_long_options[] =
    "(you should probably use quotes for your shell to set it properly).",
    (uchar**) &start_datetime_str, (uchar**) &start_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"start-position", OPT_START_POSITION,
+  {"start-position", 'j',
    "Start reading the binlog at position N. Applies to the first binlog "
    "passed on the command line.",
    (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,

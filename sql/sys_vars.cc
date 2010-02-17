@@ -2203,30 +2203,6 @@ static Sys_var_bit Sys_log_binlog(
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
        ON_UPDATE(fix_sql_log_bin));
 
-static bool deprecated_log_update(sys_var *self, THD *thd, set_var *var)
-{
-  /*
-    The update log is not supported anymore since 5.0.
-    See sql/mysqld.cc/, comments in function init_server_components() for an
-    explaination of the different warnings we send below
-  */
-
-  if (opt_sql_bin_update)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                 ER_UPDATE_LOG_DEPRECATED_TRANSLATED,
-                 ER(ER_UPDATE_LOG_DEPRECATED_TRANSLATED));
-  else
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                 ER_UPDATE_LOG_DEPRECATED_IGNORED,
-                 ER(ER_UPDATE_LOG_DEPRECATED_IGNORED));
-  return check_has_super(self, thd, var);
-}
-static Sys_var_bit Sys_log_update(
-       "sql_log_update", "alias for sql_log_bin",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIN_LOG,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(deprecated_log_update), ON_UPDATE(fix_sql_log_bin));
-
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_WARNINGS,
