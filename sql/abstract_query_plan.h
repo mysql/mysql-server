@@ -138,9 +138,12 @@ namespace AQP
   {
     /** For default initialization.*/
     AT_VOID,
-    AT_PRIMARY_KEY_LOOKUP,
-    AT_UNIQUE_INDEX_LOOKUP,
-    AT_ORDERED_INDEX_SCAN,
+    AT_PRIMARY_KEY,
+    AT_UNIQUE_KEY,
+    AT_ORDERED_RANGE,
+    AT_MULTI_PRIMARY_KEY,
+    AT_MULTI_UNIQUE_KEY,
+    AT_MULTI_RANGE,
     AT_TABLE_SCAN,
     /**
       The access method has not yet been decided, or it has properties that
@@ -277,9 +280,8 @@ namespace AQP
     if (m_access_type == AT_VOID)
       compute_type_and_index();
 	
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
-		  m_access_type == AT_UNIQUE_INDEX_LOOKUP ||
-		  m_access_type == AT_ORDERED_INDEX_SCAN);
+    DBUG_ASSERT(m_access_type != AT_VOID &&
+                m_access_type != AT_TABLE_SCAN);
     return m_index_no;
   }
 
