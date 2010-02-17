@@ -34,27 +34,21 @@
 */
 
 /*
-  There are two containers holding information about open handler tables.
-  The first is 'thd->handler_tables'. It is a linked list of TABLE objects.
-  It is used like 'thd->open_tables' in the table cache. The trick is to
-  exchange these two lists during open and lock of tables. Thus the normal
-  table cache code can be used.
-  The second container is a HASH. It holds objects of the type TABLE_LIST.
-  Despite its name, no lists of tables but only single structs are hashed
-  (the 'next' pointer is always NULL). The reason for theis second container
-  is, that we want handler tables to survive FLUSH TABLE commands. A table
-  affected by FLUSH TABLE must be closed so that other threads are not
-  blocked by handler tables still in use. Since we use the normal table cache
-  functions with 'thd->handler_tables', the closed tables are removed from
-  this list. Hence we need the original open information for the handler
-  table in the case that it is used again. This information is handed over
-  to mysql_ha_open() as a TABLE_LIST. So we store this information in the
-  second container, where it is not affected by FLUSH TABLE. The second
-  container is implemented as a hash for performance reasons. Consequently,
-  we use it not only for re-opening a handler table, but also for the
-  HANDLER ... READ commands. For this purpose, we store a pointer to the
-  TABLE structure (in the first container) in the TBALE_LIST object in the
-  second container. When the table is flushed, the pointer is cleared.
+  The information about open HANDLER objects is stored in a HASH.
+  It holds objects of type TABLE_LIST, which are indexed by table
+  name/alias, and allows us to quickly find a HANDLER table for any
+  operation at hand - be it HANDLER READ or HANDLER CLOSE.
+
+  It also allows us to maintain an "open" HANDLER even in cases
+  when there is no physically open cursor. E.g. a FLUSH TABLE
+  statement in this or some other connection demands that all open
+  HANDLERs against the flushed table are closed. In order to
+  preserve the information about an open HANDLER, we don't perform
+  a complete HANDLER CLOSE, but only close the TABLE object.  The
+  corresponding TABLE_LIST is kept in the cache with 'table'
+  pointer set to NULL. The table will be reopened on next access
+  (this, however, leads to loss of cursor position, unless the
+  cursor points at the first record).
 */
 
 #include "mysql_priv.h"
@@ -117,41 +111,28 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables A list of tables with the first entry to close.
-  @param is_locked If LOCK_open is locked.
 
   @note Though this function takes a list of tables, only the first list entry
   will be closed.
   @note Broadcasts refresh if it closed a table with old version.
 */
 
-static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
-                                 bool is_locked)
+static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
 {
-  TABLE **table_ptr;
 
-  /*
-    Though we could take the table pointer from hash_tables->table,
-    we must follow the thd->handler_tables chain anyway, as we need the
-    address of the 'next' pointer referencing this table
-    for close_thread_table().
-  */
-  for (table_ptr= &(thd->handler_tables);
-       *table_ptr && (*table_ptr != tables->table);
-         table_ptr= &(*table_ptr)->next)
-    ;
-
-  if (*table_ptr)
+  if (tables->table && !tables->table->s->tmp_table)
   {
-    (*table_ptr)->file->ha_index_or_rnd_end();
-    if (! is_locked)
-      mysql_mutex_lock(&LOCK_open);
-    if (close_thread_table(thd, table_ptr))
+    /* Non temporary table. */
+    tables->table->file->ha_index_or_rnd_end();
+    tables->table->open_by_handler= 0;
+    mysql_mutex_lock(&LOCK_open);
+    if (close_thread_table(thd, &tables->table))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
-    if (! is_locked)
-      mysql_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
+    thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)
   {
@@ -160,10 +141,13 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
     table->file->ha_index_or_rnd_end();
     table->query_id= thd->query_id;
     table->open_by_handler= 0;
+    mark_tmp_table_for_reuse(table);
   }
 
   /* Mark table as closed, ready for re-open if necessary. */
   tables->table= NULL;
+  /* Safety, cleanup the pointer to satisfy MDL assertions. */
+  tables->mdl_request.ticket= NULL;
 }
 
 /*
@@ -193,13 +177,19 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen, counter;
-  int           error;
+  bool          error;
   TABLE         *backup_open_tables;
+  MDL_ticket    *mdl_savepoint;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
                       (int) reopen));
 
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   if (tables->schema_table)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
@@ -217,7 +207,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
                      (my_hash_get_key) mysql_ha_hash_get_key,
                      (my_hash_free_key) mysql_ha_hash_free, 0))
-      goto err;
+    {
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
   }
   else if (! reopen) /* Otherwise we have 'tables' already. */
   {
@@ -225,75 +218,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                        strlen(tables->alias) + 1))
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
+      DBUG_PRINT("exit",("ERROR"));
       my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
-      goto err;
+      DBUG_RETURN(TRUE);
     }
-  }
-
-  /*
-    Save and reset the open_tables list so that open_tables() won't
-    be able to access (or know about) the previous list. And on return
-    from open_tables(), thd->open_tables will contain only the opened
-    table.
-
-    The thd->handler_tables list is kept as-is to avoid deadlocks if
-    open_table(), called by open_tables(), needs to back-off because
-    of a pending name-lock on the table being opened.
-
-    See open_table() back-off comments for more details.
-  */
-  backup_open_tables= thd->open_tables;
-  thd->open_tables= NULL;
-
-  /*
-    open_tables() will set 'tables->table' if successful.
-    It must be NULL for a real open when calling open_tables().
-  */
-  DBUG_ASSERT(! tables->table);
-
-  /* for now HANDLER can be used only for real TABLES */
-  tables->required_type= FRMTYPE_TABLE;
-  /*
-    We use open_tables() here, rather than, say,
-    open_ltable() or open_table() because we would like to be able
-    to open a temporary table.
-  */
-  error= open_tables(thd, &tables, &counter, 0);
-  if (thd->open_tables)
-  {
-    if (thd->open_tables->next)
-    {
-      /*
-        We opened something that is more than a single table.
-        This happens with MERGE engine. Don't try to link
-        this mess into thd->handler_tables list, close it
-        and report an error. We must do it right away
-        because mysql_ha_close_table(), called down the road,
-        can close a single table only.
-      */
-      close_thread_tables(thd);
-      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
-      error= 1;
-    }
-    else
-    {
-      /* Merge the opened table into handler_tables list. */
-      thd->open_tables->next= thd->handler_tables;
-      thd->handler_tables= thd->open_tables;
-    }
-  }
-
-  /* Restore the state. */
-  thd->open_tables= backup_open_tables;
-
-  if (error)
-    goto err;
-
-  /* There can be only one table in '*tables'. */
-  if (! (tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
-  {
-    my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
-    goto err;
   }
 
   if (! reopen)
@@ -308,7 +236,10 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
                           &name, (uint) namelen,
                           &alias, (uint) aliaslen,
                           NullS)))
-      goto err;
+    {
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
     /* structure copy */
     *hash_tables= *tables;
     hash_tables->db= db;
@@ -317,30 +248,100 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
+    hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED);
+    /* for now HANDLER can be used only for real TABLES */
+    hash_tables->required_type= FRMTYPE_TABLE;
 
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
-      goto err;
+    {
+      my_free((char*) hash_tables, MYF(0));
+      DBUG_PRINT("exit",("ERROR"));
+      DBUG_RETURN(TRUE);
+    }
+  }
+  else
+    hash_tables= tables;
+
+  /*
+    Save and reset the open_tables list so that open_tables() won't
+    be able to access (or know about) the previous list. And on return
+    from open_tables(), thd->open_tables will contain only the opened
+    table.
+
+    See open_table() back-off comments for more details.
+  */
+  backup_open_tables= thd->open_tables;
+  thd->open_tables= NULL;
+  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+
+  /*
+    open_tables() will set 'hash_tables->table' if successful.
+    It must be NULL for a real open when calling open_tables().
+  */
+  DBUG_ASSERT(! hash_tables->table);
+
+  /*
+    We use open_tables() here, rather than, say,
+    open_ltable() or open_table() because we would like to be able
+    to open a temporary table.
+  */
+  error= open_tables(thd, &hash_tables, &counter, 0);
+
+  if (! error &&
+      ! (hash_tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
+    error= TRUE;
+  }
+  if (!error &&
+      hash_tables->mdl_request.ticket &&
+      thd->mdl_context.has_lock(mdl_savepoint,
+                                hash_tables->mdl_request.ticket))
+  {
+    /* The ticket returned is within a savepoint. Make a copy.  */
+    error= thd->mdl_context.clone_ticket(&hash_tables->mdl_request);
+    hash_tables->table->mdl_ticket= hash_tables->mdl_request.ticket;
+  }
+  if (error)
+  {
+    close_thread_tables(thd);
+    thd->open_tables= backup_open_tables;
+    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+    if (!reopen)
+      my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
+    else
+      hash_tables->table= NULL;
+    DBUG_PRINT("exit",("ERROR"));
+    DBUG_RETURN(TRUE);
+  }
+  thd->open_tables= backup_open_tables;
+  if (hash_tables->mdl_request.ticket)
+  {
+    thd->mdl_context.
+      move_ticket_after_trans_sentinel(hash_tables->mdl_request.ticket);
+    thd->mdl_context.set_needs_thr_lock_abort(TRUE);
   }
 
   /*
-    If it's a temp table, don't reset table->query_id as the table is
-    being used by this handler. Otherwise, no meaning at all.
+    Assert that the above check prevents opening of views and merge tables.
+    For temporary tables, TABLE::next can be set even if only one table
+    was opened for HANDLER as it is used to link them together
+    (see thd->temporary_tables).
   */
-  tables->table->open_by_handler= 1;
+  DBUG_ASSERT(hash_tables->table->next == NULL ||
+              hash_tables->table->s->tmp_table);
+  /*
+    If it's a temp table, don't reset table->query_id as the table is
+    being used by this handler. For non-temp tables we use this flag
+    in asserts.
+  */
+  hash_tables->table->open_by_handler= 1;
 
   if (! reopen)
     my_ok(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
-
-err:
-  if (hash_tables)
-    my_free((char*) hash_tables, MYF(0));
-  if (tables->table)
-    mysql_ha_close_table(thd, tables, FALSE);
-  DBUG_PRINT("exit",("ERROR"));
-  DBUG_RETURN(TRUE);
 }
 
 
@@ -368,11 +369,16 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
 
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   if ((hash_tables= (TABLE_LIST*) my_hash_search(&thd->handler_tables_hash,
                                                  (uchar*) tables->alias,
                                                  strlen(tables->alias) + 1)))
   {
-    mysql_ha_close_table(thd, hash_tables, FALSE);
+    mysql_ha_close_table(thd, hash_tables);
     my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
   }
   else
@@ -381,6 +387,13 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }
+
+  /*
+    Mark MDL_context as no longer breaking protocol if we have
+    closed last HANDLER.
+  */
+  if (! thd->handler_tables_hash.records)
+    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   my_ok(thd);
   DBUG_PRINT("exit", ("OK"));
@@ -430,6 +443,12 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
 
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   thd->lex->select_lex.context.resolve_in_table_list_only(tables);
   list.push_front(new Item_field(&thd->lex->select_lex.context,
                                  NULL, NULL, "*"));
@@ -461,60 +480,42 @@ retry:
                          hash_tables->db, hash_tables->table_name,
                          hash_tables->alias, table));
     }
-    table->pos_in_table_list= tables;
-#if MYSQL_VERSION_ID < 40100
-    if (*tables->db && strcmp(table->table_cache_key, tables->db))
-    {
-      DBUG_PRINT("info",("wrong db"));
-      table= NULL;
-    }
-#endif
   }
   else
     table= NULL;
 
   if (!table)
   {
-#if MYSQL_VERSION_ID < 40100
-    char buff[MAX_DBKEY_LENGTH];
-    if (*tables->db)
-      strxnmov(buff, sizeof(buff)-1, tables->db, ".", tables->table_name,
-               NullS);
-    else
-      strncpy(buff, tables->alias, sizeof(buff));
-    my_error(ER_UNKNOWN_TABLE, MYF(0), buff, "HANDLER");
-#else
     my_error(ER_UNKNOWN_TABLE, MYF(0), tables->alias, "HANDLER");
-#endif
     goto err0;
   }
-  tables->table=table;
 
   /* save open_tables state */
   backup_open_tables= thd->open_tables;
+  /* Always a one-element list, see mysql_ha_open(). */
+  DBUG_ASSERT(hash_tables->table->next == NULL ||
+              hash_tables->table->s->tmp_table);
   /*
     mysql_lock_tables() needs thd->open_tables to be set correctly to
-    be able to handle aborts properly. When the abort happens, it's
-    safe to not protect thd->handler_tables because it won't close any
-    tables.
+    be able to handle aborts properly.
   */
-  thd->open_tables= thd->handler_tables;
+  thd->open_tables= hash_tables->table;
 
-  lock= mysql_lock_tables(thd, &tables->table, 1,
-                          MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
 
-  /* restore previous context */
+  lock= mysql_lock_tables(thd, &thd->open_tables, 1, 0, &need_reopen);
+
+  /*
+    In 5.1 and earlier, mysql_lock_tables() could replace the TABLE
+    object with another one (reopen it). This is no longer the case
+    with new MDL.
+  */
+  DBUG_ASSERT(hash_tables->table == thd->open_tables);
+  /* Restore previous context. */
   thd->open_tables= backup_open_tables;
 
   if (need_reopen)
   {
-    mysql_ha_close_table(thd, hash_tables, FALSE);
-    /*
-      The lock might have been aborted, we need to manually reset
-      thd->some_tables_deleted because handler's tables are closed
-      in a non-standard way. Otherwise we might loop indefinitely.
-    */
-    thd->some_tables_deleted= 0;
+    mysql_ha_close_table(thd, hash_tables);
     goto retry;
   }
 
@@ -522,7 +523,8 @@ retry:
     goto err0; // mysql_lock_tables() printed error message already
 
   // Always read all columns
-  tables->table->read_set= &tables->table->s->all_set;
+  hash_tables->table->read_set= &hash_tables->table->s->all_set;
+  tables->table= hash_tables->table;
 
   if (cond)
   {
@@ -735,12 +737,11 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
 
   @param thd Thread identifier.
   @param tables The list of tables to remove.
-  @param is_locked If LOCK_open is locked.
 
   @note Broadcasts refresh if it closed a table with old version.
 */
 
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
+void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
 {
   TABLE_LIST *hash_tables, *next;
   DBUG_ENTER("mysql_ha_rm_tables");
@@ -753,10 +754,17 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked)
   {
     next= hash_tables->next_local;
     if (hash_tables->table)
-      mysql_ha_close_table(thd, hash_tables, is_locked);
+      mysql_ha_close_table(thd, hash_tables);
     my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     hash_tables= next;
   }
+
+  /*
+    Mark MDL_context as no longer breaking protocol if we have
+    closed last HANDLER.
+  */
+  if (! thd->handler_tables_hash.records)
+    thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   DBUG_VOID_RETURN;
 }
@@ -776,13 +784,28 @@ void mysql_ha_flush(THD *thd)
   TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_flush");
 
-  mysql_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
+
+  /*
+    Don't try to flush open HANDLERs when we're working with
+    system tables. The main MDL context is backed up and we can't
+    properly release HANDLER locks stored there.
+  */
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL)
+    DBUG_VOID_RETURN;
 
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
-    if (hash_tables->table && hash_tables->table->needs_reopen_or_name_lock())
-      mysql_ha_close_table(thd, hash_tables, TRUE);
+    /*
+      TABLE::mdl_ticket is 0 for temporary tables so we need extra check.
+    */
+    if (hash_tables->table &&
+        ((hash_tables->table->mdl_ticket &&
+         hash_tables->table->mdl_ticket->has_pending_conflicting_lock()) ||
+         (!hash_tables->table->s->tmp_table &&
+          hash_tables->table->s->needs_reopen())))
+      mysql_ha_close_table(thd, hash_tables);
   }
 
   DBUG_VOID_RETURN;
@@ -806,11 +829,35 @@ void mysql_ha_cleanup(THD *thd)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     if (hash_tables->table)
-      mysql_ha_close_table(thd, hash_tables, FALSE);
+      mysql_ha_close_table(thd, hash_tables);
   }
 
   my_hash_free(&thd->handler_tables_hash);
 
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Move tickets for metadata locks corresponding to open HANDLERs
+  after transaction sentinel in order to protect them from being
+  released at the end of transaction.
+
+  @param thd Thread identifier.
+*/
+
+void mysql_ha_move_tickets_after_trans_sentinel(THD *thd)
+{
+  TABLE_LIST *hash_tables;
+  DBUG_ENTER("mysql_ha_move_tickets_after_trans_sentinel");
+
+  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  {
+    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    if (hash_tables->table && hash_tables->table->mdl_ticket)
+      thd->mdl_context.
+             move_ticket_after_trans_sentinel(hash_tables->table->mdl_ticket);
+  }
   DBUG_VOID_RETURN;
 }
 

@@ -15,30 +15,21 @@ insert into t1 values(0);
 # Test for with read lock + flush
 
 lock table t1 read;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+flush table t1;
+unlock tables;
+
+# Test for with write lock + flush
+
+lock table t1 write;
 flush table t1;
 check table t1;
-unlock tables;
-
-# Test for with 2 read lock in different thread + flush
-
-lock table t1 read;
-connect (locker,localhost,root,,test);
-connection locker;
-lock table t1 read;
-connection default;
-send flush table t1;
-connection locker;
---sleep 2
-select * from t1;
-unlock tables;
-connection default;
-reap;
-select * from t1;
 unlock tables;
 
 # Test for with a write lock and a waiting read lock + flush
 
 lock table t1 write;
+connect (locker,localhost,root,,test);
 connection locker;
 send lock table t1 read;
 connection default;
@@ -51,9 +42,9 @@ reap;
 unlock tables;
 connection default;
 
-# Test for with a read lock and a waiting write lock + flush
+# Test for with a write lock and a waiting write lock + flush
 
-lock table t1 read;
+lock table t1 write;
 connection locker;
 send lock table t1 write;
 connection default;

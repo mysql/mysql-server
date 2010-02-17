@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
+#include "transaction.h"
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -659,13 +660,6 @@ my_bool acl_reload(THD *thd)
   my_bool return_val= TRUE;
   DBUG_ENTER("acl_reload");
 
-  if (thd->locked_tables)
-  {					// Can't have locked tables here
-    thd->lock=thd->locked_tables;
-    thd->locked_tables=0;
-    close_thread_tables(thd);
-  }
-
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
@@ -678,8 +672,8 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary=
-    tables[2].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  init_mdl_requests(tables);
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -723,7 +717,9 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(return_val);
 }
 
@@ -1586,9 +1582,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.alias= tables.table_name= (char*) "user";
-  tables.db= (char*) "mysql";
+  tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3113,6 +3107,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 			    ? tables+2 : 0);
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3346,6 +3341,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3502,6 +3498,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3851,11 +3848,10 @@ static my_bool grant_reload_procs_priv(THD *thd)
   my_bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
-  bzero((char*) &table, sizeof(table));
-  table.alias= table.table_name= (char*) "procs_priv";
-  table.db= (char *) "mysql";
-  table.lock_type= TL_READ;
-  table.skip_temporary= 1;
+  table.init_one_table("mysql", 5, "procs_priv",
+                       strlen("procs_priv"), "procs_priv",
+                       TL_READ);
+  table.open_type= OT_BASE_ONLY;
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3921,7 +3917,9 @@ my_bool grant_reload(THD *thd)
   tables[0].db= tables[1].db= (char *) "mysql";
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
+  init_mdl_requests(tables);
+
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
@@ -3952,7 +3950,9 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -5205,6 +5205,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     (tables+4)->lock_type= TL_WRITE;
   tables->db= (tables+1)->db= (tables+2)->db= 
     (tables+3)->db= (tables+4)->db= (char*) "mysql";
+  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*

@@ -191,10 +191,11 @@ enum ha_extra_function {
   /* Inform handler that we will do a rename */
   HA_EXTRA_PREPARE_FOR_RENAME,
   /*
-    Orders MERGE handler to attach or detach its child tables. Used at
-    begin and end of a statement.
+    Special actions for MERGE tables.
   */
+  HA_EXTRA_ADD_CHILDREN_LIST,
   HA_EXTRA_ATTACH_CHILDREN,
+  HA_EXTRA_IS_ATTACHED_CHILDREN,
   HA_EXTRA_DETACH_CHILDREN
 };
 

@@ -1083,11 +1083,9 @@ select f0()|
 f0()
 100
 select * from v0|
-f0()
-100
+ERROR HY000: Table 'v0' was not locked with LOCK TABLES
 select *, f0() from v0, (select 123) as d1|
-f0()	123	f0()
-100	123	100
+ERROR HY000: Table 'v0' was not locked with LOCK TABLES
 select id, f3() from t1|
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|
@@ -7148,4 +7146,63 @@ comment
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
 routine_comment
 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+DROP PROCEDURE p1;
+#
+# Bug #47313 assert in check_key_in_view during CALL procedure
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS t1, t2_unrelated;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+# t1 refers to the view
+CALL p1(1);
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+CREATE TEMPORARY TABLE t1 (f1 INT);
+# t1 still refers to the view since it was inlined
+CALL p1(2);
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+DROP VIEW t1;
+# t1 now refers to the temporary table
+CALL p1(3);
+# Check which values were inserted into the temp table.
+SELECT * FROM t1;
+f1
+3
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+# Now test what happens if the sp cache is invalidated.
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+CREATE VIEW v2_unrelated AS SELECT 1 AS r1;
+# Load the procedure into the sp cache
+CALL p1(4);
+ERROR HY000: The target table t1 of the INSERT is not insertable-into
+CREATE TEMPORARY TABLE t1 (f1 int);
+ALTER VIEW v2_unrelated AS SELECT 2 AS r1;
+# Alter view causes the sp cache to be invalidated.
+# Now t1 refers to the temporary table, not the view.
+CALL p1(5);
+# Check which values were inserted into the temp table.
+SELECT * FROM t1;
+f1
+5
+DROP TEMPORARY TABLE t1;
+DROP VIEW t1, v2_unrelated;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE TEMPORARY TABLE t1 (f1 INT);
+# t1 refers to the temporary table
+CALL p1(6);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+# Create view causes the sp cache to be invalidated.
+# t1 still refers to the temporary table since it shadows the view.
+CALL p1(7);
+DROP VIEW t1;
+# Check which values were inserted into the temp table.
+SELECT * FROM t1;
+f1
+6
+7
+DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;
