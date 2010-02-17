@@ -1511,8 +1511,6 @@ static struct my_option my_long_options[] =
   {"tee", OPT_TEE,
    "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode. Disable with --disable-tee. This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option deprecated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (uchar**) &current_user,
    (uchar**) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1650,11 +1648,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       init_tee(argument);
-    break;
-  case OPT_NOTEE:
-    printf("WARNING: option deprecated; use --disable-tee instead.\n");
-    if (opt_outfile)
-      end_tee();
     break;
   case OPT_PAGER:
     if (argument == disabled_my_option)

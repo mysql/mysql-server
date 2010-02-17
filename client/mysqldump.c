@@ -184,9 +184,6 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", 'a', "Deprecated. Use --create-options instead.",
-   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -239,7 +236,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"create-options", OPT_CREATE_OPTIONS,
+  {"create-options", 'a',
    "Include all MySQL specific create options.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
