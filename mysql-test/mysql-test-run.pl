@@ -222,6 +222,7 @@ my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
+my $opt_reorder= 1;
 
 my $opt_strace_client;
 
@@ -306,7 +307,7 @@ sub main {
   }
 
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_suites, \@opt_cases);
+  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -629,9 +630,9 @@ sub run_test_server ($$$) {
 	    next;
 	  }
 
-	  # Prefer same configuration
-	  if (defined $result and
-	      $result->{template_path} eq $t->{template_path})
+	  # Prefer same configuration, or just use next if --noreorder
+	  if (!$opt_reorder or (defined $result and
+	      $result->{template_path} eq $t->{template_path}))
 	  {
 	    #mtr_report("Test uses same config => good match");
 	    # Test uses same config => good match
@@ -901,7 +902,7 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
-             'reorder!'                 => \&collect_option,
+             'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
              'verbose-restart'          => \&report_option,
