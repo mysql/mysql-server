@@ -872,6 +872,7 @@ fsp_init_file_page_low(
 #ifdef UNIV_BASIC_LOG_DEBUG
 	memset(page, 0xff, UNIV_PAGE_SIZE);
 #endif
+	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
 	memset(page + FIL_PAGE_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
