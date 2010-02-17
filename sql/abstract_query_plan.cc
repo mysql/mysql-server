@@ -252,7 +252,6 @@ namespace AQP
             join_tab->select->quick != NULL)
         {
           QUICK_SELECT_I *quick= join_tab->select->quick;
-          int quick_type= quick->get_type();
 
           /** QUICK_SELECT results in execution of MRR (Multi Range Read).
            *  Depending on each range, it may require execution of
@@ -269,9 +268,9 @@ namespace AQP
           // Temporary assert as we are still investigation the relation between 
           // 'quick->index == MAX_KEY' and the different quick_types
           DBUG_ASSERT ((quick->index == MAX_KEY)  ==
-                        ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-                         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-                         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
+                        ((quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+                         (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+                         (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed joins
           if (quick->index == MAX_KEY) 
