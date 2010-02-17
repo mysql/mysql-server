@@ -198,12 +198,12 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
     if (((THD *) Thd) != NULL)                                              \
       push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
-                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
-                        (Old), #VerHi "." #VerLo, (New));                   \
+                        ER(ER_WARN_DEPRECATED_SYNTAX),                      \
+                        (Old), (New));                                      \
     else                                                                    \
       sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in MySQL %s. Please use %s instead.",              \
-                        (Old), #VerHi "." #VerLo, (New));                   \
+                        "in a future release. Please use %s instead.",      \
+                        (Old), (New));                                      \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -2032,7 +2032,7 @@ extern bool in_bootstrap;
 extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
-extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
+extern my_bool opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern uint slave_exec_mode_options;
 extern ulonglong slave_type_conversions_options;

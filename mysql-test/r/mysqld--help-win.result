@@ -101,12 +101,6 @@ The following options may be given as the first argument:
   --date-format=name  The DATE format (ignored)
   --datetime-format=name 
                       The DATETIME format (ignored)
-  -C, --default-character-set=name 
-                      Set the default character set (deprecated option, use
-                      --character-set-server instead).
-  --default-collation=name 
-                      Set the default collation (deprecated option, use
-                      --collation-server instead).
   --default-storage-engine=name 
                       The default storage engine for new tables
   --default-time-zone=name 
@@ -243,10 +237,6 @@ The following options may be given as the first argument:
                       can safely set this to TRUE
   --log-error[=name]  Error log file
   --log-isam[=name]   Log all MyISAM changes to file.
-  -0, --log-long-format 
-                      Log some extra information to update log. Please note
-                      that this option is deprecated; see --log-short-format
-                      option.
   --log-output=name   Syntax: log-output=value[,value...], where "value" could
                       be TABLE, FILE or NONE
   --log-queries-not-using-indexes 
@@ -604,8 +594,6 @@ The following options may be given as the first argument:
   --rpl-recovery-rank=# 
                       Unused, will be removed
   --safe-mode         Skip some optimize stages (for testing).
-  --safe-show-database 
-                      Deprecated option; use GRANT SHOW DATABASES instead...
   --safe-user-create  Don't allow new user creation by the user who has no
                       write privileges to the mysql.user table.
   --secure-auth       Disallow authentication for accounts that have old
@@ -615,10 +603,6 @@ The following options may be given as the first argument:
                       files within specified directory
   --server-id=#       Uniquely identifies the server instance in the community
                       of replication partners
-  -O, --set-variable=name 
-                      Change the value of a variable. Please note that this
-                      option is deprecated;you can set variables directly with
-                      --variable-name=value.
   --shared-memory     Enable the shared memory
   --shared-memory-base-name=name 
                       Base name of shared memory
@@ -797,8 +781,6 @@ connect-timeout                                   10
 console                                           FALSE
 date-format                                       %Y-%m-%d
 datetime-format                                   %Y-%m-%d %H:%i:%s
-default-character-set                             latin1
-default-collation                                 latin1_swedish_ci
 default-storage-engine                            MyISAM
 default-time-zone                                 (No default value)
 default-week-format                               0

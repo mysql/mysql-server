@@ -678,11 +678,6 @@ timestampadd(WEEK, 1, date)
 select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
 timestampadd(SQL_TSI_SECOND, 1, date)
 2003-01-02 00:00:01
-select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
-timestampadd(SQL_TSI_FRAC_SECOND, 1, date)
-2003-01-02 00:00:00.000001
-Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 6.2. Please use MICROSECOND instead
 select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
 a
 3
@@ -713,11 +708,6 @@ a
 select timestampdiff(SQL_TSI_SECOND, '2001-02-01 12:59:59', '2001-05-01 12:58:58') as a;
 a
 7689539
-select timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a;
-a
-7689538999999
-Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 6.2. Please use MICROSECOND instead
 select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
 timestampdiff(SQL_TSI_DAY, '1900-02-01', '1900-03-01') as a2,
 timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
@@ -1082,13 +1072,6 @@ week(20061108), week(20061108.01), week(20061108085411.000002);
 isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
 0	0	45	45	45
 End of 4.1 tests
-explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
-timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 6.2. Please use MICROSECOND instead
-Note	1003	select timestampdiff(WEEK,'2001-02-01','2001-05-01') AS `a1`,timestampdiff(SECOND_FRAC,'2001-02-01 12:59:59.120000','2001-05-01 12:58:58.119999') AS `a2`
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
@@ -1282,24 +1265,6 @@ DATE_ADD(20071108,         INTERVAL 1 DAY)
 select LAST_DAY('2007-12-06 08:59:19.05') - INTERVAL 1 SECOND;
 LAST_DAY('2007-12-06 08:59:19.05') - INTERVAL 1 SECOND
 2007-12-30 23:59:59
-SELECT TIMESTAMPADD(FRAC_SECOND, 1, '2008-02-18');
-TIMESTAMPADD(FRAC_SECOND, 1, '2008-02-18')
-2008-02-18 00:00:00.000001
-Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 6.2. Please use MICROSECOND instead
-SELECT TIMESTAMPDIFF(FRAC_SECOND, '2008-02-17', '2008-02-18');
-TIMESTAMPDIFF(FRAC_SECOND, '2008-02-17', '2008-02-18')
-86400000000
-Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 6.2. Please use MICROSECOND instead
-SELECT DATE_ADD('2008-02-18', INTERVAL 1 FRAC_SECOND);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND)' at line 1
-SELECT DATE_SUB('2008-02-18', INTERVAL 1 FRAC_SECOND);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND)' at line 1
-SELECT '2008-02-18' + INTERVAL 1 FRAC_SECOND;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
-SELECT '2008-02-18' - INTERVAL 1 FRAC_SECOND;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
 select date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond);
 date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond)
 1000-01-02 03:02:01.050000
