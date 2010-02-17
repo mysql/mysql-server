@@ -6488,7 +6488,8 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+        field_arg->real_type() != MYSQL_TYPE_ENUM)
     {
       if (field_arg->reset())
       {
