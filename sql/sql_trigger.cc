@@ -19,6 +19,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "parse_file.h"
+#include "sp.h"
 
 /*************************************************************************/
 
@@ -327,7 +328,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   TABLE *table;
   bool result= TRUE;
   String stmt_query;
-  bool need_start_waiting= FALSE;
+  bool lock_upgrade_done= FALSE;
+  MDL_ticket *mdl_ticket= NULL;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -383,11 +385,9 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     LOCK_open is not enough because global read lock is held without holding
     LOCK_open).
   */
-  if (!thd->locked_tables &&
-      !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+  if (!thd->locked_tables_mode &&
+      thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
     DBUG_RETURN(TRUE);
-
-  mysql_mutex_lock(&LOCK_open);
 
   if (!create)
   {
@@ -442,30 +442,42 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 
   /* We also don't allow creation of triggers on views. */
   tables->required_type= FRMTYPE_TABLE;
+  /*
+    Also prevent DROP TRIGGER from opening temporary table which might
+    shadow base table on which trigger to be dropped is defined.
+  */
+  tables->open_type= OT_BASE_ONLY;
 
   /* Keep consistent with respect to other DDL statements */
-  mysql_ha_rm_tables(thd, tables, TRUE);
+  mysql_ha_rm_tables(thd, tables);
 
-  if (thd->locked_tables)
+  if (thd->locked_tables_mode)
   {
-    /* Table must be write locked */
-    if (name_lock_locked_table(thd, tables))
+    /* Under LOCK TABLES we must only accept write locked tables. */
+    if (!(tables->table= find_table_for_mdl_upgrade(thd->open_tables,
+                                                    tables->db,
+                                                    tables->table_name,
+                                                    FALSE)))
       goto end;
   }
   else
   {
-    /* Grab the name lock and insert the placeholder*/
-    if (lock_table_names(thd, tables))
+    tables->table= open_n_lock_single_table(thd, tables,
+                                            TL_WRITE_ALLOW_READ,
+                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+    if (! tables->table)
       goto end;
-
-    /* Convert the placeholder to a real table */
-    if (reopen_name_locked_table(thd, tables, TRUE))
-    {
-      unlock_table_name(thd, tables);
-      goto end;
-    }
+    tables->table->use_all_columns();
   }
   table= tables->table;
+
+  /* Later on we will need it to downgrade the lock */
+  mdl_ticket= table->mdl_ticket;
+
+  if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    goto end;
+
+  lock_upgrade_done= TRUE;
 
   if (!table->triggers)
   {
@@ -479,41 +491,39 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
   }
 
+  mysql_mutex_lock(&LOCK_open);
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
+  mysql_mutex_unlock(&LOCK_open);
 
-  /* Under LOCK TABLES we must reopen the table to activate the trigger. */
-  if (!result && thd->locked_tables)
-  {
-    /* Make table suitable for reopening */
-    close_data_files_and_morph_locks(thd, tables->db, tables->table_name);
-    thd->in_lock_tables= 1;
-    if (reopen_tables(thd, 1, 1))
-    {
-      /* To be safe remove this table from the set of LOCKED TABLES */
-      unlink_open_table(thd, tables->table, FALSE);
+  if (result)
+    goto end;
 
-      /*
-        Ignore reopen_tables errors for now. It's better not leave master/slave
-        in a inconsistent state.
-      */
-      thd->clear_error();
-    }
-    thd->in_lock_tables= 0;
-  }
+  close_all_tables_for_name(thd, table->s, FALSE);
+  /*
+    Reopen the table if we were under LOCK TABLES.
+    Ignore the return value for now. It's better to
+    keep master/slave in consistent state.
+  */
+  thd->locked_tables_list.reopen_tables(thd);
 
 end:
-
   if (!result)
   {
     result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
-  mysql_mutex_unlock(&LOCK_open);
+  /*
+    If we are under LOCK TABLES we should restore original state of meta-data
+    locks. Otherwise call to close_thread_tables() will take care about both
+    TABLE instance created by open_n_lock_single_table() and metadata lock.
+  */
+  if (thd->locked_tables_mode && tables && lock_upgrade_done)
+    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
 
-  if (need_start_waiting)
-    start_waiting_global_read_lock(thd);
+  if (thd->global_read_lock.has_protection())
+    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (!result)
     my_ok(thd);
@@ -1854,7 +1864,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
     Also this method assumes that subject table is not renamed to itself.
-    This method needs to be called under an exclusive table name lock.
+    This method needs to be called under an exclusive table metadata lock.
 
   @retval FALSE Success
   @retval TRUE  Error
@@ -1876,15 +1886,12 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
 
   /*
     This method interfaces the mysql server code protected by
-    either LOCK_open mutex or with an exclusive table name lock.
-    In the future, only an exclusive table name lock will be enough.
+    either LOCK_open mutex or with an exclusive metadata lock.
+    In the future, only an exclusive metadata lock will be enough.
   */
 #ifndef DBUG_OFF
-  uchar key[MAX_DBKEY_LENGTH];
-  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
-                    old_table)-(char*)&key[0])+1;
-
-  if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
+  if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
+                                     MDL_EXCLUSIVE))
     mysql_mutex_assert_owner(&LOCK_open);
 #endif
 
@@ -2016,6 +2023,61 @@ bool Table_triggers_list::process_triggers(THD *thd,
   thd->restore_sub_statement_state(&statement_state);
 
   return err_status;
+}
+
+
+/**
+  Add triggers for table to the set of routines used by statement.
+  Add tables used by them to statement table list. Do the same for
+  routines used by triggers.
+
+  @param thd             Thread context.
+  @param prelocking_ctx  Prelocking context of the statement.
+  @param table_list      Table list element for table with trigger.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure.
+*/
+
+bool
+Table_triggers_list::
+add_tables_and_routines_for_triggers(THD *thd,
+                                     Query_tables_list *prelocking_ctx,
+                                     TABLE_LIST *table_list)
+{
+  DBUG_ASSERT(static_cast<int>(table_list->lock_type) >=
+              static_cast<int>(TL_WRITE_ALLOW_WRITE));
+
+  for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
+  {
+    if (table_list->trg_event_map &
+        static_cast<uint8>(1 << static_cast<int>(i)))
+    {
+      for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
+      {
+        /* We can have only one trigger per action type currently */
+        sp_head *trigger= table_list->table->triggers->bodies[i][j];
+
+        if (trigger)
+        {
+          MDL_key key(MDL_key::TRIGGER, trigger->m_db.str, trigger->m_name.str);
+
+          if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                                  &key, table_list->belong_to_view))
+          {
+            trigger->add_used_tables_to_table_list(thd,
+                       &prelocking_ctx->query_tables_last,
+                       table_list->belong_to_view);
+            sp_update_stmt_used_routines(thd, prelocking_ctx,
+                                         &trigger->m_sroutines,
+                                         table_list->belong_to_view);
+            trigger->propagate_attributes(prelocking_ctx);
+          }
+        }
+      }
+    }
+  }
+  return FALSE;
 }
 
 

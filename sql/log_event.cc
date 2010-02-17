@@ -30,6 +30,7 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
+#include "transaction.h"
 #include <my_dir.h>
 
 #endif /* MYSQL_CLIENT */
@@ -3157,7 +3158,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
   else
   {
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
   }
 
   /*
@@ -3360,7 +3361,7 @@ Default database: '%s'. Query: '%s'",
         them back here.
       */
       if (expected_error && expected_error == actual_error)
-        ha_autocommit_or_rollback(thd, TRUE);
+        trans_rollback_stmt(thd);
     }
     /*
       If we expected a non-zero error code and get nothing and, it is a concurrency
@@ -3369,7 +3370,8 @@ Default database: '%s'. Query: '%s'",
     else if (expected_error && !actual_error && 
              (concurrency_error_code(expected_error) ||
               ignored_error_code(expected_error)))
-      ha_autocommit_or_rollback(thd, TRUE);
+      trans_rollback_stmt(thd);
+
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -4717,7 +4719,10 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
-    tables.init_one_table(thd->db, table_name, TL_WRITE);
+    tables.init_one_table(thd->strmake(thd->db, thd->db_length),
+                          thd->db_length,
+                          table_name, strlen(table_name),
+                          table_name, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
@@ -5440,10 +5445,16 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  bool res;
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+  if (!(res= trans_commit(thd)))
+  {
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  return res;
 }
 
 Log_event::enum_skip_reason
@@ -7407,8 +7418,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -7487,7 +7497,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -7519,7 +7529,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
         DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
@@ -7706,12 +7716,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
   
   if (error)
   {
@@ -7797,7 +7801,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error|= ha_autocommit_or_rollback(thd, error);
+    error|= (error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd));
 
     /*
       Now what if this is not a transactional engine? we still need to
@@ -8276,15 +8280,15 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  bzero(table_list, sizeof(*table_list));
-  table_list->db = db_mem;
-  table_list->alias= table_list->table_name = tname_mem;
-  table_list->lock_type= TL_WRITE;
-  table_list->next_global= table_list->next_local= 0;
+  strmov(db_mem, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
+  strmov(tname_mem, m_tblnam);
+
+  table_list->init_one_table(db_mem, strlen(db_mem),
+                             tname_mem, strlen(tname_mem),
+                             tname_mem, TL_WRITE);
+
   table_list->table_id= m_table_id;
   table_list->updating= 1;
-  strmov(table_list->db, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
-  strmov(table_list->table_name, m_tblnam);
 
   int error= 0;
 

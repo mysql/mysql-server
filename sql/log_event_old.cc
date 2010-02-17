@@ -6,6 +6,7 @@
 #endif
 #include "log_event_old.h"
 #include "rpl_record_old.h"
+#include "transaction.h"
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
@@ -32,8 +33,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
      */
     DBUG_ASSERT(ev->get_flags(Old_rows_log_event::STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -88,7 +88,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -108,13 +108,8 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                              ptr->table, &conv_table))
         {
-          DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
-                               ptr->table->s->db.str,
-                               ptr->table->s->table_name.str));
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
         DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
@@ -242,13 +237,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
   }
-
-  /*
-    We need to delay this clear until the table def is no longer needed.
-    The table def is needed in unpack_row().
-  */
-  if (rli->tables_to_lock && ev->get_flags(Old_rows_log_event::STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -1447,8 +1435,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -1479,7 +1466,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     lex_start(thd);
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
-                               rli->tables_to_lock_count, &need_reopen)))
+                               rli->tables_to_lock_count, 0,
+                               &need_reopen)))
     {
       if (!need_reopen)
       {
@@ -1503,7 +1491,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                       "Error in %s event: when locking tables",
                       get_type_str());
         }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
         DBUG_RETURN(error);
       }
 
@@ -1530,7 +1518,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         DBUG_RETURN(error);
       }
       TABLE_LIST *tables= rli->tables_to_lock;
-      close_tables_for_reopen(thd, &tables);
+      close_tables_for_reopen(thd, &tables, NULL);
 
       uint tables_count= rli->tables_to_lock_count;
       if ((error= open_tables(thd, &tables, &tables_count, 0)))
@@ -1548,7 +1536,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                        "unexpected success or fatal error"));
           thd->is_slave_error= 1;
         }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
         DBUG_RETURN(error);
       }
     }
@@ -1569,10 +1557,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                             ptr->table, &conv_table))
         {
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
         ptr->m_conv_table= conv_table;
@@ -1745,13 +1731,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-
   if (error)
   {                     /* error has occured during the transaction */
     rli->report(ERROR_LEVEL, thd->net.last_errno,
@@ -1833,7 +1812,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if ((error= ha_autocommit_or_rollback(thd, binlog_error)))
+    if ((error= (binlog_error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd))))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",

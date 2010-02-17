@@ -830,8 +830,8 @@ set global join_buffer_size          =@my_join_buffer_size;
 # Bug#28580 Repeatation of status variables
 #
 --replace_column 2 #
-show global variables where Variable_name='table_definition_cache' or
-Variable_name='table_lock_wait_timeout';
+show global variables where Variable_name='table_definition_cache';
+# Note: table_lock_wait_timeout no longer exists. See bug#45225.
 
 ###########################################################################
 

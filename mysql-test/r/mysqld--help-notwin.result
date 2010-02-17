@@ -225,6 +225,9 @@ The following options may be given as the first argument:
                       the week.
   --local-infile      Enable LOAD DATA LOCAL INFILE
                       (Defaults to on; use --skip-local-infile to disable.)
+  --lock-wait-timeout=# 
+                      Timeout in seconds to wait for a lock before returning an
+                      error.
   -l, --log[=name]    Log connections and queries to file (deprecated option,
                       use --general-log/--general-log-file instead).
   --log-bin[=name]    Log update queries in binary format. Optional (but
@@ -714,10 +717,6 @@ The following options may be given as the first argument:
   --table-cache=#     Deprecated; use --table-open-cache instead.
   --table-definition-cache=# 
                       The number of cached table definitions
-  --table-lock-wait-timeout=# 
-                      Timeout in seconds to wait for a table level lock before
-                      returning an error. Used only if the connection has
-                      active cursors
   --table-open-cache=# 
                       The number of cached open tables
   --tc-heuristic-recover=name 
@@ -839,6 +838,7 @@ lc-messages                                       en_US
 lc-messages-dir                                   MYSQL_SHAREDIR/
 lc-time-names                                     en_US
 local-infile                                      TRUE
+lock-wait-timeout                                 31536000
 log-bin                                           (No default value)
 log-bin-index                                     (No default value)
 log-bin-trust-function-creators                   FALSE
@@ -979,7 +979,6 @@ sync-relay-log-info                               0
 sysdate-is-now                                    FALSE
 table-cache                                       400
 table-definition-cache                            400
-table-lock-wait-timeout                           50
 table-open-cache                                  400
 tc-heuristic-recover                              COMMIT
 thread-cache-size                                 0
