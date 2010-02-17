@@ -97,8 +97,10 @@ namespace AQP
   */
   uint Table_access::get_no_of_key_fields() const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
-                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
+                m_access_type == AT_UNIQUE_KEY ||
+                m_access_type == AT_MULTI_PRIMARY_KEY ||
+                m_access_type == AT_MULTI_UNIQUE_KEY);
     return get_join_tab()->ref.key_parts;
   }
 
@@ -109,8 +111,10 @@ namespace AQP
   */
   const Item* Table_access::get_key_field(uint field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
-                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
+                m_access_type == AT_UNIQUE_KEY ||
+                m_access_type == AT_MULTI_PRIMARY_KEY ||
+                m_access_type == AT_MULTI_UNIQUE_KEY);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     return get_join_tab()->ref.items[field_no];
   }
@@ -122,8 +126,10 @@ namespace AQP
   */
   const KEY_PART_INFO* Table_access::get_key_part_info(uint field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY_LOOKUP ||
-                m_access_type == AT_UNIQUE_INDEX_LOOKUP);
+    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
+                m_access_type == AT_UNIQUE_KEY ||
+                m_access_type == AT_MULTI_PRIMARY_KEY ||
+                m_access_type == AT_MULTI_UNIQUE_KEY);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     const KEY* key= &get_join_tab()->table->key_info[get_join_tab()->ref.key];
     return &key->key_part[field_no];
@@ -198,13 +204,13 @@ namespace AQP
       if (m_index_no == (int32)get_join_tab()->table->s->primary_key)
       {
         DBUG_PRINT("info", ("Operation %d is a primary key lookup.", m_tab_no));
-        m_access_type= AT_PRIMARY_KEY_LOOKUP;
+        m_access_type= AT_PRIMARY_KEY;
       }
       else
       {
         DBUG_PRINT("info", ("Operation %d is a unique index lookup.",
                             m_tab_no));
-        m_access_type= AT_UNIQUE_INDEX_LOOKUP;
+        m_access_type= AT_UNIQUE_KEY;
       }
       break;
 
@@ -213,14 +219,14 @@ namespace AQP
       DBUG_ASSERT(get_join_tab()->ref.key >= 0);
       DBUG_ASSERT(get_join_tab()->ref.key < MAX_KEY);
       m_index_no= get_join_tab()->ref.key;
-      m_access_type= AT_ORDERED_INDEX_SCAN;
+      m_access_type= AT_ORDERED_RANGE;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
     case JT_NEXT:
       DBUG_ASSERT(get_join_tab()->index < MAX_KEY);
       m_index_no=    get_join_tab()->index;
-      m_access_type= AT_ORDERED_INDEX_SCAN;
+      m_access_type= AT_ORDERED_RANGE;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
@@ -240,29 +246,56 @@ namespace AQP
       }
       else
       {
-        if (get_join_tab()->select != NULL &&
-            get_join_tab()->select->quick != NULL)
+        const JOIN_TAB* join_tab= get_join_tab();
+
+        if (join_tab->select != NULL &&
+            join_tab->select->quick != NULL)
         {
-          QUICK_SELECT_I *quick= get_join_tab()->select->quick;
+          QUICK_SELECT_I *quick= join_tab->select->quick;
+          int quick_type= quick->get_type();
+
+          /** QUICK_SELECT results in execution of MRR (Multi Range Read).
+           *  Depending on each range, it may require execution of
+           *  either a PK-lookup or a range scan. To cover both of 
+           *  these we may need to prepare both a pushed lookup join
+           *  and a pushed range scan. Currently we handle it as
+           *  a range scan and convert e PK lookup to a (closed-) range
+           *  whenever required.
+           **/
+
+          const KEY *key_info= join_tab->table->s->key_info;
           DBUG_EXECUTE("info", quick->dbug_dump(0, TRUE););
-          if (quick->index < MAX_KEY)
+
+          // Temporary assert as we are still investigation the relation between 
+          // 'quick->index == MAX_KEY' and the different quick_types
+          DBUG_ASSERT ((quick->index == MAX_KEY)  ==
+                        ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+                         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+                         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
+
+          // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed joins
+          if (quick->index == MAX_KEY) 
           {
-            m_index_no=    quick->index;
-            m_access_type= AT_ORDERED_INDEX_SCAN;
+            m_index_no=    join_tab->table->s->primary_key;
+            m_access_type= AT_PRIMARY_KEY;
+          }
+
+          // Else JT_RANGE: May be both exact PK and/or index scans when sorted index available
+          else if (quick->index == join_tab->table->s->primary_key)
+          {
+            m_index_no= quick->index;
+            if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
+              m_access_type= AT_MULTI_PRIMARY_KEY; // MRR w/ multiple PK's
+            else
+              m_access_type= AT_MULTI_RANGE;       // MRR w/ both range and PKs
           }
           else
           {
-            // No scanable indexes; use PK, typically 'pk in (X,Y,Z)'
-            DBUG_PRINT("info", ("Operation %d is PK-MRR", m_tab_no));
-            /*
-              Check that this is either:
-              - Multi-range read like <primary key> IN (X,Y,Z...).
-              - Index merge.
-             */
-            DBUG_ASSERT(quick->index == get_join_tab()->table->s->primary_key ||
-                        quick->index == MAX_KEY);
-            m_index_no=    get_join_tab()->table->s->primary_key;
-            m_access_type= AT_PRIMARY_KEY_LOOKUP;
+            m_index_no= quick->index;
+            if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
+              m_access_type= AT_MULTI_UNIQUE_KEY; // MRR with multiple unique keys
+            else
+              m_access_type= AT_MULTI_RANGE;      // MRR w/ both range and unique keys
           }
         }
         else
