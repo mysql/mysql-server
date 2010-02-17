@@ -4007,21 +4007,13 @@ static int init_server_components()
       Implementation of the above :
       - If mysqld is started with --log-update and --log-bin,
       ignore --log-update (print a warning), push a warning when SQL_LOG_UPDATE
-      is used, and turn off --sql-bin-update-same.
+      is used,
       This will completely ignore SQL_LOG_UPDATE
       - If mysqld is started with --log-update only,
       change it to --log-bin (with the filename passed to log-update,
       plus '-bin') (print a warning), push a warning when SQL_LOG_UPDATE is
-      used, and turn on --sql-bin-update-same.
+      used.
       This will translate SQL_LOG_UPDATE to SQL_LOG_BIN.
-
-      Note that we tell the user that --sql-bin-update-same is deprecated and
-      does nothing, and we don't take into account if he used this option or
-      not; but internally we give this variable a value to have the behaviour
-      we want (i.e. have SQL_LOG_UPDATE influence SQL_LOG_BIN or not).
-      As sql-bin-update-same, log-update and log-bin cannot be changed by the
-      user after starting the server (they are not variables), the user will
-      not later interfere with the settings we do here.
     */
     if (opt_bin_log)
     {
@@ -6023,9 +6015,6 @@ struct my_option my_long_options[]=
   {"default-time-zone", 0, "Set the default time zone.",
    (uchar**) &default_tz_name, (uchar**) &default_tz_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
-   "Don't flush key buffers between writes for any MyISAM table (Deprecated option, use --delay-key-write=all instead).",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_OPENSSL
   {"des-key-file", 0,
    "Load keys for des_encrypt() and des_encrypt from given file.",
@@ -6039,10 +6028,6 @@ struct my_option my_long_options[]=
    (uchar**) &disconnect_slave_event_count, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
 #endif /* HAVE_REPLICATION */
-  {"enable-locking", 0,
-   "Deprecated option, use --external-locking instead.",
-   (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_STACK_TRACE_ON_SEGV
   {"enable-pstack", 0, "Print a symbolic stack trace on failure.",
    (uchar**) &opt_do_pstack, (uchar**) &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -6127,11 +6112,6 @@ struct my_option my_long_options[]=
    REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ULONG_MAX, 0,
    TC_LOG_PAGE_SIZE, 0},
 #endif
-  {"log-update", OPT_UPDATE_LOG,
-   "The update log is deprecated since version 5.0, is replaced by the binary \
-log and this option justs turns on --log-bin instead.",
-   (uchar**) &opt_update_logname, (uchar**) &opt_update_logname, 0, GET_STR,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"master-info-file", 0,
    "The location and name of the file that remembers the master and where the I/O replication \
 thread is in the master's binlogs.",
@@ -6219,9 +6199,6 @@ Can't be set to 1 if --log-slave-updates is used.",
 #endif
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-locking", OPT_SKIP_LOCK,
-   "Deprecated option, use --skip-external-locking instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-name-resolve", OPT_SKIP_RESOLVE,
    "Don't resolve hostnames. All hostnames are IP's or 'localhost'.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6233,8 +6210,6 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
    "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
    "Don't give threads different priorities. This option is deprecated "
    "because it has no effect; the implied behavior is already the default.",
@@ -6246,10 +6221,6 @@ Can't be set to 1 if --log-slave-updates is used.",
    (uchar**) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
 #endif /* HAVE_REPLICATION */
-  {"sql-bin-update-same", 0,
-   "The update log is deprecated since version 5.0, is replaced by the "
-   "binary log and this option does nothing anymore.",
-   0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_OPENSSL
   {"ssl", 0,
    "Enable SSL for connection (automatically enabled with other flags).",
@@ -6308,20 +6279,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"warnings", 'W', "Deprecated; use --log-warnings instead.",
-   (uchar**) &global_system_variables.log_warnings,
-   (uchar**) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG,
-   1, 0, ULONG_MAX, 0, 0, 0},
   {"plugin-load", 0,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"record_buffer", 0, "Deprecated; use --read-buffer-size instead.",
-   (uchar**) &global_system_variables.read_buff_size,
-   (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2, INT_MAX32, 0, IO_SIZE, 0},
   {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
    (uchar**) &table_cache_size, (uchar**) &table_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
@@ -7235,9 +7198,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;
     break;
-  case (int) OPT_UPDATE_LOG:
-    opt_update_log=1;
-    break;
   case (int) OPT_BIN_LOG:
     opt_bin_log= test(argument != disabled_my_option);
     break;
@@ -7358,9 +7318,6 @@ mysqld_get_one_option(int optid,
                       "and will be removed in MySQL 7.0. This option has no effect "
                       "as the implied behavior is already the default.");
     break;
-  case (int) OPT_SKIP_LOCK:
-    opt_external_locking=0;
-    break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
     break;
@@ -7372,9 +7329,6 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_SKIP_STACK_TRACE:
     test_flags|=TEST_NO_STACKTRACE;
-    break;
-  case (int) OPT_SKIP_SYMLINKS:
-    my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
     {
@@ -7407,12 +7361,6 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
-    break;
-  case OPT_DELAY_KEY_WRITE_ALL:
-    if (argument != disabled_my_option)
-      delay_key_write_options= DELAY_KEY_WRITE_ALL;
-    else
-      delay_key_write_options= DELAY_KEY_WRITE_NONE;
     break;
   case OPT_ONE_THREAD:
     thread_handling= SCHEDULER_ONE_THREAD_PER_CONNECTION;
