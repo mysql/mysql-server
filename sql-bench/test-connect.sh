@@ -28,7 +28,7 @@ use Cwd;
 use DBI;
 use Benchmark;
 
-$opt_loop_count=100000;	# Change this to make test harder/easier
+$opt_loop_count=500000;	# Change this to make test harder/easier
 $str_length=65000;	# This is the length of blob strings in PART:5
 $max_test=20;		# How many times to test if the server is busy
 

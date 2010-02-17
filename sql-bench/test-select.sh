@@ -26,7 +26,7 @@ use Getopt::Long;
 use Benchmark;
 
 $opt_loop_count=10000;
-$opt_medium_loop_count=1000;
+$opt_medium_loop_count=7000;
 $opt_small_loop_count=10;
 $opt_regions=6;
 $opt_groups=100;

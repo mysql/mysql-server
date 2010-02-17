@@ -28,8 +28,8 @@ use Benchmark;
 
 $opt_groups=27;		    # Characters are 'A' -> Z
 
-$opt_loop_count=10000;	    # Change this to make test harder/easier
-$opt_medium_loop_count=100; # Change this to make test harder/easier
+$opt_loop_count=500000;	    # Change this to make test harder/easier
+$opt_medium_loop_count=10000; # Change this to make test harder/easier
 
 $pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
