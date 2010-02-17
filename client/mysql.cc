@@ -1373,7 +1373,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_rehash, (uchar**) &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
    0, 0},
   {"no-auto-rehash", 'A',
-   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
    {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
     "Automatically switch to vertical output mode if the result is wider than the terminal width.",
@@ -1425,9 +1425,6 @@ static struct my_option my_long_options[] =
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
    (uchar**) &named_cmds, (uchar**) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"no-named-commands", 'g',
-   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-spaces", 'i', "Ignore space after function names.",
    (uchar**) &ignore_spaces, (uchar**) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -1449,7 +1446,7 @@ static struct my_option my_long_options[] =
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (uchar**) &line_numbers, (uchar**) &line_numbers, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},  
-  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+  {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (uchar**) &unbuffered,
    (uchar**) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1457,11 +1454,8 @@ static struct my_option my_long_options[] =
    (uchar**) &column_names, (uchar**) &column_names, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
-   "Don't write column names in results. WARNING: -N is deprecated, use long version of this options instead.",
+   "Don't write column names in results.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sigint-ignore", OPT_SIGINT_IGNORE, "Ignore SIGINT (CTRL-C)",
    (uchar**) &opt_sigint_ignore,  (uchar**) &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1472,9 +1466,6 @@ static struct my_option my_long_options[] =
   {"pager", OPT_PAGER,
    "Pager to use to display results. If you don't supply an option the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode. Disable with --disable-pager. This option is disabled by default.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-pager", OPT_NOPAGER,
-   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
@@ -1682,10 +1673,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       else
 	opt_nopager= 1;
     }
-    break;
-  case OPT_NOPAGER:
-    printf("WARNING: option deprecated; use --disable-pager instead.\n");
-    opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
 #ifndef EMBEDDED_LIBRARY
