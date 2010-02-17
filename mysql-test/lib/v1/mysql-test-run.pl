@@ -805,7 +805,7 @@ sub command_line_setup () {
                                     "$glob_basedir/sql/share",
                                     "$glob_basedir/share");
 
-  $path_language=      mtr_path_exists("$path_share/english");
+  $path_language=      mtr_path_exists("$path_share");
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
 
@@ -1463,7 +1463,7 @@ sub collect_mysqld_features () {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --lc-messages-dir=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1807,7 +1807,7 @@ sub mysql_client_test_arguments()
   if ( $glob_use_embedded_server )
   {
     mtr_add_arg($args,
-      " -A --language=$path_language");
+      " -A --lc-messages-dir=$path_language");
     mtr_add_arg($args,
       " -A --datadir=$slave->[0]->{'path_myddir'}");
     mtr_add_arg($args,
@@ -3158,7 +3158,7 @@ sub install_db ($$) {
 
   if ( ! $glob_netware )
   {
-    mtr_add_arg($args, "--language=%s", $path_language);
+    mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
     mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   }
 
@@ -3283,10 +3283,10 @@ socket              = $instance->{path_sock}
 pid-file            = $instance->{path_pid}
 port                = $instance->{port}
 datadir             = $instance->{path_datadir}
+lc-messages-dir     = $path_language
 log                 = $instance->{path_datadir}/mysqld$server_id.log
 log-error           = $instance->{path_datadir}/mysqld$server_id.err.log
 log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
-language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
 server_id           = $server_id
@@ -3893,8 +3893,8 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   }
 
-  mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
-  mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
+  mtr_add_arg($args, "%s--character-set-server=latin1", $prefix);
+  mtr_add_arg($args, "%s--lc-messages-dir=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
   # Increase default connect_timeout to avoid intermittent
