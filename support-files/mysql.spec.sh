@@ -535,6 +535,7 @@ fi
 if expr "$CC" : ".*icc.*" > /dev/null ;
 then
     %define WITH_LIBGCC 0
+    :
 elif expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
@@ -544,9 +545,11 @@ then
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
   else
     %define WITH_LIBGCC 0
+    :
   fi
 else
     %define WITH_LIBGCC 0
+    :
 fi
 
 ##############################################################################
