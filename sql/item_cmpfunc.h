@@ -241,6 +241,7 @@ public:
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
+  Item *transform(Item_transformer transformer, uchar *arg);
 };
 
 class Comp_creator

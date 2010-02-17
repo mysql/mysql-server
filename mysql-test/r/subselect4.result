@@ -13,9 +13,9 @@ SELECT 1 FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
 ORDER BY count(*);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using index; Using temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using where; Using index; Using temporary
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 # should not crash the next statement
 SELECT 1 FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
@@ -77,10 +77,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ref	d	d	5	const	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = '0')) AS `RESULT` from dual
+Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = '0')) AS `RESULT` from `test`.`t1`
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -88,10 +88,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ref	d	d	5	const	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = ifnull('0',NULL))) AS `RESULT` from dual group by '0'
+Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = ifnull('0',NULL))) AS `RESULT` from `test`.`t1` group by '0'
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -99,10 +99,10 @@ NULL
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ref	d	d	5	const	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = '0')) AS `RESULT` from dual group by '0'
+Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = '0')) AS `RESULT` from `test`.`t1` group by '0'
 DROP TABLE t1,t2;
 #
 # BUG#45928 "Differing query results depending on MRR and

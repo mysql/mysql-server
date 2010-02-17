@@ -1312,7 +1312,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			      (char *)in_left_expr_name);
 
     master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
-    select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+    //psergey: placed then removed: select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)

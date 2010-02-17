@@ -1649,6 +1649,70 @@ bool Item_in_optimizer::is_null()
 }
 
 
+/**
+  Transform an Item_in_optimizer and its arguments with a callback function.
+
+  @param transformer the transformer callback function to be applied to the
+         nodes of the tree of the object
+  @param parameter to be passed to the transformer
+
+  @detail
+    Recursively transform the left and the right operand of this Item. The
+    Right operand is an Item_in_subselect or its subclass. To avoid the
+    creation of new Items, we use the fact the the left operand of the
+    Item_in_subselect is the same as the one of 'this', so instead of
+    transforming its operand, we just assign the left operand of the
+    Item_in_subselect to be equal to the left operand of 'this'.
+    The transformation is not applied further to the subquery operand
+    if the IN predicate.
+
+  @returns
+    @retval pointer to the transformed item
+    @retval NULL if an error occurred
+*/
+
+Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument)
+{
+  Item *new_item;
+
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(arg_count == 2);
+
+  /* Transform the left IN operand. */
+  new_item= (*args)->transform(transformer, argument);
+  if (!new_item)
+    return 0;
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if ((*args) != new_item)
+    current_thd->change_item_tree(args, new_item);
+
+  /*
+    Transform the right IN operand which should be an Item_in_subselect or a
+    subclass of it. The left operand of the IN must be the same as the left
+    operand of this Item_in_optimizer, so in this case there is no further
+    transformation, we only make both operands the same.
+    TODO: is it the way it should be?
+  */
+  DBUG_ASSERT((args[1])->type() == Item::SUBSELECT_ITEM &&
+              (((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::IN_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ALL_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ANY_SUBS));
+
+  Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
+  in_arg->left_expr= args[0];
+
+  return (this->*transformer)(argument);
+}
+
+
 longlong Item_func_eq::val_int()
 {
   DBUG_ASSERT(fixed == 1);

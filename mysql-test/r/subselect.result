@@ -1377,7 +1377,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
-drop table t1, t2, t3;
+drop table t0, t1, t2, t3;
 create table t1 (a int, b int);
 create table t2 (a int, b int);
 create table t3 (a int, b int);

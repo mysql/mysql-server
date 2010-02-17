@@ -2817,6 +2817,17 @@ public:
 };
 
 
+/*
+  Cached_item_XXX objects are not exactly caches. They do the following:
+
+  Each Cached_item_XXX object has
+   - its source item
+   - saved value of the source item
+   - cmp() method that compares the saved value with the current value of the
+     source item, and if they were not equal saves item's value into the saved
+     value.
+*/
+
 class Cached_item :public Sql_alloc
 {
 public:
