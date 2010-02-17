@@ -410,8 +410,7 @@ else
   echo "Try 'mysqld --help' if you have problems with paths.  Using --log"
   echo "gives you a log in $ldata that may be helpful."
   echo
-  echo "The latest information about MySQL is available on the web at"
-  echo "http://www.mysql.com/.  Please consult the MySQL manual section"
+  echo "Please consult the MySQL manual section"
   echo "'Problems running mysql_install_db', and the manual section that"
   echo "describes problems on your OS.  Another information source are the"
   echo "MySQL email archives available at http://lists.mysql.com/."
@@ -469,9 +468,6 @@ then
 
   echo
   echo "Please report any problems with the $scriptdir/mysqlbug script!"
-  echo
-  echo "The latest information about MySQL is available at http://www.mysql.com/"
-  echo "Support MySQL by buying support/licenses from http://shop.mysql.com/"
   echo
 fi
 
