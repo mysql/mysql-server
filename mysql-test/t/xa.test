@@ -76,9 +76,10 @@ xa rollback 'testa','testb';
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 
 select * from t1;
-drop table t1;
 
 disconnect con1;
+connection default;
+drop table t1;
 
 #
 # Bug#28323: Server crashed in xid cache operations

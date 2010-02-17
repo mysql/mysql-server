@@ -18436,6 +18436,59 @@ static void test_bug36004()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Test that COM_REFRESH issues a implicit commit.
+*/
+
+static void test_wl4284_1()
+{
+  int rc;
+  MYSQL_ROW row;
+  MYSQL_RES *result;
+
+  DBUG_ENTER("test_wl4284_1");
+  myheader("test_wl4284_1");
+
+  /* set AUTOCOMMIT to OFF */
+  rc= mysql_autocommit(mysql, FALSE);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS trans");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE trans (a INT) ENGINE= InnoDB");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "INSERT INTO trans VALUES(1)");
+  myquery(rc);
+
+  rc= mysql_refresh(mysql, REFRESH_GRANT | REFRESH_TABLES);
+  myquery(rc);
+
+  rc= mysql_rollback(mysql);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "SELECT * FROM trans");
+  myquery(rc);
+
+  result= mysql_use_result(mysql);
+  mytest(result);
+
+  row= mysql_fetch_row(result);
+  mytest(row);
+
+  mysql_free_result(result);
+
+  /* set AUTOCOMMIT to ON */
+  rc= mysql_autocommit(mysql, TRUE);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP TABLE trans");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 
 static void test_bug38486(void)
 {
@@ -18584,6 +18637,8 @@ static void test_bug40365(void)
       DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
+  rc= mysql_commit(mysql);
+  myquery(rc);
 
   DBUG_VOID_RETURN;
 }
@@ -18875,6 +18930,115 @@ static void test_bug44495()
   mysql_close(&con);
 
   rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Bug#49972: Crash in prepared statements.
+
+  The following case lead to a server crash:
+    - Use binary protocol;
+    - Prepare a statement with OUT-parameter;
+    - Execute the statement;
+    - Cause re-prepare of the statement (change dependencies);
+    - Execute the statement again -- crash here.
+*/
+
+static void test_bug49972()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+
+  MYSQL_BIND in_param_bind;
+  MYSQL_BIND out_param_bind;
+  int int_data;
+  my_bool is_null;
+
+  DBUG_ENTER("test_bug49972");
+  myheader("test_49972");
+
+  rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE FUNCTION f1() RETURNS INT RETURN 1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE PROCEDURE p1(IN a INT, OUT b INT) SET b = a");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "CALL p1((SELECT f1()), ?)");
+  check_stmt(stmt);
+
+  bzero((char *) &in_param_bind, sizeof (in_param_bind));
+
+  in_param_bind.buffer_type= MYSQL_TYPE_LONG;
+  in_param_bind.buffer= (char *) &int_data;
+  in_param_bind.length= 0;
+  in_param_bind.is_null= 0;
+
+  rc= mysql_stmt_bind_param(stmt, &in_param_bind);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  {
+    bzero(&out_param_bind, sizeof (out_param_bind));
+
+    out_param_bind.buffer_type= MYSQL_TYPE_LONG;
+    out_param_bind.is_null= &is_null;
+    out_param_bind.buffer= &int_data;
+    out_param_bind.buffer_length= sizeof (int_data);
+
+    rc= mysql_stmt_bind_result(stmt, &out_param_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    rc= mysql_stmt_fetch(stmt);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+
+    mysql_stmt_next_result(stmt);
+    mysql_stmt_fetch(stmt);
+  }
+
+  rc= mysql_query(mysql, "DROP FUNCTION f1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE FUNCTION f1() RETURNS INT RETURN 1");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  {
+    bzero(&out_param_bind, sizeof (out_param_bind));
+
+    out_param_bind.buffer_type= MYSQL_TYPE_LONG;
+    out_param_bind.is_null= &is_null;
+    out_param_bind.buffer= &int_data;
+    out_param_bind.buffer_length= sizeof (int_data);
+
+    rc= mysql_stmt_bind_result(stmt, &out_param_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    rc= mysql_stmt_fetch(stmt);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+
+    mysql_stmt_next_result(stmt);
+    mysql_stmt_fetch(stmt);
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP FUNCTION f1");
   myquery(rc);
 
   DBUG_VOID_RETURN;
@@ -19197,6 +19361,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_3", test_wl4166_3 },
   { "test_wl4166_4", test_wl4166_4 },
   { "test_bug36004", test_bug36004 },
+  { "test_wl4284_1", test_wl4284_1 },
   { "test_wl4435",   test_wl4435 },
   { "test_wl4435_2", test_wl4435_2 },
   { "test_bug38486", test_bug38486 },
@@ -19208,6 +19373,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
+  /* XXX { "test_bug49972", test_bug49972 }, */
   { 0, 0 }
 };
 

@@ -361,6 +361,7 @@ public:
   bool cached_charset_compare(char *charset) const;
 
   void cleanup_context(THD *, bool);
+  void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
 
   /*

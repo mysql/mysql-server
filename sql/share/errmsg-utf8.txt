@@ -6311,6 +6311,8 @@ ER_WRONG_NATIVE_TABLE_STRUCTURE
 
 ER_WRONG_PERFSCHEMA_USAGE
         eng "Invalid performance_schema usage."
+ER_WARN_I_S_SKIPPED_TABLE
+  eng "Table '%s'.'%s' was skipped since its definition is being modified by concurrent DDL statement"
 
 ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
