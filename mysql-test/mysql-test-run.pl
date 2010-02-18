@@ -203,6 +203,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
+my $opt_max_connections;
 
 my $opt_sleep;
 
@@ -922,6 +923,7 @@ sub command_line_setup {
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
 	     'timediff'                 => \&report_option,
+	     'max-connections=i'        => \$opt_max_connections,
 
              'help|h'                   => \$opt_usage,
 	       'list-options'             => \$opt_list_options,
@@ -4956,6 +4958,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--ssl");
   }
 
+  if ( $opt_max_connections ) {
+    mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
+  }
+
   if ( $opt_embedded_server )
   {
 
@@ -5514,6 +5520,7 @@ Misc options
   timestamp             Print timestamp before each test report line
   timediff              With --timestamp, also print time passed since
                         *previous* test started
+  max-connections=N     Max number of open connection to server in mysqltest
 
 HERE
   exit(1);
