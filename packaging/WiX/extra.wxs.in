@@ -1,0 +1,32 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="RegKeys" Guid="*">
+        <RegistryKey
+          Id='MySQLKey'
+          Root='HKLM'
+          Key='SOFTWARE\MySQL AB\[ProductName]'
+          Action='createAndRemoveOnUninstall'>
+          <RegistryValue
+            Type='string'
+            Name='Location'
+            Value='[INSTALLDIR]'/>
+          <RegistryValue
+            Type="string"
+            Name="Version"
+            Value="[ProductVersion]"/>
+          <RegistryValue
+            Type="string"
+            Name="DataLocation"
+            Value="[DATADIR]"/>
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+    <Feature
+      Id='RegKeys'
+      Display='hidden'
+      Level='1'>
+      <ComponentRef Id='RegKeys'/>
+    </Feature>
+  </Fragment>
+</Wix>

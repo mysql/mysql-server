@@ -1,11 +1,62 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
-    Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@" Language="1033" Manufacturer="MySQL AB">
-    <Package Id='*' Keywords='Installer' Description="MySQL Database Server"
+  <Product 
+    Id="*" 
+    UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
+    Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
+    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@" 
+    Language="1033" 
+    Manufacturer="MySQL AB">
+    
+    <Package Id='*'
+       Keywords='Installer'
+       Description="MySQL Database Server"
        Manufacturer='MySQL AB'
-       InstallerVersion='200' Languages='1033' Compressed='yes' SummaryCodepage='1252' 
-	   Platform='@Platform@'/>
+       InstallerVersion='200'
+       Languages='1033'
+       Compressed='yes'
+       SummaryCodepage='1252'
+       Platform='@Platform@'/>
+    
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
+
+    <!-- Upgrade -->
+    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+      <UpgradeVersion 
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
+        IncludeMinimum="yes"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
+        Property="OLDERVERSIONBEINGUPGRADED" />
+      <UpgradeVersion 
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
+        OnlyDetect="yes"
+        Property="NEWERVERSIONDETECTED" />
+    </Upgrade>
+    <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
+      NOT NEWERVERSIONDETECTED OR Installed
+    </Condition>
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallInitialize"/>
+    </InstallExecuteSequence>
+
+
+    <!-- UI -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
+    <UIRef Id="@CPACK_WIX_UI@" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable
+      Id="WixUIBannerBmp"
+      Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminHeader.jpg" />
+    <WixVariable
+      Id="WixUIDialogBmp"
+      Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminBackground.jpg" />
+    <Icon
+      Id="icon.ico"
+      SourceFile="@CMAKE_CURRENT_SOURCE_DIR@/MySQLServer.ico"/>
+    <Property
+      Id="ARPPRODUCTICON"
+      Value="icon.ico" />
+    
+    <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
       <Directory Id='@PlatformProgramFilesFolder@'>
         <Directory Id='directory.MySQL' Name='MySQL'>
@@ -14,13 +65,18 @@
         </Directory>
       </Directory>
     </Directory>
-	<!-- CPACK_WIX_FEATURES -->
-	@CPACK_WIX_FEATURES@
-	<!--CPACK_WIX_FEATURES end -->
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
-    <UIRef Id="@CPACK_WIX_UI@" />
-    <UIRef Id="WixUI_ErrorProgressText" />
-    <WixVariable Id="WixUIBannerBmp" Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminHeader.jpg" />
-    <WixVariable Id="WixUIDialogBmp" Value="@CMAKE_CURRENT_SOURCE_DIR@/AdminBackground.jpg" />
+    
+    <!-- CPACK_WIX_FEATURES -->
+    @CPACK_WIX_FEATURES@
+    
+    <!-- CPACK_WIX_DIRECTORIES -->
+    @CPACK_WIX_DIRECTORIES@
+    
+    <!--CPACK_WIX_COMPONENTS-->
+    @CPACK_WIX_COMPONENTS@
+    
+    <!--CPACK_WIX_COMPONENTS_GROUPS -->
+    @CPACK_WIX_COMPONENT_GROUPS@
+    
   </Product>
 </Wix>
