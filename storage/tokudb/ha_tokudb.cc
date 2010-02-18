@@ -114,7 +114,7 @@ static int allocate_key_and_col_info ( TABLE_SHARE* table_share, KEY_AND_COL_INF
     //
     // create the field lengths
     //
-    kc_info->field_lengths = (uchar *)my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
+    kc_info->field_lengths = (u_int16_t *)my_malloc(table_share->fields*sizeof(u_int16_t), MYF(MY_WME | MY_ZEROFILL));
     kc_info->length_bytes= (uchar *)my_malloc(table_share->fields, MYF(MY_WME | MY_ZEROFILL));
     kc_info->blob_fields= (u_int32_t *)my_malloc(table_share->fields*sizeof(u_int32_t), MYF(MY_WME | MY_ZEROFILL));
     
@@ -1350,8 +1350,8 @@ int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_
         case toku_type_fixbinary:
         case toku_type_fixstring:
             pack_length = field->pack_length();
-            assert(pack_length < 256);
-            kc_info->field_lengths[i] = (uchar)pack_length;
+            assert(pack_length < 1<<16);
+            kc_info->field_lengths[i] = (u_int16_t)pack_length;
             kc_info->length_bytes[i] = 0;
             break;
         case toku_type_blob:

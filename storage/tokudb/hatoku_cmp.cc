@@ -1624,6 +1624,7 @@ u_int32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* 
     case (toku_type_float):
         pos[0] = COL_FIX_FIELD;
         pos++;
+        assert(kc_info->field_lengths[field_index] < 256);
         pos[0] = kc_info->field_lengths[field_index];
         pos++;
         break;
@@ -1637,13 +1638,6 @@ u_int32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* 
         pos++;
         break;
     case (toku_type_fixstring):
-        pos[0] = COL_VAR_FIELD;
-        pos++;
-        // always one length byte for fix fields
-        assert(key_part_length <= 255);
-        pos[0] = 1;
-        pos++;
-        break;
     case (toku_type_varbinary):
     case (toku_type_varstring):
     case (toku_type_blob):
