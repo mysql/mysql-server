@@ -15,7 +15,7 @@ usr/bin/mysqlreport
 usr/bin/mysqlshow
 usr/bin/mysql_waitpid
 usr/sbin/mysqlmanager
-usr/share/lintian/overrides/mysql-client-5.1
+usr/share/lintian/overrides/percona-xtradb-client-5.1
 usr/share/man/man1/innotop.1
 usr/share/man/man1/myisam_ftdump.1
 usr/share/man/man1/mysql.1

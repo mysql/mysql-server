@@ -27,7 +27,7 @@ test_mysql_access() {
 # call with $1 = "online" to connect to the server, otherwise it bootstraps
 set_mysql_rootpw() {
        # forget we ever saw the password.  don't use reset to keep the seen status
-       db_set mysql-server/root_password ""
+       db_set percona-xtradb-server/root_password ""
 
        tfile=`mktemp`
        if [ ! -f "$tfile" ]; then
@@ -127,9 +127,9 @@ EOF
     set -e
 
     # This is important to avoid dataloss when there is a removed
-    # mysql-server version from Woody lying around which used the same
+    # percona-xtradb-server version from Woody lying around which used the same
     # data directory and then somewhen gets purged by the admin.
-    db_set mysql-server/postrm_remove_database false || true
+    db_set percona-xtradb-server/postrm_remove_database false || true
 
     # To avoid downgrades.
     touch $mysql_statedir/debian-5.1.flag
@@ -227,7 +227,7 @@ EOF
     # Upgrade password column format before the root password gets set.
     echo "$password_column_fix_query"                        | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
 
-    db_get mysql-server/root_password && rootpw="$RET"
+    db_get percona-xtradb-server/root_password && rootpw="$RET"
     if ! set_mysql_rootpw; then
         password_error="yes"
     fi
@@ -254,9 +254,9 @@ esac
 # fails for any other reason, nothing happens.
 if [ "$1" = "configure" ]; then
        if test_mysql_access; then
-               db_input medium mysql-server/root_password || true
+               db_input medium percona-xtradb-server/root_password || true
                db_go
-               db_get mysql-server/root_password && rootpw="$RET"
+               db_get percona-xtradb-server/root_password && rootpw="$RET"
 
                if ! set_mysql_rootpw "online"; then
                        password_error="yes"
@@ -264,7 +264,7 @@ if [ "$1" = "configure" ]; then
        fi
 
        if [ "$password_error" = "yes" ]; then
-               db_input high mysql-server/error_setting_password || true
+               db_input high percona-xtradb-server/error_setting_password || true
                db_go
        fi
 

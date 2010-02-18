@@ -44,7 +44,7 @@ case "$1" in
 esac
 
 #
-# - Do NOT purge logs or data if another mysql-sever* package is installed (#307473)
+# - Do NOT purge logs or data if another percona-xtradb-server* package is installed (#307473)
 # - Remove the mysql user only after all his owned files are purged.
 #   
 if [ "$1" = "purge" -a ! \( -x /usr/sbin/mysqld -o -L /usr/sbin/mysqld \) ]; then
@@ -52,9 +52,9 @@ if [ "$1" = "purge" -a ! \( -x /usr/sbin/mysqld -o -L /usr/sbin/mysqld \) ]; the
   rm -f /var/log/mysql.{log,err}{,.0,.[1234567].gz}
   rm -rf /var/log/mysql
 
-  db_input high mysql-server-5.1/postrm_remove_databases || true
+  db_input high percona-xtradb-server-5.1/postrm_remove_databases || true
   db_go || true
-  db_get mysql-server-5.1/postrm_remove_databases || true
+  db_get percona-xtradb-server-5.1/postrm_remove_databases || true
   if [ "$RET" = "true" ]; then
     # never remove the debian.cnf when the databases are still existing
     # else we ran into big trouble on the next install!
@@ -78,6 +78,6 @@ if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ]; then
 fi
 # (normally) End automatically added section
 
-# no DEBHELPER here, "update-rc.d remove" fails if mysql-server-5.1 is installed
+# no DEBHELPER here, "update-rc.d remove" fails if percona-xtradb-server-5.1 is installed
 
 exit 0

@@ -24,8 +24,8 @@ usr/bin/replace
 usr/bin/resolve_stack_dump
 usr/bin/resolveip
 usr/sbin/mysqld
-usr/share/doc/mysql-server-5.1/
-usr/share/lintian/overrides/mysql-server-5.1
+usr/share/doc/percona-xtradb-server-5.1/
+usr/share/lintian/overrides/percona-xtradb-server-5.1
 usr/share/man/man1/msql2mysql.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
