@@ -70,7 +70,8 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    char m_tokenBuffer[512];
+    STATIC_CONST(MaxParseBytes = 512);
+    char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 
     Vector<const ParserRow<T> *> m_aliasUsed;
