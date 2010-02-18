@@ -1131,47 +1131,6 @@ int runSleepAndStop(NDBT_Context* ctx, NDBT_Step* step)
 
 
 static bool
-get_version(NdbMgmd& mgmd,
-            Properties& reply)
-{
-  Properties args;
-  if (!mgmd.call("get version", args,
-                 "version", reply))
-  {
-    g_err << "get_version: mgmd.call failed" << endl;
-    return false;
-  }
-
-  //reply.print();
-  return true;
-}
-
-int runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
-{
-  NdbMgmd mgmd;
-
-  if (!mgmd.connect())
-    return NDBT_FAILED;
-
-  Properties reply;
-  if (!get_version(mgmd, reply))
-   return NDBT_FAILED;
-
-  return NDBT_OK;
-}
-
-int runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
-{
-  int result= NDBT_OK;
-  while(!ctx->isTestStopped() &&
-        (result= runTestGetVersion(ctx, step)) == NDBT_OK)
-    ;
-  return result;
-}
-
-
-
-static bool
 check_connection(NdbMgmd& mgmd)
 {
   Properties args, reply;
@@ -2322,6 +2281,94 @@ int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static int
+runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
+{
+
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  char verStr[64];
+  int major, minor, build;
+  if (ndb_mgm_get_version(mgmd.handle(),
+                          &major, &minor, &build,
+                          sizeof(verStr), verStr) != 1)
+  {
+    g_err << "ndb_mgm_get_version failed,"
+          << "error: " << ndb_mgm_get_latest_error_msg(mgmd.handle())
+          << "desc: " << ndb_mgm_get_latest_error_desc(mgmd.handle()) << endl;
+    return NDBT_FAILED;
+  }
+
+  g_info << "Using major: " << major
+         << " minor: " << minor
+         << " build: " << build
+         << " string: " << verStr << endl;
+
+  int l = 0;
+  int loops = ctx->getNumLoops();
+  while(l < loops)
+  {
+    char verStr2[64];
+    int major2, minor2, build2;
+    if (ndb_mgm_get_version(mgmd.handle(),
+                            &major2, &minor2, &build2,
+                            sizeof(verStr2), verStr2) != 1)
+    {
+      g_err << "ndb_mgm_get_version failed,"
+            << "error: " << ndb_mgm_get_latest_error_msg(mgmd.handle())
+            << "desc: " << ndb_mgm_get_latest_error_desc(mgmd.handle()) << endl;
+      return NDBT_FAILED;
+    }
+
+    if (major != major2)
+    {
+      g_err << "Got different major: " << major2
+            << " excpected: " << major << endl;
+      return NDBT_FAILED;
+    }
+
+    if (minor != minor2)
+    {
+      g_err << "Got different minor: " << minor2
+            << " excpected: " << minor << endl;
+      return NDBT_FAILED;
+    }
+
+    if (build != build2)
+    {
+      g_err << "Got different build: " << build2
+            << " excpected: " << build << endl;
+      return NDBT_FAILED;
+    }
+
+    if (strcmp(verStr, verStr2) != 0)
+    {
+      g_err << "Got different verStr: " << verStr2
+            << " excpected: " << verStr << endl;
+      return NDBT_FAILED;
+    }
+
+    l++;
+  }
+
+  return NDBT_OK;
+}
+
+
+static int
+runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runTestGetVersion(ctx, step)) == NDBT_OK)
+    ;
+  return result;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2396,10 +2443,9 @@ TESTCASE("TestGetNodeId",
 	 "Test 'get nodeid'"){
   INITIALIZER(runTestGetNodeId);
 }
-
 TESTCASE("TestGetVersion",
-	 "Test 'get version'"){
-  INITIALIZER(runTestGetVersion);
+ 	 "Test 'get version' and 'ndb_mgm_get_version'"){
+  STEPS(runTestGetVersion, 20);
 }
 TESTCASE("TestTransporterConnect",
 	 "Test 'transporter connect'"){
@@ -2430,7 +2476,7 @@ TESTCASE("Stress",
   STEP(runSetConfigUntilStopped);
   STEPS(runGetConfigUntilStopped, 10);
   STEPS(runTestStatusUntilStopped, 10);
-//  STEPS(runTestGetVersionUntilStopped, 5);
+  STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
 TESTCASE("Stress2",
@@ -2439,7 +2485,7 @@ TESTCASE("Stress2",
   STEPS(runTestSetConfigParallelUntilStopped, 5);
   STEPS(runGetConfigUntilStopped, 10);
   STEPS(runTestStatusUntilStopped, 10);
-//  STEPS(runTestGetVersionUntilStopped, 5);
+  STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
 }
 TESTCASE("Bug45497",

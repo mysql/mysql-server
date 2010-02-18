@@ -238,7 +238,8 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
   _logLevelThreadSleep(500),
   m_event_listner(this),
   m_master_node(0),
-  _logLevelThread(NULL)
+  _logLevelThread(NULL),
+  m_version_string(ndbGetOwnVersionString())
 {
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
