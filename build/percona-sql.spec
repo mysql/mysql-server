@@ -104,8 +104,8 @@
 
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-%define server_suffix  -51
-%define package_suffix -51
+%define server_suffix  
+%define package_suffix 
 %define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define commercial 0
@@ -151,8 +151,8 @@ Patch07: mysql-test_for_xtradb.diff
 # Main spec file section
 ##############################################################################
 
-Name:		Percona-SQL%{package_suffix}
-Summary:	Percona-SQL: a very fast and reliable SQL database server
+Name:		Percona-XtraDB%{package_suffix}
+Summary:	Percona-XtraDB: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	%{mysqlversion}
 Release:	%{release}
@@ -162,7 +162,7 @@ Source:		%{src_dir}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} MySQL Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql Percona-SQL-server
+Provides:	msqlormysql MySQL-server mysql Percona-XtraDB-server
 BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache
 
 # Think about what you use here since the first step is to
@@ -171,98 +171,98 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 # From the manual
 %description
-The Percona-SQL software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. Percona-SQL Server
+The Percona-XtraDB software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. Percona-XtraDB Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. 
 
-Percona Inc. provides commercial support of Percona-SQL Server.
+Percona Inc. provides commercial support of Percona-XtraDB Server.
 For more information visist our web site http://www.percona.com/
 
 ##############################################################################
 # Sub package definition
 ##############################################################################
 
-%package -n Percona-SQL-server%{package_suffix}
+%package -n Percona-XtraDB-server%{package_suffix}
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
-Provides:	msqlormysql mysql-server mysql MySQL MySQL-server Percona-SQL-server
+Provides:	msqlormysql mysql-server mysql MySQL MySQL-server Percona-XtraDB-server
 Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community MySQL-server-percona
 
-%description -n Percona-SQL-server%{package_suffix}
-The Percona-SQL software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. Percona-SQL Server
+%description -n Percona-XtraDB-server%{package_suffix}
+The Percona-XtraDB software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. Percona-XtraDB Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. 
 
-Percona Inc. provides commercial support of Percona-SQL Server.
+Percona Inc. provides commercial support of Percona-XtraDB Server.
 For more information visist our web site http://www.percona.com/
 
-This package includes the Percona-SQL server binary 
+This package includes the Percona-XtraDB server binary 
 %if %{INNODB_BUILD}
 (configured including XtraDB)
 %endif
-as well as related utilities to run and administer a Percona-SQL server.
+as well as related utilities to run and administer a Percona-XtraDB server.
 
 If you want to access and work with the database, you have to install
-package "Percona-SQL-client%{package_suffix}" as well!
+package "Percona-XtraDB-client%{package_suffix}" as well!
 
 # ------------------------------------------------------------------------------
 
-%package -n Percona-SQL-client%{package_suffix}
-Summary: Percona-SQL - Client
+%package -n Percona-XtraDB-client%{package_suffix}
+Summary: Percona-XtraDB - Client
 Group: Applications/Databases
 Obsoletes: mysql-client MySQL-client MySQL-client-community MySQL-client-percona
-Provides: mysql-client MySQL-client Percona-SQL-client
+Provides: mysql-client MySQL-client Percona-XtraDB-client
 
-%description -n Percona-SQL-client%{package_suffix}
-This package contains the standard Percona-SQL clients and administration tools. 
+%description -n Percona-XtraDB-client%{package_suffix}
+This package contains the standard Percona-XtraDB clients and administration tools. 
 
 %{see_base}
 
 
 # ------------------------------------------------------------------------------
 
-%package -n Percona-SQL-test%{package_suffix}
+%package -n Percona-XtraDB-test%{package_suffix}
 Requires: mysql-client perl
-Summary: Percona-SQL - Test suite
+Summary: Percona-XtraDB - Test suite
 Group: Applications/Databases
-Provides: mysql-test MySQL-test Percona-SQL-test
+Provides: mysql-test MySQL-test Percona-XtraDB-test
 Obsoletes: mysql-test MySQL-test MySQL-test-community MySQL-test-percona
 AutoReqProv: no
 
-%description -n Percona-SQL-test%{package_suffix}
-This package contains the Percona-SQL regression test suite.
+%description -n Percona-XtraDB-test%{package_suffix}
+This package contains the Percona-XtraDB regression test suite.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
-%package -n Percona-SQL-devel%{package_suffix}
-Summary: Percona-SQL - Development header files and libraries
+%package -n Percona-XtraDB-devel%{package_suffix}
+Summary: Percona-XtraDB - Development header files and libraries
 Group: Applications/Databases
-Provides: mysql-devel MySQL-devel Percona-SQL-devel
+Provides: mysql-devel MySQL-devel Percona-XtraDB-devel
 Obsoletes: mysql-devel MySQL-devel MySQL-devel-community MySQL-devel-percona
 
-%description -n Percona-SQL-devel%{package_suffix}
+%description -n Percona-XtraDB-devel%{package_suffix}
 This package contains the development header files and libraries
-necessary to develop Percona-SQL client applications.
+necessary to develop Percona-XtraDB client applications.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
-%package -n Percona-SQL-shared%{package_suffix}
-Summary: Percona-SQL - Shared libraries
+%package -n Percona-XtraDB-shared%{package_suffix}
+Summary: Percona-XtraDB - Shared libraries
 Group: Applications/Databases
-Provides: mysql-shared MySQL-shared Percona-SQL-shared
+Provides: mysql-shared MySQL-shared Percona-XtraDB-shared
 # Obsoletes below to correct old missing Provides:/Obsoletes
 Obsoletes: mysql-shared MySQL-shared-standard MySQL-shared-pro
 Obsoletes: MySQL-shared-pro-cert MySQL-shared-pro-gpl
 Obsoletes: MySQL-shared-pro-gpl-cert MySQL-shared MySQL-shared-community MySQL-shared-percona
 
-%description -n Percona-SQL-shared%{package_suffix}
+%description -n Percona-XtraDB-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
@@ -271,7 +271,7 @@ languages and applications need to dynamically load and use MySQL.
 %if %{PERCONA_PLUGIN_BUILD}
 
 %package -n Percona-XtraDB-%{pluginversion}-%{xtradbversion}
-Requires: Percona-SQL-devel
+Requires: Percona-XtraDB-devel
 Summary: Percona XtraDB Storage engine for MySQL
 Group: Applications/Databases
 Provides: percona-xtradb-plugin Percona-XtraDB-plugin
@@ -589,7 +589,7 @@ install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre -n Percona-SQL-server%{package_suffix}
+%pre -n Percona-XtraDB-server%{package_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -663,7 +663,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 	sleep 5
 fi
 
-%post -n Percona-SQL-server%{package_suffix}
+%post -n Percona-XtraDB-server%{package_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -766,7 +766,7 @@ sleep 2
 mkdir -p /var/lib/mysql-cluster
 %endif
 
-%preun -n Percona-SQL-server%{package_suffix}
+%preun -n Percona-XtraDB-server%{package_suffix}
 if [ $1 = 0 ] ; then
 	# Stop MySQL before uninstalling it
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -791,7 +791,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files -n Percona-SQL-server%{package_suffix}
+%files -n Percona-XtraDB-server%{package_suffix}
 %defattr(-,root,root,0755)
 
 %doc %{lic_files}
@@ -880,7 +880,7 @@ fi
 
 %attr(755, root, root) %{_datadir}/mysql/
 
-%files -n Percona-SQL-client%{package_suffix}
+%files -n Percona-XtraDB-client%{package_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
@@ -908,10 +908,10 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
-%post -n Percona-SQL-shared%{package_suffix}
+%post -n Percona-XtraDB-shared%{package_suffix}
 /sbin/ldconfig
 
-%postun -n Percona-SQL-shared%{package_suffix}
+%postun -n Percona-XtraDB-shared%{package_suffix}
 /sbin/ldconfig
 
 %if %{CLUSTER_BUILD}
@@ -961,7 +961,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
 %endif
 
-%files -n Percona-SQL-devel%{package_suffix}
+%files -n Percona-XtraDB-devel%{package_suffix}
 %defattr(-, root, root, 0755)
 %if %{commercial}
 %else
@@ -994,12 +994,12 @@ fi
 %{_libdir}/mysql/libndbclient.la
 %endif
 
-%files -n Percona-SQL-shared%{package_suffix}
+%files -n Percona-XtraDB-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
 
-%files -n Percona-SQL-test%{package_suffix}
+%files -n Percona-XtraDB-test%{package_suffix}
 %defattr(-, root, root, 0755)
 %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -1020,7 +1020,7 @@ fi
 %changelog
 * Thu Feb 11 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
 
-Package name changed to Percona-SQL
+Package name changed to Percona-XtraDB
 
 * Tue Jan 05 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
 
