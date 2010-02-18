@@ -104,8 +104,8 @@
 
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-%define server_suffix  
-%define package_suffix 
+%define server_suffix  -51
+%define package_suffix -51
 %define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
 %define commercial 0
