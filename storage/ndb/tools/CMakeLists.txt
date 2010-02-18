@@ -56,6 +56,7 @@ SET_TARGET_PROPERTIES(ndb_config PROPERTIES
 
 # Build ndbinfo_sql and run it to create ndbinfo.sql
 ADD_EXECUTABLE(ndbinfo_sql ndbinfo_sql.cpp)
+TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
                    COMMAND ${NDBINFO_SQL_EXE} ARGS > ndbinfo.sql

@@ -33,7 +33,6 @@ int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static int _partinfo = 0;
-static int _blobinfo = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -54,9 +53,6 @@ static struct my_option my_long_options[] =
   { "retries", 'r', "Retry every second for # retries",
     (uchar**) &_retries, (uchar**) &_retries, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "blob-info", 'b', "Show information for hidden blob tables (requires -p)",
-    (uchar**) &_blobinfo, (uchar**) &_blobinfo, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -285,24 +281,7 @@ int desc_table(Ndb *myndb, char* name)
   ndbout << endl;
 
   if (_partinfo)
-  {
     print_part_info(myndb, pTab);
-    ndbout << endl;
-    if (_blobinfo)
-    {
-      int noOfAttributes = pTab->getNoOfColumns();
-      for (int i = 0; i < noOfAttributes; i++)
-      {
-        const NdbDictionary::Column* column = pTab->getColumn(i);
-        if ((column->getType() == NdbDictionary::Column::Blob) || 
-          (column->getType() == NdbDictionary::Column::Text))
-        {
-          print_part_info(myndb, (NDBT_Table*) column->getBlobTable());
-          ndbout << endl;
-        }
-      }
-    }
-  }
 	
   return 1;
 }
@@ -330,12 +309,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     { 0, 0, 0 }
   };
 
-  ndbout << "-- Per partition info";
-
-  if (_blobinfo && _partinfo)
-    ndbout << " for " << pTab->getName();
-
-  ndbout << " -- " << endl;
+  ndbout << "-- Per partition info -- " << endl;
   
   const Uint32 codeWords= 1;
   Uint32 codeSpace[ codeWords ];
@@ -406,6 +380,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
       printf("\n");
     }
   } while(0);
+  
   pTrans->close();
 }
 
@@ -431,5 +406,6 @@ int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name)
     delete [] tmp;
     return 1;
   }
+
   return 0;
 }
