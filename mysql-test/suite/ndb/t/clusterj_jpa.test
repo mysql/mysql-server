@@ -9,7 +9,6 @@
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_java.inc
 --source suite/ndb/include/have_junit.inc
---source suite/ndb/include/have_ndbjtie.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_clusterj_jpa.inc
 --source suite/ndb/include/have_openjpa.inc
@@ -23,8 +22,6 @@
 --let JAVA_CLASSPATH=-classpath $CLUSTERJ_JPA_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JPA_TEST_JAR
 --let JAVA_CLASSPATH_2=$CLUSTERJ_TEST_JAR
---let JAVA_CLASSPATH_3=$CLUSTERJ_JAR
---let JAVA_CLASSPATH_4=$NDBJTIE_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
 --let JAVA_JVM_OPTS_1= -Djava.library.path="$NDBCLIENT_LIB_DIR"

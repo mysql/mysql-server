@@ -30,7 +30,6 @@ CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):@CLUSTERJ_CLASSPATH@:../clusterj-api/clust
 clusterj_jpatestdir= $(prefix)/share/mysql/java/
 
 clusterj_jpatest_version_JAR = clusterj-jpatest-@JAVA_NDB_VERSION@.jar
-clusterj_jpatest_JAR = clusterj-jpatest.jar
 
 clusterj_jpatest_DATA = $(clusterj_jpatest_version_JAR)
 
@@ -94,6 +93,12 @@ $(MANIFEST):
 	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
 	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-jpatest" >> $(MANIFEST)
 
+classPCEnhancer.stamp:
+	$(JAVA) -classpath "$(JAVAROOT):$(CLUSTERJ_CLASSPATH)" \
+	org.apache.openjpa.enhance.PCEnhancer \
+	-p $(clusterj_jpatest_res)/META-INF/persistence.xml -d $(JAVAROOT);
+	echo timestamp > classPCEnhancer.stamp
+
 classclusterj_jpatest.stamp: $(clusterj_jpatest_java)
 	mkdir -p  $(JAVAROOT)
 	if test -n "$?"; then \
@@ -103,21 +108,12 @@ classclusterj_jpatest.stamp: $(clusterj_jpatest_java)
 	fi
 	echo timestamp > classclusterj_jpatest.stamp
 
-$(clusterj_jpatest_version_JAR) : classclusterj_jpatest.stamp $(MANIFEST)
-	$(JAVA) -classpath "$(JAVAROOT):$(CLUSTERJ_CLASSPATH)" \
-	org.apache.openjpa.enhance.PCEnhancer \
-	-p $(clusterj_jpatest_res)/META-INF/persistence.xml -d $(JAVAROOT); \
+$(clusterj_jpatest_version_JAR) : classclusterj_jpatest.stamp classPCEnhancer.stamp $(MANIFEST)
 	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
   	  -C $(JAVAROOT) com/mysql/clusterj/jpatest
-	$(LN_CP_F) -f $(clusterj_jpatest_version_JAR) $(clusterj_jpatest_JAR)
 
-CLEANFILES= $(clusterj_jpatest_version_JAR) $(clusterj_jpatest_JAR) classclusterj_jpatest.stamp
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)/$(clusterj_jpatestdir) && \
-	$(LN_CP_F) -f $(clusterj_jpatest_version_JAR) $(clusterj_jpatest_JAR)
-
+CLEANFILES= $(clusterj_jpatest_version_JAR) \
+	classclusterj_jpatest.stamp classPCEnhancer.stamp
 
 clean-local:
 	rm -f $(JAVAROOT)/com/mysql/clusterj/jpatest/*.class \
