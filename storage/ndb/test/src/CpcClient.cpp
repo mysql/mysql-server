@@ -441,6 +441,15 @@ SimpleCpcClient::cpc_send(const char *cmd,
       break;
     case PropertiesType_char:
       args.get(name, val_s);
+      if (strlen(val_s.c_str()) > Parser_t::Context::MaxParseBytes)
+      {
+        ndbout << "Argument " << name << " at " 
+               << strlen(val_s.c_str())
+               << " longer than max of "
+               << Parser_t::Context::MaxParseBytes
+               << endl;
+        abort();
+      }
       cpc_out.println("%s: %s", name, val_s.c_str());
       break;
     default:
