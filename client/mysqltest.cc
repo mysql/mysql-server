@@ -67,6 +67,7 @@
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
+#define DEFAULT_MAX_CONN       128
 
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
@@ -79,8 +80,8 @@
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES,
-  OPT_RESULT_FORMAT_VERSION
+  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS,
+  OPT_LOG_DIR, OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, 
 };
 
 static int record= 0, opt_sleep= -1;
@@ -94,6 +95,7 @@ const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
+static int opt_max_connections= DEFAULT_MAX_CONN;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
@@ -247,7 +249,8 @@ struct st_connection
   int query_done;
 #endif /*EMBEDDED_LIBRARY*/
 };
-struct st_connection connections[128];
+
+struct st_connection *connections= NULL;
 struct st_connection* cur_con= NULL, *next_con, *connections_end;
 
 /*
@@ -1102,6 +1105,7 @@ void close_connections()
       mysql_close(next_con->util_mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
   }
+  my_free(connections, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
@@ -1142,7 +1146,8 @@ void free_used_memory()
   uint i;
   DBUG_ENTER("free_used_memory");
 
-  close_connections();
+  if (connections)
+    close_connections();
   close_files();
   my_hash_free(&var_hash);
 
@@ -5144,7 +5149,7 @@ void do_connect(struct st_command *command)
   {
     if (!(con_slot= find_connection_by_name("-closed_connection-")))
       die("Connection limit exhausted, you can have max %d connections",
-          (int) (sizeof(connections)/sizeof(struct st_connection)));
+          opt_max_connections);
   }
 
 #ifdef EMBEDDED_LIBRARY
@@ -5915,6 +5920,10 @@ static struct my_option my_long_options[] =
    "Max number of connection attempts when connecting to server",
    (uchar**) &opt_max_connect_retries, (uchar**) &opt_max_connect_retries, 0,
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
+  {"max-connections", OPT_MAX_CONNECTIONS,
+   "Max number of open connections to server",
+   (uchar**) &opt_max_connections, (uchar**) &opt_max_connections, 0,
+   GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
@@ -7796,12 +7805,6 @@ int main(int argc, char **argv)
   /* Init expected errors */
   memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
 
-  /* Init connections */
-  memset(connections, 0, sizeof(connections));
-  connections_end= connections +
-    (sizeof(connections)/sizeof(struct st_connection)) - 1;
-  next_con= connections + 1;
-
 #ifdef EMBEDDED_LIBRARY
   /* set appropriate stack for the 'query' threads */
   (void) pthread_attr_init(&cn_thd_attrib);
@@ -7863,6 +7866,13 @@ int main(int argc, char **argv)
     verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
   }
 
+  /* Init connections, allocate 1 extra as buffer + 1 for default */
+  connections= (struct st_connection*)
+    my_malloc((opt_max_connections+2) * sizeof(struct st_connection),
+              MYF(MY_WME | MY_ZEROFILL));
+  connections_end= connections + opt_max_connections +1;
+  next_con= connections + 1;
+  
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
