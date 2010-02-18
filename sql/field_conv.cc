@@ -122,13 +122,18 @@ set_field_to_null(Field *field)
     return 0;
   }
   field->reset();
-  if (field->table->in_use->count_cuted_fields == CHECK_FIELD_WARN)
-  {
+  switch (field->table->in_use->count_cuted_fields) {
+  case CHECK_FIELD_WARN:
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    /* fall through */
+  case CHECK_FIELD_IGNORE:
     return 0;
+  case CHECK_FIELD_ERROR_FOR_NULL:
+    if (!field->table->in_use->no_errors)
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    return -1;
   }
-  if (!field->table->in_use->no_errors)
-    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+  DBUG_ASSERT(0); // impossible
   return -1;
 }
 
@@ -178,13 +183,18 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= FALSE;
     return 0;				  // field is set in fill_record()
   }
-  if (field->table->in_use->count_cuted_fields == CHECK_FIELD_WARN)
-  {
+  switch (field->table->in_use->count_cuted_fields) {
+  case CHECK_FIELD_WARN:
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
+    /* fall through */
+  case CHECK_FIELD_IGNORE:
     return 0;
+  case CHECK_FIELD_ERROR_FOR_NULL:
+    if (!field->table->in_use->no_errors)
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    return -1;
   }
-  if (!field->table->in_use->no_errors)
-    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+  DBUG_ASSERT(0); // impossible
   return -1;
 }
 

@@ -2396,4 +2396,17 @@ SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 
+#
+# Bug #48525: trigger changes "Column 'id' cannot be null" behaviour
+#
+CREATE TABLE t1 (id INT NOT NULL);
+CREATE TABLE t2 (id INT NOT NULL);
+INSERT t1 VALUES (1),(2),(3);
+UPDATE t1 SET id=NULL;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+  INSERT INTO t2 VALUES (3);
+UPDATE t1 SET id=NULL;
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
+
 --echo End of 5.1 tests.
