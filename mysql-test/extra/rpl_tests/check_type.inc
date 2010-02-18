@@ -11,18 +11,19 @@
 #                      on the slave)
 #    $can_convert      True if conversion shall work, false if it
 #                      shall generate an error 
-
+#    $engine_type      The storage engine to be used for storing table
+#                      on both master and slave
 
 connection master;
 disable_warnings;
 DROP TABLE IF EXISTS t1;
 enable_warnings;
-eval CREATE TABLE t1 (a $source_type);
+eval CREATE TABLE t1 (pk INT NOT NULL PRIMARY KEY, a $source_type) ENGINE=$engine_type;
 sync_slave_with_master;
 eval ALTER TABLE t1 MODIFY a $target_type;
 
 connection master;
-eval INSERT INTO t1 VALUES($source_value);
+eval INSERT INTO t1 VALUES(1, $source_value);
 if ($can_convert) {
   sync_slave_with_master;
   eval SELECT a = $target_value into @compare FROM t1;

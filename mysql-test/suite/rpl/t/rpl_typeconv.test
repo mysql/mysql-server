@@ -1,5 +1,6 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
+let $engine_type=MYISAM;
 
 connection slave;
 set @saved_slave_type_conversions = @@global.slave_type_conversions;
