@@ -677,14 +677,14 @@ void
 MgmApiSession::getVersion(Parser<MgmApiSession>::Context &,
 			  Properties const &) {
   m_output->println("version");
-  m_output->println("id: %d", NDB_VERSION);
-  m_output->println("major: %d", getMajor(NDB_VERSION));
-  m_output->println("minor: %d", getMinor(NDB_VERSION));
-  m_output->println("build: %d", getBuild(NDB_VERSION));
-  m_output->println("string: %s", NDB_VERSION_STRING);
-  m_output->println("mysql_major: %d", getMajor(NDB_MYSQL_VERSION_D));
-  m_output->println("mysql_minor: %d", getMinor(NDB_MYSQL_VERSION_D));
-  m_output->println("mysql_build: %d", getBuild(NDB_MYSQL_VERSION_D));
+  m_output->println("id: %d", NDB_VERSION_D);
+  m_output->println("major: %d", NDB_VERSION_MAJOR);
+  m_output->println("minor: %d", NDB_VERSION_MINOR);
+  m_output->println("build: %d", NDB_VERSION_BUILD);
+  m_output->println("string: %s", m_mgmsrv.get_version_string());
+  m_output->println("mysql_major: %d", NDB_MYSQL_VERSION_MAJOR);
+  m_output->println("mysql_minor: %d", NDB_MYSQL_VERSION_MINOR);
+  m_output->println("mysql_build: %d", NDB_MYSQL_VERSION_BUILD);
   m_output->println("%s", "");
 }
 
