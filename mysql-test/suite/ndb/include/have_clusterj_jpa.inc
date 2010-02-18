@@ -21,12 +21,12 @@ my $basedir = dirname($mysql_test_dir);
 # Check if the needed jars are available
 #
 my $clusterj_jpa_jar = my_find_file($basedir,
-                                ["storage/ndb/clusterj/clusterj-openjpa", "share/mysql/java"],
-                                "clusterj-openjpa.jar", NOT_REQUIRED);
+                                ["storage/ndb/clusterj", "share/mysql/java"],
+                                "clusterjpa-*.jar", NOT_REQUIRED);
 
 my $clusterj_jpa_test_jar = my_find_file($basedir,
                                     ["storage/ndb/clusterj/clusterj-jpatest", "share/mysql/java"],
-                                    "clusterj-jpatest.jar", NOT_REQUIRED);
+                                    "clusterj-jpatest-*.jar", NOT_REQUIRED);
 
 my $clusterj_test_schema = my_find_file($basedir,
                                     ["storage/ndb/clusterj/clusterj-test/src/main/resources", "share/mysql/java"],

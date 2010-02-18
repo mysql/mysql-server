@@ -3112,7 +3112,7 @@ storage/ndb/**/*.class
 storage/ndb/src/ndbjtie/**/*.sh
 storage/ndb/src/ndbjtie/**/*.log
 storage/ndb/src/ndbjtie/jtie/test/myapi/myapi_test
-storage/ndb/clusterj/MANIFEST.MF
+storage/ndb/clusterj/*_MANIFEST.MF
 storage/ndb/clusterj/**/MANIFEST.MF
 storage/ndb/test/crund/*.properties
 storage/ndb/test/crund/*.cnf

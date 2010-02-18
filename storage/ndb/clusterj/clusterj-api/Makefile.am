@@ -94,14 +94,13 @@ classclusterj_api.stamp: $(clusterj_api_java)
 $(clusterj_api_version_JAR): classclusterj_api.stamp $(MANIFEST)
 	rm -f $@; @JAR@ cvfm $@ $(MANIFEST) \
 	  -C $(JAVAROOT) com/mysql/clusterj 
-	$(LN_CP_F) -f $(clusterj_api_version_JAR) $(clusterj_api_JAR)
 
 ## create a versioned link
 install-data-hook:
 	cd $(DESTDIR)/$(clusterj_apidir) && \
 	$(LN_CP_F) -f $(clusterj_api_version_JAR) $(clusterj_api_JAR)
 
-CLEANFILES= $(clusterj_api_version_JAR) $(clusterj_api_JAR) classclusterj_api.stamp
+CLEANFILES= $(clusterj_api_version_JAR) classclusterj_api.stamp
 
 clean-local:
 	rm -f $(JAVAROOT)/com/mysql/clusterj/*.class \

@@ -25,12 +25,11 @@ MANIFEST = MANIFEST.MF
 
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-test/target/classes
 
-CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar:@CLUSTERJ_CLASSPATH@
+CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/target/classes:@CLUSTERJ_CLASSPATH@
 
 clusterj_testdir= $(prefix)/share/mysql/java/
 
 clusterj_test_version_JAR = clusterj-test-@JAVA_NDB_VERSION@.jar
-clusterj_test_JAR = clusterj-test.jar
 
 clusterj_test_DATA = $(clusterj_test_version_JAR) 
 
@@ -164,15 +163,8 @@ $(clusterj_test_version_JAR) : classclusterj_test.stamp $(MANIFEST)
 	  -C $(clusterj_test_res) META-INF \
 	  -C $(clusterj_test_res) schema.sql \
 	  -C $(JAVAROOT) testsuite/clusterj
-	$(LN_CP_F) -f $(clusterj_test_version_JAR) $(clusterj_test_JAR)
 
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)/$(clusterj_testdir) && \
-	$(LN_CP_F) -f $(clusterj_test_version_JAR) $(clusterj_test_JAR)
-
-
-CLEANFILES= $(clusterj_test_version_JAR) $(clusterj_test_JAR) classclusterj_test.stamp
+CLEANFILES= $(clusterj_test_version_JAR) classclusterj_test.stamp
 
 clean-local:
 	rm -f $(JAVAROOT)/testsuite/clusterj/*.class \

@@ -18,15 +18,20 @@ my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
 
 #
-# Check if the needed jars are available
+# Check if the needed jars and libs are available
 #
 my $clusterj_jar = my_find_file($basedir,
                                 ["storage/ndb/clusterj", "share/mysql/java"],
-                                "mysql-cluster-connector-java.jar", NOT_REQUIRED);
+                                "clusterj-*.jar", NOT_REQUIRED);
 
 my $clusterj_test_jar = my_find_file($basedir,
                                     ["storage/ndb/clusterj/clusterj-test", "share/mysql/java"],
-                                    "clusterj-test.jar", NOT_REQUIRED);
+                                    "clusterj-test-*.jar", NOT_REQUIRED);
+
+my $ndbclient_lib = my_find_file($basedir,
+                                ["storage/ndb/src/.libs", "lib/mysql"],
+                                ["libndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
+                                NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_clusterj_result.inc", 'w') or die;
 if ($clusterj_jar) {
@@ -42,6 +47,14 @@ if ($clusterj_test_jar) {
 } else {
   print $F "skip Could not find clusterj test jar file\n";
 }
+
+if ($ndbclient_lib) {
+  my $ndbclient_lib_dir = dirname($ndbclient_lib);
+  print $F "--let \$NDBCLIENT_LIB_DIR= $ndbclient_lib_dir\n";
+} else {
+    print $F "skip Did not find libndbclient\n";
+}
+
 $F->close();
 
 write_properties();

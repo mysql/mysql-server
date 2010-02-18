@@ -25,16 +25,9 @@ clusterj_openjpa_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/
 
 clusterj_openjpa_test_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/test/resources
 
-MANIFEST = MANIFEST.MF
-
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/target/classes
 
-CLASSPATH_ENV = CLASSPATH=@CLUSTERJ_CLASSPATH@:$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-@JAVA_NDB_VERSION@.jar
-
-clusterj_openjpadir= $(prefix)/share/mysql/java/
-
-clusterj_openjpa_version_JAR = clusterj-openjpa-@JAVA_NDB_VERSION@.jar
-clusterj_openjpa_JAR = clusterj-openjpa.jar
+CLASSPATH_ENV = CLASSPATH=@CLUSTERJ_CLASSPATH@:$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/target/classes:$(top_srcdir)/storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-@JAVA_NDB_VERSION@.jar
 
 clusterj_openjpa_java = \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/NdbOpenJPAResult.java \
@@ -71,7 +64,7 @@ clusterj_openjpa_tests = \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsSqlTimestampTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsUtilDateTest.java
 
-clusterj_openjpa_DATA = $(clusterj_openjpa_version_JAR)
+noinst_DATA = classclusterj_openjpa.stamp 
 
 EXTRA_DIST = \
   $(clusterj_openjpa_res)/META-INF/services/* \
@@ -79,13 +72,6 @@ EXTRA_DIST = \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/*.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/*.java \
   pom.xml
-
-$(MANIFEST):
-	echo "Manifest-Version: 1.0"  > $(MANIFEST)
-	echo "Export-Package: com.mysql.clusterj.openjpa"  >> $(MANIFEST)
-	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
-	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
-	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-openjpa" >> $(MANIFEST)
 
 classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 	mkdir -p  $(JAVAROOT)
@@ -96,19 +82,7 @@ classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 	fi
 	echo timestamp > classclusterj_openjpa.stamp
 
-$(clusterj_openjpa_version_JAR) : classclusterj_openjpa.stamp $(MANIFEST)
-	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
-	-C $(JAVAROOT) com/mysql/clusterj/openjpa \
-	-C $(clusterj_openjpa_res) com/mysql/clusterj/openjpa/Bundle.properties \
-	-C $(clusterj_openjpa_res) META-INF 
-	$(LN_CP_F) -f $(clusterj_openjpa_version_JAR) $(clusterj_openjpa_JAR)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)/$(clusterj_openjpadir) && \
-	$(LN_CP_F) -f $(clusterj_openjpa_version_JAR) $(clusterj_openjpa_JAR)
-
-CLEANFILES= $(clusterj_openjpa_version_JAR) $(clusterj_openjpa_JAR) classclusterj_openjpa.stamp
+CLEANFILES= classclusterj_openjpa.stamp
 
 clean-local:
 	rm -f $(JAVAROOT)/com/mysql/clusterj/openjpa/*.class

@@ -21,16 +21,9 @@ clusterj_core_src = $(top_srcdir)/storage/ndb/clusterj/clusterj-core/src/main/ja
 
 clusterj_core_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-core/src/main/resources
 
-MANIFEST = MANIFEST.MF
-
 JAVAROOT=$(top_srcdir)/storage/ndb/clusterj/clusterj-core/target/classes
 
 CLASSPATH_ENV=CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar
-
-clusterj_coredir= $(prefix)/share/mysql/java/
-
-clusterj_core_version_JAR = clusterj-core-@JAVA_NDB_VERSION@.jar
-clusterj_core_JAR = clusterj-core.jar
 
 clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/CacheManager.java \
@@ -94,7 +87,7 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactory.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/LoggerFactoryService.java 
 
-clusterj_core_DATA = $(clusterj_core_version_JAR) 
+noinst_DATA = classclusterj_core.stamp
 
 EXTRA_DIST = \
   $(clusterj_core_res)/META-INF \
@@ -107,13 +100,6 @@ EXTRA_DIST = \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/*.java \
   pom.xml
 
-$(MANIFEST):
-	echo "Manifest-Version: 1.0"  > $(MANIFEST)
-	echo "Export-Package: com.mysql.clusterj,com.mysql.clusterj.metadata,com.mysql.clusterj.query,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util"  >> $(MANIFEST)
-	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
-	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
-	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-core" >> $(MANIFEST)
-
 classclusterj_core.stamp: $(clusterj_core_java)
 	mkdir -p $(JAVAROOT)
 	if test -n "$?"; then \
@@ -123,20 +109,7 @@ classclusterj_core.stamp: $(clusterj_core_java)
 	fi
 	echo timestamp > classclusterj_core.stamp
 
-
-$(clusterj_core_version_JAR) : classclusterj_core.stamp $(MANIFEST)
-	rm -f $@ ; @JAR@ cvfm $@ $(MANIFEST) \
-	  -C $(clusterj_core_res) META-INF \
-	  -C $(clusterj_core_res) com/mysql/clusterj/core/Bundle.properties \
-	  -C $(JAVAROOT) com/mysql/clusterj
-	$(LN_CP_F) -f $(clusterj_core_version_JAR) $(clusterj_core_JAR)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)/$(clusterj_coredir) && \
-	$(LN_CP_F) -f $(clusterj_core_version_JAR) $(clusterj_core_JAR)
-
-CLEANFILES= $(clusterj_core_version_JAR) $(clusterj_core_JAR) classclusterj_core.stamp
+CLEANFILES= classclusterj_core.stamp
 
 clean-local:
 	rm -f $(JAVAROOT)/com/mysql/clusterj/core/*.class \
@@ -145,8 +118,6 @@ clean-local:
   $(JAVAROOT)/com/mysql/clusterj/core/spi/*.class \
   $(JAVAROOT)/com/mysql/clusterj/core/store/*.class \
   $(JAVAROOT)/com/mysql/clusterj/core/util/*.class 
-
-MOSTLYCLEANFILES = $(MANIFEST)
 
 mostlyclean-local: clean-local
 	rm -rf $(top_srcdir)/storage/ndb/clusterj/clusterj-core/target

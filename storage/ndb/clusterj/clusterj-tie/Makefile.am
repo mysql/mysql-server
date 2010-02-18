@@ -22,16 +22,9 @@ clusterj_tie_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/test/jav
 
 clusterj_tie_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/src/main/resources
 
-CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/src/ndbjtie/ndbjtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/src/ndbjtie/jtie/jtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/clusterj-core-@JAVA_NDB_VERSION@.jar
+CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(top_srcdir)/storage/ndb/src/ndbjtie/ndbjtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/src/ndbjtie/jtie/jtie-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/target/classes
 
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-tie/target/classes
-
-MANIFEST = MANIFEST.MF
-
-clusterj_tiedir= $(prefix)/share/mysql/java/
-
-clusterj_tie_version_JAR = clusterj-tie-@JAVA_NDB_VERSION@.jar
-clusterj_tie_JAR = clusterj-tie.jar
 
 clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/Utility.java \
@@ -56,7 +49,7 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/KeyPart.java 
 
 
-clusterj_tie_DATA = $(clusterj_tie_version_JAR) 
+noinst_DATA = classclusterj_tie.stamp 
 
 EXTRA_DIST = \
   src/main/resources/META-INF \
@@ -64,13 +57,6 @@ EXTRA_DIST = \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/*.java \
   $(clusterj_tie_test)/testsuite/clusterj/tie/*.java \
   pom.xml
-
-$(MANIFEST):
-	echo "Manifest-Version: 1.0"  > $(MANIFEST)
-	echo "Export-Package: com.mysql.clusterj.tie"  >> $(MANIFEST)
-	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
-	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
-	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-tie" >> $(MANIFEST)
 
 classclusterj_tie.stamp: $(clusterj_tie_java)
 	mkdir -p  $(JAVAROOT)
@@ -81,19 +67,7 @@ classclusterj_tie.stamp: $(clusterj_tie_java)
 	fi
 	echo timestamp > classclusterj_tie.stamp
 
-$(clusterj_tie_version_JAR) : classclusterj_tie.stamp $(MANIFEST)
-	rm -f $@ ; @JAR@ cvfm $@ $(MANIFEST) -C src/main/resources META-INF \
-	  -C src/main resources/com/mysql/clusterj/tie/Bundle.properties \
-	  -C $(JAVAROOT) com/mysql/clusterj
-	$(LN_CP_F) -f $(clusterj_tie_version_JAR) $(clusterj_tie_JAR)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)/$(clusterj_tiedir) && \
-	$(LN_CP_F) -f $(clusterj_tie_version_JAR) $(clusterj_tie_JAR)
-
-
-CLEANFILES= $(clusterj_tie_version_JAR) $(clusterj_tie_JAR) classclusterj_tie.stamp
+CLEANFILES= classclusterj_tie.stamp
 
 clean-local:
 	rm -rf $(JAVAROOT)/com/mysql/clusterj/tie/*.class
