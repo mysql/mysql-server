@@ -554,6 +554,12 @@ public:
   int match_hostname(const struct sockaddr *, const char *) const;
   int try_alloc(unsigned id,  const char *, enum ndb_mgm_node_type type,
                 const struct sockaddr *client_addr, Uint32 timeout_ms);
+
+  BaseString m_version_string;
+  const char* get_version_string(void) const {
+    return m_version_string.c_str();
+  }
+
 };
 
 #endif // MgmtSrvr_H
