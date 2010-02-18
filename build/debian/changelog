@@ -1,4 +1,4 @@
-mysql-dfsg-5.1 (5.1.36-1) experimental; urgency=low
+percona-xtradb-dfsg-5.1 (5.1.36-1) experimental; urgency=low
 
   [TODO]
   * Link libmysqlclient.so to libmysqlclient_r.so to help applications

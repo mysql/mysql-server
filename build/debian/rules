@@ -2,7 +2,7 @@
 
 export DH_VERBOSE=1
 
-PACKAGE=mysql-dfsg-5.1
+PACKAGE=percona-xtradb-dfsg-5.1
 
 include /usr/share/dpatch/dpatch.make
 
@@ -20,7 +20,7 @@ DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
 DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
 
-DISTRIBUTION = $(shell echo "MySQL Community Server (GPL), XtraDB $(BB_PERCONA_VERSION), Revision $(BB_PERCONA_REVISION)")
+DISTRIBUTION = $(shell echo "Percona SQL Server (GPL), XtraDB $(BB_PERCONA_VERSION), Revision $(BB_PERCONA_REVISION)")
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
@@ -206,39 +206,39 @@ install: build
 	cp include/my_config.h $(TMP)/usr/include/mysql/
 	cp include/my_dir.h $(TMP)/usr/include/mysql/
 
-	# mysql-common: We now provide our own config file.
+	# percona-xtradb-common: We now provide our own config file.
 	install -d $(TMP)/etc/mysql
 	install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
 
-	# mysql-client
+	# percona-xtradb-client
 	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
 	install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
 	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
 	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/usr/share/perl5/InnoDBParser.pm
 
-	# mysql-server
+	# percona-xtradb-server
 	install -m 0755 scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
-	mkdir -p $(TMP)/usr/share/doc/mysql-server-5.1/examples
-	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/mysql-server-5.1/examples/
+	mkdir -p $(TMP)/usr/share/doc/percona-xtradb-server-5.1/examples
+	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-xtradb-server-5.1/examples/
 	rm -vf $(TMP)/usr/share/mysql/mi_test_all* \
 	       $(TMP)/usr/share/mysql/mysql-log-rotate \
 	       $(TMP)/usr/share/mysql/mysql.server \
 	       $(TMP)/usr/share/mysql/binary-configure
-	nm -n sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/mysql-server-5.1/mysqld.sym.gz
+	nm -n sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-xtradb-server-5.1/mysqld.sym.gz
 	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
 	# lintian overrides
 	mkdir -p $(TMP)/usr/share/lintian/overrides/
-	cp debian/mysql-common.lintian-overrides     $(TMP)/usr/share/lintian/overrides/mysql-common
-	cp debian/mysql-server-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/mysql-server-5.1
-	cp debian/mysql-client-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/mysql-client-5.1
+	cp debian/percona-xtradb-common.lintian-overrides     $(TMP)/usr/share/lintian/overrides/percona-xtradb-common
+	cp debian/percona-xtradb-server-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-xtradb-server-5.1
+	cp debian/percona-xtradb-client-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-xtradb-client-5.1
 
 	# For 5.0 -> 5.1 transition
-	d=$(TMP)/usr/share/mysql-common/internal-use-only/; \
+	d=$(TMP)/usr/share/percona-xtradb-common/internal-use-only/; \
 	mkdir -p $$d; \
-	cp debian/mysql-server-5.1.mysql.init $$d/_etc_init.d_mysql; \
-	cp debian/mysql-server-5.1.mysql-server.logrotate $$d/_etc_logrotate.d_mysql-server; \
+	cp debian/percona-xtradb-server-5.1.mysql.init $$d/_etc_init.d_mysql; \
+	cp debian/percona-xtradb-server-5.1.logrotate $$d/_etc_logrotate.d_percona-xtradb-server; \
 	cp debian/additions/debian-start $$d/_etc_mysql_debian-start;
 
 	dh_movefiles
@@ -278,11 +278,11 @@ binary-arch: build install
 	dh_installdocs -a
 	dh_installexamples -a
 	dh_installmenu -a
-	dh_installlogrotate -a --name mysql-server
+	dh_installlogrotate -a --name percona-xtradb-server
 	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
 	# started which might depend on a running database server.
 	dh_installinit -a --name=mysql -- defaults 19 21
-	dh_installcron -a --name mysql-server
+	dh_installcron -a --name percona-xtradb-server
 	dh_installman -a
 	dh_installinfo -a
 	dh_installlogcheck -a
