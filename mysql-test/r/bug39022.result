@@ -28,5 +28,5 @@ SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d);
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 # in thread2
 d
-# in default
+# in thread1;
 DROP TABLE t1,t2;
