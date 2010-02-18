@@ -383,7 +383,8 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   theWaitState(WAIT_SUBSCRIBE_CONF),
   m_local_mgm_handle(0),
   m_event_listner(this),
-  m_master_node(0)
+  m_master_node(0),
+  m_version_string(ndbGetOwnVersionString())
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
