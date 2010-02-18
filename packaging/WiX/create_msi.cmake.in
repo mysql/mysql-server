@@ -181,7 +181,7 @@ MACRO(MAKE_WIX_IDENTIFIER str varname)
 ENDMACRO()
 
 
-FUNCTION(TRAVERSE_FILES dir topdir file file_comp file_default_component dir_root)
+FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
   FILE(GLOB all_files ${dir}/*)
   IF(NOT all_files)
     RETURN()
@@ -219,13 +219,13 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp file_default_component dir_roo
   IF(NONEXEFILES)
     GENERATE_GUID(guid)
     SET(ComponentId "C._files_${COMP_NAME}.${DirectoryRefId}")
-    FILE(APPEND ${file_default_component} 
+    FILE(APPEND ${file} 
     "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' ${Win64}>${NONEXEFILES}\n</Component></DirectoryRef>\n")
 	FILE(APPEND ${file_comp} "  <ComponentRef Id='${ComponentId}'/>\n")
   ENDIF()
   FOREACH(f ${all_files})
     IF(IS_DIRECTORY ${f})
-      TRAVERSE_FILES(${f} ${topdir} ${file} ${file_comp} ${file_default_component} ${dir_root})
+      TRAVERSE_FILES(${f} ${topdir} ${file} ${file_comp}  ${dir_root})
     ENDIF()
   ENDFOREACH()
 ENDFUNCTION()
@@ -244,33 +244,41 @@ FUNCTION(TRAVERSE_DIRECTORIES dir topdir file prefix)
     ENDIF()
   ENDFOREACH()
   IF(rel AND IS_DIRECTORY "${f}")
-    FILE(APPEND ${file} "</Directory>\n")
+    FILE(APPEND ${file} "${prefix}</Directory>\n")
   ENDIF()
 ENDFUNCTION()
 
-
+SET(CPACK_WIX_COMPONENTS)
+SET(CPACK_WIX_COMPONENT_GROUPS)
 GET_FILENAME_COMPONENT(abs . ABSOLUTE)
 FOREACH(d ${DIRS})
   GET_FILENAME_COMPONENT(d ${d} ABSOLUTE)
   GET_FILENAME_COMPONENT(d_name ${d} NAME)
-  FILE(WRITE 
-  ${abs}/${d_name}.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n<Fragment>\n")
-   FILE(WRITE 
-  ${abs}/${d_name}_default_component.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'><Fragment>")
-  FILE(WRITE 
-  ${abs}/${d_name}_component_group.wxs  "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
-    <Fragment>\n<ComponentGroup Id='componentgroup.${d_name}'>")
+  FILE(WRITE ${abs}/${d_name}_component_group.wxs  "<ComponentGroup Id='componentgroup.${d_name}'>")
   SET(COMP_NAME ${d_name})
-  TRAVERSE_FILES(${d} ${d} ${abs}/${d_name}.wxs ${abs}/${d_name}_component_group.wxs  ${abs}/${d_name}_default_component.wxs "${abs}/dirs")
-  FILE(APPEND  ${abs}/${d_name}_default_component.wxs   "\n</Fragment>\n</Wix>")
-  FILE(APPEND  ${abs}/${d_name}.wxs   " </Fragment>\n</Wix>")
-  FILE(APPEND  ${abs}/${d_name}_component_group.wxs   "</ComponentGroup>\n</Fragment>\n</Wix>") 
+  TRAVERSE_FILES(${d} ${d} ${abs}/${d_name}.wxs ${abs}/${d_name}_component_group.wxs "${abs}/dirs")
+  FILE(APPEND  ${abs}/${d_name}_component_group.wxs   "</ComponentGroup>")
+  FILE(READ ${d_name}.wxs WIX_TMP)
+  SET(CPACK_WIX_COMPONENTS "${CPACK_WIX_COMPONENTS}\n${WIX_TMP}")
+  FILE(REMOVE ${d_name}.wxs)
+  FILE(READ ${d_name}_component_group.wxs WIX_TMP)
+ 
+  SET(CPACK_WIX_COMPONENT_GROUPS "${CPACK_WIX_COMPONENT_GROUPS}\n${WIX_TMP}")
+  FILE(REMOVE ${d_name}_component_group.wxs)
 ENDFOREACH()
-FILE(WRITE directories.wxs "<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>\n<Fragment>\n<DirectoryRef Id='INSTALLDIR'>\n")
-TRAVERSE_DIRECTORIES(${abs}/dirs ${abs}/dirs directories.wxs "")
-FILE(APPEND directories.wxs "</DirectoryRef>\n</Fragment>\n</Wix>\n")
 
-FILE(GLOB WXS_FILES *.wxs)
+FILE(WRITE directories.wxs "<DirectoryRef Id='INSTALLDIR'>\n")
+TRAVERSE_DIRECTORIES(${abs}/dirs ${abs}/dirs directories.wxs "")
+FILE(APPEND directories.wxs "</DirectoryRef>\n")
+
+FILE(READ directories.wxs CPACK_WIX_DIRECTORIES)
+FILE(REMOVE directories.wxs)
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server.wxs.in 
+ ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs)
+ 
+ 
+SET(WXS_FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs ${CPACK_WIX_EXTRA_SOURCE})
 SET(WIXOBJ_NATIVE_FILES)
 SET(WXS_NATIVE_FILES)
 FOREACH(f "${WXS_FILES}")
