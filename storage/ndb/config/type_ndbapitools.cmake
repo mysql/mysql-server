@@ -17,7 +17,7 @@ LINK_LIBRARIES(ndbclient
                dbug
                mysys
                strings
-               ${NDB_SCI_LIBS})
+               )
 IF(WIN32)
 LINK_LIBRARIES(wsock32)
 ENDIF(WIN32)
