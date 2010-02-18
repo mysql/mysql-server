@@ -336,3 +336,54 @@ select t1.*
 from t1 left join t2 on (t2.pk=3 and t2.b=3) or (t2.pk= 4 and t2.b=3);
 
 drop table t1, t2;
+
+--echo #
+--echo # LPBUG#523593: Running RQG optimizer_no_subquery crashes MariaDB
+--echo #
+
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+);
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t1 VALUES 
+ (10,7,8,NULL,NULL,'01:27:35','01:27:35','2002-02-26 06:14:37','2002-02-26 06:14:37','v','v'),
+ (11,1,9,'2006-06-14','2006-06-14','19:48:31','19:48:31','1900-01-01 00:00:00','1900-01-01 00:00:00','r','r');
+INSERT INTO t2 SELECT * FROM t1;
+
+SELECT table2.col_int_key AS field1 
+FROM ( 
+  t2 AS table1 
+  RIGHT OUTER JOIN 
+  ( 
+    ( t1 AS table2 STRAIGHT_JOIN 
+      t1 AS table3 ON (
+               (table3.col_varchar_nokey = table2.col_varchar_key ) AND 
+               (table3.pk = table2.col_int_key)) 
+    )
+  ) ON 
+    (
+      (table3.col_varchar_key = table2.col_varchar_key) OR 
+      (table3.col_int_key = table2.pk)
+    )
+)
+HAVING field1 < 216;
+
+DROP TABLE t1, t2;
+
