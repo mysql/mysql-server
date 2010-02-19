@@ -153,6 +153,7 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
+static int join_read_linked_key(JOIN_TAB *tab);
 static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
@@ -1616,17 +1617,24 @@ make_pushed_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
 
-    if (tab->table->file->member_of_pushed_join())
-    {
-      active_pushed_joins--;
-    }
-    else
+    if (!tab->table->file->member_of_pushed_join())
     {
       // Try to start a pushed join from current join_tab
       AQP::Join_plan plan(tab, join->tables-i);
       uint pushed_joins= tab->table->file->make_pushed_join(plan);
       if (pushed_joins > 0)
         active_pushed_joins += (pushed_joins-1);
+    }
+    else
+    {
+      // Replace 'read_key' access with its linked counterpart 
+      // ... Which is effectively a NOOP as the row is read as part of the linked operation
+      DBUG_ASSERT(tab->read_first_record==join_read_key ||
+                  tab->read_first_record==join_read_const);
+      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
+      tab->read_first_record= join_read_linked_key;
+      tab->read_record.unlock_row= rr_unlock_row;
+      active_pushed_joins--;
     }
 
     // Disable 'Using join buffer' if there are active pushed join sequence
@@ -11913,6 +11921,59 @@ join_read_key_unlock_row(st_join_table *tab)
   DBUG_ASSERT(tab->ref.use_count);
   if (tab->ref.use_count)
     tab->ref.use_count--;
+}
+
+
+/**
+  Read a table *assumed* to be included in execution of a pushed join.
+  This is the counterpart of join_read_key() for child tables in a 
+  pushed join.
+
+    When the table access is performed as part of the pushed join,
+    all 'linked' child colums are prefetched together with the parent row.
+    The handler will then only format the row as required by MySQL and set
+    'table->status' accordingly.
+
+    However, there may be situations where the prepared pushed join was not
+    executed as assumed. It is the responsibility of the handler to handle
+    these situation by letting ::index_read_pushed() then effectively do a 
+    plain old' index_read_map(..., HA_READ_KEY_EXACT);
+  
+  @param tab			Table to read
+
+  @retval
+    0	Row was found
+  @retval
+    -1   Row was not found
+  @retval
+    1   Got an error (other than row not found) during read
+*/
+static int
+join_read_linked_key(JOIN_TAB *tab)
+{
+  TABLE *table= tab->table;
+  DBUG_ENTER("join_read_linked_key");
+
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+
+  // Fetch result from linked_key operation if not already present
+  if (table->status & STATUS_GARBAGE)
+  {
+    if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
+      DBUG_RETURN(-1);
+
+    // 'read' itself is a NOOP: 
+    //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
+    int error=table->file->index_read_pushed(table->record[0],
+                                        tab->ref.key_buff,
+                                        make_prev_keypart_map(tab->ref.key_parts));
+    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+      DBUG_RETURN(report_error(table, error));
+  }
+  table->null_row=0;
+  int rc = table->status ? -1 : 0;
+  DBUG_RETURN(rc);
 }
 
 

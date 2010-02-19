@@ -1859,6 +1859,11 @@ public:
     return FALSE;
   }
 
+  virtual int index_read_pushed(uchar * buf, const uchar * key,
+                             key_part_map keypart_map)
+  { return index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT); }
+
+
  /*
     Part of old fast alter table, to be depricated
   */
