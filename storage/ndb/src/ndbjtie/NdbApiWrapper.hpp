@@ -16,20 +16,21 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 /*
- * ndbapi_wrapper.hpp
+ * NdbApiWrapper.hpp
  */
 
-#ifndef ndbapi_wrapper_hpp
-#define ndbapi_wrapper_hpp
+#ifndef NdbApiWrapper_hpp
+#define NdbApiWrapper_hpp
 
-// API to implement against
+// API to wrap
 #include "NdbApi.hpp"
+#include "NdbError.hpp"
 
 struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NDBAPI.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NDBAPI.h"
 
     static bool
     create_instance
@@ -40,7 +41,7 @@ struct NdbApiWrapper {
 
     static void
     drop_instance
-    (  )
+    ( )
     {
         ::drop_instance();
     }
@@ -61,7 +62,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_Ndb.h"
 
     static const char *
     Ndb__getDatabaseName
@@ -212,7 +213,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbBlob.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbBlob.h"
 
     static const NdbError &
     NdbBlob__getNdbError
@@ -356,7 +357,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary.h"
 
     static NdbDictionary::RecordType
     NdbDictionary__getRecordType
@@ -437,11 +438,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_AutoGrowSpecification.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
 
     static const char *
     NdbDictionary__Column__getName
@@ -676,7 +677,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile.h"
 
     static const char *
     NdbDictionary__Datafile__getPath
@@ -764,7 +765,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
 
     static int
     NdbDictionary__Dictionary__listObjects
@@ -992,15 +993,15 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_List.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
 
     static const char *
     NdbDictionary__Event__getName
@@ -1151,7 +1152,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Index.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Index.h"
 
     static const char *
     NdbDictionary__Index__getName
@@ -1274,7 +1275,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_LogfileGroup.h"
 
     static const char *
     NdbDictionary__LogfileGroup__getName
@@ -1348,11 +1349,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Object.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Object.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_ObjectId.h"
 
     static NdbDictionary::Object::Status
     NdbDictionary__ObjectId__getObjectStatus
@@ -1377,7 +1378,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeIndexHandle.h"
 
     static int
     NdbDictionary__OptimizeIndexHandle__next
@@ -1395,7 +1396,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_OptimizeTableHandle.h"
 
     static int
     NdbDictionary__OptimizeTableHandle__next
@@ -1413,11 +1414,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecification.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Table.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Table.h"
 
     static const char *
     NdbDictionary__Table__getName
@@ -1834,7 +1835,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace.h"
 
     static const char *
     NdbDictionary__Tablespace__getName
@@ -1929,7 +1930,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile.h"
 
     static const char *
     NdbDictionary__Undofile__getPath
@@ -2010,11 +2011,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbError.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbError.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbEventOperation.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbEventOperation.h"
 
     static int
     NdbEventOperation__isOverrun
@@ -2142,7 +2143,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexOperation.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbIndexOperation.h"
 
     static const NdbDictionary::Index *
     NdbIndexOperation__getIndex
@@ -2181,7 +2182,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation.h"
 
     static bool
     NdbIndexScanOperation__getSorted
@@ -2241,11 +2242,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbInterpretedCode.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbInterpretedCode.h"
 
     static const NdbDictionary::Table *
     NdbInterpretedCode__getTable
@@ -2564,7 +2565,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
 
     static NdbBlob *
     NdbOperation__getBlobHandle__0 // disambiguate overloaded const/non-const
@@ -2841,19 +2842,19 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpec.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbRecAttr.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbRecAttr.h"
 
     static const NdbDictionary::Column *
     NdbRecAttr__getColumn
@@ -2983,7 +2984,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"
 
     static const NdbError &
     NdbScanFilter__getNdbError
@@ -3141,7 +3142,7 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbScanOperation.h"
 
     static NdbTransaction *
     NdbScanOperation__getNdbTransaction
@@ -3236,11 +3237,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptions.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
 
     static const NdbError &
     NdbTransaction__getNdbError
@@ -3412,11 +3413,11 @@ struct NdbApiWrapper {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptr.h"
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
+// mapped by "com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h"
 
     static int
     Ndb_cluster_connection__get_latest_error
@@ -3485,4 +3486,4 @@ struct NdbApiWrapper {
 
 };
 
-#endif // ndbapi_wrapper_hpp
+#endif // NdbApiWrapper_hpp

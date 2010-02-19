@@ -31,7 +31,7 @@
 #include "CharsetMap.hpp"
 
 // global ndb client library definitions
-#include "mysql_jtie.hpp"
+#include "mysql_utils_jtie.hpp"
 #include "mgmapi_jtie.hpp"
 #include "ndbapi_jtie.hpp"
 

@@ -51,6 +51,31 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( jint, Uint32, Uint32 )
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( jlong, Int64, Int64 )
 JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( jlong, Uint64, Uint64 )
 
+// XXXXX temporary, for testing
+#if 1
+#  define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
+#  define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
+#  define NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
+#else
+
+// workaround for Sun Studio compilers (disambiguation of overloads)
+// (Studio 12.1 = 5.10):
+#if defined(__SUNPRO_CC)
+//#  if (__SUNPRO_CC == 0x510)
+#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
+//#  endif
+#endif
+// workaround for MS Visual Studio compilers (disambiguation of overloads)
+// (VC7 = VS2003 = 1310, VC8 = VS2005 = 1400, VC9 = VS2008 = 1500, ...?):
+#if defined(_MSC_VER)
+//#  if (1300 <= _MSC_VER) && (_MSC_VER <= 1600)
+#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
+#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
+//#  endif
+#endif
+
+#endif
+
 // ---------------------------------------------------------------------------
 
 #endif // ndbjtie_defs_hpp
