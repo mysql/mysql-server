@@ -21,7 +21,7 @@
 #include <SignalLoggerManager.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
-
+#include <signaldata/TestOrd.hpp>
 
 SimpleSignal::SimpleSignal(bool dealloc){
   memset(this, 0, sizeof(* this));
@@ -132,6 +132,16 @@ SignalSender::getNodeInfo(Uint16 nodeId) const {
 Uint32
 SignalSender::getNoOfConnectedNodes() const {
   return theFacade->theClusterMgr->getNoOfConnectedNodes();
+}
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId,
+                         SimpleSignal& sig,
+                         Uint16 recBlock, Uint16 gsn,
+                         Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+  return sendSignal(nodeId, &sig);
 }
 
 template<class T>
