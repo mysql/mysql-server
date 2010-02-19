@@ -29,11 +29,7 @@
 // global myjapi library definitions
 #include "myjapi_MyJapiCtypes.hpp"
 #include "myjapi_MyJapi.hpp"
-
-#include "myjapi_A.hpp"
-#include "myjapi_B.hpp"
-#include "myjapi_CI.hpp"
-#include "myjapi_D.hpp"
+#include "myjapi_classes.hpp"
 
 // ---------------------------------------------------------------------------
 // API Global Symbol Definitions & Template Instantiations
