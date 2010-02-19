@@ -140,14 +140,14 @@ smoke:
 test-full:	test test-nr test-ps
 
 test-force:
-	$(MAKE) force=--force test
+	$(MAKE) -k force=--force test
 
 test-force-full:
-	$(MAKE) force=--force test-full
+	$(MAKE) -k force=--force test-full
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) force=--force mem=--mem test
+	$(MAKE) -k force=--force mem=--mem test
 
 test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
@@ -261,7 +261,7 @@ test-fast-prepare:
 	$(MAKE) subset=--ps-protocol test-fast
 
 test-full-qa:
-	$(MAKE) force=--force test-pr \
+	$(MAKE) -k force=--force test-pr \
 	    test-binlog-statement test-ext test-fast-view \
 	        test-fast-cursor test-unit
 
