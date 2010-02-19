@@ -46,7 +46,6 @@ public class NdbTransaction extends Wrapper implements NdbTransactionConst
     public final native int refresh();
     public final native void close();
     public final native int getGCI(long[]/*_Uint64 *_*/ gciptr);
-    public final native int getGCI();
     public final native long/*_Uint64_*/ getTransactionId();
     public interface /*_enum_*/ CommitStatusType
     {

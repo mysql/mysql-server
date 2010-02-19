@@ -125,22 +125,6 @@ public class A extends com.mysql.jtie.Wrapper {
 
     // ----------------------------------------------------------------------
 
-    static public native void h0();
-
-    static public native void h1(byte p0);
-
-    static public native void h2(byte p0, short p1);
-
-    static public native void h3(byte p0, short p1, int p2);
-
-    static public native int h0r();
-
-    static public native int h1r(byte p0);
-
-    static public native int h2r(byte p0, short p1);
-
-    static public native int h3r(byte p0, short p1, int p2);
-
     public native final void g0c();
 
     public native final void g1c(byte p0);
@@ -172,4 +156,20 @@ public class A extends com.mysql.jtie.Wrapper {
     public native final int g2r(byte p0, short p1);
 
     public native final int g3r(byte p0, short p1, int p2);
+
+    static public native void h0();
+
+    static public native void h1(byte p0);
+
+    static public native void h2(byte p0, short p1);
+
+    static public native void h3(byte p0, short p1, int p2);
+
+    static public native int h0r();
+
+    static public native int h1r(byte p0);
+
+    static public native int h2r(byte p0, short p1);
+
+    static public native int h3r(byte p0, short p1, int p2);
 }
