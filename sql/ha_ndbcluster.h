@@ -555,6 +555,9 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool prefer_index() const;
 
+  int index_read_pushed(uchar *buf, const uchar *key,
+                        key_part_map keypart_map);
+
   uint8 table_cache_type();
 
   /*
@@ -642,8 +645,8 @@ private:
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
-  bool check_if_pushable_parent(const NdbQueryOperationTypeWrapper& type) const;
-  bool check_if_pushed_child(const NdbQueryOperationTypeWrapper& type) const;
+  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
+  bool check_is_pushed() const;
   bool check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
@@ -794,11 +797,6 @@ private:
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   NdbQuery* m_active_query;
-
-  /**
-   * Read next row from a child operation of a pushed query.
-   */
-  int read_pushed_next(uchar *buf);
 
   const NdbDictionary::Table *m_table;
   /*

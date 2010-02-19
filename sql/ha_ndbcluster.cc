@@ -3032,19 +3032,18 @@ private:
  * @return True if the operation may be pushed.
  */
 bool 
-ha_ndbcluster::check_if_pushable_parent(
-                    const NdbQueryOperationTypeWrapper& type) const
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
 {
   bool pushable= FALSE;
 
-  if(m_pushed_join != NULL)
+  if (m_pushed_join != NULL)
   {
     const NdbQueryOperationTypeWrapper& query_def_type= 
       m_pushed_join->get_query_def().getQueryOperation(0U)->getType();
 
     if (query_def_type == type)
     {
-      if(m_disable_pushed_join)
+      if (m_disable_pushed_join)
       {
         DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
       }
@@ -3066,14 +3065,14 @@ ha_ndbcluster::check_if_pushable_parent(
 }
 
 
+/**
+ * Check if this table access operation is part if a pushed join operation
+ * which is actively executing.
+ */
 bool 
-ha_ndbcluster::check_if_pushed_child(
-                    const NdbQueryOperationTypeWrapper& type) const
+ha_ndbcluster::check_is_pushed() const
 {
-  // Is child of active pushed join
-  return (m_pushed_join_member &&
-          m_pushed_join_member != this &&
-          m_pushed_join_member->m_active_query);
+  return (m_pushed_join_member && m_pushed_join_member->m_active_query);
 }
 
 
@@ -3095,12 +3094,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (check_if_pushed_child(NdbQueryOperationDef::PrimaryKeyAccess))
-  {
-    // Is child of active pushed join
-    DBUG_RETURN(read_pushed_next(buf));
-  }
-  else if (check_if_pushable_parent(NdbQueryOperationDef::PrimaryKeyAccess))
+  if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess))
   {
     // Is parent of pushed join
     NdbQuery *query;
@@ -3499,12 +3493,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (check_if_pushed_child(NdbQueryOperationDef::UniqueIndexAccess))
-  {
-    // Is child of active pushed join
-    DBUG_RETURN(read_pushed_next(buf));
-  }
-  else if (check_if_pushable_parent(NdbQueryOperationDef::UniqueIndexAccess))
+  if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess))
   {
 #ifndef DBUG_OFF
     /* 
@@ -3676,7 +3665,7 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
   /**
    * Only prepare result & status from first operation in pushed join
    * which is the one related to 'this' handlers table.
-   * Consecutive rows are prepared through ::read_pushed_next() which unpack
+   * Consecutive rows are prepared through ::index_read_pushed() which unpack
    * and set correct status for each row.
    */
   if (result == NdbQuery::NextResult_gotRow)
@@ -3685,7 +3674,7 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
     unpack_record(table->record[0], m_next_row);
 
     // Invalidate rows from linked operations.
-    // ::read_pushed_next() will later unpack row and set propper status
+    // ::index_read_pushed() will later unpack row and set propper status
     for (uint i= 1; i<m_pushed_join->get_join_count(); i++)
     {
       m_pushed_join->get_table(i)->status= STATUS_GARBAGE;
@@ -3706,18 +3695,30 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
 
 
 int 
-ha_ndbcluster::read_pushed_next(uchar *buf)
+ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
+                                 key_part_map keypart_map)
 {
-  if (m_next_row)
+  DBUG_ENTER("index_read_pushed");
+
+  // Handler might have decided to not execute the pushed joins which has been prepared
+  // In this case we do an unpushed index_read based on 'Plain old' NdbOperations
+  if (unlikely(!check_is_pushed()))
   {
-    table->status= 0;
+    DBUG_RETURN(index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT));
+  }
+
+  // Result from pushed operation will be referred by 'm_next_row' if non-NULL
+  else if (m_next_row)
+  {
     unpack_record(buf, m_next_row);
+    table->status= 0;
   }
   else
   {
     table->status= STATUS_NOT_FOUND;
+    DBUG_PRINT("info", ("No record found"));
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -4056,10 +4057,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
-  // Index scans can't be child of pushed joins
-  DBUG_ASSERT (!check_if_pushed_child(NdbQueryOperationDef::OrderedIndexScan));
-
-  if (check_if_pushable_parent(NdbQueryOperationDef::OrderedIndexScan))
+  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
   {
     DBUG_PRINT("info", 
                ("executing chain of a index scan + %d primary key joins."
@@ -4300,10 +4298,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
-  // Index scans can't be child of pushed joins
-  DBUG_ASSERT (!check_if_pushed_child(NdbQueryOperationDef::TableScan));
-
-  if (check_if_pushable_parent(NdbQueryOperationDef::TableScan))
+  if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
     DBUG_PRINT("info", 
                ("executing chain of a table scan + %d primary key joins."
@@ -12444,11 +12439,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         break;
       }
 
-      // Index scans can't be child of pushed joins
-      DBUG_ASSERT(!check_if_pushed_child(NdbQueryOperationDef::OrderedIndexScan));
-
       /* Create the scan operation for the first scan range. */
-      if (check_if_pushable_parent(NdbQueryOperationDef::OrderedIndexScan))
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
       {
         if (!m_active_query)
         {
