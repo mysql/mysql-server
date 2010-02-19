@@ -30,7 +30,9 @@ EXTRA_DIST = README.txt utils \
                 $(MYSQL_DIR)/*.java \
                 $(MGMAPI_DIR)/*.java \
                 $(NDBAPI_DIR)/*.java \
-                mysql_jtie.hpp \
+		MysqlUtilsWrapper.hpp \
+		NdbApiWrapper.hpp \
+                mysql_utils_jtie.hpp \
                 mgmapi_jtie.hpp \
                 ndbapi_jtie.hpp \
                 ndbjtie_defs.hpp \

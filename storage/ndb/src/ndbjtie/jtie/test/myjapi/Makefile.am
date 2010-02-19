@@ -64,15 +64,11 @@ TEST_java = \
 
 ## files to be distributed and not covered in the automatic rules
 EXTRA_DIST = $(MYJAPI_DIR)/*.java  \
-  $(TEST_DIR)/*.java \
-  myjapi_A.hpp \
-  myjapi_D.hpp \
-  myjapi_classes.hpp \
-  myjapi_B.hpp \
-  myjapi_MyJapi.hpp \
-  myjapi_CI.hpp \
-  myjapi_MyJapiCtypes.hpp
-
+	$(TEST_DIR)/*.java \
+	MyApiWrapper.hpp \
+	myjapi_MyJapi.hpp \
+	myjapi_MyJapiCtypes.hpp \
+	myjapi_classes.hpp
 
 classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 	mkdir -p $(JAVAROOT)
