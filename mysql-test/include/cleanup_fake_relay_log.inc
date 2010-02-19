@@ -8,9 +8,6 @@
 
 --echo Cleaning up after setup_fake_relay_log.inc
 
-# Remove files.
-remove_file $_fake_relay_log;
-remove_file $_fake_relay_index;
 --disable_query_log
 --disable_warnings
 STOP SLAVE SQL_THREAD;
