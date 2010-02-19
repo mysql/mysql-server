@@ -26,15 +26,7 @@ all-local:	scripts
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
 ##   with _DATA, prefix dist_ is needed to add files to the distribution;
 ##   with _DATA, prefix noinst_ seems not applicable.
-unload_test_jar_DATA = $(UNLOAD_TEST_JAR)
-
-## where to install the jar file(s)
-unload_test_jardir = $(ndbjardir)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)$(unload_test_jardir) && \
-	$(LN_CP_F) -f $(UNLOAD_TEST_JAR) jtie-test-unload.jar
+noinst_DATA = $(UNLOAD_TEST_JAR)
 
 ## dependencies
 CLASSPATH += "."
@@ -43,7 +35,6 @@ CLASSPATH += "."
 UNLOAD_TEST_JAR = jtie-test-unload-@JAVA_NDB_VERSION@.jar
 $(UNLOAD_TEST_JAR):	$(TEST_CLASSES) $(TEST_DIR)
 	$(JAR) cvf $@ $(TEST_DIR)
-	$(LN_CP_F) -f $(UNLOAD_TEST_JAR) jtie-test-unload.jar
 
 ## java top-level class files
 TEST_DIR = $(srcdir)/test

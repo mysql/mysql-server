@@ -23,24 +23,16 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 EXTRA_DIST = $(TEST_DIR)/*.java \
 	ndbjtie_unit_tests-t
 
-NDBJTIE = ../src
+NDBJTIE = ../
 
 ## list of jar files to install
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
 ##   with _DATA, prefix dist_ is needed to add files to the distribution;
 ##   with _DATA, prefix noinst_ seems not applicable.
-ndbjtie_test_jar_DATA = $(NDBJTIE_TEST_JAR)
-
-## where to install the jar file(s)
-ndbjtie_test_jardir = $(ndbjardir)
+noinst_DATA = $(NDBJTIE_TEST_JAR)
 
 ## create the unit test scripts during build already
 all-local:	scripts
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)$(ndbjtie_test_jardir) && \
-	$(LN_CP_F) -f $(NDBJTIE_TEST_JAR) ndbjtie-test.jar
 
 ## dependencies
 NDBJTIE_JAR = ../ndbjtie-@JAVA_NDB_VERSION@.jar
@@ -52,7 +44,6 @@ CLASSPATH += .:$(NDBJTIE_JAR):$(MYJAPI_JAR)
 NDBJTIE_TEST_JAR = ndbjtie-test-@JAVA_NDB_VERSION@.jar
 $(NDBJTIE_TEST_JAR):	$(TEST_CLASSES) $(TEST_DIR)
 	$(JAR) cvf $@ $(TEST_DIR)
-	$(LN_CP_F) -f $(NDBJTIE_TEST_JAR) ndbjtie-test.jar
 
 ## java top-level class files
 TEST_DIR = $(srcdir)/test
@@ -110,7 +101,7 @@ JAVA_LIBPATH0 = -Djava.library.path="\"../../.libs\""
 ## dependencies
 # test uninstalled jars and libraries as a pre-install sanity test
 UNLOAD = ../jtie/test/unload
-UNLOAD_JAR = $(UNLOAD)/jtie-test-unload.jar
+UNLOAD_JAR = $(UNLOAD)/jtie-test-unload-@JAVA_NDB_VERSION@.jar
 RUN_CLASSPATH1 = "$(UNLOAD_JAR):$(RUN_CLASSPATH0)"
 JAVA_CLASSPATH1 = -classpath "\"$(RUN_CLASSPATH1)\""
 JAVA_LIBPATH1 = $(JAVA_LIBPATH0)
