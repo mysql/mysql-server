@@ -889,14 +889,14 @@ struct C0 {
         return *c;
     }
 
-    void take_C0p(C0 * cp) {
+    void take_C0p(C0 * p) {
         TRACE("void C0::take_C0p(C0 *)");
-        if (cp != C0::c) ABORT_ERROR("cp != C0::c");
+        if (p != C0::c) ABORT_ERROR("p != C0::c");
     }
 
-    void take_C0r(C0 & cp) {
+    void take_C0r(C0 & p) {
         TRACE("void C0::take_C0r(C0 &)");
-        if (&cp != C0::c) ABORT_ERROR("&cp != C0::c");
+        if (&p != C0::c) ABORT_ERROR("&p != C0::c");
     }
 
     // ----------------------------------------------------------------------
@@ -982,14 +982,14 @@ struct C1 : public C0 {
         return *c;
     };
 
-    void take_C1p(C1 * cp) {
+    void take_C1p(C1 * p) {
         TRACE("void C1::take_C1p(C1 *)");
-        if (cp != C1::c) ABORT_ERROR("cp != C1::c");
+        if (p != C1::c) ABORT_ERROR("p != C1::c");
     };
 
-    void take_C1r(C1 & cp) {
+    void take_C1r(C1 & p) {
         TRACE("void C1::take_C1r(C1 &)");
-        if (&cp != C1::c) ABORT_ERROR("&cp != C1::c");
+        if (&p != C1::c) ABORT_ERROR("&p != C1::c");
     };
 };
 
