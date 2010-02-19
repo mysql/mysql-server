@@ -2487,7 +2487,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr)
 
   signal->theData[0] = NDB_LE_BackupStatus;
   for (int i= 1; i < signal_length; i++)
-    signal->theData[1] = 0;
+    signal->theData[i] = 0;
 
   if (ptr.i == RNIL ||
       (ptr.p->m_gsn == 0 &&
