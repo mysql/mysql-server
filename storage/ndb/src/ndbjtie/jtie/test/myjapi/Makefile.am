@@ -26,15 +26,7 @@ all-local:	scripts
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
 ##   with _DATA, prefix dist_ is needed to add files to the distribution;
 ##   with _DATA, prefix noinst_ seems not applicable.
-myjapijar_DATA = $(MYJAPI_JAR)
-
-## where to install the jar file(s)
-myjapijardir = $(ndbjardir)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)$(myjapijardir) && \
-	$(LN_CP_F) -f $(MYJAPI_JAR) jtie-test-myjapi.jar
+noinst_DATA = $(MYJAPI_JAR)
 
 ## dependencies
 JTIE_JAR = $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/jtie-@JAVA_NDB_VERSION@.jar
@@ -88,7 +80,6 @@ $(MYJAPI_JAR): classmyjapi.stamp
           -C $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/target/classes com/mysql/jtie \
           -C $(JAVAROOT) myjapi \
           -C $(JAVAROOT) test
-	$(LN_CP_F) -f $(MYJAPI_JAR) jtie-test-myjapi.jar
 
 ## generate JNI header files (for development only)
 javah: $(MYJAPI_CLASSES)

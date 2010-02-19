@@ -56,7 +56,7 @@ AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
 
-AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
+AC_DEFUN([MYSQL_CHECK_JAVA], [
 
   case "$host_os" in
   darwin*)        
@@ -75,7 +75,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
 
   NDB_JAVA_INC=""
   NDB_JAVA_BIN=""
-  for D in $JAVA_HOME $JDK_HOME /usr/lib/jvm/java /usr/lib64/jvm/java /usr/local/jdk /usr/local/java /usr/local/java/jdk /usr/jdk/latest /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK ; do
+  NDB_JAVA_PATHS="$JAVA_HOME $JDK_HOME"
+  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/lib/jvm/java /usr/lib64/jvm/java"
+  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/local/jdk /usr/local/java /usr/local/java/jdk"
+  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/jdk/latest /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK"
+
+  for D in $NDB_JAVA_PATHS; do
     AC_CHECK_FILE([$D/$NDB_JAVA_TMP_INC/jni.h],[found=yes])
     if test X$found = Xyes
     then
@@ -233,22 +238,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
                               [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
-  AC_ARG_WITH([ndb-jtie],
-              [AC_HELP_STRING([--with-ndb-jtie],
-                              [Include the NDB Cluster java-bindings for ClusterJ])],
-              [ndb_jtie="$withval"],
-              [ndb_jtie="default"]) 
 
   AC_ARG_WITH([ndbmtd],
               [AC_HELP_STRING([--without-ndbmtd],
                               [Dont build ndbmtd])],
               [ndb_mtd="$withval"],
               [ndb_mtd=yes])
-  AC_ARG_WITH([clusterj], 
-              [AC_HELP_STRING([--with-clusterj],
-                              [Include Java API for Cluster/J])],
-              [clusterj="$withval"],
-              [clusterj="default"]) 
   AC_ARG_WITH([openjpa],
               [AS_HELP_STRING([--with-openjpa], Include and set path for native OpenJPA support)],
               [openjpa="$withval"],
@@ -303,53 +298,24 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
 
   MYSQL_CHECK_CXX_LINKING
 
-  AC_MSG_CHECKING([for java needed for ndb-jtie])
+  AC_MSG_CHECKING([for Java needed for ClusterJ and ClusterJPA])
   AC_MSG_RESULT([])
-  MYSQL_CHECK_NDB_JTIE
-  have_ndb_jtie=no
+  MYSQL_CHECK_JAVA
   NDBJTIE_LIBS=""
-  case "$ndb_jtie" in
-    yes )
-      if test X"$ndb_java_supported" = Xyes
-      then
-        AC_MSG_RESULT([-- including ndb-jtie])
-        have_ndb_jtie=yes
-      else
-        AC_MSG_ERROR([Unable to locate java compiler needed for ndb-jtie])
-      fi
-      ;;
-    default )
-      if test X"$ndb_java_supported" = Xyes
-      then
-         AC_MSG_RESULT([-- including ndbjtie])
-         have_ndb_jtie=yes
-      else
-         AC_MSG_RESULT([-- not including ndb-jtie])
-         have_ndb_jtie=no
-      fi
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including ndb-jtie])
-      ;;
-  esac
+
 
   have_clusterj=no
-  if test X"$clusterj" = Xyes || test X"$clusterj" = Xdefault
+  if test X"$ndb_java_supported" = Xyes
   then
-    if test X"$ndb_java_supported" = Xyes
+    if [[[ $CHARSETS =~ "ucs2" ]]]
     then
-      if test X"$have_ndb_jtie" = Xyes
-      then
-        AC_MSG_RESULT([-- including Cluster/J])
-        have_clusterj=yes
-      else
-        AC_MSG_RESULT([-- Cluster/J requires ndb-jtie: Cluster/J not included])
-      fi
+      AC_MSG_RESULT([-- including Cluster/J])
+      have_clusterj=yes
     else
-      AC_MSG_RESULT([-- Cluster/J requires a Java compiler: Cluster/J not included])
+      AC_MSG_ERROR([-- Cluster/J requires ucs2 charset; use --with-extra-charsets to configure])
     fi
   else
-    AC_MSG_RESULT([-- not including Cluster/J])
+    AC_MSG_RESULT([-- Cluster/J requires Java and JNI: Cluster/J not included])
   fi
 
   have_classpath=no
@@ -377,7 +343,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     fi
   fi
 
-  if test x"$have_ndb_jtie" = xyes
+  if test x"$have_clusterj" = xyes
   then
     NDBJTIE_OPT="ndbjtie"
     NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
@@ -541,10 +507,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_bin_am_ldflags=""
   fi
 
-  if test X"$have_ndb_jtie" = Xyes
-  then
-    ndb_opt_subdirs="$ndb_opt_subdirs"
-  fi
   if test X"$have_clusterj" = Xyes
   then
     ndb_opt_subdirs="$ndb_opt_subdirs clusterj"

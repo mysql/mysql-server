@@ -25,6 +25,17 @@ clusterj_openjpa_test = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/
 
 clusterj_openjpa_test_res = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/src/test/resources
 
+clusterj_openjpadir= $(prefix)/share/mysql/java/
+
+clusterjpa_version_jar = clusterjpa-$(JAVA_NDB_VERSION).jar
+clusterjpa_jar = clusterjpa.jar
+
+OPENJPA_EXPORT=com.mysql.clusterj.openjpa
+
+CLUSTERJPA_JAR_DIRS = ../clusterj-api ../clusterj-core ../clusterj-tie ../clusterj-openjpa ../../src/ndbjtie ../../src/ndbjtie/jtie
+
+CLUSTERJPA_MANIFEST = CLUSTERJPA_MANIFEST.MF
+
 JAVAROOT = $(top_srcdir)/storage/ndb/clusterj/clusterj-openjpa/target/classes
 
 CLASSPATH_ENV = CLASSPATH=@CLUSTERJ_CLASSPATH@:$(JAVAROOT):$(top_srcdir)/storage/ndb/clusterj/clusterj-api/clusterj-api-@JAVA_NDB_VERSION@.jar:$(top_srcdir)/storage/ndb/clusterj/clusterj-core/target/classes:$(top_srcdir)/storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-@JAVA_NDB_VERSION@.jar
@@ -64,7 +75,7 @@ clusterj_openjpa_tests = \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsSqlTimestampTest.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/TimestampAsUtilDateTest.java
 
-noinst_DATA = classclusterj_openjpa.stamp 
+clusterj_openjpa_DATA = $(clusterjpa_version_jar)
 
 EXTRA_DIST = \
   $(clusterj_openjpa_res)/META-INF/services/* \
@@ -72,6 +83,14 @@ EXTRA_DIST = \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/*.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/*.java \
   pom.xml
+
+$(CLUSTERJPA_MANIFEST):
+	if test "$(OPENJPA_OPT)" == "clusterj-openjpa"; then \
+	  echo "Manifest-Version: 1.0"  > $(CLUSTERJPA_MANIFEST); \
+	  echo "Export-Package: $(CLUSTERJ_EXPORT),$(OPENJPA_EXPORT)"  >> $(CLUSTERJPA_MANIFEST); \
+	  echo "Bundle-Name: ClusterJ API"  >> $(CLUSTERJPA_MANIFEST); \
+	  echo "Bundle-Description: The API for ClusterJ"  >> $(CLUSTERJPA_MANIFEST); \
+	fi;
 
 classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 	mkdir -p  $(JAVAROOT)
@@ -81,6 +100,28 @@ classclusterj_openjpa.stamp: $(clusterj_openjpa_java)
 	    $(AM_JAVACFLAGS) $(JAVACFLAGS) $?; \
 	fi
 	echo timestamp > classclusterj_openjpa.stamp
+
+# basically do nothing if OPENJPA_OPT is not set
+$(clusterjpa_version_jar) : classclusterj_openjpa.stamp $(CLUSTERJPA_MANIFEST)
+	rm -f $@; \
+	@JAR@ cvfm $@ $(CLUSTERJPA_MANIFEST); \
+	for i in $(CLUSTERJPA_JAR_DIRS); do \
+	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
+	  @JAR@ uvf $@ -C $$i/target/classes com/mysql; \
+	  if test -x $$i/src/main/resources/META-INF/services; then \
+	    @JAR@ uvf $@ -C $$i/src/main/resources META-INF/services; \
+	  fi; \
+	  BUNDLE=$$i/src/main/resources/com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
+	  if test -e $$BUNDLE; then \
+	    @JAR@ uvf $@ -C $$i/src/main/resources com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
+	  fi; \
+	done; \
+	echo $$CLASS_DIRS; 
+
+## create a versioned link
+install-data-hook:
+	cd $(DESTDIR)/$(clusterj_openjpadir) && \
+	$(LN_CP_F) -f $(clusterjpa_version_jar) $(clusterjpa_jar)
 
 CLEANFILES= classclusterj_openjpa.stamp
 
