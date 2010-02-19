@@ -158,6 +158,8 @@ retry:
 Uint32
 Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
+  if (input > 65535)
+    return 16;
   input = input | (input >> 8);
   input = input | (input >> 4);
   input = input | (input >> 2);
