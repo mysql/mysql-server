@@ -36,7 +36,6 @@ EXTRA_DIST = README.txt utils \
                 mgmapi_jtie.hpp \
                 ndbapi_jtie.hpp \
                 ndbjtie_defs.hpp \
-                ndbapi_wrapper.hpp \
                 CMakeLists.txt
 
 ## ----------------------------------------------------------------------
