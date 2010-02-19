@@ -1272,21 +1272,18 @@ sub command_line_setup {
 
     if ($opt_gdb)
     {
-      mtr_warning("Silently converting --gdb to --client-gdb in embedded mode");
       $opt_client_gdb= $opt_gdb;
       $opt_gdb= undef;
     }
 
     if ($opt_ddd)
     {
-      mtr_warning("Silently converting --ddd to --client-ddd in embedded mode");
       $opt_client_ddd= $opt_ddd;
       $opt_ddd= undef;
     }
 
     if ($opt_debugger)
     {
-      mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
       $opt_client_debugger= $opt_debugger;
       $opt_debugger= undef;
     }
@@ -5341,20 +5338,12 @@ sub gdb_arguments {
   if ( $type eq "client" )
   {
     # write init file for client
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break main\n");
+    mtr_tofile($gdb_init_file, "set args $str\n");
   }
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+    mtr_tofile($gdb_init_file, "set args $str\n");
   }
 
   if ( $opt_manual_gdb )
@@ -5405,20 +5394,12 @@ sub ddd_arguments {
   if ( $type eq "client" )
   {
     # write init file for client
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break main\n");
+    mtr_tofile($gdb_init_file, "set args $str\n");
   }
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
+    mtr_tofile($gdb_init_file, "file $$exe\nset args $str\n");
   }
 
   if ( $opt_manual_ddd )
