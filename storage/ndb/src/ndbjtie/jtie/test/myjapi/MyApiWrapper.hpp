@@ -22,7 +22,7 @@
 #ifndef myapi_wrapper_hpp
 #define myapi_wrapper_hpp
 
-// API to implement against
+// API to wrap
 #include "myapi.hpp"
 
 struct MyApiWrapper {
@@ -264,51 +264,51 @@ struct MyApiWrapper {
 // ----------------------------------------------------------------------
 
     static void
-    A__h0(  )
+    h0( )
     {
-        h0();
+        ::h0();
     }
 
     static void
-    A__h1( int8_t p0 )
+    h1( int8_t p0 )
     {
-        h1(p0);
+        ::h1(p0);
     }
 
     static void
-    A__h2( int8_t p0, int16_t p1 )
+    h2( int8_t p0, int16_t p1 )
     {
-        h2(p0, p1);
+        ::h2(p0, p1);
     }
 
     static void
-    A__h3( int8_t p0, int16_t p1, int32_t p2 )
+    h3( int8_t p0, int16_t p1, int32_t p2 )
     {
-        h3(p0, p1, p2);
+        ::h3(p0, p1, p2);
     }
 
     static int32_t
-    A__h0r(  )
+    h0r( )
     {
-        return h0r();
+        return ::h0r();
     }
 
     static int32_t
-    A__h1r( int8_t p0 )
+    h1r( int8_t p0 )
     {
-        return h1r(p0);
+        return ::h1r(p0);
     }
 
     static int32_t
-    A__h2r( int8_t p0, int16_t p1 )
+    h2r( int8_t p0, int16_t p1 )
     {
-        return h2r(p0, p1);
+        return ::h2r(p0, p1);
     }
 
     static int32_t
-    A__h3r( int8_t p0, int16_t p1, int32_t p2 )
+    h3r( int8_t p0, int16_t p1, int32_t p2 )
     {
-        return h3r(p0, p1, p2);
+        return ::h3r(p0, p1, p2);
     }
 
 // ---------------------------------------------------------------------------

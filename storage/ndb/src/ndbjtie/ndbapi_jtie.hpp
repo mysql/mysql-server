@@ -25,36 +25,12 @@
 // API to implement against
 #include "NdbApi.hpp"
 #include "NdbError.hpp"
-#include "ndbapi_wrapper.hpp"
+#include "NdbApiWrapper.hpp"
 
 // libraries
 #include "ndbjtie_defs.hpp"
 #include "helpers.hpp"
 #include "jtie.hpp"
-
-// workaround for Sun Studio compilers (disambiguation of overloads)
-// (Studio 12.1 = 5.10):
-#if defined(__SUNPRO_CC)
-//#  if (__SUNPRO_CC == 0x510)
-#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-//#  endif
-#endif
-
-// workaround for MS Visual Studio compilers (disambiguation of overloads)
-// (VC7 = VS2003 = 1310, VC8 = VS2005 = 1400, VC9 = VS2008 = 1500, ...?):
-#if defined(_MSC_VER)
-//#  if (1300 <= _MSC_VER) && (_MSC_VER <= 1600)
-#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
-#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-// XXXXX need to fix a total of 93 overloaded functions:
-#    define SKIP_IF_MSVC 1
-//#  endif
-#endif
-
-// XXXXX
-//#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-//#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_OVERLOADED_FUNCTION 1
-//#define NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
 
 // ---------------------------------------------------------------------------
 // NDBAPI JTie Type Definitions
@@ -344,7 +320,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_getDictionary(JNIEnv * env, jobject obj)
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
  * Method:    getNdbError
@@ -360,7 +335,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__(JNIEnv * env, jobject obj)
     return gcall_fr< ttrait_c_m_n_n_NdbError_cr, ttrait_c_m_n_n_Ndb_cr, &NdbApiWrapper::Ndb__getNdbError >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
@@ -562,7 +536,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_getGCIEventOperations(JNIEnv * env, jobject ob
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
  * Method:    startTransaction
@@ -578,7 +551,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
     return gcall_fr< ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_char_0cp_bb, ttrait_Uint32, &NdbApiWrapper::Ndb__startTransaction >(env, NULL, obj, p0, p1, p2);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 #if 0 // MMM! not supported yet: array of objects Key_part_ptr[]
 /*
@@ -598,7 +570,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
 }
 #endif // MMM! not supported yet: array of objects Key_part_ptr[]
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
  * Method:    startTransaction
@@ -614,7 +585,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
     return gcall_fr< ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint32, &NdbApiWrapper::Ndb__startTransaction >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 #if 0 // MMM! not supported yet: array of objects Key_part_ptr[]
 /*
@@ -650,7 +620,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_closeTransaction(JNIEnv * env, jobject obj, jo
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
  * Method:    getNdbError
@@ -666,7 +635,6 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_getNdbError__I(JNIEnv * env, jobject obj, jint
     return gcall_fr< ttrait_c_m_n_n_NdbError_cr, ttrait_c_m_n_n_Ndb_r, ttrait_int, &NdbApiWrapper::Ndb__getNdbError >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 // ---------------------------------------------------------------------------
 
@@ -2092,7 +2060,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setSize(JNIEnv * env, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile
  * Method:    setTablespace
@@ -2108,9 +2075,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Ljava_l
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Datafile_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Datafile__setTablespace >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Datafile
  * Method:    setTablespace
@@ -2126,7 +2091,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Datafile_setTablespace__Lcom_my
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Datafile_r, ttrait_c_m_n_n_NdbDictionary_Tablespace_cr, &NdbApiWrapper::NdbDictionary__Datafile__setTablespace >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 // ---------------------------------------------------------------------------
 
@@ -2164,7 +2128,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getNdbError(JNIEnv *
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    getTable
@@ -2180,7 +2143,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getTable(JNIEnv * en
     return gcall_fr< ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_Dictionary_cr, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Dictionary__getTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
@@ -2326,7 +2288,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_optimizeIndex(JNIEnv
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    dropTable
@@ -2342,9 +2303,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Lcom_mysq
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Table_r, &NdbApiWrapper::NdbDictionary__Dictionary__dropTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    dropTable
@@ -2360,7 +2319,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_dropTable__Ljava_lan
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Dictionary__dropTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
@@ -2378,7 +2336,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_supportedAlterTable(
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    removeCachedTable
@@ -2394,9 +2351,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedTable(JN
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Dictionary__removeCachedTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    removeCachedIndex
@@ -2412,7 +2367,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_removeCachedIndex(JN
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_utf8cstring, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Dictionary__removeCachedIndex >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
@@ -3176,7 +3130,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setName(JNIEnv * env, job
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
  * Method:    setTable
@@ -3192,9 +3145,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Lcom_mysql_ndbj
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Event_r, ttrait_c_m_n_n_NdbDictionary_Table_cr, &NdbApiWrapper::NdbDictionary__Event__setTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
  * Method:    setTable
@@ -3210,7 +3161,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setTable__Ljava_lang_Stri
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Event_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Event__setTable >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
@@ -3260,7 +3210,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_setReport(JNIEnv * env, j
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
  * Method:    addEventColumn
@@ -3276,9 +3225,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__I(JNIEnv 
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Event_r, ttrait_uint, &NdbApiWrapper::NdbDictionary__Event__addEventColumn >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
  * Method:    addEventColumn
@@ -3294,7 +3241,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__Ljava_lan
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Event_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Event__addEventColumn >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 #if 0 // MMM! array support, error: parse error in template argument list
 /*
@@ -4204,7 +4150,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getTableId(JNIEnv * env, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getColumn
@@ -4220,9 +4165,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__Ljava_lang_Str
     return gcall_fr< ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_c_m_n_n_NdbDictionary_Table_cr, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Table__getColumn >(env, NULL, obj, p0); // call of overloaded const/non-const method
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getColumn
@@ -4238,7 +4181,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumn__I(JNIEnv * env
     return gcall_fr< ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_c_m_n_n_NdbDictionary_Table_cr, ttrait_int, &NdbApiWrapper::NdbDictionary__Table__getColumn >(env, NULL, obj, p0); // call of overloaded const/non-const method
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -4772,7 +4714,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_delete(JNIEnv * env, jcla
     gdelete< ttrait_c_m_n_n_NdbDictionary_Table_r >(env, cls, p0);
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getColumnM
@@ -4788,9 +4729,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__I(JNIEnv * en
     return gcall_fr< ttrait_c_m_n_n_NdbDictionary_Column_p, ttrait_c_m_n_n_NdbDictionary_Table_r, ttrait_int, &NdbApiWrapper::NdbDictionary__Table__getColumn >(env, NULL, obj, p0); // call of overloaded const/non-const method
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
  * Method:    getColumnM
@@ -4806,7 +4745,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Table_getColumnM__Ljava_lang_St
     return gcall_fr< ttrait_c_m_n_n_NdbDictionary_Column_p, ttrait_c_m_n_n_NdbDictionary_Table_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Table__getColumn >(env, NULL, obj, p0); // call of overloaded const/non-const method
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Table
@@ -5376,7 +5314,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setAutoGrowSpecifica
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace
  * Method:    setDefaultLogfileGroup
@@ -5392,9 +5329,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGro
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Tablespace_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Tablespace__setDefaultLogfileGroup >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Tablespace
  * Method:    setDefaultLogfileGroup
@@ -5410,7 +5345,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Tablespace_setDefaultLogfileGro
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Tablespace_r, ttrait_c_m_n_n_NdbDictionary_LogfileGroup_cr, &NdbApiWrapper::NdbDictionary__Tablespace__setDefaultLogfileGroup >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 // ---------------------------------------------------------------------------
 
@@ -5596,7 +5530,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setSize(JNIEnv * env, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile
  * Method:    setLogfileGroup
@@ -5612,9 +5545,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Ljava
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Undofile_r, ttrait_utf8cstring, &NdbApiWrapper::NdbDictionary__Undofile__setLogfileGroup >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Undofile
  * Method:    setLogfileGroup
@@ -5630,7 +5561,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Undofile_setLogfileGroup__Lcom_
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Undofile_r, ttrait_c_m_n_n_NdbDictionary_LogfileGroup_cr, &NdbApiWrapper::NdbDictionary__Undofile__setLogfileGroup >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 // ---------------------------------------------------------------------------
 
@@ -6084,7 +6014,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexOperation_insertTuple(JNIEnv * env, jobjec
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexOperation
  * Method:    readTuple
@@ -6100,7 +6029,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexOperation_readTuple(JNIEnv * env, jobject 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbIndexOperation_r, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, &NdbApiWrapper::NdbIndexOperation__readTuple >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexOperation
@@ -6170,7 +6098,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_getDescending(JNIEnv * env, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
  * Method:    readTuples
@@ -6186,9 +6113,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_readTuples(JNIEnv * env, job
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbIndexScanOperation_r, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbIndexScanOperation__readTuples >(env, NULL, obj, p0, p1, p2, p3);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
  * Method:    setBound
@@ -6204,9 +6129,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Ljava_lang_String_
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbIndexScanOperation_r, ttrait_utf8cstring, ttrait_int, ttrait_void_1cp_bb, &NdbApiWrapper::NdbIndexScanOperation__setBound >(env, NULL, obj, p0, p1, p2);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
  * Method:    setBound
@@ -6222,7 +6145,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__IILjava_nio_ByteBu
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbIndexScanOperation_r, ttrait_Uint32, ttrait_int, ttrait_void_1cp_bb, &NdbApiWrapper::NdbIndexScanOperation__setBound >(env, NULL, obj, p0, p1, p2);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
@@ -6256,7 +6178,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_get_1range_1no(JNIEnv * env,
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation
  * Method:    setBound
@@ -6272,7 +6193,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Lcom_mysql_ndbjtie
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbIndexScanOperation_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_cr, &NdbApiWrapper::NdbIndexScanOperation__setBound >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 // ---------------------------------------------------------------------------
 
@@ -6610,7 +6530,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_load_1const_1u64(JNIEnv * env, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    read_attr
@@ -6626,9 +6545,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__II(JNIEnv * env, jo
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__read_attr >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    read_attr
@@ -6644,9 +6561,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_read_1attr__ILcom_mysql_ndbjtie
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_c_m_n_n_NdbDictionary_Column_cp, &NdbApiWrapper::NdbInterpretedCode__read_attr >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    write_attr
@@ -6662,9 +6577,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__II(JNIEnv * env, j
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__write_attr >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    write_attr
@@ -6680,7 +6593,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_write_1attr__Lcom_mysql_ndbjtie
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__write_attr >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
@@ -7050,7 +6962,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1ok(JNIEnv * en
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    interpret_exit_nok
@@ -7066,9 +6977,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__I(JNIEnv 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__interpret_exit_nok >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    interpret_exit_nok
@@ -7084,7 +6993,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1nok__(JNIEnv *
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, &NdbApiWrapper::NdbInterpretedCode__interpret_exit_nok >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
@@ -7102,7 +7010,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_interpret_1exit_1last_1row(JNIE
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    add_val
@@ -7118,9 +7025,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__II(JNIEnv * env, jobj
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__add_val >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    add_val
@@ -7136,9 +7041,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_add_1val__IJ(JNIEnv * env, jobj
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint64, &NdbApiWrapper::NdbInterpretedCode__add_val >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    sub_val
@@ -7154,9 +7057,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__II(JNIEnv * env, jobj
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbInterpretedCode__sub_val >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
  * Method:    sub_val
@@ -7172,7 +7073,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_sub_1val__IJ(JNIEnv * env, jobj
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_Uint32, ttrait_Uint64, &NdbApiWrapper::NdbInterpretedCode__sub_val >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbInterpretedCode
@@ -7290,7 +7190,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbError(JNIEnv * env, jobject obj
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getNdbErrorLine
@@ -7306,7 +7205,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getNdbErrorLine(JNIEnv * env, jobject
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_cr, &NdbApiWrapper::NdbOperation__getNdbErrorLine >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
@@ -7501,7 +7399,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_deleteTuple(JNIEnv * env, jobject obj
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    readTuple
@@ -7517,9 +7414,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_readTuple(JNIEnv * env, jobject obj, 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, &NdbApiWrapper::NdbOperation__readTuple >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7535,9 +7430,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2Ljava_nio_B
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_char_1cp_bb, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7553,9 +7446,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2I(JNIEnv * 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_Int32, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7571,9 +7462,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__Ljava_lang_String_2J(JNIEnv * 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_Int64, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7589,9 +7478,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__ILjava_nio_ByteBuffer_2(JNIEnv
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_char_1cp_bb, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7607,9 +7494,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__II(JNIEnv * env, jobject obj, 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_Int32, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    equal
@@ -7625,9 +7510,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_equal__IJ(JNIEnv * env, jobject obj, 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_Int64, &NdbApiWrapper::NdbOperation__equal >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getValue
@@ -7643,9 +7526,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Ljava_lang_String_2Ljava_ni
     return gcall_fr< ttrait_c_m_n_n_NdbRecAttr_p, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_char_1p_bb, &NdbApiWrapper::NdbOperation__getValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getValue
@@ -7661,9 +7542,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__ILjava_nio_ByteBuffer_2(JNI
     return gcall_fr< ttrait_c_m_n_n_NdbRecAttr_p, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_char_1p_bb, &NdbApiWrapper::NdbOperation__getValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getValue
@@ -7679,9 +7558,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getValue__Lcom_mysql_ndbjtie_ndbapi_N
     return gcall_fr< ttrait_c_m_n_n_NdbRecAttr_p, ttrait_c_m_n_n_NdbOperation_r, ttrait_c_m_n_n_NdbDictionary_Column_cp, ttrait_char_1p_bb, &NdbApiWrapper::NdbOperation__getValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7697,9 +7574,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2Ljava_ni
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_char_1cp_bb, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7715,9 +7590,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2I(JNIEnv
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_Int32, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7733,9 +7606,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2J(JNIEnv
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_Int64, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7751,9 +7622,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2F(JNIEnv
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_float, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7769,9 +7638,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__Ljava_lang_String_2D(JNIEnv
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_utf8cstring, ttrait_double, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7787,9 +7654,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ILjava_nio_ByteBuffer_2(JNI
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_char_1cp_bb, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7805,9 +7670,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__II(JNIEnv * env, jobject ob
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_Int32, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7823,9 +7686,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IJ(JNIEnv * env, jobject ob
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_Int64, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7841,9 +7702,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__IF(JNIEnv * env, jobject ob
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_float, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    setValue
@@ -7859,7 +7718,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_setValue__ID(JNIEnv * env, jobject ob
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbOperation_r, ttrait_Uint32, ttrait_double, &NdbApiWrapper::NdbOperation__setValue >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
@@ -8705,7 +8563,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_cmp(JNIEnv * env, jobject obj, jint 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    eq
@@ -8721,9 +8578,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__eq >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    ne
@@ -8739,9 +8594,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__ne >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    lt
@@ -8757,9 +8610,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__lt >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    le
@@ -8775,9 +8626,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__le >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    gt
@@ -8793,9 +8642,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__gt >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    ge
@@ -8811,9 +8658,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__II(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint32, &NdbApiWrapper::NdbScanFilter__ge >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    eq
@@ -8829,9 +8674,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_eq__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__eq >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    ne
@@ -8847,9 +8690,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ne__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__ne >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    lt
@@ -8865,9 +8706,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_lt__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__lt >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    le
@@ -8883,9 +8722,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_le__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__le >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    gt
@@ -8901,9 +8738,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_gt__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__gt >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
  * Method:    ge
@@ -8919,7 +8754,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanFilter_ge__IJ(JNIEnv * env, jobject obj, ji
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanFilter_r, ttrait_int, ttrait_Uint64, &NdbApiWrapper::NdbScanFilter__ge >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanFilter
@@ -8973,7 +8807,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_getNdbTransaction(JNIEnv * env, j
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    readTuples
@@ -8989,9 +8822,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_readTuples(JNIEnv * env, jobject 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbOperation_LockMode_iv/*_enum_*/, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbScanOperation__readTuples >(env, NULL, obj, p0, p1, p2, p3);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    nextResult
@@ -9007,7 +8838,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_nextResult(JNIEnv * env, jobject 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_bool, ttrait_bool, &NdbApiWrapper::NdbScanOperation__nextResult >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
@@ -9025,7 +8855,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_close(JNIEnv * env, jobject obj, 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    lockCurrentTuple
@@ -9041,9 +8870,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__(JNIEnv * env, 
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbScanOperation_r, &NdbApiWrapper::NdbScanOperation__lockCurrentTuple >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    lockCurrentTuple
@@ -9059,9 +8886,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_lockCurrentTuple__Lcom_mysql_ndbj
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, &NdbApiWrapper::NdbScanOperation__lockCurrentTuple >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    updateCurrentTuple
@@ -9077,9 +8902,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__(JNIEnv * env
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbScanOperation_r, &NdbApiWrapper::NdbScanOperation__updateCurrentTuple >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    updateCurrentTuple
@@ -9095,9 +8918,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_updateCurrentTuple__Lcom_mysql_nd
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, &NdbApiWrapper::NdbScanOperation__updateCurrentTuple >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    deleteCurrentTuple
@@ -9113,9 +8934,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__(JNIEnv * env
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanOperation_r, &NdbApiWrapper::NdbScanOperation__deleteCurrentTuple >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation
  * Method:    deleteCurrentTuple
@@ -9131,7 +8950,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_deleteCurrentTuple__Lcom_mysql_nd
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbScanOperation_r, ttrait_c_m_n_n_NdbTransaction_p, &NdbApiWrapper::NdbScanOperation__deleteCurrentTuple >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 #if 0 // MMM! array support, error: parse error in template argument list
 /*
@@ -9403,7 +9221,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbError(JNIEnv * env, jobject o
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    getNdbErrorOperation
@@ -9419,7 +9236,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbErrorOperation(JNIEnv * env, 
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_cr, &NdbApiWrapper::NdbTransaction__getNdbErrorOperation >(env, NULL, obj); // call of overloaded const/non-const method
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
@@ -9437,7 +9253,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNextCompletedOperation(JNIEnv * 
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    getNdbOperation
@@ -9453,9 +9268,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbOperation(JNIEnv * env, jobje
     return gcall_fr< ttrait_c_m_n_n_NdbOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, &NdbApiWrapper::NdbTransaction__getNdbOperation >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    getNdbScanOperation
@@ -9471,9 +9284,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbScanOperation(JNIEnv * env, j
     return gcall_fr< ttrait_c_m_n_n_NdbScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, &NdbApiWrapper::NdbTransaction__getNdbScanOperation >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    getNdbIndexScanOperation
@@ -9489,9 +9300,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexScanOperation(JNIEnv * e
     return gcall_fr< ttrait_c_m_n_n_NdbIndexScanOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, &NdbApiWrapper::NdbTransaction__getNdbIndexScanOperation >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    getNdbIndexOperation
@@ -9507,9 +9316,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_getNdbIndexOperation(JNIEnv * env, 
     return gcall_fr< ttrait_c_m_n_n_NdbIndexOperation_p, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, &NdbApiWrapper::NdbTransaction__getNdbIndexOperation >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
-#ifndef SKIP_IF_MSVC
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
  * Method:    execute
@@ -9525,7 +9332,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_execute(JNIEnv * env, jobject obj, 
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbTransaction_ExecType_iv/*_enum_*/, ttrait_c_m_n_n_NdbOperation_AbortOption_iv/*_enum_*/, ttrait_int, &NdbApiWrapper::NdbTransaction__execute >(env, NULL, obj, p0, p1, p2);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // !SKIP_IF_MSVC
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbTransaction
