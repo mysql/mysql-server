@@ -131,29 +131,73 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
-  for (unsigned i = 0; i<table_list.size(); i++)
+  if (ctx->getProperty("NoDDL", Uint32(0)) == 0)
   {
-    int res = NDBT_OK;
-    const NdbDictionary::Table* tab = myDict->getTable(table_list[i].c_str());
-    if (tab == 0)
+    for (unsigned i = 0; i<table_list.size(); i++)
     {
-      continue;
-    }
-    if ((res = createEvent(pNdb, *tab) != NDBT_OK))
-    {
-      return res;
-    }
-
-    
-
-    if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
-    {
-      return res;
+      int res = NDBT_OK;
+      const NdbDictionary::Table* tab = myDict->getTable(table_list[i].c_str());
+      if (tab == 0)
+      {
+        continue;
+      }
+      if ((res = createEvent(pNdb, *tab) != NDBT_OK))
+      {
+        return res;
+      }
+      
+      
+      
+      if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
+      {
+        return res;
+      }
     }
   }
 
   return NDBT_OK;
 }
+
+/* An enum for expressing how many of the multiple nodes
+ * of a given type an action should be applied to
+ */
+enum NodeSet
+{
+  All = 0,
+  NotAll = 1, /* less than All, or None if there's only 1 */
+  None = 2
+};
+
+uint getNodeCount(NodeSet set, uint numNodes)
+{
+  switch(set)
+  {
+  case All:
+    return numNodes;
+  case NotAll:
+  {
+    if (numNodes < 2)
+      return 0;
+    
+    if (numNodes == 2)
+      return 1;
+    
+    uint range = numNodes - 2;
+    
+    /* At least 1, at most numNodes - 1 */
+    return (1 + (rand() % (range + 1)));
+  }
+  case None:
+  {
+    return 0;
+  }
+  default:
+    g_err << "Unknown set type : " << set << endl;
+    abort();
+    return 0;
+  }
+};
+
 
 /**
   Test that one node at a time can be upgraded
@@ -161,6 +205,9 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
 
 int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
   AtrtClient atrt;
+
+  NodeSet mgmdNodeSet = (NodeSet) ctx->getProperty("MgmdNodeSet", Uint32(0));
+  NodeSet ndbdNodeSet = (NodeSet) ctx->getProperty("NdbdNodeSet", Uint32(0));
 
   SqlResultSet clusters;
   if (!atrt.getClusters(clusters))
@@ -185,51 +232,65 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
     SqlResultSet mgmds;
     if (!atrt.getMgmds(clusterId, mgmds))
       return NDBT_FAILED;
-
-    while (mgmds.next())
+    
+    uint mgmdCount = mgmds.numRows();
+    uint restartCount = getNodeCount(mgmdNodeSet, mgmdCount);
+    
+    ndbout << "Restarting "
+             << restartCount << " of " << mgmdCount
+             << " mgmds" << endl;
+      
+    while (mgmds.next() && restartCount --)
     {
       ndbout << "Restart mgmd " << mgmds.columnAsInt("node_id") << endl;
       if (!atrt.changeVersion(mgmds.columnAsInt("id"), ""))
         return NDBT_FAILED;
-
+      
       if (restarter.waitConnected())
         return NDBT_FAILED;
       ndbout << "Connected to mgmd"<< endl;
     }
-
+    
     ndbout << "Waiting for started"<< endl;
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
     ndbout << "Started"<< endl;
-
+    
     // Restart ndbd(s)
     SqlResultSet ndbds;
     if (!atrt.getNdbds(clusterId, ndbds))
       return NDBT_FAILED;
 
-    while(ndbds.next())
+    uint ndbdCount = ndbds.numRows();
+    restartCount = getNodeCount(ndbdNodeSet, ndbdCount);
+    
+    ndbout << "Restarting "
+             << restartCount << " of " << ndbdCount
+             << " ndbds" << endl;
+    
+    while(ndbds.next() && restartCount --)
     {
       int nodeId = ndbds.columnAsInt("node_id");
       int processId = ndbds.columnAsInt("id");
       ndbout << "Restart node " << nodeId << endl;
-
+      
       if (!atrt.changeVersion(processId, ""))
         return NDBT_FAILED;
-
+      
       if (restarter.waitNodesNoStart(&nodeId, 1))
         return NDBT_FAILED;
-
+      
       if (restarter.startNodes(&nodeId, 1))
         return NDBT_FAILED;
-
+      
       if (restarter.waitNodesStarted(&nodeId, 1))
         return NDBT_FAILED;
-
+      
       if (createDropEvent(ctx, step))
         return NDBT_FAILED;
     }
   }
-
+  
   ctx->stopTest();
   return NDBT_OK;
 }
@@ -259,6 +320,9 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     args = "--initial=0";
   }
 
+  NodeSet mgmdNodeSet = (NodeSet) ctx->getProperty("MgmdNodeSet", Uint32(0));
+  NodeSet ndbdNodeSet = (NodeSet) ctx->getProperty("NdbdNodeSet", Uint32(0));
+
   SqlResultSet clusters;
   if (!atrt.getClusters(clusters))
     return NDBT_FAILED;
@@ -283,7 +347,14 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     if (!atrt.getMgmds(clusterId, mgmds))
       return NDBT_FAILED;
 
-    while (mgmds.next())
+    uint mgmdCount = mgmds.numRows();
+    uint restartCount = getNodeCount(mgmdNodeSet, mgmdCount);
+    
+    ndbout << "Restarting "
+             << restartCount << " of " << mgmdCount
+            << " mgmds" << endl;
+      
+    while (mgmds.next() && restartCount --)
     {
       ndbout << "Restart mgmd" << mgmds.columnAsInt("node_id") << endl;
       if (!atrt.changeVersion(mgmds.columnAsInt("id"), ""))
@@ -310,12 +381,19 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       nodes.push_back(n);
     }
 
+    uint ndbdCount = ndbds.numRows();
+    restartCount = getNodeCount(ndbdNodeSet, ndbdCount);
+    
+    ndbout << "Restarting "
+             << restartCount << " of " << ndbdCount
+             << " ndbds" << endl;
+    
     int nodesarray[256];
     int cnt= 0;
 
     Bitmask<4> seen_groups;
     Bitmask<4> restarted_nodes;
-    for (Uint32 i = 0; i<nodes.size(); i++)
+    for (Uint32 i = 0; (i<nodes.size() && restartCount); i++)
     {
       int nodeId = nodes[i].nodeId;
       int processId = nodes[i].processId;
@@ -340,6 +418,7 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       nodesarray[cnt++]= nodeId;
+      restartCount--;
     }
     
     if (!waitNode)
@@ -362,7 +441,7 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 
     // Restart the remaining nodes
     cnt= 0;
-    for (Uint32 i = 0; i<nodes.size(); i++)
+    for (Uint32 i = 0; (i<nodes.size() && restartCount); i++)
     {
       int nodeId = nodes[i].nodeId;
       int processId = nodes[i].processId;
@@ -380,6 +459,7 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       nodesarray[cnt++]= nodeId;
+      restartCount --;
     }
 
     
@@ -433,6 +513,47 @@ int runUpgrade_NR3(NDBT_Context* ctx, NDBT_Step* step){
   // Assuming 2 replicas
 
   ctx->setProperty("CreateDropEvent", 1);
+  int res = runUpgrade_Half(ctx, step);
+  ctx->stopTest();
+  return res;
+}
+
+/**
+   Test that we can upgrade the Ndbds on their own
+*/
+int runUpgrade_NdbdOnly(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(None));
+  int res = runUpgrade_Half(ctx, step);
+  ctx->stopTest();
+  return res;
+}
+
+/**
+   Test that we can upgrade the Ndbds first, then
+   the MGMDs
+*/
+int runUpgrade_NdbdFirst(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(None));
+  int res = runUpgrade_Half(ctx, step);
+  if (res == NDBT_OK)
+  {
+    ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(All));
+    ctx->setProperty("NdbdNodeSet", (Uint32) NodeSet(None));
+    res = runUpgrade_Half(ctx, step);
+  }
+  ctx->stopTest();
+  return res;
+}
+
+/**
+   Upgrade some of the MGMDs
+*/
+int runUpgrade_NotAllMGMD(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(NotAll));
+  ctx->setProperty("NdbdNodeSet", (Uint32) NodeSet(None));
   int res = runUpgrade_Half(ctx, step);
   ctx->stopTest();
   return res;
@@ -494,6 +615,27 @@ runCreateOneTable(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runGetTableList(NDBT_Context* ctx, NDBT_Step* step)
+{
+  table_list.clear();
+  ndbout << "Looking for tables ... ";
+  for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
+  {
+    const NdbDictionary::Table* tab = 
+      GETNDB(step)->getDictionary()
+      ->getTable(NDBT_Tables::getTable(i)
+                 ->getName());
+    if (tab != NULL)
+    {
+      ndbout << tab->getName() << " ";
+      table_list.push_back(BaseString(tab->getName()));
+    }
+  }
+  ndbout << endl;
+
+  return NDBT_OK;
+}
+
 int
 runLoadAll(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -513,6 +655,27 @@ runLoadAll(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runClearAll(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  for (unsigned i = 0; i<table_list.size(); i++)
+  {
+    const NdbDictionary::Table* tab = pDict->getTable(table_list[i].c_str());
+    if (tab)
+    {
+      HugoTransactions trans(* tab);
+      trans.clearTable(pNdb, records);
+    }
+  }
+  
+  return result;
+}
+
 
 int
 runBasic(NDBT_Context* ctx, NDBT_Step* step)
@@ -525,7 +688,6 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
   int l = 0;
   while (!ctx->isTestStopped())
   {
-    l++;
     for (unsigned i = 0; i<table_list.size(); i++)
     {
       const NdbDictionary::Table* tab = pDict->getTable(table_list[i].c_str());
@@ -558,6 +720,7 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
     }
+    l++;
   }
   
   return result;
@@ -611,6 +774,15 @@ startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    * This will restart *self* in new version
    */
 
+  BaseString extraArgs;
+  if (ctx->getProperty("RestartNoDDL", Uint32(0)))
+  {
+    /* Ask post-upgrade steps not to perform DDL
+     * (e.g. for 6.3->7.0 upgrade)
+     */
+    extraArgs.append(" --noddl ");
+  }
+
   /**
    * mysql-getopt works so that passing "-n X -n Y" is ok
    *   and is interpreted as "-n Y"
@@ -620,7 +792,9 @@ startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *     this will restart it as "testUpgrade -n X -n X--post-upgrade"
    */
   BaseString tc;
-  tc.assfmt("-n %s--post-upgrade", ctx->getCase()->getName());
+  tc.assfmt("-n %s--post-upgrade %s", 
+            ctx->getCase()->getName(),
+            extraArgs.c_str());
 
   ndbout << "About to restart self with extra arg: " << tc.c_str() << endl;
 
@@ -638,6 +812,18 @@ startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
   // Will not be reached...
 
   return NDBT_OK;
+}
+
+int
+startPostUpgradeChecksApiFirst(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* If Api is upgraded before all NDBDs then it may not 
+   * be possible to use DDL from the upgraded API
+   * The upgraded Api will decide, but we pass NoDDL
+   * in
+   */
+  ctx->setProperty("RestartNoDDL", 1);
+  return startPostUpgradeChecks(ctx, step);
 }
 
 int
@@ -659,55 +845,82 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
   ndbout << "done" << endl;
 
 
-  /**
-   * Bug48227
-   *   
-   */
-  Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  if (ctx->getProperty("NoDDL", Uint32(0)) == 0)
   {
-    NdbDictionary::Dictionary::List l;
-    pDict->listObjects(l);
-    for (Uint32 i = 0; i<l.count; i++)
-      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
-  }
-
-  pDict->dropTable("I3");
-  if (NDBT_Tables::createTable(pNdb, "I3"))
-  {
-    ndbout_c("Failed to create table!");
-    ndbout << pDict->getNdbError() << endl;
-    return NDBT_FAILED;
-  }
-
-  {
-    NdbDictionary::Dictionary::List l;
-    pDict->listObjects(l);
-    for (Uint32 i = 0; i<l.count; i++)
-      ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
-  }
-
-  NdbRestarter res;
-  if (res.restartAll() != 0)
-  {
-    ndbout_c("restartAll() failed");
-    return NDBT_FAILED;
-  }
-
-  if (res.waitClusterStarted() != 0)
-  {
-    ndbout_c("waitClusterStarted() failed");
-    return NDBT_FAILED;
-  }
-
-  if (pDict->getTable("I3") == 0)
-  {
-    ndbout_c("Table disappered");
-    return NDBT_FAILED;
+    /**
+     * Bug48227
+     *   
+     */
+    Ndb* pNdb = GETNDB(step);
+    NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+    {
+      NdbDictionary::Dictionary::List l;
+      pDict->listObjects(l);
+      for (Uint32 i = 0; i<l.count; i++)
+        ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+    }
+    
+    pDict->dropTable("I3");
+    if (NDBT_Tables::createTable(pNdb, "I3"))
+    {
+      ndbout_c("Failed to create table!");
+      ndbout << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    
+    {
+      NdbDictionary::Dictionary::List l;
+      pDict->listObjects(l);
+      for (Uint32 i = 0; i<l.count; i++)
+        ndbout_c("found %u : %s", l.elements[i].id, l.elements[i].name);
+    }
+    
+    NdbRestarter res;
+    if (res.restartAll() != 0)
+    {
+      ndbout_c("restartAll() failed");
+      return NDBT_FAILED;
+    }
+    
+    if (res.waitClusterStarted() != 0)
+    {
+      ndbout_c("waitClusterStarted() failed");
+      return NDBT_FAILED;
+    }
+    
+    if (pDict->getTable("I3") == 0)
+    {
+      ndbout_c("Table disappered");
+      return NDBT_FAILED;
+    }
   }
 
   return NDBT_OK;
 }
+
+
+int
+runWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Uint32 waitSeconds = ctx->getProperty("WaitSeconds", Uint32(30));
+  while (waitSeconds &&
+         !ctx->isTestStopped())
+  {    
+    NdbSleep_MilliSleep(1000);
+    waitSeconds --;
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPostUpgradeDecideDDL(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* We always support DDL post upgrade in 6.3 */
+  ctx->setProperty("NoDDL", 1);
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
@@ -817,6 +1030,80 @@ POSTUPGRADE("Upgrade_Traffic_FS_one")
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
+TESTCASE("Upgrade_Api_Only",
+         "Test that upgrading the Api node only works")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  VERIFIER(startPostUpgradeChecksApiFirst);
+}
+POSTUPGRADE("Upgrade_Api_Only")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeDecideDDL);
+  INITIALIZER(runGetTableList);
+  TC_PROPERTY("WaitSeconds", 30);
+  STEP(runBasic);
+  STEP(runPostUpgradeChecks);
+  STEP(runWait);
+  FINALIZER(runClearAll);
+}
+TESTCASE("Upgrade_Api_Before_NR1",
+         "Test that upgrading the Api node before the kernel works")
+{
+  /* Api, then MGMD(s), then NDBDs */
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  VERIFIER(startPostUpgradeChecksApiFirst);
+}
+POSTUPGRADE("Upgrade_Api_Before_NR1")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeDecideDDL);
+  INITIALIZER(runGetTableList);
+  STEP(runBasic);
+  STEP(runUpgrade_NR1); /* Upgrade kernel nodes using NR1 */
+  FINALIZER(runPostUpgradeChecks);
+  FINALIZER(runClearAll);
+}
+TESTCASE("Upgrade_Api_NDBD_MGMD",
+         "Test that updating in reverse order works")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  VERIFIER(startPostUpgradeChecksApiFirst);
+}
+POSTUPGRADE("Upgrade_Api_NDBD_MGMD")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeDecideDDL);
+  INITIALIZER(runGetTableList);
+  STEP(runBasic);
+  STEP(runUpgrade_NdbdFirst);
+  FINALIZER(runPostUpgradeChecks);
+  FINALIZER(runClearAll);
+}
+TESTCASE("Upgrade_Mixed_MGMD_API_NDBD",
+         "Test that upgrading MGMD/API partially before data nodes works")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runCreateAllTables);
+  STEP(runUpgrade_NotAllMGMD); /* Upgrade an MGMD */
+  STEP(runBasic);
+  VERIFIER(startPostUpgradeChecksApiFirst); /* Upgrade Api */
+}
+POSTUPGRADE("Upgrade_Mixed_MGMD_API_NDBD")
+{
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runPostUpgradeDecideDDL);
+  INITIALIZER(runGetTableList);
+  INITIALIZER(runClearAll); /* Clear rows from old-ver basic run */
+  STEP(runBasic);
+  STEP(runUpgrade_NdbdFirst); /* Upgrade all Ndbds, then MGMDs finally */
+  FINALIZER(runPostUpgradeChecks);
+  FINALIZER(runClearAll);
+}
+  
 NDBT_TESTSUITE_END(testUpgrade);
 
 int main(int argc, const char** argv){
