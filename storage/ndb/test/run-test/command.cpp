@@ -63,6 +63,46 @@ ack_command(AtrtClient& atrtdb, int command_id, const char* state)
 }
 
 
+BaseString
+set_env_var(const BaseString& existing,
+            const BaseString& name,
+            const BaseString& value)
+{
+  /* Split existing on space 
+   * (may have issues with env vars with spaces) 
+   * Split assignments on =
+   * Where name == name, output new value
+   */
+  BaseString newEnv;
+  Vector<BaseString> assignments;
+  int assignmentCount = existing.split(assignments, BaseString(" "));
+  
+  for (int i=0; i < assignmentCount; i++)
+  {
+    Vector<BaseString> terms;
+    int termCount = assignments[i].split(terms, BaseString("="));
+    
+    if (termCount)
+    {
+      if (strcmp(name.c_str(), terms[0].c_str()) == 0)
+      {
+        /* Found element */
+        newEnv.append(name);
+        newEnv.append('=');
+        newEnv.append(value);
+      }
+      else
+      {
+        newEnv.append(assignments[i]);
+      }
+    }
+    newEnv.append(' ');
+  }
+
+  return newEnv;
+}
+
+
 Vector<atrt_process> g_saved_procs;
 
 static
@@ -85,6 +125,29 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   }
   atrt_process& proc= *config.m_processes[process_id];
 
+  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix;
+  const char* old_prefix= g_prefix;
+  const char *start= strstr(proc.m_proc.m_path.c_str(), old_prefix);
+  if (!start){
+    /* Process path does not contain old prefix.  
+     * Perhaps it contains the new prefix - e.g. is already
+     * upgraded?
+     */
+    if (strstr(proc.m_proc.m_path.c_str(), new_prefix))
+    {
+      /* Process is already upgraded, *assume* that this
+       * is ok
+       * Alternatives could be - error, or downgrade.
+       */
+      g_logger.info("Process already upgraded");
+      return true;
+    }
+      
+    g_logger.critical("Could not find '%s' in '%s'",
+                      old_prefix, proc.m_proc.m_path.c_str());
+    return false;
+  }
+
   // Save current proc state
   if (proc.m_save.m_saved == false)
   {
@@ -95,20 +158,15 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   g_logger.info("stopping process...");
   if (!stop_process(proc))
     return false;
-
-  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix;
-  const char* old_prefix= g_prefix;
-  proc.m_proc.m_env.appfmt(" MYSQL_BASE_DIR=%s", new_prefix);
-  const char *start= strstr(proc.m_proc.m_path.c_str(), old_prefix);
-  if (!start){
-    g_logger.critical("Could not find '%s' in '%s'",
-                      old_prefix, proc.m_proc.m_path.c_str());
-    return false;
-  }
+  BaseString newEnv = set_env_var(proc.m_proc.m_env, 
+                                  BaseString("MYSQL_BASE_DIR"),
+                                  BaseString(new_prefix));
+  proc.m_proc.m_env.assign(newEnv);
   BaseString suffix(proc.m_proc.m_path.substr(strlen(old_prefix)));
   proc.m_proc.m_path.assign(new_prefix).append(suffix);
   if (process_args && strlen(process_args))
   {
+    /* Beware too long args */
     proc.m_proc.m_args.append(" ");
     proc.m_proc.m_args.append(process_args);
   }
