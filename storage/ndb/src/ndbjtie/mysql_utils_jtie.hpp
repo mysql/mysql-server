@@ -25,7 +25,7 @@
 // API to implement against
 #include "decimal_utils.hpp"
 #include "CharsetMap.hpp"
-#include "MySqlUtilsWrapper.hpp"
+#include "MysqlUtilsWrapper.hpp"
 
 // libraries
 #include "ndbjtie_defs.hpp"
