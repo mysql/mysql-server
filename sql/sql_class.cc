@@ -42,6 +42,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "sql_select.h" /* declares create_tmp_table() */
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -2876,6 +2877,71 @@ bool select_dumpvar::send_eof()
   ::my_ok(thd,row_count);
   return 0;
 }
+
+
+bool
+select_materialize_with_stats::
+create_result_table(THD *thd_arg, List<Item> *column_types,
+                    bool is_union_distinct, ulonglong options,
+                    const char *table_alias, bool bit_fields_as_long)
+{
+  DBUG_ASSERT(table == 0);
+  tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.bit_fields_as_long= bit_fields_as_long;
+
+  if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
+                                 (ORDER*) 0, is_union_distinct, 1,
+                                 options, HA_POS_ERROR, (char*) table_alias)))
+    return TRUE;
+
+  col_stat= (Column_statistics*) table->in_use->alloc(table->s->fields *
+                                                      sizeof(Column_statistics));
+  if (!stat)
+    return TRUE;
+
+  cleanup();
+
+  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  return FALSE;
+}
+
+
+/**
+  Override select_union::send_data to analyze each row for NULLs and to
+  update null_statistics before sending data to the client.
+
+  @return TRUE if fatal error when sending data to the client
+  @return FALSE on success
+*/
+
+bool select_materialize_with_stats::send_data(List<Item> &items)
+{
+  List_iterator_fast<Item> item_it(items);
+  Item *cur_item;
+  Column_statistics *cur_col_stat= col_stat;
+  uint nulls_in_row= 0;
+
+  ++count_rows;
+
+  while ((cur_item= item_it++))
+  {
+    if (cur_item->is_null())
+    {
+      ++cur_col_stat->null_count;
+      cur_col_stat->max_null_row= count_rows;
+      if (!cur_col_stat->min_null_row)
+        cur_col_stat->min_null_row= count_rows;
+      ++nulls_in_row;
+    }
+    ++cur_col_stat;
+  }
+  if (nulls_in_row > max_nulls_in_row)
+    max_nulls_in_row= nulls_in_row;
+
+  return select_union::send_data(items);
+}
+
 
 /****************************************************************************
   TMP_TABLE_PARAM

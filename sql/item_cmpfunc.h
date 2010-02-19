@@ -350,6 +350,7 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  Arg_comparator *get_comparator() { return &cmp; }
 
   friend class  Arg_comparator;
 };

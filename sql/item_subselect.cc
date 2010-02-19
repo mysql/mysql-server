@@ -138,6 +138,7 @@ void Item_in_subselect::cleanup()
     left_expr_cache= NULL;
   }
   first_execution= TRUE;
+  is_constant= FALSE;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
 }
@@ -438,8 +439,10 @@ bool Item_subselect::exec()
   int res;
 
   if (thd->is_error())
-  /* Do not execute subselect in case of a fatal error */
+  {
+    /* Do not execute subselect in case of a fatal error */
     return 1;
+  }
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -464,9 +467,6 @@ bool Item_subselect::exec()
 bool Item_in_subselect::exec()
 {
   DBUG_ENTER("Item_in_subselect::exec");
-  DBUG_ASSERT(exec_method != MATERIALIZATION ||
-              (exec_method == MATERIALIZATION &&
-               engine->engine_type() == subselect_engine::HASH_SJ_ENGINE));
   /*
     Initialize the cache of the left predicate operand. This has to be done as
     late as now, because Cached_item directly contains a resolved field (not
@@ -482,14 +482,14 @@ bool Item_in_subselect::exec()
   if (!left_expr_cache && exec_method == MATERIALIZATION)
     init_left_expr_cache();
 
-  /* If the new left operand is already in the cache, reuse the old result. */
-  if (left_expr_cache && test_if_item_cache_changed(*left_expr_cache) < 0)
-  {
-    /* Always compute IN for the first row as the cache is not valid for it. */
-    if (!first_execution)
-      DBUG_RETURN(FALSE);
-    first_execution= FALSE;
-  }
+  /*
+    If the new left operand is already in the cache, reuse the old result.
+    Use the cached result only if this is not the first execution of IN
+    because the cache is not valid for the first execution.
+  */
+  if (!first_execution && left_expr_cache &&
+      test_if_item_cache_changed(*left_expr_cache) < 0)
+    DBUG_RETURN(FALSE);
 
   /*
     The exec() method below updates item::value, and item::null_value, thus if
@@ -899,8 +899,8 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-  optimizer(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
-  upper_item(0)
+  is_constant(FALSE), optimizer(0), pushed_cond_guards(NULL),
+  exec_method(NOT_TRANSFORMED), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1094,6 +1094,8 @@ bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
   null_value= 0;
+  if (is_constant)
+    return value;
   if (exec())
   {
     reset();
@@ -1560,9 +1562,9 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
   // psergey: duplicated_subselect_card_check
-  if (select_lex->item_list.elements != left_expr->cols())
+  if (select_lex->item_list.elements != cols_num)
   {
-    my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
+    my_error(ER_OPERAND_COLUMNS, MYF(0), cols_num);
     DBUG_RETURN(RES_ERROR);
   }
 
@@ -1969,16 +1971,68 @@ void Item_in_subselect::print(String *str, enum_query_type query_type)
 
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
-  bool result = 0;
+  uint outer_cols_num;
+  List<Item> *inner_cols;
 
   if (exec_method == SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
-    result = left_expr->fix_fields(thd_arg, &left_expr);
+  /*
+    Check if the outer and inner IN operands match in those cases when we
+    will not perform IN=>EXISTS transformation. Currently this is when we
+    use subquery materialization.
 
-  return result || Item_subselect::fix_fields(thd_arg, ref);
+    The condition below is true when this method was called recursively from
+    inside JOIN::prepare for the JOIN object created by the call chain
+    Item_subselect::fix_fields -> subselect_single_select_engine::prepare,
+    which creates a JOIN object for the subquery and calls JOIN::prepare for
+    the JOIN of the subquery.
+    Notice that in some cases, this doesn't happen, and the check_cols()
+    test for each Item happens later in
+    Item_in_subselect::row_value_in_to_exists_transformer.
+    The reason for this mess is that our JOIN::prepare phase works top-down
+    instead of bottom-up, so we first do name resoluton and semantic checks
+    for the outer selects, then for the inner.
+  */
+  if (engine &&
+      engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE &&
+      ((subselect_single_select_engine*)engine)->join)
+  {
+    outer_cols_num= left_expr->cols();
+
+    if (unit->is_union())
+      inner_cols= &(unit->types);
+    else
+      inner_cols= &(unit->first_select()->item_list);
+    if (outer_cols_num != inner_cols->elements)
+    {
+      my_error(ER_OPERAND_COLUMNS, MYF(0), outer_cols_num);
+      return TRUE;
+    }
+    if (outer_cols_num > 1)
+    {
+      List_iterator<Item> inner_col_it(*inner_cols);
+      Item *inner_col;
+      for (uint i= 0; i < outer_cols_num; i++)
+      {
+        inner_col= inner_col_it++;
+        if (inner_col->check_cols(left_expr->element_index(i)->cols()))
+          return TRUE;
+      }
+    }
+  }
+
+  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed &&
+      left_expr->fix_fields(thd_arg, &left_expr))
+    return TRUE;
+  if (Item_subselect::fix_fields(thd_arg, ref))
+    return TRUE;
+
+  fixed= TRUE;
+
+  return FALSE;
 }
+
 
 void Item_in_subselect::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
@@ -2256,10 +2310,9 @@ bool subselect_union_engine::no_rows()
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
-  /*
-    subselect_uniquesubquery_engine have not 'result' assigbed, so we do not
-    cleanup() it
-  */
+  /* Tell handler we don't need the index anymore */
+  if (tab->table->file->inited)
+    tab->table->file->ha_index_end();
   DBUG_VOID_RETURN;
 }
 
@@ -2280,7 +2333,7 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
   Create and prepare the JOIN object that represents the query execution
   plan for the subquery.
 
-  @detail
+  @details
   This method is called from Item_subselect::fix_fields. For prepared
   statements it is called both during the PREPARE and EXECUTE phases in the
   following ways:
@@ -2582,14 +2635,23 @@ int subselect_uniquesubquery_engine::scan_table()
   for (;;)
   {
     error=table->file->ha_rnd_next(table->record[0]);
-    if (error && error != HA_ERR_END_OF_FILE)
-    {
-      error= report_error(table, error);
-      break;
+    if (error) {
+      if (error == HA_ERR_RECORD_DELETED)
+      {
+        error= 0;
+        continue;
+      }
+      if (error == HA_ERR_END_OF_FILE)
+      {
+        error= 0;
+        break;
+      }
+      else
+      {
+        error= report_error(table, error);
+        break;
+      }
     }
-    /* No more rows */
-    if (table->status)
-      break;
 
     if (!cond || cond->val_int())
     {
@@ -2700,6 +2762,56 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
 
 
 /*
+  @retval  1  A NULL was found in the outer reference, index lookup is
+              not applicable, the outer ref is unsusable as a lookup key,
+              use some other method to find a match.
+  @retval  0  The outer ref was copied into an index lookup key.
+  @retval -1  The outer ref cannot possibly match any row, IN is FALSE.
+*/
+/* TIMOUR: this method is a variant of copy_ref_key(), needs refactoring. */
+
+int subselect_uniquesubquery_engine::copy_ref_key_simple()
+{
+  for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
+  {
+    enum store_key::store_key_result store_res;
+    store_res= (*copy)->copy();
+    tab->ref.key_err= store_res;
+
+    /*
+      When there is a NULL part in the key we don't need to make index
+      lookup for such key thus we don't need to copy whole key.
+      If we later should do a sequential scan return OK. Fail otherwise.
+
+      See also the comment for the subselect_uniquesubquery_engine::exec()
+      function.
+    */
+    null_keypart= (*copy)->null_key;
+    if (null_keypart)
+      return 1;
+
+    /*
+      Check if the error is equal to STORE_KEY_FATAL. This is not expressed 
+      using the store_key::store_key_result enum because ref.key_err is a 
+      boolean and we want to detect both TRUE and STORE_KEY_FATAL from the 
+      space of the union of the values of [TRUE, FALSE] and 
+      store_key::store_key_result.  
+      TODO: fix the variable an return types.
+    */
+    if (store_res == store_key::STORE_KEY_FATAL)
+    {
+      /*
+       Error converting the left IN operand to the column type of the right
+       IN operand. 
+      */
+      return -1;
+    }
+  }
+  return 0;
+}
+
+
+/*
   Execute subselect
 
   SYNOPSIS
@@ -2739,7 +2851,13 @@ int subselect_uniquesubquery_engine::exec()
  
   /* TODO: change to use of 'full_scan' here? */
   if (copy_ref_key())
+  {
+    /*
+      TIMOUR: copy_ref_key() == 1 means NULL result, not error, why return 1?
+      Check who reiles on this result.
+    */
     DBUG_RETURN(1);
+  }
   if (table->status)
   {
     /* 
@@ -2778,6 +2896,54 @@ int subselect_uniquesubquery_engine::exec()
 
   DBUG_RETURN(error != 0);
 }
+
+
+/*
+  TIMOUR: this needs more thinking, as exec() is a wrong IMO because:
+  - we don't need empty_result_set, as it is == 1 <=> when
+    item->value == 0
+  - scan_table() returns >0 even when there was no actuall error,
+    but we only found EOF while scanning.
+  - scan_table should not check table->status, but it should check
+    HA_ERR_END_OF_FILE
+*/
+
+int subselect_uniquesubquery_engine::index_lookup()
+{
+  DBUG_ENTER("subselect_uniquesubquery_engine::index_lookup");
+  int error;
+  TABLE *table= tab->table;
+  empty_result_set= TRUE;
+  table->status= 0;
+ 
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, 0);
+  error= table->file->ha_index_read_map(table->record[0],
+                                        tab->ref.key_buff,
+                                        make_prev_keypart_map(tab->
+                                                              ref.key_parts),
+                                        HA_READ_KEY_EXACT);
+
+  DBUG_PRINT("info", ("lookup result: %i", error));
+  if (error &&
+      error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    error= report_error(table, error);
+  else
+  {
+    error= 0;
+    table->null_row= 0;
+    if (!table->status && (!cond || cond->val_int()))
+    {
+      ((Item_in_subselect *) item)->value= 1;
+      empty_result_set= FALSE;
+    }
+    else
+      ((Item_in_subselect *) item)->value= 0;
+  }
+
+  DBUG_RETURN(error);
+}
+
 
 
 subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
@@ -3214,6 +3380,7 @@ bool subselect_union_engine::no_tables()
 bool subselect_uniquesubquery_engine::no_tables()
 {
   /* returning value is correct, but this method should never be called */
+  DBUG_ASSERT(FALSE);
   return 0;
 }
 
@@ -3224,16 +3391,139 @@ bool subselect_uniquesubquery_engine::no_tables()
 
 
 /**
+  Check if an IN predicate should be executed via partial matching using
+  only schema information.
+
+  @details
+  This test essentially has three results:
+  - partial matching is applicable, but cannot be executed due to a
+    limitation in the total number of indexes, as a result we can't
+    use subquery materialization at all.
+  - partial matching is either applicable or not, and this can be
+    determined by looking at 'this->max_keys'.
+  If max_keys > 1, then we need partial matching because there are
+  more indexes than just the one we use during materialization to
+  remove duplicates.
+*/
+
+void subselect_hash_sj_engine::set_strategy_using_schema()
+{
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+
+  DBUG_ENTER("subselect_hash_sj_engine::set_strategy_using_schema");
+
+  if (item_in->is_top_level_item())
+    strategy= COMPLETE_MATCH;
+  else
+  {
+    List_iterator<Item> inner_col_it(*item_in->unit->get_unit_column_types());
+    Item *outer_col, *inner_col;
+
+    for (uint i= 0; i < item_in->left_expr->cols(); i++)
+    {
+      outer_col= item_in->left_expr->element_index(i);
+      inner_col= inner_col_it++;
+
+      if (!inner_col->maybe_null && !outer_col->maybe_null)
+        bitmap_set_bit(&non_null_key_parts, i);
+      else
+      {
+        bitmap_set_bit(&partial_match_key_parts, i);
+        ++count_partial_match_columns;
+      }
+    }
+  }
+
+  /* If no column contains NULLs use regular hash index lookups. */
+  if (count_partial_match_columns)
+    strategy= PARTIAL_MATCH;
+  else
+    strategy= COMPLETE_MATCH;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Test whether an IN predicate must be computed via partial matching
+  based on the NULL statistics for each column of a materialized subquery.
+
+  @details The procedure analyzes column NULL statistics, updates the
+  matching type of columns that cannot be NULL or that contain only NULLs.
+  Based on this, the procedure determines the final execution strategy for
+  the [NOT] IN predicate.
+*/
+
+void subselect_hash_sj_engine::set_strategy_using_data()
+{
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+  select_materialize_with_stats *result_sink=
+    (select_materialize_with_stats *) result;
+  Item *outer_col;
+
+  DBUG_ENTER("subselect_hash_sj_engine::set_strategy_using_data");
+
+  /* Call this procedure only if already selected partial matching. */
+  DBUG_ASSERT(strategy == PARTIAL_MATCH);
+
+  for (uint i= 0; i < item_in->left_expr->cols(); i++)
+  {
+    if (!bitmap_is_set(&partial_match_key_parts, i))
+      continue;
+    outer_col= item_in->left_expr->element_index(i);
+    /*
+      If column 'i' doesn't contain NULLs, and the corresponding outer reference
+      cannot have a NULL value, then 'i' is a non-nullable column.
+    */
+    if (result_sink->get_null_count_of_col(i) == 0 && !outer_col->maybe_null)
+    {
+      bitmap_clear_bit(&partial_match_key_parts, i);
+      bitmap_set_bit(&non_null_key_parts, i);
+      --count_partial_match_columns;
+    }
+    if (result_sink->get_null_count_of_col(i) ==
+               tmp_table->file->stats.records)
+      ++count_null_only_columns;
+  }
+
+  /* If no column contains NULLs use regular hash index lookups. */
+  if (!count_partial_match_columns)
+    strategy= COMPLETE_MATCH;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Initialize a MY_BITMAP with a buffer allocated on the current
+  memory root.
+  TIMOUR: move to bitmap C file?
+*/
+
+static my_bool
+bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
+{
+  my_bitmap_map *bitmap_buf;
+
+  if (!(bitmap_buf= (my_bitmap_map*) alloc_root(mem_root,
+                                                bitmap_buffer_size(n_bits))) ||
+      bitmap_init(map, bitmap_buf, n_bits, FALSE))
+    return TRUE;
+  bitmap_clear_all(map);
+  return FALSE;
+}
+
+
+/**
   Create all structures needed for IN execution that can live between PS
   reexecution.
 
-  @detail
+  @param tmp_columns the items that produce the data for the temp table
+
+  @details
   - Create a temporary table to store the result of the IN subquery. The
     temporary table has one hash index on all its columns.
   - Create a new result sink that sends the result stream of the subquery to
     the temporary table,
-  - Create and initialize a new JOIN_TAB, and TABLE_REF objects to perform
-    lookups into the indexed temporary table.
 
   @notice:
     Currently Item_subselect::init() already chooses and creates at parse
@@ -3245,71 +3535,177 @@ bool subselect_uniquesubquery_engine::no_tables()
 
 bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
 {
-  /* The result sink where we will materialize the subquery result. */
-  select_union  *tmp_result_sink;
-  /* The table into which the subquery is materialized. */
-  TABLE         *tmp_table;
-  KEY           *tmp_key; /* The only index on the temporary table. */
-  uint          tmp_key_parts; /* Number of keyparts in tmp_key. */
-  Item_in_subselect *item_in= (Item_in_subselect *) item;
+  /* Options to create_tmp_table. */
+  ulonglong tmp_create_options= thd->options | TMP_TABLE_ALL_COLUMNS;
+                             /* | TMP_TABLE_FORCE_MYISAM; TIMOUR: force MYISAM */
 
   DBUG_ENTER("subselect_hash_sj_engine::init_permanent");
 
-  /* 1. Create/initialize materialization related objects. */
+  if (bitmap_init_memroot(&non_null_key_parts, tmp_columns->elements,
+                            thd->mem_root) ||
+      bitmap_init_memroot(&partial_match_key_parts, tmp_columns->elements,
+                            thd->mem_root))
+    DBUG_RETURN(TRUE);
 
+  set_strategy_using_schema();
   /*
     Create and initialize a select result interceptor that stores the
     result stream in a temporary table. The temporary table itself is
     managed (created/filled/etc) internally by the interceptor.
   */
-  if (!(tmp_result_sink= new select_union))
+/*
+  TIMOUR:
+  Select a more efficient result sink when we know there is no need to collect
+  data statistics.
+
+  if (strategy == COMPLETE_MATCH)
+  {
+    if (!(result= new select_union))
+      DBUG_RETURN(TRUE);
+  }
+  else if (strategy == PARTIAL_MATCH)
+  {
+  if (!(result= new select_materialize_with_stats))
     DBUG_RETURN(TRUE);
-  if (tmp_result_sink->create_result_table(
-                         thd, tmp_columns, TRUE,
-                         thd->options | TMP_TABLE_ALL_COLUMNS,
+  }
+*/
+  if (!(result= new select_materialize_with_stats))
+    DBUG_RETURN(TRUE);
+
+  if (((select_union*) result)->create_result_table(
+                         thd, tmp_columns, TRUE, tmp_create_options,
                          "materialized subselect", TRUE))
     DBUG_RETURN(TRUE);
 
-  tmp_table= tmp_result_sink->table;
-  tmp_key= tmp_table->key_info;
-  tmp_key_parts= tmp_key->key_parts;
+  tmp_table= ((select_union*) result)->table;
 
   /*
-     If the subquery has blobs, or the total key lenght is bigger than some
-     length, then the created index cannot be used for lookups and we
-     can't use hash semi join. If this is the case, delete the temporary
-     table since it will not be used, and tell the caller we failed to
-     initialize the engine.
+    If the subquery has blobs, or the total key lenght is bigger than
+    some length, or the total number of key parts is more than the
+    allowed maximum (currently MAX_REF_PARTS == 16), then the created
+    index cannot be used for lookups and we can't use hash semi
+    join. If this is the case, delete the temporary table since it
+    will not be used, and tell the caller we failed to initialize the
+    engine.
   */
   if (tmp_table->s->keys == 0)
   {
-#ifndef DBUG_OFF
-    handlerton *tmp_table_hton= tmp_table->s->db_type();
-#ifdef USE_MARIA_FOR_TMP_TABLES 
-    DBUG_ASSERT(tmp_table_hton == maria_hton);
-#else
-    DBUG_ASSERT(tmp_table_hton == myisam_hton);
-#endif
-#endif
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
       tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
     free_tmp_table(thd, tmp_table);
+    tmp_table= NULL;
     delete result;
     result= NULL;
     DBUG_RETURN(TRUE);
   }
-  result= tmp_result_sink;
 
   /*
     Make sure there is only one index on the temp table, and it doesn't have
     the extra key part created when s->uniques > 0.
   */
-  DBUG_ASSERT(tmp_table->s->keys == 1 && tmp_columns->elements == tmp_key_parts);
+  DBUG_ASSERT(tmp_table->s->keys == 1 &&
+              ((Item_in_subselect *) item)->left_expr->cols() ==
+              tmp_table->key_info->key_parts);
+
+  if (make_semi_join_conds())
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
 
 
-  /* 2. Create/initialize execution related objects. */
+/*
+  Create an artificial condition to post-filter those rows matched by index
+  lookups that cannot be distinguished by the index lookup procedure.
+
+  @notes
+  The need for post-filtering may occur e.g. because of
+  truncation. Prepared statements execution requires that fix_fields is
+  called for every execution. In order to call fix_fields we need to
+  create a Name_resolution_context and a corresponding TABLE_LIST for
+  the temporary table for the subquery, so that all column references
+  to the materialized subquery table can be resolved correctly.
+
+  @returns
+    @retval TRUE  memory allocation error occurred
+    @retval FALSE the conditions were created and resolved (fixed)
+*/
+
+bool subselect_hash_sj_engine::make_semi_join_conds()
+{
+  /*
+    Table reference for tmp_table that is used to resolve column references
+    (Item_fields) to columns in tmp_table.
+  */
+  TABLE_LIST *tmp_table_ref;
+  /* Name resolution context for all tmp_table columns created below. */
+  Name_resolution_context *context;
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+
+  DBUG_ENTER("subselect_hash_sj_engine::make_semi_join_conds");
+  DBUG_ASSERT(semi_join_conds == NULL);
+
+  if (!(semi_join_conds= new Item_cond_and))
+    DBUG_RETURN(TRUE);
+
+  if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
+    DBUG_RETURN(TRUE);
+
+  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->table= tmp_table;
+
+  context= new Name_resolution_context;
+  context->init();
+  context->first_name_resolution_table=
+    context->last_name_resolution_table= tmp_table_ref;
+  
+  for (uint i= 0; i < item_in->left_expr->cols(); i++)
+  {
+    Item_func_eq *eq_cond; /* New equi-join condition for the current column. */
+    /* Item for the corresponding field from the materialized temp table. */
+    Item_field *right_col_item;
+
+    if (!(right_col_item= new Item_field(thd, context, tmp_table->field[i])) ||
+        !(eq_cond= new Item_func_eq(item_in->left_expr->element_index(i),
+                                    right_col_item)) ||
+        (((Item_cond_and*)semi_join_conds)->add(eq_cond)))
+    {
+      delete semi_join_conds;
+      semi_join_conds= NULL;
+      DBUG_RETURN(TRUE);
+    }
+  }
+  if (semi_join_conds->fix_fields(thd, &semi_join_conds))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Create a new uniquesubquery engine for the execution of an IN predicate.
+
+  @details
+  Create and initialize a new JOIN_TAB, and Table_ref objects to perform
+  lookups into the indexed temporary table.
+
+  @retval A new subselect_hash_sj_engine object
+  @retval NULL if a memory allocation error occurs
+*/
+
+subselect_uniquesubquery_engine*
+subselect_hash_sj_engine::make_unique_engine()
+{
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+  /* The only index on the temporary table. */
+  KEY *tmp_key= tmp_table->key_info;
+  /* Number of keyparts in tmp_key. */
+  uint tmp_key_parts= tmp_key->key_parts;
+  JOIN_TAB *tab;
+
+  DBUG_ENTER("subselect_hash_sj_engine::make_unique_engine");
 
   /*
     Create and initialize the JOIN_TAB that represents an index lookup
@@ -3317,9 +3713,9 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     - this JOIN_TAB has no corresponding JOIN (and doesn't need one), and
     - here we initialize only those members that are used by
       subselect_uniquesubquery_engine, so these objects are incomplete.
-  */ 
+  */
   if (!(tab= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(NULL);
   tab->table= tmp_table;
   tab->ref.key= 0; /* The only temp table index. */
   tab->ref.key_length= tmp_key->key_length;
@@ -3330,60 +3726,18 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
                                   (tmp_key_parts + 1)))) ||
       !(tab->ref.items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(NULL);
 
   KEY_PART_INFO *cur_key_part= tmp_key->key_part;
   store_key **ref_key= tab->ref.key_copy;
   uchar *cur_ref_buff= tab->ref.key_buff;
-
-  /*
-    Create an artificial condition to post-filter those rows matched by index
-    lookups that cannot be distinguished by the index lookup procedure, e.g.
-    because of truncation. Prepared statements execution requires that
-    fix_fields is called for every execution. In order to call fix_fields we
-    need to create a Name_resolution_context and a corresponding TABLE_LIST
-    for the temporary table for the subquery, so that all column references
-    to the materialized subquery table can be resolved correctly.
-  */
-  DBUG_ASSERT(cond == NULL);
-  if (!(cond= new Item_cond_and))
-    DBUG_RETURN(TRUE);
-  /*
-    Table reference for tmp_table that is used to resolve column references
-    (Item_fields) to columns in tmp_table.
-  */
-  TABLE_LIST *tmp_table_ref;
-  if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
-    DBUG_RETURN(TRUE);
-
-  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
-  tmp_table_ref->table= tmp_table;
-
-  /* Name resolution context for all tmp_table columns created below. */
-  Name_resolution_context *context= new Name_resolution_context;
-  context->init();
-  context->first_name_resolution_table=
-    context->last_name_resolution_table= tmp_table_ref;
   
   for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
   {
-    Item_func_eq *eq_cond; /* New equi-join condition for the current column. */
-    /* Item for the corresponding field from the materialized temp table. */
-    Item_field *right_col_item;
-    int null_count= test(cur_key_part->field->real_maybe_null());
     tab->ref.items[i]= item_in->left_expr->element_index(i);
-
-    if (!(right_col_item= new Item_field(thd, context, cur_key_part->field)) ||
-        !(eq_cond= new Item_func_eq(tab->ref.items[i], right_col_item)) ||
-        ((Item_cond_and*)cond)->add(eq_cond))
-    {
-      delete cond;
-      cond= NULL;
-      DBUG_RETURN(TRUE);
-    }
-
+    int null_count= test(cur_key_part->field->real_maybe_null());
     *ref_key= new store_key_item(thd, cur_key_part->field,
-                                 /* TODO:
+                                 /* TIMOUR:
                                     the NULL byte is taken into account in
                                     cur_key_part->store_length, so instead of
                                     cur_ref_buff + test(maybe_null), we could
@@ -3398,10 +3752,8 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   tab->ref.key_err= 1;
   tab->ref.key_parts= tmp_key_parts;
 
-  if (cond->fix_fields(thd, &cond))
-    DBUG_RETURN(TRUE);
-
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(new subselect_uniquesubquery_engine(thd, tab, item,
+                                                  semi_join_conds));
 }
 
 
@@ -3424,7 +3776,8 @@ bool subselect_hash_sj_engine::init_runtime()
     Repeat name resolution for 'cond' since cond is not part of any
     clause of the query, and it is not 'fixed' during JOIN::prepare.
   */
-  if (cond && !cond->fixed && cond->fix_fields(thd, &cond))
+  if (semi_join_conds && !semi_join_conds->fixed &&
+      semi_join_conds->fix_fields(thd, &semi_join_conds))
     return TRUE;
   /* Let our engine reuse this query plan for materialization. */
   materialize_join= materialize_engine->join;
@@ -3436,15 +3789,15 @@ bool subselect_hash_sj_engine::init_runtime()
 subselect_hash_sj_engine::~subselect_hash_sj_engine()
 {
   delete result;
-  if (tab)
-    free_tmp_table(thd, tab->table);
+  if (tmp_table)
+    free_tmp_table(thd, tmp_table);
 }
 
 
 /**
   Cleanup performed after each PS execution.
 
-  @detail
+  @details
   Called in the end of JOIN::prepare for PS from Item_subselect::cleanup.
 */
 
@@ -3453,14 +3806,13 @@ void subselect_hash_sj_engine::cleanup()
   is_materialized= FALSE;
   result->cleanup(); /* Resets the temp table as well. */
   materialize_engine->cleanup();
-  subselect_uniquesubquery_engine::cleanup();
 }
 
 
 /**
   Execute a subquery IN predicate via materialization.
 
-  @detail
+  @details
   If needed materialize the subquery into a temporary table, then
   copmpute the predicate via a lookup into this table.
 
@@ -3471,6 +3823,8 @@ void subselect_hash_sj_engine::cleanup()
 int subselect_hash_sj_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
+  SELECT_LEX *save_select= thd->lex->current_select;
+  int res= 0;
 
   DBUG_ENTER("subselect_hash_sj_engine::exec");
 
@@ -3478,56 +3832,98 @@ int subselect_hash_sj_engine::exec()
     Optimize and materialize the subquery during the first execution of
     the subquery predicate.
   */
-  if (!is_materialized)
-  {
-    int res= 0;
-    SELECT_LEX *save_select= thd->lex->current_select;
-    thd->lex->current_select= materialize_engine->select_lex;
-    if ((res= materialize_join->optimize()))
-      goto err; /* purecov: inspected */
-    materialize_join->exec();
-    if ((res= test(materialize_join->error || thd->is_fatal_error)))
-      goto err;
-
-    /*
-      TODO:
-      - Unlock all subquery tables as we don't need them. To implement this
-        we need to add new functionality to JOIN::join_free that can unlock
-        all tables in a subquery (and all its subqueries).
-      - The temp table used for grouping in the subquery can be freed
-        immediately after materialization (yet it's done together with
-        unlocking).
-     */
-    is_materialized= TRUE;
-    /*
-      If the subquery returned no rows, the temporary table is empty, so we know
-      directly that the result of IN is FALSE. We first update the table
-      statistics, then we test if the temporary table for the query result is
-      empty.
-    */
-    tab->table->file->info(HA_STATUS_VARIABLE);
-    if (!tab->table->file->stats.records)
-    {
-      empty_result_set= TRUE;
-      item_in->value= FALSE;
-      /* TODO: check we need this: item_in->null_value= FALSE; */
-      DBUG_RETURN(FALSE);
-    }
-    /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
-    tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);
-    if (tmp_param && !tmp_param->copy_field)
-      tmp_param= NULL;
-
-err:
-    thd->lex->current_select= save_select;
-    if (res)
-      DBUG_RETURN(res);
-  }
+  thd->lex->current_select= materialize_engine->select_lex;
+  if ((res= materialize_join->optimize()))
+    goto err; /* purecov: inspected */
+  materialize_join->exec();
+  if ((res= test(materialize_join->error || thd->is_fatal_error)))
+    goto err;
 
   /*
-    Lookup the left IN operand in the hash index of the materialized subquery.
+    TODO:
+    - Unlock all subquery tables as we don't need them. To implement this
+      we need to add new functionality to JOIN::join_free that can unlock
+      all tables in a subquery (and all its subqueries).
+    - The temp table used for grouping in the subquery can be freed
+      immediately after materialization (yet it's done together with
+      unlocking).
   */
-  DBUG_RETURN(subselect_uniquesubquery_engine::exec());
+  is_materialized= TRUE;
+  /*
+    If the subquery returned no rows, the temporary table is empty, so we know
+    directly that the result of IN is FALSE. We first update the table
+    statistics, then we test if the temporary table for the query result is
+    empty.
+  */
+  tmp_table->file->info(HA_STATUS_VARIABLE);
+  if (!tmp_table->file->stats.records)
+  {
+    item_in->value= FALSE;
+    /* The value of IN will not change during this execution. */
+    item_in->is_constant= TRUE;
+    item_in->set_first_execution();
+    /* TIMOUR: check if we need this: item_in->null_value= FALSE; */
+    DBUG_RETURN(FALSE);
+  }
+
+  if (strategy == PARTIAL_MATCH)
+    set_strategy_using_data();
+
+  /* A unique_engine is used both for complete and partial matching. */
+  if (!(lookup_engine= make_unique_engine()))
+  {
+    res= 1;
+    goto err;
+  }
+
+  if (strategy == PARTIAL_MATCH)
+  {
+    subselect_rowid_merge_engine *rowid_merge_engine;
+    uint count_pm_keys;
+    MY_BITMAP *nn_key_parts;
+    bool has_covering_null_row;
+    select_materialize_with_stats *result_sink=
+      (select_materialize_with_stats *) result;
+
+    /* Total number of keys needed for partial matching. */
+    nn_key_parts= (count_partial_match_columns < tmp_table->s->fields) ?
+                  &non_null_key_parts : NULL;
+
+    has_covering_null_row= (result_sink->get_max_nulls_in_row() ==
+                            tmp_table->s->fields -
+                            (nn_key_parts ? bitmap_bits_set(nn_key_parts) : 0));
+
+    if (has_covering_null_row)
+      count_pm_keys= nn_key_parts ? 1 : 0;
+    else
+      count_pm_keys= count_partial_match_columns - count_null_only_columns +
+        (nn_key_parts ? 1 : 0);
+
+    if (!(rowid_merge_engine=
+          new subselect_rowid_merge_engine((subselect_uniquesubquery_engine*)
+                                           lookup_engine,
+                                           tmp_table,
+                                           count_pm_keys,
+                                           has_covering_null_row,
+                                           item, result)) ||
+        rowid_merge_engine->init(nn_key_parts, &partial_match_key_parts))
+    {
+      strategy= PARTIAL_MATCH_SCAN;
+      delete rowid_merge_engine;
+      /* TIMOUR: setup execution structures for partial match via scanning. */
+    }
+    else
+    {
+      strategy= PARTIAL_MATCH_INDEX;
+      lookup_engine= rowid_merge_engine;
+    }
+  }
+
+  item_in->change_engine(lookup_engine);
+
+err:
+  thd->lex->current_select= save_select;
+  DBUG_RETURN(res);
 }
 
 
@@ -3540,10 +3936,808 @@ void subselect_hash_sj_engine::print(String *str, enum_query_type query_type)
   str->append(STRING_WITH_LEN(" <materialize> ("));
   materialize_engine->print(str, query_type);
   str->append(STRING_WITH_LEN(" ), "));
-  if (tab)
-    subselect_uniquesubquery_engine::print(str, query_type);
+
+  if (lookup_engine)
+    lookup_engine->print(str, query_type);
   else
     str->append(STRING_WITH_LEN(
            "<the access method for lookups is not yet created>"
          ));
+}
+
+void subselect_hash_sj_engine::fix_length_and_dec(Item_cache** row)
+{
+  DBUG_ASSERT(FALSE);
+}
+
+void subselect_hash_sj_engine::exclude()
+{
+  DBUG_ASSERT(FALSE);
+}
+
+bool subselect_hash_sj_engine::no_tables()
+{
+  DBUG_ASSERT(FALSE);
+  return FALSE;
+}
+
+bool subselect_hash_sj_engine::change_result(Item_subselect *si,
+                                             select_result_interceptor *res)
+{
+  DBUG_ASSERT(FALSE);
+  return TRUE;
+}
+
+
+Ordered_key::Ordered_key(uint key_idx_arg, TABLE *tbl_arg,
+                         Item *search_key_arg, ha_rows null_count_arg,
+                         ha_rows min_null_row_arg, ha_rows max_null_row_arg,
+                         uchar *row_num_to_rowid_arg)
+  : key_idx(key_idx_arg), tbl(tbl_arg), search_key(search_key_arg),
+    row_num_to_rowid(row_num_to_rowid_arg), null_count(null_count_arg)
+{
+  DBUG_ASSERT(tbl->file->stats.records > null_count);
+  key_buff_elements= tbl->file->stats.records - null_count;
+  cur_key_idx= HA_POS_ERROR;
+
+  DBUG_ASSERT((null_count && min_null_row_arg && max_null_row_arg) ||
+              (!null_count && !min_null_row_arg && !max_null_row_arg));
+  if (null_count)
+  {
+    /* The counters are 1-based, for key access we need 0-based indexes. */
+    min_null_row= min_null_row_arg - 1;
+    max_null_row= max_null_row_arg - 1;
+  }
+  else
+    min_null_row= max_null_row= 0;
+}
+
+
+Ordered_key::~Ordered_key()
+{
+  /*
+    All data structures are allocated on thd->mem_root, thus we don't
+    free them here.
+  */
+}
+
+
+/*
+  Cleanup that needs to be done for each PS (re)execution.
+*/
+
+void Ordered_key::cleanup()
+{
+  /*
+    Currently these keys are recreated for each PS re-execution, thus
+    there is nothing to cleanup, the whole object goes away after execution
+    is over. All handler related initialization/deinitialization is done by
+    the parent subselect_rowid_merge_engine object.
+  */
+}
+
+/*
+  Initialize a multi-column index.
+*/
+
+bool Ordered_key::init(MY_BITMAP *columns_to_index)
+{
+  THD *thd= tbl->in_use;
+  uint cur_key_col= 0;
+  Item_field *cur_tmp_field;
+  Item_func_lt *fn_less_than;
+
+  key_column_count= bitmap_bits_set(columns_to_index);
+
+  // TIMOUR: check for mem allocation err, revert to scan
+
+  key_columns= (Item_field**) thd->alloc(key_column_count *
+                                         sizeof(Item_field*));
+  compare_pred= (Item_func_lt**) thd->alloc(key_column_count *
+                                            sizeof(Item_func_lt*));
+
+  for (uint i= 0; i < columns_to_index->n_bits; i++)
+  {
+    if (!bitmap_is_set(columns_to_index, i))
+      continue;
+    cur_tmp_field= new Item_field(tbl->field[i]);
+    /* Create the predicate (tmp_column[i] < outer_ref[i]). */
+    fn_less_than= new Item_func_lt(cur_tmp_field,
+                                   search_key->element_index(i));
+    fn_less_than->fix_fields(thd, (Item**) &fn_less_than);
+    key_columns[cur_key_col]= cur_tmp_field;
+    compare_pred[cur_key_col]= fn_less_than;
+    ++cur_key_col;
+  }
+
+  if (alloc_keys_buffers())
+  {
+    /* TIMOUR revert to partial match via table scan. */
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Initialize a single-column index.
+*/
+
+bool Ordered_key::init(int col_idx)
+{
+  THD *thd= tbl->in_use;
+
+  key_column_count= 1;
+
+  // TIMOUR: check for mem allocation err, revert to scan
+
+  key_columns= (Item_field**) thd->alloc(sizeof(Item_field*));
+  compare_pred= (Item_func_lt**) thd->alloc(sizeof(Item_func_lt*));
+
+  key_columns[0]= new Item_field(tbl->field[col_idx]);
+  /* Create the predicate (tmp_column[i] < outer_ref[i]). */
+  compare_pred[0]= new Item_func_lt(key_columns[0],
+                                    search_key->element_index(col_idx));
+  compare_pred[0]->fix_fields(thd, (Item**)&compare_pred[0]);
+
+  if (alloc_keys_buffers())
+  {
+    /* TIMOUR revert to partial match via table scan. */
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+bool Ordered_key::alloc_keys_buffers()
+{
+  THD *thd= tbl->in_use;
+
+  DBUG_ASSERT(key_buff_elements > 0);
+
+  if (!(key_buff= (rownum_t*) thd->alloc(key_buff_elements *
+                                         sizeof(rownum_t))))
+    return TRUE;
+
+  /*
+    TIMOUR: it is enough to create bitmaps with size
+    (max_null_row - min_null_row), and then use min_null_row as
+    lookup offset.
+  */
+  if (bitmap_init_memroot(&null_key,
+                          /* this is max array index, we need count, so +1. */
+                          max_null_row + 1,
+                          thd->mem_root))
+    return TRUE;
+
+  cur_key_idx= HA_POS_ERROR;
+
+  return FALSE;
+}
+
+
+/*
+  Quick sort comparison function that compares two rows of the same table
+  indentfied with their row numbers.
+
+  @retval -1
+  @retval  0
+  @retval +1
+*/
+
+int
+Ordered_key::cmp_keys_by_row_data(ha_rows a, ha_rows b)
+{
+  uchar *rowid_a, *rowid_b;
+  int error, cmp_res;
+  /* The length in bytes of the rowids (positions) of tmp_table. */
+  uint rowid_length= tbl->file->ref_length;
+
+  if (a == b)
+    return 0;
+  /* Get the corresponding rowids. */
+  rowid_a= row_num_to_rowid + a * rowid_length;
+  rowid_b= row_num_to_rowid + b * rowid_length;
+  /* Fetch the rows for comparison. */
+  error= tbl->file->ha_rnd_pos(tbl->record[0], rowid_a);
+  DBUG_ASSERT(!error);
+  error= tbl->file->ha_rnd_pos(tbl->record[1], rowid_b);
+  DBUG_ASSERT(!error);
+  /*
+    Compare the two rows by the corresponding values of the indexed
+    columns.
+  */
+  for (uint i= 0; i < key_column_count; i++)
+  {
+    Field *cur_field= key_columns[i]->field;
+    if ((cmp_res= cur_field->cmp_offset(tbl->s->rec_buff_length)))
+      return (cmp_res > 0 ? 1 : -1);
+  }
+  return 0;
+}
+
+
+int
+Ordered_key::cmp_keys_by_row_data_and_rownum(Ordered_key *key,
+                                             rownum_t* a, rownum_t* b)
+{
+  /* The result of comparing the two keys according to their row data. */
+  int cmp_row_res= key->cmp_keys_by_row_data(*a, *b);
+  if (cmp_row_res)
+    return cmp_row_res;
+  return (*a < *b) ? -1 : (*a > *b) ? 1 : 0;
+}
+
+
+void Ordered_key::sort_keys()
+{
+  my_qsort2(key_buff, key_buff_elements, sizeof(rownum_t),
+            (qsort2_cmp) &cmp_keys_by_row_data_and_rownum, (void*) this);
+  /* Invalidate the current row position. */
+  cur_key_idx= HA_POS_ERROR;
+}
+
+
+/*
+  Compare the value(s) of the current key in 'search_key' with the
+  data of the current table record.
+
+  @notes The comparison result follows from the way compare_pred
+  is created in Ordered_key::init. Currently compare_pred compares
+  a field in of the current row with the corresponding Item that
+  contains the search key.
+
+  @param row_num  Number of the row (not index in the key_buff array)
+
+  @retval -1  if (current row  < search_key)
+  @retval  0  if (current row == search_key)
+  @retval +1  if (current row  > search_key)
+*/
+
+int Ordered_key::cmp_key_with_search_key(rownum_t row_num)
+{
+  /* The length in bytes of the rowids (positions) of tmp_table. */
+  uint rowid_length= tbl->file->ref_length;
+  uchar *cur_rowid= row_num_to_rowid + row_num * rowid_length;
+  int error, cmp_res;
+
+  error= tbl->file->ha_rnd_pos(tbl->record[0], cur_rowid);
+  DBUG_ASSERT(!error);
+
+  for (uint i= 0; i < key_column_count; i++)
+  {
+    cmp_res= compare_pred[i]->get_comparator()->compare();
+    /* Unlike Arg_comparator::compare_row() here there should be no NULLs. */
+    DBUG_ASSERT(!compare_pred[i]->null_value);
+    if (cmp_res)
+      return (cmp_res > 0 ? 1 : -1);
+  }
+  return 0;
+}
+
+
+/*
+  Find a key in a sorted array of keys via binary search.
+
+  see create_subq_in_equalities()
+*/
+
+bool Ordered_key::lookup()
+{
+  DBUG_ASSERT(key_buff_elements);
+
+  ha_rows lo= 0;
+  ha_rows hi= key_buff_elements - 1;
+  ha_rows mid;
+  int cmp_res;
+
+  while (lo <= hi)
+  {
+    mid= lo + (hi - lo) / 2;
+    cmp_res= cmp_key_with_search_key(key_buff[mid]);
+    /*
+      In order to find the minimum match, check if the pevious element is
+      equal or smaller than the found one. If equal, we need to search further
+      to the left.
+    */
+    if (!cmp_res && mid > 0)
+      cmp_res= !cmp_key_with_search_key(key_buff[mid - 1]) ? 1 : 0;
+
+    if (cmp_res == -1)
+    {
+      /* row[mid] < search_key */
+      lo= mid + 1;
+    }
+    else if (cmp_res == 1)
+    {
+      /* row[mid] > search_key */
+      if (!mid)
+        goto not_found;
+      hi= mid - 1;
+    }
+    else
+    {
+      /* row[mid] == search_key */
+      cur_key_idx= mid;
+      return TRUE;
+    }
+  }
+not_found:
+  cur_key_idx= HA_POS_ERROR;
+  return FALSE;
+}
+
+
+/*
+  Move the current index pointer to the next key with the same column
+  values as the current key. Since the index is sorted, all such keys
+  are contiguous.
+*/
+
+bool Ordered_key::next_same()
+{
+  DBUG_ASSERT(key_buff_elements);
+
+  if (cur_key_idx < key_buff_elements - 1)
+  {
+    /*
+      TIMOUR:
+      The below is quite inefficient, since as a result we will fetch every
+      row (except the last one) twice. There must be a more efficient way,
+      e.g. swapping record[0] and record[1], and reading only the new record.
+    */
+    if (!cmp_keys_by_row_data(key_buff[cur_key_idx], key_buff[cur_key_idx + 1]))
+    {
+      ++cur_key_idx;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
+/*
+  @param non_null_key_parts  
+  @param partial_match_key_parts  A union of all single-column NULL key parts.
+  @param count_partial_match_columns Number of NULL keyparts (set bits above).
+*/
+
+bool
+subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
+                                   MY_BITMAP *partial_match_key_parts)
+{
+  /* The length in bytes of the rowids (positions) of tmp_table. */
+  uint rowid_length= tmp_table->file->ref_length;
+  ha_rows row_count= tmp_table->file->stats.records;
+  rownum_t cur_rownum= 0;
+  select_materialize_with_stats *result_sink=
+    (select_materialize_with_stats *) result;
+  uint cur_key= 0;
+  Item_in_subselect *item_in= (Item_in_subselect*) item;
+  int error;
+
+  if (keys_count == 0)
+  {
+    /* There is nothing to initialize, we will only do regular lookups. */
+    return FALSE;
+  }
+
+  DBUG_ASSERT(!has_covering_null_row || (has_covering_null_row &&
+                                         keys_count == 1 &&
+                                         non_null_key_parts));
+
+  if (!(merge_keys= (Ordered_key**) thd->alloc(keys_count *
+                                               sizeof(Ordered_key*))) ||
+      !(row_num_to_rowid= (uchar*) thd->alloc(row_count * rowid_length *
+                                              sizeof(uchar))))
+    return TRUE;
+
+  /* Create the only non-NULL key if there is any. */
+  if (non_null_key_parts)
+  {
+    non_null_key= new Ordered_key(cur_key, tmp_table, item_in->left_expr,
+                                  0, 0, 0, row_num_to_rowid);
+    if (non_null_key->init(non_null_key_parts))
+    {
+      // TIMOUR: revert to partial matching via scanning
+      return TRUE;
+    }
+    merge_keys[cur_key]= non_null_key;
+    merge_keys[cur_key]->first();
+    ++cur_key;
+  }
+
+  /*
+    If there is a covering NULL row, the only key that is needed is the
+    only non-NULL key that is already created above.
+  */
+  if (!has_covering_null_row)
+  {
+    if (bitmap_init_memroot(&matching_keys, keys_count, thd->mem_root) ||
+        bitmap_init_memroot(&matching_outer_cols, keys_count, thd->mem_root) ||
+        bitmap_init_memroot(&null_only_columns, keys_count, thd->mem_root))
+      return TRUE;
+
+    /*
+      Create one single-column NULL-key for each column in
+      partial_match_key_parts.
+    */
+    for (uint i= 0; i < partial_match_key_parts->n_bits; i++)
+    {
+      if (!bitmap_is_set(partial_match_key_parts, i))
+        continue;
+
+      if (result_sink->get_null_count_of_col(i) == row_count)
+        bitmap_set_bit(&null_only_columns, cur_key);
+      else
+      {
+        merge_keys[cur_key]= new Ordered_key(cur_key, tmp_table,
+                                             item_in->left_expr->element_index(i),
+                                             result_sink->get_null_count_of_col(i),
+                                             result_sink->get_min_null_of_col(i),
+                                             result_sink->get_max_null_of_col(i),
+                                             row_num_to_rowid);
+        if (merge_keys[cur_key]->init(i))
+        {
+          // TIMOUR: revert to partial matching via scanning
+          return TRUE;
+        }
+        merge_keys[cur_key]->first();
+      }
+      ++cur_key;
+    }
+  }
+
+  /* Populate the indexes with data from the temporary table. */
+  tmp_table->file->ha_rnd_init(1);
+  tmp_table->file->extra_opt(HA_EXTRA_CACHE,
+                             current_thd->variables.read_buff_size);
+  tmp_table->null_row= 0;
+  while (TRUE)
+  {
+    error= tmp_table->file->ha_rnd_next(tmp_table->record[0]);
+    if (error == HA_ERR_RECORD_DELETED)
+    {
+      /* We get this for duplicate records that should not be in tmp_table. */
+      continue;
+    }
+    /*
+      This is a temp table that we fully own, there should be no other
+      cause to stop the iteration than EOF.
+    */
+    DBUG_ASSERT(!error || error == HA_ERR_END_OF_FILE);
+    if (error == HA_ERR_END_OF_FILE)
+    {
+      DBUG_ASSERT(cur_rownum == tmp_table->file->stats.records);
+      break;
+    }
+
+    /*
+      Save the position of this record in the row_num -> rowid mapping.
+    */
+    tmp_table->file->position(tmp_table->record[0]);
+    memcpy(row_num_to_rowid + cur_rownum * rowid_length,
+           tmp_table->file->ref, rowid_length);
+
+    /* Add the current row number to the corresponding keys. */
+    if (non_null_key)
+    {
+      /* By definition there are no NULLs in the non-NULL key. */
+      non_null_key->add_key(cur_rownum);
+    }
+
+    for (uint i= (non_null_key ? 1 : 0); i < keys_count; i++)
+    {
+      /*
+        Check if the first and only indexed column contains NULL in the curent
+        row, and add the row number to the corresponding key.
+      */
+      if (tmp_table->field[merge_keys[i]->get_field_idx(0)]->is_null())
+        merge_keys[i]->set_null(cur_rownum);
+      else
+        merge_keys[i]->add_key(cur_rownum);
+    }
+    ++cur_rownum;
+  }
+
+  tmp_table->file->ha_rnd_end();
+
+  /* Sort the keys in each of the indexes. */
+  for (uint i= 0; i < keys_count; i++)
+    merge_keys[i]->sort_keys();
+
+  // TIMOUR: sort all the keys by NULL selectivity
+
+  if (init_queue(&pq, keys_count, 0, FALSE,
+                 subselect_rowid_merge_engine::cmp_keys_by_cur_rownum, NULL))
+  {
+    // TIMOUR: revert to partial matching via scanning
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+subselect_rowid_merge_engine::~subselect_rowid_merge_engine()
+{
+  delete_queue(&pq);
+}
+
+
+void subselect_rowid_merge_engine::cleanup()
+{
+  lookup_engine->cleanup();
+  /* Tell handler we don't need the index anymore */
+  if (tmp_table->file->inited)
+    tmp_table->file->ha_rnd_end();
+  queue_remove_all(&pq);
+}
+
+
+/*
+*/
+
+int
+subselect_rowid_merge_engine::cmp_keys_by_null_selectivity(Ordered_key *a,
+                                                           Ordered_key *b)
+{
+  double a_sel= a->null_selectivity();
+  double b_sel= b->null_selectivity();
+  if (a_sel == b_sel)
+    return 0;
+  if (a_sel > b_sel)
+    return 1;
+  return -1;
+}
+
+
+/*
+*/
+
+int
+subselect_rowid_merge_engine::cmp_keys_by_cur_rownum(void *arg,
+                                                     uchar *k1, uchar *k2)
+{
+  rownum_t r1= ((Ordered_key*) k1)->current();
+  rownum_t r2= ((Ordered_key*) k2)->current();
+
+  return (r1 < r2) ? -1 : (r1 > r2) ? 1 : 0;
+}
+
+
+/*
+  Check if certain table row contains a NULL in all columns for which there is
+  no match in the corresponding value index.
+
+  @retval TRUE if a NULL row exists
+  @retval FALSE otherwise
+*/
+
+bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
+{
+  for (uint i = 0; i < keys_count; i++)
+  {
+    if (bitmap_is_set(&matching_keys, i))
+    {
+      /*
+        The key 'i' already matches a value in row 'row_num', thus we
+        skip it as it can't possibly match a NULL.
+      */
+      continue;
+    }
+    if (!merge_keys[i]->is_null(row_num))
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
+/*
+  @retval TRUE  there is a partial match (UNKNOWN)
+  @retval FALSE  there is no match at all (FALSE)
+*/
+
+bool subselect_rowid_merge_engine::partial_match()
+{
+  Ordered_key *min_key; /* Key that contains the current minimum position. */
+  rownum_t min_row_num; /* Current row number of min_key. */
+  Ordered_key *cur_key;
+  rownum_t cur_row_num;
+  uint count_nulls_in_search_key= 0;
+
+  /* If there is a non-NULL key, it must be the first key in the keys array. */
+  DBUG_ASSERT(!non_null_key || (non_null_key && merge_keys[0] == non_null_key));
+  /* Check if there is a match for the columns of the only non-NULL key. */
+  if (non_null_key && !non_null_key->lookup())
+    return FALSE;
+
+  /*
+    If there is a NULL (sub)row that covers all NULL-able columns,
+    then there is a guranteed partial match, and we don't need to search
+    for the matching row.
+   */
+  if (has_covering_null_row)
+    return TRUE;
+
+  if (non_null_key)
+    queue_insert(&pq, (uchar *) non_null_key);
+  /*
+    Do not add the non_null_key, since it was already processed above.
+  */
+  bitmap_clear_all(&matching_outer_cols);
+  for (uint i= test(non_null_key); i < keys_count; i++)
+  {
+    DBUG_ASSERT(merge_keys[i]->get_column_count() == 1);
+    if (merge_keys[i]->get_search_key(0)->is_null())
+    {
+      ++count_nulls_in_search_key;
+      bitmap_set_bit(&matching_outer_cols, merge_keys[i]->get_key_idx());
+    }
+    else if (merge_keys[i]->lookup())
+      queue_insert(&pq, (uchar *) merge_keys[i]);
+  }
+
+  /*
+    If the outer reference consists of only NULLs, or if it has NULLs in all
+    nullable columns, the result is UNKNOWN.
+  */
+  if (count_nulls_in_search_key ==
+      ((Item_in_subselect *) item)->left_expr->cols() -
+      (non_null_key ? non_null_key->get_column_count() : 0))
+    return TRUE;
+
+  /*
+    If there is no NULL (sub)row that covers all NULL columns, and there is no
+    single match for any of the NULL columns, the result is FALSE.
+  */
+  if (pq.elements - test(non_null_key) == 0)
+    return FALSE;
+
+  DBUG_ASSERT(pq.elements);
+
+  min_key= (Ordered_key*) queue_remove(&pq, 0);
+  min_row_num= min_key->current();
+  bitmap_copy(&matching_keys, &null_only_columns);
+  bitmap_set_bit(&matching_keys, min_key->get_key_idx());
+  bitmap_union(&matching_keys, &matching_outer_cols);
+  if (min_key->next_same())
+    queue_insert(&pq, (uchar *) min_key);
+
+  if (pq.elements == 0)
+  {
+    /*
+      Check the only matching row of the only key min_key for NULL matches
+      in the other columns.
+    */
+    if (test_null_row(min_row_num))
+      return TRUE;
+    else
+      return FALSE;
+  }
+
+  while (TRUE)
+  {
+    cur_key= (Ordered_key*) queue_remove(&pq, 0);
+    cur_row_num= cur_key->current();
+
+    if (cur_row_num == min_row_num)
+      bitmap_set_bit(&matching_keys, cur_key->get_key_idx());
+    else
+    {
+      /* Follows from the correct use of priority queue. */
+      DBUG_ASSERT(cur_row_num > min_row_num);
+      if (test_null_row(min_row_num))
+        return TRUE;
+      else
+      {
+        min_key= cur_key;
+        min_row_num= cur_row_num;
+        bitmap_copy(&matching_keys, &null_only_columns);
+        bitmap_set_bit(&matching_keys, min_key->get_key_idx());
+        bitmap_union(&matching_keys, &matching_outer_cols);
+      }
+    }
+
+    if (cur_key->next_same())
+      queue_insert(&pq, (uchar *) cur_key);
+
+    if (pq.elements == 0)
+    {
+      /* Check the last row of the last column in PQ for NULL matches. */
+      if (test_null_row(min_row_num))
+        return TRUE;
+      else
+        return FALSE;
+    }
+  }
+
+  /* We should never get here. */
+  DBUG_ASSERT(FALSE);
+  return FALSE;
+}
+
+
+int subselect_rowid_merge_engine::exec()
+{
+  Item_in_subselect *item_in= (Item_in_subselect *) item;
+  int res;
+
+  /* Try to find a matching row by index lookup. */
+  res= lookup_engine->copy_ref_key_simple();
+  if (res == -1)
+  {
+    /* The result is FALSE based on the outer reference. */
+    item_in->value= 0;
+    item_in->null_value= 0;
+    return 0;
+  }
+  else if (res == 0)
+  {
+    if ((res= lookup_engine->index_lookup()))
+    {
+      /* An error occured during lookup(). */
+      item_in->value= 0;
+      item_in->null_value= 0;
+      return res;
+    }
+    else if (item_in->value)
+    {
+      /*
+        A complete match was found, the result of IN is TRUE.
+        Notice: (this->item == lookup_engine->item)
+      */
+      return 0;
+    }
+  }
+
+  if (has_covering_null_row && !keys_count)
+  {
+    /*
+      If there is a NULL-only row that coveres all columns the result of IN
+      is UNKNOWN. 
+    */
+    item_in->value= 0;
+    /*
+      TIMOUR: which one is the right way to propagate an UNKNOWN result?
+      Should we also set empty_result_set= FALSE; ???
+    */
+    //item_in->was_null= 1;
+    item_in->null_value= 1;
+    return 0;
+  }
+
+  /* All data accesses during execution are via handler::ha_rnd_pos() */
+  if (tmp_table->file->inited)
+    tmp_table->file->ha_index_end();
+  tmp_table->file->ha_rnd_init(0);
+  /*
+    There is no complete match. Look for a partial match (UNKNOWN result), or
+    no match (FALSE).
+  */
+  if (partial_match())
+  {
+    /* The result of IN is UNKNOWN. */
+    item_in->value= 0;
+    /*
+      TIMOUR: which one is the right way to propagate an UNKNOWN result?
+      Should we also set empty_result_set= FALSE; ???
+    */
+    //item_in->was_null= 1;
+    item_in->null_value= 1;
+  }
+  else
+  {
+    /* The result of IN is FALSE. */
+    item_in->value= 0;
+    /*
+      TIMOUR: which one is the right way to propagate an UNKNOWN result?
+      Should we also set empty_result_set= FALSE; ???
+    */
+    //item_in->was_null= 0;
+    item_in->null_value= 0;
+  }
+  tmp_table->file->ha_rnd_end();
+
+  return 0;
 }

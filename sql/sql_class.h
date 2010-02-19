@@ -2740,19 +2740,20 @@ public:
 
 class select_union :public select_result_interceptor
 {
+protected:
   TMP_TABLE_PARAM tmp_table_param;
 public:
   TABLE *table;
 
-  select_union() :table(0) {}
+  select_union() :table(0) { tmp_table_param.init(); }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
 
-  bool create_result_table(THD *thd, List<Item> *column_types,
-                           bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long);
+  virtual bool create_result_table(THD *thd, List<Item> *column_types,
+                                   bool is_distinct, ulonglong options,
+                                   const char *alias, bool bit_fields_as_long);
 };
 
 /* Base subselect interface class */
@@ -2775,6 +2776,74 @@ public:
   {}
   bool send_data(List<Item> &items);
 };
+
+
+/*
+  This class specializes select_union to collect statistics about the
+  data stored in the temp table. Currently the class collects statistcs
+  about NULLs.
+*/
+
+class select_materialize_with_stats : public select_union
+{
+protected:
+  class Column_statistics
+  {
+  public:
+    /* Count of NULLs per column. */
+    ha_rows null_count;
+    /* The row number that contains the first NULL in a column. */
+    ha_rows min_null_row;
+    /* The row number that contains the last NULL in a column. */
+    ha_rows max_null_row;
+  };
+
+  /* Array of statistics data per column. */
+  Column_statistics* col_stat;
+
+  /*
+    The number of columns in the biggest sub-row that consists of only
+    NULL values.
+  */
+  ha_rows max_nulls_in_row;
+  /*
+    Count of rows writtent to the temp table. This is redundant as it is
+    already stored in handler::stats.records, however that one is relatively
+    expensive to compute (given we need that for evry row).
+  */
+  ha_rows count_rows;
+
+public:
+  select_materialize_with_stats() {}
+  virtual bool create_result_table(THD *thd, List<Item> *column_types,
+                                   bool is_distinct, ulonglong options,
+                                   const char *alias, bool bit_fields_as_long);
+  bool init_result_table(ulonglong select_options);
+  bool send_data(List<Item> &items);
+  void cleanup()
+  {
+    memset(col_stat, 0, table->s->fields * sizeof(Column_statistics));
+    max_nulls_in_row= 0;
+    count_rows= 0;
+  }
+  ha_rows get_null_count_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].null_count;
+  }
+  ha_rows get_max_null_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].max_null_row;
+  }
+  ha_rows get_min_null_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].min_null_row;
+  }
+  ha_rows get_max_nulls_in_row() { return max_nulls_in_row; }
+};
+
 
 /* used in independent ALL/ANY optimisation */
 class select_max_min_finder_subselect :public select_subselect
