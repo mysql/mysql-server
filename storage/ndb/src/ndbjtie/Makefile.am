@@ -44,15 +44,7 @@ EXTRA_DIST = README.txt utils \
 ##   cannot use _LIBRARIES primary, which does not recognize .jar files;
 ##   with _DATA, prefix dist_ is needed to add files to the distribution;
 ##   with _DATA, prefix noinst_ seems not applicable.
-ndbjtiejar_DATA = $(NDBJTIE_JAR)
-
-## where to install the jar file(s)
-ndbjtiejardir = $(ndbjardir)
-
-## create a versioned link
-install-data-hook:
-	cd $(DESTDIR)$(ndbjtiejardir) && \
-	$(LN_CP_F) -f $(NDBJTIE_JAR) ndbjtie.jar
+noinst_DATA = $(NDBJTIE_JAR)
 
 ## dependencies
 JTIE_JAR = $(srcdir)/jtie/jtie-@JAVA_NDB_VERSION@.jar
@@ -119,7 +111,6 @@ $(NDBJTIE_JAR): classndbjtie.stamp
 	rm -f $@; @JAR@ cvf $@  \
 	  -C $(srcdir)/jtie/target/classes com/mysql/jtie \
 	  -C $(JAVAROOT) com/mysql/ndbjtie
-	$(LN_CP_F) -f $(NDBJTIE_JAR) ndbjtie.jar
 
 ## generate JNI header files (for development only)
 javah_mysql: $(MYSQL_CLASSES)
@@ -204,7 +195,7 @@ MOSTLYCLEANFILES = \
 		$(MYSQL_DIR)/*.class \
 		$(MGMAPI_DIR)/*.class \
 		$(NDBAPI_DIR)/*.class
-CLEANFILES = classndbjtie.stamp $(NDBJTIE_JAR) ndbjtie.jar
+CLEANFILES = classndbjtie.stamp $(NDBJTIE_JAR)
 
 mostlyclean-local: 
 	rm -rf $(top_srcdir)/storage/ndb/src/ndbjtie/target
