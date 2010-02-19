@@ -16,15 +16,16 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 /*
- * mysql_jtie.hpp
+ * mysql_utils_jtie.hpp
  */
 
-#ifndef mysql_jtie_hpp
-#define mysql_jtie_hpp
+#ifndef mysql_utils_jtie_hpp
+#define mysql_utils_jtie_hpp
 
 // API to implement against
 #include "decimal_utils.hpp"
 #include "CharsetMap.hpp"
+#include "MySqlUtilsWrapper.hpp"
 
 // libraries
 #include "ndbjtie_defs.hpp"
@@ -69,107 +70,7 @@ extern "C" {
 
 // ---------------------------------------------------------------------------
 
-//#include "com_mysql_ndbjtie_mysql_Utils.h"
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_Utils
- * Method:    decimal_str2bin
- * Signature: (Ljava/nio/ByteBuffer;IIILjava/nio/ByteBuffer;I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
-    return gcall_fr< ttrait_int, ttrait_char_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_void_0p_bb, ttrait_int, &::decimal_str2bin >(env, cls, p0, p1, p2, p3, p4, p5);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_Utils
- * Method:    decimal_bin2str
- * Signature: (Ljava/nio/ByteBuffer;IIILjava/nio/ByteBuffer;I)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
-    return gcall_fr< ttrait_int, ttrait_void_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_char_0p_bb, ttrait_int, &::decimal_bin2str >(env, cls, p0, p1, p2, p3, p4, p5);
-}
-
-// ---------------------------------------------------------------------------
-
 //#include "com_mysql_ndbjtie_mysql_CharsetMap.h"
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    getName
- * Signature: (I)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getName >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    getMysqlName
- * Signature: (I)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv * env, jobject obj, jint p0)
-{
-    TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv *, jobject, jint)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    getCharsetNumber
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv * env, jobject obj, jstring p0)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv *, jobject, jstring)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_utf8cstring, &CharsetMap::getCharsetNumber >(env, obj, p0);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    getUTF8CharsetNumber
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF8CharsetNumber >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    getUTF16CharsetNumber
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv * env, jobject obj)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv *, jobject)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF16CharsetNumber >(env, obj);
-}
-
-/*
- * Class:     com_mysql_ndbjtie_mysql_CharsetMap
- * Method:    recode
- * Signature: ([IIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;)I
- */
-JNIEXPORT jint JNICALL
-Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv * env, jobject obj, jintArray p0, jint p1, jint p2, jobject p3, jobject p4)
-{
-    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv *, jobject, jintArray, jint, jint, jobject, jobject)");
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
-}
 
 /*
  * Class:     com_mysql_ndbjtie_mysql_CharsetMap
@@ -195,8 +96,140 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_delete(JNIEnv * env, jclass cls, jobject
     gdelete< ttrait_c_m_n_m_CharsetMap_r >(env, cls, p0);
 }
 
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    getName
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv *, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getName >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_utf8cstring, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getName >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    getMysqlName
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv *, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_utf8cstring, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getMysqlName >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    getCharsetNumber
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv * env, jobject obj, jstring p0)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv *, jobject, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_utf8cstring, &CharsetMap::getCharsetNumber >(env, obj, p0);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_m_CharsetMap_cr, ttrait_utf8cstring, &MysqlUtilsWrapper::CharsetMap__getCharsetNumber >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    getUTF8CharsetNumber
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv * env, jobject obj)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF8CharsetNumber(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF8CharsetNumber >(env, obj);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_m_CharsetMap_cr, &MysqlUtilsWrapper::CharsetMap__getUTF8CharsetNumber >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    getUTF16CharsetNumber
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv * env, jobject obj)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getUTF16CharsetNumber(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, &CharsetMap::getUTF16CharsetNumber >(env, obj);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_m_CharsetMap_cr, &MysqlUtilsWrapper::CharsetMap__getUTF16CharsetNumber >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_CharsetMap
+ * Method:    recode
+ * Signature: ([IIILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv * env, jobject obj, jintArray p0, jint p1, jint p2, jobject p3, jobject p4)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_recode(JNIEnv *, jobject, jintArray, jint, jint, jobject, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &CharsetMap::recode >(env, obj, p0, p1, p2, p3, p4);
+#else
+    return gcall_fr< ttrait_c_m_n_m_CharsetMap_RecodeStatus_iv/*_enum_*/, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int32_2p_a, ttrait_int, ttrait_int, ttrait_void_0cp_bb, ttrait_void_0p_bb, &MysqlUtilsWrapper::CharsetMap__recode >(env, NULL, obj, p0, p1, p2, p3, p4);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_mysql_Utils.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    decimal_str2bin
+ * Signature: (Ljava/nio/ByteBuffer;IIILjava/nio/ByteBuffer;I)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1str2bin(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_int, ttrait_char_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_void_0p_bb, ttrait_int, &::decimal_str2bin >(env, cls, p0, p1, p2, p3, p4, p5);
+#else
+    return gcall_fr< ttrait_int, ttrait_char_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_void_0p_bb, ttrait_int, &MysqlUtilsWrapper::decimal_str2bin >(env, cls, p0, p1, p2, p3, p4, p5);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_mysql_Utils
+ * Method:    decimal_bin2str
+ * Signature: (Ljava/nio/ByteBuffer;IIILjava/nio/ByteBuffer;I)I
+ */
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv * env, jclass cls, jobject p0, jint p1, jint p2, jint p3, jobject p4, jint p5)
+{
+    TRACE("jint Java_com_mysql_ndbjtie_mysql_Utils_decimal_1bin2str(JNIEnv *, jclass, jobject, jint, jint, jint, jobject, jint)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_int, ttrait_void_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_char_0p_bb, ttrait_int, &::decimal_bin2str >(env, cls, p0, p1, p2, p3, p4, p5);
+#else
+    return gcall_fr< ttrait_int, ttrait_void_0cp_bb, ttrait_int, ttrait_int, ttrait_int, ttrait_char_0p_bb, ttrait_int, &MysqlUtilsWrapper::decimal_bin2str >(env, cls, p0, p1, p2, p3, p4, p5);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 // ---------------------------------------------------------------------------
 
 } // extern "C"
 
-#endif // mysql_jtie_hpp
+#endif // mysql_utils_jtie_hpp
