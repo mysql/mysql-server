@@ -157,6 +157,11 @@ IF(UNIX)
   INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient ${INSTALL_LIBDIR})
 ENDIF()
 
+# Visual Studio users need debug  static library for debug projects
+IF(MSVC)
+ INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
   IF(UNIX)
