@@ -167,6 +167,11 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   {
     done_first_fix_fields= TRUE;
     inside_first_fix_fields= TRUE;
+    upper_refs.empty();
+    /*
+      psergey-todo: remove _first_fix_fields calls, we need changes on every
+      execution
+    */
   }
 
   eliminated= FALSE;
@@ -180,6 +185,8 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   // all transformation is done (used by prepared statements)
   changed= 1;
   inside_first_fix_fields= FALSE;
+
+    done_first_fix_fields= FALSE;
 
   if (!res)
   {
