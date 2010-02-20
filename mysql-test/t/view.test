@@ -1,3 +1,4 @@
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
@@ -1016,10 +1017,8 @@ lock tables t1 read, v1 read;
 select * from v1;
 -- error ER_TABLE_NOT_LOCKED
 select * from t2;
-drop view v1;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-drop table t1, t2;
 unlock tables;
+drop view v1;
 drop table t1, t2;
 
 #
@@ -3934,3 +3933,45 @@ create view v_9801 as
 
 drop table t_9801;
 
+--echo #
+--echo # Bug #47335 assert in get_table_share
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (id INT);
+--error ER_NO_SUCH_TABLE
+ALTER VIEW t1 AS SELECT 1 AS f1;
+DROP TABLE t1;
+
+CREATE VIEW v1 AS SELECT 1 AS f1;
+CREATE TEMPORARY TABLE v1 (id INT);
+ALTER VIEW v1 AS SELECT 2 AS f1;
+DROP TABLE v1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+
+--echo #
+--echo # Bug #47635 assert in start_waiting_global_read_lock 
+--echo #            during CREATE VIEW
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1 (f1 integer);
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (f1 integer);
+CREATE TEMPORARY TABLE t2 (f1 integer);
+DROP TABLE t1;
+FLUSH TABLES WITH READ LOCK;
+--error ER_CANT_UPDATE_WITH_READLOCK
+CREATE VIEW t2 AS SELECT * FROM t1;
+
+UNLOCK TABLES;
+DROP TABLE t1, t2;

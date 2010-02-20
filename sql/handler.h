@@ -2055,10 +2055,6 @@ extern TYPELIB tx_isolation_typelib;
 extern const char *myisam_stats_method_names[];
 extern ulong total_ha, total_ha_2pc;
 
-       /* Wrapper functions */
-#define ha_commit(thd) (ha_commit_trans((thd), TRUE))
-#define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
-
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
@@ -2134,13 +2130,12 @@ int ha_release_temporary_latches(THD *thd);
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
+int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
 
 /* transactions: these functions never call handlerton functions directly */
-int ha_commit_trans(THD *thd, bool all);
-int ha_autocommit_or_rollback(THD *thd, int error);
 int ha_enable_transaction(THD *thd, bool on);
 
 /* savepoints */

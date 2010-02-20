@@ -21,6 +21,7 @@
 
 #include "mysql_priv.h"
 #include "sys_vars_shared.h"
+#include "transaction.h"
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);

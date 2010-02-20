@@ -1063,11 +1063,9 @@ set global default_storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
-show global variables where Variable_name='table_definition_cache' or
-Variable_name='table_lock_wait_timeout';
+show global variables where Variable_name='table_definition_cache';
 Variable_name	Value
 table_definition_cache	#
-table_lock_wait_timeout	#
 
 # --
 # -- Bug#34820: log_output can be set to illegal value.
