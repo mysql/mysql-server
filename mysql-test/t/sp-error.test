@@ -723,7 +723,7 @@ lock table t1 read|
 # This should fail since we forgot to lock mysql.proc for writing
 # explicitly, and we can't open mysql.proc for _writing_ if there
 # are locked tables.
---error 1100
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 alter procedure bug9566 comment 'Some comment'|
 unlock tables|
 # This should succeed
@@ -2490,6 +2490,35 @@ SELECT AVG (a) FROM t1 WHERE b = 999999;
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 DROP TABLE t1;
 
+
+#
+# Bug #46374 crash, INSERT INTO t1 uses function, function modifies t1
+#
+CREATE TABLE t1 ( f2 INTEGER, f3 INTEGER );
+INSERT INTO t1 VALUES  ( 1, 1 );
+
+delimiter |;
+
+CREATE FUNCTION func_1 () RETURNS INTEGER
+BEGIN
+  INSERT INTO t1 SELECT * FROM t1 ;
+  RETURN 1 ;
+END|
+
+delimiter ;|
+
+# The bug caused the following INSERT statement to trigger
+# an assertion.   Error 1442 is the correct response
+#
+--error 1442
+INSERT INTO t1 SELECT * FROM (SELECT 2 AS f1, 2 AS f2) AS A WHERE func_1() = 5;
+
+# Cleanup
+DROP FUNCTION func_1;
+DROP TABLE t1;
+
+
+
 --echo #
 --echo # Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 
 --echo #   SP + MERGE + ALTER
@@ -2513,3 +2542,4 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+

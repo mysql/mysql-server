@@ -46,6 +46,7 @@ SET @session_low_priority_updates = @@SESSION.low_priority_updates;
 #
 
 CREATE TABLE t1 (a varchar(100));
+create view v1 as select * from t1;
 
 --echo '#--------------------FN_DYNVARS_160_01-------------------------#'
 #
@@ -69,7 +70,7 @@ INSERT INTO t1 VALUES('4');
 INSERT INTO t1 VALUES('5');
 INSERT INTO t1 VALUES('6');
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -85,7 +86,7 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
-let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Locked' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Table lock' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
 --echo ** Asynchronous Execution **
@@ -101,7 +102,7 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
-let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Locked';
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Table lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -139,7 +140,7 @@ INSERT INTO t1 VALUES('4');
 INSERT INTO t1 VALUES('5');
 INSERT INTO t1 VALUES('6');
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -155,7 +156,7 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
-let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Locked' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Table lock' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
 --echo ** Asynchronous Execution **
@@ -171,7 +172,7 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
-let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Locked';
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Table lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -238,6 +239,7 @@ connection default;
 disconnect con0;
 disconnect con1;
 
+drop view v1;
 DROP TABLE t1;
 
 SET @@GLOBAL.low_priority_updates = @global_low_priority_updates;
