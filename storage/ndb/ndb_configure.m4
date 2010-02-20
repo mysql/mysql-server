@@ -247,7 +247,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_ARG_WITH([openjpa],
               [AS_HELP_STRING([--with-openjpa], Include and set path for native OpenJPA support)],
               [openjpa="$withval"],
-              [openjpa="no"])
+              [openjpa="default"])
   AC_ARG_WITH([classpath],
               [AS_HELP_STRING([--with-classpath=PATH], Include and set classpath for Cluster/J and OpenJPA support)],
               [classpath="$withval"],
@@ -325,13 +325,43 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     AC_MSG_RESULT([-- including provided classpath])
     have_classpath=$classpath;
   fi
+
+  # needed for junit test compile: 
+  #   junit-4.7.jaropenjpa-1.2.1.jar
+ 
+  # needed for OpenJPA compile:
+  #   openjpa-x.y.z.jar:geronimo-jpa_x.y_spec-x.y.jar
+
+  # needed for PCEnhancement:
+  #   serp-x.y.z.jar:commons-lang-x.y.jar:geronimo-jta_x.y_spec-x.y.jar:commons-collections-x.y.jar
   
+  have_junit=no
+  have_openjpa_jar=no
+  TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
+  for i in $TMP_CLASSPATH; do
+    if [[[ $i =~ junit-(.+)\.jar ]]]
+    then
+      AC_MSG_RESULT([-- junit found: activating clusterj tests])
+      have_junit=yes
+    fi
+    if [[[ $i =~ openjpa-(.+)\.jar ]]]
+    then
+      AC_MSG_RESULT([-- openjpa jar found: activating clusterjpa])
+      have_openjpa_jar=yes
+    fi
+    if [[[ $i =~ (.+)-jpa-(.+)\.jar ]]]
+    then
+      AC_MSG_RESULT([-- jpa jar found: activating clusterjpa])
+      have_jpa_jar=yes
+    fi
+  done
+
   have_openjpa=no
-  if test X"$openjpa" = Xyes || test X"$openjpa" = Xdefault
+  if test X"$openjpa" != Xno
   then
     if test X"$have_clusterj" = Xyes
     then
-      if test X"$have_classpath" != Xno
+      if test X"$have_openjpa_jar" != Xno
       then
         # no test of actual classpath validity for now
         AC_MSG_RESULT([-- including OpenJPA])
@@ -340,19 +370,9 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
         AC_MSG_RESULT([-- Cluster for OpenJPA requires external OpenJPA jar set with --with-classpath: not included])
       fi
     else
-      AC_MSG_RESULT([-- Cluster for OpenJPA requires Cluster/J and a Java compiler: not included])
+      AC_MSG_RESULT([-- Cluster for OpenJPA requires Cluster/J and Java to compile: not included])
     fi
   fi
-
-  have_junit=no
-  TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
-  for i in $TMP_CLASSPATH; do
-    if [[[ $i =~ junit-(.+)\.jar ]]]
-    then
-      AC_MSG_RESULT([-- junit found: activating clusterj tests])
-      have_junit=yes
-    fi
-  done
 
   if test x"$have_clusterj" = xyes
   then
@@ -360,7 +380,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
   fi
 
-  if test x"$have_openjpa" != xno
+  if test x"$have_openjpa" = xyes  
   then
     OPENJPA_OPT="clusterj-openjpa"
   fi
