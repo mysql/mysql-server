@@ -3735,7 +3735,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   if (idx == NULL)
   {
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   idx->m_version = tab->m_version;
   idx->m_status = tab->m_status;
@@ -3745,7 +3745,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   {
     delete idx;
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
@@ -3764,7 +3764,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       errno = ENOMEM;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // Copy column definition
     *col = * org;
@@ -3772,13 +3772,19 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       delete col;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
 
     /**
      * reverse map
      */
     const NdbColumnImpl* primCol = prim->getColumn(col->getName());
+    if (primCol == 0)
+    {
+      delete idx;
+      DBUG_RETURN(-1);
+    }
+
     int key_id = primCol->getColumnNo();
     int fill = -1;
     idx->m_key_ids.fill(key_id, fill);
