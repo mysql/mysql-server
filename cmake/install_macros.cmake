@@ -161,3 +161,53 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   SET(INSTALL_LOCATION)
 ENDFUNCTION()
 
+# Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
+# (unless multi-config generator is used like Visual Studio or Xcode). 
+# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
+GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
+SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
+
+
+FUNCTION(INSTALL_DEBUG_TARGET target)
+ CMAKE_PARSE_ARGUMENTS(ARG
+  "DESTINATION;RENAME"
+  ""
+  ${ARGN}
+  )
+  GET_TARGET_PROPERTY(target_type  ${target} TYPE)
+  IF(ARG_RENAME)
+    SET(RENAME_PARAM RENAME ${ARG_RENAME}${CMAKE_${target_type}_SUFFIX})
+  ELSE()
+    SET(RENAME_PARAM)
+  ENDIF()
+  IF(NOT ARG_DESTINATION)
+    MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
+  ENDIF()
+  GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+  IF(CMAKE_GENERATOR MATCHES "Makefiles")
+   STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
+  ELSE()
+   STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
+  ENDIF()
+  
+  INSTALL(FILES ${debug_target_location}
+    DESTINATION ${ARG_DESTINATION}
+    ${RENAME_PARAM}
+    CONFIGURATIONS Release RelWithDebInfo
+    OPTIONAL)
+
+  IF(MSVC)
+    GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
+    STRING(REPLACE "${ext}" ".pdb"  debug_pdb_target_location "${debug_target_location}" )
+    IF(RENAME_PARAM)
+      STRING(REPLACE "${ext}" ".pdb"  "${ARG_RENAME}" pdb_rename)
+      SET(PDB_RENAME_PARAM RENAME ${pdb_rename})
+    ENDIF()
+    INSTALL(FILES ${debug_pdb_target_location}
+      DESTINATION ${ARG_DESTINATION}
+      ${RPDB_RENAME_PARAM}
+      CONFIGURATIONS Release RelWithDebInfo
+      OPTIONAL)
+  ENDIF()
+ENDFUNCTION()
+
