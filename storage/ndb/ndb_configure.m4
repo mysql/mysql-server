@@ -312,7 +312,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       AC_MSG_RESULT([-- including Cluster/J])
       have_clusterj=yes
     else
-      AC_MSG_ERROR([-- Cluster/J requires ucs2 charset; use --with-extra-charsets to configure])
+      AC_MSG_WARN([-- Cluster/J requires ucs2 charset; use --with-extra-charsets to configure])
+      have_clusterj=yes
     fi
   else
     AC_MSG_RESULT([-- Cluster/J requires Java and JNI: Cluster/J not included])
@@ -343,6 +344,16 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     fi
   fi
 
+  have_junit=no
+  TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
+  for i in $TMP_CLASSPATH; do
+    if [[[ $i =~ junit-(.+)\.jar ]]]
+    then
+      AC_MSG_RESULT([-- junit found: activating clusterj tests])
+      have_junit=yes
+    fi
+  done
+
   if test x"$have_clusterj" = xyes
   then
     NDBJTIE_OPT="ndbjtie"
@@ -354,12 +365,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     OPENJPA_OPT="clusterj-openjpa"
   fi
 
-  if test x"$have_classpath" != xno 
+  if test x"$have_junit" == xyes 
   then
     CLUSTERJ_TESTS="clusterj-test"
   fi
 
-  if test X"$have_openjpa" != Xno && test x"$have_classpath" != xno
+  if test X"$have_openjpa" != Xno && test X"$have_junit" = Xyes
   then
     CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
