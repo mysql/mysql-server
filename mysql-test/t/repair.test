@@ -158,3 +158,33 @@ CREATE TEMPORARY TABLE tt1 (c1 INT);
 REPAIR TABLE tt1 USE_FRM;
 DROP TABLE tt1;
 
+
+--echo #
+--echo # Bug #48248 assert in MDL_ticket::upgrade_shared_lock_to_exclusive
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+LOCK TABLES t1 READ;
+REPAIR TABLE t1;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #50784 "MDL: Assertion `m_tickets.is_empty() ||
+--echo #                      m_tickets.front() == m_trans_sentinel'"
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create table t2 (j int);
+set @@autocommit= 0;
+repair table t1, t2;
+set @@autocommit= default;
+drop tables t1, t2;

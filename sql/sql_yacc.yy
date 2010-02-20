@@ -688,7 +688,8 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
 {
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
-                                              TL_OPTION_UPDATING))
+                                              TL_OPTION_UPDATING,
+                                              TL_WRITE_ALLOW_READ))
     return TRUE;
   lex->alter_info.reset();
   lex->alter_info.flags= ALTER_ADD_INDEX;
@@ -1170,7 +1171,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PREV_SYM
 %token  PRIMARY_SYM                   /* SQL-2003-R */
 %token  PRIVILEGES                    /* SQL-2003-N */
-%token  PROCEDURE                     /* SQL-2003-R */
+%token  PROCEDURE_SYM                 /* SQL-2003-R */
 %token  PROCESS
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
@@ -2024,6 +2025,7 @@ create:
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
+            lex->create_last_non_select_table= lex->last_table();
           }
           create2
           {
@@ -2038,6 +2040,7 @@ create:
                                   ha_resolve_storage_engine_name(lex->create_info.db_type),
                                   $5->table.str);
             }
+            create_table_set_open_action_and_adjust_tables(lex);
           }
         | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
           {
@@ -4191,7 +4194,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning
+          opt_create_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -4224,10 +4227,10 @@ create2:
         ;
 
 create2a:
-          field_list ')' opt_create_table_options
-          opt_partitioning
+          create_field_list ')' opt_create_table_options
+          opt_create_partitioning
           create3 {}
-        |  opt_partitioning
+        |  opt_create_partitioning
            create_select ')'
            { Select->set_braces(1);}
            union_opt {}
@@ -4241,6 +4244,19 @@ create3:
         | opt_duplicate opt_as '(' create_select ')'
           { Select->set_braces(1);}
           union_opt {}
+        ;
+
+opt_create_partitioning:
+          opt_partitioning
+          {
+            /*
+              Remove all tables used in PARTITION clause from the global table
+              list. Partitioning with subqueries is not allowed anyway.
+            */
+            TABLE_LIST *last_non_sel_table= Lex->create_last_non_select_table;
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+          }
         ;
 
 /*
@@ -5073,19 +5089,30 @@ create_table_option:
             Lex->create_info.row_type= $3;
             Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
           }
-        | UNION_SYM opt_equal '(' opt_table_list ')'
+        | UNION_SYM opt_equal
           {
-            /* Move the union list to the merge_list */
+            Lex->select_lex.table_list.save_and_clear(&Lex->save_list);
+          }
+          '(' opt_table_list ')'
+          {
+            /*
+              Move the union list to the merge_list and exclude its tables
+              from the global list.
+            */
             LEX *lex=Lex;
-            TABLE_LIST *table_list= lex->select_lex.get_table_list();
             lex->create_info.merge_list= lex->select_lex.table_list;
-            lex->create_info.merge_list.elements--;
-            lex->create_info.merge_list.first=
-              (uchar*) (table_list->next_local);
-            lex->select_lex.table_list.elements=1;
-            lex->select_lex.table_list.next=
-              (uchar**) &(table_list->next_local);
-            table_list->next_local= 0;
+            lex->select_lex.table_list= lex->save_list;
+            /*
+              When excluding union list from the global list we assume that
+              elements of the former immediately follow elements which represent
+              table being created/altered and parent tables.
+            */
+            TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
+            DBUG_ASSERT(last_non_sel_table->next_global ==
+                        (TABLE_LIST *)lex->create_info.merge_list.first);
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+
             lex->create_info.used_fields|= HA_CREATE_USED_UNION;
           }
         | default_charset
@@ -5221,6 +5248,14 @@ udf_type:
         | REAL {$$ = (int) REAL_RESULT; }
         | DECIMAL_SYM {$$ = (int) DECIMAL_RESULT; }
         | INT_SYM {$$ = (int) INT_RESULT; }
+        ;
+
+
+create_field_list:
+        field_list
+        {
+          Lex->create_last_non_select_table= Lex->last_table();
+        }
         ;
 
 field_list:
@@ -6109,7 +6144,8 @@ alter:
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
-                                                   TL_OPTION_UPDATING))
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE_ALLOW_READ))
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex.init_order();
@@ -6122,6 +6158,7 @@ alter:
             lex->alter_info.reset();
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
+            lex->create_last_non_select_table= lex->last_table();
           }
           alter_commands
           {}
@@ -6150,7 +6187,7 @@ alter:
             lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
             lex->name= $3;
           }
-        | ALTER PROCEDURE sp_name
+        | ALTER PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -6505,12 +6542,16 @@ add_column:
         ;
 
 alter_list_item:
-          add_column column_def opt_place { }
+          add_column column_def opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | ADD key_def
           {
+            Lex->create_last_non_select_table= Lex->last_table();
             Lex->alter_info.flags|= ALTER_ADD_INDEX;
           }
-        | add_column '(' field_list ')'
+        | add_column '(' create_field_list ')'
           {
             Lex->alter_info.flags|= ALTER_ADD_COLUMN | ALTER_ADD_INDEX;
           }
@@ -6521,6 +6562,9 @@ alter_list_item:
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
           }
           field_spec opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | MODIFY_SYM opt_column field_ident
           {
             LEX *lex=Lex;
@@ -6543,6 +6587,9 @@ alter_list_item:
               MYSQL_YYABORT;
           }
           opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | DROP opt_column field_ident opt_restrict
           {
             LEX *lex=Lex;
@@ -9857,7 +9904,7 @@ dec_num:
 
 procedure_clause:
           /* empty */
-        | PROCEDURE ident /* Procedure name */
+        | PROCEDURE_SYM ident /* Procedure name */
           {
             LEX *lex=Lex;
 
@@ -10057,7 +10104,8 @@ drop:
             lex->alter_info.flags= ALTER_DROP_INDEX;
             lex->alter_info.drop_list.push_back(ad);
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
-                                                        TL_OPTION_UPDATING))
+                                                        TL_OPTION_UPDATING,
+                                                        TL_WRITE_ALLOW_READ))
               MYSQL_YYABORT;
           }
         | DROP DATABASE if_exists ident
@@ -10111,7 +10159,7 @@ drop:
             spname->init_qname(thd);
             lex->spname= spname;
           }
-        | DROP PROCEDURE if_exists sp_name
+        | DROP PROCEDURE_SYM if_exists sp_name
           {
             LEX *lex=Lex;
             if (lex->sphead)
@@ -10870,7 +10918,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
-        | CREATE PROCEDURE sp_name
+        | CREATE PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -10890,7 +10938,7 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE STATUS_SYM wild_and_where
+        | PROCEDURE_SYM STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
@@ -10904,7 +10952,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
-        | PROCEDURE CODE_SYM sp_name
+        | PROCEDURE_SYM CODE_SYM sp_name
           {
             Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
             Lex->spname= $3;
@@ -13053,7 +13101,7 @@ revoke_command:
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident FROM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13095,7 +13143,7 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident TO_SYM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
           require_clause grant_options
           {
             LEX *lex= Lex;
@@ -14132,7 +14180,7 @@ sf_tail:
         ;
 
 sp_tail:
-          PROCEDURE remember_name sp_name
+          PROCEDURE_SYM remember_name sp_name
           {
             LEX *lex= Lex;
             sp_head *sp;

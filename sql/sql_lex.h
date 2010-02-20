@@ -1076,6 +1076,16 @@ public:
     }
   }
 
+  /** Return a pointer to the last element in query table list. */
+  TABLE_LIST *last_table()
+  {
+    /* Don't use offsetof() macro in order to avoid warnings. */
+    return query_tables ?
+           (TABLE_LIST*) ((char*) query_tables_last -
+                          ((char*) &(query_tables->next_global) -
+                           (char*) query_tables)) :
+           0;
+  }
 
   /**
     Enumeration listing of all types of unsafe statement.
@@ -1942,6 +1952,12 @@ struct LEX: public Query_tables_list
   bool subqueries, ignore;
   st_parsing_options parsing_options;
   Alter_info alter_info;
+  /*
+    For CREATE TABLE statement last element of table list which is not
+    part of SELECT or LIKE part (i.e. either element for table we are
+    creating or last of tables referenced by foreign keys).
+  */
+  TABLE_LIST *create_last_non_select_table;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*

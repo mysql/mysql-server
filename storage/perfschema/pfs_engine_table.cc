@@ -118,6 +118,8 @@ void PFS_engine_table_share::check_one_table(THD *thd)
   TABLE_LIST tables;
 
   tables.init_one_table(PERFORMANCE_SCHEMA_str.str,
+                        PERFORMANCE_SCHEMA_str.length,
+                        m_name.str, m_name.length,
                         m_name.str, TL_READ);
 
   /* Work around until Bug#32115 is backported. */

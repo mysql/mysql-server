@@ -2635,7 +2635,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     for the same table.
   */
   if (is_not_tmp_table)
-    mysql_mutex_lock(&table_share->mutex);
+    mysql_mutex_lock(&table_share->LOCK_ha_data);
   if (!table_share->ha_data)
   {
     HA_DATA_PARTITION *ha_data;
@@ -2646,7 +2646,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if (!ha_data)
     {
       if (is_not_tmp_table)
-        mysql_mutex_unlock(&table_share->mutex);
+        mysql_mutex_unlock(&table_share->LOCK_ha_data);
       goto err_handler;
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
@@ -2655,7 +2655,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
-    mysql_mutex_unlock(&table_share->mutex);
+    mysql_mutex_unlock(&table_share->LOCK_ha_data);
   /*
     Some handlers update statistics as part of the open call. This will in
     some cases corrupt the statistics of the partition handler and thus
@@ -5294,34 +5294,35 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
 }
 
 
-/*
-  General function to prepare handler for certain behavior
+/**
+  General function to prepare handler for certain behavior.
 
-  SYNOPSIS
-    extra()
+  @param[in]    operation       operation to execute
     operation              Operation type for extra call
 
-  RETURN VALUE
-    >0                     Error code
-    0                      Success
+  @return       status
+    @retval     0               success
+    @retval     >0              error code
 
-  DESCRIPTION
+  @detail
+
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.
 
   We divide the parameters into the following categories:
-  1) Parameters used by most handlers
-  2) Parameters used by some non-MyISAM handlers
-  3) Parameters used only by MyISAM
-  4) Parameters only used by temporary tables for query processing
-  5) Parameters only used by MyISAM internally
-  6) Parameters not used at all
-  7) Parameters only used by federated tables for query processing
-  8) Parameters only used by NDB
+  1) Operations used by most handlers
+  2) Operations used by some non-MyISAM handlers
+  3) Operations used only by MyISAM
+  4) Operations only used by temporary tables for query processing
+  5) Operations only used by MyISAM internally
+  6) Operations not used at all
+  7) Operations only used by federated tables for query processing
+  8) Operations only used by NDB
+  9) Operations only used by MERGE
 
   The partition handler need to handle category 1), 2) and 3).
 
-  1) Parameters used by most handlers
+  1) Operations used by most handlers
   -----------------------------------
   HA_EXTRA_RESET:
     This option is used by most handlers and it resets the handler state
@@ -5360,7 +5361,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     ensure disk based tables are flushed at end of query execution.
     Currently is never used.
 
-  2) Parameters used by some non-MyISAM handlers
+  2) Operations used by some non-MyISAM handlers
   ----------------------------------------------
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
     This is a strictly InnoDB feature that is more or less undocumented.
@@ -5379,7 +5380,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     SQL constructs.
     Not used by MyISAM.
 
-  3) Parameters used only by MyISAM
+  3) Operations used only by MyISAM
   ---------------------------------
   HA_EXTRA_NORMAL:
     Only used in MyISAM to reset quick mode, not implemented by any other
@@ -5510,7 +5511,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     Only used by MyISAM, called when altering table, closing tables to
     enforce a reopen of the table files.
 
-  4) Parameters only used by temporary tables for query processing
+  4) Operations only used by temporary tables for query processing
   ----------------------------------------------------------------
   HA_EXTRA_RESET_STATE:
     Same as reset() except that buffers are not released. If there is
@@ -5541,7 +5542,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     tables used in query processing.
     Not handled by partition handler.
 
-  5) Parameters only used by MyISAM internally
+  5) Operations only used by MyISAM internally
   --------------------------------------------
   HA_EXTRA_REINIT_CACHE:
     This call reinitializes the READ CACHE described above if there is one
@@ -5576,19 +5577,19 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
     Only used by MyISAM, never called.
 
-  6) Parameters not used at all
+  6) Operations not used at all
   -----------------------------
   HA_EXTRA_KEY_CACHE:
   HA_EXTRA_NO_KEY_CACHE:
     This parameters are no longer used and could be removed.
 
-  7) Parameters only used by federated tables for query processing
+  7) Operations only used by federated tables for query processing
   ----------------------------------------------------------------
   HA_EXTRA_INSERT_WITH_UPDATE:
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
 
-  8) Parameters only used by NDB
+  8) Operations only used by NDB
   ------------------------------
   HA_EXTRA_DELETE_CANNOT_BATCH:
   HA_EXTRA_UPDATE_CANNOT_BATCH:
@@ -5596,6 +5597,14 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     and should perform them immediately. This may be needed when table has 
     AFTER DELETE/UPDATE triggers which access to subject table.
     These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
+
+  9) Operations only used by MERGE
+  ------------------------------
+  HA_EXTRA_ADD_CHILDREN_LIST:
+  HA_EXTRA_ATTACH_CHILDREN:
+  HA_EXTRA_IS_ATTACHED_CHILDREN:
+  HA_EXTRA_DETACH_CHILDREN:
+    Special actions for MERGE tables. Ignore.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -5688,11 +5697,20 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Category 7), used by federated handlers */
   case HA_EXTRA_INSERT_WITH_UPDATE:
     DBUG_RETURN(loop_extra(operation));
-    /* Category 8) Parameters only used by NDB */
+    /* Category 8) Operations only used by NDB */
   case HA_EXTRA_DELETE_CANNOT_BATCH:
   case HA_EXTRA_UPDATE_CANNOT_BATCH:
   {
     /* Currently only NDB use the *_CANNOT_BATCH */
+    break;
+  }
+    /* Category 9) Operations only used by MERGE */
+  case HA_EXTRA_ADD_CHILDREN_LIST:
+  case HA_EXTRA_ATTACH_CHILDREN:
+  case HA_EXTRA_IS_ATTACHED_CHILDREN:
+  case HA_EXTRA_DETACH_CHILDREN:
+  {
+    /* Special actions for MERGE tables. Ignore. */
     break;
   }
   /*

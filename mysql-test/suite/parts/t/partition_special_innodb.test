@@ -68,12 +68,10 @@ INSERT INTO t1 VALUES (NULL, 'first row t2');
 
 --connection con2
 SET autocommit=OFF;
+SET SESSION lock_wait_timeout= 1;
 --error ER_LOCK_WAIT_TIMEOUT
 ALTER TABLE t1 AUTO_INCREMENT = 10;
 
---connection con1
-INSERT INTO t1 VALUES (NULL, 'second row t2');
-SELECT a,b FROM t1 ORDER BY a;
 --disconnect con2
 --disconnect con1
 --connection default
