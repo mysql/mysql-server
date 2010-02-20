@@ -8,6 +8,35 @@ my $cmakeargs = "";
 # Find source root directory
 # Assume this script is in <srcroot>/cmake
 my $srcdir = dirname(dirname(abs_path($0)));
+my $cmake_install_prefix="";
+
+# Sets installation directory,  bindir, libdir, libexecdir etc
+# the equivalent CMake variables are given without prefix
+# e.g if --prefix is /usr and --bindir is /usr/bin
+# then cmake variable (INSTALL_BINDIR) must be just "bin"
+
+sub set_installdir 
+{
+   my($path, $varname) = @_;
+   my $prefix_length = length($cmake_install_prefix);
+   if (($prefix_length > 0) && (index($path,$cmake_install_prefix) == 0))
+   {
+      # path is under the prefix, so remove the prefix and maybe following "/"
+      $path = substr($path, $prefix_length);
+      if(length($path) > 0)
+      {
+        my $char = substr($path, 0, 1);
+        if($char eq "/")
+        {
+          $path= substr($path, 1);
+        }
+      }
+      if(length($path) > 0)
+      {
+        $cmakeargs = $cmakeargs." -D".$varname."=".$path;
+      }
+   }
+}
 
 foreach my $option (@ARGV)
 {
@@ -68,8 +97,28 @@ foreach my $option (@ARGV)
   }
   if($option =~ /prefix=/)
   {
-    my $cmake_install_prefix= substr($option, 7);
+    $cmake_install_prefix= substr($option, 7);
     $cmakeargs = $cmakeargs." -DCMAKE_INSTALL_PREFIX=".$cmake_install_prefix;
+    next;
+  }
+  if($option =~/bindir=/)
+  {
+    set_installdir(substr($option,7), "INSTALL_BINDIR");
+    next;
+  }
+  if($option =~/libdir=/)
+  {
+    set_installdir(substr($option,7), "INSTALL_LIBDIR");
+    next;
+  }
+  if($option =~/libexecdir=/)
+  {
+    set_installdir(substr($option,11), "INSTALL_SBINDIR");
+    next;
+  }
+  if($option =~/includedir=/)
+  {
+    set_installdir(substr($option,11), "INSTALL_INCLUDEDIR");
     next;
   }
   if ($option =~ /extra-charsets=all/)
