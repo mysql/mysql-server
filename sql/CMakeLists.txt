@@ -156,6 +156,7 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
+INSTALL_DEBUG_TARGET(mysqld DESTINATION ${INSTALL_SBINDIR} RENAME mysqld-debug)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -189,7 +190,7 @@ ADD_CUSTOM_COMMAND(
   ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
   COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS gen_lex_hash)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
         
 ADD_CUSTOM_TARGET( 
         GenServerSource
@@ -274,40 +275,4 @@ ELSE()
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
 ENDIF()
 ENDIF()
-
-# Optionally install mysqld from debug build run. outside of the current build dir 
-# (unless multi-config generator is used# like Visual Studio or Xcode). 
-# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
-
-GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
-SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
-  
-IF(WIN32)
- SET(EXE ".exe")
-ELSE()
- SET(EXE)
-ENDIF()
-
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  SET(MYSQLD_DEBUG_EXE ${DEBUGBUILDDIR}/sql/mysqld${EXE})
-ELSE()
-  # Visual Studio and Xcode
-  SET(MYSQLD_DEBUG_EXE ${CMAKE_BINARY_DIR}/sql/Debug/mysqld${EXE})
-ENDIF()
-
-INSTALL(FILES ${MYSQLD_DEBUG_EXE}
-  DESTINATION ${INSTALL_SBINDIR}
-  RENAME mysqld-debug${EXE}
-  CONFIGURATIONS Release RelWithDebInfo
-  OPTIONAL)
-
-IF(WIN32)
-  STRING(REPLACE ".exe" ".pdb" MYSQLD_DEBUG_PDB ${MYSQLD_DEBUG_EXE})
-  INSTALL(FILES ${MYSQLD_DEBUG_PDB}
-  CONFIGURATIONS Release RelWithDebInfo
-  DESTINATION ${INSTALL_SBINDIR} 
-  RENAME mysqld-debug.pdb 
-  OPTIONAL)
-ENDIF()
-
 
