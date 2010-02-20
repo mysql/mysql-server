@@ -194,6 +194,35 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
  ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
 
+ /* Messages from valgrind */
+ ("==[0-9]*== Memcheck,"),
+ ("==[0-9]*== Copyright"),
+ ("==[0-9]*== Using"),
+ ("==[0-9]*== For more details"),
+ /* This comes with innodb plugin tests */
+ ("==[0-9]*== Warning: set address range perms: large range"),
+
+ /* valgrind warnings: invalid file descriptor -1 in syscall
+    write()/read(). Bug #50414 */
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
+
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ /*
+   BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
+   table cause warnings in errlog
+   Note: This is a temporary suppression until Bug#42147 can be 
+   fixed properly. See bug page for more information.
+  */
+ ("Found lock of type 6 that is write and read locked"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

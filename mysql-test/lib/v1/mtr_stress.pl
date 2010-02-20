@@ -150,7 +150,7 @@ sub run_stress_test ()
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--cleanup");
   mtr_add_arg($args, "--log-error-details");
-  mtr_add_arg($args, "--abort-on-error");
+  mtr_add_arg($args, "--abort-on-error=1");
 
   if ( $::opt_stress_init_file )
   {

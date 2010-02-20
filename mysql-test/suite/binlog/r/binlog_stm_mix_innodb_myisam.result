@@ -229,6 +229,7 @@ select (@after:=unix_timestamp())*0;
 select (@after-@before) >= 2;
 (@after-@before) >= 2
 1
+commit;
 drop table t1,t2;
 commit;
 begin;

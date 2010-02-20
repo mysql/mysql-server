@@ -33,6 +33,7 @@
 #include <thr_alarm.h>
 #include "slave.h"
 #include "rpl_mi.h"
+#include "transaction.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -862,6 +863,12 @@ static Sys_var_mybool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
        GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
+static Sys_var_ulong Sys_lock_wait_timeout(
+       "lock_wait_timeout",
+       "Timeout in seconds to wait for a lock before returning an error.",
+       SESSION_VAR(lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
+
 #ifdef HAVE_MLOCKALL
 static Sys_var_mybool Sys_locked_in_memory(
        "locked_in_memory",
@@ -1383,7 +1390,7 @@ static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->active_transaction())
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return true;
@@ -1405,7 +1412,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   if (check_read_only(self, thd, 0)) // just in case
     goto end;
 
-  if (thd->global_read_lock)
+  if (thd->global_read_lock.is_acquired())
   {
     /*
       This connection already holds the global read lock.
@@ -1431,7 +1438,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  if (lock_global_read_lock(thd))
+  if (thd->global_read_lock.lock_global_read_lock(thd))
     goto end_with_mutex_unlock;
 
   /*
@@ -1443,10 +1450,10 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
     goto end_with_read_lock;
 
-  if ((result= make_global_read_lock_block_commit(thd)))
+  if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -1455,7 +1462,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
  end_with_read_lock:
   /* Release the lock */
-  unlock_global_read_lock(thd);
+  thd->global_read_lock.unlock_global_read_lock(thd);
  end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
  end:
@@ -1947,13 +1954,6 @@ static Sys_var_ulong Sys_table_cache_size(
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
        BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_table_lock_wait_timeout(
-       "table_lock_wait_timeout",
-       "Timeout in seconds to wait for a table level lock before returning an "
-       "error. Used only if the connection has active cursors",
-       GLOBAL_VAR(table_lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024*1024*1024), DEFAULT(50), BLOCK_SIZE(1));
-
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
@@ -2139,11 +2139,13 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)
   { // activating autocommit
 
-    if (ha_commit(thd))
+    if (trans_commit(thd))
     {
       thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
       return true;
     }
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
 
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
