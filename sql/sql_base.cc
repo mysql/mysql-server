@@ -21,7 +21,9 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #include "sql_trigger.h"
+#include "transaction.h"
 #include "sql_prepare.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -95,55 +97,39 @@ bool Prelock_error_handler::safely_trapped_errors()
   @defgroup Data_Dictionary Data Dictionary
   @{
 */
-TABLE *unused_tables;				/* Used by mysql_test */
-HASH open_cache;				/* Used by mysql_test */
-static HASH table_def_cache;
-static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
-static mysql_mutex_t LOCK_table_share;
-static bool table_def_inited= 0;
 
-static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
-			     const char *alias,
-                             char *cache_key, uint cache_key_length,
-			     MEM_ROOT *mem_root, uint flags);
+/**
+   Total number of TABLE instances for tables in the table definition cache
+   (both in use by threads and not in use). This value is accessible to user
+   as "Open_tables" status variable.
+*/
+uint  table_cache_count= 0;
+/**
+   List that contains all TABLE instances for tables in the table definition
+   cache that are not in use by any thread. Recently used TABLE instances are
+   appended to the end of the list. Thus the beginning of the list contains
+   tables which have been least recently used.
+*/
+TABLE *unused_tables;
+HASH table_def_cache;
+static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
+static bool table_def_inited= 0;
+static bool table_def_shutdown_in_progress= 0;
+
+static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
+                                           TABLE_SHARE *table_share);
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
+static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
-static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-                                 bool send_refresh);
+static bool tdc_wait_for_old_versions(THD *thd,
+                                      MDL_request_list *mdl_requests);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 
 
-extern "C" uchar *table_cache_key(const uchar *record, size_t *length,
-				 my_bool not_used __attribute__((unused)))
-{
-  TABLE *entry=(TABLE*) record;
-  *length= entry->s->table_cache_key.length;
-  return (uchar*) entry->s->table_cache_key.str;
-}
-
-
-bool table_cache_init(void)
-{
-  return my_hash_init(&open_cache, &my_charset_bin, table_cache_size+16,
-                      0, 0, table_cache_key,
-                      (my_hash_free_key) free_cache_entry, 0) != 0;
-}
-
-void table_cache_free(void)
-{
-  DBUG_ENTER("table_cache_free");
-  if (table_def_inited)
-  {
-    close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
-    if (!open_cache.records)			// Safety first
-      my_hash_free(&open_cache);
-  }
-  DBUG_VOID_RETURN;
-}
-
 uint cached_open_tables(void)
 {
-  return open_cache.records;
+  return table_cache_count;
 }
 
 
@@ -151,7 +137,8 @@ uint cached_open_tables(void)
 static void check_unused(void)
 {
   uint count= 0, open_files= 0, idx= 0;
-  TABLE *cur_link,*start_link;
+  TABLE *cur_link, *start_link, *entry;
+  TABLE_SHARE *share;
 
   if ((start_link=cur_link=unused_tables))
   {
@@ -162,45 +149,47 @@ static void check_unused(void)
 	DBUG_PRINT("error",("Unused_links aren't linked properly")); /* purecov: inspected */
 	return; /* purecov: inspected */
       }
-    } while (count++ < open_cache.records &&
+    } while (count++ < table_cache_count &&
 	     (cur_link=cur_link->next) != start_link);
     if (cur_link != start_link)
     {
       DBUG_PRINT("error",("Unused_links aren't connected")); /* purecov: inspected */
     }
   }
-  for (idx=0 ; idx < open_cache.records ; idx++)
+  for (idx=0 ; idx < table_def_cache.records ; idx++)
   {
-    TABLE *entry=(TABLE*) my_hash_element(&open_cache,idx);
-    if (!entry->in_use)
+    share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
+
+    I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+    while ((entry= it++))
+    {
+      /* We must not have TABLEs in the free list that have their file closed. */
+      DBUG_ASSERT(entry->db_stat && entry->file);
+      /* Merge children should be detached from a merge parent */
+      DBUG_ASSERT(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+      if (entry->in_use)
+      {
+        DBUG_PRINT("error",("Used table is in share's list of unused tables")); /* purecov: inspected */
+      }
       count--;
-    if (entry->file)
       open_files++;
+    }
+    it.init(share->used_tables);
+    while ((entry= it++))
+    {
+      if (!entry->in_use)
+      {
+        DBUG_PRINT("error",("Unused table is in share's list of used tables")); /* purecov: inspected */
+      }
+      open_files++;
+    }
   }
   if (count != 0)
   {
     DBUG_PRINT("error",("Unused_links doesn't match open_cache: diff: %d", /* purecov: inspected */
 			count)); /* purecov: inspected */
   }
-
-#ifdef NOT_SAFE_FOR_REPAIR
-  /*
-    check that open cache and table definition cache has same number of
-    aktive tables
-  */
-  count= 0;
-  for (idx=0 ; idx < table_def_cache.records ; idx++)
-  {
-    TABLE_SHARE *entry= (TABLE_SHARE*) hash_element(&table_def_cache,idx);
-    count+= entry->ref_count;
-  }
-  if (count != open_files)
-  {
-    DBUG_PRINT("error", ("table_def ref_count: %u  open_cache: %u",
-                         count, open_files));
-    DBUG_ASSERT(count == open_files);
-  }
-#endif
 }
 #else
 #define check_unused()
@@ -264,13 +253,12 @@ extern "C" uchar *table_def_key(const uchar *record, size_t *length,
 static void table_def_free_entry(TABLE_SHARE *share)
 {
   DBUG_ENTER("table_def_free_entry");
+  mysql_mutex_assert_owner(&LOCK_open);
   if (share->prev)
   {
     /* remove from old_unused_share list */
-    mysql_mutex_lock(&LOCK_table_share);
     *share->prev= share->next;
     share->next->prev= share->prev;
-    mysql_mutex_unlock(&LOCK_table_share);
   }
   free_table_share(share);
   DBUG_VOID_RETURN;
@@ -280,7 +268,6 @@ static void table_def_free_entry(TABLE_SHARE *share)
 bool table_def_init(void)
 {
   table_def_inited= 1;
-  mysql_mutex_init(key_LOCK_table_share, &LOCK_table_share, MY_MUTEX_INIT_FAST);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
@@ -290,13 +277,38 @@ bool table_def_init(void)
 }
 
 
+/**
+  Notify table definition cache that process of shutting down server
+  has started so it has to keep number of TABLE and TABLE_SHARE objects
+  minimal in order to reduce number of references to pluggable engines.
+*/
+
+void table_def_start_shutdown(void)
+{
+  if (table_def_inited)
+  {
+    mysql_mutex_lock(&LOCK_open);
+    /* Free all cached but unused TABLEs and TABLE_SHAREs first. */
+    close_cached_tables(NULL, NULL, TRUE, FALSE);
+    /*
+      Ensure that TABLE and TABLE_SHARE objects which are created for
+      tables that are open during process of plugins' shutdown are
+      immediately released. This keeps number of references to engine
+      plugins minimal and allows shutdown to proceed smoothly.
+    */
+    table_def_shutdown_in_progress= TRUE;
+    mysql_mutex_unlock(&LOCK_open);
+  }
+}
+
+
 void table_def_free(void)
 {
   DBUG_ENTER("table_def_free");
   if (table_def_inited)
   {
     table_def_inited= 0;
-    mysql_mutex_destroy(&LOCK_table_share);
+    /* Free table definitions. */
     my_hash_free(&table_def_cache);
   }
   DBUG_VOID_RETURN;
@@ -306,6 +318,118 @@ void table_def_free(void)
 uint cached_table_definitions(void)
 {
   return table_def_cache.records;
+}
+
+
+/*
+  Auxiliary routines for manipulating with per-share used/unused and
+  global unused lists of TABLE objects and table_cache_count counter.
+  Responsible for preserving invariants between those lists, counter
+  and TABLE::in_use member.
+  In fact those routines implement sort of implicit table cache as
+  part of table definition cache.
+*/
+
+
+/**
+   Add newly created TABLE object for table share which is going
+   to be used right away.
+*/
+
+static void table_def_add_used_table(THD *thd, TABLE *table)
+{
+  DBUG_ASSERT(table->in_use == thd);
+  table->s->used_tables.push_front(table);
+  table_cache_count++;
+}
+
+
+/**
+   Prepare used or unused TABLE instance for destruction by removing
+   it from share's and global list.
+*/
+
+static void table_def_remove_table(TABLE *table)
+{
+  if (table->in_use)
+  {
+    /* Remove from per-share chain of used TABLE objects. */
+    table->s->used_tables.remove(table);
+  }
+  else
+  {
+    /* Remove from per-share chain of unused TABLE objects. */
+    table->s->free_tables.remove(table);
+
+    /* And global unused chain. */
+    table->next->prev=table->prev;
+    table->prev->next=table->next;
+    if (table == unused_tables)
+    {
+      unused_tables=unused_tables->next;
+      if (table == unused_tables)
+	unused_tables=0;
+    }
+    check_unused();
+  }
+  table_cache_count--;
+}
+
+
+/**
+   Mark already existing TABLE instance as used.
+*/
+
+static void table_def_use_table(THD *thd, TABLE *table)
+{
+  DBUG_ASSERT(!table->in_use);
+
+  /* Unlink table from list of unused tables for this share. */
+  table->s->free_tables.remove(table);
+  /* Unlink able from global unused tables list. */
+  if (table == unused_tables)
+  {						// First unused
+    unused_tables=unused_tables->next;	        // Remove from link
+    if (table == unused_tables)
+      unused_tables=0;
+  }
+  table->prev->next=table->next;		/* Remove from unused list */
+  table->next->prev=table->prev;
+  check_unused();
+  /* Add table to list of used tables for this share. */
+  table->s->used_tables.push_front(table);
+  table->in_use= thd;
+  /* The ex-unused table must be fully functional. */
+  DBUG_ASSERT(table->db_stat && table->file);
+  /* The children must be detached from the table. */
+  DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+}
+
+
+/**
+   Mark already existing used TABLE instance as unused.
+*/
+
+static void table_def_unuse_table(TABLE *table)
+{
+  DBUG_ASSERT(table->in_use);
+
+  table->in_use= 0;
+  /* Remove table from the list of tables used in this share. */
+  table->s->used_tables.remove(table);
+  /* Add table to the list of unused TABLE objects for this share. */
+  table->s->free_tables.push_front(table);
+  /* Also link it last in the global list of unused TABLE objects. */
+  if (unused_tables)
+  {
+    table->next=unused_tables;
+    table->prev=unused_tables->prev;
+    unused_tables->prev=table;
+    table->prev->next=table;
+  }
+  else
+    unused_tables=table->next=table->prev=table;
+  check_unused();
 }
 
 
@@ -335,28 +459,32 @@ uint cached_table_definitions(void)
 */
 
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
-                             uint key_length, uint db_flags, int *error)
+                             uint key_length, uint db_flags, int *error,
+                             my_hash_value_type hash_value)
 {
   TABLE_SHARE *share;
   DBUG_ENTER("get_table_share");
 
   *error= 0;
 
+  /*
+    To be able perform any operation on table we should own
+    some kind of metadata lock on it.
+  */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                             table_list->db,
+                                             table_list->table_name,
+                                             MDL_SHARED));
+
   /* Read table definition from cache */
-  if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
-                                            key_length)))
+  if ((share= (TABLE_SHARE*) my_hash_search_using_hash_value(&table_def_cache,
+                                                             hash_value, (uchar*) key, key_length)))
     goto found;
 
   if (!(share= alloc_table_share(table_list, key, key_length)))
   {
     DBUG_RETURN(0);
   }
-
-  /*
-    Lock mutex to be able to read table definition from file without
-    conflicts
-  */
-  mysql_mutex_lock(&share->mutex);
 
   /*
     We assign a new table id under the protection of the LOCK_open and
@@ -387,7 +515,6 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
   share->ref_count++;				// Mark in use
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
                       (ulong) share, share->ref_count));
-  mysql_mutex_unlock(&share->mutex);
   DBUG_RETURN(share);
 
 found:
@@ -395,20 +522,15 @@ found:
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.
   */
-
-  /* We must do a lock to ensure that the structure is initialized */
-  mysql_mutex_lock(&share->mutex);
   if (share->error)
   {
     /* Table definition contained an error */
     open_table_error(share, share->error, share->open_errno, share->errarg);
-    mysql_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
   if (share->is_view && !(db_flags & OPEN_VIEW))
   {
     open_table_error(share, 1, ENOENT, 0);
-    mysql_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
 
@@ -419,22 +541,16 @@ found:
       Unlink share from this list
     */
     DBUG_PRINT("info", ("Unlinking from not used list"));
-    mysql_mutex_lock(&LOCK_table_share);
     *share->prev= share->next;
     share->next->prev= share->prev;
     share->next= 0;
     share->prev= 0;
-    mysql_mutex_unlock(&LOCK_table_share);
   }
-  mysql_mutex_unlock(&share->mutex);
 
    /* Free cache if too big */
   while (table_def_cache.records > table_def_size &&
          oldest_unused_share->next)
-  {
-    mysql_mutex_lock(&oldest_unused_share->mutex);
     my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
-  }
 
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
                       (ulong) share, share->ref_count));
@@ -451,13 +567,16 @@ found:
 static TABLE_SHARE
 *get_table_share_with_create(THD *thd, TABLE_LIST *table_list,
                              char *key, uint key_length,
-                             uint db_flags, int *error)
+                             uint db_flags, int *error,
+                             my_hash_value_type hash_value)
+
 {
   TABLE_SHARE *share;
   int tmp;
   DBUG_ENTER("get_table_share_with_create");
 
-  share= get_table_share(thd, table_list, key, key_length, db_flags, error);
+  share= get_table_share(thd, table_list, key, key_length, db_flags, error,
+                         hash_value);
   /*
     If share is not NULL, we found an existing share.
 
@@ -527,32 +646,20 @@ static TABLE_SHARE
   thd->warning_info->clear_warning_info(thd->query_id);
   thd->clear_error();                           // Clear error message
   DBUG_RETURN(get_table_share(thd, table_list, key, key_length,
-                              db_flags, error));
+                              db_flags, error, hash_value));
 }
 
+/**
+  Mark that we are not using table share anymore.
 
-/* 
-   Mark that we are not using table share anymore.
+  @param  share   Table share
 
-   SYNOPSIS
-     release_table_share()
-     share		Table share
-     release_type	How the release should be done:
-     			RELEASE_NORMAL
-                         - Release without checking
-                        RELEASE_WAIT_FOR_DROP
-                         - Don't return until we get a signal that the
-                           table is deleted or the thread is killed.
-
-   IMPLEMENTATION
-     If ref_count goes to zero and (we have done a refresh or if we have
-     already too many open table shares) then delete the definition.
-
-     If type == RELEASE_WAIT_FOR_DROP then don't return until we get a signal
-     that the table is deleted or the thread is killed.
+  If the share has no open tables and (we have done a refresh or
+  if we have already too many open table shares) then delete the
+  definition.
 */
 
-void release_table_share(TABLE_SHARE *share, enum release_type type)
+void release_table_share(TABLE_SHARE *share)
 {
   bool to_be_deleted= 0;
   DBUG_ENTER("release_table_share");
@@ -563,10 +670,11 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 
   mysql_mutex_assert_owner(&LOCK_open);
 
-  mysql_mutex_lock(&share->mutex);
+  DBUG_ASSERT(share->ref_count);
   if (!--share->ref_count)
   {
-    if (share->version != refresh_version)
+    if (share->version != refresh_version ||
+        table_def_shutdown_in_progress)
       to_be_deleted=1;
     else
     {
@@ -574,12 +682,10 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
       DBUG_PRINT("info",("moving share to unused list"));
 
       DBUG_ASSERT(share->next == 0);
-      mysql_mutex_lock(&LOCK_table_share);
       share->prev= end_of_unused_share.prev;
       *end_of_unused_share.prev= share;
       end_of_unused_share.prev= &share->next;
       share->next= &end_of_unused_share;
-      mysql_mutex_unlock(&LOCK_table_share);
 
       to_be_deleted= (table_def_cache.records > table_def_size);
     }
@@ -589,9 +695,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
   {
     DBUG_PRINT("info", ("Deleting share"));
     my_hash_delete(&table_def_cache, (uchar*) share);
-    DBUG_VOID_RETURN;
   }
-  mysql_mutex_unlock(&share->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -624,64 +728,23 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 }  
 
 
-/*
-  Close file handle, but leave the table in the table cache
+/**
+   @brief Mark table share as having one more user (increase its reference
+          count).
 
-  SYNOPSIS
-    close_handle_and_leave_table_as_lock()
-    table		Table handler
-
-  NOTES
-    By leaving the table in the table cache, it disallows any other thread
-    to open the table
-
-    thd->killed will be set if we run out of memory
-
-    If closing a MERGE child, the calling function has to take care for
-    closing the parent too, if necessary.
+   @param share Table share for which reference count should be increased.
 */
 
-
-void close_handle_and_leave_table_as_lock(TABLE *table)
+static void reference_table_share(TABLE_SHARE *share)
 {
-  TABLE_SHARE *share, *old_share= table->s;
-  char *key_buff;
-  MEM_ROOT *mem_root= &table->mem_root;
-  DBUG_ENTER("close_handle_and_leave_table_as_lock");
-
-  DBUG_ASSERT(table->db_stat);
-
-  /*
-    Make a local copy of the table share and free the current one.
-    This has to be done to ensure that the table share is removed from
-    the table defintion cache as soon as the last instance is removed
-  */
-  if (multi_alloc_root(mem_root,
-                       &share, sizeof(*share),
-                       &key_buff, old_share->table_cache_key.length,
-                       NULL))
-  {
-    bzero((char*) share, sizeof(*share));
-    share->set_table_cache_key(key_buff, old_share->table_cache_key.str,
-                               old_share->table_cache_key.length);
-    share->tmp_table= INTERNAL_TMP_TABLE;       // for intern_close_table()
-  }
-
-  /*
-    When closing a MERGE parent or child table, detach the children first.
-    Do not clear child table references to allow for reopen.
-  */
-  if (table->child_l || table->parent)
-    detach_merge_children(table, FALSE);
-  table->file->close();
-  table->db_stat= 0;                            // Mark file closed
-  release_table_share(table->s, RELEASE_NORMAL);
-  table->s= share;
-  table->file->change_table_ptr(table, table->s);
-
+  DBUG_ENTER("reference_table_share");
+  DBUG_ASSERT(share->ref_count);
+  mysql_mutex_assert_owner(&LOCK_open);
+  share->ref_count++;
+  DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
+                     (ulong) share, share->ref_count));
   DBUG_VOID_RETURN;
 }
-
 
 
 /*
@@ -714,11 +777,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   start_list= &open_list;
   open_list=0;
 
-  for (uint idx=0 ; result == 0 && idx < open_cache.records; idx++)
+  for (uint idx=0 ; result == 0 && idx < table_def_cache.records; idx++)
   {
-    OPEN_TABLE_LIST *table;
-    TABLE *entry=(TABLE*) my_hash_element(&open_cache,idx);
-    TABLE_SHARE *share= entry->s;
+    TABLE_SHARE *share= (TABLE_SHARE *)my_hash_element(&table_def_cache, idx);
 
     if (db && my_strcasecmp(system_charset_info, db, share->db.str))
       continue;
@@ -732,21 +793,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 
     if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
       continue;
-    /* need to check if we haven't already listed it */
-    for (table= open_list  ; table ; table=table->next)
-    {
-      if (!strcmp(table->table, share->table_name.str) &&
-	  !strcmp(table->db,    share->db.str))
-      {
-	if (entry->in_use)
-	  table->in_use++;
-	if (entry->locked_by_name)
-	  table->locked++;
-	break;
-      }
-    }
-    if (table)
-      continue;
+
     if (!(*start_list = (OPEN_TABLE_LIST *)
 	  sql_alloc(sizeof(**start_list)+share->table_cache_key.length)))
     {
@@ -757,8 +804,11 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 	   strmov(((*start_list)->db= (char*) ((*start_list)+1)),
 		  share->db.str)+1,
 	   share->table_name.str);
-    (*start_list)->in_use= entry->in_use ? 1 : 0;
-    (*start_list)->locked= entry->locked_by_name ? 1 : 0;
+    (*start_list)->in_use= 0;
+    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    while (it++)
+      ++(*start_list)->in_use;
+    (*start_list)->locked= (share->version == 0) ? 1 : 0;
     start_list= &(*start_list)->next;
     *start_list=0;
   }
@@ -781,7 +831,7 @@ void intern_close_table(TABLE *table)
 
   free_io_cache(table);
   delete table->triggers;
-  if (table->file)                              // Not true if name lock
+  if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
   DBUG_VOID_RETURN;
 }
@@ -801,22 +851,11 @@ static void free_cache_entry(TABLE *table)
 {
   DBUG_ENTER("free_cache_entry");
 
-  /* Assert that MERGE children are not attached before final close. */
-  DBUG_ASSERT(!table->is_children_attached());
+  /* This should be done before releasing table share. */
+  table_def_remove_table(table);
 
   intern_close_table(table);
-  if (!table->in_use)
-  {
-    table->next->prev=table->prev;		/* remove from used chain */
-    table->prev->next=table->next;
-    if (table == unused_tables)
-    {
-      unused_tables=unused_tables->next;
-      if (table == unused_tables)
-	unused_tables=0;
-    }
-    check_unused();				// consisty check
-  }
+
   my_free((uchar*) table,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -836,6 +875,43 @@ void free_io_cache(TABLE *table)
 }
 
 
+/**
+   Auxiliary function which allows to kill delayed threads for
+   particular table identified by its share.
+
+   @param share Table share.
+
+   @pre Caller should have LOCK_open mutex acquired.
+*/
+
+static void kill_delayed_threads_for_table(TABLE_SHARE *share)
+{
+  I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+  TABLE *tab;
+
+  mysql_mutex_assert_owner(&LOCK_open);
+
+  while ((tab= it++))
+  {
+    THD *in_use= tab->in_use;
+
+    if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+        ! in_use->killed)
+    {
+      in_use->killed= THD::KILL_CONNECTION;
+      mysql_mutex_lock(&in_use->mysys_var->mutex);
+      if (in_use->mysys_var->current_cond)
+      {
+        mysql_mutex_lock(in_use->mysys_var->current_mutex);
+        mysql_cond_broadcast(in_use->mysys_var->current_cond);
+        mysql_mutex_unlock(in_use->mysys_var->current_mutex);
+      }
+      mysql_mutex_unlock(&in_use->mysys_var->mutex);
+    }
+  }
+}
+
+
 /*
   Close all tables which aren't in use by any thread
 
@@ -843,18 +919,23 @@ void free_io_cache(TABLE *table)
   @param tables List of tables to remove from the cache
   @param have_lock If LOCK_open is locked
   @param wait_for_refresh Wait for a impending flush
-  @param wait_for_placeholders Wait for tables being reopened so that the GRL
-         won't proceed while write-locked tables are being reopened by other
-         threads.
 
-  @remark THD can be NULL, but then wait_for_refresh must be FALSE
-          and tables must be NULL.
+  @note THD can be NULL, but then wait_for_refresh must be FALSE
+        and tables must be NULL.
+
+  @note When called as part of FLUSH TABLES WITH READ LOCK this function
+        ignores metadata locks held by other threads. In order to avoid
+        situation when FLUSH TABLES WITH READ LOCK sneaks in at the moment
+        when some write-locked table is being reopened (by FLUSH TABLES or
+        ALTER TABLE) we have to rely on additional global shared metadata
+        lock taken by thread trying to obtain global read lock.
 */
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders)
+                         bool wait_for_refresh)
 {
-  bool result=0;
+  bool result= FALSE;
+  bool found= TRUE;
   DBUG_ENTER("close_cached_tables");
   DBUG_ASSERT(thd || (!wait_for_refresh && !tables));
 
@@ -863,165 +944,146 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   if (!tables)
   {
     refresh_version++;				// Force close of open tables
-    while (unused_tables)
-    {
-#ifdef EXTRA_DEBUG
-      if (my_hash_delete(&open_cache,(uchar*) unused_tables))
-	printf("Warning: Couldn't delete open table from hash\n");
-#else
-      (void) my_hash_delete(&open_cache,(uchar*) unused_tables);
-#endif
-    }
-    /* Free table shares */
-    while (oldest_unused_share->next)
-    {
-      mysql_mutex_lock(&oldest_unused_share->mutex);
-      (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
-    }
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
-    if (wait_for_refresh)
-    {
-      /*
-        Other threads could wait in a loop in open_and_lock_tables(),
-        trying to lock one or more of our tables.
-
-        If they wait for the locks in thr_multi_lock(), their lock
-        request is aborted. They loop in open_and_lock_tables() and
-        enter open_table(). Here they notice the table is refreshed and
-        wait for COND_refresh. Then they loop again in
-        open_and_lock_tables() and this time open_table() succeeds. At
-        this moment, if we (the FLUSH TABLES thread) are scheduled and
-        on another FLUSH TABLES enter close_cached_tables(), they could
-        awake while we sleep below, waiting for others threads (us) to
-        close their open tables. If this happens, the other threads
-        would find the tables unlocked. They would get the locks, one
-        after the other, and could do their destructive work. This is an
-        issue if we have LOCK TABLES in effect.
-
-        The problem is that the other threads passed all checks in
-        open_table() before we refresh the table.
-
-        The fix for this problem is to set some_tables_deleted for all
-        threads with open tables. These threads can still get their
-        locks, but will immediately release them again after checking
-        this variable. They will then loop in open_and_lock_tables()
-        again. There they will wait until we update all tables version
-        below.
-
-        Setting some_tables_deleted is done by remove_table_from_cache()
-        in the other branch.
-
-        In other words (reviewer suggestion): You need this setting of
-        some_tables_deleted for the case when table was opened and all
-        related checks were passed before incrementing refresh_version
-        (which you already have) but attempt to lock the table happened
-        after the call to close_old_data_files() i.e. after removal of
-        current thread locks.
-      */
-      for (uint idx=0 ; idx < open_cache.records ; idx++)
-      {
-        TABLE *table=(TABLE*) my_hash_element(&open_cache,idx);
-        if (table->in_use)
-          table->in_use->some_tables_deleted= 1;
-      }
-    }
+    kill_delayed_threads();
+    /*
+      Get rid of all unused TABLE and TABLE_SHARE instances. By doing
+      this we automatically close all tables which were marked as "old".
+    */
+    while (unused_tables)
+      free_cache_entry(unused_tables);
+    /* Free table shares which were not freed implicitly by loop above. */
+    while (oldest_unused_share->next)
+      (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
   }
   else
   {
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      if (remove_table_from_cache(thd, table->db, table->table_name,
-                                  RTFC_OWNED_BY_THD_FLAG))
+      TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
+
+      if (share)
+      {
+        kill_delayed_threads_for_table(share);
+        /* tdc_remove_table() also sets TABLE_SHARE::version to 0. */
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                         table->table_name);
 	found=1;
+      }
     }
     if (!found)
       wait_for_refresh=0;			// Nothing to wait for
   }
-#ifndef EMBEDDED_LIBRARY
-  if (!tables)
-    kill_delayed_threads();
-#endif
-  if (wait_for_refresh)
+
+  if (!have_lock)
+    mysql_mutex_unlock(&LOCK_open);
+
+  if (!wait_for_refresh)
+    DBUG_RETURN(result);
+
+  /* Code below assume that LOCK_open is released. */
+  DBUG_ASSERT(!have_lock);
+
+  if (thd->locked_tables_mode)
   {
     /*
-      If there is any table that has a lower refresh_version, wait until
-      this is closed (or this thread is killed) before returning
+      If we are under LOCK TABLES, we need to reopen the tables without
+      opening a door for any concurrent threads to sneak in and get
+      lock on our tables. To achieve this we use exclusive metadata
+      locks.
     */
-    thd->mysys_var->current_mutex= &LOCK_open;
-    thd->mysys_var->current_cond= &COND_refresh;
-    thd_proc_info(thd, "Flushing tables");
+    TABLE_LIST *tables_to_reopen= (tables ? tables :
+                                  thd->locked_tables_list.locked_tables());
 
-    close_old_data_files(thd,thd->open_tables,1,1);
+    for (TABLE_LIST *table_list= tables_to_reopen; table_list;
+         table_list= table_list->next_global)
+    {
+      /* A check that the table was locked for write is done by the caller. */
+      TABLE *table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+                                               table_list->table_name, TRUE);
+
+      /* May return NULL if this table has already been closed via an alias. */
+      if (! table)
+        continue;
+
+      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      {
+        result= TRUE;
+        goto err_with_reopen;
+      }
+      close_all_tables_for_name(thd, table->s, FALSE);
+    }
+  }
+
+  /* Wait until all threads have closed all the tables we are flushing. */
+  DBUG_PRINT("info", ("Waiting for other threads to close their open tables"));
+
+  while (found && ! thd->killed)
+  {
+    found= FALSE;
+    /*
+      To avoid self and other kinds of deadlock we have to flush open HANDLERs.
+    */
     mysql_ha_flush(thd);
     DEBUG_SYNC(thd, "after_flush_unlock");
 
-    bool found=1;
-    /* Wait until all threads has closed all the tables we had locked */
-    DBUG_PRINT("info",
-	       ("Waiting for other threads to close their open tables"));
-    while (found && ! thd->killed)
+    mysql_mutex_lock(&LOCK_open);
+
+    thd->enter_cond(&COND_refresh, &LOCK_open, "Flushing tables");
+
+    if (!tables)
     {
-      found=0;
-      for (uint idx=0 ; idx < open_cache.records ; idx++)
+      for (uint idx=0 ; idx < table_def_cache.records ; idx++)
       {
-	TABLE *table=(TABLE*) my_hash_element(&open_cache,idx);
-        /* Avoid a self-deadlock. */
-        if (table->in_use == thd)
-          continue;
-        /*
-          Note that we wait here only for tables which are actually open, and
-          not for placeholders with TABLE::open_placeholder set. Waiting for
-          latter will cause deadlock in the following scenario, for example:
-
-          conn1: lock table t1 write;
-          conn2: lock table t2 write;
-          conn1: flush tables;
-          conn2: flush tables;
-
-          It also does not make sense to wait for those of placeholders that
-          are employed by CREATE TABLE as in this case table simply does not
-          exist yet.
-        */
-	if (table->needs_reopen_or_name_lock() && (table->db_stat ||
-            (table->open_placeholder && wait_for_placeholders)))
-	{
-	  found=1;
-          DBUG_PRINT("signal", ("Waiting for COND_refresh"));
-          mysql_cond_wait(&COND_refresh, &LOCK_open);
-	  break;
-	}
+        TABLE_SHARE *share=(TABLE_SHARE*) my_hash_element(&table_def_cache,
+                                                          idx);
+        if (share->version != refresh_version)
+        {
+          found= TRUE;
+          break;
+        }
       }
     }
+    else
+    {
+      for (TABLE_LIST *table= tables; table; table= table->next_local)
+      {
+        TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
+        if (share && share->version != refresh_version)
+        {
+	  found= TRUE;
+          break;
+        }
+      }
+    }
+
+    if (found)
+    {
+      DBUG_PRINT("signal", ("Waiting for COND_refresh"));
+      mysql_cond_wait(&COND_refresh, &LOCK_open);
+    }
+
+    thd->exit_cond(NULL);
+  }
+
+err_with_reopen:
+  if (thd->locked_tables_mode)
+  {
     /*
       No other thread has the locked tables open; reopen them and get the
       old locks. This should always succeed (unless some external process
       has removed the tables)
     */
-    thd->in_lock_tables=1;
-    result=reopen_tables(thd,1,1);
-    thd->in_lock_tables=0;
-    /* Set version for table */
-    for (TABLE *table=thd->open_tables; table ; table= table->next)
-    {
-      /*
-        Preserve the version (0) of write locked tables so that a impending
-        global read lock won't sneak in.
-      */
-      if (table->reginfo.lock_type < TL_WRITE_ALLOW_WRITE)
-        table->s->version= refresh_version;
-    }
-  }
-  if (!have_lock)
-    mysql_mutex_unlock(&LOCK_open);
-  if (wait_for_refresh)
-  {
-    mysql_mutex_lock(&thd->mysys_var->mutex);
-    thd->mysys_var->current_mutex= 0;
-    thd->mysys_var->current_cond= 0;
-    thd_proc_info(thd, 0);
-    mysql_mutex_unlock(&thd->mysys_var->mutex);
+    thd->locked_tables_list.reopen_tables(thd);
+    /*
+      Since downgrade_exclusive_lock() won't do anything with shared
+      metadata lock it is much simpler to go through all open tables rather
+      than picking only those tables that were flushed.
+    */
+    for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
+      tab->mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
   DBUG_RETURN(result);
 }
@@ -1074,7 +1136,7 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   }
 
   if (tables)
-    result= close_cached_tables(thd, tables, TRUE, FALSE, FALSE);
+    result= close_cached_tables(thd, tables, TRUE, FALSE);
 
   if (!have_lock)
     mysql_mutex_unlock(&LOCK_open);
@@ -1107,40 +1169,51 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
   for (TABLE *table= thd->temporary_tables ; table ; table= table->next)
   {
     if ((table->query_id == thd->query_id) && ! table->open_by_handler)
-    {
-      table->query_id= 0;
-      table->file->ha_reset();
-      /*
-        Detach temporary MERGE children from temporary parent to allow new
-        attach at next open. Do not do the detach, if close_thread_tables()
-        is called from a sub-statement. The temporary table might still be
-        used in the top-level statement.
-      */
-      if (table->child_l || table->parent)
-        detach_merge_children(table, TRUE);
-      /*
-        Reset temporary table lock type to it's default value (TL_WRITE).
-
-        Statements such as INSERT INTO .. SELECT FROM tmp, CREATE TABLE
-        .. SELECT FROM tmp and UPDATE may under some circumstances modify
-        the lock type of the tables participating in the statement. This
-        isn't a problem for non-temporary tables since their lock type is
-        reset at every open, but the same does not occur for temporary
-        tables for historical reasons.
-
-        Furthermore, the lock type of temporary tables is not really that
-        important because they can only be used by one query at a time and
-        not even twice in a query -- a temporary table is represented by
-        only one TABLE object. Nonetheless, it's safer from a maintenance
-        point of view to reset the lock type of this singleton TABLE object
-        as to not cause problems when the table is reused.
-
-        Even under LOCK TABLES mode its okay to reset the lock type as
-        LOCK TABLES is allowed (but ignored) for a temporary table.
-      */
-      table->reginfo.lock_type= TL_WRITE;
-    }
+      mark_tmp_table_for_reuse(table);
   }
+}
+
+
+/**
+  Reset a single temporary table.
+  Effectively this "closes" one temporary table,
+  in a session.
+
+  @param table     Temporary table.
+*/
+
+void mark_tmp_table_for_reuse(TABLE *table)
+{
+  DBUG_ASSERT(table->s->tmp_table);
+
+  table->query_id= 0;
+  table->file->ha_reset();
+
+  /* Detach temporary MERGE children from temporary parent. */
+  DBUG_ASSERT(table->file);
+  table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+
+  /*
+    Reset temporary table lock type to it's default value (TL_WRITE).
+
+    Statements such as INSERT INTO .. SELECT FROM tmp, CREATE TABLE
+    .. SELECT FROM tmp and UPDATE may under some circumstances modify
+    the lock type of the tables participating in the statement. This
+    isn't a problem for non-temporary tables since their lock type is
+    reset at every open, but the same does not occur for temporary
+    tables for historical reasons.
+
+    Furthermore, the lock type of temporary tables is not really that
+    important because they can only be used by one query at a time and
+    not even twice in a query -- a temporary table is represented by
+    only one TABLE object. Nonetheless, it's safer from a maintenance
+    point of view to reset the lock type of this singleton TABLE object
+    as to not cause problems when the table is reused.
+
+    Even under LOCK TABLES mode its okay to reset the lock type as
+    LOCK TABLES is allowed (but ignored) for a temporary table.
+  */
+  table->reginfo.lock_type= TL_WRITE;
 }
 
 
@@ -1171,6 +1244,8 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
 {
   for (; table ; table= table->next)
   {
+    DBUG_ASSERT(table->pos_in_locked_tables == NULL ||
+                table->pos_in_locked_tables->table == table);
     if (table->query_id == thd->query_id)
     {
       table->query_id= 0;
@@ -1200,18 +1275,89 @@ static void close_open_tables(THD *thd)
 
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
-  thd->some_tables_deleted= 0;
 
   /* Free tables to hold down open files */
-  while (open_cache.records > table_cache_size && unused_tables)
-    my_hash_delete(&open_cache,(uchar*) unused_tables); /* purecov: tested */
-  check_unused();
+  while (table_cache_count > table_cache_size && unused_tables)
+    free_cache_entry(unused_tables);
   if (found_old_table)
   {
     /* Tell threads waiting for refresh that something has happened */
     broadcast_refresh();
   }
 
+  mysql_mutex_unlock(&LOCK_open);
+}
+
+
+/**
+  Close all open instances of the table but keep the MDL lock,
+  if any.
+
+  Works both under LOCK TABLES and in the normal mode.
+  Removes all closed instances of the table from the table cache.
+
+  @param     thd     thread handle
+  @param[in] share   table share, but is just a handy way to
+                     access the table cache key
+
+  @param[in] remove_from_locked_tables
+                     TRUE if the table is being dropped or renamed.
+                     In that case the documented behaviour is to
+                     implicitly remove the table from LOCK TABLES
+                     list.
+*/
+
+void
+close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
+                          bool remove_from_locked_tables)
+{
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length= share->table_cache_key.length;
+
+  memcpy(key, share->table_cache_key.str, key_length);
+
+  mysql_mutex_assert_not_owner(&LOCK_open);
+  /*
+    We need to hold LOCK_open while changing the open_tables
+    list, since another thread may work on it.
+    @sa mysql_notify_thread_having_shared_lock()
+  */
+  mysql_mutex_lock(&LOCK_open);
+
+  for (TABLE **prev= &thd->open_tables; *prev; )
+  {
+    TABLE *table= *prev;
+
+    if (table->s->table_cache_key.length == key_length &&
+        !memcmp(table->s->table_cache_key.str, key, key_length))
+    {
+      /* Inform handler that table will be dropped after close */
+      if (table->db_stat)
+        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+
+      /*
+        Does nothing if the table is not locked.
+        This allows one to use this function after a table
+        has been unlocked, e.g. in partition management.
+      */
+      mysql_lock_remove(thd, thd->lock, table);
+
+      thd->locked_tables_list.unlink_from_list(thd,
+                                               table->pos_in_locked_tables,
+                                               remove_from_locked_tables);
+
+      /* Make sure the table is removed from the cache */
+      table->s->version= 0;
+      close_thread_table(thd, prev);
+    }
+    else
+    {
+      /* Step to next entry in open_tables list. */
+      prev= &table->next;
+    }
+  }
+  /* We have been removing tables from the table cache. */
+  broadcast_refresh();
   mysql_mutex_unlock(&LOCK_open);
 }
 
@@ -1237,7 +1383,6 @@ static void close_open_tables(THD *thd)
 void close_thread_tables(THD *thd)
 {
   TABLE *table;
-  prelocked_mode_type prelocked_mode= thd->prelocked_mode;
   DBUG_ENTER("close_thread_tables");
 
 #ifdef EXTRA_DEBUG
@@ -1246,6 +1391,20 @@ void close_thread_tables(THD *thd)
     DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                           table->s->table_name.str, (long) table));
 #endif
+
+  /* Detach MERGE children after every statement. Even under LOCK TABLES. */
+  for (table= thd->open_tables; table; table= table->next)
+  {
+    /* Table might be in use by some outer statement. */
+    DBUG_PRINT("tcache", ("table: '%s'  query_id: %lu",
+                          table->s->table_name.str, (ulong) table->query_id));
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES ||
+        table->query_id == thd->query_id)
+    {
+      DBUG_ASSERT(table->file);
+      table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+    }
+  }
 
   /*
     We are assuming here that thd->derived_tables contains ONLY derived
@@ -1288,18 +1447,19 @@ void close_thread_tables(THD *thd)
   if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
     thd->stmt_da->can_overwrite_status= TRUE;
-    ha_autocommit_or_rollback(thd, thd->is_error());
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     thd->stmt_da->can_overwrite_status= FALSE;
 
     /*
       Reset transaction state, but only if we're not inside a
       sub-statement of a prelocked statement.
     */
-    if (! prelocked_mode || thd->lex->requires_prelocking())
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES ||
+        thd->lex->requires_prelocking())
       thd->transaction.stmt.reset();
   }
 
-  if (thd->locked_tables || prelocked_mode)
+  if (thd->locked_tables_mode)
   {
 
     /* Ensure we are calling ha_reset() for all used tables */
@@ -1308,8 +1468,13 @@ void close_thread_tables(THD *thd)
     /*
       We are under simple LOCK TABLES or we're inside a sub-statement
       of a prelocked statement, so should not do anything else.
+
+      Note that even if we are in LTM_LOCK_TABLES mode and statement
+      requires prelocking (e.g. when we are closing tables after
+      failing ot "open" all tables required for statement execution)
+      we will exit this function a few lines below.
     */
-    if (!prelocked_mode || !thd->lex->requires_prelocking())
+    if (! thd->lex->requires_prelocking())
       DBUG_VOID_RETURN;
 
     /*
@@ -1317,14 +1482,14 @@ void close_thread_tables(THD *thd)
       so we have to leave the prelocked mode now with doing implicit
       UNLOCK TABLES if needed.
     */
-    DBUG_PRINT("info",("thd->prelocked_mode= NON_PRELOCKED"));
-    thd->prelocked_mode= NON_PRELOCKED;
+    if (thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+      thd->locked_tables_mode= LTM_LOCK_TABLES;
 
-    if (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES)
+    if (thd->locked_tables_mode == LTM_LOCK_TABLES)
       DBUG_VOID_RETURN;
 
-    thd->lock= thd->locked_tables;
-    thd->locked_tables= 0;
+    thd->leave_locked_tables_mode();
+
     /* Fallthrough */
   }
 
@@ -1346,21 +1511,31 @@ void close_thread_tables(THD *thd)
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
+    (See: mysql_notify_thread_having_shared_lock())
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */
   if (thd->open_tables)
     close_open_tables(thd);
 
-  if (prelocked_mode == PRELOCKED)
+  /*
+    - If inside a multi-statement transaction,
+    defer the release of metadata locks until the current
+    transaction is either committed or rolled back. This prevents
+    other statements from modifying the table for the entire
+    duration of this transaction.  This provides commit ordering
+    and guarantees serializability across multiple transactions.
+    - If closing a system table, defer the release of metadata locks
+    to the caller. We have no sentinel in MDL subsystem to guard
+    transactional locks from system tables locks, so don't know
+    which locks are which here.
+    - If in autocommit mode, or outside a transactional context,
+    automatically release metadata locks of the current statement.
+  */
+  if (! thd->in_multi_stmt_transaction() &&
+      ! (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
-    /*
-      If we are here then we are leaving normal prelocked mode, so it is
-      good idea to turn off OPTION_TABLE_LOCK flag.
-    */
-    DBUG_ASSERT(thd->lex->requires_prelocking());
-    thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
+    thd->mdl_context.release_transactional_locks();
   }
 
   DBUG_VOID_RETURN;
@@ -1376,48 +1551,29 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
-  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                        table->s->table_name.str, (long) table));
+  mysql_mutex_assert_owner(&LOCK_open);
 
   *table_ptr=table->next;
-  /*
-    When closing a MERGE parent or child table, detach the children first.
-    Clear child table references to force new assignment at next open.
-  */
-  if (table->child_l || table->parent)
-    detach_merge_children(table, TRUE);
 
-  if (table->needs_reopen_or_name_lock() ||
-      thd->version != refresh_version || !table->db_stat)
+  table->mdl_ticket= NULL;
+  if (table->s->needs_reopen() ||
+      thd->version != refresh_version || table->needs_reopen() ||
+      table_def_shutdown_in_progress)
   {
-    my_hash_delete(&open_cache,(uchar*) table);
+    free_cache_entry(table);
     found_old_table=1;
   }
   else
   {
-    /*
-      Open placeholders have TABLE::db_stat set to 0, so they should be
-      handled by the first alternative.
-    */
-    DBUG_ASSERT(!table->open_placeholder);
-
-    /* Assert that MERGE children are not attached in unused_tables. */
-    DBUG_ASSERT(!table->is_children_attached());
+    /* Avoid to have MERGE tables with attached children in unused_tables. */
+    DBUG_ASSERT(table->file);
+    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
 
     /* Free memory and reset for next loop */
     free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
     
     table->file->ha_reset();
-    table->in_use=0;
-    if (unused_tables)
-    {
-      table->next=unused_tables;		/* Link in last */
-      table->prev=unused_tables->prev;
-      unused_tables->prev=table;
-      table->prev->next=table;
-    }
-    else
-      unused_tables=table->next=table->prev=table;
+    table_def_unuse_table(table);
   }
   DBUG_RETURN(found_old_table);
 }
@@ -1822,9 +1978,10 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   Try to locate the table in the list of thd->temporary_tables.
   If the table is found:
    - if the table is being used by some outer statement, fail.
-   - if the table is in thd->locked_tables, unlock it and
-     remove it from the list of locked tables. Currently only transactional
-     temporary tables are present in the locked_tables list.
+   - if the table is locked with LOCK TABLES or by prelocking,
+   unlock it and remove it from the list of locked tables
+   (THD::lock). Currently only transactional temporary tables
+   are locked.
    - Close the temporary table, remove its .FRM
    - remove the table from the list of temporary tables
 
@@ -1863,7 +2020,7 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
     If LOCK TABLES list is not empty and contains this table,
     unlock the table and remove the table from this list.
   */
-  mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
+  mysql_lock_remove(thd, thd->lock, table);
   close_temporary_table(thd, table, 1, 1);
   DBUG_RETURN(0);
 }
@@ -1879,19 +2036,6 @@ void close_temporary_table(THD *thd, TABLE *table,
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s' 0x%lx  alias: '%s'",
                           table->s->db.str, table->s->table_name.str,
                           (long) table, table->alias));
-
-  /*
-    When closing a MERGE parent or child table, detach the children
-    first. Clear child table references as MERGE table cannot be
-    reopened after final close of one of its tables.
-
-    This is necessary here because it is sometimes called with attached
-    tables and without prior close_thread_tables(). E.g. in
-    mysql_alter_table(), mysql_rm_table_part2(), mysql_truncate(),
-    drop_open_table().
-  */
-  if (table->child_l || table->parent)
-    detach_merge_children(table, TRUE);
 
   if (table->prev)
   {
@@ -1979,198 +2123,85 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 }
 
 
-	/* move table first in unused links */
-
-static void relink_unused(TABLE *table)
-{
-  /* Assert that MERGE children are not attached in unused_tables. */
-  DBUG_ASSERT(!table->is_children_attached());
-
-  if (table != unused_tables)
-  {
-    table->prev->next=table->next;		/* Remove from unused list */
-    table->next->prev=table->prev;
-    table->next=unused_tables;			/* Link in unused tables */
-    table->prev=unused_tables->prev;
-    unused_tables->prev->next=table;
-    unused_tables->prev=table;
-    unused_tables=table;
-    check_unused();
-  }
-}
-
-
 /**
-  Prepare an open merge table for close.
+   Force all other threads to stop using the table by upgrading
+   metadata lock on it and remove unused TABLE instances from cache.
 
-  @param[in]     thd             thread context
-  @param[in]     table           table to prepare
-  @param[in,out] prev_pp         pointer to pointer of previous table
+   @param thd      Thread handler
+   @param table    Table to remove from cache
+   @param function HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
+                   HA_EXTRA_FORCE_REOPEN if table is not be used
+                   HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
 
-  @detail
-    If the table is a MERGE parent, just detach the children.
-    If the table is a MERGE child, close the parent (incl. detach).
+   @note When returning, the table will be unusable for other threads
+         until metadata lock is downgraded.
+
+   @retval FALSE Success.
+   @retval TRUE  Failure (e.g. because thread was killed).
 */
 
-static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
+bool wait_while_table_is_used(THD *thd, TABLE *table,
+                              enum ha_extra_function function)
 {
-  DBUG_ENTER("unlink_open_merge");
+  DBUG_ENTER("wait_while_table_is_used");
+  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
+                       table->s->table_name.str, (ulong) table->s,
+                       table->db_stat, table->s->version));
 
-  if (table->parent)
-  {
-    /*
-      If MERGE child, close parent too. Closing includes detaching.
+  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(
+             table->mdl_ticket, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(TRUE);
 
-      This is used for example in ALTER TABLE t1 RENAME TO t5 under
-      LOCK TABLES where t1 is a MERGE child:
-      CREATE TABLE t1 (c1 INT);
-      CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
-      LOCK TABLES t1 WRITE, t2 WRITE;
-      ALTER TABLE t1 RENAME TO t5;
-    */
-    TABLE *parent= table->parent;
-    TABLE **prv_p;
-
-    /* Find parent in open_tables list. */
-    for (prv_p= &thd->open_tables;
-         *prv_p && (*prv_p != parent);
-         prv_p= &(*prv_p)->next) {}
-    if (*prv_p)
-    {
-      /* Special treatment required if child follows parent in list. */
-      if (*prev_pp == &parent->next)
-        *prev_pp= prv_p;
-      /*
-        Remove parent from open_tables list and close it.
-        This includes detaching and hence clearing parent references.
-      */
-      close_thread_table(thd, prv_p);
-    }
-  }
-  else if (table->child_l)
-  {
-    /*
-      When closing a MERGE parent, detach the children first. It is
-      not necessary to clear the child or parent table reference of
-      this table because the TABLE is freed. But we need to clear
-      the child or parent references of the other belonging tables
-      so that they cannot be moved into the unused_tables chain with
-      these pointers set.
-
-      This is used for example in ALTER TABLE t2 RENAME TO t5 under
-      LOCK TABLES where t2 is a MERGE parent:
-      CREATE TABLE t1 (c1 INT);
-      CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
-      LOCK TABLES t1 WRITE, t2 WRITE;
-      ALTER TABLE t2 RENAME TO t5;
-    */
-    detach_merge_children(table, TRUE);
-  }
-
-  DBUG_VOID_RETURN;
+  mysql_mutex_lock(&LOCK_open);
+  tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
+                   table->s->db.str, table->s->table_name.str);
+  mysql_mutex_unlock(&LOCK_open);
+  /* extra() call must come only after all instances above are closed */
+  (void) table->file->extra(function);
+  DBUG_RETURN(FALSE);
 }
 
 
 /**
-    Remove all instances of table from thread's open list and
-    table cache.
+  Close a and drop a just created table in CREATE TABLE ... SELECT.
 
-    @param  thd     Thread context
-    @param  find    Table to remove
-    @param  unlock  TRUE  - free all locks on tables removed that are
-                            done with LOCK TABLES
-                    FALSE - otherwise
+  @param  thd         Thread handle
+  @param  table       TABLE object for the table to be dropped
+  @param  db_name     Name of database for this table
+  @param  table_name  Name of this table
 
-    @note When unlock parameter is FALSE or current thread doesn't have
-          any tables locked with LOCK TABLES, tables are assumed to be
-          not locked (for example already unlocked).
-*/
-
-void unlink_open_table(THD *thd, TABLE *find, bool unlock)
-{
-  char key[MAX_DBKEY_LENGTH];
-  uint key_length= find->s->table_cache_key.length;
-  TABLE *list, **prev;
-  DBUG_ENTER("unlink_open_table");
-
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  memcpy(key, find->s->table_cache_key.str, key_length);
-  /*
-    Note that we need to hold LOCK_open while changing the
-    open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
-    Closing a MERGE child before the parent would be fatal if the
-    other thread tries to abort the MERGE lock in between.
-  */
-  for (prev= &thd->open_tables; *prev; )
-  {
-    list= *prev;
-
-    if (list->s->table_cache_key.length == key_length &&
-	!memcmp(list->s->table_cache_key.str, key, key_length))
-    {
-      if (unlock && thd->locked_tables)
-        mysql_lock_remove(thd, thd->locked_tables,
-                          list->parent ? list->parent : list, TRUE);
-
-      /* Prepare MERGE table for close. Close parent if necessary. */
-      unlink_open_merge(thd, list, &prev);
-
-      /* Remove table from open_tables list. */
-      *prev= list->next;
-      /* Close table. */
-      my_hash_delete(&open_cache,(uchar*) list); // Close table
-    }
-    else
-    {
-      /* Step to next entry in open_tables list. */
-      prev= &list->next;
-    }
-  }
-
-  // Notify any 'refresh' threads
-  broadcast_refresh();
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-    Auxiliary routine which closes and drops open table.
-
-    @param  thd         Thread handle
-    @param  table       TABLE object for table to be dropped
-    @param  db_name     Name of database for this table
-    @param  table_name  Name of this table
-
-    @note This routine assumes that table to be closed is open only
-          by calling thread so we needn't wait until other threads
-          will close the table. Also unless called under implicit or
-          explicit LOCK TABLES mode it assumes that table to be
-          dropped is already unlocked. In the former case it will
-          also remove lock on the table. But one should not rely on
-          this behaviour as it may change in future.
-          Currently, however, this function is never called for a
-          table that was locked with LOCK TABLES.
+  This routine assumes that the table to be closed is open only
+  by the calling thread, so we needn't wait until other threads
+  close the table. It also assumes that the table is first
+  in thd->open_ables and a data lock on it, if any, has been
+  released. To sum up, it's tuned to work with
+  CREATE TABLE ... SELECT and CREATE TABLE .. SELECT only.
+  Note, that currently CREATE TABLE ... SELECT is not supported
+  under LOCK TABLES. This function, still, can be called in
+  prelocked mode, e.g. if we do CREATE TABLE .. SELECT f1();
 */
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name)
 {
+  DBUG_ENTER("drop_open_table");
   if (table->s->tmp_table)
     close_temporary_table(thd, table, 1, 1);
   else
   {
+    DBUG_ASSERT(table == thd->open_tables);
+
     handlerton *table_type= table->s->db_type();
+    /* Ensure the table is removed from the cache. */
+    table->s->version= 0;
+
     mysql_mutex_lock(&LOCK_open);
-    /*
-      unlink_open_table() also tells threads waiting for refresh or close
-      that something has happened.
-    */
-    unlink_open_table(thd, table, FALSE);
+    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+    close_thread_table(thd, &thd->open_tables);
     quick_rm_table(table_type, db_name, table_name, 0);
     mysql_mutex_unlock(&LOCK_open);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2219,234 +2250,6 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
 
 
 /**
-  Exclusively name-lock a table that is already write-locked by the
-  current thread.
-
-  @param thd current thread context
-  @param tables table list containing one table to open.
-
-  @return FALSE on success, TRUE otherwise.
-*/
-
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("name_lock_locked_table");
-
-  /* Under LOCK TABLES we must only accept write locked tables. */
-  tables->table= find_locked_table(thd, tables->db, tables->table_name);
-
-  if (!tables->table)
-    my_error(ER_TABLE_NOT_LOCKED, MYF(0), tables->alias);
-  else if (tables->table->reginfo.lock_type < TL_WRITE_LOW_PRIORITY)
-    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->alias);
-  else
-  {
-    /*
-      Ensures that table is opened only by this thread and that no
-      other statement will open this table.
-    */
-    wait_while_table_is_used(thd, tables->table, HA_EXTRA_FORCE_REOPEN);
-    DBUG_RETURN(FALSE);
-  }
-
-  DBUG_RETURN(TRUE);
-}
-
-
-/*
-  Open table which is already name-locked by this thread.
-
-  SYNOPSIS
-    reopen_name_locked_table()
-      thd         Thread handle
-      table_list  TABLE_LIST object for table to be open, TABLE_LIST::table
-                  member should point to TABLE object which was used for
-                  name-locking.
-      link_in     TRUE  - if TABLE object for table to be opened should be
-                          linked into THD::open_tables list.
-                  FALSE - placeholder used for name-locking is already in
-                          this list so we only need to preserve TABLE::next
-                          pointer.
-
-  NOTE
-    This function assumes that its caller already acquired LOCK_open mutex.
-
-  RETURN VALUE
-    FALSE - Success
-    TRUE  - Error
-*/
-
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
-{
-  TABLE *table= table_list->table;
-  TABLE_SHARE *share;
-  char *table_name= table_list->table_name;
-  TABLE orig_table;
-  DBUG_ENTER("reopen_name_locked_table");
-
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  if (thd->killed || !table)
-    DBUG_RETURN(TRUE);
-
-  orig_table= *table;
-
-  if (open_unireg_entry(thd, table, table_list, table_name,
-                        table->s->table_cache_key.str,
-                        table->s->table_cache_key.length, thd->mem_root, 0))
-  {
-    intern_close_table(table);
-    /*
-      If there was an error during opening of table (for example if it
-      does not exist) '*table' object can be wiped out. To be able
-      properly release name-lock in this case we should restore this
-      object to its original state.
-    */
-    *table= orig_table;
-    DBUG_RETURN(TRUE);
-  }
-
-  share= table->s;
-  /*
-    We want to prevent other connections from opening this table until end
-    of statement as it is likely that modifications of table's metadata are
-    not yet finished (for example CREATE TRIGGER have to change .TRG file,
-    or we might want to drop table if CREATE TABLE ... SELECT fails).
-    This also allows us to assume that no other connection will sneak in
-    before we will get table-level lock on this table.
-  */
-  share->version=0;
-  table->in_use = thd;
-  check_unused();
-
-  if (link_in)
-  {
-    table->next= thd->open_tables;
-    thd->open_tables= table;
-  }
-  else
-  {
-    /*
-      TABLE object should be already in THD::open_tables list so we just
-      need to set TABLE::next correctly.
-    */
-    table->next= orig_table.next;
-  }
-
-  table->tablenr=thd->current_tablenr++;
-  table->used_fields=0;
-  table->const_table=0;
-  table->null_row= table->maybe_null= 0;
-  table->force_index= table->force_index_order= table->force_index_group= 0;
-  table->status=STATUS_NO_RECORD;
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-    Create and insert into table cache placeholder for table
-    which will prevent its opening (or creation) (a.k.a lock
-    table name).
-
-    @param thd         Thread context
-    @param key         Table cache key for name to be locked
-    @param key_length  Table cache key length
-
-    @return Pointer to TABLE object used for name locking or 0 in
-            case of failure.
-*/
-
-TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
-                                      uint key_length)
-{
-  TABLE *table;
-  TABLE_SHARE *share;
-  char *key_buff;
-  DBUG_ENTER("table_cache_insert_placeholder");
-
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  /*
-    Create a table entry with the right key and with an old refresh version
-    Note that we must use my_multi_malloc() here as this is freed by the
-    table cache
-  */
-  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                       &table, sizeof(*table),
-                       &share, sizeof(*share),
-                       &key_buff, key_length,
-                       NULL))
-    DBUG_RETURN(NULL);
-
-  table->s= share;
-  share->set_table_cache_key(key_buff, key, key_length);
-  share->tmp_table= INTERNAL_TMP_TABLE;  // for intern_close_table
-  table->in_use= thd;
-  table->locked_by_name=1;
-
-  if (my_hash_insert(&open_cache, (uchar*)table))
-  {
-    my_free((uchar*) table, MYF(0));
-    DBUG_RETURN(NULL);
-  }
-
-  DBUG_RETURN(table);
-}
-
-
-/**
-    Obtain an exclusive name lock on the table if it is not cached
-    in the table cache.
-
-    @param      thd         Thread context
-    @param      db          Name of database
-    @param      table_name  Name of table
-    @param[out] table       Out parameter which is either:
-                            - set to NULL if table cache contains record for
-                              the table or
-                            - set to point to the TABLE instance used for
-                              name-locking.
-
-    @note This function takes into account all records for table in table
-          cache, even placeholders used for name-locking. This means that
-          'table' parameter can be set to NULL for some situations when
-          table does not really exist.
-
-    @retval  TRUE   Error occured (OOM)
-    @retval  FALSE  Success. 'table' parameter set according to above rules.
-*/
-
-bool lock_table_name_if_not_cached(THD *thd, const char *db,
-                                   const char *table_name, TABLE **table)
-{
-  char key[MAX_DBKEY_LENGTH];
-  uint key_length;
-  DBUG_ENTER("lock_table_name_if_not_cached");
-
-  key_length= (uint)(strmov(strmov(key, db) + 1, table_name) - key) + 1;
-  mysql_mutex_lock(&LOCK_open);
-
-  if (my_hash_search(&open_cache, (uchar *)key, key_length))
-  {
-    mysql_mutex_unlock(&LOCK_open);
-    DBUG_PRINT("info", ("Table is cached, name-lock is not obtained"));
-    *table= 0;
-    DBUG_RETURN(FALSE);
-  }
-  if (!(*table= table_cache_insert_placeholder(thd, key, key_length)))
-  {
-    mysql_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(TRUE);
-  }
-  (*table)->open_placeholder= 1;
-  (*table)->next= thd->open_tables;
-  thd->open_tables= *table;
-  mysql_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
     Check that table exists in table definition cache, on disk
     or in some storage engine.
 
@@ -2456,8 +2259,8 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
                          exists and to FALSE otherwise.
 
     @note This function assumes that caller owns LOCK_open mutex.
-          It also assumes that the fact that there are no name-locks
-          on the table was checked beforehand.
+          It also assumes that the fact that there are no exclusive
+          metadata locks on the table was checked beforehand.
 
     @note If there is no .FRM file for the table but it exists in one
           of engines (e.g. it was created on another node of NDB cluster)
@@ -2510,6 +2313,101 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 }
 
 
+/**
+   @brief Helper function used by MDL subsystem for releasing TABLE_SHARE
+          objects in cases when it no longer wants to cache reference to it.
+*/
+
+void table_share_release_hook(void *share)
+{
+  mysql_mutex_lock(&LOCK_open);
+  release_table_share((TABLE_SHARE*) share);
+  broadcast_refresh();
+  mysql_mutex_unlock(&LOCK_open);
+}
+
+
+/**
+   A helper function that acquires an MDL lock for a table
+   being opened.
+*/
+
+static bool
+open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
+                        MDL_request *mdl_request,
+                        Open_table_context *ot_ctx,
+                        uint flags)
+{
+  if (table_list->lock_strategy)
+  {
+    MDL_request_list mdl_requests;
+    MDL_request *global_request;
+    /*
+      In case of CREATE TABLE .. If NOT EXISTS .. SELECT, the table
+      may not yet exist. Let's acquire an exclusive lock for that
+      case. If later it turns out the table existsed, we will
+      downgrade the lock to shared. Note that, according to the
+      locking protocol, all exclusive locks must be acquired before
+      shared locks. This invariant is preserved here and is also
+      enforced by asserts in metadata locking subsystem.
+    */
+
+    mdl_request->set_type(MDL_EXCLUSIVE);
+    DBUG_ASSERT(! thd->mdl_context.has_locks() ||
+                thd->handler_tables_hash.records ||
+                thd->global_read_lock.is_acquired());
+
+    if (!(global_request= ot_ctx->get_global_mdl_request(thd)))
+      return 1;
+
+    mdl_requests.push_front(mdl_request);
+    mdl_requests.push_front(global_request);
+
+    if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+      return 1;
+  }
+  else
+  {
+    if (flags & MYSQL_OPEN_FORCE_SHARED_MDL)
+    {
+      /*
+        While executing PREPARE for prepared statement we override
+        type-of-operation aware type of shared metadata lock which
+        was set in the parser with simple shared metadata lock.
+        This is necessary to allow concurrent execution of PREPARE
+        and LOCK TABLES WRITE statement which locks one of the tables
+        used in the statement being prepared.
+      */
+      DBUG_ASSERT(!(flags & (MYSQL_OPEN_TAKE_UPGRADABLE_MDL |
+                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)));
+
+      mdl_request->set_type(MDL_SHARED);
+    }
+    else if (flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)
+    {
+      DBUG_ASSERT(!(flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL));
+      mdl_request->set_type(MDL_SHARED_HIGH_PRIO);
+    }
+
+    ot_ctx->add_request(mdl_request);
+
+    if (thd->mdl_context.try_acquire_lock(mdl_request))
+      return 1;
+
+    if (mdl_request->ticket == NULL)
+    {
+      if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
+        my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), table_list->db, table_list->table_name);
+      else
+        ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
 /*
   Open a table.
 
@@ -2517,53 +2415,65 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
     open_table()
     thd                 Thread context.
     table_list          Open first table in list.
-    refresh      INOUT  Pointer to memory that will be set to 1 if
-                        we need to close all tables and reopen them.
-                        If this is a NULL pointer, then the table is not
-                        put in the thread-open-list.
+    action       INOUT  Pointer to variable of enum_open_table_action type
+                        which will be set according to action which is
+                        required to remedy problem appeared during attempt
+                        to open table.
     flags               Bitmap of flags to modify how open works:
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
-                          someone has done a flush or namelock on it.
+                          someone has done a flush or there is a pending
+                          exclusive metadata lock requests against it
+                          (i.e. request high priority metadata lock).
                           No version number checking is done.
                           MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
                           table not the base table or view.
+                          MYSQL_OPEN_TAKE_UPGRADABLE_MDL - Obtain upgradable
+                          metadata lock for tables on which we are going to
+                          take some kind of write table-level lock.
 
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
 
-    If table list element for the table to be opened has "create" flag
-    set and table does not exist, this function will automatically insert
-    a placeholder for exclusive name lock into the open tables cache and
-    will return the TABLE instance that corresponds to this placeholder.
+    If TABLE_LIST::open_strategy is set to OPEN_IF_EXISTS, the table is opened
+    only if it exists. If the open strategy is OPEN_STUB, the underlying table
+    is never opened. In both cases, metadata locks are always taken according
+    to the lock strategy.
+
+    This function will take a exclusive metadata lock on the table if
+    TABLE_LIST::lock_strategy is EXCLUSIVE_DOWNGRADABLE_MDL or EXCLUSIVE_MDL.
+    If the lock strategy is EXCLUSIVE_DOWNGRADABLE_MDL and opening the table
+    is successful, the exclusive metadata lock is downgraded to a shared
+    lock.
 
   RETURN
-    NULL  Open failed.  If refresh is set then one should close
-          all other tables and retry the open.
-    #     Success. Pointer to TABLE object for open table.
+    TRUE  Open failed. "action" parameter may contain type of action
+          needed to remedy problem before retrying again.
+    FALSE Success. Members of TABLE_LIST structure are filled properly (e.g.
+          TABLE_LIST::table is set for real tables and TABLE_LIST::view is
+          set for views).
 */
 
 
-TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-		  bool *refresh, uint flags)
+bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
+                Open_table_context *ot_ctx, uint flags)
 {
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
+  MDL_request *mdl_request;
+  MDL_ticket *mdl_ticket;
+  int error;
+  TABLE_SHARE *share;
   my_hash_value_type hash_value;
-  HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
-
-  /* find a unused table in the open table cache */
-  if (refresh)
-    *refresh=0;
 
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
 
   if (thd->killed)
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
 
   key_length= (create_table_def_key(thd, key, table_list, 1) -
                TMP_TABLE_KEY_EXTRA);
@@ -2575,7 +2485,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     same name. This block implements the behaviour.
     TODO: move this block into a separate function.
   */
-  if (!table_list->skip_temporary)
+  if (table_list->open_type != OT_BASE_ONLY &&
+      ! (flags & MYSQL_OPEN_SKIP_TEMPORARY))
   {
     for (table= thd->temporary_tables; table ; table=table->next)
     {
@@ -2597,7 +2508,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                       (ulong) table->query_id, (uint) thd->server_id,
                       (ulong) thd->variables.pseudo_thread_id));
 	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-	  DBUG_RETURN(0);
+	  DBUG_RETURN(TRUE);
 	}
 	table->query_id= thd->query_id;
 	thd->thread_specific_used= TRUE;
@@ -2607,10 +2518,16 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
-  if (flags & MYSQL_OPEN_TEMPORARY_ONLY)
+  if (table_list->open_type == OT_TEMPORARY_ONLY ||
+      (flags & MYSQL_OPEN_TEMPORARY_ONLY))
   {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
-    DBUG_RETURN(0);
+    if (table_list->open_strategy == TABLE_LIST::OPEN_NORMAL)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
+      DBUG_RETURN(TRUE);
+    }
+    else
+      DBUG_RETURN(FALSE);
   }
 
   /*
@@ -2620,7 +2537,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     open not pre-opened tables in pre-locked/LOCK TABLES mode.
     TODO: move this block into a separate function.
   */
-  if (thd->locked_tables || thd->prelocked_mode)
+  if (thd->locked_tables_mode &&
+      ! (flags & MYSQL_OPEN_GET_NEW_TABLE))
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
@@ -2629,17 +2547,24 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (table->s->table_cache_key.length == key_length &&
 	  !memcmp(table->s->table_cache_key.str, key, key_length))
       {
-        /*
-          When looking for a usable TABLE, ignore MERGE children, as they
-          belong to their parent and cannot be used explicitly.
-        */
         if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
             table->query_id != thd->query_id && /* skip tables already used */
-            !(thd->prelocked_mode && table->query_id) &&
-            !table->parent)
+            (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+             table->query_id == 0))
         {
           int distance= ((int) table->reginfo.lock_type -
                          (int) table_list->lock_type);
+
+          /*
+            If we are performing DDL operation we also should ensure
+            that we will find TABLE instance with upgradable metadata
+            lock,
+          */
+          if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
+              table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
+              ! table->mdl_ticket->is_upgradable_or_exclusive())
+            distance= -1;
+
           /*
             Find a table that either has the exact lock type requested,
             or has the best suitable lock. In case there is no locked
@@ -2673,6 +2598,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     if (best_table)
     {
+      if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
+          table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
+          ! best_table->mdl_ticket->is_upgradable_or_exclusive())
+      {
+        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), alias);
+        DBUG_RETURN(TRUE);
+      }
       table= best_table;
       table->query_id= thd->query_id;
       DBUG_PRINT("info",("Using locked table"));
@@ -2682,29 +2614,35 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       Is this table a view and not a base table?
       (it is work around to allow to open view with locked tables,
       real fix will be made after definition cache will be made)
+
+      Since opening of view which was not explicitly locked by LOCK
+      TABLES breaks metadata locking protocol (potentially can lead
+      to deadlocks) it should be disallowed.
     */
+    if (thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                       table_list->db,
+                                       table_list->table_name,
+                                       MDL_SHARED))
     {
       char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
                            table_list->db, table_list->table_name, reg_ext, 0);
+      /*
+        Note that we can't be 100% sure that it is a view since it's
+        possible that we either simply have not found unused TABLE
+        instance in THD::open_tables list or were unable to open table
+        during prelocking process (in this case in theory we still
+        should hold shared metadata lock on it).
+      */
       if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
-        /*
-          Will not be used (because it's VIEW) but has to be passed.
-          Also we will not free it (because it is a stack variable).
-        */
-        TABLE tab;
-        table= &tab;
-        mysql_mutex_lock(&LOCK_open);
-        if (!open_unireg_entry(thd, table, table_list, alias,
-                              key, key_length, mem_root, 0))
+        if (!tdc_open_view(thd, table_list, alias, key, key_length,
+                           mem_root, 0))
         {
           DBUG_ASSERT(table_list->view != 0);
-          mysql_mutex_unlock(&LOCK_open);
-          DBUG_RETURN(0); // VIEW
+          DBUG_RETURN(FALSE); // VIEW
         }
-        mysql_mutex_unlock(&LOCK_open);
       }
     }
     /*
@@ -2714,30 +2652,37 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       so we may only end up here if the table did not exist when
       locked tables list was created.
     */
-    if (thd->prelocked_mode == PRELOCKED)
+    if (thd->locked_tables_mode == LTM_PRELOCKED)
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
     else
       my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
-    DBUG_RETURN(0);
+    DBUG_RETURN(TRUE);
   }
 
   /*
-    Non pre-locked/LOCK TABLES mode, and the table is not temporary:
-    this is the normal use case.
-    Now we should:
-    - try to find the table in the table cache.
-    - if one of the discovered TABLE instances is name-locked
-      (table->s->version == 0) or some thread has started FLUSH TABLES
-      (refresh_version > table->s->version), back off -- we have to wait
-      until no one holds a name lock on the table.
-    - if there is no such TABLE in the name cache, read the table definition
-    and insert it into the cache.
-    We perform all of the above under LOCK_open which currently protects
-    the open cache (also known as table cache) and table definitions stored
-    on disk.
+    Non pre-locked/LOCK TABLES mode, and the table is not temporary.
+    This is the normal use case.
   */
 
-  hash_value= my_calc_hash(&open_cache, (uchar*) key, key_length);
+  mdl_request= &table_list->mdl_request;
+  if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
+  {
+    if (open_table_get_mdl_lock(thd, table_list, mdl_request, ot_ctx, flags))
+    {
+      DEBUG_SYNC(thd, "before_open_table_wait_refresh");
+      DBUG_RETURN(TRUE);
+    }
+    DEBUG_SYNC(thd, "after_open_table_mdl_shared");
+  }
+
+  /*
+    Grab reference to the granted MDL lock ticket. Must be done after
+    open_table_get_mdl_lock as the lock on the table might have been
+    acquired previously (MYSQL_OPEN_HAS_MDL_LOCK).
+  */
+  mdl_ticket= mdl_request->ticket;
+
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
 
   /*
@@ -2754,234 +2699,226 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
            ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
-    if (refresh)
-      *refresh=1;
     mysql_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(0);
+    (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
+    DBUG_RETURN(TRUE);
   }
 
-  /*
-    In order for the back off and re-start process to work properly,
-    handler tables having old versions (due to FLUSH TABLES or pending
-    name-lock) MUST be closed. This is specially important if a name-lock
-    is pending for any table of the handler_tables list, otherwise a
-    deadlock may occur.
-  */
-  if (thd->handler_tables)
-    mysql_ha_flush(thd);
-
-  /*
-    Actually try to find the table in the open_cache.
-    The cache may contain several "TABLE" instances for the same
-    physical table. The instances that are currently "in use" by
-    some thread have their "in_use" member != NULL.
-    There is no good reason for having more than one entry in the
-    hash for the same physical table, except that we use this as
-    an implicit "pending locks queue" - see
-    wait_for_locked_table_names for details.
-  */
-  for (table= (TABLE*) my_hash_first_from_hash_value(&open_cache,
-                                                     hash_value,
-                                                     (uchar*) key,
-                                                     key_length,
-                                                     &state);
-       table && table->in_use ;
-       table= (TABLE*) my_hash_next(&open_cache, (uchar*) key, key_length,
-                                    &state))
+  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
   {
-    DBUG_PRINT("tcache", ("in_use table: '%s'.'%s' 0x%lx", table->s->db.str,
-                          table->s->table_name.str, (long) table));
-    /*
-      Here we flush tables marked for flush.
-      Normally, table->s->version contains the value of
-      refresh_version from the moment when this table was
-      (re-)opened and added to the cache.
-      If since then we did (or just started) FLUSH TABLES
-      statement, refresh_version has been increased.
-      For "name-locked" TABLE instances, table->s->version is set
-      to 0 (see lock_table_name for details).
-      In case there is a pending FLUSH TABLES or a name lock, we
-      need to back off and re-start opening tables.
-      If we do not back off now, we may dead lock in case of lock
-      order mismatch with some other thread:
-      c1: name lock t1; -- sort of exclusive lock 
-      c2: open t2;      -- sort of shared lock
-      c1: name lock t2; -- blocks
-      c2: open t1; -- blocks
-    */
-    if (table->needs_reopen_or_name_lock())
+    bool exists;
+
+    if (check_if_table_exists(thd, table_list, &exists))
+      goto err_unlock2;
+
+    if (!exists)
     {
-      DBUG_PRINT("note",
-                 ("Found table '%s.%s' with different refresh version",
-                  table_list->db, table_list->table_name));
+      mysql_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(FALSE);
+    }
+    /* Table exists. Let us try to open it. */
+  }
+  else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(FALSE);
+  }
 
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
-      {
-        /* Force close at once after usage */
-        thd->version= table->s->version;
-        continue;
-      }
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
+  if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
+#endif
+  {
+    if (!(share= get_table_share_with_create(thd, table_list, key,
+                                             key_length, OPEN_VIEW,
+                                             &error,
+                                             hash_value)))
+      goto err_unlock2;
 
-      /* Avoid self-deadlocks by detecting self-dependencies. */
-      if (table->open_placeholder && table->in_use == thd)
-      {
-        mysql_mutex_unlock(&LOCK_open);
-        my_error(ER_UPDATE_TABLE_USED, MYF(0), table->s->table_name.str);
-        DBUG_RETURN(0);
-      }
-
+    if (share->is_view)
+    {
       /*
-        Back off, part 1: mark the table as "unused" for the
-        purpose of name-locking by setting table->db_stat to 0. Do
-        that only for the tables in this thread that have an old
-        table->s->version (this is an optimization (?)).
-        table->db_stat == 0 signals wait_for_locked_table_names
-        that the tables in question are not used any more. See
-        table_is_used call for details.
-
-        Notice that HANDLER tables were already taken care of by
-        the earlier call to mysql_ha_flush() in this same critical
-        section.
+        If parent_l of the table_list is non null then a merge table
+        has this view as child table, which is not supported.
       */
-      close_old_data_files(thd,thd->open_tables,0,0);
-      /*
-        Back-off part 2: try to avoid "busy waiting" on the table:
-        if the table is in use by some other thread, we suspend
-        and wait till the operation is complete: when any
-        operation that juggles with table->s->version completes,
-        it broadcasts COND_refresh condition variable.
-        If 'old' table we met is in use by current thread we return
-        without waiting since in this situation it's this thread
-        which is responsible for broadcasting on COND_refresh
-        (and this was done already in close_old_data_files()).
-        Good example of such situation is when we have statement
-        that needs two instances of table and FLUSH TABLES comes
-        after we open first instance but before we open second
-        instance.
-      */
-      if (table->in_use != thd)
+      if (table_list->parent_l)
       {
-        /* wait_for_condition will unlock LOCK_open for us */
-        wait_for_condition(thd, &LOCK_open, &COND_refresh);
+        my_error(ER_WRONG_MRG_TABLE, MYF(0));
+        goto err_unlock;
+      }
+      
+      /*
+        This table is a view. Validate its metadata version: in particular,
+        that it was a view when the statement was prepared.
+      */
+      if (check_and_update_table_version(thd, table_list, share))
+        goto err_unlock;
+      if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
+        goto err_unlock;
+
+      /* Open view */
+      if (open_new_frm(thd, share, alias,
+                       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                               HA_GET_INDEX | HA_TRY_READ_ONLY),
+                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                       (flags & OPEN_VIEW_NO_PARSE), thd->open_options,
+                       0, table_list, mem_root))
+        goto err_unlock;
+
+      /* TODO: Don't free this */
+      release_table_share(share);
+
+      if (flags & OPEN_VIEW_NO_PARSE)
+      {
+        /*
+          VIEW not really opened, only frm were read.
+          Set 1 as a flag here
+        */
+        table_list->view= (LEX*)1;
       }
       else
       {
-        mysql_mutex_unlock(&LOCK_open);
+        DBUG_ASSERT(table_list->view);
       }
-      /*
-        There is a refresh in progress for this table.
-        Signal the caller that it has to try again.
-      */
-      if (refresh)
-	*refresh=1;
-      DBUG_RETURN(0);
+
+      mysql_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(FALSE);
     }
+    /*
+      Note that situation when we are trying to open a table for what
+      was a view during previous execution of PS will be handled in by
+      the caller. Here we should simply open our table even if
+      TABLE_LIST::view is true.
+    */
+
+    if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+      goto err_unlock;
+
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
+    /*
+      We are going to to store extra reference to the share in MDL-subsystem
+      so we need to increase reference counter;
+    */
+    reference_table_share(share);
+    mdl_ticket->set_cached_object(share, table_share_release_hook);
+#endif
   }
-  if (table)
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
+  else
   {
-    DBUG_PRINT("tcache", ("unused table: '%s'.'%s' 0x%lx", table->s->db.str,
-                          table->s->table_name.str, (long) table));
-    /* Unlink the table from "unused_tables" list. */
-    if (table == unused_tables)
-    {						// First unused
-      unused_tables=unused_tables->next;	// Remove from link
-      if (table == unused_tables)
-	unused_tables=0;
+    if (table_list->view)
+    {
+      DBUG_ASSERT(thd->m_reprepare_observer);
+      check_and_update_table_version(thd, table_list, share);
+      /* Always an error. */
+      DBUG_ASSERT(thd->is_error());
+      goto err_unlock;
     }
-    table->prev->next=table->next;		/* Remove from unused list */
-    table->next->prev=table->prev;
-    table->in_use= thd;
+    /* When we have cached TABLE_SHARE we know that is not a view. */
+    if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+      goto err_unlock;
+
+    /*
+      We are going to use this share for construction of new TABLE object
+      so reference counter should be increased.
+    */
+    reference_table_share(share);
+  }
+#endif
+
+  if (share->version != refresh_version)
+  {
+    if (!(flags & MYSQL_LOCK_IGNORE_FLUSH))
+    {
+       /*
+         We already have an MDL lock. But we have encountered an old
+         version of table in the table definition cache which is possible
+         when someone changes the table version directly in the cache
+         without acquiring a metadata lock (e.g. this can happen during
+         "rolling" FLUSH TABLE(S)).
+         Note, that to avoid a "busywait" in this case, we have to wait
+         separately in the caller for old table versions to go away
+         (see tdc_wait_for_old_versions()).
+       */
+      release_table_share(share);
+      mysql_mutex_unlock(&LOCK_open);
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
+      DBUG_RETURN(TRUE);
+    }
+    /* Force close at once after usage */
+    thd->version= share->version;
+  }
+
+  if (!share->free_tables.is_empty())
+  {
+    table= share->free_tables.front();
+    table_def_use_table(thd, table);
+    /* We need to release share as we have EXTRA reference to it in our hands. */
+    release_table_share(share);
   }
   else
   {
-    /* Insert a new TABLE instance into the open cache */
-    int error;
-    DBUG_PRINT("tcache", ("opening new table"));
-    /* Free cache if too big */
-    while (open_cache.records > table_cache_size && unused_tables)
-      my_hash_delete(&open_cache,(uchar*) unused_tables); /* purecov: tested */
-
-    if (table_list->create)
-    {
-      bool exists;
-
-      if (check_if_table_exists(thd, table_list, &exists))
-      {
-        mysql_mutex_unlock(&LOCK_open);
-        DBUG_RETURN(NULL);
-      }
-
-      if (!exists)
-      {
-        /*
-          Table to be created, so we need to create placeholder in table-cache.
-        */
-        if (!(table= table_cache_insert_placeholder(thd, key, key_length)))
-        {
-          mysql_mutex_unlock(&LOCK_open);
-          DBUG_RETURN(NULL);
-        }
-        /*
-          Link placeholder to the open tables list so it will be automatically
-          removed once tables are closed. Also mark it so it won't be ignored
-          by other trying to take name-lock.
-        */
-        table->open_placeholder= 1;
-        table->next= thd->open_tables;
-        thd->open_tables= table;
-        mysql_mutex_unlock(&LOCK_open);
-        DBUG_RETURN(table);
-      }
-      /* Table exists. Let us try to open it. */
-    }
+    /* We have too many TABLE instances around let us try to get rid of them. */
+    while (table_cache_count > table_cache_size && unused_tables)
+      free_cache_entry(unused_tables);
 
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
-    {
-      mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(NULL);
-    }
+      goto err_unlock;
 
-    error= open_unireg_entry(thd, table, table_list, alias, key, key_length,
-                             mem_root, (flags & OPEN_VIEW_NO_PARSE));
-    if (error > 0)
-    {
-      my_free((uchar*)table, MYF(0));
-      mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(NULL);
-    }
-    if (table_list->view || error < 0)
-    {
-      /*
-        VIEW not really opened, only frm were read.
-        Set 1 as a flag here
-      */
-      if (error < 0)
-        table_list->view= (LEX*)1;
+    error= open_table_from_share(thd, share, alias,
+                                 (uint) (HA_OPEN_KEYFILE |
+                                         HA_OPEN_RNDFILE |
+                                         HA_GET_INDEX |
+                                         HA_TRY_READ_ONLY),
+                                 (READ_KEYINFO | COMPUTE_TYPES |
+                                  EXTRA_RECORD),
+                                 thd->open_options, table, FALSE);
 
-      my_free((uchar*)table, MYF(0));
-      mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0); // VIEW
-    }
-    DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
-                        table->s->db.str, table->s->table_name.str,
-                        (long) table));
-    if (my_hash_insert(&open_cache,(uchar*) table))
+    if (error)
     {
       my_free(table, MYF(0));
-      mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(NULL);
-    }
-  }
 
-  check_unused();				// Debugging call
+      if (error == 7)
+      {
+        share->version= 0;
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER);
+      }
+      else if (share->crashed)
+      {
+        share->version= 0;
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR);
+      }
+
+      goto err_unlock;
+    }
+
+    if (open_table_entry_fini(thd, share, table))
+    {
+      closefrm(table, 0);
+      my_free((uchar*)table, MYF(0));
+      goto err_unlock;
+    }
+
+    /* Add table to the share's used tables list. */
+    table_def_add_used_table(thd, table);
+  }
 
   mysql_mutex_unlock(&LOCK_open);
-  if (refresh)
-  {
-    table->next=thd->open_tables;		/* Link into simple list */
-    thd->open_tables=table;
-  }
+
+  /*
+    In CREATE TABLE .. If NOT EXISTS .. SELECT we have found that
+    table exists now we should downgrade our exclusive metadata
+    lock on this table to SW metadata lock.
+  */
+  if (table_list->lock_strategy == TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL &&
+      !(flags & MYSQL_OPEN_HAS_MDL_LOCK))
+    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_WRITE);
+
+  table->mdl_ticket= mdl_ticket;
+
+  table->next=thd->open_tables;		/* Link into simple list */
+  thd->open_tables=table;
+
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
@@ -2998,7 +2935,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                                      MYF(MY_WME));
     memcpy((char*) table->alias, alias, length);
   }
-  /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
@@ -3017,17 +2953,38 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
+  table_list->table= table;
   DBUG_ASSERT(table->key_read == 0);
-  DBUG_RETURN(table);
+  /* Tables may be reused in a sub statement. */
+  if (table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN))
+    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+  DBUG_RETURN(FALSE);
+
+err_unlock:
+  release_table_share(share);
+err_unlock2:
+  mysql_mutex_unlock(&LOCK_open);
+
+  DBUG_RETURN(TRUE);
 }
 
 
-TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
+/**
+   Find table in the list of open tables.
+
+   @param list       List of TABLE objects to be inspected.
+   @param db         Database name
+   @param table_name Table name
+
+   @return Pointer to the TABLE object found, 0 if no table found.
+*/
+
+TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
   uint key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
-  for (TABLE *table=thd->open_tables; table ; table=table->next)
+  for (TABLE *table= list; table ; table=table->next)
   {
     if (table->s->table_cache_key.length == key_length &&
 	!memcmp(table->s->table_cache_key.str, key, key_length))
@@ -3037,682 +2994,374 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 }
 
 
-/*
-  Reopen an table because the definition has changed.
-
-  SYNOPSIS
-    reopen_table()
-    table	Table object
-
-  NOTES
-   The data file for the table is already closed and the share is released
-   The table has a 'dummy' share that mainly contains database and table name.
-
- RETURN
-   0  ok
-   1  error. The old table object is not changed.
-*/
-
-bool reopen_table(TABLE *table)
-{
-  TABLE tmp;
-  bool error= 1;
-  Field **field;
-  uint key,part;
-  TABLE_LIST table_list;
-  THD *thd= table->in_use;
-  DBUG_ENTER("reopen_table");
-  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                        table->s->table_name.str, (long) table));
-
-  DBUG_ASSERT(table->s->ref_count == 0);
-  DBUG_ASSERT(!table->sort.io_cache);
-  DBUG_ASSERT(!table->children_attached);
-
-#ifdef EXTRA_DEBUG
-  if (table->db_stat)
-    sql_print_error("Table %s had a open data handler in reopen_table",
-		    table->alias);
-#endif
-  bzero((char*) &table_list, sizeof(TABLE_LIST));
-  table_list.db=         table->s->db.str;
-  table_list.table_name= table->s->table_name.str;
-  table_list.table=      table;
-
-  if (wait_for_locked_table_names(thd, &table_list))
-    DBUG_RETURN(1);                             // Thread was killed
-
-  if (open_unireg_entry(thd, &tmp, &table_list,
-			table->alias,
-                        table->s->table_cache_key.str,
-                        table->s->table_cache_key.length,
-                        thd->mem_root, 0))
-    goto end;
-
-  /* This list copies variables set by open_table */
-  tmp.tablenr=		table->tablenr;
-  tmp.used_fields=	table->used_fields;
-  tmp.const_table=	table->const_table;
-  tmp.null_row=		table->null_row;
-  tmp.maybe_null=	table->maybe_null;
-  tmp.status=		table->status;
-
-  tmp.s->table_map_id=  table->s->table_map_id;
-
-  /* Get state */
-  tmp.in_use=    	thd;
-  tmp.reginfo.lock_type=table->reginfo.lock_type;
-  tmp.grant=		table->grant;
-
-  /* Replace table in open list */
-  tmp.next=		table->next;
-  tmp.prev=		table->prev;
-
-  /* Preserve MERGE parent. */
-  tmp.parent=           table->parent;
-  /* Fix MERGE child list and check for unchanged union. */
-  if ((table->child_l || tmp.child_l) &&
-      fix_merge_after_open(table->child_l, table->child_last_l,
-                           tmp.child_l, tmp.child_last_l))
-  {
-    (void) closefrm(&tmp, 1); // close file, free everything
-    goto end;
-  }
-
-  delete table->triggers;
-  if (table->file)
-    (void) closefrm(table, 1);		// close file, free everything
-
-  *table= tmp;
-  table->default_column_bitmaps();
-  table->file->change_table_ptr(table, table->s);
-
-  DBUG_ASSERT(table->alias != 0);
-  for (field=table->field ; *field ; field++)
-  {
-    (*field)->table= (*field)->orig_table= table;
-    (*field)->table_name= &table->alias;
-  }
-  for (key=0 ; key < table->s->keys ; key++)
-  {
-    for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
-    {
-      table->key_info[key].key_part[part].field->table= table;
-      table->key_info[key].key_part[part].field->orig_table= table;
-    }
-  }
-  if (table->triggers)
-    table->triggers->set_table(table);
-  /*
-    Do not attach MERGE children here. The children might be reopened
-    after the parent. Attach children after reopening all tables that
-    require reopen. See for example reopen_tables().
-  */
-
-  broadcast_refresh();
-  error=0;
-
- end:
-  DBUG_RETURN(error);
-}
-
-
 /**
-    Close all instances of a table open by this thread and replace
-    them with exclusive name-locks.
+   Find instance of TABLE with upgradable or exclusive metadata
+   lock from the list of open tables, emit error if no such table
+   found.
 
-    @param thd        Thread context
-    @param db         Database name for the table to be closed
-    @param table_name Name of the table to be closed
+   @param list       List of TABLE objects to be searched
+   @param db         Database name.
+   @param table_name Name of table.
+   @param no_error   Don't emit error if no suitable TABLE
+                     instance were found.
 
-    @note This function assumes that if we are not under LOCK TABLES,
-          then there is only one table open and locked. This means that
-          the function probably has to be adjusted before it can be used
-          anywhere outside ALTER TABLE.
-
-    @note Must not use TABLE_SHARE::table_name/db of the table being closed,
-          the strings are used in a loop even after the share may be freed.
+   @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
+           MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
+           lock, NULL otherwise.
 */
 
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name)
+TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+                                  const char *table_name,
+                                  bool no_error)
 {
-  TABLE *table;
-  DBUG_ENTER("close_data_files_and_morph_locks");
+  TABLE *tab= find_locked_table(list, db, table_name);
 
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  if (thd->lock)
+  if (!tab)
   {
-    /*
-      If we are not under LOCK TABLES we should have only one table
-      open and locked so it makes sense to remove the lock at once.
-    */
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock= 0;
-  }
-
-  /*
-    Note that open table list may contain a name-lock placeholder
-    for target table name if we process ALTER TABLE ... RENAME.
-    So loop below makes sense even if we are not under LOCK TABLES.
-  */
-  for (table=thd->open_tables; table ; table=table->next)
-  {
-    if (!strcmp(table->s->table_name.str, table_name) &&
-	!strcmp(table->s->db.str, db))
-    {
-      if (thd->locked_tables)
-      {
-        if (table->parent)
-        {
-          /*
-            If MERGE child, need to reopen parent too. This means that
-            the first child to be closed will detach all children from
-            the parent and close it. OTOH in most cases a MERGE table
-            won't have multiple children with the same db.table_name.
-          */
-          mysql_lock_remove(thd, thd->locked_tables, table->parent, TRUE);
-          table->parent->open_placeholder= 1;
-          close_handle_and_leave_table_as_lock(table->parent);
-        }
-        else
-          mysql_lock_remove(thd, thd->locked_tables, table, TRUE);
-      }
-      table->open_placeholder= 1;
-      close_handle_and_leave_table_as_lock(table);
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Reattach MERGE children after reopen.
-
-  @param[in]     thd            thread context
-  @param[in,out] err_tables_p   pointer to pointer of tables in error
-
-  @return       status
-    @retval     FALSE           OK, err_tables_p unchanged
-    @retval     TRUE            Error, err_tables_p contains table(s)
-*/
-
-static bool reattach_merge(THD *thd, TABLE **err_tables_p)
-{
-  TABLE *table;
-  TABLE *next;
-  TABLE **prv_p= &thd->open_tables;
-  bool error= FALSE;
-  DBUG_ENTER("reattach_merge");
-
-  for (table= thd->open_tables; table; table= next)
-  {
-    next= table->next;
-    DBUG_PRINT("tcache", ("check table: '%s'.'%s' 0x%lx  next: 0x%lx",
-                          table->s->db.str, table->s->table_name.str,
-                          (long) table, (long) next));
-    /* Reattach children for MERGE tables with "closed data files" only. */
-    if (table->child_l && !table->children_attached)
-    {
-      DBUG_PRINT("tcache", ("MERGE parent, attach children"));
-      if(table->file->extra(HA_EXTRA_ATTACH_CHILDREN))
-      {
-        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-        error= TRUE;
-        /* Remove table from open_tables. */
-        *prv_p= next;
-        if (next)
-          prv_p= &next->next;
-        /* Stack table on error list. */
-        table->next= *err_tables_p;
-        *err_tables_p= table;
-        continue;
-      }
-      else
-      {
-        table->children_attached= TRUE;
-        DBUG_PRINT("myrg", ("attached parent: '%s'.'%s' 0x%lx",
-                            table->s->db.str,
-                            table->s->table_name.str, (long) table));
-      }
-    }
-    prv_p= &table->next;
-  }
-  DBUG_RETURN(error);
-}
-
-
-/**
-    Reopen all tables with closed data files.
-
-    @param thd         Thread context
-    @param get_locks   Should we get locks after reopening tables ?
-    @param mark_share_as_old  Mark share as old to protect from a impending
-                              global read lock.
-
-    @note Since this function can't properly handle prelocking and
-          create placeholders it should be used in very special
-          situations like FLUSH TABLES or ALTER TABLE. In general
-          case one should just repeat open_tables()/lock_tables()
-          combination when one needs tables to be reopened (for
-          example see open_and_lock_tables()).
-
-    @note One should have lock on LOCK_open when calling this.
-
-    @return FALSE in case of success, TRUE - otherwise.
-*/
-
-bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
-{
-  TABLE *table,*next,**prev;
-  TABLE **tables,**tables_ptr;			// For locks
-  TABLE *err_tables= NULL;
-  bool error=0, not_used;
-  bool merge_table_found= FALSE;
-  const uint flags= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN |
-                    MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
-                    MYSQL_LOCK_IGNORE_FLUSH;
-
-  DBUG_ENTER("reopen_tables");
-
-  if (!thd->open_tables)
-    DBUG_RETURN(0);
-
-  mysql_mutex_assert_owner(&LOCK_open);
-  if (get_locks)
-  {
-    /*
-      The ptr is checked later
-      Do not handle locks of MERGE children.
-    */
-    uint opens=0;
-    for (table= thd->open_tables; table ; table=table->next)
-      if (!table->parent)
-        opens++;
-    DBUG_PRINT("tcache", ("open tables to lock: %u", opens));
-    tables= (TABLE**) my_alloca(sizeof(TABLE*)*opens);
+    if (!no_error)
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
+    return NULL;
   }
   else
-    tables= &thd->open_tables;
-  tables_ptr =tables;
+  {
+    while (tab->mdl_ticket != NULL &&
+           !tab->mdl_ticket->is_upgradable_or_exclusive() &&
+           (tab= find_locked_table(tab->next, db, table_name)))
+      continue;
+    if (!tab)
+    {
+      if (!no_error)
+        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
+      return 0;
+    }
+  }
+  return tab;
+}
 
-  prev= &thd->open_tables;
-  for (table=thd->open_tables; table ; table=next)
+
+/***********************************************************************
+  class Locked_tables_list implementation. Declared in sql_class.h
+************************************************************************/
+
+/**
+  Enter LTM_LOCK_TABLES mode.
+
+  Enter the LOCK TABLES mode using all the tables that are
+  currently open and locked in this connection.
+  Initializes a TABLE_LIST instance for every locked table.
+
+  @param  thd  thread handle
+
+  @return TRUE if out of memory.
+*/
+
+bool
+Locked_tables_list::init_locked_tables(THD *thd)
+{
+  DBUG_ASSERT(thd->locked_tables_mode == LTM_NONE);
+  DBUG_ASSERT(m_locked_tables == NULL);
+  DBUG_ASSERT(m_reopen_array == NULL);
+  DBUG_ASSERT(m_locked_tables_count == 0);
+
+  for (TABLE *table= thd->open_tables; table;
+       table= table->next, m_locked_tables_count++)
   {
-    uint db_stat=table->db_stat;
-    next=table->next;
-    DBUG_PRINT("tcache", ("open table: '%s'.'%s' 0x%lx  "
-                          "parent: 0x%lx  db_stat: %u",
-                          table->s->db.str, table->s->table_name.str,
-                          (long) table, (long) table->parent, db_stat));
-    if (table->child_l && !db_stat)
-      merge_table_found= TRUE;
-    if (!tables || (!db_stat && reopen_table(table)))
+    TABLE_LIST *src_table_list= table->pos_in_table_list;
+    char *db, *table_name, *alias;
+    size_t db_len= src_table_list->db_length;
+    size_t table_name_len= src_table_list->table_name_length;
+    size_t alias_len= strlen(src_table_list->alias);
+    TABLE_LIST *dst_table_list;
+
+    if (! multi_alloc_root(&m_locked_tables_root,
+                           &dst_table_list, sizeof(*dst_table_list),
+                           &db, db_len + 1,
+                           &table_name, table_name_len + 1,
+                           &alias, alias_len + 1,
+                           NullS))
     {
-      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-      /*
-        If we could not allocate 'tables', we may close open tables
-        here. If a MERGE table is affected, detach the children first.
-        It is not necessary to clear the child or parent table reference
-        of this table because the TABLE is freed. But we need to clear
-        the child or parent references of the other belonging tables so
-        that they cannot be moved into the unused_tables chain with
-        these pointers set.
-      */
-      if (table->child_l || table->parent)
-        detach_merge_children(table, TRUE);
-      my_hash_delete(&open_cache,(uchar*) table);
-      error=1;
+      unlock_locked_tables(0);
+      return TRUE;
     }
-    else
-    {
-      DBUG_PRINT("tcache", ("opened. need lock: %d",
-                            get_locks && !db_stat && !table->parent));
-      *prev= table;
-      prev= &table->next;
-      /* Do not handle locks of MERGE children. */
-      if (get_locks && !db_stat && !table->parent)
-	*tables_ptr++= table;			// need new lock on this
-      if (mark_share_as_old)
-      {
-	table->s->version=0;
-	table->open_placeholder= 0;
-      }
-    }
-  }
-  *prev=0;
-  /*
-    When all tables are open again, we can re-attach MERGE children to
-    their parents. All TABLE objects are still present.
-  */
-  DBUG_PRINT("tcache", ("re-attaching MERGE tables: %d", merge_table_found));
-  if (!error && merge_table_found && reattach_merge(thd, &err_tables))
-  {
-    while (err_tables)
-    {
-      my_hash_delete(&open_cache, (uchar*) err_tables);
-      err_tables= err_tables->next;
-    }
-  }
-  DBUG_PRINT("tcache", ("open tables to lock: %u",
-                        (uint) (tables_ptr - tables)));
-  if (tables != tables_ptr)			// Should we get back old locks
-  {
-    MYSQL_LOCK *lock;
-    /*
-      We should always get these locks. Anyway, we must not go into
-      wait_for_tables() as it tries to acquire LOCK_open, which is
-      already locked.
+
+    memcpy(db, src_table_list->db, db_len + 1);
+    memcpy(table_name, src_table_list->table_name, table_name_len + 1);
+    memcpy(alias, src_table_list->alias, alias_len + 1);
+    /**
+      Sic: remember the *actual* table level lock type taken, to
+      acquire the exact same type in reopen_tables().
+      E.g. if the table was locked for write, src_table_list->lock_type is
+      TL_WRITE_DEFAULT, whereas reginfo.lock_type has been updated from
+      thd->update_lock_default.
     */
-    thd->some_tables_deleted=0;
-    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables),
-                                 flags, &not_used)))
+    dst_table_list->init_one_table(db, db_len, table_name, table_name_len,
+                                   alias,
+                                   src_table_list->table->reginfo.lock_type);
+    dst_table_list->table= table;
+    dst_table_list->mdl_request.ticket= src_table_list->mdl_request.ticket;
+
+    /* Link last into the list of tables */
+    *(dst_table_list->prev_global= m_locked_tables_last)= dst_table_list;
+    m_locked_tables_last= &dst_table_list->next_global;
+    table->pos_in_locked_tables= dst_table_list;
+  }
+  if (m_locked_tables_count)
+  {
+    /**
+      Allocate an auxiliary array to pass to mysql_lock_tables()
+      in reopen_tables(). reopen_tables() is a critical
+      path and we don't want to complicate it with extra allocations.
+    */
+    m_reopen_array= (TABLE**)alloc_root(&m_locked_tables_root,
+                                        sizeof(TABLE*) *
+                                        (m_locked_tables_count+1));
+    if (m_reopen_array == NULL)
     {
-      thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
+      unlock_locked_tables(0);
+      return TRUE;
     }
-    else
+  }
+  thd->enter_locked_tables_mode(LTM_LOCK_TABLES);
+
+  return FALSE;
+}
+
+/**
+  Leave LTM_LOCK_TABLES mode if it's been entered.
+
+  Close all locked tables, free memory, and leave the mode.
+
+  @note This function is a no-op if we're not in LOCK TABLES.
+*/
+
+void
+Locked_tables_list::unlock_locked_tables(THD *thd)
+
+{
+  if (thd)
+  {
+    DBUG_ASSERT(!thd->in_sub_stmt &&
+                !(thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+    /*
+      Sic: we must be careful to not close open tables if
+      we're not in LOCK TABLES mode: unlock_locked_tables() is
+      sometimes called implicitly, expecting no effect on
+      open tables, e.g. from begin_trans().
+    */
+    if (thd->locked_tables_mode != LTM_LOCK_TABLES)
+      return;
+
+    for (TABLE_LIST *table_list= m_locked_tables;
+         table_list; table_list= table_list->next_global)
     {
       /*
-        This case should only happen if there is a bug in the reopen logic.
-        Need to issue error message to have a reply for the application.
-        Not exactly what happened though, but close enough.
+        Clear the position in the list, the TABLE object will be
+        returned to the table cache.
       */
-      my_error(ER_LOCK_DEADLOCK, MYF(0));
-      error=1;
+      table_list->table->pos_in_locked_tables= NULL;
     }
+    thd->leave_locked_tables_mode();
+
+    close_thread_tables(thd);
   }
-  if (get_locks && tables)
-  {
-    my_afree((uchar*) tables);
-  }
-  broadcast_refresh();
-  DBUG_RETURN(error);
+  /*
+    After closing tables we can free memory used for storing lock
+    request for metadata locks and TABLE_LIST elements.
+  */
+  free_root(&m_locked_tables_root, MYF(0));
+  m_locked_tables= NULL;
+  m_locked_tables_last= &m_locked_tables;
+  m_reopen_array= NULL;
+  m_locked_tables_count= 0;
 }
 
 
 /**
-    Close handlers for tables in list, but leave the TABLE structure
-    intact so that we can re-open these quickly.
+  Unlink a locked table from the locked tables list, either
+  temporarily or permanently.
 
-    @param thd           Thread context
-    @param table         Head of the list of TABLE objects
-    @param morph_locks   TRUE  - remove locks which we have on tables being closed
-                                 but ensure that no DML or DDL will sneak in before
-                                 we will re-open the table (i.e. temporarily morph
-                                 our table-level locks into name-locks).
-                         FALSE - otherwise
-    @param send_refresh  Should we awake waiters even if we didn't close any tables?
-*/
+  @param  thd        thread handle
+  @param  table_list the element of locked tables list.
+                     The implementation assumes that this argument
+                     points to a TABLE_LIST element linked into
+                     the locked tables list. Passing a TABLE_LIST
+                     instance that is not part of locked tables
+                     list will lead to a crash.
+  @param  remove_from_locked_tables
+                      TRUE if the table is removed from the list
+                      permanently.
 
-static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
-                                 bool send_refresh)
-{
-  bool found= send_refresh;
-  DBUG_ENTER("close_old_data_files");
+  This function is a no-op if we're not under LOCK TABLES.
 
-  for (; table ; table=table->next)
-  {
-    DBUG_PRINT("tcache", ("checking table: '%s'.'%s' 0x%lx",
-                          table->s->db.str, table->s->table_name.str,
-                          (long) table));
-    DBUG_PRINT("tcache", ("needs refresh: %d  is open: %u",
-                          table->needs_reopen_or_name_lock(), table->db_stat));
-    /*
-      Reopen marked for flush.
-    */
-    if (table->needs_reopen_or_name_lock())
-    {
-      found=1;
-      if (table->db_stat)
-      {
-	if (morph_locks)
-	{
-          /*
-            Forward lock handling to MERGE parent. But unlock parent
-            once only.
-          */
-          TABLE *ulcktbl= table->parent ? table->parent : table;
-          if (ulcktbl->lock_count)
-          {
-            /*
-              Wake up threads waiting for table-level lock on this table
-              so they won't sneak in when we will temporarily remove our
-              lock on it. This will also give them a chance to close their
-              instances of this table.
-            */
-            mysql_lock_abort(thd, ulcktbl, TRUE);
-            mysql_lock_remove(thd, thd->locked_tables, ulcktbl, TRUE);
-            ulcktbl->lock_count= 0;
-          }
-          if ((ulcktbl != table) && ulcktbl->db_stat)
-          {
-            /*
-              Close the parent too. Note that parent can come later in
-              the list of tables. It will then be noticed as closed and
-              as a placeholder. When this happens, do not clear the
-              placeholder flag. See the branch below ("***").
-            */
-            ulcktbl->open_placeholder= 1;
-            close_handle_and_leave_table_as_lock(ulcktbl);
-          }
-          /*
-            We want to protect the table from concurrent DDL operations
-            (like RENAME TABLE) until we will re-open and re-lock it.
-          */
-	  table->open_placeholder= 1;
-	}
-        close_handle_and_leave_table_as_lock(table);
-      }
-      else if (table->open_placeholder && !morph_locks)
-      {
-        /*
-          We come here only in close-for-back-off scenario. So we have to
-          "close" create placeholder here to avoid deadlocks (for example,
-          in case of concurrent execution of CREATE TABLE t1 SELECT * FROM t2
-          and RENAME TABLE t2 TO t1). In close-for-re-open scenario we will
-          probably want to let it stay.
-
-          Note "***": We must not enter this branch if the placeholder
-          flag has been set because of a former close through a child.
-          See above the comment that refers to this note.
-        */
-        table->open_placeholder= 0;
-      }
-    }
-  }
-  if (found)
-    broadcast_refresh();
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Wait until all threads has closed the tables in the list
-  We have also to wait if there is thread that has a lock on this table even
-  if the table is closed
-*/
-
-bool table_is_used(TABLE *table, bool wait_for_name_lock)
-{
-  DBUG_ENTER("table_is_used");
-  do
-  {
-    char *key= table->s->table_cache_key.str;
-    uint key_length= table->s->table_cache_key.length;
-
-    DBUG_PRINT("loop", ("table_name: %s", table->alias));
-    HASH_SEARCH_STATE state;
-    for (TABLE *search= (TABLE*) my_hash_first(&open_cache, (uchar*) key,
-                                               key_length, &state);
-	 search ;
-         search= (TABLE*) my_hash_next(&open_cache, (uchar*) key,
-                                       key_length, &state))
-    {
-      DBUG_PRINT("info", ("share: 0x%lx  "
-                          "open_placeholder: %d  locked_by_name: %d "
-                          "db_stat: %u  version: %lu",
-                          (ulong) search->s,
-                          search->open_placeholder, search->locked_by_name,
-                          search->db_stat,
-                          search->s->version));
-      if (search->in_use == table->in_use)
-        continue;                               // Name locked by this thread
-      /*
-        We can't use the table under any of the following conditions:
-        - There is an name lock on it (Table is to be deleted or altered)
-        - If we are in flush table and we didn't execute the flush
-        - If the table engine is open and it's an old version
-        (We must wait until all engines are shut down to use the table)
-      */
-      if ( (search->locked_by_name && wait_for_name_lock) ||
-           (search->is_name_opened() && search->needs_reopen_or_name_lock()))
-        DBUG_RETURN(1);
-    }
-  } while ((table=table->next));
-  DBUG_RETURN(0);
-}
-
-
-/* Wait until all used tables are refreshed */
-
-bool wait_for_tables(THD *thd)
-{
-  bool result;
-  DBUG_ENTER("wait_for_tables");
-
-  thd_proc_info(thd, "Waiting for tables");
-  mysql_mutex_lock(&LOCK_open);
-  while (!thd->killed)
-  {
-    thd->some_tables_deleted=0;
-    close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd);
-    if (!table_is_used(thd->open_tables,1))
-      break;
-    mysql_cond_wait(&COND_refresh, &LOCK_open);
-  }
-  if (thd->killed)
-    result= 1;					// aborted
-  else
-  {
-    /* Now we can open all tables without any interference */
-    thd_proc_info(thd, "Reopen tables");
-    thd->version= refresh_version;
-    result=reopen_tables(thd,0,0);
-  }
-  mysql_mutex_unlock(&LOCK_open);
-  thd_proc_info(thd, 0);
-  DBUG_RETURN(result);
-}
-
-
-/*
-  drop tables from locked list
-
-  SYNOPSIS
-    drop_locked_tables()
-    thd			Thread thandler
-    db			Database
-    table_name		Table name
-
-  INFORMATION
-    This is only called on drop tables
-
-    The TABLE object for the dropped table is unlocked but still kept around
-    as a name lock, which means that the table will be available for other
-    thread as soon as we call unlock_table_names().
-    If there is multiple copies of the table locked, all copies except
-    the first, which acts as a name lock, is removed.
-
-  RETURN
-    #    If table existed, return table
-    0	 Table was not locked
+  @sa Locked_tables_list::reopen_tables()
 */
 
 
-TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
+void Locked_tables_list::unlink_from_list(THD *thd,
+                                          TABLE_LIST *table_list,
+                                          bool remove_from_locked_tables)
 {
-  TABLE *table,*next,**prev, *found= 0;
-  prev= &thd->open_tables;
-  DBUG_ENTER("drop_locked_tables");
+  /*
+    If mode is not LTM_LOCK_TABLES, we needn't do anything. Moreover,
+    outside this mode pos_in_locked_tables value is not trustworthy.
+  */
+  if (thd->locked_tables_mode != LTM_LOCK_TABLES)
+    return;
 
   /*
-    Note that we need to hold LOCK_open while changing the
-    open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
-    Closing a MERGE child before the parent would be fatal if the
-    other thread tries to abort the MERGE lock in between.
+    table_list must be set and point to pos_in_locked_tables of some
+    table.
   */
-  for (table= thd->open_tables; table ; table=next)
-  {
-    next=table->next;
-    if (!strcmp(table->s->table_name.str, table_name) &&
-	!strcmp(table->s->db.str, db))
-    {
-      /* If MERGE child, forward lock handling to parent. */
-      mysql_lock_remove(thd, thd->locked_tables,
-                        table->parent ? table->parent : table, TRUE);
-      /*
-        When closing a MERGE parent or child table, detach the children first.
-        Clear child table references in case this object is opened again.
-      */
-      if (table->child_l || table->parent)
-        detach_merge_children(table, TRUE);
+  DBUG_ASSERT(table_list->table->pos_in_locked_tables == table_list);
 
-      if (!found)
-      {
-        found= table;
-        /* Close engine table, but keep object around as a name lock */
-        if (table->db_stat)
-        {
-          table->db_stat= 0;
-          table->file->close();
-        }
-      }
-      else
-      {
-        /* We already have a name lock, remove copy */
-        my_hash_delete(&open_cache,(uchar*) table);
-      }
-    }
-    else
-    {
-      *prev=table;
-      prev= &table->next;
-    }
-  }
-  *prev=0;
-  if (found)
-    broadcast_refresh();
-  if (thd->locked_tables && thd->locked_tables->table_count == 0)
+  /* Clear the pointer, the table will be returned to the table cache. */
+  table_list->table->pos_in_locked_tables= NULL;
+
+  /* Mark the table as closed in the locked tables list. */
+  table_list->table= NULL;
+
+  /*
+    If the table is being dropped or renamed, remove it from
+    the locked tables list (implicitly drop the LOCK TABLES lock
+    on it).
+  */
+  if (remove_from_locked_tables)
   {
-    my_free((uchar*) thd->locked_tables,MYF(0));
-    thd->locked_tables=0;
+    *table_list->prev_global= table_list->next_global;
+    if (table_list->next_global == NULL)
+      m_locked_tables_last= table_list->prev_global;
+    else
+      table_list->next_global->prev_global= table_list->prev_global;
   }
-  DBUG_RETURN(found);
+}
+
+/**
+  This is an attempt to recover (somewhat) in case of an error.
+  If we failed to reopen a closed table, let's unlink it from the
+  list and forget about it. From a user perspective that would look
+  as if the server "lost" the lock on one of the locked tables.
+
+  @note This function is a no-op if we're not under LOCK TABLES.
+*/
+
+void Locked_tables_list::
+unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
+{
+  /* If we managed to take a lock, unlock tables and free the lock. */
+  if (lock)
+    mysql_unlock_tables(thd, lock);
+  /*
+    If a failure happened in reopen_tables(), we may have succeeded
+    reopening some tables, but not all.
+    This works when the connection was killed in mysql_lock_tables().
+  */
+  if (reopen_count)
+  {
+    mysql_mutex_lock(&LOCK_open);
+    while (reopen_count--)
+    {
+      /*
+        When closing the table, we must remove it
+        from thd->open_tables list.
+        We rely on the fact that open_table() that was used
+        in reopen_tables() always links the opened table
+        to the beginning of the open_tables list.
+      */
+      DBUG_ASSERT(thd->open_tables == m_reopen_array[reopen_count]);
+
+      thd->open_tables->pos_in_locked_tables->table= NULL;
+
+      close_thread_table(thd, &thd->open_tables);
+    }
+    broadcast_refresh();
+    mysql_mutex_unlock(&LOCK_open);
+  }
+  /* Exclude all closed tables from the LOCK TABLES list. */
+  for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
+       table_list->next_global)
+  {
+    if (table_list->table == NULL)
+    {
+      /* Unlink from list. */
+      *table_list->prev_global= table_list->next_global;
+      if (table_list->next_global == NULL)
+        m_locked_tables_last= table_list->prev_global;
+      else
+        table_list->next_global->prev_global= table_list->prev_global;
+    }
+  }
 }
 
 
-/*
-  If we have the table open, which only happens when a LOCK TABLE has been
-  done on the table, change the lock type to a lock that will abort all
-  other threads trying to get the lock.
+/**
+  Reopen the tables locked with LOCK TABLES and temporarily closed
+  by a DDL statement or FLUSH TABLES.
+
+  @note This function is a no-op if we're not under LOCK TABLES.
+
+  @return TRUE if an error reopening the tables. May happen in
+               case of some fatal system error only, e.g. a disk
+               corruption, out of memory or a serious bug in the
+               locking.
 */
 
-void abort_locked_tables(THD *thd,const char *db, const char *table_name)
+bool
+Locked_tables_list::reopen_tables(THD *thd)
 {
-  TABLE *table;
-  for (table= thd->open_tables; table ; table= table->next)
+  Open_table_context ot_ctx_unused(thd);
+  bool lt_refresh_unused;
+  size_t reopen_count= 0;
+  MYSQL_LOCK *lock;
+  MYSQL_LOCK *merged_lock;
+
+  for (TABLE_LIST *table_list= m_locked_tables;
+       table_list; table_list= table_list->next_global)
   {
-    if (!strcmp(table->s->table_name.str, table_name) &&
-	!strcmp(table->s->db.str, db))
+    if (table_list->table)                      /* The table was not closed */
+      continue;
+
+    /* Links into thd->open_tables upon success */
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx_unused,
+                   MYSQL_OPEN_REOPEN))
     {
-      /* If MERGE child, forward lock handling to parent. */
-      mysql_lock_abort(thd, table->parent ? table->parent : table, TRUE);
-      break;
+      unlink_all_closed_tables(thd, 0, reopen_count);
+      return TRUE;
     }
+    table_list->table->pos_in_locked_tables= table_list;
+    /* See also the comment on lock type in init_locked_tables(). */
+    table_list->table->reginfo.lock_type= table_list->lock_type;
+
+    DBUG_ASSERT(reopen_count < m_locked_tables_count);
+    m_reopen_array[reopen_count++]= table_list->table;
   }
+  if (reopen_count)
+  {
+    thd->in_lock_tables= 1;
+    /*
+      We re-lock all tables with mysql_lock_tables() at once rather
+      than locking one table at a time because of the case
+      reported in Bug#45035: when the same table is present
+      in the list many times, thr_lock.c fails to grant READ lock
+      on a table that is already locked by WRITE lock, even if
+      WRITE lock is taken by the same thread. If READ and WRITE
+      lock are passed to thr_lock.c in the same list, everything
+      works fine. Patching legacy code of thr_lock.c is risking to
+      break something else.
+    */
+    lock= mysql_lock_tables(thd, m_reopen_array, reopen_count,
+                            MYSQL_OPEN_REOPEN, &lt_refresh_unused);
+    thd->in_lock_tables= 0;
+    if (lock == NULL || (merged_lock=
+                         mysql_lock_merge(thd->lock, lock)) == NULL)
+    {
+      unlink_all_closed_tables(thd, lock, reopen_count);
+      if (! thd->killed)
+        my_error(ER_LOCK_DEADLOCK, MYF(0));
+      return TRUE;
+    }
+    thd->lock= merged_lock;
+  }
+  return FALSE;
 }
 
 
@@ -3818,7 +3467,7 @@ static bool inject_reprepare(THD *thd)
   @retval  FALSE success, version in TABLE_LIST has been updated
 */
 
-bool
+static bool
 check_and_update_table_version(THD *thd,
                                TABLE_LIST *tables, TABLE_SHARE *table_share)
 {
@@ -3840,210 +3489,137 @@ check_and_update_table_version(THD *thd,
   }
 
   DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
-
   return FALSE;
 }
 
-/*
-  Load a table definition from file and open unireg table
 
-  SYNOPSIS
-    open_unireg_entry()
-    thd			Thread handle
-    entry		Store open table definition here
-    table_list		TABLE_LIST with db, table_name & belong_to_view
-    alias		Alias name
-    cache_key		Key for share_cache
-    cache_key_length	length of cache_key
-    mem_root		temporary mem_root for parsing
-    flags               the OPEN_VIEW_NO_PARSE flag to be passed to
-                        openfrm()/open_new_frm()
+/**
+  Compares versions of a stored routine obtained from the sp cache
+  and the version used at prepare.
 
-  NOTES
-   Extra argument for open is taken from thd->open_options
-   One must have a lock on LOCK_open when calling this function
+  @details If the new and the old values mismatch, invoke
+  Metadata_version_observer.
+  At prepared statement prepare, all Sroutine_hash_entry version values
+  are NULL and we always have a mismatch. But there is no observer set
+  in THD, and therefore no error is reported. Instead, we update
+  the value in Sroutine_hash_entry, effectively recording the original
+  version.
+  At prepared statement execute, an observer may be installed.  If
+  there is a version mismatch, we push an error and return TRUE.
 
-  RETURN
-    0	ok
-    #	Error
+  For conventional execution (no prepared statements), the
+  observer is never installed.
+
+  @param[in]      thd         used to report errors
+  @param[in/out]  rt          pointer to stored routine entry in the
+                              parse tree
+  @param[in]      sp          pointer to stored routine cache entry.
+                              Can be NULL if there is no such routine.
+  @retval  TRUE  an error, which has been reported
+  @retval  FALSE success, version in Sroutine_hash_entry has been updated
 */
 
-static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
-                             const char *alias,
-                             char *cache_key, uint cache_key_length,
-                             MEM_ROOT *mem_root, uint flags)
+static bool
+check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
+                                 sp_head *sp)
 {
-  int error;
-  TABLE_SHARE *share;
-  uint discover_retry_count= 0;
-  DBUG_ENTER("open_unireg_entry");
+  ulong spc_version= sp_cache_version();
+  /* sp is NULL if there is no such routine. */
+  ulong version= sp ? sp->sp_cache_version() : spc_version;
+  /*
+    If the version in the parse tree is stale,
+    or the version in the cache is stale and sp is not used,
+    we need to reprepare.
+    Sic: version != spc_version <--> sp is not NULL.
+  */
+  if (rt->m_sp_cache_version != version ||
+      (version != spc_version && !sp->is_invoked()))
+  {
+    if (thd->m_reprepare_observer &&
+        thd->m_reprepare_observer->report_error(thd))
+    {
+      /*
+        Version of the sp cache is different from the
+        previous execution of the prepared statement, and it is
+        unacceptable for this SQLCOM. Error has been reported.
+      */
+      DBUG_ASSERT(thd->is_error());
+      return TRUE;
+    }
+    /* Always maintain the latest cache version. */
+    rt->m_sp_cache_version= version;
+  }
+  return FALSE;
+}
 
-  mysql_mutex_assert_owner(&LOCK_open);
-retry:
+
+/**
+   Open view by getting its definition from disk (and table cache in future).
+
+   @param thd               Thread handle
+   @param table_list        TABLE_LIST with db, table_name & belong_to_view
+   @param alias             Alias name
+   @param cache_key         Key for table definition cache
+   @param cache_key_length  Length of cache_key
+   @param mem_root          Memory to be used for .frm parsing.
+   @param flags             Flags which modify how we open the view
+
+   @todo This function is needed for special handling of views under
+         LOCK TABLES. We probably should get rid of it in long term.
+
+   @return FALSE if success, TRUE - otherwise.
+*/
+
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+                   char *cache_key, uint cache_key_length,
+                   MEM_ROOT *mem_root, uint flags)
+{
+  TABLE not_used;
+  int error;
+  my_hash_value_type hash_value;
+  TABLE_SHARE *share;
+
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
+                           cache_key_length);
+  mysql_mutex_lock(&LOCK_open);
+
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
                                            cache_key_length, 
-                                           OPEN_VIEW |
-                                           table_list->i_s_requested_object,
-                                           &error)))
-    DBUG_RETURN(1);
-
-  if (share->is_view)
-  {
-    /*
-      If parent_l of the table_list is non null then a merge table
-      has this view as child table, which is not supported.
-    */
-    if (table_list->parent_l)
-    {
-      my_error(ER_WRONG_MRG_TABLE, MYF(0));
-      goto err;
-    }
-
-    /*
-      This table is a view. Validate its metadata version: in particular,
-      that it was a view when the statement was prepared.
-    */
-    if (check_and_update_table_version(thd, table_list, share))
-      goto err;
-    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
-      goto err;
-
-    /* Open view */
-    error= (int) open_new_frm(thd, share, alias,
-                              (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                      HA_GET_INDEX | HA_TRY_READ_ONLY),
-                              READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                              (flags & OPEN_VIEW_NO_PARSE),
-                              thd->open_options, entry, table_list,
-                              mem_root);
-    if (error)
-      goto err;
-    /* TODO: Don't free this */
-    release_table_share(share, RELEASE_NORMAL);
-    DBUG_RETURN((flags & OPEN_VIEW_NO_PARSE)? -1 : 0);
-  }
-  else if (table_list->view)
-  {
-    /*
-      We're trying to open a table for what was a view.
-      This can only happen during (re-)execution.
-      At prepared statement prepare the view has been opened and
-      merged into the statement parse tree. After that, someone
-      performed a DDL and replaced the view with a base table.
-      Don't try to open the table inside a prepared statement,
-      invalidate it instead.
-
-      Note, the assert below is known to fail inside stored
-      procedures (Bug#27011).
-    */
-    DBUG_ASSERT(thd->m_reprepare_observer);
-    check_and_update_table_version(thd, table_list, share);
-    /* Always an error. */
-    DBUG_ASSERT(thd->is_error());
-    goto err;
-  }
-
-  if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+                                           OPEN_VIEW, &error,
+                                           hash_value)))
     goto err;
 
-  while ((error= open_table_from_share(thd, share, alias,
-                                       (uint) (HA_OPEN_KEYFILE |
-                                               HA_OPEN_RNDFILE |
-                                               HA_GET_INDEX |
-                                               HA_TRY_READ_ONLY),
-                                       (READ_KEYINFO | COMPUTE_TYPES |
-                                        EXTRA_RECORD),
-                                       thd->open_options, entry, FALSE)))
+  if (share->is_view &&
+      !open_new_frm(thd, share, alias,
+                    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                            HA_GET_INDEX | HA_TRY_READ_ONLY),
+                    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                    flags, thd->open_options, &not_used, table_list,
+                    mem_root))
   {
-    if (error == 7)                             // Table def changed
-    {
-      share->version= 0;                        // Mark share as old
-      if (discover_retry_count++)               // Retry once
-        goto err;
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+    return FALSE;
+  }
 
-      /*
-        TODO:
-        Here we should wait until all threads has released the table.
-        For now we do one retry. This may cause a deadlock if there
-        is other threads waiting for other tables used by this thread.
-        
-        Proper fix would be to if the second retry failed:
-        - Mark that table def changed
-        - Return from open table
-        - Close all tables used by this thread
-        - Start waiting that the share is released
-        - Retry by opening all tables again
-      */
-      if (ha_create_table_from_engine(thd, table_list->db,
-                                      table_list->table_name))
-        goto err;
-      /*
-        TO BE FIXED
-        To avoid deadlock, only wait for release if no one else is
-        using the share.
-      */
-      if (share->ref_count != 1)
-        goto err;
-      /* Free share and wait until it's released by all threads */
-      release_table_share(share, RELEASE_WAIT_FOR_DROP);
-      if (!thd->killed)
-      {
-        thd->warning_info->clear_warning_info(thd->query_id);
-        thd->clear_error();                 // Clear error message
-        goto retry;
-      }
-      DBUG_RETURN(1);
-    }
-    if (!entry->s || !entry->s->crashed)
-      goto err;
-     // Code below is for repairing a crashed file
-     if ((error= lock_table_name(thd, table_list, TRUE)))
-     {
-       if (error < 0)
- 	goto err;
-       if (wait_for_locked_table_names(thd, table_list))
-       {
- 	unlock_table_name(thd, table_list);
- 	goto err;
-       }
-     }
-     mysql_mutex_unlock(&LOCK_open);
-     thd->clear_error();				// Clear error message
-     error= 0;
-     if (open_table_from_share(thd, share, alias,
-                               (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                       HA_GET_INDEX |
-                                       HA_TRY_READ_ONLY),
-                               READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-                               ha_open_options | HA_OPEN_FOR_REPAIR,
-                               entry, FALSE) || ! entry->file ||
-        (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
-     {
-       /* Give right error message */
-       thd->clear_error();
-       my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str, my_errno);
-       sql_print_error("Couldn't repair table: %s.%s", share->db.str,
-                       share->table_name.str);
-       if (entry->file)
- 	closefrm(entry, 0);
-       error=1;
-     }
-     else
-       thd->clear_error();			// Clear error message
-     mysql_mutex_lock(&LOCK_open);
-     unlock_table_name(thd, table_list);
- 
-     if (error)
-       goto err;
-     break;
-   }
+  my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
+  release_table_share(share);
+err:
+  mysql_mutex_unlock(&LOCK_open);
+  return TRUE;
+}
 
+
+/**
+   Finalize the process of TABLE creation by loading table triggers
+   and taking action if a HEAP table content was emptied implicitly.
+*/
+
+static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
+{
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
-  {
-    closefrm(entry, 0);
-    goto err;
-  }
+    return TRUE;
 
   /*
     If we are here, there was no fatal error (but error may be still
@@ -4067,7 +3643,7 @@ retry:
                               FALSE, FALSE, FALSE, errcode))
         {
           my_free(query, MYF(0));
-          goto err;
+          return TRUE;
         }
         my_free(query, MYF(0));
       }
@@ -4080,352 +3656,272 @@ retry:
         */
         sql_print_error("When opening HEAP table, could not allocate memory "
                         "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        table_list->db, table_list->table_name);
+                        share->db.str, share->table_name.str);
         delete entry->triggers;
-        closefrm(entry, 0);
-        goto err;
+        return TRUE;
       }
     }
   }
-  DBUG_RETURN(0);
-
-err:
-  release_table_share(share, RELEASE_NORMAL);
-  DBUG_RETURN(1);
+  return FALSE;
 }
 
 
 /**
-  @brief Add list of MERGE children to a TABLE_LIST list.
-
-  @param[in]    tlist           the parent TABLE_LIST object just opened
-
-  @return status
-    @retval     0               OK
-    @retval     != 0            Error
-
-  @detail
-    When a MERGE parent table has just been opened, insert the
-    TABLE_LIST chain from the MERGE handle into the table list used for
-    opening tables for this statement. This lets the children be opened
-    too.
+   Auxiliary routine which is used for performing automatical table repair.
 */
 
-static int add_merge_table_list(TABLE_LIST *tlist)
+static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
 {
-  TABLE       *parent= tlist->table;
-  TABLE_LIST  *child_l;
-  DBUG_ENTER("add_merge_table_list");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", parent->s->db.str,
-                      parent->s->table_name.str, (long) parent));
+  char	cache_key[MAX_DBKEY_LENGTH];
+  uint	cache_key_length;
+  TABLE_SHARE *share;
+  TABLE *entry;
+  int not_used;
+  bool result= FALSE;
+  my_hash_value_type hash_value;
 
-  /* Must not call this with attached children. */
-  DBUG_ASSERT(!parent->children_attached);
-  /* Must not call this with children list in place. */
-  DBUG_ASSERT(tlist->next_global != parent->child_l);
-  /* Prevent inclusion of another MERGE table. Could make infinite recursion. */
-  if (tlist->parent_l)
+  cache_key_length= create_table_def_key(thd, cache_key, table_list, 0);
+
+  thd->clear_error();
+
+  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
+                           cache_key_length);
+  mysql_mutex_lock(&LOCK_open);
+
+  if (!(share= get_table_share_with_create(thd, table_list, cache_key,
+                                           cache_key_length,
+                                           OPEN_VIEW, &not_used,
+                                           hash_value)))
   {
-    my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), tlist->alias);
-    DBUG_RETURN(1);
+    mysql_mutex_unlock(&LOCK_open);
+    return TRUE;
   }
 
-  /* Fix children.*/
-  for (child_l= parent->child_l; ; child_l= child_l->next_global)
+  if (share->is_view)
+    goto end_with_lock_open;
+
+  if (!(entry= (TABLE*)my_malloc(sizeof(TABLE), MYF(MY_WME))))
   {
-    /*
-      Note: child_l->table may still be set if this parent was taken
-      from the unused_tables chain. Ignore this fact here. The
-      reference will be replaced by the handler in
-      ::extra(HA_EXTRA_ATTACH_CHILDREN).
-    */
-
-    /* Set lock type. */
-    child_l->lock_type= tlist->lock_type;
-
-    /* Set parent reference. */
-    child_l->parent_l= tlist;
-
-    /* Break when this was the last child. */
-    if (&child_l->next_global == parent->child_last_l)
-      break;
+    result= TRUE;
+    goto end_with_lock_open;
   }
+  share->version= 0;
+  mysql_mutex_unlock(&LOCK_open);
 
-  /* Insert children into the table list. */
-  *parent->child_last_l= tlist->next_global;
-  tlist->next_global= parent->child_l;
-
-  /*
-    Do not fix the prev_global pointers. We will remove the
-    chain soon anyway.
-  */
-
-  DBUG_RETURN(0);
-}
-
-
-/**
-  @brief Attach MERGE children to the parent.
-
-  @param[in]    tlist           the child TABLE_LIST object just opened
-
-  @return status
-    @retval     0               OK
-    @retval     != 0            Error
-
-  @note
-    This is called when the last MERGE child has just been opened, let
-    the handler attach the MyISAM tables to the MERGE table. Remove
-    MERGE TABLE_LIST chain from the statement list so that it cannot be
-    changed or freed.
-*/
-
-static int attach_merge_children(TABLE_LIST *tlist)
-{
-  TABLE *parent= tlist->parent_l->table;
-  int error;
-  DBUG_ENTER("attach_merge_children");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", parent->s->db.str,
-                      parent->s->table_name.str, (long) parent));
-
-  /* Must not call this with attached children. */
-  DBUG_ASSERT(!parent->children_attached);
-  /* Must call this with children list in place. */
-  DBUG_ASSERT(tlist->parent_l->next_global == parent->child_l);
-
-  /* Attach MyISAM tables to MERGE table. */
-  error= parent->file->extra(HA_EXTRA_ATTACH_CHILDREN);
-
-  /*
-    Remove children from the table list. Even in case of an error.
-    This should prevent tampering with them.
-  */
-  tlist->parent_l->next_global= *parent->child_last_l;
-
-  /*
-    Do not fix the last childs next_global pointer. It is needed for
-    stepping to the next table in the enclosing loop in open_tables().
-    Do not fix prev_global pointers. We did not set them.
-  */
-
-  if (error)
+  if (open_table_from_share(thd, share, table_list->alias,
+                            (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                                    HA_GET_INDEX |
+                                    HA_TRY_READ_ONLY),
+                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            ha_open_options | HA_OPEN_FOR_REPAIR,
+                            entry, FALSE) || ! entry->file ||
+      (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
   {
-    DBUG_PRINT("error", ("attaching MERGE children failed: %d", my_errno));
-    parent->file->print_error(error, MYF(0));
-    DBUG_RETURN(1);
-  }
-
-  parent->children_attached= TRUE;
-  DBUG_PRINT("myrg", ("attached parent: '%s'.'%s' 0x%lx", parent->s->db.str,
-                      parent->s->table_name.str, (long) parent));
-
-  /*
-    Note that we have the cildren in the thd->open_tables list at this
-    point.
-  */
-
-  DBUG_RETURN(0);
-}
-
-
-/**
-  @brief Detach MERGE children from the parent.
-
-  @note
-    Call this before the first table of a MERGE table (parent or child)
-    is closed.
-
-    When closing thread tables at end of statement, both parent and
-    children are in thd->open_tables and will be closed. In most cases
-    the children will be closed before the parent. They are opened after
-    the parent and thus stacked into thd->open_tables before it.
-
-    To avoid that we touch a closed children in any way, we must detach
-    the children from the parent when the first belonging table is
-    closed (parent or child).
-
-    All references to the children should be removed on handler level
-    and optionally on table level.
-
-  @note
-    Assure that you call it for a MERGE parent or child only.
-    Either table->child_l or table->parent must be set.
-
-  @param[in]    table           the TABLE object of the parent
-  @param[in]    clear_refs      if to clear TABLE references
-                                this must be true when called from
-                                close_thread_tables() to enable fresh
-                                open in open_tables()
-                                it must be false when called in preparation
-                                for reopen_tables()
-*/
-
-void detach_merge_children(TABLE *table, bool clear_refs)
-{
-  TABLE_LIST *child_l;
-  TABLE *parent= table->child_l ? table : table->parent;
-  bool first_detach;
-  DBUG_ENTER("detach_merge_children");
-  /*
-    Either table->child_l or table->parent must be set. Parent must have
-    child_l set.
-  */
-  DBUG_ASSERT(parent && parent->child_l);
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx  clear_refs: %d",
-                      table->s->db.str, table->s->table_name.str,
-                      (long) table, clear_refs));
-  DBUG_PRINT("myrg", ("parent: '%s'.'%s' 0x%lx", parent->s->db.str,
-                      parent->s->table_name.str, (long) parent));
-
-  /*
-    In a open_tables() loop it can happen that not all tables have their
-    children attached yet. Also this is called for every child and the
-    parent from close_thread_tables().
-  */
-  if ((first_detach= parent->children_attached))
-  {
-    (void) parent->file->extra(HA_EXTRA_DETACH_CHILDREN);
-    parent->children_attached= FALSE;
-    DBUG_PRINT("myrg", ("detached parent: '%s'.'%s' 0x%lx", parent->s->db.str,
-                        parent->s->table_name.str, (long) parent));
+    /* Give right error message */
+    thd->clear_error();
+    my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str, my_errno);
+    sql_print_error("Couldn't repair table: %s.%s", share->db.str,
+                    share->table_name.str);
+    if (entry->file)
+      closefrm(entry, 0);
+    result= TRUE;
   }
   else
-    DBUG_PRINT("myrg", ("parent is already detached"));
-
-  if (clear_refs)
   {
-    /* In any case clear the own parent reference. (***) */
-    table->parent= NULL;
+    thd->clear_error();			// Clear error message
+    closefrm(entry, 0);
+  }
+  my_free(entry, MYF(0));
 
-    /*
-      On the first detach, clear all references. If this table is the
-      parent, we still may need to clear the child references. The first
-      detach might not have done this.
-    */
-    if (first_detach || (table == parent))
+  mysql_mutex_lock(&LOCK_open);
+
+end_with_lock_open:
+  release_table_share(share);
+  mysql_mutex_unlock(&LOCK_open);
+  return result;
+}
+
+
+/** Open_table_context */
+
+Open_table_context::Open_table_context(THD *thd)
+  :m_action(OT_NO_ACTION),
+   m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
+   m_has_locks((thd->in_multi_stmt_transaction() &&
+                thd->mdl_context.has_locks()) ||
+                thd->mdl_context.trans_sentinel()),
+   m_global_mdl_request(NULL)
+{}
+
+
+/**
+  Get MDL_request object for global intention exclusive lock which
+  is acquired during opening tables for statements which take
+  upgradable shared metadata locks.
+*/
+
+MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
+{
+  if (! m_global_mdl_request)
+  {
+    char *buff;
+    if ((buff= (char*)thd->alloc(sizeof(MDL_request))))
     {
-      /* Clear TABLE references to force new assignment at next open. */
-      for (child_l= parent->child_l; ; child_l= child_l->next_global)
-      {
-        /*
-          Do not DBUG_ASSERT(child_l->table); open_tables might be
-          incomplete.
-
-          Clear the parent reference of the children only on the first
-          detach. The children might already be closed. They will clear
-          it themseves when this function is called for them with
-          'clear_refs' true. See above "(***)".
-        */
-        if (first_detach && child_l->table)
-          child_l->table->parent= NULL;
-
-        /* Clear the table reference to force new assignment at next open. */
-        child_l->table= NULL;
-
-        /* Break when this was the last child. */
-        if (&child_l->next_global == parent->child_last_l)
-          break;
-      }
+      m_global_mdl_request= new (buff) MDL_request();
+      m_global_mdl_request->init(MDL_key::GLOBAL, "", "",
+                                 MDL_INTENTION_EXCLUSIVE);
     }
   }
-
-  DBUG_VOID_RETURN;
+  return m_global_mdl_request;
 }
 
 
 /**
-  @brief Fix MERGE children after open.
+  Check if we can back-off and set back off action if we can.
+  Otherwise report and return error.
 
-  @param[in]    old_child_list  first list member from original table
-  @param[in]    old_last        pointer to &next_global of last list member
-  @param[in]    new_child_list  first list member from freshly opened table
-  @param[in]    new_last        pointer to &next_global of last list member
-
-  @return       mismatch
-    @retval     FALSE           OK, no mismatch
-    @retval     TRUE            Error, lists mismatch
-
-  @detail
-    Main action is to copy TABLE reference for each member of original
-    child list to new child list. After a fresh open these references
-    are NULL. Assign the old children to the new table. Some of them
-    might also be reopened or will be reopened soon.
-
-    Other action is to verify that the table definition with respect to
-    the UNION list did not change.
-
-  @note
-    This function terminates the child list if the respective '*_last'
-    pointer is non-NULL. Do not call it from a place where the list is
-    embedded in another list and this would break it.
-
-    Terminating the list is required for example in the first
-    reopen_table() after open_tables(). open_tables() requires the end
-    of the list not to be terminated because other tables could follow
-    behind the child list.
-
-    If a '*_last' pointer is NULL, the respective list is assumed to be
-    NULL terminated.
+  @retval  TRUE if back-off is impossible.
+  @retval  FALSE if we can back off. Back off action has been set.
 */
 
-bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
-                          TABLE_LIST *new_child_list, TABLE_LIST **new_last)
+bool
+Open_table_context::
+request_backoff_action(enum_open_table_action action_arg)
 {
-  bool mismatch= FALSE;
-  DBUG_ENTER("fix_merge_after_open");
-  DBUG_PRINT("myrg", ("old last addr: 0x%lx  new last addr: 0x%lx",
-                      (long) old_last, (long) new_last));
-
-  /* Terminate the lists for easier check of list end. */
-  if (old_last)
-    *old_last= NULL;
-  if (new_last)
-    *new_last= NULL;
-
-  for (;;)
-  {
-    DBUG_PRINT("myrg", ("old list item: 0x%lx  new list item: 0x%lx",
-                        (long) old_child_list, (long) new_child_list));
-    /* Break if one of the list is at its end. */
-    if (!old_child_list || !new_child_list)
-      break;
-    /* Old table has references to child TABLEs. */
-    DBUG_ASSERT(old_child_list->table);
-    /* New table does not yet have references to child TABLEs. */
-    DBUG_ASSERT(!new_child_list->table);
-    DBUG_PRINT("myrg", ("old table: '%s'.'%s'  new table: '%s'.'%s'",
-                        old_child_list->db, old_child_list->table_name,
-                        new_child_list->db, new_child_list->table_name));
-    /* Child db.table names must match. */
-    if (strcmp(old_child_list->table_name, new_child_list->table_name) ||
-        strcmp(old_child_list->db,         new_child_list->db))
-      break;
-    /*
-      Copy TABLE reference. Child TABLE objects are still in place
-      though not necessarily open yet.
-    */
-    DBUG_PRINT("myrg", ("old table ref: 0x%lx  replaces new table ref: 0x%lx",
-                        (long) old_child_list->table,
-                        (long) new_child_list->table));
-    new_child_list->table= old_child_list->table;
-    /* Step both lists. */
-    old_child_list= old_child_list->next_global;
-    new_child_list= new_child_list->next_global;
-  }
-  DBUG_PRINT("myrg", ("end of list, mismatch: %d", mismatch));
   /*
-    If the list pointers are not both NULL after the loop, then the
-    lists differ. If the are both identical, but not NULL, then they
-    have at least one table in common and hence the rest of the list
-    would be identical too. But in this case the loop woul run until the
-    list end, where both pointers would become NULL.
-  */
-  if (old_child_list != new_child_list)
-    mismatch= TRUE;
-  if (mismatch)
-    my_error(ER_TABLE_DEF_CHANGED, MYF(0));
+    We are inside a transaction that already holds locks and have
+    met a broken table or a table which needs re-discovery.
+    Performing any recovery action requires acquiring an exclusive
+    metadata lock on this table. Doing that with locks breaks the
+    metadata locking protocol and might lead to deadlocks,
+    so we report an error.
 
-  DBUG_RETURN(mismatch);
+    However, if we have only met a conflicting lock or an old
+    TABLE version, and just need to wait for the conflict to
+    disappear/old version to go away, allow waiting.
+    While waiting, we use a simple empiric to detect
+    deadlocks: we never wait on someone who's waiting too.
+    Waiting will be done after releasing metadata locks acquired
+    by this statement.
+  */
+  if (m_has_locks && action_arg != OT_WAIT_MDL_LOCK)
+  {
+    my_error(ER_LOCK_DEADLOCK, MYF(0));
+    return TRUE;
+  }
+  m_action= action_arg;
+  return FALSE;
+}
+
+
+/**
+   Recover from failed attempt of open table by performing requested action.
+
+   @param  thd     Thread context
+   @param  mdl_request MDL_request of the object that caused the problem.
+   @param  table   Optional (can be NULL). Used only if action is OT_REPAIR.
+                   In that case a TABLE_LIST for the table to be repaired.
+                   @todo: It's unnecessary and should be removed.
+
+   @pre This function should be called only with "action" != OT_NO_ACTION
+        and after having called @sa close_tables_for_reopen().
+
+   @retval FALSE - Success. One should try to open tables once again.
+   @retval TRUE  - Error
+*/
+
+bool
+Open_table_context::
+recover_from_failed_open(THD *thd, MDL_request *mdl_request,
+                         TABLE_LIST *table)
+{
+  bool result= FALSE;
+  /*
+    Remove reference to released ticket from MDL_request.
+  */
+  if (m_global_mdl_request)
+    m_global_mdl_request->ticket= NULL;
+  /* Execute the action. */
+  switch (m_action)
+  {
+    case OT_WAIT_MDL_LOCK:
+      result= thd->mdl_context.wait_for_lock(mdl_request,
+                                             thd->variables.lock_wait_timeout);
+      break;
+    case OT_WAIT_TDC:
+      result= tdc_wait_for_old_versions(thd, &m_mdl_requests);
+      DBUG_ASSERT(thd->mysys_var->current_mutex == NULL);
+      break;
+    case OT_DISCOVER:
+      {
+        MDL_request mdl_global_request;
+        MDL_request mdl_xlock_request(mdl_request);
+        MDL_request_list mdl_requests;
+
+        mdl_global_request.init(MDL_key::GLOBAL, "", "",
+                                MDL_INTENTION_EXCLUSIVE);
+        mdl_xlock_request.set_type(MDL_EXCLUSIVE);
+
+        mdl_requests.push_front(&mdl_xlock_request);
+        mdl_requests.push_front(&mdl_global_request);
+
+        if ((result=
+             thd->mdl_context.acquire_locks(&mdl_requests,
+                                            thd->variables.lock_wait_timeout)))
+          break;
+
+        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
+        mysql_mutex_lock(&LOCK_open);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                         mdl_request->key.db_name(),
+                         mdl_request->key.name());
+        ha_create_table_from_engine(thd,
+                                    mdl_request->key.db_name(),
+                                    mdl_request->key.name());
+        mysql_mutex_unlock(&LOCK_open);
+
+        thd->warning_info->clear_warning_info(thd->query_id);
+        thd->clear_error();                 // Clear error message
+        thd->mdl_context.release_transactional_locks();
+        break;
+      }
+    case OT_REPAIR:
+      {
+        MDL_request mdl_global_request;
+        MDL_request mdl_xlock_request(mdl_request);
+        MDL_request_list mdl_requests;
+
+        mdl_global_request.init(MDL_key::GLOBAL, "", "",
+                                MDL_INTENTION_EXCLUSIVE);
+        mdl_xlock_request.set_type(MDL_EXCLUSIVE);
+
+        mdl_requests.push_front(&mdl_xlock_request);
+        mdl_requests.push_front(&mdl_global_request);
+
+        if ((result=
+             thd->mdl_context.acquire_locks(&mdl_requests,
+                                            thd->variables.lock_wait_timeout)))
+          break;
+
+        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
+        mysql_mutex_lock(&LOCK_open);
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                         mdl_request->key.db_name(),
+                         mdl_request->key.name());
+        mysql_mutex_unlock(&LOCK_open);
+
+        result= auto_repair_table(thd, table);
+        thd->mdl_context.release_transactional_locks();
+        break;
+      }
+    default:
+      DBUG_ASSERT(0);
+  }
+  /* Remove all old requests, they will be re-added. */
+  m_mdl_requests.empty();
+  /* Prepare for possible another back-off. */
+  m_action= OT_NO_ACTION;
+  return result;
 }
 
 
@@ -4463,49 +3959,513 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
 
 
 /*
+  Handle element of prelocking set other than table. E.g. cache routine
+  and, if prelocking strategy prescribes so, extend the prelocking set
+  with tables and routines used by it.
+
+  @param[in]  thd                  Thread context.
+  @param[in]  prelocking_ctx       Prelocking context.
+  @param[in]  rt                   Element of prelocking set to be processed.
+  @param[in]  prelocking_strategy  Strategy which specifies how the
+                                   prelocking set should be extended when
+                                   one of its elements is processed.
+  @param[in]  has_prelocking_list  Indicates that prelocking set/list for
+                                   this statement has already been built.
+  @param[in]  ot_ctx               Context of open_table used to recover from
+                                   locking failures.
+  @param[out] need_prelocking      Set to TRUE if it was detected that this
+                                   statement will require prelocked mode for
+                                   its execution, not touched otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (Conflicting metadata lock, OOM, other errors).
+*/
+
+static bool
+open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                         Sroutine_hash_entry *rt,
+                         Prelocking_strategy *prelocking_strategy,
+                         bool has_prelocking_list,
+                         Open_table_context *ot_ctx,
+                         bool *need_prelocking)
+{
+  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
+  DBUG_ENTER("open_and_process_routine");
+
+  switch (mdl_type)
+  {
+  case MDL_key::FUNCTION:
+  case MDL_key::PROCEDURE:
+    {
+      sp_head *sp;
+      /*
+        Try to get MDL lock on the routine.
+        Note that we do not take locks on top-level CALLs as this can
+        lead to a deadlock. Not locking top-level CALLs does not break
+        the binlog as only the statements in the called procedure show
+        up there, not the CALL itself.
+      */
+      if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+          mdl_type != MDL_key::PROCEDURE)
+      {
+        ot_ctx->add_request(&rt->mdl_request);
+
+        /*
+          Since we acquire only shared lock on routines we don't
+          need to care about global intention exclusive locks.
+        */
+        DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
+
+        if (thd->mdl_context.try_acquire_lock(&rt->mdl_request))
+          DBUG_RETURN(TRUE);
+
+        if (rt->mdl_request.ticket == NULL)
+        {
+          /* A lock conflict. Someone's trying to modify SP metadata. */
+          ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK);
+          DBUG_RETURN(TRUE);
+        }
+        DEBUG_SYNC(thd, "after_shared_lock_pname");
+
+        /* Ensures the routine is up-to-date and cached, if exists. */
+        if (sp_cache_routine(thd, rt, has_prelocking_list, &sp))
+          DBUG_RETURN(TRUE);
+
+        /* Remember the version of the routine in the parse tree. */
+        if (check_and_update_routine_version(thd, rt, sp))
+          DBUG_RETURN(TRUE);
+
+        /* 'sp' is NULL when there is no such routine. */
+        if (sp && !has_prelocking_list)
+        {
+          prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
+                                              need_prelocking);
+        }
+      }
+      else
+      {
+        /*
+          If it's a top level call, just make sure we have a recent
+          version of the routine, if it exists.
+          Validating routine version is unnecessary, since CALL
+          does not affect the prepared statement prelocked list.
+        */
+        if (sp_cache_routine(thd, rt, FALSE, &sp))
+          DBUG_RETURN(TRUE);
+      }
+    }
+    break;
+  case MDL_key::TRIGGER:
+    /**
+      We add trigger entries to lex->sroutines_list, but we don't
+      load them here. The trigger entry is only used when building
+      a transitive closure of objects used in a statement, to avoid
+      adding to this closure objects that are used in the trigger more
+      than once.
+      E.g. if a trigger trg refers to table t2, and the trigger table t1
+      is used multiple times in the statement (say, because it's used in
+      function f1() twice), we will only add t2 once to the list of
+      tables to prelock.
+
+      We don't take metadata locks on triggers either: they are protected
+      by a respective lock on the table, on which the trigger is defined.
+
+      The only two cases which give "trouble" are SHOW CREATE TRIGGER
+      and DROP TRIGGER statements. For these, statement syntax doesn't
+      specify the table on which this trigger is defined, so we have
+      to make a "dirty" read in the data dictionary to find out the
+      table name. Once we discover the table name, we take a metadata
+      lock on it, and this protects all trigger operations.
+      Of course the table, in theory, may disappear between the dirty
+      read and metadata lock acquisition, but in that case we just return
+      a run-time error.
+
+      Grammar of other trigger DDL statements (CREATE, DROP) requires
+      the table to be specified explicitly, so we use the table metadata
+      lock to protect trigger metadata in these statements. Similarly, in
+      DML we always use triggers together with their tables, and thus don't
+      need to take separate metadata locks on them.
+    */
+    break;
+  default:
+    /* Impossible type value. */
+    DBUG_ASSERT(0);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Handle table list element by obtaining metadata lock, opening table or view
+  and, if prelocking strategy prescribes so, extending the prelocking set with
+  tables and routines used by it.
+
+  @param[in]     thd                  Thread context.
+  @param[in]     lex                  LEX structure for statement.
+  @param[in]     tables               Table list element to be processed.
+  @param[in,out] counter              Number of tables which are open.
+  @param[in]     flags                Bitmap of flags to modify how the tables
+                                      will be open, see open_table() description
+                                      for details.
+  @param[in]     prelocking_strategy  Strategy which specifies how the
+                                      prelocking set should be extended
+                                      when table or view is processed.
+  @param[in]     has_prelocking_list  Indicates that prelocking set/list for
+                                      this statement has already been built.
+  @param[in]     ot_ctx               Context used to recover from a failed
+                                      open_table() attempt.
+  @param[in]     new_frm_mem          Temporary MEM_ROOT to be used for
+                                      parsing .FRMs for views.
+
+  @retval  FALSE  Success.
+  @retval  TRUE   Error, reported unless there is a chance to recover from it.
+*/
+
+static bool
+open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
+                       uint *counter, uint flags,
+                       Prelocking_strategy *prelocking_strategy,
+                       bool has_prelocking_list,
+                       Open_table_context *ot_ctx,
+                       MEM_ROOT *new_frm_mem)
+{
+  bool error= FALSE;
+  bool safe_to_ignore_table= FALSE;
+  DBUG_ENTER("open_and_process_table");
+
+  /*
+    Ignore placeholders for derived tables. After derived tables
+    processing, link to created temporary table will be put here.
+    If this is derived table for view then we still want to process
+    routines used by this view.
+  */
+  if (tables->derived)
+  {
+    if (!tables->view)
+      goto end;
+    /*
+      We restore view's name and database wiped out by derived tables
+      processing and fall back to standard open process in order to
+      obtain proper metadata locks and do other necessary steps like
+      stored routine processing.
+    */
+    tables->db= tables->view_db.str;
+    tables->db_length= tables->view_db.length;
+    tables->table_name= tables->view_name.str;
+    tables->table_name_length= tables->view_name.length;
+  }
+  /*
+    If this TABLE_LIST object is a placeholder for an information_schema
+    table, create a temporary table to represent the information_schema
+    table in the query. Do not fill it yet - will be filled during
+    execution.
+  */
+  if (tables->schema_table)
+  {
+    /*
+      If this information_schema table is merged into a mergeable
+      view, ignore it for now -- it will be filled when its respective
+      TABLE_LIST is processed. This code works only during re-execution.
+    */
+    if (tables->view)
+      goto process_view_routines;
+    if (!mysql_schema_table(thd, lex, tables) &&
+        !check_and_update_table_version(thd, tables, tables->table->s))
+    {
+      goto end;
+    }
+    error= TRUE;
+    goto end;
+  }
+  DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: %p",
+                        tables->db, tables->table_name, tables)); //psergey: invalid read of size 1 here
+  (*counter)++;
+
+  /* Not a placeholder: must be a base table or a view. Let us open it. */
+  DBUG_ASSERT(!tables->table);
+
+  if (tables->prelocking_placeholder)
+  {
+    /*
+      For the tables added by the pre-locking code, attempt to open
+      the table but fail silently if the table does not exist.
+      The real failure will occur when/if a statement attempts to use
+      that table.
+    */
+    Prelock_error_handler prelock_handler;
+    thd->push_internal_handler(& prelock_handler);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    thd->pop_internal_handler();
+    safe_to_ignore_table= prelock_handler.safely_trapped_errors();
+  }
+  else
+    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+
+  free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
+
+  if (error)
+  {
+    if (! ot_ctx->can_recover_from_failed_open() && safe_to_ignore_table)
+    {
+      DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
+                          tables->db, tables->alias));
+      error= FALSE;
+    }
+    goto end;
+  }
+
+  /*
+    We can't rely on simple check for TABLE_LIST::view to determine
+    that this is a view since during re-execution we might reopen
+    ordinary table in place of view and thus have TABLE_LIST::view
+    set from repvious execution and TABLE_LIST::table set from
+    current.
+  */
+  if (!tables->table && tables->view)
+  {
+    /* VIEW placeholder */
+    (*counter)--;
+
+    /*
+      tables->next_global list consists of two parts:
+      1) Query tables and underlying tables of views.
+      2) Tables used by all stored routines that this statement invokes on
+         execution.
+      We need to know where the bound between these two parts is. If we've
+      just opened a view, which was the last table in part #1, and it
+      has added its base tables after itself, adjust the boundary pointer
+      accordingly.
+    */
+    if (lex->query_tables_own_last == &(tables->next_global) &&
+        tables->view->query_tables)
+      lex->query_tables_own_last= tables->view->query_tables_last;
+    /*
+      Let us free memory used by 'sroutines' hash here since we never
+      call destructor for this LEX.
+    */
+    my_hash_free(&tables->view->sroutines);
+    goto process_view_routines;
+  }
+
+  /*
+    Special types of open can succeed but still don't set
+    TABLE_LIST::table to anything.
+  */
+  if (tables->open_strategy && !tables->table)
+    goto end;
+
+  /*
+    If we are not already in prelocked mode and extended table list is not
+    yet built we might have to build the prelocking set for this statement.
+
+    Since currently no prelocking strategy prescribes doing anything for
+    tables which are only read, we do below checks only if table is going
+    to be changed.
+  */
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      ! has_prelocking_list &&
+      tables->lock_type >= TL_WRITE_ALLOW_WRITE)
+  {
+    bool need_prelocking= FALSE;
+    TABLE_LIST **save_query_tables_last= lex->query_tables_last;
+    /*
+      Extend statement's table list and the prelocking set with
+      tables and routines according to the current prelocking
+      strategy.
+
+      For example, for DML statements we need to add tables and routines
+      used by triggers which are going to be invoked for this element of
+      table list and also add tables required for handling of foreign keys.
+    */
+    error= prelocking_strategy->handle_table(thd, lex, tables,
+                                             &need_prelocking);
+
+    if (need_prelocking && ! lex->requires_prelocking())
+      lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+    if (error)
+      goto end;
+  }
+
+  if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
+  {
+    if (tables->lock_type == TL_WRITE_DEFAULT)
+      tables->table->reginfo.lock_type= thd->update_lock_default;
+    else if (tables->lock_type == TL_READ_DEFAULT)
+      tables->table->reginfo.lock_type=
+        read_lock_type_for_table(thd, tables->table);
+    else
+      tables->table->reginfo.lock_type= tables->lock_type;
+  }
+  tables->table->grant= tables->grant;
+
+  /* Check and update metadata version of a base table. */
+  error= check_and_update_table_version(thd, tables, tables->table->s);
+
+  if (error)
+    goto end;
+  /*
+    After opening a MERGE table add the children to the query list of
+    tables, so that they are opened too.
+    Note that placeholders don't have the handler open.
+  */
+  /* MERGE tables need to access parent and child TABLE_LISTs. */
+  DBUG_ASSERT(tables->table->pos_in_table_list == tables);
+  /* Non-MERGE tables ignore this call. */
+  if (tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
+  {
+    error= TRUE;
+    goto end;
+  }
+
+process_view_routines:
+  /*
+    Again we may need cache all routines used by this view and add
+    tables used by them to table list.
+  */
+  if (tables->view &&
+      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      ! has_prelocking_list)
+  {
+    bool need_prelocking= FALSE;
+    TABLE_LIST **save_query_tables_last= lex->query_tables_last;
+
+    error= prelocking_strategy->handle_view(thd, lex, tables,
+                                            &need_prelocking);
+
+    if (need_prelocking && ! lex->requires_prelocking())
+      lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+    if (error)
+      goto end;
+  }
+
+end:
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Acquire upgradable (SNW, SNRW) metadata locks on tables to be opened
+  for LOCK TABLES or a DDL statement.
+
+  @param thd           Thread context.
+  @param tables_start  Start of list of tables on which upgradable locks
+                       should be acquired.
+  @param tables_end    End of list of tables.
+  @param ot_ctx        Context of open_tables() operation.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (e.g. connection was killed)
+*/
+
+static bool
+open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
+                                   TABLE_LIST *tables_end,
+                                   Open_table_context *ot_ctx)
+{
+  MDL_request_list mdl_requests;
+  TABLE_LIST *table;
+
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+    {
+      table->mdl_request.set_type(table->lock_type > TL_WRITE_ALLOW_READ ?
+                                  MDL_SHARED_NO_READ_WRITE :
+                                  MDL_SHARED_NO_WRITE);
+      mdl_requests.push_front(&table->mdl_request);
+    }
+  }
+
+  if (! mdl_requests.is_empty())
+  {
+    MDL_request *global_request= ot_ctx->get_global_mdl_request(thd);
+
+    if (global_request == NULL)
+      return TRUE;
+    mdl_requests.push_front(global_request);
+  }
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return TRUE;
+
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+    {
+      table->mdl_request.ticket= NULL;
+      table->mdl_request.set_type(MDL_SHARED_WRITE);
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
   Open all tables in list
 
-  SYNOPSIS
-    open_tables()
-    thd - thread handler
-    start - list of tables in/out
-    counter - number of opened tables will be return using this parameter
-    flags   - bitmap of flags to modify how the tables will be open:
-              MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-              done a flush or namelock on it.
+  @param[in]     thd      Thread context.
+  @param[in,out] start    List of tables to be open (it can be adjusted for
+                          statement that uses tables only implicitly, e.g.
+                          for "SELECT f1()").
+  @param[out]    counter  Number of tables which were open.
+  @param[in]     flags    Bitmap of flags to modify how the tables will be
+                          open, see open_table() description for details.
+  @param[in]     prelocking_strategy  Strategy which specifies how prelocking
+                                      algorithm should work for this statement.
 
-  NOTE
-    Unless we are already in prelocked mode, this function will also precache
-    all SP/SFs explicitly or implicitly (via views and triggers) used by the
-    query and add tables needed for their execution to table list. If resulting
-    tables list will be non empty it will mark query as requiring precaching.
+  @note
+    Unless we are already in prelocked mode and prelocking strategy prescribes
+    so this function will also precache all SP/SFs explicitly or implicitly
+    (via views and triggers) used by the query and add tables needed for their
+    execution to table list. Statement that uses SFs, invokes triggers or
+    requires foreign key checks will be marked as requiring prelocking.
     Prelocked mode will be enabled for such query during lock_tables() call.
 
     If query for which we are opening tables is already marked as requiring
     prelocking it won't do such precaching and will simply reuse table list
     which is already built.
 
-    If any table has a trigger and start->trg_event_map is non-zero
-    the final lock will end up in thd->locked_tables, otherwise, the
-    lock will be placed in thd->lock. See also comments in
-    st_lex::set_trg_event_type_for_tables().
-
-  RETURN
-    0  - OK
-    -1 - error
+  @retval  FALSE  Success.
+  @retval  TRUE   Error, reported.
 */
 
-int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
+bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
+                Prelocking_strategy *prelocking_strategy)
 {
-  TABLE_LIST *tables= NULL;
-  bool refresh;
-  int result=0;
+  /*
+    We use pointers to "next_global" member in the last processed TABLE_LIST
+    element and to the "next" member in the last processed Sroutine_hash_entry
+    element as iterators over, correspondingly, the table list and stored routines
+    list which stay valid and allow to continue iteration when new elements are
+    added to the tail of the lists.
+  */
+  TABLE_LIST **table_to_open;
+  Sroutine_hash_entry **sroutine_to_open;
+  TABLE_LIST *tables;
+  Open_table_context ot_ctx(thd);
+  bool error= FALSE;
   MEM_ROOT new_frm_mem;
-  /* Also used for indicating that prelocking is need */
-  TABLE_LIST **query_tables_last_own;
-  bool safe_to_ignore_table;
-
+  bool has_prelocking_list;
   DBUG_ENTER("open_tables");
+
+  /*
+    Close HANDLER tables which are marked for flush or against which there
+    are pending exclusive metadata locks. Note that we do this not to avoid
+    deadlocks (calls to mysql_ha_flush() in mdl_wait_for_locks() and
+    tdc_wait_for_old_version() are enough for this) but in order to have
+    a point during statement execution at which such HANDLERs are closed
+    even if they don't create problems for current thread (i.e. to avoid
+    having DDL blocked by HANDLERs opened for long time).
+  */
+  if (thd->handler_tables_hash.records)
+    mysql_ha_flush(thd);
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -4513,310 +4473,398 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   init_sql_alloc(&new_frm_mem, 8024, 8024);
 
   thd->current_tablenr= 0;
- restart:
+restart:
+  has_prelocking_list= thd->lex->requires_prelocking();
+  table_to_open= start;
+  sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
   *counter= 0;
-  query_tables_last_own= 0;
   thd_proc_info(thd, "Opening tables");
 
   /*
-    If we are not already executing prelocked statement and don't have
-    statement for which table list for prelocking is already built, let
-    us cache routines and try to build such table list.
-
+    If we are executing LOCK TABLES statement or a DDL statement
+    (in non-LOCK TABLES mode) we might have to acquire upgradable
+    semi-exclusive metadata locks (SNW or SNRW) on some of the
+    tables to be opened.
+    So we acquire all such locks at once here as doing this in one
+    by one fashion may lead to deadlocks or starvation. Later when
+    we will be opening corresponding table pre-acquired metadata
+    lock will be reused (thanks to the fact that in recursive case
+    metadata locks are acquired without waiting).
   */
-
-  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      thd->lex->uses_stored_routines())
+  if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
+      ! thd->locked_tables_mode)
   {
-    bool first_no_prelocking, need_prelocking;
-    TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
-
-    DBUG_ASSERT(thd->lex->query_tables == *start);
-    sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
-
-    if (sp_cache_routines_and_add_tables(thd, thd->lex, first_no_prelocking))
+    if (open_tables_acquire_upgradable_mdl(thd, *start,
+                                           thd->lex->first_not_own_table(),
+                                           &ot_ctx))
     {
-      /*
-        Serious error during reading stored routines from mysql.proc table.
-        Something's wrong with the table or its contents, and an error has
-        been emitted; we must abort.
-      */
-      result= -1;
+      error= TRUE;
       goto err;
-    }
-    else if (need_prelocking)
-    {
-      query_tables_last_own= save_query_tables_last;
-      *start= thd->lex->query_tables;
     }
   }
 
   /*
-    For every table in the list of tables to open, try to find or open
-    a table.
+    Perform steps of prelocking algorithm until there are unprocessed
+    elements in prelocking list/set.
   */
-  for (tables= *start; tables ;tables= tables->next_global)
+  while (*table_to_open  ||
+         (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+          *sroutine_to_open))
   {
-    safe_to_ignore_table= FALSE;
-
     /*
-      Ignore placeholders for derived tables. After derived tables
-      processing, link to created temporary table will be put here.
-      If this is derived table for view then we still want to process
-      routines used by this view.
-     */
-    if (tables->derived)
-    {
-      if (tables->view)
-        goto process_view_routines;
-      continue;
-    }
-    /*
-      If this TABLE_LIST object is a placeholder for an information_schema
-      table, create a temporary table to represent the information_schema
-      table in the query. Do not fill it yet - will be filled during
-      execution.
+      For every table in the list of tables to open, try to find or open
+      a table.
     */
-    if (tables->schema_table)
+    for (tables= *table_to_open; tables;
+         table_to_open= &tables->next_global, tables= tables->next_global)
     {
-      /*
-        If this information_schema table is merged into a mergeable
-        view, ignore it for now -- it will be filled when its respective
-        TABLE_LIST is processed. This code works only during re-execution.
-      */
-      if (tables->view)
-        goto process_view_routines;
-      if (!mysql_schema_table(thd, thd->lex, tables) &&
-          !check_and_update_table_version(thd, tables, tables->table->s))
+      error= open_and_process_table(thd, thd->lex, tables, counter,
+                                    flags, prelocking_strategy,
+                                    has_prelocking_list, &ot_ctx,
+                                    &new_frm_mem);
+
+      if (error)
       {
-        continue;
-      }
-      DBUG_RETURN(-1);
-    }
-    DBUG_PRINT("tcache", ("opening table: '%s'.'%s'  item: 0x%lx",
-                          tables->db, tables->table_name, (long) tables));
-    (*counter)++;
-
-    /*
-      Not a placeholder: must be a base table or a view, and the table is
-      not opened yet. Try to open the table.
-    */
-    if (!tables->table)
-    {
-      if (tables->prelocking_placeholder)
-      {
-        /*
-          For the tables added by the pre-locking code, attempt to open
-          the table but fail silently if the table does not exist.
-          The real failure will occur when/if a statement attempts to use
-          that table.
-        */
-        Prelock_error_handler prelock_handler;
-        thd->push_internal_handler(& prelock_handler);
-        tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
-        thd->pop_internal_handler();
-        safe_to_ignore_table= prelock_handler.safely_trapped_errors();
-      }
-      else
-        tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
-    }
-    else
-      DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",
-                            tables->db, tables->table_name,
-                            (long) tables->table));
-
-    if (!tables->table)
-    {
-      free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
-
-      if (tables->view)
-      {
-        /* VIEW placeholder */
-	(*counter)--;
-
-        /*
-          tables->next_global list consists of two parts:
-          1) Query tables and underlying tables of views.
-          2) Tables used by all stored routines that this statement invokes on
-             execution.
-          We need to know where the bound between these two parts is. If we've
-          just opened a view, which was the last table in part #1, and it
-          has added its base tables after itself, adjust the boundary pointer
-          accordingly.
-        */
-        if (query_tables_last_own == &(tables->next_global) &&
-            tables->view->query_tables)
-          query_tables_last_own= tables->view->query_tables_last;
-        /*
-          Let us free memory used by 'sroutines' hash here since we never
-          call destructor for this LEX.
-        */
-        my_hash_free(&tables->view->sroutines);
-	goto process_view_routines;
-      }
-
-      /*
-        If in a MERGE table open, we need to remove the children list
-        from statement table list before restarting. Otherwise the list
-        will be inserted another time.
-      */
-      if (tables->parent_l)
-      {
-        TABLE_LIST *parent_l= tables->parent_l;
-        /* The parent table should be correctly open at this point. */
-        DBUG_ASSERT(parent_l->table);
-        parent_l->next_global= *parent_l->table->child_last_l;
-      }
-
-      if (refresh)				// Refresh in progress
-      {
-        /*
-          We have met name-locked or old version of table. Now we have
-          to close all tables which are not up to date. We also have to
-          throw away set of prelocked tables (and thus close tables from
-          this set that were open by now) since it possible that one of
-          tables which determined its content was changed.
-
-          Instead of implementing complex/non-robust logic mentioned
-          above we simply close and then reopen all tables.
-
-          In order to prepare for recalculation of set of prelocked tables
-          we pretend that we have finished calculation which we were doing
-          currently.
-        */
-        if (query_tables_last_own)
-          thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-        close_tables_for_reopen(thd, start);
-	goto restart;
-      }
-
-      if (safe_to_ignore_table)
-      {
-        DBUG_PRINT("info", ("open_table: ignoring table '%s'.'%s'",
-                            tables->db, tables->alias));
-        continue;
-      }
-
-      result= -1;				// Fatal error
-      break;
-    }
-    else
-    {
-      /*
-        If we are not already in prelocked mode and extended table list is not
-        yet built and we have trigger for table being opened then we should
-        cache all routines used by its triggers and add their tables to
-        prelocking list.
-        If we lock table for reading we won't update it so there is no need to
-        process its triggers since they never will be activated.
-      */
-      if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-          tables->trg_event_map && tables->table->triggers &&
-          tables->lock_type >= TL_WRITE_ALLOW_WRITE)
-      {
-        if (!query_tables_last_own)
-          query_tables_last_own= thd->lex->query_tables_last;
-        if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                          tables))
+        if (ot_ctx.can_recover_from_failed_open())
         {
           /*
+            We have met exclusive metadata lock or old version of table.
+            Now we have to close all tables and release metadata locks.
+            We also have to throw away set of prelocked tables (and thus
+            close tables from this set that were open by now) since it
+            is possible that one of tables which determined its content
+            was changed.
+
+            Instead of implementing complex/non-robust logic mentioned
+            above we simply close and then reopen all tables.
+
+            We have to save pointer to table list element for table which we
+            have failed to open since closing tables can trigger removal of
+            elements from the table list (if MERGE tables are involved),
+          */
+          TABLE_LIST *failed_table= *table_to_open;
+          close_tables_for_reopen(thd, start, ot_ctx.start_of_statement_svp());
+
+          /*
+            Here we rely on the fact that 'tables' still points to the valid
+            TABLE_LIST element. Altough currently this assumption is valid
+            it may change in future.
+          */
+          if (ot_ctx.recover_from_failed_open(thd, &failed_table->mdl_request,
+                                              failed_table))
+            goto err;
+
+          error= FALSE;
+          goto restart;
+        }
+        goto err;
+      }
+    }
+
+    /*
+      If we are not already in prelocked mode and extended table list is
+      not yet built for our statement we need to cache routines it uses
+      and build the prelocking list for it.
+      If we are not in prelocked mode but have built the extended table
+      list, we still need to call open_and_process_routine() to take
+      MDL locks on the routines.
+    */
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    {
+      bool need_prelocking= FALSE;
+      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+      /*
+        Process elements of the prelocking set which are present there
+        since parsing stage or were added to it by invocations of
+        Prelocking_strategy methods in the above loop over tables.
+
+        For example, if element is a routine, cache it and then,
+        if prelocking strategy prescribes so, add tables it uses to the
+        table list and routines it might invoke to the prelocking set.
+      */
+      for (Sroutine_hash_entry *rt= *sroutine_to_open; rt;
+           sroutine_to_open= &rt->next, rt= rt->next)
+      {
+        error= open_and_process_routine(thd, thd->lex, rt, prelocking_strategy,
+                                        has_prelocking_list, &ot_ctx,
+                                        &need_prelocking);
+
+        if (error)
+        {
+          if (ot_ctx.can_recover_from_failed_open())
+          {
+            close_tables_for_reopen(thd, start,
+                                    ot_ctx.start_of_statement_svp());
+            if (ot_ctx.recover_from_failed_open(thd, &rt->mdl_request, NULL))
+              goto err;
+
+            error= FALSE;
+            goto restart;
+          }
+          /*
             Serious error during reading stored routines from mysql.proc table.
-            Something's wrong with the table or its contents, and an error has
+            Something is wrong with the table or its contents, and an error has
             been emitted; we must abort.
           */
-          result= -1;
           goto err;
         }
       }
-      free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
-    }
 
-    if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
-    {
-      if (tables->lock_type == TL_WRITE_DEFAULT)
-        tables->table->reginfo.lock_type= thd->update_lock_default;
-      else if (tables->lock_type == TL_READ_DEFAULT)
-        tables->table->reginfo.lock_type=
-          read_lock_type_for_table(thd, tables->table);
-      else
-        tables->table->reginfo.lock_type= tables->lock_type;
-    }
-    tables->table->grant= tables->grant;
+      if (need_prelocking && ! thd->lex->requires_prelocking())
+        thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
 
-    /* Check and update metadata version of a base table. */
-    if (check_and_update_table_version(thd, tables, tables->table->s))
-    {
-      result= -1;
-      goto err;
+      if (need_prelocking && ! *start)
+        *start= thd->lex->query_tables;
     }
+  }
 
-    /* Attach MERGE children if not locked already. */
-    DBUG_PRINT("tcache", ("is parent: %d  is child: %d",
-                          test(tables->table->child_l),
-                          test(tables->parent_l)));
-    DBUG_PRINT("tcache", ("in lock tables: %d  in prelock mode: %d",
-                          test(thd->locked_tables), test(thd->prelocked_mode)));
-    if (((!thd->locked_tables && !thd->prelocked_mode) ||
-         tables->table->s->tmp_table) &&
-        ((tables->table->child_l &&
-          add_merge_table_list(tables)) ||
-         (tables->parent_l &&
-          (&tables->next_global == tables->parent_l->table->child_last_l) &&
-          attach_merge_children(tables))))
-    {
-      result= -1;
-      goto err;
-    }
+  /*
+    After successful open of all tables, including MERGE parents and
+    children, attach the children to their parents. At end of statement,
+    the children are detached. Attaching and detaching are always done,
+    even under LOCK TABLES.
+  */
+  for (tables= *start; tables; tables= tables->next_global)
+  {
+    TABLE *tbl= tables->table;
 
-process_view_routines:
-    /*
-      Again we may need cache all routines used by this view and add
-      tables used by them to table list.
-    */
-    if (tables->view && !thd->prelocked_mode &&
-        !thd->lex->requires_prelocking() &&
-        tables->view->uses_stored_routines())
+    /* Schema tables may not have a TABLE object here. */
+    if (tbl && tbl->file->ht->db_type == DB_TYPE_MRG_MYISAM)
     {
-      /* We have at least one table in TL here. */
-      if (!query_tables_last_own)
-        query_tables_last_own= thd->lex->query_tables_last;
-      if (sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables))
+      /* MERGE tables need to access parent and child TABLE_LISTs. */
+      DBUG_ASSERT(tbl->pos_in_table_list == tables);
+      if (tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
-        /*
-          Serious error during reading stored routines from mysql.proc table.
-          Something is wrong with the table or its contents, and an error has
-          been emitted; we must abort.
-        */
-        result= -1;
+        error= TRUE;
         goto err;
       }
     }
   }
 
- err:
+err:
   thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
-  if (query_tables_last_own)
-    thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-
-  if (result && tables)
+  if (error && *table_to_open)
   {
-    /*
-      Some functions determine success as (tables->table != NULL).
-      tables->table is in thd->open_tables. It won't go lost. If the
-      error happens on a MERGE child, clear the parents TABLE reference.
-    */
-    if (tables->parent_l)
-    {
-      if (tables->parent_l->next_global == tables->parent_l->table->child_l)
-        tables->parent_l->next_global= *tables->parent_l->table->child_last_l;
-      tables->parent_l->table= NULL;
-    }
-    tables->table= NULL;
+    (*table_to_open)->table= NULL;
   }
-  DBUG_PRINT("tcache", ("returning: %d", result));
-  DBUG_RETURN(result);
+  DBUG_PRINT("open_tables", ("returning: %d", (int) error));
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle routines:
+  - For CALL statements we do unrolling (i.e. open and lock tables for each
+    sub-statement individually). So for such statements prelocking is enabled
+    only if stored functions are used in parameter list and only for period
+    during which we calculate values of parameters. Thus in this strategy we
+    ignore procedure which is directly called by such statement and extend
+    the prelocking set only with tables/functions used by SF called from the
+    parameter list.
+  - For any other statement any routine which is directly or indirectly called
+    by statement is going to be executed in prelocked mode. So in this case we
+    simply add all tables and routines used by it to the prelocking set.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  rt               Prelocking set element describing routine.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+{
+  /*
+    We assume that for any "CALL proc(...)" statement sroutines_list will
+    have 'proc' as first element (it may have several, consider e.g.
+    "proc(sp_func(...)))". This property is currently guaranted by the
+    parser.
+  */
+
+  if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+      rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
+  {
+    *need_prelocking= TRUE;
+    sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
+                                 rt->belong_to_view);
+    (void)sp->add_used_tables_to_table_list(thd,
+                                            &prelocking_ctx->query_tables_last,
+                                            rt->belong_to_view);
+  }
+  sp->propagate_attributes(prelocking_ctx);
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle table list
+  elements:
+  - If table has triggers we should add all tables and routines
+    used by them to the prelocking set.
+
+  We do not need to acquire metadata locks on trigger names
+  in DML statements, since all DDL statements
+  that change trigger metadata always lock their
+  subject tables.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  /* We rely on a caller to check that table is going to be changed. */
+  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  if (table_list->trg_event_map)
+  {
+    if (table_list->table->triggers)
+    {
+      *need_prelocking= TRUE;
+
+      if (table_list->table->triggers->
+          add_tables_and_routines_for_triggers(thd, prelocking_ctx, table_list))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for DML statements should handle view -
+  all view routines should be added to the prelocking set.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for view.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool DML_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  if (table_list->view->uses_stored_routines())
+  {
+    *need_prelocking= TRUE;
+
+    sp_update_stmt_used_routines(thd, prelocking_ctx,
+                                 &table_list->view->sroutines_list,
+                                 table_list->top_table());
+  }
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for LOCK TABLES statement should handle
+  table list elements.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool Lock_tables_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  if (DML_prelocking_strategy::handle_table(thd, prelocking_ctx, table_list,
+                                            need_prelocking))
+    return TRUE;
+
+  /* We rely on a caller to check that table is going to be changed. */
+  DBUG_ASSERT(table_list->lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement should handle
+  routines - do nothing as this statement is not supposed to call routines.
+
+  We still can end up in this method when someone tries
+  to define a foreign key referencing a view, and not just
+  a simple view, but one that uses stored routines.
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+{
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement should handle
+  table list elements.
+
+  Unlike in DML, we do not process triggers here.
+
+  @param[in]  thd              Thread context.
+  @param[in]  prelocking_ctx   Prelocking context of the statement.
+  @param[in]  table_list       Table list element for table.
+  @param[in]  sp               Routine body.
+  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
+                               required, not changed otherwise.
+
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (OOM).
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  return FALSE;
+}
+
+
+/**
+  Defines how prelocking algorithm for ALTER TABLE statement
+  should handle view - do nothing. We don't need to add view
+  routines to the prelocking set in this case as view is not going
+  to be materialized.
+*/
+
+bool Alter_table_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  return FALSE;
 }
 
 
@@ -4861,6 +4909,8 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   @param[in]    thd             thread handle
   @param[in]    table_l         table to open is first table in this list
   @param[in]    lock_type       lock to use for table
+  @param[in]    flags           options to be used while opening and locking
+                                table (see open_table(), mysql_lock_tables())
 
   @return       table
     @retval     != NULL         OK, opened table returned
@@ -4886,7 +4936,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
 */
 
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type)
+                                thr_lock_type lock_type, uint flags)
 {
   TABLE_LIST *save_next_global;
   DBUG_ENTER("open_n_lock_single_table");
@@ -4902,7 +4952,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->required_type= FRMTYPE_TABLE;
 
   /* Open the table. */
-  if (simple_open_n_lock_tables(thd, table_l))
+  if (open_and_lock_tables_derived(thd, table_l, FALSE, flags))
     table_l->table= NULL; /* Just to be sure. */
 
   /* Restore list. */
@@ -4940,23 +4990,44 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
                    uint lock_flags)
 {
   TABLE *table;
+  Open_table_context ot_ctx(thd);
   bool refresh;
+  bool error;
   DBUG_ENTER("open_ltable");
 
   /* should not be used in a prelocked_mode context, see NOTE above */
-  DBUG_ASSERT(!thd->prelocked_mode);
+  DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
   thd_proc_info(thd, "Opening table");
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
-  while (!(table= open_table(thd, table_list, thd->mem_root, &refresh, 0)) &&
-         refresh)
-    ;
 
-  if (table)
+retry:
+  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, 0)) &&
+         ot_ctx.can_recover_from_failed_open())
   {
-    if (table->child_l)
+    /*
+      Even though we have failed to open table we still need to
+      call release_transactional_locks() to release metadata locks which
+      might have been acquired successfully.
+    */
+    thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
+    table_list->mdl_request.ticket= 0;
+    if (ot_ctx.recover_from_failed_open(thd, &table_list->mdl_request,
+                                        table_list))
+      break;
+  }
+
+  if (!error)
+  {
+    /*
+      We can't have a view or some special "open_strategy" in this function
+      so there should be a TABLE instance.
+    */
+    DBUG_ASSERT(table_list->table);
+    table= table_list->table;
+    if (table->file->ht->db_type == DB_TYPE_MRG_MYISAM)
     {
       /* A MERGE table must not come here. */
       /* purecov: begin tested */
@@ -4968,9 +5039,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     }
 
     table_list->lock_type= lock_type;
-    table_list->table=	   table;
     table->grant= table_list->grant;
-    if (thd->locked_tables)
+    if (thd->locked_tables_mode)
     {
       if (check_lock_and_start_stmt(thd, table, lock_type))
 	table= 0;
@@ -4981,70 +5051,97 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
 	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1,
                                             lock_flags, &refresh)))
-	  table= 0;
+        {
+          if (refresh)
+          {
+            close_thread_tables(thd);
+            table_list->table= NULL;
+            table_list->mdl_request.ticket= NULL;
+            thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
+            goto retry;
+          }
+          else
+            table= 0;
+        }
     }
   }
+  else
+    table= 0;
 
- end:
+end:
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
 
 
-/*
+/**
   Open all tables in list, locks them and optionally process derived tables.
 
-  SYNOPSIS
-    open_and_lock_tables_derived()
-    thd		- thread handler
-    tables	- list of tables for open&locking
-    derived     - if to handle derived tables
+  @param thd		      Thread context.
+  @param tables	              List of tables for open and locking.
+  @param derived              If to handle derived tables.
+  @param flags                Bitmap of options to be used to open and lock
+                              tables (see open_tables() and mysql_lock_tables()
+                              for details).
+  @param prelocking_strategy  Strategy which specifies how prelocking algorithm
+                              should work for this statement.
 
-  RETURN
-    FALSE - ok
-    TRUE  - error
-
-  NOTE
+  @note
     The lock will automaticaly be freed by close_thread_tables()
 
-  NOTE
-    There are two convenience functions:
+  @note
+    There are several convenience functions, e.g. :
     - simple_open_n_lock_tables(thd, tables)  without derived handling
     - open_and_lock_tables(thd, tables)       with derived handling
     Both inline functions call open_and_lock_tables_derived() with
     the third argument set appropriately.
+
+  @retval FALSE  OK.
+  @retval TRUE   Error
 */
 
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
+bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
+                                  bool derived, uint flags,
+                                  Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
   bool need_reopen;
+  /*
+    Remember the set of metadata locks which this connection
+    managed to acquire before the start of the current statement.
+    It can be either transaction-scope locks, or HANDLER locks,
+    or LOCK TABLES locks. If mysql_lock_tables() fails with
+    need_reopen request, we'll use it to instruct
+    close_tables_for_reopen() to release all locks of this
+    statement.
+  */
+  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables_derived");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
   for ( ; ; ) 
   {
-    if (open_tables(thd, &tables, &counter, 0))
-      DBUG_RETURN(-1);
-
+    if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
+      DBUG_RETURN(TRUE);
     DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
       const char *old_proc_info= thd->proc_info;
       thd->proc_info= "DBUG sleep";
       my_sleep(6000000);
       thd->proc_info= old_proc_info;});
 
-    if (!lock_tables(thd, tables, counter, &need_reopen))
+    if (!lock_tables(thd, tables, counter, flags,
+                     &need_reopen))
       break;
     if (!need_reopen)
-      DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, &tables);
+      DBUG_RETURN(TRUE);
+    close_tables_for_reopen(thd, &tables, start_of_statement_svp);
   }
   if (derived &&
       (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
        (thd->fill_derived_tables() &&
         mysql_handle_derived(thd->lex, &mysql_derived_filling))))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5109,6 +5206,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
     thd			Thread handler
     tables		Tables to lock
     count		Number of opened tables
+    flags               Options (see mysql_lock_tables() for details)
     need_reopen         Out parameter which if TRUE indicates that some
                         tables were dropped or altered during this call
                         and therefore invoker should reopen tables and
@@ -5120,16 +5218,17 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
     handling thr_lock gives us.  You most always get all needed locks at
     once.
 
-    If query for which we are calling this function marked as requring
-    prelocking, this function will do implicit LOCK TABLES and change
-    thd::prelocked_mode accordingly.
+    If query for which we are calling this function marked as requiring
+    prelocking, this function will change locked_tables_mode to
+    LTM_PRELOCKED.
 
   RETURN VALUES
    0	ok
    -1	Error
 */
 
-int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
+bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
+                 uint flags, bool *need_reopen)
 {
   TABLE_LIST *table;
 
@@ -5138,29 +5237,30 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     We can't meet statement requiring prelocking if we already
     in prelocked mode.
   */
-  DBUG_ASSERT(!thd->prelocked_mode || !thd->lex->requires_prelocking());
+  DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES ||
+              !thd->lex->requires_prelocking());
   *need_reopen= FALSE;
 
   if (!tables && !thd->lex->requires_prelocking())
     DBUG_RETURN(thd->decide_logging_format(tables));
 
   /*
-    We need this extra check for thd->prelocked_mode because we want to avoid
-    attempts to lock tables in substatements. Checking for thd->locked_tables
-    is not enough in some situations. For example for SP containing
+    Check for thd->locked_tables_mode to avoid a redundant
+    and harmful attempt to lock the already locked tables again.
+    Checking for thd->lock is not enough in some situations. For example,
+    if a stored function contains
     "drop table t3; create temporary t3 ..; insert into t3 ...;"
-    thd->locked_tables may be 0 after drop tables, and without this extra
-    check insert will try to lock temporary table t3, that will lead
-    to memory leak...
+    thd->lock may be 0 after drop tables, whereas locked_tables_mode
+    is still on. In this situation an attempt to lock temporary
+    table t3 will lead to a memory leak.
   */
-  if (!thd->locked_tables && !thd->prelocked_mode)
+  if (! thd->locked_tables_mode)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
-    uint lock_flag= MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN;
 
     if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     for (table= tables; table; table= table->next_global)
     {
       if (!table->placeholder())
@@ -5170,8 +5270,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
-      thd->in_lock_tables=1;
-      thd->variables.option_bits|= OPTION_TABLE_LOCK;
       /*
         A query that modifies autoinc column in sub-statement can make the 
         master and slave inconsistent.
@@ -5186,15 +5284,10 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
-                                        lock_flag, need_reopen)))
-    {
-      if (thd->lex->requires_prelocking())
-      {
-        thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
-        thd->in_lock_tables=0;
-      }
-      DBUG_RETURN(-1);
-    }
+                                        flags, need_reopen)))
+      DBUG_RETURN(TRUE);
+
+    DEBUG_SYNC(thd, "after_lock_tables_takes_lock");
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES)
@@ -5204,17 +5297,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         We just have done implicit LOCK TABLES, and now we have
         to emulate first open_and_lock_tables() after it.
 
-        Note that "LOCK TABLES" can also be marked as requiring prelocking
-        (e.g. if one locks view which uses functions). We should not emulate
-        such open_and_lock_tables() in this case. We also should not set
-        THD::prelocked_mode or first close_thread_tables() call will do
-        "UNLOCK TABLES".
-      */
-      thd->locked_tables= thd->lock;
-      thd->lock= 0;
-      thd->in_lock_tables=0;
-
-      /*
         When open_and_lock_tables() is called for a single table out of
         a table list, the 'next_global' chain is temporarily broken. We
         may not find 'first_not_own' before the end of the "list".
@@ -5231,10 +5313,9 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
           table->table->query_id= thd->query_id;
           if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
           {
-            mysql_unlock_tables(thd, thd->locked_tables);
-            thd->locked_tables= 0;
-            thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
-            DBUG_RETURN(-1);
+            mysql_unlock_tables(thd, thd->lock);
+            thd->lock= 0;
+            DBUG_RETURN(TRUE);
           }
         }
       }
@@ -5243,8 +5324,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         and was marked as occupied during open_tables() as free for reuse.
       */
       mark_real_tables_as_free_for_reuse(first_not_own);
-      DBUG_PRINT("info",("prelocked_mode= PRELOCKED"));
-      thd->prelocked_mode= PRELOCKED;
+      DBUG_PRINT("info",("locked_tables_mode= LTM_PRELOCKED"));
+      thd->enter_locked_tables_mode(LTM_PRELOCKED);
     }
   }
   else
@@ -5269,7 +5350,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
         In a stored function or trigger we should ensure that we won't change
         a table that is already used by the calling statement.
       */
-      if (thd->prelocked_mode &&
+      if (thd->locked_tables_mode >= LTM_PRELOCKED &&
           table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         for (TABLE* opentab= thd->open_tables; opentab; opentab= opentab->next)
@@ -5279,14 +5360,14 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
           {
             my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
                      table->table->s->table_name.str);
-            DBUG_RETURN(-1);
+            DBUG_RETURN(TRUE);
           }
         }
       }
 
       if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
       }
     }
     /*
@@ -5297,8 +5378,9 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     if (thd->lex->requires_prelocking())
     {
       mark_real_tables_as_free_for_reuse(first_not_own);
-      DBUG_PRINT("info", ("thd->prelocked_mode= PRELOCKED_UNDER_LOCK_TABLES"));
-      thd->prelocked_mode= PRELOCKED_UNDER_LOCK_TABLES;
+      DBUG_PRINT("info",
+                 ("thd->locked_tables_mode= LTM_PRELOCKED_UNDER_LOCK_TABLES"));
+      thd->locked_tables_mode= LTM_PRELOCKED_UNDER_LOCK_TABLES;
     }
   }
 
@@ -5306,30 +5388,59 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 }
 
 
-/*
+/**
   Prepare statement for reopening of tables and recalculation of set of
   prelocked tables.
 
-  SYNOPSIS
-    close_tables_for_reopen()
-      thd    in     Thread context
-      tables in/out List of tables which we were trying to open and lock
-
+  @param[in] thd         Thread context.
+  @param[in,out] tables  List of tables which we were trying to open
+                         and lock.
+  @param[in] start_of_statement_svp MDL savepoint which represents the set
+                         of metadata locks which the current transaction
+                         managed to acquire before execution of the current
+                         statement and to which we should revert before
+                         trying to reopen tables. NULL if no metadata locks
+                         were held and thus all metadata locks should be
+                         released.
 */
 
-void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
+                             MDL_ticket *start_of_statement_svp)
 {
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+  TABLE_LIST *tmp;
+
   /*
     If table list consists only from tables from prelocking set, table list
     for new attempt should be empty, so we have to update list's root pointer.
   */
-  if (thd->lex->first_not_own_table() == *tables)
+  if (first_not_own_table == *tables)
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
+  /* Reset MDL tickets for procedures/functions */
+  for (Sroutine_hash_entry *rt=
+         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+       rt; rt= rt->next)
+    rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
-  for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
+  for (tmp= *tables; tmp; tmp= tmp->next_global)
+  {
     tmp->table= 0;
+    tmp->mdl_request.ticket= NULL;
+    /* We have to cleanup translation tables of views. */
+    tmp->cleanup_items();
+  }
+  /*
+    Metadata lock requests for tables from extended part of prelocking set
+    are part of list of requests to be waited for in Open_table_context.
+    So to satisfy assumptions in MDL_context::wait_for_locks(), which will
+    performs the waiting, we have to reset MDL_request::ticket values for
+    them as well.
+  */
+  for (tmp= first_not_own_table; tmp; tmp= tmp->next_global)
+    tmp->mdl_request.ticket= NULL;
   close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }
 
 
@@ -8236,36 +8347,6 @@ my_bool mysql_rm_tmp_tables(void)
 *****************************************************************************/
 
 /*
-  Invalidate any cache entries that are for some DB
-
-  SYNOPSIS
-    remove_db_from_cache()
-    db		Database name. This will be in lower case if
-		lower_case_table_name is set
-
-  NOTE:
-  We can't use hash_delete when looping hash_elements. We mark them first
-  and afterwards delete those marked unused.
-*/
-
-void remove_db_from_cache(const char *db)
-{
-  for (uint idx=0 ; idx < open_cache.records ; idx++)
-  {
-    TABLE *table=(TABLE*) my_hash_element(&open_cache,idx);
-    if (!strcmp(table->s->db.str, db))
-    {
-      table->s->version= 0L;			/* Free when thread is ready */
-      if (!table->in_use)
-	relink_unused(table);
-    }
-  }
-  while (unused_tables && !unused_tables->s->version)
-    my_hash_delete(&open_cache,(uchar*) unused_tables);
-}
-
-
-/*
   free all unused tables
 
   NOTE
@@ -8277,167 +8358,238 @@ void flush_tables()
 {
   mysql_mutex_lock(&LOCK_open);
   while (unused_tables)
-    my_hash_delete(&open_cache,(uchar*) unused_tables);
-  mysql_mutex_unlock(&LOCK_open);
+    free_cache_entry(unused_tables);
+  (void) mysql_mutex_unlock(&LOCK_open);
 }
 
 
-/*
-  Mark all entries with the table as deleted to force an reopen of the table
+/**
+   A callback to the server internals that is used to address
+   special cases of the locking protocol.
+   Invoked when acquiring an exclusive lock, for each thread that
+   has a conflicting shared metadata lock.
 
-  The table will be closed (not stored in cache) by the current thread when
-  close_thread_tables() is called.
+   This function:
+     - aborts waiting of the thread on a data lock, to make it notice
+       the pending exclusive lock and back off.
+     - if the thread is an INSERT DELAYED thread, sends it a KILL
+       signal to terminate it.
 
-  PREREQUISITES
-    Lock on LOCK_open()
+   @note This function does not wait for the thread to give away its
+         locks. Waiting is done outside for all threads at once.
 
-  RETURN
-    0  This thread now have exclusive access to this table and no other thread
-       can access the table until close_thread_tables() is called.
-    1  Table is in use by another thread
+   @param thd    Current thread context
+   @param in_use The thread to wake up
+   @param needs_thr_lock_abort Indicates that to wake up thread
+                               this call needs to abort its waiting
+                               on table-level lock.
+
+   @retval  TRUE  if the thread was woken up
+   @retval  FALSE otherwise.
+
+   @note It is one of two places where border between MDL and the
+         rest of the server is broken.
 */
 
-bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-                             uint flags)
+bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
+                                            bool needs_thr_lock_abort)
+{
+  bool signalled= FALSE;
+  if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+      !in_use->killed)
+  {
+    in_use->killed= THD::KILL_CONNECTION;
+    mysql_mutex_lock(&in_use->mysys_var->mutex);
+    if (in_use->mysys_var->current_cond)
+      mysql_cond_broadcast(in_use->mysys_var->current_cond);
+    mysql_mutex_unlock(&in_use->mysys_var->mutex);
+    signalled= TRUE;
+  }
+  mysql_mutex_lock(&LOCK_open);
+
+  if (needs_thr_lock_abort)
+  {
+    for (TABLE *thd_table= in_use->open_tables;
+         thd_table ;
+         thd_table= thd_table->next)
+    {
+      /*
+        Check for TABLE::needs_reopen() is needed since in some places we call
+        handler::close() for table instance (and set TABLE::db_stat to 0)
+        and do not remove such instances from the THD::open_tables
+        for some time, during which other thread can see those instances
+        (e.g. see partitioning code).
+        */
+      if (!thd_table->needs_reopen())
+        signalled|= mysql_lock_abort_for_thread(thd, thd_table);
+    }
+  }
+  /*
+    Wake up threads waiting in tdc_wait_for_old_versions().
+    Normally such threads would already get blocked
+    in MDL subsystem, when trying to acquire a shared lock.
+    But in case a thread has an open HANDLER statement,
+    (and thus already grabbed a metadata lock), it gets
+    blocked only too late -- at the table cache level.
+    Starting from 5.5, this could also easily happen in
+    a multi-statement transaction.
+  */
+  broadcast_refresh();
+  mysql_mutex_unlock(&LOCK_open);
+  return signalled;
+}
+
+
+/**
+   Remove all or some (depending on parameter) instances of TABLE and
+   TABLE_SHARE from the table definition cache.
+
+   @param  thd          Thread context
+   @param  remove_type  Type of removal:
+                        TDC_RT_REMOVE_ALL     - remove all TABLE instances and
+                                                TABLE_SHARE instance. There
+                                                should be no used TABLE objects
+                                                and caller should have exclusive
+                                                metadata lock on the table.
+                        TDC_RT_REMOVE_NOT_OWN - remove all TABLE instances
+                                                except those that belong to
+                                                this thread. There should be
+                                                no TABLE objects used by other
+                                                threads and caller should have
+                                                exclusive metadata lock on the
+                                                table.
+                        TDC_RT_REMOVE_UNUSED  - remove all unused TABLE
+                                                instances (if there are no
+                                                used instances will also
+                                                remove TABLE_SHARE).
+   @param  db           Name of database
+   @param  table_name   Name of table
+
+   @note Unlike remove_table_from_cache() it assumes that table instances
+         are already not used by any (other) thread (this should be achieved
+         by using meta-data locks).
+*/
+
+void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
+                      const char *db, const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   TABLE *table;
   TABLE_SHARE *share;
-  bool result= 0, signalled= 0;
-  DBUG_ENTER("remove_table_from_cache");
-  DBUG_PRINT("enter", ("table: '%s'.'%s'  flags: %u", db, table_name, flags));
+
+  mysql_mutex_assert_owner(&LOCK_open);
+
+  DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
+              thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
+                                             MDL_EXCLUSIVE));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  for (;;)
+
+  if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
+                                            key_length)))
   {
-    HASH_SEARCH_STATE state;
-    result= signalled= 0;
-
-    for (table= (TABLE*) my_hash_first(&open_cache, (uchar*) key, key_length,
-                                       &state);
-         table;
-         table= (TABLE*) my_hash_next(&open_cache, (uchar*) key, key_length,
-                                      &state))
+    if (share->ref_count)
     {
-      THD *in_use;
-      DBUG_PRINT("tcache", ("found table: '%s'.'%s' 0x%lx", table->s->db.str,
-                            table->s->table_name.str, (long) table));
-
-      table->s->version=0L;		/* Free when thread is ready */
-      if (!(in_use=table->in_use))
+      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+#ifndef DBUG_OFF
+      if (remove_type == TDC_RT_REMOVE_ALL)
       {
-        DBUG_PRINT("info",("Table was not in use"));
-        relink_unused(table);
+        DBUG_ASSERT(share->used_tables.is_empty());
       }
-      else if (in_use != thd)
+      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
       {
-        DBUG_PRINT("info", ("Table was in use by other thread"));
-        /*
-          Mark that table is going to be deleted from cache. This will
-          force threads that are in mysql_lock_tables() (but not yet
-          in thr_multi_lock()) to abort it's locks, close all tables and retry
-        */
-        in_use->some_tables_deleted= 1;
-        if (table->is_name_opened())
-        {
-          DBUG_PRINT("info", ("Found another active instance of the table"));
-  	  result=1;
-        }
-        /* Kill delayed insert threads */
-        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-            ! in_use->killed)
-        {
-	  in_use->killed= THD::KILL_CONNECTION;
-          mysql_mutex_lock(&in_use->mysys_var->mutex);
-	  if (in_use->mysys_var->current_cond)
-	  {
-            mysql_mutex_lock(in_use->mysys_var->current_mutex);
-            signalled= 1;
-            mysql_cond_broadcast(in_use->mysys_var->current_cond);
-            mysql_mutex_unlock(in_use->mysys_var->current_mutex);
-	  }
-          mysql_mutex_unlock(&in_use->mysys_var->mutex);
-        }
-        /*
-	  Now we must abort all tables locks used by this thread
-	  as the thread may be waiting to get a lock for another table.
-          Note that we need to hold LOCK_open while going through the
-          list. So that the other thread cannot change it. The other
-          thread must also hold LOCK_open whenever changing the
-          open_tables list. Aborting the MERGE lock after a child was
-          closed and before the parent is closed would be fatal.
-        */
-        for (TABLE *thd_table= in_use->open_tables;
-	     thd_table ;
-	     thd_table= thd_table->next)
-        {
-          /* Do not handle locks of MERGE children. */
-	  if (thd_table->db_stat && !thd_table->parent)	// If table is open
-	    signalled|= mysql_lock_abort_for_thread(thd, thd_table);
-        }
+        I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
+        while ((table= it2++))
+          if (table->in_use != thd)
+          {
+            DBUG_ASSERT(0);
+          }
       }
-      else
-      {
-        DBUG_PRINT("info", ("Table was in use by current thread. db_stat: %u",
-                            table->db_stat));
-        result= result || (flags & RTFC_OWNED_BY_THD_FLAG);
-      }
+#endif
+      /*
+        Set share's version to zero in order to ensure that it gets
+        automatically deleted once it is no longer referenced.
+      */
+      share->version= 0;
+      while ((table= it++))
+        free_cache_entry(table);
     }
-    while (unused_tables && !unused_tables->s->version)
-      my_hash_delete(&open_cache,(uchar*) unused_tables);
+    else
+      (void) my_hash_delete(&table_def_cache, (uchar*) share);
+  }
+}
 
-    DBUG_PRINT("info", ("Removing table from table_def_cache"));
-    /* Remove table from table definition cache if it's not in use */
-    if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
-                                              key_length)))
+
+/**
+   Wait until there are no old versions of tables in the table
+   definition cache for the metadata locks that we try to acquire.
+
+   @param thd      Thread context
+   @param context  Metadata locking context with locks.
+*/
+
+static bool
+tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
+{
+  TABLE_SHARE *share;
+  const char *old_msg;
+  MDL_request *mdl_request;
+  struct timespec abstime;
+  set_timespec(abstime, thd->variables.lock_wait_timeout);
+  int wait_result= 0;
+
+  while (!thd->killed)
+  {
+    /*
+      Here we have situation as in mdl_wait_for_locks() we need to
+      get rid of offending HANDLERs to avoid deadlock.
+      TODO: We should also investigate in which situations we have
+            to broadcast on COND_refresh because of this.
+    */
+    mysql_ha_flush(thd);
+
+    mysql_mutex_lock(&LOCK_open);
+
+    MDL_request_list::Iterator it(*mdl_requests);
+    while ((mdl_request= it++))
     {
-      DBUG_PRINT("info", ("share version: %lu  ref_count: %u",
-                          share->version, share->ref_count));
-      share->version= 0;                          // Mark for delete
-      if (share->ref_count == 0)
-      {
-        mysql_mutex_lock(&share->mutex);
-        my_hash_delete(&table_def_cache, (uchar*) share);
-      }
-    }
+      /* Skip requests on non-TDC objects. */
+      if (mdl_request->key.mdl_namespace() != MDL_key::TABLE)
+        continue;
 
-    if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
+      if ((share= get_cached_table_share(mdl_request->key.db_name(),
+                                         mdl_request->key.name())) &&
+          share->version != refresh_version)
+        break;
+    }
+    if (!mdl_request)
     {
       /*
-        Signal any thread waiting for tables to be freed to
-        reopen their tables
+        Reset wait_result here in case this was the final check
+        after getting a timeout from mysql_cond_timedwait().
       */
-      broadcast_refresh();
-      DBUG_PRINT("info", ("Waiting for refresh signal"));
-      if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
-      {
-        dropping_tables++;
-        if (likely(signalled))
-          mysql_cond_wait(&COND_refresh, &LOCK_open);
-        else
-        {
-          struct timespec abstime;
-          /*
-            It can happen that another thread has opened the
-            table but has not yet locked any table at all. Since
-            it can be locked waiting for a table that our thread
-            has done LOCK TABLE x WRITE on previously, we need to
-            ensure that the thread actually hears our signal
-            before we go to sleep. Thus we wait for a short time
-            and then we retry another loop in the
-            remove_table_from_cache routine.
-          */
-          set_timespec(abstime, 10);
-          mysql_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
-        }
-        dropping_tables--;
-        continue;
-      }
+      wait_result= 0;
+      mysql_mutex_unlock(&LOCK_open);
+      break;
     }
-    break;
+    if (wait_result == ETIMEDOUT || wait_result == ETIME)
+    {
+      /*
+        Test for timeout here instead of right after mysql_cond_timedwait().
+        This allows for a final iteration and a final check before reporting
+        ER_LOCK_WAIT_TIMEOUT.
+      */
+      mysql_mutex_unlock(&LOCK_open);
+      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+      break;
+    }
+    old_msg= thd->enter_cond(&COND_refresh, &LOCK_open, "Waiting for table");
+    wait_result= mysql_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
+    /* LOCK_open mutex is unlocked by THD::exit_cond() as side-effect. */
+    thd->exit_cond(old_msg);
   }
-  DBUG_RETURN(result);
+  return thd->killed || wait_result == ETIMEDOUT || wait_result == ETIME;
 }
 
 
@@ -8538,7 +8690,6 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
   }
  
 err:
-  bzero(outparam, sizeof(TABLE));	// do not run repair
   DBUG_RETURN(1);
 }
 
@@ -8571,149 +8722,21 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 
 int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-  DBUG_ENTER("abort_and_upgrade_locks");
+  DBUG_ENTER("abort_and_upgrade_lock");
 
-  lpt->old_lock_type= lpt->table->reginfo.lock_type;
-  mysql_mutex_lock(&LOCK_open);
-  /* If MERGE child, forward lock handling to parent. */
-  mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
-                   lpt->table, TRUE);
-  (void) remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags);
-  mysql_mutex_unlock(&LOCK_open);
+  if (wait_while_table_is_used(lpt->thd, lpt->table, HA_EXTRA_FORCE_REOPEN))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
 
 /*
+  Tells if two (or more) tables have auto_increment columns and we want to
+  lock those tables with a write lock.
+
   SYNOPSIS
-    close_open_tables_and_downgrade()
-  RESULT VALUES
-    NONE
-  DESCRIPTION
-    We need to ensure that any thread that has managed to open the table
-    but not yet encountered our lock on the table is also thrown out to
-    ensure that no threads see our frm changes premature to the final
-    version. The intermediate versions are only meant for use after a
-    crash and later REPAIR TABLE.
-    We also downgrade locks after the upgrade to WRITE_ONLY
-*/
-
-/* purecov: begin deadcode */
-void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  mysql_mutex_lock(&LOCK_open);
-  remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
-  mysql_mutex_unlock(&LOCK_open);
-  /* If MERGE child, forward lock handling to parent. */
-  mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :
-                             lpt->table, lpt->old_lock_type);
-}
-/* purecov: end */
-
-
-/*
-  SYNOPSIS
-    mysql_wait_completed_table()
-    lpt                            Parameter passing struct
-    my_table                       My table object
-    All parameters passed through the ALTER_PARTITION_PARAM object
-  RETURN VALUES
-    TRUE                          Failure
-    FALSE                         Success
-  DESCRIPTION
-    We have changed the frm file and now we want to wait for all users of
-    the old frm to complete before proceeding to ensure that no one
-    remains that uses the old frm definition.
-    Start by ensuring that all users of the table will be removed from cache
-    once they are done. Then abort all that have stumbled on locks and
-    haven't been started yet.
-
-    thd                           Thread object
-    table                         Table object
-    db                            Database name
-    table_name                    Table name
-*/
-
-void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table)
-{
-  char key[MAX_DBKEY_LENGTH];
-  uint key_length;
-  TABLE *table;
-  DBUG_ENTER("mysql_wait_completed_table");
-
-  key_length=(uint) (strmov(strmov(key,lpt->db)+1,lpt->table_name)-key)+1;
-  mysql_mutex_lock(&LOCK_open);
-  HASH_SEARCH_STATE state;
-  for (table= (TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length,
-                                     &state) ;
-       table;
-       table= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length,
-                                    &state))
-  {
-    THD *in_use= table->in_use;
-    table->s->version= 0L;
-    if (!in_use)
-    {
-      relink_unused(table);
-    }
-    else
-    {
-      /* Kill delayed insert threads */
-      if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-          ! in_use->killed)
-      {
-        in_use->killed= THD::KILL_CONNECTION;
-        mysql_mutex_lock(&in_use->mysys_var->mutex);
-        if (in_use->mysys_var->current_cond)
-        {
-          mysql_mutex_lock(in_use->mysys_var->current_mutex);
-          mysql_cond_broadcast(in_use->mysys_var->current_cond);
-          mysql_mutex_unlock(in_use->mysys_var->current_mutex);
-        }
-        mysql_mutex_unlock(&in_use->mysys_var->mutex);
-      }
-      /*
-        Now we must abort all tables locks used by this thread
-        as the thread may be waiting to get a lock for another table.
-        Note that we need to hold LOCK_open while going through the
-        list. So that the other thread cannot change it. The other
-        thread must also hold LOCK_open whenever changing the
-        open_tables list. Aborting the MERGE lock after a child was
-        closed and before the parent is closed would be fatal.
-      */
-      for (TABLE *thd_table= in_use->open_tables;
-           thd_table ;
-           thd_table= thd_table->next)
-      {
-        /* Do not handle locks of MERGE children. */
-        if (thd_table->db_stat && !thd_table->parent) // If table is open
-          mysql_lock_abort_for_thread(lpt->thd, thd_table);
-      }
-    }
-  }
-  /*
-    We start by removing all unused objects from the cache and marking
-    those in use for removal after completion. Now we also need to abort
-    all that are locked and are not progressing due to being locked
-    by our lock. We don't upgrade our lock here.
-    If MERGE child, forward lock handling to parent.
-  */
-  mysql_lock_abort(lpt->thd, my_table->parent ? my_table->parent : my_table,
-                   FALSE);
-  mysql_mutex_unlock(&LOCK_open);
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Check if one (or more) write tables have auto_increment columns.
-
-  @param[in] tables Table list
-
-  @retval 0 if at least one write tables has an auto_increment column
-  @retval 1 otherwise
+    has_two_write_locked_tables_with_auto_increment
+      tables        Table list
 
   NOTES:
     Call this function only when you have established the list of all tables
@@ -8763,40 +8786,38 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
 
 bool
 open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                            Open_tables_state *backup)
+                            Open_tables_backup *backup)
 {
+  Query_tables_list query_tables_list_backup;
+  LEX *lex= thd->lex;
+
   DBUG_ENTER("open_system_tables_for_read");
 
+  /*
+    Besides using new Open_tables_state for opening system tables,
+    we also have to backup and reset/and then restore part of LEX
+    which is accessed by open_tables() in order to determine if
+    prelocking is needed and what tables should be added for it.
+    close_system_tables() doesn't require such treatment.
+  */
+  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
-  uint count= 0;
-  bool not_used;
+  if (open_and_lock_tables_derived(thd, table_list, FALSE,
+                                   MYSQL_LOCK_IGNORE_FLUSH))
+  {
+    lex->restore_backup_query_tables_list(&query_tables_list_backup);
+    goto error;
+  }
+
   for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
   {
-    TABLE *table= open_table(thd, tables, thd->mem_root, &not_used,
-                             MYSQL_LOCK_IGNORE_FLUSH);
-    if (!table)
-      goto error;
-
-    DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_SYSTEM);
-
-    table->use_all_columns();
-    table->reginfo.lock_type= tables->lock_type;
-    tables->table= table;
-    count++;
+    DBUG_ASSERT(tables->table->s->table_category == TABLE_CATEGORY_SYSTEM);
+    tables->table->use_all_columns();
   }
+  lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
-  {
-    TABLE **list= (TABLE**) thd->alloc(sizeof(TABLE*) * count);
-    TABLE **ptr= list;
-    for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
-      *(ptr++)= tables->table;
-
-    thd->lock= mysql_lock_tables(thd, list, count,
-                                 MYSQL_LOCK_IGNORE_FLUSH, &not_used);
-  }
-  if (thd->lock)
-    DBUG_RETURN(FALSE);
+  DBUG_RETURN(FALSE);
 
 error:
   close_system_tables(thd, backup);
@@ -8811,13 +8832,13 @@ error:
   SYNOPSIS
     close_system_tables()
       thd     Thread context
-      backup  Pointer to Open_tables_state instance which holds
+      backup  Pointer to Open_tables_backup instance which holds
               information about tables which were open before we
               decided to access system tables.
 */
 
 void
-close_system_tables(THD *thd, Open_tables_state *backup)
+close_system_tables(THD *thd, Open_tables_backup *backup)
 {
   close_thread_tables(thd);
   thd->restore_backup_open_tables_state(backup);
@@ -8867,7 +8888,7 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
   @param backup [out] Temporary storage used to save the thread context
 */
 TABLE *
-open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_state *backup)
+open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 {
   uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
@@ -8916,49 +8937,9 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_state *backup)
   @param thd The current thread
   @param backup [in] the context to restore.
 */
-void close_log_table(THD *thd, Open_tables_state *backup)
+void close_log_table(THD *thd, Open_tables_backup *backup)
 {
-  bool found_old_table;
-
-  /*
-    If open_log_table() fails,
-    this function should not be called.
-  */
-  DBUG_ASSERT(thd->lock != NULL);
-
-  /*
-    Note:
-    We do not create explicitly a separate transaction for the
-    performance table I/O, but borrow the current transaction.
-    lock + unlock will autocommit the change done in the
-    performance schema table: this is the expected result.
-    The current transaction should not be affected by this code.
-    TODO: Note that if a transactional engine is used for log tables,
-    this code will need to be revised, as a separate transaction
-    might be needed.
-  */
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-
-  mysql_mutex_lock(&LOCK_open);
-
-  found_old_table= false;
-  /*
-    Note that we need to hold LOCK_open while changing the
-    open_tables list. Another thread may work on it.
-    (See: remove_table_from_cache(), mysql_wait_completed_table())
-    Closing a MERGE child before the parent would be fatal if the
-    other thread tries to abort the MERGE lock in between.
-  */
-  while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
-
-  if (found_old_table)
-    broadcast_refresh();
-
-  mysql_mutex_unlock(&LOCK_open);
-
-  thd->restore_backup_open_tables_state(backup);
+  close_system_tables(thd, backup);
 }
 
 /**

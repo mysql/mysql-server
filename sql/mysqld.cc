@@ -1444,8 +1444,6 @@ void clean_up(bool print_message)
   grant_free();
 #endif
   query_cache_destroy();
-  table_cache_free();
-  table_def_free();
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
@@ -1456,12 +1454,15 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   }
+  table_def_start_shutdown();
   plugin_shutdown();
   ha_end();
   if (tc_log)
     tc_log->close();
   delegates_destroy();
   xid_cache_free();
+  table_def_free();
+  mdl_destroy();
   key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
@@ -3924,7 +3925,8 @@ static int init_server_components()
     We need to call each of these following functions to ensure that
     all things are initialized so that unireg_abort() doesn't fail
   */
-  if (table_cache_init() | table_def_init() | hostname_cache_init())
+  mdl_init();
+  if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
   query_cache_set_min_res_unit(query_cache_min_res_unit);
@@ -3966,6 +3968,9 @@ static int init_server_components()
     }
   }
 
+  proc_info_hook= (const char *(*)(void *, const char *, const char *,
+                                   const char *, const unsigned int))
+                  set_thd_proc_info;
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     Parsing the performance schema command line option may have reported
@@ -7923,7 +7928,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_mutex, key_LOCK_error_messages,
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data, key_LOCK_error_messages,
   key_LOG_INFO_lock, key_LOCK_thread_count;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -7975,7 +7980,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
-  { &key_TABLE_SHARE_mutex, "TABLE_SHARE::mutex", 0},
+  { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL}

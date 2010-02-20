@@ -460,7 +460,7 @@ create schema mysqltest;
 end|
 execute stmt;
 ERROR 42000: PROCEDURE test.p1 does not exist
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 execute stmt;

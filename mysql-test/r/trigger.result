@@ -2162,3 +2162,23 @@ Warning	1265	Data truncated for column 'trg2' at row 1
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 DROP TABLE t1;
+#
+# Bug #46747 "Crash in MDL_ticket::upgrade_shared_lock_to_exclusive
+#             on TRIGGER + TEMP table".
+#
+drop trigger if exists t1_bi;
+drop temporary table if exists t1;
+drop table if exists t1;
+create table t1 (i int);
+create trigger t1_bi before insert on t1 for each row set @a:=1;
+# Create temporary table which shadows base table with trigger.
+create temporary table t1 (j int);
+# Dropping of trigger should succeed.
+drop trigger t1_bi;
+select trigger_name from information_schema.triggers
+where event_object_schema = 'test' and event_object_table = 't1';
+trigger_name
+# Clean-up.
+drop temporary table t1;
+drop table t1;
+End of 6.0 tests.

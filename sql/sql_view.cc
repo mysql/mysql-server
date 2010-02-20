@@ -169,40 +169,17 @@ err:
 static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
   LEX *lex= thd->lex;
-  bool not_used;
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
+  key_length= create_table_def_key(thd, key, view, 0);
 
-  /*
-    Let's reset decoy.view before calling open_table(): when we start
-    supporting ALTER VIEW in PS/SP that may save us from a crash.
-  */
-
-  decoy.view= NULL;
-
-  /*
-    open_table() will return NULL if 'decoy' is idenitifying a view *and*
-    there is no TABLE object for that view in the table cache. However,
-    decoy.view will be set to 1.
-
-    If there is a TABLE-instance for the oject identified by 'decoy',
-    open_table() will return that instance no matter if it is a table or
-    a view.
-
-    Thus, there is no need to check for the return value of open_table(),
-    since the return value itself does not mean anything.
-  */
-
-  open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE);
-
-  if (!decoy.view)
-  {
-    /* It's a table. */
-    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+  if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
+                    thd->mem_root, OPEN_VIEW_NO_PARSE))
     return TRUE;
-  }
 
   if (!lex->definer)
   {
@@ -397,6 +374,37 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
               !lex->param_list.elements);
 
+  /*
+    We can't allow taking exclusive meta-data locks of unlocked view under
+    LOCK TABLES since this might lead to deadlock. Since at the moment we
+    can't really lock view with LOCK TABLES we simply prohibit creation/
+    alteration of views under LOCK TABLES.
+  */
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
+  if ((res= create_view_precheck(thd, tables, view, mode)))
+    goto err;
+
+  lex->link_first_table_back(view, link_to_local);
+  view->open_strategy= TABLE_LIST::OPEN_STUB;
+  view->lock_strategy= TABLE_LIST::EXCLUSIVE_MDL;
+  view->open_type= OT_BASE_ONLY;
+
+  if (open_and_lock_tables(thd, lex->query_tables))
+  {
+    view= lex->unlink_first_table(&link_to_local);
+    res= TRUE;
+    goto err;
+  }
+
+  view= lex->unlink_first_table(&link_to_local);
+
   if (mode != VIEW_CREATE_NEW)
   {
     if (mode == VIEW_ALTER &&
@@ -461,16 +469,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
   }
 #endif
-
-  if ((res= create_view_precheck(thd, tables, view, mode)))
-    goto err;
-
-  if (open_and_lock_tables(thd, tables))
-  {
-    res= TRUE;
-    goto err;
-  }
-
   /*
     check that tables are not temporary  and this VIEW do not used in query
     (it is possible with ALTERing VIEW).
@@ -612,11 +610,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-  if (wait_if_global_read_lock(thd, 0, 0))
+
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
   {
     res= TRUE;
     goto err;
   }
+
   mysql_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
@@ -667,7 +667,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   mysql_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 
@@ -1146,6 +1146,20 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view_db.length= table->db_length;
   table->view_name.str= table->table_name;
   table->view_name.length= table->table_name_length;
+  /*
+    We don't invalidate a prepared statement when a view changes,
+    or when someone creates a temporary table.
+    Instead, the view is inlined into the body of the statement
+    upon the first execution. Below, make sure that on
+    re-execution of a prepared statement we don't prefer
+    a temporary table to the view, if the view name was shadowed
+    with a temporary table with the same name.
+    This assignment ensures that on re-execution open_table() will
+    not try to call find_temporary_table() for this TABLE_LIST,
+    but will invoke open_table_from_share(), which will
+    eventually call this function.
+  */
+  table->open_type= OT_BASE_ONLY;
 
   /*TODO: md5 test here and warning if it is differ */
 
@@ -1262,7 +1276,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
          tbl;
          tbl= (view_tables_tail= tbl)->next_global)
     {
-      tbl->skip_temporary= 1;
+      tbl->open_type= OT_BASE_ONLY;
       tbl->belong_to_view= top_view;
       tbl->referencing_view= table;
       tbl->prelocking_placeholder= table->prelocking_placeholder;
@@ -1333,7 +1347,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         anyway.
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
+      {
         tbl->lock_type= table->lock_type;
+        tbl->mdl_request.set_type((tbl->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+      }
       /*
         If the view is mergeable, we might want to
         INSERT/UPDATE/DELETE into tables of this view. Preserve the
@@ -1581,6 +1599,21 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
 
+  /*
+    We can't allow dropping of unlocked view under LOCK TABLES since this
+    might lead to deadlock. But since we can't really lock view with LOCK
+    TABLES we have to simply prohibit dropping of views.
+  */
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (lock_table_names(thd, views))
+    DBUG_RETURN(TRUE);
+
   mysql_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
@@ -1629,11 +1662,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if ((share= get_cached_table_share(view->db, view->table_name)))
     {
       DBUG_ASSERT(share->ref_count == 0);
-      mysql_mutex_lock(&share->mutex);
       share->ref_count++;
       share->version= 0;
-      mysql_mutex_unlock(&share->mutex);
-      release_table_share(share, RELEASE_WAIT_FOR_DROP);
+      release_table_share(share);
     }
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
