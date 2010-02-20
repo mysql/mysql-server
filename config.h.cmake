@@ -567,6 +567,9 @@
 #cmakedefine USE_MB_IDENT 1
 #cmakedefine USE_STRCOLL 1
 
+/* This should mean case insensitive file system */
+#cmakedefine FN_NO_CASE_SENSE 1
+
 #cmakedefine HAVE_CHARSET_armscii8 1
 #cmakedefine HAVE_CHARSET_ascii 
 #cmakedefine HAVE_CHARSET_big5 1
