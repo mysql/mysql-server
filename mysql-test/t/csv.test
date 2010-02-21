@@ -1807,16 +1807,16 @@ unlock tables;
 drop table t1;
 
 #
-# Bug#41441 repair csv table crashes debug server
+# Bug#33717 INSERT...(default) fails for enum. Crashes CSV tables, loads spaces for MyISAM
 #
-# Note: The test should be removed after Bug#33717 is fixed
+CREATE TABLE t1 (e enum('foo','bar') NOT NULL) ENGINE = CSV;
+INSERT INTO t1 VALUES();
+INSERT INTO t1 VALUES(default);
+INSERT INTO t1 VALUES(0);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(-1);
+SELECT * FROM t1;
+DROP TABLE t1;
 
-create table t1(a enum ('a') not null) engine=csv;
-insert into t1 values (2);
---error ER_CRASHED_ON_USAGE
-select * from t1 limit 1;
-repair table t1;
-select * from t1 limit 1;
-drop table t1;
 
 --echo End of 5.1 tests

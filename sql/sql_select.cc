@@ -6747,10 +6747,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_CONST:				// Only happens with left join
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
-      {
-	table->key_read=1;
-	table->file->extra(HA_EXTRA_KEYREAD);
-      }
+        table->set_keyread(TRUE);
       break;
     case JT_ALL:
       /*
@@ -6811,10 +6808,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  if (tab->select && tab->select->quick &&
               tab->select->quick->index != MAX_KEY && //not index_merge
 	      table->covering_keys.is_set(tab->select->quick->index))
-	  {
-	    table->key_read=1;
-	    table->file->extra(HA_EXTRA_KEYREAD);
-	  }
+            table->set_keyread(TRUE);
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
@@ -6898,11 +6892,7 @@ void JOIN_TAB::cleanup()
   limit= 0;
   if (table)
   {
-    if (table->key_read)
-    {
-      table->key_read= 0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
+    table->set_keyread(FALSE);
     table->file->ha_index_or_rnd_end();
     /*
       We need to reset this for next select
@@ -9939,7 +9929,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
-  uint total_uneven_bit_length= 0;
+  /*
+    total_uneven_bit_length is uneven bit length for visible fields
+    hidden_uneven_bit_length is uneven bit length for hidden fields
+  */
+  uint total_uneven_bit_length= 0, hidden_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
   /* Treat sum functions as normal ones when loose index scan is used. */
   save_sum_fields|= param->precomputed_group_by;
@@ -10218,6 +10212,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       param->hidden_field_count= fieldnr;
       null_count= 0;
+      /*
+        On last hidden field we store uneven bit length in
+        hidden_uneven_bit_length and proceed calculation of
+        uneven bits for visible fields into
+        total_uneven_bit_length variable.
+      */
+      hidden_uneven_bit_length= total_uneven_bit_length;
+      total_uneven_bit_length= 0;
     }
   }
   DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
@@ -10263,7 +10265,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     else
       null_count++;
   }
-  hidden_null_pack_length=(hidden_null_count+7)/8;
+  hidden_null_pack_length= (hidden_null_count + 7 +
+                            hidden_uneven_bit_length) / 8;
   null_pack_length= (hidden_null_pack_length +
                      (null_count + total_uneven_bit_length + 7) / 8);
   reclength+=null_pack_length;
@@ -11780,16 +11783,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	!table->no_keyread &&
         (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
-      table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD);
+      table->set_keyread(TRUE);
       tab->index= tab->ref.key;
     }
     error=join_read_const(tab);
-    if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
+    table->set_keyread(FALSE);
     if (error)
     {
       tab->info="unique row not found";
@@ -12142,12 +12140,8 @@ join_read_first(JOIN_TAB *tab)
 {
   int error;
   TABLE *table=tab->table;
-  if (!table->key_read && table->covering_keys.is_set(tab->index) &&
-      !table->no_keyread)
-  {
-    table->key_read=1;
-    table->file->extra(HA_EXTRA_KEYREAD);
-  }
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
+    table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.read_record=join_read_next;
   tab->read_record.table=table;
@@ -12181,12 +12175,8 @@ join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error;
-  if (!table->key_read && table->covering_keys.is_set(tab->index) &&
-      !table->no_keyread)
-  {
-    table->key_read=1;
-    table->file->extra(HA_EXTRA_KEYREAD);
-  }
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
+    table->set_keyread(TRUE);
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
@@ -13604,11 +13594,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
            If ref_key used index tree reading only ('Using index' in EXPLAIN),
            and best_key doesn't, then revert the decision.
         */
-        if (!table->covering_keys.is_set(best_key) && table->key_read)
-        {
-          table->key_read= 0;
-          table->file->extra(HA_EXTRA_NO_KEYREAD);          
-        }        
+        if (!table->covering_keys.is_set(best_key))
+          table->set_keyread(FALSE);
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13621,10 +13608,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             select->quick= 0;
           }
           if (table->covering_keys.is_set(best_key))
-          {
-            table->key_read=1;
-            table->file->extra(HA_EXTRA_KEYREAD);
-          }
+            table->set_keyread(TRUE);
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
@@ -13798,11 +13782,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
         We can only use 'Only index' if quick key is same as ref_key
         and in index_merge 'Only index' cannot be used
       */
-      if (table->key_read && ((uint) tab->ref.key != select->quick->index))
-      {
-	table->key_read=0;
-	table->file->extra(HA_EXTRA_NO_KEYREAD);
-      }
+      if (((uint) tab->ref.key != select->quick->index))
+        table->set_keyread(FALSE);
     }
     else
     {
@@ -13858,11 +13839,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
   tab->join->examined_rows+=examined_rows;
-  if (table->key_read)				// Restore if we used indexes
-  {
-    table->key_read=0;
-    table->file->extra(HA_EXTRA_NO_KEYREAD);
-  }
+  table->set_keyread(FALSE); // Restore if we used indexes
   DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
@@ -14299,7 +14276,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
       {
 	used_fields--;
 	length+=field->fill_cache_field(copy);
-	if (copy->blob_field)
+	if (copy->type == CACHE_BLOB)
 	  (*blob_ptr++)=copy;
 	if (field->real_maybe_null())
 	  null_fields++;
@@ -14314,8 +14291,8 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     {						/* must copy null bits */
       copy->str= tables[i].table->null_flags;
       copy->length= tables[i].table->s->null_bytes;
-      copy->strip=0;
-      copy->blob_field=0;
+      copy->type=0;
+      copy->field=0;
       length+=copy->length;
       copy++;
       cache->fields++;
@@ -14325,8 +14302,8 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
     {
       copy->str= (uchar*) &tables[i].table->null_row;
       copy->length=sizeof(tables[i].table->null_row);
-      copy->strip=0;
-      copy->blob_field=0;
+      copy->type=0;
+      copy->field=0;
       length+=copy->length;
       copy++;
       cache->fields++;
@@ -14351,9 +14328,10 @@ used_blob_length(CACHE_FIELD **ptr)
   uint length,blob_length;
   for (length=0 ; *ptr ; ptr++)
   {
-    (*ptr)->blob_length=blob_length=(*ptr)->blob_field->get_length();
+    Field_blob *field_blob= (Field_blob *) (*ptr)->field;
+    (*ptr)->blob_length=blob_length= field_blob->get_length();
     length+=blob_length;
-    (*ptr)->blob_field->get_ptr(&(*ptr)->str);
+    field_blob->get_ptr(&(*ptr)->str);
   }
   return length;
 }
@@ -14382,30 +14360,35 @@ store_record_in_cache(JOIN_CACHE *cache)
   cache->records++;
   for (copy=cache->field ; copy < end_field; copy++)
   {
-    if (copy->blob_field)
+    if (copy->type == CACHE_BLOB)
     {
+      Field_blob *blob_field= (Field_blob *) copy->field;
       if (last_record)
       {
-	copy->blob_field->get_image(pos, copy->length+sizeof(char*), 
-				    copy->blob_field->charset());
+	blob_field->get_image(pos, copy->length+sizeof(char*), 
+                              blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->get_image(pos, copy->length, // blob length
-				    copy->blob_field->charset());
+	blob_field->get_image(pos, copy->length, // blob length
+                              blob_field->charset());
 	memcpy(pos+copy->length,copy->str,copy->blob_length);  // Blob data
 	pos+=copy->length+copy->blob_length;
       }
     }
     else
     {
-      if (copy->strip)
+      if (copy->type == CACHE_STRIPPED)
       {
 	uchar *str,*end;
-	for (str=copy->str,end= str+copy->length;
-	     end > str && end[-1] == ' ' ;
-	     end--) ;
+        Field *field= copy->field;
+        if (field && field->maybe_null() && field->is_null())
+          end= str= copy->str;
+        else
+          for (str=copy->str,end= str+copy->length;
+               end > str && end[-1] == ' ' ;
+               end--) ;
 	length=(uint) (end-str);
 	memcpy(pos+2, str, length);
         int2store(pos, length);
@@ -14454,23 +14437,24 @@ read_cached_record(JOIN_TAB *tab)
        copy < end_field;
        copy++)
   {
-    if (copy->blob_field)
+    if (copy->type == CACHE_BLOB)
     {
+      Field_blob *blob_field= (Field_blob *) copy->field;
       if (last_record)
       {
-	copy->blob_field->set_image(pos, copy->length+sizeof(char*),
-				    copy->blob_field->charset());
+	blob_field->set_image(pos, copy->length+sizeof(char*),
+                              blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->set_ptr(pos, pos+copy->length);
-	pos+=copy->length+copy->blob_field->get_length();
+	blob_field->set_ptr(pos, pos+copy->length);
+	pos+=copy->length + blob_field->get_length();
       }
     }
     else
     {
-      if (copy->strip)
+      if (copy->type == CACHE_STRIPPED)
       {
         length= uint2korr(pos);
 	memcpy(copy->str, pos+2, length);
