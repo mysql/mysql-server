@@ -2646,6 +2646,21 @@ CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 }
 
 
+bool check_duplicate_warning(THD *thd, char *msg, ulong length)
+{
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  MYSQL_ERROR *err;
+  while ((err= it++))
+  {
+    if (strncmp(msg, err->get_message_text(), length) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 /*
   Preparation for table creation
 
@@ -3486,6 +3501,40 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
     }
+
+    uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                           key->key_create_info.comment.str,
+                                           key->key_create_info.comment.str +
+                                           key->key_create_info.comment.length,
+                                           INDEX_COMMENT_MAXLEN);
+
+    if (tmp_len < key->key_create_info.comment.length)
+    {
+      if ((thd->variables.sql_mode &
+           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      {
+        my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
+                 key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+        DBUG_RETURN(-1);
+      }
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
+                  key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+      /* do not push duplicate warnings */
+      if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_TOO_LONG_INDEX_COMMENT, warn_buff);
+
+      key->key_create_info.comment.length= tmp_len;
+    }
+
+    key_info->comment.length= key->key_create_info.comment.length;
+    if (key_info->comment.length > 0)
+    {
+      key_info->flags|= HA_USES_COMMENT;
+      key_info->comment.str= key->key_create_info.comment.str;
+    }
+
     key_info++;
   }
   if (!unique_key && !primary_key &&
@@ -6196,6 +6245,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
         key_create_info.parser_name= *plugin_name(key_info->parser);
+      if (key_info->flags & HA_USES_COMMENT)
+        key_create_info.comment= key_info->comment;
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
