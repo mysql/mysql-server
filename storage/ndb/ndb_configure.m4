@@ -339,17 +339,17 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   have_openjpa_jar=no
   TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
   for i in $TMP_CLASSPATH; do
-    if [[[ $i =~ junit-(.+)\.jar ]]]
+    if `echo $i | egrep "junit-(.+)\.jar" 1>/dev/null 2>&1`
     then
       AC_MSG_RESULT([-- junit found: activating clusterj tests])
       have_junit=yes
     fi
-    if [[[ $i =~ openjpa-(.+)\.jar ]]]
+    if `echo $i | egrep "openjpa-(.+)\.jar" 1>/dev/null 2>&1`
     then
       AC_MSG_RESULT([-- openjpa jar found: activating clusterjpa])
       have_openjpa_jar=yes
     fi
-    if [[[ $i =~ (.+)-jpa-(.+)\.jar ]]]
+    if `echo $i | egrep "(.+)-jpa-(.+)\.jar" 1>/dev/null 2>&1`
     then
       AC_MSG_RESULT([-- jpa jar found: activating clusterjpa])
       have_jpa_jar=yes
