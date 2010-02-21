@@ -1959,7 +1959,7 @@ void Item_field::reset_field(Field *f)
 bool Item_field::enumerate_field_refs_processor(uchar *arg)
 {
   Field_enumerator *fe= (Field_enumerator*)arg;
-  fe->visit_field(field);
+  fe->visit_field(this);
   return FALSE;
 }
 
@@ -5779,6 +5779,35 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
     set_properties();
 }
 
+/*
+  A Field_enumerator-compatible class that invokes mark_as_dependent() for
+  each field that is a reference to some ancestor of current_select.
+*/
+class Dependency_marker: public Field_enumerator
+{
+public:
+  THD *thd;
+  st_select_lex *current_select;
+  virtual void visit_field(Item_field *item)
+  {
+    // Find which select the field is in. This is achieved by walking up 
+    // the select tree and looking for the table of interest.
+    st_select_lex *sel;
+    for (sel= current_select; sel; sel= sel->outer_select())
+    {
+      TABLE_LIST *tbl;
+      for (tbl= sel->leaf_tables; tbl; tbl= tbl->next_leaf)
+      {
+        if (tbl->table == item->field->table)
+        {
+          if (sel != current_select)
+            mark_as_dependent(thd, sel, current_select, item, item);
+          return;
+        }
+      }
+    }
+  }
+};
 
 /**
   Resolve the name of a reference to a column reference.
@@ -6037,6 +6066,20 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         set_if_bigger(thd->lex->in_sum_func->max_arg_level,
                       last_checked_context->select_lex->nest_level);
     }
+  }
+  else
+  {
+    ;
+    /*
+      It could be that we're referring to something that's in ancestor selects.
+      We must make an appropriate mark_as_dependent() call for each such
+      outside reference.
+    */
+    Dependency_marker dep_marker;
+    dep_marker.current_select= current_sel;
+    dep_marker.thd= thd;
+    (*ref)->walk(&Item::enumerate_field_refs_processor, FALSE,
+                 (uchar*)&dep_marker);
   }
 
   DBUG_ASSERT(*ref);

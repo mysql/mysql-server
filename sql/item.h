@@ -1134,7 +1134,7 @@ public:
 class Field_enumerator
 {
 public:
-  virtual void visit_field(Field *field)= 0;
+  virtual void visit_field(Item_field *field)= 0;
   virtual ~Field_enumerator() {}; /* purecov: inspected */
 };
 
