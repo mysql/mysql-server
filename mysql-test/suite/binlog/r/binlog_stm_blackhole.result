@@ -63,9 +63,9 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Function MATCH ... AGAINST()','is used to do a search'),
 ('Full-text search in MySQL', 'implements vector space model');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
-t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT		
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections

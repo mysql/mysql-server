@@ -46,7 +46,7 @@ COLUMN_TYPE	longtext	NO		NULL
 COLUMN_KEY	varchar(3)	NO			
 EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
-COLUMN_COMMENT	varchar(255)	NO			
+COLUMN_COMMENT	varchar(1024)	NO			
 SHOW CREATE TABLE information_schema.COLUMNS;
 Table	Create Table
 COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
@@ -68,7 +68,7 @@ COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
   `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
   `EXTRA` varchar(27) NOT NULL DEFAULT '',
   `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
-  `COLUMN_COMMENT` varchar(255) NOT NULL DEFAULT ''
+  `COLUMN_COMMENT` varchar(1024) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
@@ -90,7 +90,7 @@ COLUMN_TYPE	longtext	NO		NULL
 COLUMN_KEY	varchar(3)	NO			
 EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
-COLUMN_COMMENT	varchar(255)	NO			
+COLUMN_COMMENT	varchar(1024)	NO			
 SELECT table_catalog, table_schema, table_name, column_name
 FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
 table_catalog	table_schema	table_name	column_name

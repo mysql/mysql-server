@@ -774,6 +774,7 @@ connection default;
 handler t1 read a next;
 handler t1 close;
 connection con1;
+--reap # Since last in this connection was a send
 drop table t1;
 disconnect con1;
 --source include/wait_until_disconnected.inc
