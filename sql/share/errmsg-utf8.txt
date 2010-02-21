@@ -6319,3 +6319,5 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
 
+ER_TOO_LONG_INDEX_COMMENT
+  eng "Comment for index '%-.64s' is too long (max = %lu)"

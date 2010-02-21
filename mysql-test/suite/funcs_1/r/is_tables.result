@@ -48,7 +48,7 @@ CHECK_TIME	datetime	YES		NULL
 TABLE_COLLATION	varchar(32)	YES		NULL	
 CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
-TABLE_COMMENT	varchar(80)	NO			
+TABLE_COMMENT	varchar(2048)	NO			
 SHOW CREATE TABLE information_schema.TABLES;
 Table	Create Table
 TABLES	CREATE TEMPORARY TABLE `TABLES` (
@@ -72,7 +72,7 @@ TABLES	CREATE TEMPORARY TABLE `TABLES` (
   `TABLE_COLLATION` varchar(32) DEFAULT NULL,
   `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
   `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
-  `TABLE_COMMENT` varchar(80) NOT NULL DEFAULT ''
+  `TABLE_COMMENT` varchar(2048) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TABLES;
 Field	Type	Null	Key	Default	Extra
@@ -96,7 +96,7 @@ CHECK_TIME	datetime	YES		NULL
 TABLE_COLLATION	varchar(32)	YES		NULL	
 CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
-TABLE_COMMENT	varchar(80)	NO			
+TABLE_COMMENT	varchar(2048)	NO			
 SELECT table_catalog, table_schema, table_name
 FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> 'def';
 table_catalog	table_schema	table_name
