@@ -98,6 +98,10 @@ typedef struct st_table_ref
 } TABLE_REF;
 
 
+
+#define CACHE_BLOB      1        /* blob field  */
+#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
+
 /**
   CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
   table
@@ -106,8 +110,8 @@ typedef struct st_table_ref
 typedef struct st_cache_field {
   uchar *str;
   uint length, blob_length;
-  Field_blob *blob_field;
-  bool strip;
+  Field *field;
+  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
 } CACHE_FIELD;
 
 
@@ -741,10 +745,11 @@ public:
      we need to check for errors executing it and react accordingly
     */
     if (!res && table->in_use->is_error())
-      res= 2;
+      res= 1; /* STORE_KEY_FATAL */
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null() || item->null_value;
-    return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
+    return ((err != 0 || res < 0 || res > 2) ? STORE_KEY_FATAL : 
+            (store_key_result) res);
   }
 };
 
@@ -773,17 +778,17 @@ protected:
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
-          err= res;
+          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
       }
       /*
         Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
         we need to check for errors executing it and react accordingly
         */
       if (!err && to_field->table->in_use->is_error())
-        err= 2;
+        err= 1; /* STORE_KEY_FATAL */
     }
     null_key= to_field->is_null() || item->null_value;
-    return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
+    return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };
 
