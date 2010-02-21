@@ -5321,7 +5321,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr, unsigned_flag);
   }
-  return error ? error : (field->table->in_use->is_error() ? 2 : 0);
+  return error ? error : (field->table->in_use->is_error() ? 1 : 0);
 }
 
 
@@ -6652,7 +6652,8 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+        field_arg->real_type() != MYSQL_TYPE_ENUM)
     {
       if (field_arg->reset())
       {
