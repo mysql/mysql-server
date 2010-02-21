@@ -99,27 +99,35 @@ explain extended select * from t1 where a in (select pk from t10 where pk<3);
 select @@optimizer_switch; 
 
 set optimizer_switch='default,materialization=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,semijoin=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,loosescan=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,semijoin=off,materialization=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,materialization=off,semijoin=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,semijoin=off,materialization=off,loosescan=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,semijoin=off,loosescan=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,materialization=off,loosescan=off';
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 set optimizer_switch=default;
 

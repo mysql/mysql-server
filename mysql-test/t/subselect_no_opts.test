@@ -1,11 +1,13 @@
 # 
 # Run subselect.test without semi-join optimization (test materialize)
 #
+--replace_regex /,table_elimination=on//
 show variables like 'optimizer_switch';
 set optimizer_switch='materialization=off,semijoin=off';
 
 --source t/subselect.test
 
 set optimizer_switch=default;
+--replace_regex /,table_elimination=on//
 show variables like 'optimizer_switch';
 
