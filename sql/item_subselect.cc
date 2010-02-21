@@ -186,7 +186,6 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   changed= 1;
   inside_first_fix_fields= FALSE;
 
-    done_first_fix_fields= FALSE;
 
   if (!res)
   {
@@ -218,12 +217,14 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, ref);
       thd->where= save_where;
+  done_first_fix_fields= FALSE;
       return ret;
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+  done_first_fix_fields= FALSE;
       return TRUE;
     }
     fix_length_and_dec();
@@ -240,6 +241,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   fixed= 1;
 
 err:
+  done_first_fix_fields= FALSE;
   thd->where= save_where;
   return res;
 }
@@ -282,6 +284,7 @@ bool Item_subselect::mark_as_dependent(THD *thd, st_select_lex *select,
   return FALSE;
 }
 
+
 /*
   Adjust attributes after our parent select has been merged into grandparent
 
@@ -309,6 +312,7 @@ void Item_subselect::fix_after_pullout(st_select_lex *new_parent, Item **ref)
   recalc_used_tables(new_parent, TRUE);
   parent_select= new_parent;
 }
+
 
 class Field_fixer: public Field_enumerator
 {

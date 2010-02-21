@@ -2378,7 +2378,12 @@ public:
     return ref ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
-  { return (*ref)->walk(processor, walk_subquery, arg); }
+  { 
+    if (ref && *ref)
+      return (*ref)->walk(processor, walk_subquery, arg); 
+    else
+      return FALSE;
+  }
   bool enumerate_field_refs_processor(uchar *arg)
   { return (*ref)->enumerate_field_refs_processor(arg); }
   virtual void print(String *str, enum_query_type query_type);
