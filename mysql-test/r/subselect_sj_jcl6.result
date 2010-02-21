@@ -206,7 +206,7 @@ BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,table_elimination=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on
 set optimizer_switch='default,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch

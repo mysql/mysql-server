@@ -96,6 +96,7 @@ explain extended select * from t1 where a in (select pk from t10 where pk<3);
 --echo BUG#37120 optimizer_switch allowable values not according to specification
 --echo
 
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch; 
 
 set optimizer_switch='default,materialization=off';
