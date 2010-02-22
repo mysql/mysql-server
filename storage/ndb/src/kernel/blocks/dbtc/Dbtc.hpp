@@ -1514,6 +1514,8 @@ private:
 			    TcConnectRecord * const regTcPtr);
   void clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
 			    TcConnectRecord * const regTcPtr);
+  void checkCommitAckMarkerVersion();
+
   // Trigger and index handling
   int saveINDXKEYINFO(Signal* signal,
                       TcIndexOperation* indexOp,
@@ -1674,6 +1676,7 @@ private:
   AttrbufRecord *attrbufRecord;
   AttrbufRecordPtr attrbufptr;
   UintR cattrbufFilesize;
+  Uint32 m_single_commit_ack_marker;
 
   HostRecord *hostRecord;
   HostRecordPtr hostptr;

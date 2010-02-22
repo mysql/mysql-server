@@ -11814,7 +11814,6 @@ int
 Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep, 
 			     ReplicaRecordPtr replicaPtr)
 {
-  ndbrequire(!isMaster());
   Uint32 lcpNo = rep->lcpNo;
   Uint32 lcpId = rep->lcpId;
 
