@@ -21,7 +21,9 @@
 
 #include "my_global.h"
 #include "m_string.h"
+C_MODE_START
 #include "decimal.h"
+C_MODE_END
 
 #include "decimal_utils.hpp"
 
