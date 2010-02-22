@@ -71,7 +71,10 @@ SUBDIRS =	lib/My/SafeProcess
 
 EXTRA_DIST =	README \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA)
+		$(nobase_test_DATA) \
+		CMakeLists.txt  \
+		mtr.out-of-source 
+
 
 # List of directories containing test + result files and the
 # related test data files that should be copied

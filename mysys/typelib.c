@@ -326,7 +326,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
   my_ulonglong flags_to_set= 0, flags_to_clear= 0, res;
   my_bool set_defaults= 0;
 
-  *err_pos= 0;                  // No error yet
+  *err_pos= 0;                  /* No error yet */
   if (str != end)
   {
     const char *start= str;    

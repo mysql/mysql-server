@@ -181,6 +181,9 @@ typedef fp_except fp_except_t;
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
 #endif
+#ifdef HAVE_FPU_CONTROL_H
+#include <fpu_control.h>
+#endif
 #if defined(__i386__) && !defined(HAVE_FPU_CONTROL_H)
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
@@ -4467,7 +4470,7 @@ static void test_lc_time_sz()
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
-int main(int argc, char **argv)
+int mysqld_main(int argc, char **argv)
 #endif
 {
   /*
@@ -5013,7 +5016,7 @@ default_service_handling(char **argv,
 }
 
 
-int main(int argc, char **argv)
+int mysqld_main(int argc, char **argv)
 {
   /*
     When several instances are running on the same machine, we
@@ -7666,7 +7669,7 @@ static char *get_relative_path(const char *path)
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
     path+=(uint) strlen(DEFAULT_MYSQL_HOME);
-    while (*path == FN_LIBCHAR)
+    while (*path == FN_LIBCHAR || *path == FN_LIBCHAR2)
       path++;
   }
   return (char*) path;

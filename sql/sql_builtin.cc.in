@@ -17,7 +17,12 @@
 
 typedef struct st_mysql_plugin builtin_plugin[];
 
-extern builtin_plugin 
+#ifdef _MSC_VER
+extern "C"
+#else
+extern
+#endif
+builtin_plugin 
   @mysql_mandatory_plugins@ @mysql_optional_plugins@ builtin_binlog_plugin;
 
 struct st_mysql_plugin *mysql_optional_plugins[]=
@@ -29,5 +34,3 @@ struct st_mysql_plugin *mysql_mandatory_plugins[]=
 {
   builtin_binlog_plugin, @mysql_mandatory_plugins@ 0
 };
-
-
