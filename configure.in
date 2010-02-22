@@ -5,9 +5,15 @@ AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
-# The Docs Makefile.am parses this line!
-# remember to also change ndb version below and update version.c in ndb
+
+dnl Various people throughout the community may parse configure.in to
+dnl get the MySQL version from the source branch.  If the formatting
+dnl of this line is going to be changed, please announce the change to
+dnl internals@lists.mysql.com in advance of pushing the change.
+dnl
+dnl Remember to also change NDB_VERSION_* below and update version.c in ndb
 AM_INIT_AUTOMAKE(mysql, 5.0.91)
+
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
