@@ -3546,7 +3546,9 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    if ((res = dropIndex(element.name, name)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndex(element.name, name)) != 0)
     {
       return -1;
     }
@@ -3593,7 +3595,9 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
     {
       ERR_RETURN(getNdbError(), -1);
     }
-    if ((res = dropIndexGlobal(*idx)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndexGlobal(*idx)) != 0)
     {
       releaseIndexGlobal(*idx, 1);
       ERR_RETURN(getNdbError(), -1);
