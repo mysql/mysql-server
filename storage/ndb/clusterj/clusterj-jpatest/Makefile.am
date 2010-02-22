@@ -93,7 +93,7 @@ $(MANIFEST):
 	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
 	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-jpatest" >> $(MANIFEST)
 
-classPCEnhancer.stamp:
+classPCEnhancer.stamp: classclusterj_jpatest.stamp
 	$(JAVA) -classpath "$(JAVAROOT):$(CLUSTERJ_CLASSPATH)" \
 	org.apache.openjpa.enhance.PCEnhancer \
 	-p $(clusterj_jpatest_res)/META-INF/persistence.xml -d $(JAVAROOT);
@@ -108,7 +108,7 @@ classclusterj_jpatest.stamp: $(clusterj_jpatest_java)
 	fi
 	echo timestamp > classclusterj_jpatest.stamp
 
-$(clusterj_jpatest_version_JAR) : classclusterj_jpatest.stamp classPCEnhancer.stamp $(MANIFEST)
+$(clusterj_jpatest_version_JAR) : classPCEnhancer.stamp $(MANIFEST)
 	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
   	  -C $(JAVAROOT) com/mysql/clusterj/jpatest
 
