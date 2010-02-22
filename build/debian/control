@@ -61,7 +61,7 @@ Description: Percona SQL database common files (e.g. /etc/mysql/my.cnf)
 
 Package: percona-xtradb-client-5.1
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, libdbd-mysql-perl (>= 1.2202), percona-xtradb-common (>= ${source:Version}), libpercona-xtradb-client16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-xtradb-common (>= ${source:Version}), libpercona-xtradb-client16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
 Provides: virtual-mysql-client, mysql-client, mysql-client-4.1, percona-xtradb-client, percona-xtradb-client-5.1
 Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
 Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
