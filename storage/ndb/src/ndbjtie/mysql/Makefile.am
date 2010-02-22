@@ -65,7 +65,7 @@ libmysqlutils_la_SOURCES = \
 
 ## ----------------------------------------------------------------------
 
-EXTRA_DIST = CharsetMapImpl.h
+EXTRA_DIST = CharsetMapImpl.h CMakeLists.txt
 
 ## cleanup
 #MOSTLYCLEANFILES =

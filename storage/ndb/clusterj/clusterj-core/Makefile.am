@@ -98,7 +98,7 @@ EXTRA_DIST = \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/*.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/store/*.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/util/*.java \
-  pom.xml
+  pom.xml CMakeLists.txt
 
 classclusterj_core.stamp: $(clusterj_core_java)
 	mkdir -p $(JAVAROOT)

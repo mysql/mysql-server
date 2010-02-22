@@ -20,6 +20,7 @@ ADD_SUBDIRECTORY(ndbapi)
 ADD_SUBDIRECTORY(kernel)
 ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
+ADD_SUBDIRECTORY(ndbjtie)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
@@ -36,5 +37,7 @@ MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
                 ndbportlib
                 ndbgeneral
                 ndbconf
+                ndbjtie
+                mysqlutils
 )
 TARGET_LINK_LIBRARIES(ndbclient ws2_32)

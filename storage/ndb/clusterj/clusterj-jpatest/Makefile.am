@@ -85,7 +85,7 @@ EXTRA_DIST= \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/*.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/*.java \
   $(clusterj_jpatest_res)/META-INF/persistence.xml \
-   pom.xml
+   pom.xml CMakeLists.txt
 
 $(MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(MANIFEST)

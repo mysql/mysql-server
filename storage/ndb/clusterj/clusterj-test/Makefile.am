@@ -140,7 +140,7 @@ EXTRA_DIST = \
   src/main/resources/META-INF \
   src/main/resources/schema.sql \
   $(clusterj_test_java) \
-  pom.xml
+  pom.xml CMakeLists.txt
 
 $(MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(MANIFEST)
