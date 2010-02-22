@@ -978,4 +978,21 @@ GROUP BY t1.a
 1
 1
 DROP TABLE t1, t2;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (),();
+EXPLAIN EXTENDED SELECT 1 FROM
+(SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Distinct
+2	DERIVED	td	ALL	NULL	NULL	NULL	NULL	2	100.00	Distinct; Using join buffer
+Warnings:
+Note	1003	select 1 AS `1` from (select distinct group_concat(`test`.`td`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
+SELECT 1 FROM
+(SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
+1
+1
+1
+DROP TABLE t1;
 End of 5.0 tests
