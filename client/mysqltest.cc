@@ -74,7 +74,7 @@
 #define QUERY_REAP_FLAG  2
 
 #ifndef HAVE_SETENV
-#error implement our portable setenv replacement in mysys
+static int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 enum {
@@ -87,9 +87,7 @@ enum {
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
-#ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
-#endif
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
@@ -5953,12 +5951,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
    (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
    0, 0, 0},
-#endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -9845,3 +9841,18 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
+
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite)
+{
+  size_t buflen= strlen(name) + strlen(value) + 2;
+  char *envvar= (char *)malloc(buflen);
+  if(!envvar)
+    return ENOMEM;
+  strcpy(envvar, name);
+  strcat(envvar, "=");
+  strcat(envvar, value);
+  putenv(envvar);
+  return 0;
+}
+#endif

@@ -64,7 +64,7 @@ typedef my_bool ALARM;
 #if defined(__WIN__)
 typedef struct st_thr_alarm_entry
 {
-  rf_SetTimer crono;
+  UINT_PTR crono;
 } thr_alarm_entry;
 
 #else /* System with posix threads */
