@@ -3158,7 +3158,7 @@ bool select_insert::send_data(List<Item> &values)
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
-  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   if (thd->is_error())
   {
     table->auto_increment_field_not_null= FALSE;
