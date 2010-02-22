@@ -105,7 +105,7 @@
   warning: 'transparent_union' attribute ignored
 */
 #if defined(__GNUC__) && !defined(__cplusplus) && \
-      ! (defined(__APPLE__) && defined(_ARCH_PPC64))
+      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
 /*
   we want to be able to use my_atomic_xxx functions with
   both signed and unsigned integers. But gcc will issue a warning

@@ -83,9 +83,7 @@ typedef long sopno;
  * a string of multi-character elements, and decide the size of the
  * vectors at run time.
  */
-#ifdef __WIN__
-typedef unsigned char uch ;
-#endif
+
 
 typedef struct {
 	uch *ptr;		/* -> uch [csetsize] */
