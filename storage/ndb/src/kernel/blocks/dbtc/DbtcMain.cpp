@@ -354,6 +354,8 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   }
 
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
+
+  checkCommitAckMarkerVersion();
 }
 
 void Dbtc::execREAD_NODESREF(Signal* signal) 
@@ -935,7 +937,27 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
     }//if
   }//for
   ndbsttorry010Lab(signal);
+  checkCommitAckMarkerVersion();
 }//Dbtc::execREAD_NODESCONF()
+
+void
+Dbtc::checkCommitAckMarkerVersion()
+{
+  const NodeVersionInfo & info = getNodeVersionInfo();
+  if (info.m_type[NodeInfo::DB].m_min_version <= MAKE_VERSION(6,3,0))
+  {
+    jam();
+    /**
+     * In 6.2 only 1 commit ack marker should by issued
+     */
+    m_single_commit_ack_marker = 1;
+  }
+  else
+  {
+    jam();
+    m_single_commit_ack_marker = 0;
+  }
+}
 
 /*****************************************************************************/
 /*                     A P I _ F A I L R E Q                                 */
@@ -2940,10 +2962,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
   else
   {
+    Uint32 marker = regApiPtr->commitAckMarker;
+    Uint32 single = m_single_commit_ack_marker;
     if (!regApiPtr->m_commit_ack_marker_received)
     {
-      if(regApiPtr->commitAckMarker != RNIL)
-        regTcPtr->commitAckMarker = regApiPtr->commitAckMarker;
+      if (marker != RNIL)
+      {
+        regTcPtr->commitAckMarker = marker;
+      }
       else
       {
         jam();
@@ -2972,6 +2998,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         }
       }
       regApiPtr->no_commit_ack_markers++;
+
+      if (unlikely(single && marker != RNIL))
+      {
+        jam();
+        ndbrequire(regApiPtr->no_commit_ack_markers == 2);
+        regApiPtr->no_commit_ack_markers --;
+        regTcPtr->commitAckMarker = RNIL;
+      }
     }
     
     UintR TwriteCount = c_counters.cwriteCount;
@@ -5353,6 +5387,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	}
       }
       
+      Uint32 marker = regTcPtr->commitAckMarker;
       markOperationAborted(regApiPtr, regTcPtr);
       
       if(regApiPtr->apiConnectstate == CS_ABORTING){
@@ -5371,6 +5406,16 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	TCKEY_abort(signal, 49);
 	return;
       }//if
+
+      if (unlikely(m_single_commit_ack_marker && marker != RNIL))
+      {
+	/**
+	 * In 6.2 this was not supported, and since running in 
+	 *   upgrade mode, transaction needs to be aborted here
+	 */
+	TCKEY_abort(signal, 49);
+	return;
+      }
 
       /* *************** */
       /*    TCKEYREF   < */
@@ -7414,6 +7459,8 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
                   myHostPtr.i};
     simBlockNodeFailure(signal, myHostPtr.i, cb);
   }
+
+  checkCommitAckMarkerVersion();
 }//Dbtc::execNODE_FAILREP()
 
 void

@@ -49,6 +49,7 @@ void Dbtc::initData()
 
   // Variables
   ctcTimer = 0;
+  m_single_commit_ack_marker = 0;
 
   // Trigger and index pools
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
