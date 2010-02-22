@@ -1283,7 +1283,8 @@ bool mysql_multi_update(THD *thd,
 
   if (using_handler)
   {
-    Internal_error_handler *top_handler= thd->pop_internal_handler();
+    Internal_error_handler *top_handler;
+    top_handler= thd->pop_internal_handler();
     DBUG_ASSERT(&handler == top_handler);
   }
 

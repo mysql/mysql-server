@@ -2911,17 +2911,12 @@ AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' C
 
 AC_OUTPUT
 
-echo
-echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
-echo "latest release, upcoming features, and other information to make your"
-echo "work or play with MySQL more productive. There you can also find"
-echo "information about mailing lists for MySQL discussion."
-echo
-echo "Remember to check the platform specific part of the reference manual for"
-echo "hints about installing MySQL on your platform. Also have a look at the"
-echo "files in the Docs directory."
-echo
-# The following text is checked in ./Do-compile to verify that configure
+# The first line "Thank you ..." is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
+echo
 echo "Thank you for choosing MySQL!"
+echo
+echo "Remember to check the platform specific part of the reference manual"
+echo "for hints about installing MySQL on your platform."
+echo "Also have a look at the files in the Docs directory."
 echo
