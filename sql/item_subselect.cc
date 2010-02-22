@@ -3424,7 +3424,10 @@ void subselect_hash_sj_engine::set_strategy_using_schema()
   DBUG_ENTER("subselect_hash_sj_engine::set_strategy_using_schema");
 
   if (item_in->is_top_level_item())
+  {
     strategy= COMPLETE_MATCH;
+    DBUG_VOID_RETURN;
+  }
   else
   {
     List_iterator<Item> inner_col_it(*item_in->unit->get_unit_column_types());
@@ -3846,6 +3849,7 @@ int subselect_hash_sj_engine::exec()
   thd->lex->current_select= materialize_engine->select_lex;
   if ((res= materialize_join->optimize()))
     goto err; /* purecov: inspected */
+  DBUG_ASSERT(!is_materialized); /* We should materialize only once. */
   materialize_join->exec();
   if ((res= test(materialize_join->error || thd->is_fatal_error)))
     goto err;
@@ -3952,7 +3956,7 @@ void subselect_hash_sj_engine::print(String *str, enum_query_type query_type)
     lookup_engine->print(str, query_type);
   else
     str->append(STRING_WITH_LEN(
-           "<the access method for lookups is not yet created>"
+           "<engine selected at execution time>"
          ));
 }
 
@@ -3980,11 +3984,10 @@ bool subselect_hash_sj_engine::change_result(Item_subselect *si,
 }
 
 
-Ordered_key::Ordered_key(uint key_idx_arg, TABLE *tbl_arg,
-                         Item *search_key_arg, ha_rows null_count_arg,
-                         ha_rows min_null_row_arg, ha_rows max_null_row_arg,
-                         uchar *row_num_to_rowid_arg)
-  : key_idx(key_idx_arg), tbl(tbl_arg), search_key(search_key_arg),
+Ordered_key::Ordered_key(uint keyid_arg, TABLE *tbl_arg, Item *search_key_arg,
+                         ha_rows null_count_arg, ha_rows min_null_row_arg,
+                         ha_rows max_null_row_arg, uchar *row_num_to_rowid_arg)
+  : keyid(keyid_arg), tbl(tbl_arg), search_key(search_key_arg),
     row_num_to_rowid(row_num_to_rowid_arg), null_count(null_count_arg)
 {
   DBUG_ASSERT(tbl->file->stats.records > null_count);
@@ -4190,6 +4193,21 @@ void Ordered_key::sort_keys()
 
 
 /*
+  The probability that a certain row does not contain a NULL in some row in
+  a NULL-indexed column.
+  @retval  1  if there are no NULLs
+  @retval  0  if only NULLs
+*/
+
+double Ordered_key::null_selectivity()
+{
+  /* We should not be processing empty tables. */
+  DBUG_ASSERT(tbl->file->stats.records);
+  return (1 - (double) null_count / (double) tbl->file->stats.records);
+}
+
+
+/*
   Compare the value(s) of the current key in 'search_key' with the
   data of the current table record.
 
@@ -4307,6 +4325,34 @@ bool Ordered_key::next_same()
 }
 
 
+void Ordered_key::print(String *str)
+{
+  uint i;
+  str->append("{idx=");
+  str->qs_append(keyid);
+  str->append(", (");
+  for (i= 0; i < key_column_count - 1; i++)
+  {
+    str->append(key_columns[i]->field->field_name);
+    str->append(", ");
+  }
+  str->append(key_columns[i]->field->field_name);
+  str->append("), ");
+
+  str->append("null_bitmap: (bits=");
+  str->qs_append(null_key.n_bits);
+  str->append(", nulls= ");
+  str->qs_append((double)null_count);
+  str->append(", min_null= ");
+  str->qs_append((double)min_null_row);
+  str->append(", max_null= ");
+  str->qs_append((double)max_null_row);
+  str->append("), ");
+
+  str->append('}');
+}
+
+
 /*
   @param non_null_key_parts  
   @param partial_match_key_parts  A union of all single-column NULL key parts.
@@ -4323,7 +4369,7 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   rownum_t cur_rownum= 0;
   select_materialize_with_stats *result_sink=
     (select_materialize_with_stats *) result;
-  uint cur_key= 0;
+  uint cur_keyid= 0;
   Item_in_subselect *item_in= (Item_in_subselect*) item;
   int error;
 
@@ -4346,16 +4392,16 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   /* Create the only non-NULL key if there is any. */
   if (non_null_key_parts)
   {
-    non_null_key= new Ordered_key(cur_key, tmp_table, item_in->left_expr,
+    non_null_key= new Ordered_key(cur_keyid, tmp_table, item_in->left_expr,
                                   0, 0, 0, row_num_to_rowid);
     if (non_null_key->init(non_null_key_parts))
     {
       // TIMOUR: revert to partial matching via scanning
       return TRUE;
     }
-    merge_keys[cur_key]= non_null_key;
-    merge_keys[cur_key]->first();
-    ++cur_key;
+    merge_keys[cur_keyid]= non_null_key;
+    merge_keys[cur_keyid]->first();
+    ++cur_keyid;
   }
 
   /*
@@ -4379,23 +4425,24 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
         continue;
 
       if (result_sink->get_null_count_of_col(i) == row_count)
-        bitmap_set_bit(&null_only_columns, cur_key);
+        bitmap_set_bit(&null_only_columns, cur_keyid);
       else
       {
-        merge_keys[cur_key]= new Ordered_key(cur_key, tmp_table,
-                                             item_in->left_expr->element_index(i),
-                                             result_sink->get_null_count_of_col(i),
-                                             result_sink->get_min_null_of_col(i),
-                                             result_sink->get_max_null_of_col(i),
-                                             row_num_to_rowid);
-        if (merge_keys[cur_key]->init(i))
+        merge_keys[cur_keyid]= new Ordered_key(
+                                     cur_keyid, tmp_table,
+                                     item_in->left_expr->element_index(i),
+                                     result_sink->get_null_count_of_col(i),
+                                     result_sink->get_min_null_of_col(i),
+                                     result_sink->get_max_null_of_col(i),
+                                     row_num_to_rowid);
+        if (merge_keys[cur_keyid]->init(i))
         {
           // TIMOUR: revert to partial matching via scanning
           return TRUE;
         }
-        merge_keys[cur_key]->first();
+        merge_keys[cur_keyid]->first();
       }
-      ++cur_key;
+      ++cur_keyid;
     }
   }
 
@@ -4453,11 +4500,13 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
 
   tmp_table->file->ha_rnd_end();
 
+  /* Sort all the keys by their NULL selectivity. */
+  my_qsort(merge_keys, keys_count, sizeof(Ordered_key*),
+           (qsort_cmp) cmp_keys_by_null_selectivity);
+
   /* Sort the keys in each of the indexes. */
   for (uint i= 0; i < keys_count; i++)
     merge_keys[i]->sort_keys();
-
-  // TIMOUR: sort all the keys by NULL selectivity
 
   if (init_queue(&pq, keys_count, 0, FALSE,
                  subselect_rowid_merge_engine::cmp_keys_by_cur_rownum, NULL))
@@ -4486,20 +4535,38 @@ void subselect_rowid_merge_engine::cleanup()
 }
 
 
+void subselect_rowid_merge_engine::print(String *str, enum_query_type query_type)
+{
+  str->append(STRING_WITH_LEN("<rowid_merge>("));
+  for (uint i= 0; i < keys_count; i++)
+    merge_keys[i]->print(str);
+  str->append(')');
+}
+
+
 /*
+  Quick sort comparison function to compare keys in order of decreasing bitmap
+  selectivity, so that the most selective keys come first.
+
+  @param  k1 first key to compare
+  @param  k2 second key to compare
+
+  @retval  1  if k1 is less selective than k2
+  @retval  0  if k1 is equally selective as k2
+  @retval -1  if k1 is more selective than k2
 */
 
 int
-subselect_rowid_merge_engine::cmp_keys_by_null_selectivity(Ordered_key *a,
-                                                           Ordered_key *b)
+subselect_rowid_merge_engine::cmp_keys_by_null_selectivity(Ordered_key **k1,
+                                                           Ordered_key **k2)
 {
-  double a_sel= a->null_selectivity();
-  double b_sel= b->null_selectivity();
-  if (a_sel == b_sel)
-    return 0;
-  if (a_sel > b_sel)
+  double k1_sel= (*k1)->null_selectivity();
+  double k2_sel= (*k2)->null_selectivity();
+  if (k1_sel < k2_sel)
     return 1;
-  return -1;
+  if (k1_sel > k2_sel)
+    return -1;
+  return 0;
 }
 
 
@@ -4527,17 +4594,21 @@ subselect_rowid_merge_engine::cmp_keys_by_cur_rownum(void *arg,
 
 bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
 {
+  Ordered_key *cur_key;
+  uint cur_id;
   for (uint i = 0; i < keys_count; i++)
   {
-    if (bitmap_is_set(&matching_keys, i))
+    cur_key= merge_keys[i];
+    cur_id= cur_key->get_keyid();
+    if (bitmap_is_set(&matching_keys, cur_id))
     {
       /*
-        The key 'i' already matches a value in row 'row_num', thus we
-        skip it as it can't possibly match a NULL.
+        The key 'i' (with id 'cur_keyid') already matches a value in row 'row_num',
+        thus we skip it as it can't possibly match a NULL.
       */
       continue;
     }
-    if (!merge_keys[i]->is_null(row_num))
+    if (!cur_key->is_null(row_num))
       return FALSE;
   }
   return TRUE;
@@ -4583,7 +4654,7 @@ bool subselect_rowid_merge_engine::partial_match()
     if (merge_keys[i]->get_search_key(0)->is_null())
     {
       ++count_nulls_in_search_key;
-      bitmap_set_bit(&matching_outer_cols, merge_keys[i]->get_key_idx());
+      bitmap_set_bit(&matching_outer_cols, merge_keys[i]->get_keyid());
     }
     else if (merge_keys[i]->lookup())
       queue_insert(&pq, (uchar *) merge_keys[i]);
@@ -4610,7 +4681,7 @@ bool subselect_rowid_merge_engine::partial_match()
   min_key= (Ordered_key*) queue_remove(&pq, 0);
   min_row_num= min_key->current();
   bitmap_copy(&matching_keys, &null_only_columns);
-  bitmap_set_bit(&matching_keys, min_key->get_key_idx());
+  bitmap_set_bit(&matching_keys, min_key->get_keyid());
   bitmap_union(&matching_keys, &matching_outer_cols);
   if (min_key->next_same())
     queue_insert(&pq, (uchar *) min_key);
@@ -4633,7 +4704,7 @@ bool subselect_rowid_merge_engine::partial_match()
     cur_row_num= cur_key->current();
 
     if (cur_row_num == min_row_num)
-      bitmap_set_bit(&matching_keys, cur_key->get_key_idx());
+      bitmap_set_bit(&matching_keys, cur_key->get_keyid());
     else
     {
       /* Follows from the correct use of priority queue. */
@@ -4645,7 +4716,7 @@ bool subselect_rowid_merge_engine::partial_match()
         min_key= cur_key;
         min_row_num= cur_row_num;
         bitmap_copy(&matching_keys, &null_only_columns);
-        bitmap_set_bit(&matching_keys, min_key->get_key_idx());
+        bitmap_set_bit(&matching_keys, min_key->get_keyid());
         bitmap_union(&matching_keys, &matching_outer_cols);
       }
     }

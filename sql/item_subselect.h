@@ -752,7 +752,7 @@ protected:
     Index of the key in an array of keys. This index allows to
     construct (sub)sets of keys represented by bitmaps.
   */
-  uint key_idx;
+  uint keyid;
   /* The table being indexed. */
   TABLE *tbl;
   /* The columns being indexed. */
@@ -810,7 +810,7 @@ protected:
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
-  Ordered_key(uint key_idx_arg, TABLE *tbl_arg,
+  Ordered_key(uint keyid_arg, TABLE *tbl_arg,
               Item *search_key_arg, ha_rows null_count_arg,
               ha_rows min_null_row_arg, ha_rows max_null_row_arg,
               uchar *row_num_to_rowid_arg);
@@ -822,7 +822,7 @@ public:
   bool init(int col_idx);
 
   uint get_column_count() { return key_column_count; }
-  uint get_key_idx() { return key_idx; }
+  uint get_keyid() { return keyid; }
   uint get_field_idx(uint i)
   {
     DBUG_ASSERT(i < key_column_count);
@@ -841,8 +841,7 @@ public:
   }
 
   void sort_keys();
-
-  double null_selectivity() { return (1 - null_count / null_key.n_bits); }
+  double null_selectivity();
 
   /*
     Position the current element at the first row that matches the key.
@@ -896,6 +895,7 @@ public:
       return FALSE;
     return bitmap_is_set(&null_key, row_num);
   }
+  void print(String *str);
 };
 
 
@@ -957,10 +957,10 @@ protected:
   bool has_covering_null_row;
 protected:
   /*
-    Comparison function to compare keys in order of increasing bitmap
+    Comparison function to compare keys in order of decreasing bitmap
     selectivity.
   */
-  static int cmp_keys_by_null_selectivity(Ordered_key *a, Ordered_key *b);
+  static int cmp_keys_by_null_selectivity(Ordered_key **k1, Ordered_key **k2);
   /*
     Comparison function used by the priority queue pq, the 'smaller' key
     is the one with the smaller current row number.
@@ -992,7 +992,7 @@ public:
   uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude() {}
   table_map upper_select_const_tables() { return 0; }
-  void print(String*, enum_query_type) {}
+  void print(String*, enum_query_type);
   bool change_result(Item_subselect*, select_result_interceptor*)
   { DBUG_ASSERT(FALSE); return false; }
   bool no_tables() { return false; }
