@@ -520,5 +520,7 @@ insert into t1 values (1,1,1), (2,2,2), (3,3,3);
 select * from t1 order by 1;
 drop table t1;
 --source include/ndb_show_tables_result.inc
-select * from ndb_show_tables_results order by 1,2,3,4,5,6,7;
+select * from ndb_show_tables_results
+where type like '%Index%'
+order by 1,2,3,4,5,6,7;
 drop table ndb_show_tables_results;
