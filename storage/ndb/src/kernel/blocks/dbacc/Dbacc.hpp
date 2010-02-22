@@ -846,7 +846,8 @@ private:
 
   void zpagesize_error(const char* where);
 
-  void reportMemoryUsage(Signal* signal, int gth);
+  void reportMemoryUsage(Signal* signal, int gth,
+                         BlockReference ref = CMVMI_REF);
   void reenable_expand_after_redo_log_exection_complete(Signal*);
 
   // charsets

@@ -281,6 +281,10 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get session", &MgmApiSession::getSession, ""),
     MGM_ARG("id", Int, Mandatory, "SessionID"),
 
+  MGM_CMD("dump events", &MgmApiSession::dump_events, ""),
+    MGM_ARG("type", Int, Mandatory, "Type of event"),
+    MGM_ARG("nodes", String, Optional, "Nodes to include"),
+
   MGM_END()
 };
 
@@ -1329,6 +1333,38 @@ operator<<(NdbOut& out, const LogLevel & ll)
 }
 #endif
 
+
+static void
+logevent2str(BaseString& str, int eventType,
+             const Uint32* theData, NodeId nodeId,
+             char* pretty_text, size_t pretty_text_size)
+{
+  str.assign("log event reply\n");
+  str.appfmt("type=%d\n", eventType);
+  str.appfmt("time=%d\n", 0);
+  str.appfmt("source_nodeid=%d\n", nodeId);
+  for (unsigned i= 0; ndb_logevent_body[i].token; i++)
+  {
+    if ( ndb_logevent_body[i].type != eventType)
+      continue;
+    int val= theData[ndb_logevent_body[i].index];
+    if (ndb_logevent_body[i].index_fn)
+      val= (*(ndb_logevent_body[i].index_fn))(val);
+    str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
+    if(strcmp(ndb_logevent_body[i].token,"error") == 0)
+    {
+      int pretty_text_len= strlen(pretty_text);
+      if(pretty_text_size-pretty_text_len-3 > 0)
+      {
+        BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
+        ndb_error_string(val, pretty_text+(pretty_text_len+3),
+                         pretty_text_size-pretty_text_len-3);
+      }
+    }
+  }
+}
+
+
 void
 Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, 
 			    Uint32 len, NodeId nodeId){
@@ -1344,33 +1380,18 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity,textF))
     DBUG_VOID_RETURN;
 
-  char m_text[512];
-  EventLogger::getText(m_text, sizeof(m_text),
+  // Generate the message for pretty format clients
+  char pretty_text[512];
+  EventLogger::getText(pretty_text, sizeof(pretty_text),
 		       textF, theData, len, nodeId);
 
-  BaseString str("log event reply\n");
-  str.appfmt("type=%d\n", eventType);
-  str.appfmt("time=%d\n", 0);
-  str.appfmt("source_nodeid=%d\n", nodeId);
-  for (i= 0; ndb_logevent_body[i].token; i++)
-  {
-    if ( ndb_logevent_body[i].type != eventType)
-      continue;
-    int val= theData[ndb_logevent_body[i].index];
-    if (ndb_logevent_body[i].index_fn)
-      val= (*(ndb_logevent_body[i].index_fn))(val);
-    str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
-    if(strcmp(ndb_logevent_body[i].token,"error") == 0)
-    {
-      int m_text_len= strlen(m_text);
-      if(sizeof(m_text)-m_text_len-3 > 0)
-      {
-        BaseString::snprintf(m_text+m_text_len, 4 , " - ");
-        ndb_error_string(val, m_text+(m_text_len+3), sizeof(m_text)-m_text_len-3);
-      }
-    }
-  }
-  
+  // Generate the message for parseable format clients
+  // and if there is a field named "error" append the ndb_error_string
+  // for that error number to the end of the pretty format message
+  BaseString str;
+  logevent2str(str, eventType, theData, nodeId,
+               pretty_text, sizeof(pretty_text));
+
   Vector<NDB_SOCKET_TYPE> copy;
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--)
@@ -1386,7 +1407,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
       if (m_clients[i].m_parsable)
         r= out.println(str.c_str());
       else
-        r= out.println(m_text);
+        r= out.println(pretty_text);
 
       if (r<0)
       {
@@ -1870,5 +1891,116 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
   m_output->println("%s", "");
 }
 
+static bool
+valid_nodes(const NdbNodeBitmask& nodes, unsigned max_nodeid)
+{
+  unsigned nodeid = 0;
+  while((nodeid = nodes.find(nodeid)) != NdbNodeBitmask::NotFound)
+  {
+    if (nodeid == 0 || nodeid > max_nodeid)
+      return false;
+    nodeid++;
+  }
+  return true;
+}
+
+
+#include <signaldata/DumpStateOrd.hpp>
+
+static const
+struct dump_request {
+  Ndb_logevent_type type;
+  DumpStateOrd::DumpStateType dump_type;
+  // Number of reports to wait for from each node
+  Uint32 reports_per_node;
+} dump_requests [] =
+{
+  { NDB_LE_BackupStatus,
+    DumpStateOrd::BackupStatus,
+    1 },
+
+  { NDB_LE_MemoryUsage,
+    DumpStateOrd::DumpPageMemory,
+    2},
+
+  { NDB_LE_ILLEGAL_TYPE, (DumpStateOrd::DumpStateType)0, 0 }
+};
+
+void
+MgmApiSession::dump_events(Parser_t::Context &,
+                           const class Properties &args)
+{
+  m_output->println("dump events reply");
+
+  // Check "type" argument
+  Uint32 type;
+  args.get("type", &type);
+
+  const dump_request* request = dump_requests;
+  for (; request->type != NDB_LE_ILLEGAL_TYPE; request++)
+  {
+    if (request->type == (Ndb_logevent_type)type)
+      break;
+  }
+
+  if (request->type == NDB_LE_ILLEGAL_TYPE)
+  {
+    m_output->println("result: ndb_logevent_type %u not supported", type);
+    m_output->println("%s", "");
+    return;
+  }
+
+  // Check "nodes" argument
+  NdbNodeBitmask nodes;
+  const char* nodes_str = NULL;
+  args.get("nodes", &nodes_str);
+  if (nodes_str)
+  {
+    int res = nodes.parseMask(nodes_str);
+    if (res < 0 || !valid_nodes(nodes, MAX_NDB_NODES-1))
+    {
+      m_output->println("result: invalid nodes: '%s'", nodes_str);
+      m_output->println("%s", "");
+      return;
+    }
+  }
+
+  // Request the events
+  Vector<SimpleSignal> events;
+  if (!m_mgmsrv.request_events(nodes,
+                               request->reports_per_node,
+                               request->dump_type,
+                               events))
+  {
+    m_output->println("result: failed to dump events");
+    m_output->println("%s", "");
+    return;
+  }
+
+  // Return result
+  m_output->println("result: Ok");
+  m_output->println("events: %u", events.size());
+  m_output->println("%s", ""); // Empty line between header and first event
+  for (unsigned i = 0; i < events.size(); i++)
+  {
+    const EventReport * const event =
+      (const EventReport*)events[i].getDataPtrSend();
+    const NodeId nodeid = refToNode(events[i].header.theSendersBlockRef);
+
+    // Check correct EVENT_REP type returned
+    assert((Ndb_logevent_type)event->eventType == request->type);
+
+    BaseString str;
+    char pretty_text[512];
+    logevent2str(str, event->eventType, events[i].getDataPtrSend(), nodeid,
+                 pretty_text, sizeof(pretty_text));
+
+    m_output->println("%s", str.c_str());
+
+  }
+}
+
+
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<SimpleSignal>;

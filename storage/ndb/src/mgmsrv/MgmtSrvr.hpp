@@ -665,6 +665,10 @@ private:
   int match_hostname(const struct sockaddr *, const char *) const;
   int try_alloc(unsigned id,  const char *, enum ndb_mgm_node_type type,
                 const struct sockaddr *client_addr, Uint32 timeout_ms);
+
+  bool request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
+                      Uint32 dump_type,
+                      Vector<SimpleSignal>& events);
 };
 
 inline
