@@ -38,6 +38,38 @@ sub set_installdir
    }
 }
 
+# CMake understands CC and CXX env.variables correctly, if they  contain 1 or 2 tokens
+# e.g CXX=gcc and CXX="ccache gcc" are ok. However it could have a problem if there
+# (recognizing gcc) with more tokens ,e.g CXX="ccache gcc --pipe".
+# The problem is simply fixed by splitting compiler and flags, e.g
+# CXX="ccache gcc --pipe" => CXX=ccache gcc CXXFLAGS=--pipe
+
+sub check_compiler
+{
+  my ($varname, $flagsvarname) = @_;
+  my @tokens = split(/ /,$ENV{$varname});
+  if($#tokens >= 2)  
+  {
+    $ENV{$varname} = $tokens[0]." ".$tokens[1];
+    my $flags;
+
+    for(my $i=2; $i<=$#tokens; $i++)
+    {
+      $flags= $flags." ".$tokens[$i];  
+    }
+    if(defined $ENV{$flagsvarname})
+    {
+      $flags = $flags." ".$ENV{$flagsvarname};
+    }
+    $ENV{$flagsvarname}=$flags;
+    print("$varname=$ENV{$varname}\n");
+    print("$flagsvarname=$ENV{$flagsvarname}\n");
+  }  
+}
+
+check_compiler("CC", "CFLAGS");
+check_compiler("CXX", "CXXFLAGS");
+
 foreach my $option (@ARGV)
 {
   if (substr ($option, 0, 2) == "--")
