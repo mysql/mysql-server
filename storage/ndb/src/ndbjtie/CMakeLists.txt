@@ -17,14 +17,17 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
+ADD_SUBDIRECTORY(jtie)
+ADD_SUBDIRECTORY(mysql)
+
 INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 
-INCLUDE_DIRECTORIES(../mysql/include/
-                    ../utils
-                    ../jtie/include
+INCLUDE_DIRECTORIES(mysql
+                    utils
+                    jtie
 )
 
-#ADD_LIBRARY(ndbjtie_lib ndbjtie_lib.cpp)
+ADD_LIBRARY(ndbjtie ndbjtie_lib.cpp)
 
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql/*.java
@@ -71,7 +74,7 @@ SET ( JAVA_FILES
 
 SET ( JAR_FILE ndbjtie.jar )
 
-SET ( CLASSPATH ../jtie/src/jtie.jar)
+SET ( CLASSPATH jtie/target/classes)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
 

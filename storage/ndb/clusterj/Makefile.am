@@ -36,7 +36,7 @@ clusterj_jar = clusterj.jar
 
 clusterj_DATA = $(clusterj_version_jar)
 
-EXTRA_DIST = pom.xml
+EXTRA_DIST = pom.xml CMakeLists.txt
 
 $(CLUSTERJ_MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(CLUSTERJ_MANIFEST)

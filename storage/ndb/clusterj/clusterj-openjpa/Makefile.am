@@ -82,7 +82,7 @@ EXTRA_DIST = \
   $(clusterj_openjpa_res)/com/mysql/clusterj/openjpa/Bundle.properties \
   $(clusterj_openjpa_src)/com/mysql/clusterj/openjpa/*.java \
   $(clusterj_openjpa_test)/com/mysql/clusterj/openjpatest/*.java \
-  pom.xml
+  pom.xml CMakeLists.txt
 
 $(CLUSTERJPA_MANIFEST):
 	if test "$(OPENJPA_OPT)" == "clusterj-openjpa"; then \

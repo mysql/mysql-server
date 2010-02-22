@@ -56,7 +56,7 @@ EXTRA_DIST = \
   src/main/resources/com/mysql/clusterj/tie/Bundle.properties \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/*.java \
   $(clusterj_tie_test)/testsuite/clusterj/tie/*.java \
-  pom.xml
+  pom.xml CMakeLists.txt
 
 classclusterj_tie.stamp: $(clusterj_tie_java)
 	mkdir -p  $(JAVAROOT)

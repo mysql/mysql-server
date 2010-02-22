@@ -73,7 +73,7 @@ EXTRA_DIST = \
   $(clusterj_api_src)/com/mysql/clusterj/*.java \
   $(clusterj_api_src)/com/mysql/clusterj/query/*.java \
   $(clusterj_api_src)/com/mysql/clusterj/annotation/*.java \
-  pom.xml
+  pom.xml CMakeLists.txt
 
 $(MANIFEST): 
 	echo "Manifest-Version: 1.0"  > $(MANIFEST) 
