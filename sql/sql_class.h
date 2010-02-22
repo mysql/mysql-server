@@ -995,7 +995,6 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
-  enum enum_check_fields count_cuted_fields;
 };
 
 
