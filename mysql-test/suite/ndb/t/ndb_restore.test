@@ -517,3 +517,29 @@ drop table t1;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 drop table t1;
+
+#
+# Bug#51374
+#
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+--source include/ndb_backup.inc
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select * from t1 order by 1;
+drop table t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+--source ndb_show_tables_result.inc
+select * from ndb_show_tables_results
+where type like '%Index%'
+order by 1,2,3,4,5,6,7;
+drop table ndb_show_tables_results;
