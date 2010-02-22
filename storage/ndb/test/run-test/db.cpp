@@ -180,7 +180,7 @@ run_sql(atrt_process * proc, const char * sql)
   }
 
   BaseString tmp;
-  tmp.assfmt(". env.sh ; %s", sql);
+  tmp.assfmt(". ./env.sh ; %s", sql);
 
   g_logger.debug("%s-system(%s)", proc->m_proc.m_cwd.c_str(), tmp.c_str());
   if (system(tmp.c_str()) != 0)
