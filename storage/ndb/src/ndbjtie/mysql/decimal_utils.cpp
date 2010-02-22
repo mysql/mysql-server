@@ -19,11 +19,9 @@
  * decimal_utils.cpp
  */
 
-extern "C" {
 #include "my_global.h"
 #include "m_string.h"
 #include "decimal.h"
-}
 
 #include "decimal_utils.hpp"
 
