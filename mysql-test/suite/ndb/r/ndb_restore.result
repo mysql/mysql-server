@@ -594,3 +594,27 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
 drop table t1;
 drop table t1;
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+select * from t1 order by 1;
+a	b	c
+1	1	1
+2	2	2
+3	3	3
+drop table t1;
+
+ndb_show_tables completed.....
+
+select * from ndb_show_tables_results order by 1,2,3,4,5,6,7;
+id	type	state	logging	_database	_schema	name
+0	'SystemTable'	'Online'	'Yes'	'sys'	'def'	'SYSTAB_0'
+1	'SystemTable'	'Online'	'Yes'	'sys'	'def'	'NDB$EVENTS_0'
+1	'TableEvent'	'Online'	'-'	''	''	'REPL$mysql/ndb_schema'
+2	'TableEvent'	'Online'	'-'	''	''	'NDB$BLOBEVENT_REPL$mysql/ndb_schema_3'
+2	'UserTable'	'Online'	'Yes'	'mysql'	'def'	'ndb_schema'
+3	'TableEvent'	'Online'	'-'	''	''	'REPL$mysql/ndb_apply_status'
+3	'UserTable'	'Online'	'Yes'	'mysql'	'def'	'NDB$BLOB_2_3'
+4	'UserTable'	'Online'	'Yes'	'mysql'	'def'	'ndb_apply_status'
+drop table ndb_show_tables_results;
