@@ -880,4 +880,77 @@ loop:
   return 0;
 }
 
+int
+NdbRestarter::getMasterNodeVersion(int& version)
+{
+  int masterNodeId = getMasterNodeId();
+  if (masterNodeId != -1)
+  {
+    for(size_t i = 0; i < ndbNodes.size(); i++)
+    {
+      if (ndbNodes[i].node_id == masterNodeId)
+      {
+        version =  ndbNodes[i].version;
+        return 0;
+      }
+    }
+  }
+
+  g_err << "Could not find node info for master node id "
+        << masterNodeId << endl;
+  return -1;
+}
+
+int
+NdbRestarter::getNodeTypeVersionRange(ndb_mgm_node_type type,
+                                      int& minVer,
+                                      int& maxVer)
+{
+  if (!isConnected())
+    return -1;
+  
+  if (getStatus() != 0)
+    return -1;
+  
+  Vector<ndb_mgm_node_state>* nodeVec = NULL;
+
+  switch (type)
+  {
+  case NDB_MGM_NODE_TYPE_API:
+    nodeVec = &apiNodes;
+    break;
+  case NDB_MGM_NODE_TYPE_NDB:
+    nodeVec = &ndbNodes;
+    break;
+  case NDB_MGM_NODE_TYPE_MGM:
+    nodeVec = &mgmNodes;
+    break;
+  default:
+    g_err << "Bad node type : " << type << endl;
+    return -1;
+  }
+
+  if (nodeVec->size() == 0)
+  {
+    g_err << "No nodes of type " << type << " online" << endl;
+    return -1;
+  }
+
+  minVer = 0;
+  maxVer = 0;
+  
+  for(size_t i = 0; i < nodeVec->size(); i++)
+  {
+    int nodeVer = (*nodeVec)[i].version;
+    if ((minVer == 0) ||
+        (nodeVer < minVer))
+      minVer = nodeVer;
+    
+    if (nodeVer > maxVer)
+      maxVer = nodeVer;
+  }
+
+  return 0;
+}
+
 template class Vector<ndb_mgm_node_state>;
