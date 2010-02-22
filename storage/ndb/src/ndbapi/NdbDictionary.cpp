@@ -2397,6 +2397,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Blob:
   case NdbDictionary::Column::Text:
     out << " BV=" << col.getBlobVersion();
+    out << " BT=" << ((col.getBlobTable() != 0) ? col.getBlobTable()->getName() : "<none>");
     break;
   default:
     break;

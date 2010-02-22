@@ -8,6 +8,7 @@
 select * from information_schema.columns
 where table_name = "t1";
 show create table t1;
+--replace_regex /BT=NDB\$BLOB_[0-9]+_[0-9]+/BT=NDB$BLOB_#_#/
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
 select * from t1 order by a1;
 drop table t1;
