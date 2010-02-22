@@ -922,8 +922,9 @@ public:
   Field_dependency_recorder(Dep_analysis_context *ctx_arg): ctx(ctx_arg)
   {}
   
-  void visit_field(Field *field)
+  void visit_field(Item_field *item)
   {
+    Field *field= item->field;
     Dep_value_table *tbl_dep;
     if ((tbl_dep= ctx->table_deps[field->table->tablenr]))
     {
