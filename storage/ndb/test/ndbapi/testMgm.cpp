@@ -919,6 +919,101 @@ int runTestBug40922(NDBT_Context* ctx, NDBT_Step* step)
 }
 #endif
 
+int runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+
+  NdbMgmHandle h= ndb_mgm_create_handle();
+  if (!h)
+  {
+    g_err << "ndb_mgm_create_handle failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (ndb_mgm_set_connectstring(h, mgm) != 0 ||
+      ndb_mgm_connect(h,0,0,0) != 0)
+  {
+    g_err << "connect failed, "
+          << ndb_mgm_get_latest_error_desc(h) << endl;
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+
+  char verStr[64];
+  int major, minor, build;
+  if (ndb_mgm_get_version(h,
+                          &major, &minor, &build,
+                          sizeof(verStr), verStr) != 1)
+  {
+    g_err << "ndb_mgm_get_version failed,"
+          << "error: " << ndb_mgm_get_latest_error_msg(h)
+          << "desc: " << ndb_mgm_get_latest_error_desc(h) << endl;
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+
+  g_info << "Using major: " << major
+         << " minor: " << minor
+         << " build: " << build
+         << " string: " << verStr << endl;
+
+  int l = 0;
+  int loops = ctx->getNumLoops();
+  while(l < loops)
+  {
+    char verStr2[64];
+    int major2, minor2, build2;
+    if (ndb_mgm_get_version(h,
+                            &major2, &minor2, &build2,
+                            sizeof(verStr2), verStr2) != 1)
+    {
+      g_err << "ndb_mgm_get_version failed,"
+            << "error: " << ndb_mgm_get_latest_error_msg(h)
+            << "desc: " << ndb_mgm_get_latest_error_desc(h) << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    if (major != major2)
+    {
+      g_err << "Got different major: " << major2
+            << " excpected: " << major << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    if (minor != minor2)
+    {
+      g_err << "Got different minor: " << minor2
+            << " excpected: " << minor << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    if (build != build2)
+    {
+      g_err << "Got different build: " << build2
+            << " excpected: " << build << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    if (strcmp(verStr, verStr2) != 0)
+    {
+      g_err << "Got different verStr: " << verStr2
+            << " excpected: " << verStr << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    l++;
+  }
+
+  ndb_mgm_destroy_handle(&h);
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 TESTCASE("SingleUserMode", 
 	 "Test single user mode"){
@@ -978,6 +1073,10 @@ TESTCASE("Bug40922",
   INITIALIZER(runTestBug40922);
 }
 #endif
+TESTCASE("TestGetVersion",
+ 	 "Test 'get version' and 'ndb_mgm_get_version'"){
+  STEPS(runTestGetVersion, 20);
+ }
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
