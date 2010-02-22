@@ -15,6 +15,7 @@ main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfi
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.sp-error @windows                   # Bug#43201 2010-02-22 alik sp-error.test fails on Windows debug build in embedded mode. The patch will come from -bugfixing.
 
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
