@@ -113,9 +113,13 @@ void ndbSetOwnVersion() {}
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },        // From 7.1+
+  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },        // From 7.0+
+  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },        // From 6.4+
+  { MAKE_VERSION(7,1,NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K, UG_Range },  // From 6.3.X +
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },
-  /* Can only upgrade to 6.4.X from versions >= 6.3.17 due to change
+  /* Can only upgrade to 6.4.X+ from versions >= 6.3.17 due to change
    * in Transporter maximum sent message size
    */
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), NDBD_MAX_RECVBYTESIZE_32K, UG_Range },
