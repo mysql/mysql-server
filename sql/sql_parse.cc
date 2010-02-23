@@ -5171,7 +5171,6 @@ bool check_global_access(THD *thd, ulong want_access)
 	Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
-#ifndef EMBEDDED_LIBRARY
 
 #if STACK_DIRECTION < 0
 #define used_stack(A,B) (long) (A - B)
@@ -5209,7 +5208,7 @@ bool check_stack_overrun(THD *thd, long margin,
 #endif
   return 0;
 }
-#endif /* EMBEDDED_LIBRARY */
+
 
 #define MY_YACC_INIT 1000			// Start with big alloc
 #define MY_YACC_MAX  32000			// Because of 'short'
