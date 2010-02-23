@@ -3011,7 +3011,6 @@ cleanup:
 
 int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
     int error;
-    DBT row, key;
     u_int32_t put_flags;
     THD *thd = ha_thd();
     bool is_replace_into;
