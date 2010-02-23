@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
@@ -76,4 +74,8 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_check.cc
 )
 
-MYSQL_STORAGE_ENGINE(PERFSCHEMA)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)
+IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
+  ENABLE_TESTING()
+  ADD_SUBDIRECTORY(unittest)
+ENDIF()
