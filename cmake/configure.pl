@@ -72,9 +72,20 @@ check_compiler("CXX", "CXXFLAGS");
 
 foreach my $option (@ARGV)
 {
-  if (substr ($option, 0, 2) == "--")
+  if (substr ($option, 0, 2) eq "--")
   {
     $option = substr($option, 2);
+  }
+  else
+  {
+    # This must be environment variable
+    my @v  = split('=', $option);
+    my $name = shift(@v);
+    if(@v)
+    {
+      $ENV{$name} = join('=', @v);  
+    }	
+    next;
   }
   if($option =~ /srcdir/)
   {
