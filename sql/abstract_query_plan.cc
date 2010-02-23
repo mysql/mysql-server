@@ -218,8 +218,8 @@ namespace AQP
         All parts of a key are specified for an unique index -> access is a key lookup.
       */
       const KEY *key_info= join_tab->table->s->key_info;
-      if (key_info[m_index_no].key_parts == join_tab->ref.key_parts  &&
-          key_info[m_index_no].flags & (HA_NOSAME | HA_END_SPACE_KEY) == HA_NOSAME)
+      if ((key_info[m_index_no].key_parts == join_tab->ref.key_parts)  &&
+          (key_info[m_index_no].flags & (HA_NOSAME | HA_END_SPACE_KEY) == HA_NOSAME))
       {
         m_access_type= (m_index_no==(int32)join_tab->table->s->primary_key) 
               ? AT_PRIMARY_KEY
