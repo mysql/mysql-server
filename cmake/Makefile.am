@@ -25,7 +25,7 @@ EXTRA_DIST = \
 	mysql_add_executable.cmake  \
 	install_layout.cmake \
 	build_configurations/mysql_release.cmake \
-	os/Windows.cmake \ 
+	os/Windows.cmake \
 	os/WindowsCache.cmake \
 	os/Linux.cmake \
 	os/SunOS.cmake \
