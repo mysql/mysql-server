@@ -1134,7 +1134,7 @@ and t2.a = t1.b
 order by t1.a desc;
 a	b	a	b
 3	1	1	2
-1	2	1	2
+1	2	2	3
 drop table t1;
 set ndb_join_pushdown=true;
 create table t1 (a int, b int, primary key(a)) engine = ndb;
@@ -1259,6 +1259,27 @@ a	b	a	b
 63	31	31	47
 79	NULL	NULL	NULL
 drop table t1,t2,t3;
+create table t3 (a3 int, b3 int, c3 int, d3 int,
+primary key(a3), unique key(d3)) engine = ndb;
+insert into t3 values (0x1f, 0x2f, 1, 0x1f);
+insert into t3 values (0x2f, 0x3f, 2, 0x2f);
+insert into t3 values (0x3f, 0x1f, 3, 0x3f);
+explain
+select * from t3 as t1
+left outer join t3 as t2 on t2.d3 = t1.d3
+left outer join t3 as t3 on t3.a3 = t2.d3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	d3	d3	5	test.t1.d3	1	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	Child of pushed join@1
+select * from t3 as t1
+left outer join t3 as t2 on t2.d3 = t1.d3
+left outer join t3 as t3 on t3.a3 = t2.d3;
+a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3
+31	47	1	31	31	47	1	31	31	47	1	31
+47	63	2	47	47	63	2	47	47	63	2	47
+63	31	3	63	63	31	3	63	63	31	3	63
+drop table t3;
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
 insert into t1 values (1,null, 2);
 insert into t1 values (2,1, null);

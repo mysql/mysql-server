@@ -1629,10 +1629,8 @@ make_pushed_join(JOIN *join)
     {
       // Replace 'read_key' access with its linked counterpart 
       // ... Which is effectively a NOOP as the row is read as part of the linked operation
-      DBUG_ASSERT(tab->read_first_record==join_read_key ||
-                  tab->read_first_record==join_read_const);
-      DBUG_ASSERT(tab->read_record.read_record == join_no_more_records);
       tab->read_first_record= join_read_linked_key;
+      tab->read_record.read_record= join_no_more_records;
       tab->read_record.unlock_row= rr_unlock_row;
       active_pushed_joins--;
     }
@@ -11957,20 +11955,20 @@ join_read_linked_key(JOIN_TAB *tab)
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
 
-  // Fetch result from linked_key operation if not already present
-  if (table->status & STATUS_GARBAGE)
+  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
   {
-    if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
-      DBUG_RETURN(-1);
-
-    // 'read' itself is a NOOP: 
-    //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-    int error=table->file->index_read_pushed(table->record[0],
-                                        tab->ref.key_buff,
-                                        make_prev_keypart_map(tab->ref.key_parts));
-    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      DBUG_RETURN(report_error(table, error));
+    table->status=STATUS_NOT_FOUND;
+    DBUG_RETURN(-1);
   }
+
+  // 'read' itself is a NOOP: 
+  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
+  int error=table->file->index_read_pushed(table->record[0],
+                                      tab->ref.key_buff,
+                                      make_prev_keypart_map(tab->ref.key_parts));
+  if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    DBUG_RETURN(report_error(table, error));
+
   table->null_row=0;
   int rc = table->status ? -1 : 0;
   DBUG_RETURN(rc);

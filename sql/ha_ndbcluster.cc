@@ -3056,7 +3056,7 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
     {
       DBUG_PRINT("info", 
                  ("Cannot execute push join. Root operation prepared as %s "
-                  "and executed as %s.",
+                  "not executable as %s.",
                   NdbQueryOperationDef::getTypeName(query_def_type),
                   NdbQueryOperationDef::getTypeName(type)));
     }
@@ -3672,13 +3672,6 @@ int ha_ndbcluster::fetch_next(NdbQuery* query)
   {
     table->status= 0;
     unpack_record(table->record[0], m_next_row);
-
-    // Invalidate rows from linked operations.
-    // ::index_read_pushed() will later unpack row and set propper status
-    for (uint i= 1; i<m_pushed_join->get_join_count(); i++)
-    {
-      m_pushed_join->get_table(i)->status= STATUS_GARBAGE;
-    }
   }
   else if (result == NdbQuery::NextResult_scanComplete)
   {
