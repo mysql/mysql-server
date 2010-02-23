@@ -1,4 +1,4 @@
-# Copyright (C) 2007 MySQL AB
+# Copyright (C) 2007 MySQL AB, 2009 Sun Microsystems, Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +14,5 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 ADD_LIBRARY(mytap tap.c)

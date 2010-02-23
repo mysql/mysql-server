@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2009 Sun Microsystems,Inc
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,22 +11,19 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02
 
-# This is CMakeLists.txt for semi-sync replication plugins
 
-# Add common include directories
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
-SET(SEMISYNC_MASTER_SOURCES semisync.cc semisync_master.cc semisync_master_plugin.cc)
-SET(SEMISYNC_SLAVE_SOURCES semisync.cc semisync_slave.cc semisync_slave_plugin.cc)
+SET(SEMISYNC_MASTER_SOURCES  
+ semisync.cc semisync_master.cc semisync_master_plugin.cc
+ semisync.h semisync_master.h)
 
-ADD_DEFINITIONS(-DMYSQL_DYNAMIC_PLUGIN)
-ADD_LIBRARY(semisync_master SHARED ${SEMISYNC_MASTER_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_master  mysqlservices mysqld)
-ADD_LIBRARY(semisync_slave SHARED ${SEMISYNC_SLAVE_SOURCES})
-TARGET_LINK_LIBRARIES(semisync_slave  mysqld)
-MESSAGE("build SEMISYNC as DLL")
+MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  
+  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")
+
+SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc 
+  semisync_slave_plugin.cc semisync.h semisync_slave.h )
+MYSQL_ADD_PLUGIN(semisync_slave ${SEMISYNC_SLAVE_SOURCES} 
+  MODULE_ONLY MODULE_OUTPUT_NAME "semisync_slave")
+

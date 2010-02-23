@@ -147,9 +147,10 @@ hello
 hello
 ;;;;;;;;
 # MySQL: -- The
-mysqltest: At line 1: End of line junk detected: "6"
-mysqltest: At line 1: End of line junk detected: "6"
-mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument '6' passed to 'sleep'
+mysqltest: At line 1: Extra argument 'A comment
+show status' passed to 'sleep'
 mysqltest: At line 1: End of line junk detected: "sleep 7
 # Another comment
 "
@@ -216,6 +217,12 @@ source database
 echo message echo message
 
 mysqltest: At line 1: Missing argument in exec
+1
+1
+2
+2
+X
+3
 MySQL
 "MySQL"
 MySQL: The
@@ -348,8 +355,10 @@ here is the sourced script
 here is the sourced script
 "hello"
 "hello"
-mysqltest: At line 1: Missing argument to sleep
-mysqltest: At line 1: Missing argument to real_sleep
+mysqltest: At line 2: Invalid argument to sleep "xyz"
+mysqltest: At line 2: Invalid argument to real_sleep "xyz"
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'sleep'
+mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_sleep'
 mysqltest: At line 1: Invalid argument to sleep "abc"
 mysqltest: At line 1: Invalid argument to real_sleep "abc"
 1
@@ -377,6 +386,10 @@ test
 test2
 test3
 test4
+outer
+true-inner
+true-inner again
+true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
 1
@@ -417,6 +430,9 @@ mysqltest: At line 1: Wrong number of arguments to replace_column in 'replace_co
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a b'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
 mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
+select "LONG_STRING" as x;
+x
+LONG_STRING
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: Invalid integer argument "a"
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
@@ -523,7 +539,28 @@ a	D
 1	1
 1	4
 drop table t1;
+create table t1 ( f1 char(10));
+insert into t1 values ("Abcd");
+select * from t1;
+f1
+Abcd
+select * from t2;;
+ERROR 42S02: Table 'test.t2' doesn't exist
+select * from t1;
+f1
+Abcd
+select * from t1;;
+Result coming up
+f1
+Abcd
+select * from t1;;
+f1
+Abcd
+mysqltest: At line 2: Cannot run query on connection between send and reap
+select * from t1;;
+drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
+mysqltest: At line 1: Missing required argument 'directory' to command 'remove_files_wildcard'
 mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
 mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
 Content for test_file1
@@ -553,6 +590,8 @@ hello
 mysqltest: At line 1: Max delimiter length(16) exceeded
 hello
 hello
+val is 5
+val is 5
 mysqltest: At line 1: test of die
 Some output
 create table t1( a int, b char(255), c timestamp);
@@ -680,6 +719,29 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+select "500g blåbærsyltetøy" as "will be lower cased";
+will be lower cased
+500g blåbærsyltetøy
+SELECT "UPPER" AS "WILL NOT BE lower cased";
+WILL NOT BE lower cased
+UPPER
+UP
+SELECT 0 as "UP AGAIN";
+UP AGAIN
+0
+select "abcdef" as "uvwxyz";
+uvwxyz
+abcdef
+select "xyz" as name union select "abc" as name order by name desc;
+name
+abc
+xyz
+select 1 as "some new text";
+some new text
+1
+select 0 as "will not lower case ÄËÐ";
+will not lower case ÄËÐ
+0
 CREATE TABLE t1(
 a int, b varchar(255), c datetime
 );
@@ -726,6 +788,8 @@ mysqltest: At line 1: change user failed: Access denied for user 'root'@'localho
 file1.txt
 file1.txt
 file2.txt
+file11.txt
+dir-list.txt
 SELECT 'c:\\a.txt' AS col;
 col
 z

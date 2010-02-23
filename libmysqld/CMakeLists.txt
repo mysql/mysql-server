@@ -13,92 +13,38 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY -DHAVE_DLOPEN)
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEMBEDDED_LIBRARY
+ ${SSL_DEFINES})
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/libmysqld
-                    ${CMAKE_SOURCE_DIR}/libmysql
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-                    ${CMAKE_SOURCE_DIR}/zlib)
+INCLUDE_DIRECTORIES(
+${CMAKE_SOURCE_DIR}/include 
+${CMAKE_SOURCE_DIR}/libmysql
+${CMAKE_SOURCE_DIR}/libmysqld
+${CMAKE_SOURCE_DIR}/sql
+${CMAKE_BINARY_DIR}/sql 
+${CMAKE_SOURCE_DIR}/regex
+${ZLIB_INCLUDE_DIR}
+${SSL_INCLUDE_DIRS}
+${SSL_INTERNAL_INCLUDE_DIRS}
+${NDB_CLUSTER_INCLUDES}
+${CMAKE_SOURCE_DIR}/sql/backup
+)
 
-SET(GEN_SOURCES     ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-                    ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
-                    ${CMAKE_SOURCE_DIR}/sql/message.h
-                    ${CMAKE_SOURCE_DIR}/sql/message.rc
-                    ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
-                    ${CMAKE_SOURCE_DIR}/sql/lex_hash.h)
+SET(GEN_SOURCES
+${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+)
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
 
-# Include and add the directory path
-SET(SOURCE_SUBLIBS TRUE)
-SET(LIB_SOURCES "")
-
-INCLUDE(${CMAKE_SOURCE_DIR}/zlib/CMakeLists.txt)
-FOREACH(rpath ${ZLIB_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
-ENDFOREACH(rpath)
-
-# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
-# not set during configure time.
-INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
-FOREACH(rpath ${DBUG_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
-FOREACH(rpath ${TAOCRYPT_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/taocrypt/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/CMakeLists.txt)
-FOREACH(rpath ${YASSL_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
-FOREACH(rpath ${STRINGS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
-FOREACH(rpath ${REGEX_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
-FOREACH(rpath ${MYSYS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
-FOREACH(rpath ${VIO_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../vio/${rpath})
-ENDFOREACH(rpath)
-
-
-
-FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
-  STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
-  SET(ENGINE_DIR ${${ENGINE_LIB_UPPER}_DIR})
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/${ENGINE_DIR}/CMakeLists.txt)
-  FOREACH(rpath ${${ENGINE_LIB_UPPER}_SOURCES})
-    SET(LIB_SOURCES ${LIB_SOURCES} ${CMAKE_SOURCE_DIR}/storage/${ENGINE_DIR}/${rpath})
-  ENDFOREACH(rpath)
-ENDFOREACH(ENGINE_LIB)
-
-
-SET(SOURCE_SUBLIBS FALSE)
-                            
-SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
+SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
            ../sql/password.c ../sql/discover.cc ../sql/derror.cc 
            ../sql/field.cc ../sql/field_conv.cc
-           ../sql/filesort.cc ../sql/gstream.cc ../sql/ha_partition.cc 
+           ../sql/filesort.cc ../sql/gstream.cc
            ../sql/handler.cc ../sql/hash_filo.cc ../sql/hostname.cc 
            ../sql/init.cc ../sql/item_buff.cc ../sql/item_cmpfunc.cc 
            ../sql/item.cc ../sql/item_create.cc ../sql/item_func.cc 
@@ -135,30 +81,56 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/scheduler.cc ../sql/sql_audit.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
+	       ../sql/rpl_utility.cc
+           ../sql/sys_vars.cc
+           ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ../sql/mdl.cc ../sql/transaction.cc
            ${GEN_SOURCES}
-           ${LIB_SOURCES})
+           ${MYSYS_LIBWRAP_SOURCE}
+)
 
-# Seems we cannot make a library without at least one source file. So use a
-# dummy empty file
-FILE(WRITE cmake_dummy.c " ")
 
-# Tried use the correct ${GEN_SOURCES} as dependency, worked on Unix
-# but not on Windows and Visual Studio generators. Likely because they
-# are no real targets from the Visual Studio project files view. Added
-# custom targets to "sql/CMakeLists.txt" and reference them here.
-ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
-ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
-TARGET_LINK_LIBRARIES(mysqlserver)
+ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
+DTRACE_INSTRUMENT(sql_embedded)
+ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
 
-# Add any additional libraries requested by engine(s)
-FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
-  STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)
-  IF(${ENGINE_LIB_UPPER}_LIBS)
-    TARGET_LINK_LIBRARIES(mysqlserver ${${ENGINE_LIB_UPPER}_LIBS})
-  ENDIF(${ENGINE_LIB_UPPER}_LIBS)
-ENDFOREACH(ENGINE_LIB)
+# On Windows, static embedded server library is called mysqlserver.lib
+# On Unix, it is libmysqld.a
+IF(WIN32)
+  SET(MYSQLSERVER_OUTPUT_NAME mysqlserver)
+ELSE()
+  SET(MYSQLSERVER_OUTPUT_NAME mysqld)
+ENDIF()
 
-ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
-ADD_DEPENDENCIES(libmysqld mysqlserver)
-TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
+
+SET(LIBS 
+  dbug strings regex mysys vio 
+  ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${MYSQLD_STATIC_PLUGIN_LIBS} ${NDB_CLIENT_LIBS}
+  sql_embedded
+)
+
+# Some storage engine were compiled for embedded specifically
+# (with corresponding target ${engine}_embedded)
+SET(EMBEDDED_LIBS)
+FOREACH(LIB ${LIBS})
+  GET_TARGET_PROPERTY(EMBEDDED_LOCATION ${LIB}_embedded LOCATION)
+  IF(EMBEDDED_LOCATION)
+    LIST(APPEND EMBEDDED_LIBS ${LIB}_embedded)
+  ELSE()
+    LIST(APPEND EMBEDDED_LIBS ${LIB})
+  ENDIF()
+ENDFOREACH()
+
+MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME})
+
+# Visual Studio users need debug  static library 
+IF(MSVC)
+ INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+
+IF(MSVC AND NOT DISABLE_SHARED)
+  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+ENDIF()

@@ -47,7 +47,8 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
 			atomic/solaris.h
 
-EXTRA_DIST = 		mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
+			CMakeLists.txt \
 			mysql/psi/psi_abi_v1.h.pp \
 			mysql/psi/psi_abi_v2.h.pp
 
