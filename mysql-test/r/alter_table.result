@@ -1354,3 +1354,15 @@ DROP i,
 ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
 AUTO_INCREMENT = 1;
 DROP TABLE t1;
+CREATE TABLE t1 (a CHAR(1), PRIMARY KEY (a(255)));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE TABLE t1 (a CHAR(1));
+ALTER TABLE t1 ADD PRIMARY KEY (a(20));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+ALTER TABLE t1 ADD KEY (a(20));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE UNIQUE INDEX i1 ON t1 (a(20));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE INDEX i2 ON t1 (a(20));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+DROP TABLE t1;
