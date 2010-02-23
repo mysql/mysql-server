@@ -2086,7 +2086,7 @@ CREATE TABLE t1 ( bug_table_seq   INTEGER NOT NULL);
 CREATE OR REPLACE VIEW v1 AS SELECT * from t1;
 DROP PROCEDURE IF EXISTS p1;
 Warnings:
-Note	1305	PROCEDURE p1 does not exist
+Note	1305	PROCEDURE test.p1 does not exist
 CREATE PROCEDURE p1 ( )
 BEGIN
 DO (SELECT  @next := IFNULL(max(bug_table_seq),0) + 1 FROM v1);
