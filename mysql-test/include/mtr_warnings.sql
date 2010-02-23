@@ -185,6 +185,20 @@ INSERT INTO global_suppressions VALUES
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
+
+ /* Messages from valgrind */
+ ("==[0-9]*== Memcheck,"),
+ ("==[0-9]*== Copyright"),
+ ("==[0-9]*== Using"),
+ ("==[0-9]*== For more details"),
+ /* This comes with innodb plugin tests */
+ ("==[0-9]*== Warning: set address range perms: large range"),
+
+ /* valgrind warnings: invalid file descriptor -1 in syscall
+    write()/read(). Bug #50414 */
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
+
  /*
    Transient network failures that cause warnings on reconnect.
    BUG#47743 and BUG#47983.
