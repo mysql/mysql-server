@@ -12,6 +12,7 @@ extern DB *metadata_db;
 
 // thread variables
 ulonglong get_write_lock_wait_time (THD* thd);
+ulonglong get_read_lock_wait_time (THD* thd);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

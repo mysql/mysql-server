@@ -62,6 +62,18 @@ static MYSQL_THDVAR_ULONGLONG(write_lock_wait,
   1 // blocksize
   );
 
+static MYSQL_THDVAR_ULONGLONG(read_lock_wait,
+  0,
+  "time waiting for read lock",
+  NULL, 
+  NULL, 
+  4000, // default
+  0, // min?
+  ULONGLONG_MAX, // max
+  1 // blocksize
+  );
+
+
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
@@ -443,6 +455,12 @@ exit:
 
 ulonglong get_write_lock_wait_time (THD* thd) {
     ulonglong ret_val = THDVAR(thd, write_lock_wait);
+    return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
+}
+
+
+ulonglong get_read_lock_wait_time (THD* thd) {
+    ulonglong ret_val = THDVAR(thd, read_lock_wait);
     return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
 }
 
@@ -1032,6 +1050,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
     MYSQL_SYSVAR(write_lock_wait),
+    MYSQL_SYSVAR(read_lock_wait),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
