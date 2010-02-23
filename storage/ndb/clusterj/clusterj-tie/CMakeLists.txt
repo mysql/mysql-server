@@ -19,16 +19,22 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/tie/*.java
-)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/tie/*.java)
 
-SET ( JAVA_FILES
-)
+SET ( CLASSPATH 
+  target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie.jar
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/jtie.jar)
 
-SET ( JAR_FILE clusterj-tie.jar )
+SET ( JAR_DEPENDENCIES
+  clusterj-api.jar
+  clusterj-core.jar
+  ndbjtie.jar)
 
-SET ( CLASSPATH "target/classes;${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes;${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes;${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie.jar;${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/jtie.jar")
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(cluster-tie.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH} 
+  DEPENDENCIES ${JAR_DEPENDENCIES})
 
 

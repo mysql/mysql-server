@@ -20,61 +20,26 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(mysql)
 
-INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
+IF(HAVE_JDK)
 
-INCLUDE_DIRECTORIES(mysql
-                    utils
-                    jtie
-)
+  INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 
-ADD_LIBRARY(ndbjtie ndbjtie_lib.cpp)
+  INCLUDE_DIRECTORIES(mysql 
+                      utils 
+                      jtie)
+
+  ADD_LIBRARY(ndbjtie ndbjtie_lib.cpp)
+
+ENDIF(HAVE_JDK)
 
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi/*.java
-)
-
-SET ( JAVA_FILES
-  Utils
-  CharsetMap
-  CharsetMapConst
-  MGMAPI
-  NDBAPI
-  Ndb
-  NdbBlob
-  NdbBlobConst
-  NdbConst
-  NdbDictionary
-  NdbError
-  NdbErrorConst
-  NdbEventOperation
-  NdbEventOperationConst
-  NdbIndexOperation
-  NdbIndexOperationConst
-  NdbIndexScanOperation
-  NdbIndexScanOperationConst
-  NdbInterpretedCode
-  NdbInterpretedCodeConst
-  NdbOperation
-  NdbOperationConst
-  NdbRecAttr
-  NdbRecAttrConst
-  NdbRecord
-  NdbRecordConst
-  NdbScanFilter
-  NdbScanFilterConst
-  NdbScanOperation
-  NdbScanOperationConst
-  NdbTransaction
-  NdbTransactionConst
-  Ndb_cluster_connection
-  Ndb_cluster_connectionConst
-)
-
-SET ( JAR_FILE ndbjtie.jar )
+ ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi/*.java)
 
 SET ( CLASSPATH jtie/target/classes)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(ndbjtie.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH} 
+  DEPENDENCIES jtie.jar)
 

@@ -20,16 +20,15 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/query/*.java
-)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/query/*.java)
 
-SET ( JAVA_FILES
-)
+SET ( CLASSPATH 
+  target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${WITH_CLASSPATH})
 
-SET ( JAR_FILE clusterj-jpatest.jar )
-
-SET ( CLASSPATH target/classes)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(cluster-jpatest.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH}
+  DEPENDENCIES clusterj-api.jar)
 
 

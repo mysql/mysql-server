@@ -25,6 +25,12 @@ ADD_SUBDIRECTORY(ndbjtie)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
 
+IF(HAVE_JDK AND HAVE_JAVA)
+  SET(NDBJTIE_LIBS ndbjtie mysqlutils)
+ELSE()
+  SET(NDBJTIE_LIBS "")
+ENDIF()
+
 MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
                 mysys dbug strings
                 ndbapi
@@ -37,7 +43,6 @@ MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
                 ndbportlib
                 ndbgeneral
                 ndbconf
-                ndbjtie
-                mysqlutils
-)
+                ${NDBJTIE_LIBS})
+
 TARGET_LINK_LIBRARIES(ndbclient ws2_32)

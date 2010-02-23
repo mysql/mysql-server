@@ -17,8 +17,8 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
-INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/include 
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
 		${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils 
 		${CMAKE_SOURCE_DIR}/storage/ndb/include 
 		${CMAKE_SOURCE_DIR}/storage/ndb/include/util 

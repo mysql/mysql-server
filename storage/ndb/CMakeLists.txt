@@ -1,4 +1,4 @@
-# Copyright (C) 2007 MySQL AB
+# Copyright (C) 2007 MySQL ABVE
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
+INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD")
@@ -24,12 +25,41 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DVM_TRACE -DNDB_DEBUG -DERROR_I
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
 SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
 
+IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+  MESSAGE(STATUS "Found JDK - enabling clusterj")
+  SET(HAVE_JDK TRUE)
+ELSE()
+  MESSAGE(STATUS "Found no JDK - disabling clusterj")
+  SET(HAVE_JDK FALSE)
+ENDIF()
+
+IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+  MESSAGE(STATUS "Found Java")
+  SET(HAVE_JAVA TRUE)
+ELSE()
+  MESSAGE(STATUS "Found no Java")
+  SET(HAVE_JAVA FALSE)
+ENDIF()
+
+IF(${WITH_CLASSPATH} MATCHES "junit-(.+).jar")
+  MESSAGE ( STATUS "FOUND JUNIT" )
+  SET(HAVE_JUNIT TRUE)
+ENDIF()
+
+IF(${WITH_CLASSPATH} MATCHES "openjpa-(.+).jar")
+  MESSAGE ( STATUS "FOUND OpenJPA" )
+  SET(HAVE_OPENJPA TRUE)
+ENDIF()
+
 IF(NOT SOURCE_SUBLIBS)
   ADD_SUBDIRECTORY(include)
   ADD_SUBDIRECTORY(src)
   ADD_SUBDIRECTORY(tools)
   ADD_SUBDIRECTORY(test)
-  ADD_SUBDIRECTORY(clusterj)
+  IF(HAVE_JDK)
+    MESSAGE(STATUS "including ClusterJ")
+    ADD_SUBDIRECTORY(clusterj)
+  ENDIF(HAVE_JDK)
   IF(WITH_NDB_TEST)
     ADD_SUBDIRECTORY(src/cw/cpcd)
   ENDIF()

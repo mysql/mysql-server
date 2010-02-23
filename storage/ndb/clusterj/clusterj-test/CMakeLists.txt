@@ -19,16 +19,9 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
-)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java)
 
-SET ( JAVA_FILES
-)
-
-SET ( JAR_FILE clusterj-test.jar )
-
-SET ( CLASSPATH target/classes)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(cluster-test.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH target/classes)
 
 
