@@ -2695,10 +2695,10 @@ delete from t3|
 insert into t3 values(1)|
 drop procedure if exists bug7992_1|
 Warnings:
-Note	1305	PROCEDURE bug7992_1 does not exist
+Note	1305	PROCEDURE test.bug7992_1 does not exist
 drop procedure if exists bug7992_2|
 Warnings:
-Note	1305	PROCEDURE bug7992_2 does not exist
+Note	1305	PROCEDURE test.bug7992_2 does not exist
 create procedure bug7992_1()
 begin
 declare i int;
