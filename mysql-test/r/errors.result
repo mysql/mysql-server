@@ -61,10 +61,10 @@ create table t1 (a int unique);
 create table t2 (a int);
 drop function if exists f1;
 Warnings:
-Note	1305	FUNCTION f1 does not exist
+Note	1305	FUNCTION test.f1 does not exist
 drop function if exists f2;
 Warnings:
-Note	1305	FUNCTION f2 does not exist
+Note	1305	FUNCTION test.f2 does not exist
 create function f1() returns int
 begin
 insert into t1 (a) values (1);
