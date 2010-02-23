@@ -8762,7 +8762,7 @@ static bool record_compare(TABLE *table)
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
   bool result= FALSE;
-  uchar saved_x[2], saved_filler[2];
+  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
   {
