@@ -79,15 +79,14 @@ namespace AQP
   const Table_access*
   Join_plan::get_referred_table_access(const Item_field* field_item) const
   {
-    DBUG_ENTER("Join_plan::get_referred_table_access");
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
     for (uint i= 0; i < get_access_count(); i++)
     {
       if (get_join_tab(i)->table->map == field_item->field->table->map)
-        DBUG_RETURN(m_table_accesses + i);
+        return (m_table_accesses + i);
     }
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   /**
@@ -111,10 +110,6 @@ namespace AQP
   */
   const Item* Table_access::get_key_field(uint field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
-                m_access_type == AT_UNIQUE_KEY ||
-                m_access_type == AT_MULTI_PRIMARY_KEY ||
-                m_access_type == AT_MULTI_UNIQUE_KEY);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     return get_join_tab()->ref.items[field_no];
   }
@@ -126,10 +121,6 @@ namespace AQP
   */
   const KEY_PART_INFO* Table_access::get_key_part_info(uint field_no) const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
-                m_access_type == AT_UNIQUE_KEY ||
-                m_access_type == AT_MULTI_PRIMARY_KEY ||
-                m_access_type == AT_MULTI_UNIQUE_KEY);
     DBUG_ASSERT(field_no < get_no_of_key_fields());
     const KEY* key= &get_join_tab()->table->key_info[get_join_tab()->ref.key];
     return &key->key_part[field_no];
@@ -192,16 +183,18 @@ namespace AQP
   void Table_access::compute_type_and_index() const
   {
     DBUG_ENTER("Table_access::compute_type_and_index");
+    const JOIN_TAB* const join_tab= get_join_tab();
+
     /*
       Identify the type of access operation and the index to use (if any).
     */
-    switch(get_join_tab()->type)
+    switch (join_tab->type)
     {
     case JT_EQ_REF:
     case JT_CONST:
-      m_index_no= get_join_tab()->ref.key;
+      m_index_no= join_tab->ref.key;
 
-      if (m_index_no == (int32)get_join_tab()->table->s->primary_key)
+      if (m_index_no == (int32)join_tab->table->s->primary_key)
       {
         DBUG_PRINT("info", ("Operation %d is a primary key lookup.", m_tab_no));
         m_access_type= AT_PRIMARY_KEY;
@@ -216,22 +209,39 @@ namespace AQP
 
     case JT_REF:
     case JT_REF_OR_NULL:
-      DBUG_ASSERT(get_join_tab()->ref.key >= 0);
-      DBUG_ASSERT(get_join_tab()->ref.key < MAX_KEY);
-      m_index_no= get_join_tab()->ref.key;
-      m_access_type= AT_ORDERED_RANGE;
-      DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
-      break;
+    {
+      DBUG_ASSERT(join_tab->ref.key >= 0);
+      DBUG_ASSERT(join_tab->ref.key < MAX_KEY);
+      m_index_no= join_tab->ref.key;
 
+      /*
+        All parts of a key are specified for an unique index -> access is a key lookup.
+      */
+      const KEY *key_info= join_tab->table->s->key_info;
+      if (key_info[m_index_no].key_parts == join_tab->ref.key_parts  &&
+          key_info[m_index_no].flags & (HA_NOSAME | HA_END_SPACE_KEY) == HA_NOSAME)
+      {
+        m_access_type= (m_index_no==(int32)join_tab->table->s->primary_key) 
+              ? AT_PRIMARY_KEY
+              : AT_UNIQUE_KEY;
+        DBUG_PRINT("info", ("Operation %d is an unique key referrence.", m_tab_no));
+      }
+      else
+      {
+        m_access_type= AT_ORDERED_RANGE;
+        DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
+      }
+      break;
+    }
     case JT_NEXT:
-      DBUG_ASSERT(get_join_tab()->index < MAX_KEY);
-      m_index_no=    get_join_tab()->index;
+      DBUG_ASSERT(join_tab->index < MAX_KEY);
+      m_index_no=    join_tab->index;
       m_access_type= AT_ORDERED_RANGE;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
     case JT_ALL:
-      if (get_join_tab()->use_quick == 2)
+      if (join_tab->use_quick == 2)
       {
         /*
           use_quick == 2 means that the decision on which access method to use
@@ -246,8 +256,6 @@ namespace AQP
       }
       else
       {
-        const JOIN_TAB* join_tab= get_join_tab();
-
         if (join_tab->select != NULL &&
             join_tab->select->quick != NULL)
         {
@@ -312,7 +320,7 @@ namespace AQP
       */
       DBUG_PRINT("info",
                  ("Operation %d has join_type %d. -> Not pushable.",
-                  m_tab_no, get_join_tab()->type));
+                  m_tab_no, join_tab->type));
       m_access_type= AT_OTHER;
       m_index_no=    -1;
       break;
@@ -331,7 +339,6 @@ namespace AQP
     :m_next(NULL),
      m_iterator(NULL)
   {
-    DBUG_ENTER("Equal_set_iterator::Equal_set_iterator");
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
 
     COND_EQUAL* const cond_equal=
@@ -352,7 +359,6 @@ namespace AQP
         m_next=     (*m_iterator)++;
       }
     }
-    DBUG_VOID_RETURN;
   }
 
 

@@ -784,6 +784,25 @@ select * from t1 left join t1 as t2 on t2.a = t1.b;
 
 drop table t1,t2,t3;
 
+
+create table t3 (a3 int, b3 int, c3 int, d3 int,
+ primary key(a3), unique key(d3)) engine = ndb;
+insert into t3 values (0x1f, 0x2f, 1, 0x1f);
+insert into t3 values (0x2f, 0x3f, 2, 0x2f);
+insert into t3 values (0x3f, 0x1f, 3, 0x3f);
+
+explain
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.d3
+ left outer join t3 as t3 on t3.a3 = t2.d3;
+--sorted_result
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.d3
+ left outer join t3 as t3 on t3.a3 = t2.d3;
+
+drop table t3;
+
+
 # test index scan disguised as JT_ALL
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
 insert into t1 values (1,null, 2);
