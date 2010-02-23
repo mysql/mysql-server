@@ -4168,9 +4168,18 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
       TABLE_LIST is processed. This code works only during re-execution.
     */
     if (tables->view)
-      goto process_view_routines;
-    if (!mysql_schema_table(thd, lex, tables) &&
-        !check_and_update_table_version(thd, tables, tables->table->s))
+    {
+      /*
+        We still need to take a MDL lock on the merged view to protect
+        it from concurrent changes.
+      */
+      if (!open_table_get_mdl_lock(thd, tables, &tables->mdl_request,
+                                   ot_ctx, flags))
+        goto process_view_routines;
+      /* Fall-through to return error. */
+    }
+    else if (!mysql_schema_table(thd, lex, tables) &&
+             !check_and_update_table_version(thd, tables, tables->table->s))
     {
       goto end;
     }

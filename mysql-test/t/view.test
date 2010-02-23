@@ -6,6 +6,9 @@ drop database if exists mysqltest;
 --enable_warnings
 use test;
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 #
 # some basic test of views and its functionality
 #
@@ -3975,3 +3978,79 @@ CREATE VIEW t2 AS SELECT * FROM t1;
 
 UNLOCK TABLES;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#48315 Metadata lock is not taken for merged views that
+--echo #           use an INFORMATION_SCHEMA table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection default
+connection default;
+
+CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
+CREATE TABLE t1 (str VARCHAR(50));
+CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+
+--echo # CALL p1() so the view is merged.
+CALL p1();
+
+--echo # Connection 3
+connection con3;
+LOCK TABLE t1 READ;
+
+--echo # Connection default
+connection default;
+--echo # Try to CALL p1() again, this time it should block for t1.
+--echo # Sending:
+--send CALL p1()
+
+--echo # Connection 2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 from information_schema.processlist
+  WHERE state = "Table lock" AND info = "INSERT INTO t1 SELECT * FROM v1";
+--source include/wait_condition.inc
+--echo # ... then try to drop the view. This should block.
+--echo # Sending:
+--send DROP VIEW v1
+
+--echo # Connection 3
+connection con3;
+let $wait_condition=
+  SELECT COUNT(*) = 1 from information_schema.processlist
+  WHERE state = "Waiting for table" AND info = "DROP VIEW v1";
+--source include/wait_condition.inc
+--echo # Now allow CALL p1() to complete
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CALL p1()
+--reap
+
+--echo # Connection 2
+connection con2;
+--echo # Reaping: DROP VIEW v1
+--reap
+
+--echo # Connection default
+connection default;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+disconnect con2;
+disconnect con3;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
