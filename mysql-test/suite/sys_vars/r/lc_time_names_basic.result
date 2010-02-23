@@ -460,7 +460,7 @@ SELECT @@session.lc_time_names;
 sq_AL
 SET @@session.lc_time_names=sr_YU;
 Warnings:
-Warning	1287	'sr_YU' is deprecated; use 'sr_RS' instead
+Warning	1287	'sr_YU' is deprecated and will be removed in a future release. Please use sr_RS instead
 SELECT @@session.lc_time_names;
 @@session.lc_time_names
 sr_RS
@@ -907,7 +907,7 @@ SELECT @@global.lc_time_names;
 sq_AL
 SET @@global.lc_time_names=sr_YU;
 Warnings:
-Warning	1287	'sr_YU' is deprecated; use 'sr_RS' instead
+Warning	1287	'sr_YU' is deprecated and will be removed in a future release. Please use sr_RS instead
 SELECT @@global.lc_time_names;
 @@global.lc_time_names
 sr_RS
