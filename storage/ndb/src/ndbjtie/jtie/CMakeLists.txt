@@ -19,16 +19,8 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java
-)
+ ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java)
 
-SET ( JAVA_FILES
-  Wrapper
-)
-
-SET ( JAR_FILE jtie.jar )
-
-SET ( CLASSPATH . )
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(jtie.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH target/classes)
 

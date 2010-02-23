@@ -24,16 +24,14 @@ SET ( JAVA_SOURCE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/query/*.java
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/spi/*.java
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/store/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util/*.java
-)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util/*.java)
 
-SET ( JAVA_FILES
-)
+SET ( CLASSPATH 
+  target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
 
-SET ( JAR_FILE clusterj-core.jar )
-
-SET ( CLASSPATH "target/classes;${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes")
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
+CREATE_JAR(cluster-core.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH} 
+  DEPENDENCIES clusterj-api.jar)
 
 

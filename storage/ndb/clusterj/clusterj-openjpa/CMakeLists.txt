@@ -17,18 +17,19 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
+SET (JAVA_SOURCE_DIRS
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/openjpa/*.java)
 
-SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/openjpa/*.java
-)
+SET(CLASSPATH 
+  target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${WITH_CLASSPATH})
 
-SET ( JAVA_FILES
-)
+SET(JAR_DEPENDENCIES 
+  clusterj-api.jar
+  clusterj-core.jar)
 
-SET ( JAR_FILE clusterj-openjpa.jar )
-
-SET ( CLASSPATH target/classes)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake)
-
-
+CREATE_JAR(cluster-openjpa.jar ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH} 
+  DEPENDENCIES ${JAR_DEPENDENCIES})
