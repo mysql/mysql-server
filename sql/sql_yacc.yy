@@ -4916,7 +4916,7 @@ create_table_option:
         | TYPE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            WARN_DEPRECATED(yythd, "5.4.4", "TYPE=storage_engine",
+            WARN_DEPRECATED(yythd, "6.0", "TYPE=storage_engine",
                             "'ENGINE=storage_engine'");
             Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
