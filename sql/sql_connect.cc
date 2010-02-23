@@ -474,7 +474,8 @@ check_user(THD *thd, enum enum_server_command command,
         }
       }
       my_ok(thd);
-      thd->password= test(passwd_len);          // remember for error messages 
+      thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
+      thd->password= test(passwd_len);   // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }
