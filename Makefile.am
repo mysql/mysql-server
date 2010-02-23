@@ -19,7 +19,8 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
-			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+			README COPYING EXCEPTIONS-CLIENT \
+                        CMakeLists.txt configure.cmake config.h.cmake BUILD-CMAKE
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
@@ -28,8 +29,8 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
-			win
-
+			win \
+			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
 			pstack libservices \
@@ -38,6 +39,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			netware libmysqld \
 			mysql-test support-files sql-bench \
 			win \
+			cmake \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
@@ -58,6 +60,7 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
+	test ! -f configure.am  || $(INSTALL_DATA)  configure.am $(distdir)
 
 all-local:		@ABI_CHECK@	
 

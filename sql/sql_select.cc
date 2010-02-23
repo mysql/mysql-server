@@ -2516,9 +2516,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
-#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
   uchar buff[STACK_BUFF_ALLOC];
-#endif
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(0);                           // Fatal error flag is set
   if (select)

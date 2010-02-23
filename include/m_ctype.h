@@ -38,6 +38,23 @@ extern "C" {
 
 #define my_wc_t ulong
 
+
+/*
+  On i386 we store Unicode->CS conversion tables for
+  some character sets using Big-endian order,
+  to copy two bytes at onces.
+  This gives some performance improvement.
+*/
+#ifdef __i386__
+#define MB2(x)                (((x) >> 8) + (((x) & 0xFF) << 8))
+#define MY_PUT_MB2(s, code)   { *((uint16*)(s))= (code); }
+#else
+#define MB2(x)                (x)
+#define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
+#endif
+
+
+
 typedef struct unicase_info_st
 {
   uint32 toupper;

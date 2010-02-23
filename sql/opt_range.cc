@@ -2266,9 +2266,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all())
   {
-#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
     uchar buff[STACK_BUFF_ALLOC];
-#endif
     MEM_ROOT alloc;
     SEL_TREE *tree= NULL;
     KEY_PART *key_parts;

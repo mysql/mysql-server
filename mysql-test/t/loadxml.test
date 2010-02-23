@@ -77,15 +77,17 @@ sleep 3;
 
 
 connection default;
-sleep 1;
 
 --disable_query_log
 --eval kill $PSEUDO_THREAD_ID
-sleep 2;
---enable_query_log
-
+connection addconroot;
+# Read response from connection to avoid packets out-of-order when disconnecting
+# Note, that connection can already be dead due to previously issued kill
+--error 0,2013
+--reap
 disconnect addconroot;
-
+connection default;
+--enable_query_log
 #
 # Clean up
 #
