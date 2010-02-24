@@ -2077,7 +2077,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables))
+        || open_and_lock_tables(thd, all_tables, TRUE, 0))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2414,7 +2414,7 @@ case SQLCOM_PREPARE:
         create_table->open_type= OT_BASE_ONLY;
       }
 
-      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE, 0)))
+      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -3007,7 +3007,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables)))
+    if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3109,7 +3109,7 @@ end_with_restore_list:
       goto error;
 
     thd_proc_info(thd, "init");
-    if ((res= open_and_lock_tables(thd, all_tables)))
+    if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
@@ -3237,7 +3237,7 @@ end_with_restore_list:
     List<set_var_base> *lex_var_list= &lex->var_list;
 
     if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables)))
+         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -3303,9 +3303,9 @@ end_with_restore_list:
     {
       Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
-      res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
-                                         MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
-                                         &lock_tables_prelocking_strategy) ||
+      res= (open_and_lock_tables(thd, all_tables, FALSE,
+                                 MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                                 &lock_tables_prelocking_strategy) ||
             thd->locked_tables_list.init_locked_tables(thd));
     }
 
@@ -4008,7 +4008,7 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-	  open_and_lock_tables(thd, all_tables))
+          open_and_lock_tables(thd, all_tables, TRUE, 0))
        goto error;
 
       /*
@@ -4510,7 +4510,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables)))
+  if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
     {

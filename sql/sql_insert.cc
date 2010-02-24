@@ -545,7 +545,7 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
       Open tables used for sub-selects or in stored functions, will also
       cache these functions.
     */
-    if (open_and_lock_tables(thd, table_list->next_global))
+    if (open_and_lock_tables(thd, table_list->next_global, TRUE, 0))
     {
       end_delayed_insert(thd);
       DBUG_RETURN(TRUE);
@@ -569,7 +569,7 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     Use a normal insert.
   */
   table_list->lock_type= TL_WRITE;
-  DBUG_RETURN(open_and_lock_tables(thd, table_list));
+  DBUG_RETURN(open_and_lock_tables(thd, table_list, TRUE, 0));
 }
 
 
@@ -646,7 +646,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   else
   {
-    if (open_and_lock_tables(thd, table_list))
+    if (open_and_lock_tables(thd, table_list, TRUE, 0))
       DBUG_RETURN(TRUE);
   }
   lock_type= table_list->lock_type;
@@ -3619,7 +3619,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-        Open_table_context ot_ctx_unused(thd);
+        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
@@ -3638,7 +3638,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        Open_table_context ot_ctx_unused(thd);
+        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
         if (open_table(thd, create_table, thd->mem_root, &ot_ctx_unused,
                        MYSQL_OPEN_TEMPORARY_ONLY))
         {
