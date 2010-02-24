@@ -1562,26 +1562,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                 bool derived, uint flags,
-                                 Prelocking_strategy *prelocking_strategy);
-inline bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                        bool derived, uint flags)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                          bool derived, uint flags,
+                          Prelocking_strategy *prelocking_strategy);
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
 
-  return open_and_lock_tables_derived(thd, tables, derived, flags,
-                                      &prelocking_strategy);
-}
-/* simple open_and_lock_tables without derived handling */
-inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, FALSE, 0);
-}
-/* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, TRUE, 0);
+  return open_and_lock_tables(thd, tables, derived, flags,
+                              &prelocking_strategy);
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
@@ -2171,11 +2161,17 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
   in parser.
 */
 #define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
+/**
+  When opening or locking the table, use the maximum timeout
+  (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
+*/
+#define MYSQL_LOCK_IGNORE_TIMEOUT               0x1000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
+                            MYSQL_LOCK_IGNORE_TIMEOUT |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_SKIP_TEMPORARY |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
