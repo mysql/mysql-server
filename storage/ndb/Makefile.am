@@ -16,7 +16,7 @@
 
 SUBDIRS = src tools . include swig @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs swig
-EXTRA_DIST = config ndbapi-examples plug.in CMakeLists.txt
+EXTRA_DIST = config cmake ndbapi-examples plug.in CMakeLists.txt
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am

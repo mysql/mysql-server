@@ -92,6 +92,9 @@ public:
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
+
+  int getMasterNodeVersion(int& version);
+  int getNodeTypeVersionRange(ndb_mgm_node_type type, int& minVer, int& maxVer);
   
   NdbMgmHandle handle;  
 

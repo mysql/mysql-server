@@ -87,6 +87,7 @@ public:
    */
   void execTRIG_ATTRINFO(Signal* signal);
   void execFIRE_TRIG_ORD(Signal* signal);
+  void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
   
   /**
