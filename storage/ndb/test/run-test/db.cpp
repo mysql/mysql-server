@@ -195,13 +195,13 @@ connect_mysqld(atrt_process* proc)
     return false;
   }
   
-  if (port)
-  {
-    mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
-    mysql_options(&proc->m_mysql, MYSQL_OPT_PROTOCOL, &val);
-  }
   for (size_t i = 0; i<20; i++)
   {
+    if (port)
+    {
+      mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
+      mysql_options(&proc->m_mysql, MYSQL_OPT_PROTOCOL, &val);
+    }
     if (mysql_real_connect(&proc->m_mysql,
 			   proc->m_host->m_hostname.c_str(),
 			   "root", "", "test",

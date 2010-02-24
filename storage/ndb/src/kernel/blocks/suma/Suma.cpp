@@ -3984,6 +3984,67 @@ reformat(Signal* signal, LinearSectionPtr ptr[3],
   return sz_2 > 0 ? 3 : 2;
 }
 
+/**
+ * Pass entire pages with SUMA-trigger-data from
+ *   TUP to SUMA to avoid extensive LongSignalMessage buffer contention
+ */
+void
+Suma::execFIRE_TRIG_ORD_L(Signal* signal)
+{
+  jamEntry();
+
+  ndbassert(signal->getNoOfSections() == 0);
+  Uint32 pageId = signal->theData[0];
+  Uint32 len = signal->theData[1];
+
+  if (pageId == RNIL && len == 0)
+  {
+    jam();
+    /**
+     * Out of memory
+     */
+    out_of_buffer(signal);
+    return;
+  }
+
+  Uint32 * ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
+  while (len)
+  {
+    Uint32 * save = ptr;
+    Uint32 msglen  = * ptr++;
+    Uint32 siglen  = * ptr++;
+    Uint32 sec0len = * ptr++;
+    Uint32 sec1len = * ptr++;
+    Uint32 sec2len = * ptr++;
+
+    /**
+     * Copy value directly into local buffers
+     */
+    Uint32 trigId = ((FireTrigOrd*)ptr)->getTriggerId();
+    memcpy(signal->theData, ptr, 4 * siglen); // signal
+    ptr += siglen;
+    memcpy(f_buffer, ptr, 4*sec0len);
+    ptr += sec0len;
+    memcpy(b_buffer, ptr, 4*sec1len);
+    ptr += sec1len;
+    memcpy(f_buffer + sec0len, ptr, 4*sec2len);
+    ptr += sec2len;
+
+    f_trigBufferSize = sec0len + sec2len;
+    b_trigBufferSize = sec1len;
+    f_bufferLock = trigId;
+    b_bufferLock = trigId;
+
+    execFIRE_TRIG_ORD(signal);
+
+    ndbrequire(ptr == save + msglen);
+    ndbrequire(len >= msglen);
+    len -= msglen;
+  }
+
+  m_ctx.m_mm.release_page(RT_DBTUP_PAGE, pageId);
+}
+
 void
 Suma::execFIRE_TRIG_ORD(Signal* signal)
 {
@@ -4054,7 +4115,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     
     LinearSectionPtr ptr[3];
     const Uint32 nptr= reformat(signal, ptr, 
-				f_buffer, sz, b_buffer, b_trigBufferSize);
+				f_buffer, f_trigBufferSize,
+                                b_buffer, b_trigBufferSize);
     Uint32 ptrLen= 0;
     for(Uint32 i =0; i < nptr; i++)
       ptrLen+= ptr[i].sz;    
