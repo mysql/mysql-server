@@ -27,6 +27,9 @@
 --source include/have_sjis.inc
 --source include/have_utf8.inc
 --source include/have_ucs2.inc
+--source include/have_utf8mb4.inc
+--source include/have_utf16.inc
+--source include/have_utf32.inc
 
 --source include/load_sysvars.inc
 ###################################################
@@ -163,9 +166,15 @@ SET @@character_set_client = armscii8;
 SELECT @@character_set_client;
 SET @@character_set_client = utf8;
 SELECT @@character_set_client;
+SET @@character_set_client = utf8mb4;
+SELECT @@character_set_client;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@character_set_client = ucs2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@character_set_client = utf16;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@character_set_client = utf32;
 
 SET @@character_set_client = cp866;
 SELECT @@character_set_client;
