@@ -50,6 +50,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
+  bool save_binlog_row_based;
 
   THD::enum_binlog_query_type query_type=
     thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -293,6 +294,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   table->mark_columns_needed_for_delete();
 
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  if (thd->lex->sql_command == SQLCOM_TRUNCATE &&
+      thd->current_stmt_binlog_row_based)
+    thd->clear_current_stmt_binlog_row_based();
+
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
@@ -342,6 +348,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   killed_status= thd->killed;
   if (killed_status != THD::NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
@@ -390,7 +397,10 @@ cleanup:
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
-    if (mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open() &&
+        !(thd->lex->sql_command == SQLCOM_TRUNCATE &&
+          thd->current_stmt_binlog_row_based &&
+          find_temporary_table(thd, table_list)))
     {
       bool const is_trans=
         thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -1059,15 +1069,13 @@ bool multi_delete::send_eof()
 
 static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 {
-  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  bool error;
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
   mysql_init_select(thd->lex);
-  thd->clear_current_stmt_binlog_row_based();
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
   ha_autocommit_or_rollback(thd, error);
   end_trans(thd, error ? ROLLBACK : COMMIT);
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(error);
 }
 
