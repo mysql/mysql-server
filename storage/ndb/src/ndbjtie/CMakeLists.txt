@@ -14,8 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
-INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
-INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(mysql)

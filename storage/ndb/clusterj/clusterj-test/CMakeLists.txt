@@ -14,9 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
-INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
-INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
-
 
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java)
