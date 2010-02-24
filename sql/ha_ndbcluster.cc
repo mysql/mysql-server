@@ -3882,7 +3882,16 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   // Bind key values defining root of pushed join
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
-    paramValues[i]= (key+offset);
+    if (key_part->null_bit)                         // Column is nullable
+    {
+      DBUG_ASSERT(idx != table_share->primary_key); // PK can't be nullable
+      DBUG_ASSERT(*(key+offset)==0);                // Null values not allowed in key
+      paramValues[i]= (key+offset+1);               // Value is imm. after NULL indicator
+    }
+    else                                            // Non-nullable column
+    {
+      paramValues[i]= (key+offset);
+    }
     offset+= key_part->store_length;
   }
 

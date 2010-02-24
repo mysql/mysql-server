@@ -790,6 +790,7 @@ create table t3 (a3 int, b3 int, c3 int, d3 int,
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
+insert into t3 values (0x4f, 0,    NULL, NULL);
 
 explain
 select * from t3 as t1
@@ -799,6 +800,52 @@ select * from t3 as t1
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.d3
  left outer join t3 as t3 on t3.a3 = t2.d3;
+
+## Test usage of nullable unique key column in where clause on pushed parent node
+explain
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 = 47;
+--sorted_result
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 = 47;
+
+explain
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 >= 47;
+--sorted_result
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 >= 47;
+
+explain
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 is NULL;
+--sorted_result
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 is NULL;
+
+explain
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 is not NULL;
+--sorted_result
+select * from t3 as t1
+ left outer join t3 as t2 on t2.d3 = t1.a3
+ left outer join t3 as t3 on t3.a3 = t2.d3
+ where t1.d3 is not NULL;
+
 
 drop table t3;
 
