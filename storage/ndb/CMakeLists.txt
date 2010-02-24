@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
+INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
 
@@ -41,12 +43,12 @@ ELSE()
   SET(HAVE_JAVA FALSE)
 ENDIF()
 
-IF(${WITH_CLASSPATH} MATCHES "junit-(.+).jar")
+IF("${WITH_CLASSPATH}" MATCHES "junit-(.+).jar")
   MESSAGE ( STATUS "FOUND JUNIT" )
   SET(HAVE_JUNIT TRUE)
 ENDIF()
 
-IF(${WITH_CLASSPATH} MATCHES "openjpa-(.+).jar")
+IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
   MESSAGE ( STATUS "FOUND OpenJPA" )
   SET(HAVE_OPENJPA TRUE)
 ENDIF()
