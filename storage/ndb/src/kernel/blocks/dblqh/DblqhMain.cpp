@@ -13752,8 +13752,9 @@ void
 Dblqh::execSUB_GCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
-  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
-             signal->getLength(), JBB);
+  Uint32 len = signal->getLength();
+  EXECUTE_DIRECT(DBTUP, GSN_SUB_GCP_COMPLETE_REP, signal, len);
+  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, len, JBB);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -21932,8 +21933,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::LOGBUFFERS_TABLEID:
   {
     const size_t entry_size = sizeof(LogPageRecord);
-    const  Uint64 free = cnoOfLogPages;
-    const Uint64 total = clogPageFileSize;
+    const Uint64 free = cnoOfLogPages;
+    const Uint64 total = clogPageCount;
     const Uint64 high = 0; // TODO
 
     Ndbinfo::Row row(signal, req);

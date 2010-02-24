@@ -22,14 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
                     ${CMAKE_SOURCE_DIR}/sql)
 
-LINK_LIBRARIES(ndbmgmclient
-               ndbclient
-               dbug
-               mysys
-               strings
-               ndbgeneral
-               ndbportlib)
-
+LINK_LIBRARIES(ndbmgmclient ndbclient)
 ADD_LIBRARY(ndbconf
                Config.cpp
                ConfigInfo.cpp

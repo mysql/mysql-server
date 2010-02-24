@@ -72,4 +72,4 @@ ADD_EXECUTABLE(ndb_print_file
     diskpage.cpp
     dbtup/tuppage.cpp
 )
-TARGET_LINK_LIBRARIES(ndb_print_file ndbclient dbug mysys strings)
+TARGET_LINK_LIBRARIES(ndb_print_file ndbclient)

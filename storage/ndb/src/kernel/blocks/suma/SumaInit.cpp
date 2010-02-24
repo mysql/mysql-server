@@ -115,6 +115,7 @@ Suma::Suma(Block_context& ctx) :
    */
   addRecSignal(GSN_TRIG_ATTRINFO, &Suma::execTRIG_ATTRINFO);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Suma::execFIRE_TRIG_ORD);
+  addRecSignal(GSN_FIRE_TRIG_ORD_L, &Suma::execFIRE_TRIG_ORD_L);
 
   addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Suma::execCREATE_TRIG_IMPL_REF);
   addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Suma::execCREATE_TRIG_IMPL_CONF);
