@@ -1836,7 +1836,9 @@ int Field::store_time(MYSQL_TIME *ltime, timestamp_type type_arg)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[MAX_DATE_STRING_REP_LENGTH];
   uint length= (uint) my_TIME_to_str(ltime, buff);
-  return store(buff, length, &my_charset_bin);
+  return store(buff, length,
+               (charset()->state & MY_CS_NONASCII) ?
+               &my_charset_latin1 : &my_charset_bin);
 }
 
 
