@@ -1797,18 +1797,6 @@ ayy
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
-SHOW ENGINES;
-Engine	Support	Comment	Transactions	XA	Savepoints
-ndbcluster	NO	Clustered, fault-tolerant tables	NULL	NULL	NULL
-MRG_MYISAM	YES	Collection of identical MyISAM tables	NO	NO	NO
-MEMORY	YES	Hash based, stored in memory, useful for temporary tables	NO	NO	NO
-BLACKHOLE	YES	/dev/null storage engine (anything you write to it disappears)	NO	NO	NO
-CSV	YES	CSV storage engine	NO	NO	NO
-MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
-ARCHIVE	YES	Archive storage engine	NO	NO	NO
-FEDERATED	NO	Federated MySQL storage engine	NULL	NULL	NULL
-PERFORMANCE_SCHEMA	YES	Performance Schema	NO	NO	NO
-InnoDB	YES	Supports transactions, row-level locking, and foreign keys	YES	YES	YES
 CREATE TABLE t1 (
 colA int(11) NOT NULL,
 colB varchar(255) character set utf8mb4 NOT NULL,

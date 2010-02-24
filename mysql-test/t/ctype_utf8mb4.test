@@ -1397,7 +1397,6 @@ drop table t1;
 # Bug#19960: Inconsistent results when joining
 # InnoDB tables using partial UTF8 indexes
 #
-SHOW ENGINES;
 --disable_warnings
 CREATE TABLE t1 (
   colA int(11) NOT NULL,
