@@ -240,6 +240,12 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 }
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
   /*
      If RBR and open temporary tables, their CREATE TABLE may not be in the
      binlog, so we can't toggle to SBR in this connection.
@@ -271,17 +277,11 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   /*
     Make the session variable 'binlog_format' read-only inside a transaction.
   */
-  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  if (thd->active_transaction())
   {
     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
   }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_format == var->save_result.ulonglong_value))
-    return false;
 
   return false;
 }
@@ -311,15 +311,12 @@ static Sys_var_enum Sys_binlog_format(
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
-   /*
-     Makes the session variable 'binlog_direct_non_transactional_updates'
-     read-only inside a transaction.
-   */
-   if (thd->active_transaction() && (var->type == OPT_SESSION))
-   {
-     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
-   }
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
    /*
      Makes the session variable 'binlog_direct_non_transactional_updates'
      read-only if within a procedure, trigger or function.
@@ -327,15 +324,17 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
    if (thd->in_sub_stmt)
    {
      my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
+     return true;
    }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_direct_non_trans_update ==
-       static_cast<my_bool>(var->save_result.ulonglong_value)))
-    return false;
+   /*
+     Makes the session variable 'binlog_direct_non_transactional_updates'
+     read-only inside a transaction.
+   */
+   if (thd->active_transaction())
+   {
+     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+     return true;
+   }
 
   return false;
 }
