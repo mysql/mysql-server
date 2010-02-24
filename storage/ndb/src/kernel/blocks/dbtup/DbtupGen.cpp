@@ -125,6 +125,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
 
   fragoperrec = 0;
   fragrecord = 0;
