@@ -728,3 +728,45 @@ where a in (select c from t2 where d >= some(select e from t3 where b=e));
 
 drop table t1, t2, t3;
 
+--echo # 
+--echo # Bug#49198 Wrong result for second call of procedure
+--echo #           with view in subselect.
+--echo # 
+
+CREATE TABLE t1 (t1field integer, primary key (t1field));
+CREATE TABLE t2 (t2field integer, primary key (t2field));
+CREATE TABLE t3 (t3field integer, primary key (t3field));
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(1),(2);
+INSERT INTO t3 VALUES(1),(2);
+
+PREPARE stmt FROM
+"
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2);
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+PREPARE stmt FROM
+"
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2)
+  AND t1field IN (SELECT * FROM v3)
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1, t2, t3;
+DROP VIEW v2, v3;
+
+--echo # End of Bug#49198
