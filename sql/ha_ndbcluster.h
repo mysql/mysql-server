@@ -50,6 +50,7 @@ class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
 class NdbQueryOperationTypeWrapper;
+class ha_query_def_list;
 
 namespace AQP{
   class Join_plan;
@@ -368,8 +369,14 @@ class Thd_ndb
   uint global_schema_lock_error;
 
   unsigned m_connect_count;
+  /** 
+    This is a list of NdbQueryDef objects that should be released when the
+    transaction ends.
+  */
+  const ha_query_def_list* m_query_defs;
   bool valid_ndb(void);
   bool recycle_ndb(THD* thd);
+  void release_query_defs();
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);

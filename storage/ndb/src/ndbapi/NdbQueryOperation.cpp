@@ -837,7 +837,9 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_num_bounds(0),
   m_previous_range_num(0),
   m_attrInfo(),
-  m_keyInfo()
+  m_keyInfo(),
+  m_startIndicator(false),
+  m_commitIndicator(false)
 {
   // Allocate memory for all m_operations[] in a single chunk
   m_countOperations = queryDef.getNoOfOperations();
@@ -859,6 +861,10 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
 
 NdbQueryImpl::~NdbQueryImpl()
 {
+ 
+  // Do this to check that m_queryDef still exists.
+  assert(getNoOfOperations() == m_queryDef.getNoOfOperations());
+
   // NOTE: m_operations[] was allocated as a single memory chunk with
   // placement new construction of each operation.
   // Requires explicit call to d'tor of each operation before memory is free'ed.
@@ -1804,6 +1810,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
+    ScanTabReq::setNoDiskFlag(reqInfo, !getRoot().diskInUserProjection());
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
@@ -1891,15 +1898,14 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     TcKeyReq::setKeyLength(reqInfo, 0);            // This is a long signal
     TcKeyReq::setAIInTcKeyReq(reqInfo, 0);         // Not needed
     TcKeyReq::setInterpretedFlag(reqInfo, false);  // Encoded in QueryTree
-
-    // TODO: Set these flags less forcefully
-    TcKeyReq::setStartFlag(reqInfo, true);         // TODO, must implememt
-    TcKeyReq::setExecuteFlag(reqInfo, true);       // TODO, must implement
-    TcKeyReq::setNoDiskFlag(reqInfo, true);
+    TcKeyReq::setStartFlag(reqInfo, m_startIndicator);
+    TcKeyReq::setExecuteFlag(reqInfo, lastFlag);
+    TcKeyReq::setNoDiskFlag(reqInfo, !getRoot().diskInUserProjection());
     TcKeyReq::setAbortOption(reqInfo, NdbOperation::AO_IgnoreError);
 
     TcKeyReq::setDirtyFlag(reqInfo, true);
     TcKeyReq::setSimpleFlag(reqInfo, true);
+    TcKeyReq::setCommitFlag(reqInfo, m_commitIndicator);
     tcKeyReq->requestInfo = reqInfo;
 
     tSignal.setLength(TcKeyReq::StaticLength);
@@ -2095,7 +2101,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
       assert(false);
     }
   } // while
-  assert(m_pendingFrags==0);
+  assert(m_pendingFrags==0 || m_error.code != 0);
 
   m_error.code = 0;  // Ignore possible errorcode caused by previous fetching
 
@@ -2493,7 +2499,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL),
   m_ordering(NdbScanOrdering_unordered),
-  m_interpretedCode(NULL)
+  m_interpretedCode(NULL),
+  m_diskInUserProjection(false)
 { 
   // Fill in operations parent refs, and append it as child of its parents
   for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
@@ -2809,7 +2816,7 @@ static bool isSetInMask(const unsigned char* mask, int bitNo)
 }
 
 int
-NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo) const
+NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
 {
   size_t startPos = attrInfo.getSize();
   attrInfo.append(0U);  // Temp write firste 'length' word, update later
@@ -2827,7 +2834,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo) const
 
     for (Uint32 i= 0; i<m_ndbRecord->noOfColumns; i++)
     {
-      const NdbRecord::Attr *col= &m_ndbRecord->columns[i];
+      const NdbRecord::Attr* const col= &m_ndbRecord->columns[i];
       Uint32 attrId= col->attrId;
 
       if (m_read_mask == NULL || isSetInMask(m_read_mask, i))
@@ -2836,6 +2843,13 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo) const
 
         readMask.set(attrId);
         requestedCols++;
+
+        const NdbColumnImpl* const column = getQueryOperationDef().getTable()
+          .getColumn(col->column_no);
+        if (column->getStorageType() == NDB_STORAGETYPE_DISK)
+        {
+          m_diskInUserProjection = true;
+        }
       }
     }
 
@@ -2865,6 +2879,10 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo) const
                           recAttr->attrId(),
                           0);
     attrInfo.append(ah);
+    if (recAttr->getColumn()->getStorageType() == NDB_STORAGETYPE_DISK)
+    {
+      m_diskInUserProjection = true;
+    }
     recAttr = recAttr->next();
   }
 
@@ -3071,10 +3089,16 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     return error;
   }
 
+  if(diskInUserProjection())
+  {
+    requestInfo |= DABits::PI_DISK_ATTR;
+  }
+
   QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
   if (unlikely(param==NULL))
      return Err_MemoryAlloc;
 
+  //ndbout << "requestInfo:" << hex << requestInfo << endl;
   param->requestInfo = requestInfo;
   param->resultData = getIdOfReceiver();
   size_t length = attrInfo.getSize() - startPos;
