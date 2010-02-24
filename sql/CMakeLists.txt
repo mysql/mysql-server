@@ -191,7 +191,14 @@ ADD_CUSTOM_COMMAND(
   COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
-        
+
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+  mysys dbug strings vio regex   
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${SSL_LIBRARIES})
+
 ADD_CUSTOM_TARGET( 
         GenServerSource
         DEPENDS ${GEN_SOURCES}
