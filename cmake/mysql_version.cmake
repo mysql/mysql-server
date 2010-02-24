@@ -108,17 +108,7 @@ IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
 ENDIF()
 SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
-SET(CPACK_SOURCE_IGNORE_FILES 
-  \\\\.bzr/
-  \\\\.bzr-mysql
-  .bzrignore
-  CMakeCache.txt
-  /CMakeFiles/
-  /version_resources/
-  /_CPack_Packages/
-  $.gz
-  $.zip
-)
+INCLUDE(cpack_source_ignore_files)
 
 # Defintions for windows version resources
 SET(PRODUCTNAME "MySQL Server")
