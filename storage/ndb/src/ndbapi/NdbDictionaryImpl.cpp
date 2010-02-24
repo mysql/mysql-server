@@ -3617,7 +3617,9 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    if ((res = dropIndex(element.name, name)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndex(element.name, name)) != 0)
     {
       return -1;
     }
@@ -3664,7 +3666,9 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
     {
       ERR_RETURN(getNdbError(), -1);
     }
-    if ((res = dropIndexGlobal(*idx)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndexGlobal(*idx)) != 0)
     {
       releaseIndexGlobal(*idx, 1);
       ERR_RETURN(getNdbError(), -1);
@@ -3810,7 +3814,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   if (idx == NULL)
   {
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   idx->m_version = tab->m_version;
   idx->m_status = tab->m_status;
@@ -3820,7 +3824,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   {
     delete idx;
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
@@ -3842,7 +3846,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       errno = ENOMEM;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // Copy column definition
     *col = * org;
@@ -3850,13 +3854,19 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       delete col;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
 
     /**
      * reverse map
      */
     const NdbColumnImpl* primCol = prim->getColumn(col->getName());
+    if (primCol == 0)
+    {
+      delete idx;
+      DBUG_RETURN(-1);
+    }
+
     int key_id = primCol->getColumnNo();
     int fill = -1;
     idx->m_key_ids.fill(key_id, fill);
