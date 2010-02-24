@@ -59,18 +59,6 @@ sub main
     push @defaults_options, (shift @ARGV);
   }
 
-  # Handle deprecated --config-file option: convert to --defaults-extra-file
-  foreach my $arg (@ARGV)
-  {
-    if ($arg =~ m/^--config-file=(.*)/)
-    {
-      # Put it at the beginning of the list, so it has lower precedence
-      # than a correct --defaults-extra-file option
-
-      unshift @defaults_options, "--defaults-extra-file=$1";
-    }
-  }
-
   foreach (@defaults_options)
   {
     $_ = quote_shell_word($_);
@@ -78,11 +66,6 @@ sub main
 
   # Add [mysqld_multi] options to front of @ARGV, ready for GetOptions()
   unshift @ARGV, defaults_for_group('mysqld_multi');
-
-  # The --config-file option can be ignored; if passed on the command
-  # line, it's already handled; if specified in the configuration file,
-  # it's redundant and not useful
-  @ARGV= grep { not /^--config-file=/ } @ARGV;
 
   # We've already handled --no-defaults, --defaults-file, etc.
   if (!GetOptions("help", "example", "version", "mysqld=s", "mysqladmin=s",
@@ -740,8 +723,8 @@ from both [mysqld_multi] and [mysqld#], a group that is tried to be
 used, $my_progname will abort with an error.
 
 $my_progname will search for groups named [mysqld#] from my.cnf (or
-the given --config-file=...), where '#' can be any positive integer
-starting from 1. These groups should be the same as the regular
+the given --defaults-extra-file=...), where '#' can be any positive 
+integer starting from 1. These groups should be the same as the regular
 [mysqld] group, but with those port, socket and any other options
 that are to be used with each separate mysqld process. The number
 in the group name has another function; it can be used for starting,
@@ -767,7 +750,6 @@ These options must be given before any others:
                    standard system-wide and user-specific files
 Using:  @{[join ' ', @defaults_options]}
 
---config-file=...  Deprecated, please use --defaults-extra-file instead
 --example          Give an example of a config file with extra information.
 --help             Print this help and exit.
 --log=...          Log file. Full path to and the name for the log file. NOTE:

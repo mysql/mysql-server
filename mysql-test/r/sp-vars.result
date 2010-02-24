@@ -394,10 +394,10 @@ CASE expression tests.
 
 DROP PROCEDURE IF EXISTS p1;
 Warnings:
-Note	1305	PROCEDURE p1 does not exist
+Note	1305	PROCEDURE test.p1 does not exist
 DROP PROCEDURE IF EXISTS p2;
 Warnings:
-Note	1305	PROCEDURE p2 does not exist
+Note	1305	PROCEDURE test.p2 does not exist
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 't1'

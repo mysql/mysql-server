@@ -4460,12 +4460,13 @@ typedef struct
 {
   const char *name;
   uint        code;
+  const char *text;
 } st_error;
 
 static st_error global_error_names[] =
 {
 #include <mysqld_ername.h>
-  { 0, 0 }
+  { 0, 0, 0 }
 };
 
 uint get_errcode_from_name(char *error_name, char *error_end)
