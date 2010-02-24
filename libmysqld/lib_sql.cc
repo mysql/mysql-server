@@ -118,6 +118,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   net_clear_error(net);
   thd->current_stmt= stmt;
 
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();				// Fix if more than one connect
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
