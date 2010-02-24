@@ -2371,17 +2371,27 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
     {
-      char char_num= (char) num;
-      if (num&0xFF000000L) {
-        str->append((char)(num>>24));
-        goto b2;
-      } else if (num&0xFF0000L) {
-    b2:        str->append((char)(num>>16));
-        goto b1;
-      } else if (num&0xFF00L) {
-    b1:        str->append((char)(num>>8));
+      char tmp[4];
+      if (num & 0xFF000000L)
+      {
+        mi_int4store(tmp, num);
+        str->append(tmp, 4, &my_charset_bin);
       }
-      str->append(&char_num, 1);
+      else if (num & 0xFF0000L)
+      {
+        mi_int3store(tmp, num);
+        str->append(tmp, 3, &my_charset_bin);
+      }
+      else if (num & 0xFF00L)
+      {
+        mi_int2store(tmp, num);
+        str->append(tmp, 2, &my_charset_bin);
+      }
+      else
+      {
+        tmp[0]= (char) num;
+        str->append(tmp, 1, &my_charset_bin);
+      }
     }
   }
   str->realloc(str->length());			// Add end 0 (for Purify)
@@ -2769,7 +2779,8 @@ String *Item_func_conv_charset::val_str(String *str)
 void Item_func_conv_charset::fix_length_and_dec()
 {
   collation.set(conv_charset, DERIVATION_IMPLICIT);
-  max_length = args[0]->max_length*conv_charset->mbmaxlen;
+  max_length = args[0]->max_length / args[0]->collation.collation->mbmaxlen *
+               conv_charset->mbmaxlen;
 }
 
 void Item_func_conv_charset::print(String *str, enum_query_type query_type)
