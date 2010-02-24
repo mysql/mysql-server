@@ -86,7 +86,7 @@ struct NdbApiWrapper {
     }
 
     static const NdbError &
-    Ndb__getNdbError
+    Ndb__getNdbError__0 // disambiguate overloaded function
     ( const Ndb & obj )
     {
         return obj.getNdbError();
@@ -170,14 +170,14 @@ struct NdbApiWrapper {
     }
 
     static NdbTransaction *
-    Ndb__startTransaction
+    Ndb__startTransaction__0 // disambiguate overloaded function
     ( Ndb & obj, const NdbDictionary::Table * p0, const char * p1, Uint32 p2 )
     {
         return obj.startTransaction(p0, p1, p2);
     }
 
     static NdbTransaction *
-    Ndb__startTransaction
+    Ndb__startTransaction__1 // disambiguate overloaded function
     ( Ndb & obj, const NdbDictionary::Table * p0, const Ndb::Key_part_ptr * p1, void * p2, Uint32 p3 )
     {
         return obj.startTransaction(p0, p1, p2, p3);
@@ -205,7 +205,7 @@ struct NdbApiWrapper {
     }
 
     static const NdbError &
-    Ndb__getNdbError
+    Ndb__getNdbError__1 // disambiguate overloaded function
     ( Ndb & obj, int p0 )
     {
         return obj.getNdbError(p0);
@@ -750,14 +750,14 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbDictionary__Datafile__setTablespace
+    NdbDictionary__Datafile__setTablespace__0 // disambiguate overloaded function
     ( NdbDictionary::Datafile & obj, const char * p0 )
     {
         return obj.setTablespace(p0);
     }
 
     static int
-    NdbDictionary__Datafile__setTablespace
+    NdbDictionary__Datafile__setTablespace__1 // disambiguate overloaded function
     ( NdbDictionary::Datafile & obj, const NdbDictionary::Tablespace & p0 )
     {
         return obj.setTablespace(p0);
@@ -768,7 +768,7 @@ struct NdbApiWrapper {
 // mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary.h"
 
     static int
-    NdbDictionary__Dictionary__listObjects
+    NdbDictionary__Dictionary__listObjects__0 // disambiguate overloaded const/non-const function
     ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0, NdbDictionary::Object::Type p1 )
     {
         return obj.listObjects(p0, p1);
@@ -796,14 +796,14 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbDictionary__Dictionary__listIndexes
+    NdbDictionary__Dictionary__listIndexes__0 // disambiguate overloaded const/non-const function
     ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0, const char * p1 )
     {
         return obj.listIndexes(p0, p1);
     }
 
     static int
-    NdbDictionary__Dictionary__listEvents
+    NdbDictionary__Dictionary__listEvents__0 // disambiguate overloaded const/non-const function
     ( const NdbDictionary::Dictionary & obj, NdbDictionary::Dictionary::List & p0 )
     {
         return obj.listEvents(p0);
@@ -852,14 +852,14 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbDictionary__Dictionary__dropTable
+    NdbDictionary__Dictionary__dropTable__0 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, NdbDictionary::Table & p0 )
     {
         return obj.dropTable(p0);
     }
 
     static int
-    NdbDictionary__Dictionary__dropTable
+    NdbDictionary__Dictionary__dropTable__1 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, const char * p0 )
     {
         return obj.dropTable(p0);
@@ -873,28 +873,28 @@ struct NdbApiWrapper {
     }
 
     static void
-    NdbDictionary__Dictionary__removeCachedTable
+    NdbDictionary__Dictionary__removeCachedTable__0 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, const char * p0 )
     {
         obj.removeCachedTable(p0);
     }
 
     static void
-    NdbDictionary__Dictionary__removeCachedIndex
+    NdbDictionary__Dictionary__removeCachedIndex__1 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
     {
         obj.removeCachedIndex(p0, p1);
     }
 
     static int
-    NdbDictionary__Dictionary__createIndex
+    NdbDictionary__Dictionary__createIndex__0 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index & p0, bool p1 )
     {
         return obj.createIndex(p0, p1);
     }
 
     static int
-    NdbDictionary__Dictionary__createIndex
+    NdbDictionary__Dictionary__createIndex__1 // disambiguate overloaded function
     ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index & p0, const NdbDictionary::Table & p1, bool p2 )
     {
         return obj.createIndex(p0, p1, p2);
@@ -1088,14 +1088,14 @@ struct NdbApiWrapper {
     }
 
     static void
-    NdbDictionary__Event__setTable
+    NdbDictionary__Event__setTable__0 // disambiguate overloaded function
     ( NdbDictionary::Event & obj, const NdbDictionary::Table & p0 )
     {
         obj.setTable(p0);
     }
 
     static int
-    NdbDictionary__Event__setTable
+    NdbDictionary__Event__setTable__1 // disambiguate overloaded function
     ( NdbDictionary::Event & obj, const char * p0 )
     {
         return obj.setTable(p0);
@@ -1123,14 +1123,14 @@ struct NdbApiWrapper {
     }
 
     static void
-    NdbDictionary__Event__addEventColumn
+    NdbDictionary__Event__addEventColumn__0 // disambiguate overloaded function
     ( NdbDictionary::Event & obj, unsigned int p0 )
     {
         obj.addEventColumn(p0);
     }
 
     static void
-    NdbDictionary__Event__addEventColumn
+    NdbDictionary__Event__addEventColumn__1 // disambiguate overloaded function
     ( NdbDictionary::Event & obj, const char * p0 )
     {
         obj.addEventColumn(p0);
@@ -1435,14 +1435,14 @@ struct NdbApiWrapper {
     }
 
     static const NdbDictionary::Column *
-    NdbDictionary__Table__getColumn
+    NdbDictionary__Table__getColumn__0 // disambiguate overloaded const/non-const function
     ( const NdbDictionary::Table & obj, const char * p0 )
     {
         return obj.getColumn(p0);
     }
 
     static const NdbDictionary::Column *
-    NdbDictionary__Table__getColumn
+    NdbDictionary__Table__getColumn__1 // disambiguate overloaded const/non-const function
     ( const NdbDictionary::Table & obj, int p0 )
     {
         return obj.getColumn(p0);
@@ -1666,14 +1666,14 @@ struct NdbApiWrapper {
     }
 
     static NdbDictionary::Column *
-    NdbDictionary__Table__getColumn
+    NdbDictionary__Table__getColumn__2 // disambiguate overloaded const/non-const function
     ( NdbDictionary::Table & obj, int p0 )
     {
         return obj.getColumn(p0);
     }
 
     static NdbDictionary::Column *
-    NdbDictionary__Table__getColumn
+    NdbDictionary__Table__getColumn__3 // disambiguate overloaded const/non-const function
     ( NdbDictionary::Table & obj, const char * p0 )
     {
         return obj.getColumn(p0);
@@ -1915,14 +1915,14 @@ struct NdbApiWrapper {
     }
 
     static void
-    NdbDictionary__Tablespace__setDefaultLogfileGroup
+    NdbDictionary__Tablespace__setDefaultLogfileGroup__0 // disambiguate overloaded function
     ( NdbDictionary::Tablespace & obj, const char * p0 )
     {
         obj.setDefaultLogfileGroup(p0);
     }
 
     static void
-    NdbDictionary__Tablespace__setDefaultLogfileGroup
+    NdbDictionary__Tablespace__setDefaultLogfileGroup__1 // disambiguate overloaded function
     ( NdbDictionary::Tablespace & obj, const NdbDictionary::LogfileGroup & p0 )
     {
         obj.setDefaultLogfileGroup(p0);
@@ -1996,14 +1996,14 @@ struct NdbApiWrapper {
     }
 
     static void
-    NdbDictionary__Undofile__setLogfileGroup
+    NdbDictionary__Undofile__setLogfileGroup__0 // disambiguate overloaded function
     ( NdbDictionary::Undofile & obj, const char * p0 )
     {
         obj.setLogfileGroup(p0);
     }
 
     static void
-    NdbDictionary__Undofile__setLogfileGroup
+    NdbDictionary__Undofile__setLogfileGroup__1 // disambiguate overloaded function
     ( NdbDictionary::Undofile & obj, const NdbDictionary::LogfileGroup & p0 )
     {
         obj.setLogfileGroup(p0);
@@ -2206,14 +2206,14 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbIndexScanOperation__setBound
+    NdbIndexScanOperation__setBound__0 // disambiguate overloaded function
     ( NdbIndexScanOperation & obj, const char * p0, int p1, const void * p2 )
     {
         return obj.setBound(p0, p1, p2);
     }
 
     static int
-    NdbIndexScanOperation__setBound
+    NdbIndexScanOperation__setBound__1 // disambiguate overloaded function
     ( NdbIndexScanOperation & obj, Uint32 p0, int p1, const void * p2 )
     {
         return obj.setBound(p0, p1, p2);
@@ -2234,7 +2234,7 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbIndexScanOperation__setBound
+    NdbIndexScanOperation__setBound__2 // disambiguate overloaded function
     ( NdbIndexScanOperation & obj, const NdbRecord * p0, const NdbIndexScanOperation::IndexBound & p1 )
     {
         return obj.setBound(p0, p1);
@@ -2298,28 +2298,28 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbInterpretedCode__read_attr
+    NdbInterpretedCode__read_attr__0 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
     {
         return obj.read_attr(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__read_attr
+    NdbInterpretedCode__read_attr__1 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, const NdbDictionary::Column * p1 )
     {
         return obj.read_attr(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__write_attr
+    NdbInterpretedCode__write_attr__0 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
     {
         return obj.write_attr(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__write_attr
+    NdbInterpretedCode__write_attr__1 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, const NdbDictionary::Column * p0, Uint32 p1 )
     {
         return obj.write_attr(p0, p1);
@@ -2487,14 +2487,14 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbInterpretedCode__interpret_exit_nok
+    NdbInterpretedCode__interpret_exit_nok__0 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0 )
     {
         return obj.interpret_exit_nok(p0);
     }
 
     static int
-    NdbInterpretedCode__interpret_exit_nok
+    NdbInterpretedCode__interpret_exit_nok__1 // disambiguate overloaded function
     ( NdbInterpretedCode & obj )
     {
         return obj.interpret_exit_nok();
@@ -2508,28 +2508,28 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbInterpretedCode__add_val
+    NdbInterpretedCode__add_val__0 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
     {
         return obj.add_val(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__add_val
+    NdbInterpretedCode__add_val__1 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint64 p1 )
     {
         return obj.add_val(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__sub_val
+    NdbInterpretedCode__sub_val__0 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint32 p1 )
     {
         return obj.sub_val(p0, p1);
     }
 
     static int
-    NdbInterpretedCode__sub_val
+    NdbInterpretedCode__sub_val__1 // disambiguate overloaded function
     ( NdbInterpretedCode & obj, Uint32 p0, Uint64 p1 )
     {
         return obj.sub_val(p0, p1);
@@ -2568,14 +2568,14 @@ struct NdbApiWrapper {
 // mapped by "com_mysql_ndbjtie_ndbapi_NdbOperation.h"
 
     static NdbBlob *
-    NdbOperation__getBlobHandle__0 // disambiguate overloaded const/non-const
+    NdbOperation__getBlobHandle__0 // disambiguate overloaded const/non-const function
     ( const NdbOperation & obj, const char * p0 )
     {
         return obj.getBlobHandle(p0);
     }
 
     static NdbBlob *
-    NdbOperation__getBlobHandle__1 // disambiguate overloaded const/non-const
+    NdbOperation__getBlobHandle__1 // disambiguate overloaded const/non-const function
     ( const NdbOperation & obj, Uint32 p0 )
     {
         return obj.getBlobHandle(p0);
@@ -2638,14 +2638,14 @@ struct NdbApiWrapper {
     }
 
     static const NdbLockHandle *
-    NdbOperation__getLockHandle__0 // disambiguate overloaded const/non-const
+    NdbOperation__getLockHandle__0 // disambiguate overloaded const/non-const function
     ( const NdbOperation & obj )
     {
         return obj.getLockHandle();
     }
 
     static const NdbLockHandle *
-    NdbOperation__getLockHandle__1 // disambiguate overloaded const/non-const
+    NdbOperation__getLockHandle__1 // disambiguate overloaded const/non-const function
     ( NdbOperation & obj )
     {
         return obj.getLockHandle();
@@ -2687,147 +2687,147 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__0 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, const char * p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__1 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, Int32 p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__2 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, Int64 p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__3 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, const char * p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__4 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, Int32 p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static int
-    NdbOperation__equal
+    NdbOperation__equal__5 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, Int64 p1 )
     {
         return obj.equal(p0, p1);
     }
 
     static NdbRecAttr *
-    NdbOperation__getValue
+    NdbOperation__getValue__0 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, char * p1 )
     {
         return obj.getValue(p0, p1);
     }
 
     static NdbRecAttr *
-    NdbOperation__getValue
+    NdbOperation__getValue__1 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, char * p1 )
     {
         return obj.getValue(p0, p1);
     }
 
     static NdbRecAttr *
-    NdbOperation__getValue
+    NdbOperation__getValue__2 // disambiguate overloaded function
     ( NdbOperation & obj, const NdbDictionary::Column * p0, char * p1 )
     {
         return obj.getValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__0 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, const char * p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__1 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, Int32 p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__2 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, Int64 p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__3 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, float p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__4 // disambiguate overloaded function
     ( NdbOperation & obj, const char * p0, double p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__5 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, const char * p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__6 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, Int32 p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__7 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, Int64 p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__8 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, float p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static int
-    NdbOperation__setValue
+    NdbOperation__setValue__9 // disambiguate overloaded function
     ( NdbOperation & obj, Uint32 p0, double p1 )
     {
         return obj.setValue(p0, p1);
     }
 
     static NdbBlob *
-    NdbOperation__getBlobHandle__2 // disambiguate overloaded const/non-const
+    NdbOperation__getBlobHandle__2 // disambiguate overloaded const/non-const function
     ( NdbOperation & obj, const char * p0 )
     {
         return obj.getBlobHandle(p0);
     }
 
     static NdbBlob *
-    NdbOperation__getBlobHandle__3 // disambiguate overloaded const/non-const
+    NdbOperation__getBlobHandle__3 // disambiguate overloaded const/non-const function
     ( NdbOperation & obj, Uint32 p0 )
     {
         return obj.getBlobHandle(p0);
@@ -3043,84 +3043,84 @@ struct NdbApiWrapper {
     }
 
     static int
-    NdbScanFilter__eq
+    NdbScanFilter__eq__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.eq(p0, p1);
     }
 
     static int
-    NdbScanFilter__ne
+    NdbScanFilter__ne__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.ne(p0, p1);
     }
 
     static int
-    NdbScanFilter__lt
+    NdbScanFilter__lt__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.lt(p0, p1);
     }
 
     static int
-    NdbScanFilter__le
+    NdbScanFilter__le__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.le(p0, p1);
     }
 
     static int
-    NdbScanFilter__gt
+    NdbScanFilter__gt__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.gt(p0, p1);
     }
 
     static int
-    NdbScanFilter__ge
+    NdbScanFilter__ge__0 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint32 p1 )
     {
         return obj.ge(p0, p1);
     }
 
     static int
-    NdbScanFilter__eq
+    NdbScanFilter__eq__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.eq(p0, p1);
     }
 
     static int
-    NdbScanFilter__ne
+    NdbScanFilter__ne__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.ne(p0, p1);
     }
 
     static int
-    NdbScanFilter__lt
+    NdbScanFilter__lt__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.lt(p0, p1);
     }
 
     static int
-    NdbScanFilter__le
+    NdbScanFilter__le__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.le(p0, p1);
     }
 
     static int
-    NdbScanFilter__gt
+    NdbScanFilter__gt__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.gt(p0, p1);
     }
 
     static int
-    NdbScanFilter__ge
+    NdbScanFilter__ge__1 // disambiguate overloaded function
     ( NdbScanFilter & obj, int p0, Uint64 p1 )
     {
         return obj.ge(p0, p1);
@@ -3173,42 +3173,42 @@ struct NdbApiWrapper {
     }
 
     static NdbOperation *
-    NdbScanOperation__lockCurrentTuple
+    NdbScanOperation__lockCurrentTuple__0 // disambiguate overloaded function
     ( NdbScanOperation & obj )
     {
         return obj.lockCurrentTuple();
     }
 
     static NdbOperation *
-    NdbScanOperation__lockCurrentTuple
+    NdbScanOperation__lockCurrentTuple__1 // disambiguate overloaded function
     ( NdbScanOperation & obj, NdbTransaction * p0 )
     {
         return obj.lockCurrentTuple(p0);
     }
 
     static NdbOperation *
-    NdbScanOperation__updateCurrentTuple
+    NdbScanOperation__updateCurrentTuple__0 // disambiguate overloaded function
     ( NdbScanOperation & obj )
     {
         return obj.updateCurrentTuple();
     }
 
     static NdbOperation *
-    NdbScanOperation__updateCurrentTuple
+    NdbScanOperation__updateCurrentTuple__1 // disambiguate overloaded function
     ( NdbScanOperation & obj, NdbTransaction * p0 )
     {
         return obj.updateCurrentTuple(p0);
     }
 
     static int
-    NdbScanOperation__deleteCurrentTuple
+    NdbScanOperation__deleteCurrentTuple__0 // disambiguate overloaded function
     ( NdbScanOperation & obj )
     {
         return obj.deleteCurrentTuple();
     }
 
     static int
-    NdbScanOperation__deleteCurrentTuple
+    NdbScanOperation__deleteCurrentTuple__1 // disambiguate overloaded function
     ( NdbScanOperation & obj, NdbTransaction * p0 )
     {
         return obj.deleteCurrentTuple(p0);
@@ -3251,7 +3251,7 @@ struct NdbApiWrapper {
     }
 
     static const NdbOperation *
-    NdbTransaction__getNdbErrorOperation
+    NdbTransaction__getNdbErrorOperation__0 // disambiguate overloaded const/non-const function
     ( const NdbTransaction & obj )
     {
         return obj.getNdbErrorOperation();
