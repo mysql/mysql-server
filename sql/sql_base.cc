@@ -2225,6 +2225,7 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     mysql_cond_wait(cond, mutex);
 
