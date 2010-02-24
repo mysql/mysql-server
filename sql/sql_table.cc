@@ -4227,8 +4227,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /*
     Open or obtain an exclusive metadata lock on table being created.
   */
-  if (open_and_lock_tables_derived(thd, thd->lex->query_tables, FALSE,
-                                   0))
+  if (open_and_lock_tables(thd, thd->lex->query_tables, FALSE, 0))
   {
     result= TRUE;
     goto unlock;
@@ -4427,7 +4426,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
-  Open_table_context ot_ctx_unused(thd);
+  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
   DBUG_ENTER("prepare_for_repair");
   uint reopen_for_repair_flags= (MYSQL_LOCK_IGNORE_FLUSH |
                                  MYSQL_OPEN_HAS_MDL_LOCK);
@@ -4679,8 +4678,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_error= open_and_lock_tables_derived(thd, table, TRUE,
-                                               MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+      open_error= open_and_lock_tables(thd, table, TRUE,
+                                       MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
@@ -5349,7 +5348,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        Open_table_context ot_ctx_unused(thd);
+        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -6558,9 +6557,9 @@ view_err:
 
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
 
-  error= open_and_lock_tables_derived(thd, table_list, FALSE,
-                                      MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
-                                      &alter_prelocking_strategy);
+  error= open_and_lock_tables(thd, table_list, FALSE,
+                              MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                              &alter_prelocking_strategy);
 
   if (error)
   {
@@ -7148,7 +7147,7 @@ view_err:
   {
     if (table->s->tmp_table)
     {
-      Open_table_context ot_ctx_unused(thd);
+      Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
       TABLE_LIST tbl;
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
@@ -7433,7 +7432,7 @@ view_err:
       To do this we need to obtain a handler object for it.
       NO need to tamper with MERGE tables. The real open is done later.
     */
-    Open_table_context ot_ctx_unused(thd);
+    Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
     TABLE *t_table;
     if (new_name != table_name || new_db != db)
     {
