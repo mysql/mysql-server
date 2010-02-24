@@ -918,6 +918,7 @@ public:
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
+  virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
@@ -2316,7 +2317,10 @@ public:
     return ref ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
-  { return (*ref)->walk(processor, walk_subquery, arg); }
+  {
+    return (*ref)->walk(processor, walk_subquery, arg) ||
+           (this->*processor)(arg);
+  }
   virtual void print(String *str, enum_query_type query_type);
   bool result_as_longlong()
   {

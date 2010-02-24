@@ -536,6 +536,16 @@ DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+
+--echo #
+--echo # Bug #49324: more valgrind errors in test_if_skip_sort_order
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
+--echo #should not cause valgrind warnings
+SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests
 
 

@@ -528,6 +528,7 @@ fi
 if expr "$CC" : ".*icc.*" > /dev/null ;
 then
     %define WITH_LIBGCC 0
+    :
 elif expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
@@ -537,9 +538,11 @@ then
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
   else
     %define WITH_LIBGCC 0
+    :
   fi
 else
     %define WITH_LIBGCC 0
+    :
 fi
 
 ##############################################################################
@@ -853,6 +856,14 @@ fi
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
+
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+
+%if %{WITH_TCMALLOC}
+%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
+%endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
