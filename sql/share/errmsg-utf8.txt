@@ -6260,3 +6260,5 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
+  eng "A SPATIAL index may only contain a geometrical type column"

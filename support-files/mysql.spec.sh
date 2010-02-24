@@ -87,12 +87,10 @@
 %{?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 0}
 
 # ----------------------------------------------------------------------
-# use "rpmbuild --without innodb_plugin" or "rpm --define '_without_innodb_plugin 1'"
-# (for RPM 3.x) to not build the innodb plugin (on by default with innodb builds)
+# support optional "tcmalloc" stuff (experimental)
 # ----------------------------------------------------------------------
-%{!?_with_innodb_plugin: %{!?_without_innodb_plugin: %define WITH_INNODB_PLUGIN 1}}
-%{?_with_innodb_plugin:%define WITH_INNODB_PLUGIN 1}
-%{?_without_innodb_plugin:%define WITH_INNODB_PLUGIN 0}
+%{?malloc_lib_target:%define WITH_TCMALLOC 1}
+%{!?malloc_lib_target:%define WITH_TCMALLOC 0}
 
 # ----------------------------------------------------------------------
 # use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
@@ -419,13 +417,8 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 %endif
 %if %{INNODB_BUILD}
 		--with-plugin-innobase \
-%if %{WITH_INNODB_PLUGIN}
-%else
-		--without-plugin-innodb_plugin \
-%endif
 %else
 		--without-plugin-innobase \
-		--without-plugin-innodb_plugin \
 %endif
 %if %{PARTITION_BUILD}
 		--with-plugin-partition \
@@ -579,13 +572,6 @@ $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
 
-%if %{WITH_TCMALLOC}
-# Even though this is a shared library, put it under /usr/lib/mysql, so it
-# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
-# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
-install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
-%endif
-
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
 
@@ -605,9 +591,16 @@ rm -fr $RBR%{_datadir}/sql-bench
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 
-# Touch the place where the my.cnf config file might be located.
-# Just to make sure it's in the file list and marked as a config file.
+# Touch the place where the my.cnf config file might be located
+# Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
+
+%if %{WITH_TCMALLOC}
+# Even though this is a shared library, put it under /usr/lib/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
+install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
+%endif
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -875,12 +868,13 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%if %{INNODB_BUILD}
-%if %{WITH_INNODB_PLUGIN}
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_innodb_plugin.so*
-%endif
-%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+
+%if %{WITH_TCMALLOC}
+%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
+%endif
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
@@ -905,6 +899,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
@@ -976,6 +971,7 @@ fi
 %files devel
 %defattr(-, root, root, 0755)
 %doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
+%doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -1044,7 +1040,7 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
-* Fri Feb 05 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+* Fri Feb 12 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Formatting changes:
   Have a consistent structure of separator lines and of indentation
@@ -1056,8 +1052,6 @@ fi
   in 5.1 since ages.
 - Introduce variables to control the handlers individually, as well
   as other options.
-- Handle the InnoDB plugin using a positive logic: "WITH_INNODB_PLUGIN",
-  the old negative logic ("WITHOUT_INNODB_PLUGIN") was obfuscating.
 - Use the new "--with-plugin" notation for the table handlers.
 - Drop handling "/etc/rc.d/init.d/mysql", the switch to "/etc/init.d/mysql"
   was done back in 2002 already.

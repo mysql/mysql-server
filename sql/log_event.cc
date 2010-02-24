@@ -4646,10 +4646,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
-    bzero((char*) &tables,sizeof(tables));
-    tables.db= thd->strmake(thd->db, thd->db_length);
-    tables.alias = tables.table_name = (char*) table_name;
-    tables.lock_type = TL_WRITE;
+    tables.init_one_table(thd->db, table_name, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
