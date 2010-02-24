@@ -5689,8 +5689,9 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     create_new_thread(thd);
   }
   CloseHandle(connectOverlapped.hEvent);
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* _WIN32 */
 
@@ -5926,9 +5927,9 @@ error:
   if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
   if (event_connect_answer)	CloseHandle(event_connect_answer);
   if (smem_event_connect_request) CloseHandle(smem_event_connect_request);
-
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* HAVE_SMEM */
 #endif /* EMBEDDED_LIBRARY */
@@ -5973,7 +5974,7 @@ struct my_option my_long_options[]=
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
-   "Tells the master that updates to the given database should not be logged tothe binary log.",
+   "Tells the master that updates to the given database should not be logged to the binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-row-event-max-size", 0,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
@@ -6009,7 +6010,7 @@ struct my_option my_long_options[]=
   {"collation-server", 0, "Set the default collation.",
    (uchar**) &default_collation_name, (uchar**) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
+  {"console", OPT_CONSOLE, "Write error output on screen; don't remove the console window on windows.",
    (uchar**) &opt_console, (uchar**) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
@@ -6042,7 +6043,7 @@ struct my_option my_long_options[]=
    0, 0, 0, 0},
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
   /* See how it's handled in get_one_option() */
-  {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
+  {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", 0, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
    (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
@@ -6050,7 +6051,7 @@ struct my_option my_long_options[]=
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"gdb", 0,
-   "Set up signals usable for debugging",
+   "Set up signals usable for debugging.",
    (uchar**) &opt_debugging, (uchar**) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGE_OPTION
@@ -6111,7 +6112,7 @@ struct my_option my_long_options[]=
    0, 0, 0, 0, 0, 0},
   {"log-tc", 0,
    "Path to transaction coordinator log (used for transactions that affect "
-   "more than one storage engine, when binary log is disabled)",
+   "more than one storage engine, when binary log is disabled).",
    (uchar**) &opt_tc_log_file, (uchar**) &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_MMAP
@@ -6141,15 +6142,17 @@ thread is in the master's binlogs.",
   {"memlock", 0, "Lock mysqld in memory.", (uchar**) &locked_in_memory,
    (uchar**) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-thread", OPT_ONE_THREAD,
-   "(deprecated): Only use one thread (for debugging under Linux). Use thread-handling=no-threads instead",
+   "(Deprecated): Only use one thread (for debugging under Linux). Use "
+   "thread-handling=no-threads instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"old-style-user-limits", 0,
-   "Enable old-style user limits (before 5.0.3 user resources were counted per each user+host vs. per account)",
+   "Enable old-style user limits (before 5.0.3, user resources were counted "
+   "per each user+host vs. per account).",
    (uchar**) &opt_old_style_user_limits, (uchar**) &opt_old_style_user_limits,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", 0,
    "Maximum time in seconds to wait for the port to become free. "
-   "(Default: no wait)", (uchar**) &mysqld_port_timeout,
+   "(Default: No wait).", (uchar**) &mysqld_port_timeout,
    (uchar**) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-do-db", OPT_REPLICATE_DO_DB,
    "Tells the slave thread to restrict replication to the specified database. To specify more than one database, use the directive multiple times, once for each database. Note that this will only work if you do not use cross-database queries such as UPDATE some_db.some_table SET foo='bar' while having selected a different or no database. If you need cross database updates to work, make sure you have 3.23.28 or later, and use replicate-wild-do-table=db_name.%.",
@@ -6196,12 +6199,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", 0,
-   "Show user and password in SHOW SLAVE HOSTS on this master",
+   "Show user and password in SHOW SLAVE HOSTS on this master.",
    (uchar**) &opt_show_slave_auth_info, (uchar**) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", 0,
-   "Start without grant tables. This gives all users FULL ACCESS to all tables!",
+   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
    (uchar**) &opt_noacl, (uchar**) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
 #endif
@@ -6210,7 +6213,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-name-resolve", OPT_SKIP_RESOLVE,
    "Don't resolve hostnames. All hostnames are IP's or 'localhost'.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-new", OPT_SKIP_NEW, "Don't use new, possible wrong routines.",
+  {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-slave-start", 0,
    "If set, slave is not autostarted.", (uchar**) &opt_skip_slave_start,
@@ -6282,7 +6285,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Used with --help option for detailed help",
+  {"verbose", 'v', "Used with --help option for detailed help.",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -6894,27 +6897,27 @@ static void usage(void)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
   puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others\n\
+Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
 Copyright (C) 2008,2009 Sun Microsystems, Inc.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server\n");
+Starts the MySQL database server.\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
-    puts("\nFor more help options (several pages), use mysqld --verbose --help");
+    puts("\nFor more help options (several pages), use mysqld --verbose --help.");
   else
   {
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
-  --install                     Install the default service (NT)\n\
-  --install-manual              Install the default service started manually (NT)\n\
-  --install service_name        Install an optional service (NT)\n\
-  --install-manual service_name Install an optional service started manually (NT)\n\
-  --remove                      Remove the default service from the service list (NT)\n\
-  --remove service_name         Remove the service_name from the service list (NT)\n\
-  --enable-named-pipe           Only to be used for the	default server (NT)\n\
-  --standalone                  Dummy option to start as a standalone server (NT)\
+  --install                     Install the default service (NT).\n\
+  --install-manual              Install the default service started manually (NT).\n\
+  --install service_name        Install an optional service (NT).\n\
+  --install-manual service_name Install an optional service started manually (NT).\n\
+  --remove                      Remove the default service from the service list (NT).\n\
+  --remove service_name         Remove the service_name from the service list (NT).\n\
+  --enable-named-pipe           Only to be used for the default server (NT).\n\
+  --standalone                  Dummy option to start as a standalone server (NT).\
 ");
   puts("");
 #endif

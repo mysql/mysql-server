@@ -804,3 +804,15 @@ DEALLOCATE PREPARE stmt;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+#
+# Bug#45195 valgrind warnings about uninitialized values in store_record_in_cache()
+#
+CREATE TABLE t1(a CHAR(9),b INT,KEY(b),KEY(a)) ENGINE=MYISAM;
+CREATE TABLE t2(a CHAR(9),b INT,KEY(b),KEY(a)) ENGINE=MYISAM;
+INSERT INTO t1 VALUES ('1',null),(null,null);
+INSERT INTO t2 VALUES ('1',null),(null,null);
+CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
+ENGINE=MERGE  UNION=(t1,t2);
+SELECT t1.a FROM mm1,t1;
+DROP TABLE t1, t2, mm1;

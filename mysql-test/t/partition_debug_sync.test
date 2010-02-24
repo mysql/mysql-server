@@ -1,0 +1,81 @@
+#--disable_abort_on_error
+#
+# Test for the partition storage engine which require DEBUG_SYNC feature to
+# Created by Mattias Jonsson
+#
+--source include/have_partition.inc
+--source include/have_debug_sync.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
+
+--echo #
+--echo # Bug#42438: Crash ha_partition::change_table_ptr
+--echo # Test when remove partitioning is done while drop table is waiting
+--echo # for the table.
+connect(con1, localhost, root,,);
+--echo # Con 1
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1
+(a INTEGER,
+ b INTEGER NOT NULL,
+ KEY (b))
+ENGINE = MYISAM
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+ PARTITION p1 VALUES LESS THAN (20),
+ PARTITION p2 VALUES LESS THAN (100),
+ PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET DEBUG_SYNC= 'alter_table_before_create_table_no_lock SIGNAL removing_partitioning WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL partitioning_removed';
+--send ALTER TABLE t1 REMOVE PARTITIONING
+connection default;
+--echo # Con default
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitioning';
+SET DEBUG_SYNC= 'waiting_for_table SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_part2_before_delete_table WAIT_FOR partitioning_removed';
+DROP TABLE IF EXISTS t1;
+--echo # Con 1
+connection con1;
+--reap
+connection default;
+SET DEBUG_SYNC= 'RESET';
+connection con1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--echo # Bug#42438: Crash ha_partition::change_table_ptr
+--echo # Test when remove partitioning is failing due to drop table is already
+--echo # in progress.
+CREATE TABLE t2
+(a INTEGER,
+ b INTEGER NOT NULL,
+ KEY (b))
+ENGINE = MYISAM
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+ PARTITION p1 VALUES LESS THAN (20),
+ PARTITION p2 VALUES LESS THAN (100),
+ PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET DEBUG_SYNC= 'before_lock_tables_takes_lock SIGNAL removing_partitions WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_rename_result_table WAIT_FOR delete_done';
+--send ALTER TABLE t2 REMOVE PARTITIONING
+connection default;
+--echo # Con default
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitions';
+SET DEBUG_SYNC= 'waiting_for_table SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_part2_before_binlog SIGNAL delete_done';
+DROP TABLE IF EXISTS t2;
+--echo # Con 1
+connection con1;
+--error ER_NO_SUCH_TABLE
+--reap
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+connection default;
+--echo # Con default
+SET DEBUG_SYNC= 'RESET';
+
+--echo End of 5.1 tests
