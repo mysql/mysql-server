@@ -615,6 +615,36 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
   DBUG_RETURN(0);
 }//NdbTransaction::execute()
 
+/** 
+ * Get the first query in the current transaction that has a lookup operation
+ * as its root.
+ */
+static NdbQueryImpl* getFirstLookupQuery(NdbQueryImpl* firstQuery)
+{
+  NdbQueryImpl* current = firstQuery;
+  while (current != NULL && current->getQueryDef().isScanQuery()) {
+    current = current->getNext();
+  }
+  return current;
+}
+
+/** 
+ * Get the last query in the current transaction that has a lookup operation
+ * as its root.
+ */
+static NdbQueryImpl* getLastLookupQuery(NdbQueryImpl* firstQuery)
+{
+  NdbQueryImpl* current = firstQuery;
+  NdbQueryImpl* last = NULL;
+  while (current != NULL) {
+    if (!current->getQueryDef().isScanQuery()) {
+      last = current;
+    }
+    current = current->getNext();
+  }
+  return last;
+}
+
 /*****************************************************************************
 void executeAsynchPrepare(ExecType           aTypeOfExec,
                           NdbAsynchCallback  callBack,
@@ -727,6 +757,9 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }
     DBUG_VOID_RETURN;
   }//if
+
+  NdbQueryImpl* const lastLookupQuery = getLastLookupQuery(m_firstQuery);
+
   if (tTransactionIsStarted == true) {
     if (tLastOp != NULL) {
       if (aTypeOfExec == Commit) {
@@ -736,7 +769,11 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
 ******************************************************************************/
         tLastOp->theCommitIndicator = 1;
       }//if
-    } else {
+    } else if (lastLookupQuery != NULL) {
+      if (aTypeOfExec == Commit) {
+        lastLookupQuery->setCommitIndicator();
+      }
+    } else if (m_firstQuery == NULL) {
       if (aTypeOfExec == Commit && !theSimpleState) {
 	/**********************************************************************
 	 *   A Transaction have been started and no more operations exist. 
@@ -744,8 +781,6 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
 	 *********************************************************************/
         theSendStatus = sendCOMMITstate;
 	DBUG_VOID_RETURN;
-      } else if (m_firstQuery != NULL) {
-        // TODO_SPJ : Set theCommitIndicator on last query?
       } else {
 	/**********************************************************************
 	 * We need to put it into the array of completed transactions to 
@@ -762,15 +797,28 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }//if
   } else if (tTransactionIsStarted == false) {
     NdbOperation* tFirstOp = theFirstOpInList;
-    if (tFirstOp != NULL) {
+
+    /* 
+     * Lookups that are roots of queries are sent before non-linked lookups.
+     * If both types are present, then the start indicator should be set
+     * on a query root lookup, and the commit indicator on a non-linked 
+     * lookup.
+     */
+    if (lastLookupQuery != NULL) {
+      getFirstLookupQuery(m_firstQuery)->setStartIndicator();
+    } else if (tFirstOp != NULL) {
       tFirstOp->setStartIndicator();
+    }
+
+    if (tFirstOp != NULL) {
       if (aTypeOfExec == Commit) {
         tLastOp->theCommitIndicator = 1;
       }//if
-    } else if (m_firstQuery != NULL) {
-      // m_firstQuery->setStartIndicator()>; // TODO_SPJ: fix
-      // TODO_SPJ : Also set theCommitIndicator on last query?
-    } else {
+    } else if (lastLookupQuery != NULL) {
+      if (aTypeOfExec == Commit) {
+        lastLookupQuery->setCommitIndicator();
+      }//if
+    } else if (m_firstQuery == NULL) {
       /***********************************************************************
        *    No operations are defined and we have not started yet. 
        *    Simply return OK. Set commit status if Commit.
@@ -937,21 +985,21 @@ NdbTransaction::doSend()
   case sendOperations: {
     assert (m_firstExecQuery!=NULL || theFirstExecOpInList!=NULL);
 
-    bool hasLookupQueries = false;
+    const NdbQueryImpl* const lastLookupQuery 
+      = getLastLookupQuery(m_firstExecQuery);
     if (m_firstExecQuery!=NULL) {
       NdbQueryImpl* query = m_firstExecQuery;
       NdbQueryImpl* last  = NULL;
       while (query!=NULL) {
-        hasLookupQueries |= !query->getQueryDef().isScanQuery();
-        NdbQueryImpl* next = query->getNext();
-        const bool lastFlag = (next == NULL);
+        const bool lastFlag = 
+          query == lastLookupQuery && theFirstExecOpInList == NULL;
         const int tReturnCode = query->doSend(theDBnode, lastFlag);
         if (tReturnCode == -1) {
           theReturnStatus = ReturnFailure;
           break;
         }
-        last  = query;
-        query = next;
+        last = query;
+        query = query->getNext();
       } // while
 
       // Append to list of active queries
@@ -972,7 +1020,7 @@ NdbTransaction::doSend()
       tOp = tNext;
     }
 
-    if (theFirstExecOpInList || hasLookupQueries) {
+    if (theFirstExecOpInList || lastLookupQuery != NULL) {
       theSendStatus = sendTC_OP;
       theTransactionIsStarted = true;
       theNdb->insert_sent_list(this);      // Lookup: completes with KEYCONF/REF

@@ -1117,6 +1117,10 @@ Dbspj::lookup_build(Build_context& ctx,
     Uint32 transId2 = requestPtr.p->m_transId[1];
     Uint32 savePointId = ctx.m_savepointId;
 
+    Uint32 treeBits = node->requestInfo;
+    Uint32 paramBits = param->requestInfo;
+    //ndbout_c("Dbspj::lookup_build() treeBits=%.8x paramBits=%.8x", 
+    //         treeBits, paramBits);
     LqhKeyReq* dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
     {
       /**
@@ -1146,6 +1150,9 @@ Dbspj::lookup_build(Build_context& ctx,
       LqhKeyReq::setSimpleFlag(requestInfo, 1);
       LqhKeyReq::setNormalProtocolFlag(requestInfo, 0);  // Assume T_LEAF 
       LqhKeyReq::setAnyValueFlag(requestInfo, 1);
+      LqhKeyReq::setNoDiskFlag(requestInfo, 
+                               (treeBits & DABits::NI_LINKED_DISK) == 0 &&
+                               (paramBits & DABits::PI_DISK_ATTR) == 0);
       dst->requestInfo = requestInfo;
     }
 
@@ -1159,7 +1166,6 @@ Dbspj::lookup_build(Build_context& ctx,
 
     Uint32 tableId = node->tableId;
     Uint32 schemaVersion = node->tableVersion;
-    Uint32 treeBits = node->requestInfo;
 
     Uint32 tableSchemaVersion = tableId + ((schemaVersion << 16) & 0xFFFF0000);
     dst->tableSchemaVersion = tableSchemaVersion;
@@ -1180,7 +1186,6 @@ Dbspj::lookup_build(Build_context& ctx,
     /**
      * Parse stuff common lookup/scan-frag
      */
-    Uint32 paramBits = param->requestInfo;
     struct DABuffer nodeDA, paramDA;
     nodeDA.ptr = node->optional;
     nodeDA.end = nodeDA.ptr + (node->len - QN_LookupNode::NodeSize);
@@ -1256,10 +1261,10 @@ Dbspj::lookup_start(Signal* signal,
 
   LqhKeyReq * dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
   Uint32 dst_requestInfo = dst->requestInfo;
-  dst_requestInfo &= ~Uint32(1 << RI_NODISK_SHIFT);
   dst_requestInfo &= ~Uint32(1 << RI_INTERPRETED_SHIFT);
   LqhKeyReq::setInterpretedFlag(dst_requestInfo, interpretedFlag);
-  LqhKeyReq::setNoDiskFlag(dst_requestInfo, noDiskFlag);
+
+  ndbassert(noDiskFlag == 1 || LqhKeyReq::getNoDiskFlag(dst_requestInfo) == 0);
 
   dst->hashValue = hashValue;
   dst->requestInfo = dst_requestInfo;
@@ -1825,17 +1830,23 @@ Dbspj::scanFrag_build(Build_context& ctx,
     dst->transId1 = transId1;
     dst->transId2 = transId2;
 
+    Uint32 treeBits = node->requestInfo;
+    Uint32 paramBits = param->requestInfo;
+    //ndbout_c("Dbspj::scanFrag_build() treeBits=%.8x paramBits=%.8x", 
+    //         treeBits, paramBits);
     Uint32 requestInfo = 0;
     ScanFragReq::setReadCommittedFlag(requestInfo, 1);
     ScanFragReq::setScanPrio(requestInfo, ctx.m_scanPrio);
     ScanFragReq::setAnyValueFlag(requestInfo, 1);
+    ScanFragReq::setNoDiskFlag(requestInfo, 
+                               (treeBits & DABits::NI_LINKED_DISK) == 0 &&
+                               (paramBits & DABits::PI_DISK_ATTR) == 0);
 
 #if 0
     static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
     static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
     static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
     static void setScanPrio(Uint32& requestInfo, Uint32 prio);
-    static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
     static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
 
     static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
@@ -1850,7 +1861,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
-    Uint32 treeBits = node->requestInfo;
 
     err = DbspjErr::InvalidTreeParametersSpecification;
     DEBUG("param len: " << param->len);
@@ -1866,7 +1876,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     /**
      * Parse stuff common lookup/scan-frag
      */
-    Uint32 paramBits = param->requestInfo;
     struct DABuffer nodeDA, paramDA;
     nodeDA.ptr = node->optional;
     nodeDA.end = nodeDA.ptr + (node->len - QN_ScanFragNode::NodeSize);
@@ -1931,7 +1940,6 @@ Dbspj::scanFrag_start(Signal* signal,
   ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getDescendingFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getTupScanFlag(requestInfo) == 0);
-  ndbassert(ScanFragReq::getNoDiskFlag(requestInfo) == 0);
   ndbassert(ScanFragReq::getScanPrio(requestInfo) == 1);
 #endif
 
@@ -1948,7 +1956,8 @@ Dbspj::scanFrag_start(Signal* signal,
   ScanFragReq::setTupScanFlag(dst_requestInfo,tupScanFlag);
   ScanFragReq::setRangeScanFlag(dst_requestInfo,rangeScanFlag);
   ScanFragReq::setDescendingFlag(dst_requestInfo,descendingFlag);
-  ScanFragReq::setNoDiskFlag(dst_requestInfo,noDiskFlag);
+  ndbassert(noDiskFlag == 1 || 
+            ScanFragReq::getNoDiskFlag(dst_requestInfo) == 0);
   ScanFragReq::setScanPrio(dst_requestInfo,scanPrio);
 
   dst->fragmentNoKeyLen = fragId;

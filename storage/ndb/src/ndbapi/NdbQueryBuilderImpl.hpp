@@ -343,15 +343,9 @@ public:
   virtual ~NdbQueryOperationDefImpl() = 0;
 
 protected:
-  explicit NdbQueryOperationDefImpl (
-                                     const NdbTableImpl& table,
+  explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
                                      const char* ident,
-                                     Uint32      ix)
-    :m_isPrepared(false), m_table(table), m_ident(ident), m_ix(ix), m_id(ix),
-     m_parents(), m_children(), m_params(),
-     m_spjProjection()
-  {}
-
+                                     Uint32 ix);
 public:
   // Get the ordinal position of this operation within the query def.
   Uint32 getQueryOperationIx() const
@@ -373,6 +367,11 @@ protected:
   /** True if enclosing query has been prepared.*/
   bool m_isPrepared;
 
+  /** 
+   * True if the projection for instantiating child operations contains any
+   * disk columns.
+   */
+  bool m_diskInChildProjection;
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
 

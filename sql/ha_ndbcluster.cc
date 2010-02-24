@@ -200,6 +200,31 @@ struct st_ndb_status {
   long transaction_hint_count[MAX_NDB_NODES];
 };
 
+/**
+ * This is a list of NdbQueryDef objects that have been created within a 
+ * transaction. This list is kept to make sure that they are all released 
+ * when the transaction ends.
+ * An NdbQueryDef object is required to live longer than any NdbQuery object
+ * instantiated from it. Since NdbQueryObjects may be kept until the 
+ * transaction ends, this list is necessary.
+ */
+class ha_query_def_list
+{
+public:
+  ha_query_def_list(const NdbQueryDef* def, const ha_query_def_list* next):
+    m_def(def), m_next(next){}
+
+  const NdbQueryDef* get_def() const
+  { return m_def; }
+
+  const ha_query_def_list* get_next() const
+  { return m_next; }
+
+private:
+  const NdbQueryDef* const m_def;
+  const ha_query_def_list* const m_next;
+};
+
 
 class ha_pushed_join
 {
@@ -230,12 +255,6 @@ public:
     }
   }
 
-  ~ha_pushed_join()
-  {
-    if (m_query_def)
-      m_query_def->release();
-  }
-  
   uint get_join_count() const
   { return m_join_count; }
 
@@ -840,6 +859,17 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   if (unlikely(!query_def))
     DBUG_RETURN(0);
 
+  /* 
+   * Append query definition to transaction specific list, so that it can be
+   * released when the transaction ends.  
+   */
+  Thd_ndb* const thd_ndb = get_thd_ndb(current_thd);
+  const ha_query_def_list* const list_item = 
+    new ha_query_def_list(query_def, thd_ndb->m_query_defs);
+  if (unlikely(list_item == NULL))
+    DBUG_RETURN(0);
+  thd_ndb->m_query_defs = list_item;
+  
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
   m_pushed_join= new ha_pushed_join(plan, pushed_joins, fld_refs, referred_fields, query_def);
 
@@ -1402,6 +1432,7 @@ Thd_ndb::Thd_ndb()
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
   init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
+  m_query_defs = NULL;
 }
 
 Thd_ndb::~Thd_ndb()
@@ -1424,6 +1455,7 @@ Thd_ndb::~Thd_ndb()
       }
     }
   }
+  release_query_defs();
   if (ndb)
   {
     delete ndb;
@@ -1441,6 +1473,21 @@ Thd_ndb::init_open_tables()
   m_error= FALSE;
   m_error_code= 0;
   my_hash_reset(&open_tables);
+}
+
+void
+Thd_ndb::release_query_defs()
+{
+  // DBUG_PRINT("info", ("release_query_defs() this=%p.", this));
+  const ha_query_def_list* current = m_query_defs;
+  while (current != NULL)
+  {
+    current->get_def()->release();
+    const ha_query_def_list* const previous = current;
+    current = current->get_next();
+    delete previous;
+  }
+  m_query_defs = NULL;
 }
 
 inline
@@ -7203,6 +7250,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           thd_ndb->ndb->closeTransaction(thd_ndb->trans);
           thd_ndb->trans= NULL;
           thd_ndb->m_handler= NULL;
+          thd_ndb->release_query_defs();
         }
       }
     }
@@ -7523,6 +7571,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
+  thd_ndb->release_query_defs();
 
   /* Clear commit_count for tables changed by transaction */
   NDB_SHARE* share;
@@ -7601,6 +7650,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
+  thd_ndb->release_query_defs();
 
   /* Clear list of tables changed by transaction */
   NDB_SHARE* share;

@@ -1993,4 +1993,81 @@ k	b	k	b	k	b	k	b
 3	1	1	1	1	1	1	1
 4	1	1	1	1	1	1	1
 drop table t1;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 6M
+ENGINE NDB;
+create table T1 (a int NOT NULL, 
+b int NOT NULL storage disk, 
+c int NOT NULL storage memory, 
+primary key(a)) 
+TABLESPACE ts1 STORAGE DISK engine = ndb;
+insert into T1 values (10, 11, 11);
+insert into T1 values (11, 12, 12);
+insert into T1 values (12, 13, 13);
+create table T2 (a int not null, 
+b int not null, primary key(a)) engine = ndb;
+insert into T2 values (10, 11);
+insert into T2 values (11, 12);
+insert into T2 values (12, 13);
+explain select * from T1, T2 where T1.c = T2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T1	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	T2	eq_ref	PRIMARY	PRIMARY	4	test.T1.c	1	Child of pushed join@1
+select * from T1, T2 where T1.c = T2.a;
+a	b	c	a	b
+10	11	11	11	12
+11	12	12	12	13
+explain select * from T1, T2 where T1.a=11 and T1.c = T2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T1	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	T2	eq_ref	PRIMARY	PRIMARY	4	test.T1.c	1	Child of pushed join@1
+select * from T1, T2 where T1.a=11 and T1.c = T2.a;
+a	b	c	a	b
+11	12	12	12	13
+explain select * from T2, T1 where T2.b = T1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T2	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	T1	eq_ref	PRIMARY	PRIMARY	4	test.T2.b	1	Child of pushed join@1
+select * from T2, T1 where T2.b = T1.a;
+a	b	a	b	c
+10	11	11	12	12
+11	12	12	13	13
+explain select * from T2, T1 where T2.a=11 and T2.b = T1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T2	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	T1	eq_ref	PRIMARY	PRIMARY	4	test.T2.b	1	Child of pushed join@1
+select * from T2, T1 where T2.a=11 and T2.b = T1.a;
+a	b	a	b	c
+11	12	12	13	13
+explain select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.b = T2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T1	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	T2	eq_ref	PRIMARY	PRIMARY	4	test.T1.b	1	Child of pushed join@1
+select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.b = T2.a;
+a	c	a	b
+10	11	11	12
+11	12	12	13
+explain select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.a=11 and T1.b = T2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	T1	const	PRIMARY	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	T2	eq_ref	PRIMARY	PRIMARY	4	test.T1.b	1	Child of pushed join@1
+select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.a=11 and T1.b = T2.a;
+a	c	a	b
+11	12	12	13
+drop table T1;
+drop table T2;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+drop tablespace ts1
+engine ndb;
+drop logfile group lg1
+engine ndb;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

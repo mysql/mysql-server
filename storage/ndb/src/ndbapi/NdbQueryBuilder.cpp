@@ -169,7 +169,6 @@ public:
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const;
 
-
 protected:
   virtual ~NdbQueryLookupOperationDefImpl() {}
 
@@ -1124,7 +1123,6 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   size_t len = m_len;
   size_t maxSize = (size_t)m_column->getSizeInBytes();
 
-  const unsigned char* const src = (unsigned char*)m_value;
   char* dst = NULL;
 
   if (likely(m_column->m_arrayType == NDB_ARRAYTYPE_FIXED))
@@ -1326,6 +1324,7 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
       break;
     m_keys[i] = &keys[i]->getImpl();
   }
+  assert (i > 0);
   assert (keys[i] == NULL);
   m_keys[i] = NULL;
 }
@@ -1717,6 +1716,22 @@ NdbQueryIndexScanOperationDefImpl::setOrdering(NdbScanOrdering ordering)
   m_ordering = ordering;
   return 0;
 }
+
+NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
+                                     const NdbTableImpl& table,
+                                     const char* ident,
+                                     Uint32      ix)
+  :m_isPrepared(false), 
+   m_diskInChildProjection(false), 
+   m_table(table), 
+   m_ident(ident), 
+   m_ix(ix), m_id(ix), 
+   m_parents(), 
+   m_children(), 
+   m_params(),
+   m_spjProjection() 
+{}
+
   
 void
 NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
@@ -1811,6 +1826,10 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
 
   // Add column if not already available
   m_spjProjection.push_back(column);
+  if (column->getStorageType() == NDB_STORAGETYPE_DISK)
+  {
+    m_diskInChildProjection = true;
+  }
   return spjRef;
 }
 
@@ -1986,6 +2005,11 @@ NdbQueryLookupOperationDefImpl
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
     spjProjSeq.finish();
+
+    if (m_diskInChildProjection)
+    {
+      requestInfo |= DABits::NI_LINKED_DISK;
+    }
   }
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
@@ -2120,6 +2144,11 @@ NdbQueryIndexOperationDefImpl
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
     spjProjSeq.finish();
+
+    if (m_diskInChildProjection)
+    {
+      requestInfo |= DABits::NI_LINKED_DISK;
+    }
   }
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
@@ -2181,6 +2210,11 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
       spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
     }
     spjProjSeq.finish();
+
+    if (m_diskInChildProjection)
+    {
+      requestInfo |= DABits::NI_LINKED_DISK;
+    }
   }
 
   // Fill in ScanFragNode contents (Already allocated, 'startPos' is our handle:

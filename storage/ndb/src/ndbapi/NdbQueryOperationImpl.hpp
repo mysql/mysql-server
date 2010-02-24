@@ -138,6 +138,7 @@ public:
   /** Get next query in same transaction.*/
   NdbQueryImpl* getNext() const
   { return m_next; }
+
   void setNext(NdbQueryImpl* next)
   { m_next = next; }
 
@@ -167,6 +168,27 @@ public:
   { return (m_state >= Closed); 
   }
   
+  /** 
+   * Mark this query as the first query or operation in a new transaction.
+   * This should only be called for queries where root operation is a lookup.
+   */
+  void setStartIndicator()
+  { 
+    assert(!m_queryDef.isScanQuery());
+    m_startIndicator = true; 
+  }
+
+  /** 
+   * Mark this query as the last query or operation in a transaction, after
+   * which the transaction should be committed. This should only be called 
+   * for queries where root operation is a lookup.
+   */
+  void setCommitIndicator()
+  {  
+    assert(!m_queryDef.isScanQuery());
+    m_commitIndicator = true; 
+  }
+
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
    * matches those returned from PoolGuard::waitScan().
@@ -359,6 +381,12 @@ private:
    */
   Uint32Buffer m_attrInfo;  // ATTRINFO: QueryTree + serialized parameters
   Uint32Buffer m_keyInfo;   // KEYINFO:  Lookup key or scan bounds
+
+  /** True if this query starts a new transaction. */
+  bool m_startIndicator;
+
+  /** True if the transaction should be committed after executing this query.*/
+  bool m_commitIndicator;
 
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
@@ -565,6 +593,9 @@ private:
    * here. (This field is NULL if no scan filter has been defined.)*/
   NdbInterpretedCode* m_interpretedCode;
 
+  /** True if this operation reads from any disk column. */
+  bool m_diskInUserProjection;
+
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
@@ -585,7 +616,7 @@ private:
    *  @return possible error code.*/
   int serializeParams(const constVoidPtr paramValues[]);
 
-  int serializeProject(Uint32Buffer& attrInfo) const;
+  int serializeProject(Uint32Buffer& attrInfo);
 
   /** Construct and prepare receiver streams for result processing. */
   int prepareReceiver();
@@ -606,6 +637,11 @@ private:
    * @param attrInfo The buffer to which the code should be appended.
    * @return possible error code */
   int prepareScanFilter(Uint32Buffer& attrInfo) const;
+
+  /** Returns true if this operation reads from any disk column. */
+  bool diskInUserProjection() const
+  { return m_diskInUserProjection; }
+
 }; // class NdbQueryOperationImpl
 
 

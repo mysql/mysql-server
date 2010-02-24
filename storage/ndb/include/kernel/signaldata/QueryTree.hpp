@@ -81,10 +81,16 @@ struct DABits
     NI_KEY_PARAMS     = 0x04,  // Does keyinfo contain parameters
     NI_KEY_CONSTS     = 0x08,  // Does keyinfo contain const operands.
 
-    NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by childs
+    NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by children
     NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
     NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
+    /**
+     * Iff this flag is set, then this operation has a child operation with a 
+     * linked value that refes to a disk column of this operation. For example
+     * SELECT * FROM t1, t2 WHERE t1.disk_att = t2.primary_key;  
+     */
+    NI_LINKED_DISK    = 0x100, 
     NI_END = 0
   };
 
@@ -98,6 +104,11 @@ struct DABits
      * before reading the attributes (i.e. a scan filter).
      */
     PI_ATTR_INTERPRET = 0x8,
+    /**
+     * Iff this flag is set, then the user projection for this operation 
+     * contains at least one disk column.   
+     */
+    PI_DISK_ATTR = 0x10, 
     PI_END = 0
   };
 };
