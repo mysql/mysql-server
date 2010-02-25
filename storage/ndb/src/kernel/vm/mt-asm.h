@@ -154,15 +154,20 @@ extern void cpu_pause();
 #endif
 #endif
 #elif defined (_MSC_VER)
+#define mb()    MemoryBarrier()
+#define read_barrier_depends()  do {} while(0)
+#ifdef _DEBUG
+#define rmb()   do {} while(0)
+#define wmb()   do {} while(0)
+#else
 #include <intrin.h>
 /********************
  * Microsoft
  *******************/
 // Using instrinsics available on all architectures
-#define mb()    _ReadWriteBarrier()
 #define rmb()   _ReadBarrier()
 #define wmb()   _WriteBarrier()
-#define read_barrier_depends()  do {} while(0)
+#endif
 
 #define NDB_HAVE_XCNG
 static inline
