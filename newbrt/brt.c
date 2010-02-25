@@ -5175,11 +5175,15 @@ int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(v
         r = toku_brt_lock_init();
     if (r==0) 
         r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+    if (r == 0)
+        r = toku_brt_serialize_init();
     return r;
 }
 
 int toku_brt_destroy(void) {
     int r = 0;
+    if (r == 0)
+        r = toku_brt_serialize_destroy();
     if (r==0) 
         r = toku_brt_lock_destroy();
     if (r==0)
