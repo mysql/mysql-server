@@ -536,7 +536,6 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
     *expr= new_cond;
     if (do_fix_fields)
       new_cond->fix_fields(join->thd, expr);
-    join->select_lex->where= *expr;
     return FALSE;
   }
   
