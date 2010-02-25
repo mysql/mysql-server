@@ -24,17 +24,17 @@ ADD_SUBDIRECTORY(mgmsrv)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
 
-IF(NOT EXISTS cmake_dummy.cpp)
-  FILE(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake_dummy.cpp "")
-ENDIF()
-ADD_LIBRARY(ndbclient STATIC cmake_dummy.cpp)
-TARGET_LINK_LIBRARIES(ndbclient
-                      ndbapi
-                      ndbtransport
-                      ndbtrace
-                      ndbsignaldata
-                      ndbmgmapi
-                      ndbmgmsrv
-                      ndblogger
-                      ndbportlib
-                      ndbgeneral)
+MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
+                mysys dbug strings
+                ndbapi
+                ndbtransport
+                ndbtrace
+                ndbsignaldata
+                ndbmgmapi
+                ndbmgmsrv
+                ndblogger
+                ndbportlib
+                ndbgeneral
+                ndbconf
+)
+TARGET_LINK_LIBRARIES(ndbclient ws2_32)

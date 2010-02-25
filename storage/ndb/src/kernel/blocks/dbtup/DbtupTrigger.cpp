@@ -197,7 +197,16 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 
   // Drop trigger
   Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(receiverRef));
-  if (r == 0){
+  if (r == 0)
+  {
+    /**
+     * make sure that any trigger data is sent before DROP_TRIG_CONF
+     *   NOTE: This is only needed for SUMA triggers
+     *         (which are the only buffered ones) but it shouldn't
+     *         be too bad to do it for all triggers...
+     */
+    flush_ndbmtd_suma_buffer(signal);
+
     // Send conf
     DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -939,6 +948,7 @@ out:
     jam();
     return;
   }
+
 //--------------------------------------------------------------------
 // Now all data for this trigger has been read. It is now time to send
 // the trigger information consisting of two or three sets of TRIG_
@@ -1090,7 +1100,7 @@ out:
     if (executeDirect)
     {
       jam();
-      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+      EXECUTE_DIRECT(refToMain(ref),
                      GSN_FIRE_TRIG_ORD,
                      signal,
                      FireTrigOrd::SignalLengthSuma);
@@ -1106,8 +1116,17 @@ out:
       ptr[1].sz = noBeforeWords;
       ptr[2].p = afterBuffer;
       ptr[2].sz = noAfterWords;
-      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalLengthSuma, JBB, ptr, 3);
+      if (refToMain(ref) == SUMA && (refToInstance(ref) != instance()))
+      {
+        jam();
+        ndbmtd_buffer_suma_trigger(signal, FireTrigOrd::SignalLengthSuma, ptr);
+      }
+      else
+      {
+        jam();
+        sendSignal(ref, GSN_FIRE_TRIG_ORD,
+                   signal, FireTrigOrd::SignalLengthSuma, JBB, ptr, 3);
+      }
     }
     break;
   case (TriggerType::SUBSCRIPTION):
@@ -1119,7 +1138,7 @@ out:
     if (executeDirect)
     {
       jam();
-      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+      EXECUTE_DIRECT(refToMain(ref),
                      GSN_FIRE_TRIG_ORD,
                      signal,
                      FireTrigOrd::SignalWithGCILength);
@@ -1137,7 +1156,7 @@ out:
       ptr[1].sz = noBeforeWords;
       ptr[2].p = afterBuffer;
       ptr[2].sz = noAfterWords;
-      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
+      sendSignal(ref, GSN_FIRE_TRIG_ORD,
                  signal, FireTrigOrd::SignalWithGCILength, JBB, ptr, 3);
     }
     break;
@@ -1370,17 +1389,6 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
   } while (dataLen != dataIndex);
 }
 
-void Dbtup::sendFireTrigOrd(Signal* signal,
-                            KeyReqStruct *req_struct,
-                            Operationrec * const regOperPtr, 
-                            TupTriggerData* const trigPtr, 
-			    Uint32 fragmentId,
-                            Uint32 noPrimKeyWords, 
-                            Uint32 noBeforeValueWords, 
-                            Uint32 noAfterValueWords)
-{
-}
-
 /*
  * Ordered index triggers.
  *
@@ -1582,4 +1590,120 @@ Dbtup::removeTuxEntries(Signal* signal,
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }
+}
+
+void
+Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
+                                  Uint32 len,
+                                  LinearSectionPtr sec[3])
+{
+  jam();
+  Uint32 tot = len + 5;
+  for (Uint32 i = 0; i<3; i++)
+    tot += sec[i].sz;
+
+  Uint32 * ptr = 0;
+  Uint32 free = m_suma_trigger_buffer.m_freeWords;
+  Uint32 pageId = m_suma_trigger_buffer.m_pageId;
+  Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
+  if (free < tot)
+  {
+    jam();
+    if (pageId != RNIL)
+    {
+      flush_ndbmtd_suma_buffer(signal);
+    }
+    if (oom == 0)
+    {
+      jam();
+      ndbassert(m_suma_trigger_buffer.m_pageId == RNIL);
+      void * vptr = m_ctx.m_mm.alloc_page(RT_DBTUP_PAGE,
+                                          &m_suma_trigger_buffer.m_pageId,
+                                          Ndbd_mem_manager::NDB_ZONE_ANY);
+      ptr = reinterpret_cast<Uint32*>(vptr);
+      free = GLOBAL_PAGE_SIZE_WORDS - tot;
+    }
+  }
+  else
+  {
+    jam();
+    ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
+    ptr += (GLOBAL_PAGE_SIZE_WORDS - free);
+    free -= tot;
+  }
+
+  if (likely(ptr != 0))
+  {
+    jam();
+    * ptr++ = tot;
+    * ptr++ = len;
+    * ptr++ = sec[0].sz;
+    * ptr++ = sec[1].sz;
+    * ptr++ = sec[2].sz;
+    memcpy(ptr, signal->getDataPtrSend(), 4 * len);
+    ptr += len;
+    for (Uint32 i = 0; i<3; i++)
+    {
+      memcpy(ptr, sec[i].p, 4 * sec[i].sz);
+      ptr += sec[i].sz;
+    }
+
+    m_suma_trigger_buffer.m_freeWords = free;
+    if (free < (len + 5))
+    {
+      flush_ndbmtd_suma_buffer(signal);
+    }
+  }
+  else
+  {
+    jam();
+    m_suma_trigger_buffer.m_out_of_memory = 1;
+  }
+}
+
+void
+Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
+{
+  jam();
+
+  Uint32 pageId = m_suma_trigger_buffer.m_pageId;
+  Uint32 free = m_suma_trigger_buffer.m_freeWords;
+  Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
+
+  if (pageId != RNIL)
+  {
+    jam();
+    Uint32 save[2];
+    save[0] = signal->theData[0];
+    save[1] = signal->theData[1];
+    signal->theData[0] = pageId;
+    signal->theData[1] =  GLOBAL_PAGE_SIZE_WORDS - free;
+    sendSignal(SUMA_REF, GSN_FIRE_TRIG_ORD_L, signal, 2, JBB);
+
+    signal->theData[0] = save[0];
+    signal->theData[1] = save[1];
+  }
+  else if (oom)
+  {
+    jam();
+    Uint32 save[2];
+    save[0] = signal->theData[0];
+    save[1] = signal->theData[1];
+    signal->theData[0] = RNIL;
+    signal->theData[1] =  0;
+    sendSignal(SUMA_REF, GSN_FIRE_TRIG_ORD_L, signal, 2, JBB);
+
+    signal->theData[0] = save[0];
+    signal->theData[1] = save[1];
+  }
+
+  m_suma_trigger_buffer.m_pageId = RNIL;
+  m_suma_trigger_buffer.m_freeWords = 0;
+  m_suma_trigger_buffer.m_out_of_memory = 0;
+}
+
+void
+Dbtup::execSUB_GCP_COMPLETE_REP(Signal* signal)
+{
+  flush_ndbmtd_suma_buffer(signal);
 }

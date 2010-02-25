@@ -1501,6 +1501,144 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int 
+HugoTransactions::pkReadUnlockRecords(Ndb* pNdb, 
+                                      int records,
+                                      int batch,
+                                      NdbOperation::LockMode lm)
+{
+  int                  reads = 0;
+  int                  r = 0;
+  int                  retryAttempt = 0;
+  int                  check;
+  
+  if (batch == 0) {
+    g_info << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed." << endl;
+    return NDBT_FAILED;
+  }
+
+  if (idx != NULL) {
+    g_info << "ERROR: Cannot call pkReadUnlockRecords for index" << endl;
+    return NDBT_FAILED;
+  }
+  
+  while (r < records){
+    if(r + batch > records)
+      batch = records - r;
+    
+    if (retryAttempt >= m_retryMax){
+      g_info << "ERROR: has retried this operation " << retryAttempt 
+	     << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+    
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+      
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      return NDBT_FAILED;
+    }
+
+    MicroSecondTimer timer_start;
+    MicroSecondTimer timer_stop;
+    bool timer_active =
+      m_stats_latency != 0 &&
+      r >= batch &&             // first batch is "warmup"
+      r + batch != records;     // last batch is usually partial
+
+    if (timer_active)
+      NdbTick_getMicroTimer(&timer_start);
+
+    Vector<const NdbLockHandle*> lockHandles;
+
+    NdbOperation::LockMode lmused;
+    if(pkReadRecordLockHandle(pNdb, lockHandles, r, batch, lm, &lmused) != NDBT_OK)
+    {
+      ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+    
+    check = pTrans->execute(NoCommit, AbortOnError);
+
+    if( check == -1 ) {
+      const NdbError err = pTrans->getNdbError();
+      
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      switch(err.code){
+      case 626: // Tuple did not exist
+	g_info << r << ": " << err.code << " " << err.message << endl;
+	r++;
+	break;
+
+      default:
+	ERR(err);
+	closeTransaction(pNdb);
+	return NDBT_FAILED;
+      }
+    } else {
+      /* Execute succeeded ok */
+      for (int b=0; (b<batch) && (r+b<records); b++){ 
+        if (calc.verifyRowValues(rows[b]) != 0){
+          closeTransaction(pNdb);
+          return NDBT_FAILED;
+        }
+        reads++;
+        r++;
+      }
+      
+      if (pkUnlockRecord(pNdb,
+                         lockHandles) != NDBT_OK)
+      {
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
+      }
+      
+      check = pTrans->execute(Commit, AbortOnError);
+      
+      if (check == -1 ) 
+      {
+        const NdbError err = pTrans->getNdbError();
+        
+        if (err.status == NdbError::TemporaryError){
+          ERR(err);
+          closeTransaction(pNdb);
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          continue;
+        }
+        ERR(err);
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
+      }
+    }
+    
+    closeTransaction(pNdb);
+    
+    if (timer_active) {
+      NdbTick_getMicroTimer(&timer_stop);
+      NDB_TICKS ticks = NdbTick_getMicrosPassed(timer_start, timer_stop);
+      m_stats_latency->addObservation((double)ticks);
+    }
+  }
+  deallocRows();
+  g_info << reads << " records read" << endl;
+  return NDBT_OK;
+}
+ 
 
 int 
 HugoTransactions::lockRecords(Ndb* pNdb, 

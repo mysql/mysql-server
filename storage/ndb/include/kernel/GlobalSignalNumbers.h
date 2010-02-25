@@ -191,7 +191,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 120 not unused */
 #define GSN_ROUTE_ORD                   121
 #define GSN_NODE_VERSION_REP            122
-/* 123 unused */
+/* 123 not unused */
 /* 124 unused */
 #define GSN_CHECK_LCP_STOP              125
 #define GSN_CLOSE_COMCONF               126 /* local */
@@ -673,6 +673,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TCINDXNEXTCONF              525
 #define GSN_TCINDXNEXREF                526
 #define GSN_FIRE_TRIG_ORD               527
+#define GSN_FIRE_TRIG_ORD_L             123 /* local from TUP to SUMA */
 
 /**
  * These are used only by kernel

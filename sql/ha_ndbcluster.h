@@ -698,6 +698,7 @@ private:
   int fetch_next(NdbScanOperation* op);
   int fetch_next(NdbQuery* query);
   int set_auto_inc(THD *thd, Field *field);
+  int set_auto_inc_val(THD *thd, Uint64 value);
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);

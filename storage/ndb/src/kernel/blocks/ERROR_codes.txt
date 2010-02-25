@@ -641,6 +641,9 @@ Dbdict:
 6019 Cluster failure before flush complete
 6020 Cluster failure before complete first
 
+6030 Do not round DD sizes in DBDICT. Check in ndb*out.log
+     that DBDICT and LGMAN/TSMAN round same way.
+
 6200 Set error code after handleTabInfoInit in master
 6201 Set error code after handleTabInfoInit in master (index)
 6202 Set error code before CREATE_FRAGMENTATION in master

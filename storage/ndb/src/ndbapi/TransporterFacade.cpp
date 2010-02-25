@@ -866,6 +866,12 @@ TransporterFacade::configure(NodeId nodeId,
   Uint32 auto_reconnect=1;
   iter.get(CFG_AUTO_RECONNECT, &auto_reconnect);
 
+  const char * priospec = 0;
+  if (iter.get(CFG_HB_THREAD_PRIO, &priospec) == 0)
+  {
+    NdbThread_SetHighPrioProperties(priospec);
+  }
+
   /**
    * Keep value it set before connect (overriding config)
    */

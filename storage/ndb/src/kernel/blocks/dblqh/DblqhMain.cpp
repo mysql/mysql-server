@@ -4539,8 +4539,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
      * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
      * --------------------------------------------------------------------- */
-    Int32 tmp = TdistKey - tfragDistKey;
-    tmp = (tmp < 0 ? - tmp : tmp);
+    Uint8 tmp = (TdistKey - tfragDistKey) & 255;
     if ((tmp <= 1) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0);
       return;
@@ -13797,8 +13796,9 @@ void
 Dblqh::execSUB_GCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
-  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
-             signal->getLength(), JBB);
+  Uint32 len = signal->getLength();
+  EXECUTE_DIRECT(DBTUP, GSN_SUB_GCP_COMPLETE_REP, signal, len);
+  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, len, JBB);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -21977,8 +21977,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::LOGBUFFERS_TABLEID:
   {
     const size_t entry_size = sizeof(LogPageRecord);
-    const  Uint64 free = cnoOfLogPages;
-    const Uint64 total = clogPageFileSize;
+    const Uint64 free = cnoOfLogPages;
+    const Uint64 total = clogPageCount;
     const Uint64 high = 0; // TODO
 
     Ndbinfo::Row row(signal, req);

@@ -1351,7 +1351,7 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         Ndbinfo::Row row(signal, req);
         row.write_uint32(getOwnNodeId()); // Node id
         row.write_uint32(rnode); // Remote node id
-        row.write_uint32(globalTransporterRegistry.ioState(rnode)); // State
+        row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
         ndbinfo_send_row(signal, req, row, rl);
        break;
       }

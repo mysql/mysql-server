@@ -83,7 +83,7 @@ public:
   }
 
   inline void decNoFree(Uint32 cnt) {
-    assert(noOfFree > cnt);
+    assert(noOfFree >= cnt);
     noOfFree -= cnt;
     updateFreeMin();
   }

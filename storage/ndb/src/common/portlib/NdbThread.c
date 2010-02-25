@@ -41,9 +41,9 @@
 
 #define MAX_THREAD_NAME 16
 
-int g_min_prio = 0;
-int g_max_prio = 0;
-int g_prio = 0;
+static int g_min_prio = 0;
+static int g_max_prio = 0;
+static int g_prio = 0;
 
 static NdbMutex *g_ndb_thread_mutex = 0;
 static struct NdbCondition * g_ndb_thread_condition = 0;
@@ -51,6 +51,10 @@ static struct NdbCondition * g_ndb_thread_condition = 0;
 #ifdef NDB_SHM_TRANSPORTER
 int g_ndb_shm_signum= 0;
 #endif
+
+static int f_high_prio_set = 0;
+static int f_high_prio_policy;
+static int f_high_prio_prio;
 
 struct NdbThread 
 { 
@@ -250,6 +254,17 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
     NdbMem_Free((char *)tmpThread);
     NdbMutex_Unlock(g_ndb_thread_mutex);
     return 0;
+  }
+
+  if (thread_prio == NDB_THREAD_PRIO_HIGH && f_high_prio_set)
+  {
+#ifdef HAVE_PTHREAD_SETSCHEDPARAM
+    struct sched_param param;
+    bzero(&param, sizeof(param));
+    param.sched_priority = f_high_prio_prio;
+    if (pthread_setschedparam(tmpThread->thread, f_high_prio_policy, &param))
+      perror("pthread_setschedparam failed");
+#endif
   }
 
   do
@@ -495,3 +510,86 @@ NdbThread_End()
   }
 }
 
+int
+NdbThread_SetHighPrioProperties(const char * spec)
+{
+  char * copy = 0;
+  char * prio = 0;
+  int found = 0;
+
+  if (spec == 0)
+  {
+    f_high_prio_set = 0;
+    return 0;
+  }
+
+  /**
+   * strip space/tab from beginning of string
+   */
+  while ((* spec == ' ') || (*spec == '\t'))
+    spec++;
+
+  copy = strdup(spec);
+  if (copy == 0)
+    return -1;
+
+  /**
+   * is there a "," in spec
+   */
+  prio = strchr(copy, ',');
+  if (prio)
+  {
+    * prio = 0;
+    prio++;
+  }
+
+  if (prio && strchr(prio, ','))
+  {
+    /**
+     * extra prio??
+     */
+    free(copy);
+    return -1;
+  }
+
+#ifdef HAVE_PTHREAD_SETSCHEDPARAM
+  found = 0;
+#ifdef SCHED_FIFO
+  if (strcmp("fifo", copy) == 0)
+  {
+    found = 1;
+    f_high_prio_policy = SCHED_FIFO;
+  }
+#endif
+#ifdef SCHED_RR
+  if (strcmp("rr", copy) == 0)
+  {
+    found = 1;
+    f_high_prio_policy = SCHED_RR;
+  }
+#endif
+  if (!found)
+  {
+    free(copy);
+    return -1;
+  }
+
+  f_high_prio_prio = 50;
+  if (prio)
+  {
+    char * endptr = 0;
+    long p = strtol(prio, &endptr, 10);
+    if (prio == endptr)
+    {
+      free(copy);
+      return -1;
+    }
+    f_high_prio_prio = (int)p;
+  }
+  f_high_prio_set = 1;
+  free(copy);
+  return 0;
+#else
+  return 0;
+#endif
+}
