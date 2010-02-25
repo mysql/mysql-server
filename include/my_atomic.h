@@ -77,13 +77,13 @@
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)                                 \
   int ## S tmp=*a;                                              \
-  while (!my_atomic_cas ## S(a, &tmp, tmp+v));                  \
+  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
   v=tmp;
 #endif
 #ifndef make_atomic_fas_body
 #define make_atomic_fas_body(S)                                 \
   int ## S tmp=*a;                                              \
-  while (!my_atomic_cas ## S(a, &tmp, v));                      \
+  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
   v=tmp;
 #endif
 #ifndef make_atomic_load_body

@@ -1,5 +1,6 @@
 EXTRA_DIST = \
 	cmake_parse_arguments.cmake \
+	cpack_source_ignore_files.cmake \
 	package_name.cmake \
 	configurable_file_content.in \
 	check_minimal_version.cmake \
@@ -25,7 +26,7 @@ EXTRA_DIST = \
 	mysql_add_executable.cmake  \
 	install_layout.cmake \
 	build_configurations/mysql_release.cmake \
-	os/Windows.cmake \ 
+	os/Windows.cmake \
 	os/WindowsCache.cmake \
 	os/Linux.cmake \
 	os/SunOS.cmake \
