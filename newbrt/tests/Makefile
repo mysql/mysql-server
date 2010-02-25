@@ -88,6 +88,7 @@ REGRESSION_TESTS_RAW = \
 	logcursor-empty-logdir \
 	logcursor-empty-logfile \
 	logcursor-empty-logfile-2 \
+	logcursor-empty-logfile-3 \
 	memtest \
 	minicron-test \
 	omt-cursor-test \

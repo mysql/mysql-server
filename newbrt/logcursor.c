@@ -48,6 +48,13 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
     }
     return 0;
 }
+
+static off_t lc_file_len(const char *name) {
+   toku_struct_stat buf;
+   int r = toku_stat(name, &buf); assert(r == 0);
+   return buf.st_size;
+}
+
 static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
     assert( !lc->is_open );
@@ -60,13 +67,15 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     r = setvbuf(lc->cur_fp, lc->buffer, _IOFBF, lc->buffer_size);
     assert(r == 0);
 #endif
-    // position fp past header
+    // position fp past header, ignore 0 length file (t:2384)
     unsigned int version=0;
-    r = toku_read_logmagic(lc->cur_fp, &version);
-    if (r!=0) 
-        return DB_BADFORMAT;
-    if (version != TOKU_LOG_VERSION)
-        return DB_BADFORMAT;
+    if ( lc_file_len(lc->logfiles[index]) >= 12 ) {
+        r = toku_read_logmagic(lc->cur_fp, &version);
+        if (r!=0) 
+            return DB_BADFORMAT;
+        if (version != TOKU_LOG_VERSION)
+            return DB_BADFORMAT;
+    }
     // mark as open
     lc->is_open = TRUE;
     return r;
