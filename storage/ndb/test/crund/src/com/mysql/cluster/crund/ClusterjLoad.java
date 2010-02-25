@@ -171,9 +171,7 @@ public class ClusterjLoad extends Driver {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
-                        // XXX NPE despite allowsNull="true" annotation
-                        o.setCvarbinary_def(new byte[0]);
-                        //o.setCvarbinary_def(null);
+                        o.setCvarbinary_def(null);
                         session.persist(o);
                     }
                 }
@@ -279,9 +277,7 @@ public class ClusterjLoad extends Driver {
                             //final IB0 o = session.find(IB0.class, i);
                             final IB0 o = session.newInstance(IB0.class);
                             assert o != null;
-                            // XXX NPE despite allowsNull="true" annotation
-                            o.setCvarbinary_def(new byte[0]);
-                            //o.setCvarbinary_def(null);
+                            o.setCvarbinary_def(null);
                             session.updatePersistent(o);
                         }
                     }
@@ -468,9 +464,7 @@ public class ClusterjLoad extends Driver {
                         o.setClong((long)-i);
                         o.setCfloat((float)-i);
                         o.setCdouble((double)-i);
-                        // XXX NPE despite allowsNull="true" annotation
-                        o.setCvarbinary_def(new byte[0]);
-                        //o.setCvarbinary_def(null);
+                        o.setCvarbinary_def(null);
                         session.persist(o);
                     }
                 }
