@@ -228,13 +228,13 @@ INSERT INTO t2 VALUES ( 'a`', 'a`' );
 INSERT INTO t3 VALUES ( 'a`', 'a`', '1000-01-1' );
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
-Note	1305	PROCEDURE sp1 does not exist
+Note	1305	PROCEDURE test.sp1 does not exist
 DROP PROCEDURE IF EXISTS sp2;
 Warnings:
-Note	1305	PROCEDURE sp2 does not exist
+Note	1305	PROCEDURE test.sp2 does not exist
 DROP PROCEDURE IF EXISTS sp3;
 Warnings:
-Note	1305	PROCEDURE sp3 does not exist
+Note	1305	PROCEDURE test.sp3 does not exist
 CREATE PROCEDURE sp1()
 BEGIN
 DECLARE x NUMERIC ZEROFILL;

@@ -23,6 +23,7 @@ INSTALL(
  PATTERN "mtr.out*" EXCLUDE
  PATTERN ".cvsignore" EXCLUDE
  PATTERN "*.am" EXCLUDE
+ PATTERN "*.in" EXCLUDE
 )
 
 
