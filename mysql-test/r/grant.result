@@ -1231,7 +1231,7 @@ Warnings:
 Note	1051	Unknown table 'test'
 drop function if exists test_function;
 Warnings:
-Note	1305	FUNCTION test_function does not exist
+Note	1305	FUNCTION test.test_function does not exist
 drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
