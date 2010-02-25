@@ -1778,6 +1778,7 @@ private:
   void execFSREMOVECONF(Signal*);
 
   void execDBINFO_SCANREQ(Signal*);
+  void execSUB_GCP_COMPLETE_REP(Signal*);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2619,15 +2620,6 @@ private:
                     Uint32 noOfAttributes, 
                     Uint32* inBuffer);
 
-  void sendFireTrigOrd(Signal* signal, 
-                       KeyReqStruct *req_struct,
-                       Operationrec * regOperPtr,
-                       TupTriggerData* trigPtr,
-		       Uint32 fragmentId,
-                       Uint32 noPrimKeySignals, 
-                       Uint32 noBeforeSignals, 
-                       Uint32 noAfterSignals);
-
   bool primaryKey(Tablerec* const, Uint32);
 
   // these set terrorCode and return non-zero on error
@@ -2665,6 +2657,18 @@ private:
 
   void removeTuxEntries(Signal* signal,
                         Tablerec* regTabPtr);
+
+  void ndbmtd_buffer_suma_trigger(Signal* signal, Uint32 len,
+                                  LinearSectionPtr ptr[]);
+  void flush_ndbmtd_suma_buffer(Signal*);
+
+  struct SumaTriggerBuffer
+  {
+    SumaTriggerBuffer() { m_out_of_memory = 0;m_pageId = RNIL; m_freeWords = 0;}
+    Uint32 m_out_of_memory;
+    Uint32 m_pageId;
+    Uint32 m_freeWords;
+  } m_suma_trigger_buffer;
 
 // *****************************************************************
 // Error Handling routines.

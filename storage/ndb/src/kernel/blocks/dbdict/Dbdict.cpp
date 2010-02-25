@@ -19262,6 +19262,15 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     }
   }
 
+  if (fg_ptr.p->m_type == DictTabInfo::Tablespace &&
+      f.FileSizeHi == 0 &&
+      f.FileSizeLo < fg_ptr.p->m_tablespace.m_extent_size)
+  {
+    jam();
+    setError(error, CreateFileRef::FileSizeTooSmall, __LINE__);
+    return;
+  }
+
   if(!c_obj_pool.seize(obj_ptr))
   {
     jam();
@@ -19326,6 +19335,48 @@ Dbdict::createFile_parse(Signal* signal, bool master,
    */
   filePtr.p->key = impl_req->file_id;
   filePtr.p->m_file_size = ((Uint64)f.FileSizeHi) << 32 | f.FileSizeLo;
+  if (fg_ptr.p->m_type == DictTabInfo::Tablespace)
+  {
+    // round down to page size and up to extent size - Tsman::open_file
+    const Uint64 page_size = (Uint64)File_formats::NDB_PAGE_SIZE;
+    const Uint64 extent_size = (Uint64)fg_ptr.p->m_tablespace.m_extent_size;
+    ndbrequire(extent_size != 0);
+    if (filePtr.p->m_file_size % page_size != 0 &&
+        !ERROR_INSERTED(6030))
+    {
+      jam();
+      filePtr.p->m_file_size /= page_size;
+      filePtr.p->m_file_size *= page_size;
+      createFilePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundDown;
+    }
+    if (filePtr.p->m_file_size % extent_size != 0 &&
+        !ERROR_INSERTED(6030))
+    {
+      jam();
+      filePtr.p->m_file_size +=
+        extent_size - filePtr.p->m_file_size % extent_size;
+      createFilePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundUp;
+    }
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout << "DD dict: file id:" << impl_req->file_id << " datafile bytes:" << filePtr.p->m_file_size << " warn:" << hex << createFilePtr.p->m_warningFlags << endl;
+#endif
+  }
+  if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
+  {
+    // round down to page size - Lgman::Undofile::Undofile
+    const Uint64 page_size = (Uint64)File_formats::NDB_PAGE_SIZE;
+    if (filePtr.p->m_file_size % page_size != 0 &&
+        !ERROR_INSERTED(6030))
+    {
+      jam();
+      filePtr.p->m_file_size /= page_size;
+      filePtr.p->m_file_size *= page_size;
+      createFilePtr.p->m_warningFlags |= CreateFileConf::WarnUndofileRoundDown;
+    }
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout << "DD dict: file id:" << impl_req->file_id << " undofile bytes:" << filePtr.p->m_file_size << " warn:" << hex << createFilePtr.p->m_warningFlags << endl;
+#endif
+  }
   filePtr.p->m_path = obj_ptr.p->m_name;
   filePtr.p->m_obj_ptr_i = obj_ptr.i;
   filePtr.p->m_filegroup_id = f.FilegroupId;
@@ -19455,6 +19506,7 @@ Dbdict::createFile_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
     conf->transId = trans_ptr.p->m_transId;
     conf->fileId = impl_req->file_id;
     conf->fileVersion = impl_req->file_version;
+    conf->warningFlags = createFileRecPtr.p->m_warningFlags;
     Uint32 clientRef = op_ptr.p->m_clientRef;
     sendSignal(clientRef, GSN_CREATE_FILE_CONF, signal,
                CreateFileConf::SignalLength, JBB);
@@ -19931,6 +19983,19 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   {
     //fg.TS_DataGrow = group.m_grow_spec;
     fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
+    // round up to page size - Tsman::Tablespace::Tablespace
+    const Uint32 page_size = (Uint32)File_formats::NDB_PAGE_SIZE;
+    if (fg_ptr.p->m_tablespace.m_extent_size % page_size != 0 &&
+        !ERROR_INSERTED(6030))
+    {
+      jam();
+      fg_ptr.p->m_tablespace.m_extent_size +=
+        page_size - fg_ptr.p->m_tablespace.m_extent_size % page_size;
+      createFilegroupPtr.p->m_warningFlags |= CreateFilegroupConf::WarnExtentRoundUp;
+    }
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout << "DD dict: ts id:" << "?" << " extent bytes:" << fg_ptr.p->m_tablespace.m_extent_size << " warn:" << hex << createFilegroupPtr.p->m_warningFlags << endl;
+#endif
     fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
 
     Ptr<Filegroup> lg_ptr;
@@ -19954,6 +20019,19 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   {
     jam();
     fg_ptr.p->m_logfilegroup.m_undo_buffer_size = fg.LF_UndoBufferSize;
+    // round up to page size - Lgman::alloc_logbuffer_memory
+    const Uint32 page_size = (Uint32)File_formats::NDB_PAGE_SIZE;
+    if (fg_ptr.p->m_logfilegroup.m_undo_buffer_size % page_size != 0 &&
+        !ERROR_INSERTED(6030))
+    {
+      jam();
+      fg_ptr.p->m_logfilegroup.m_undo_buffer_size +=
+        page_size - fg_ptr.p->m_logfilegroup.m_undo_buffer_size % page_size;
+      createFilegroupPtr.p->m_warningFlags |= CreateFilegroupConf::WarnUndobufferRoundUp;
+    }
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout << "DD dict: fg id:" << "?" << " undo buffer bytes:" << fg_ptr.p->m_logfilegroup.m_undo_buffer_size << " warn:" << hex << createFilegroupPtr.p->m_warningFlags << endl;
+#endif
     fg_ptr.p->m_logfilegroup.m_files.init();
     //fg.LF_UndoGrow = ;
     break;
@@ -20117,6 +20195,7 @@ Dbdict::createFilegroup_reply(Signal* signal,
     conf->transId = trans_ptr.p->m_transId;
     conf->filegroupId = impl_req->filegroup_id;
     conf->filegroupVersion = impl_req->filegroup_version;
+    conf->warningFlags = createFilegroupRecPtr.p->m_warningFlags;
     Uint32 clientRef = op_ptr.p->m_clientRef;
     sendSignal(clientRef, GSN_CREATE_FILEGROUP_CONF, signal,
                CreateFilegroupConf::SignalLength, JBB);

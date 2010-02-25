@@ -131,6 +131,20 @@ int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
 void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
 
+/**
+ * Set properties for NDB_THREAD_PRIO_HIGH
+ *
+ * NOTE 1: should be set *prior* to starting thread
+ * NOTE 2: if these properties *can* be applied is not checked
+ *         if they can not, then it will be silently ignored
+ *
+ * @param spec <fifo | rr>[,<prio>]
+ *
+ * @return 0  - parse ok
+ *  return -1 - Invalid spec
+ */
+int NdbThread_SetHighPrioProperties(const char * spec);
+
 #ifdef	__cplusplus
 }
 #endif

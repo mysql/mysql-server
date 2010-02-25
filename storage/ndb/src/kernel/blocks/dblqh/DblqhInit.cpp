@@ -137,6 +137,8 @@ void Dblqh::initRecords()
     }
 
     cfirstfreeLogPage = RNIL;
+    clogPageFileSize = 0;
+    clogPageCount = 0;
     for (Int32 i = chunkcnt - 1; i >= 0; i--)
     {
       const Uint32 cnt = chunks[i].cnt;
@@ -156,18 +158,14 @@ void Dblqh::initRecords()
         base[j].logPageWord[ZPOS_IN_WRITING]= 0;
       }
 
-      if (cfirstfreeLogPage == RNIL)
-      {
-        base[cnt-1].logPageWord[ZNEXT_PAGE] = RNIL;
-        cfirstfreeLogPage = ptrI;
-      }
-      else
-      {
-        base[cnt-1].logPageWord[ZNEXT_PAGE] = cfirstfreeLogPage;
-        cfirstfreeLogPage = ptrI;
-      }
+      base[cnt-1].logPageWord[ZNEXT_PAGE] = cfirstfreeLogPage;
+      cfirstfreeLogPage = ptrI;
+
+      clogPageCount += cnt;
+      if (ptrI + cnt > clogPageFileSize)
+        clogPageFileSize = ptrI + cnt;
     }
-    cnoOfLogPages = clogPageFileSize;
+    cnoOfLogPages = clogPageCount;
   }
 
 #ifndef NO_REDO_PAGE_CACHE

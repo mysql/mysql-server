@@ -1755,18 +1755,27 @@ NdbDictionaryImpl::m_emptyMask[MAXNROFATTRIBUTESINWORDS]= {0,0,0,0};
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
   : NdbDictionary::Dictionary(* this), 
     m_facade(this), 
-    m_receiver(m_tx, m_error),
+    m_receiver(m_tx, m_error, m_warn),
     m_ndb(ndb)
 {
   m_globalHash = 0;
   m_local_table_data_size= 0;
+#ifdef VM_TRACE
+  STATIC_ASSERT(
+    (int)WarnUndobufferRoundUp == (int)CreateFilegroupConf::WarnUndobufferRoundUp &&
+    (int)WarnUndofileRoundDown == (int)CreateFileConf::WarnUndofileRoundDown &&
+    (int)WarnExtentRoundUp == (int)CreateFilegroupConf::WarnExtentRoundUp &&
+    (int)WarnDatafileRoundDown == (int)CreateFileConf::WarnDatafileRoundDown &&
+    (int)WarnDatafileRoundUp == (int)CreateFileConf::WarnDatafileRoundUp
+  );
+#endif
 }
 
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
 				     NdbDictionary::Dictionary & f)
   : NdbDictionary::Dictionary(* this), 
     m_facade(&f), 
-    m_receiver(m_tx, m_error),
+    m_receiver(m_tx, m_error, m_warn),
     m_ndb(ndb)
 {
   m_globalHash = 0;
@@ -3608,7 +3617,9 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    if ((res = dropIndex(element.name, name)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndex(element.name, name)) != 0)
     {
       return -1;
     }
@@ -3655,7 +3666,9 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
     {
       ERR_RETURN(getNdbError(), -1);
     }
-    if ((res = dropIndexGlobal(*idx)) == -1)
+    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+    // hence compare with != 0
+    if ((res = dropIndexGlobal(*idx)) != 0)
     {
       releaseIndexGlobal(*idx, 1);
       ERR_RETURN(getNdbError(), -1);
@@ -3801,7 +3814,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   if (idx == NULL)
   {
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   idx->m_version = tab->m_version;
   idx->m_status = tab->m_status;
@@ -3811,7 +3824,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   {
     delete idx;
     errno = ENOMEM;
-    return -1;
+    DBUG_RETURN(-1);
   }
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
@@ -3833,7 +3846,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       errno = ENOMEM;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // Copy column definition
     *col = * org;
@@ -3841,13 +3854,19 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
     {
       delete col;
       delete idx;
-      return -1;
+      DBUG_RETURN(-1);
     }
 
     /**
      * reverse map
      */
     const NdbColumnImpl* primCol = prim->getColumn(col->getName());
+    if (primCol == 0)
+    {
+      delete idx;
+      DBUG_RETURN(-1);
+    }
+
     int key_id = primCol->getColumnNo();
     int fill = -1;
     idx->m_key_ids.fill(key_id, fill);
@@ -6995,11 +7014,16 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
 		       -1, 100,
 		       err);
 
-  if (ret == 0 && obj)
+  if (ret == 0)
   {
     Uint32* data = (Uint32*)m_buffer.get_data();
-    obj->m_id = data[0];
-    obj->m_version = data[1];
+    if (obj)
+    {
+      obj->m_id = data[0];
+      obj->m_version = data[1];
+    }
+    m_warn = data[2];
+    DBUG_PRINT("info", ("warning flags: 0x%x", m_warn));
   }
 
   DBUG_RETURN(ret);
@@ -7011,10 +7035,11 @@ NdbDictInterface::execCREATE_FILE_CONF(NdbApiSignal * signal,
 {
   const CreateFileConf* conf=
     CAST_CONSTPTR(CreateFileConf, signal->getDataPtr());
-  m_buffer.grow(4 * 2); // 2 words
+  m_buffer.grow(4 * 3); // 3 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->fileId;
   data[1] = conf->fileVersion;
+  data[2] = conf->warningFlags;
   
   m_waiter.signal(NO_WAIT);  
 }
@@ -7158,11 +7183,16 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
 		       DICT_WAITFOR_TIMEOUT, 100,
 		       err);
   
-  if (ret == 0 && obj)
+  if (ret == 0)
   {
     Uint32* data = (Uint32*)m_buffer.get_data();
-    obj->m_id = data[0];
-    obj->m_version = data[1];
+    if (obj)
+    {
+      obj->m_id = data[0];
+      obj->m_version = data[1];
+    }
+    m_warn = data[2];
+    DBUG_PRINT("info", ("warning flags: 0x%x", m_warn));
   }
   
   DBUG_RETURN(ret);
@@ -7174,10 +7204,11 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(NdbApiSignal * signal,
 {
   const CreateFilegroupConf* conf=
     CAST_CONSTPTR(CreateFilegroupConf, signal->getDataPtr());
-  m_buffer.grow(4 * 2); // 2 words
+  m_buffer.grow(4 * 3); // 3 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->filegroupId;
   data[1] = conf->filegroupVersion;
+  data[2] = conf->warningFlags;
   m_waiter.signal(NO_WAIT);  
 }
 
