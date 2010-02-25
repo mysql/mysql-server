@@ -1431,6 +1431,13 @@ exit:
     return error;
 }
 
+static bool is_insert_ignore (THD* thd) {
+    //
+    // from http://lists.mysql.com/internals/37735
+    //
+    return thd->lex->ignore && thd->lex->duplicates == DUP_ERROR;
+}
+
 
 int ha_tokudb::initialize_share(
     const char* name,
@@ -2894,6 +2901,12 @@ int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
         for (uint keynr = 0; keynr < table_share->keys; keynr++) {
             bool is_unique_key = table->key_info[keynr].flags & HA_NOSAME;
             bool is_unique = false;
+            //
+            // don't need to do check for primary key
+            //
+            if (keynr == primary_key) {
+                continue;
+            }
             if (!is_unique_key) {
                 continue;
             }
@@ -3035,7 +3048,11 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     //
     if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) || is_replace_into) {
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
-    } 
+    }
+
+    if (is_insert_ignore(thd)) {
+        put_flags = DB_NOOVERWRITE_NO_ERROR;
+    }
 
     lockretryN(wait_lock_time){
         error = share->file->put(
@@ -3190,9 +3207,6 @@ int ha_tokudb::write_row(uchar * record) {
     //
     fix_mult_rec_buff();
 
-    error = do_uniqueness_checks(record, txn, thd);
-    if (error) { goto cleanup; }
-
     if (tokudb_debug & TOKUDB_DEBUG_CHECK_KEY) {
         error = test_row_packing(record,&prim_key,&row);
         if (error) { goto cleanup; }
@@ -3203,6 +3217,9 @@ int ha_tokudb::write_row(uchar * record) {
         if (error) { goto cleanup; }
     }
     else {
+        error = do_uniqueness_checks(record, txn, thd);
+        if (error) { goto cleanup; }
+
         error = insert_rows_to_dictionaries_mult(&prim_key, &row, txn, thd);
         if (error) { goto cleanup; }
     }
