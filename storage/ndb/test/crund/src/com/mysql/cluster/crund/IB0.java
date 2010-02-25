@@ -25,7 +25,6 @@ import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
 import com.mysql.clusterj.annotation.Column;
 import com.mysql.clusterj.annotation.Index;
-import java.io.Serializable;
 
 /**
  * An Entity test interface for ClusterJ.
