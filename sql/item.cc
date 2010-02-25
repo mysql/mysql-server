@@ -2209,14 +2209,14 @@ String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value, &my_charset_bin);
+  str->set_int(value, unsigned_flag, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
-  str_value.set(value, &my_charset_bin);
+  str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
 }
 
