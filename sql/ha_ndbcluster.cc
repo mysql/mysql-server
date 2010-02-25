@@ -5054,8 +5054,27 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
       DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
     DBUG_DUMP("key", pos, key_length);
-	DBUG_RETURN(pk_read(pos, key_length, buf,
-		(m_user_defined_partitioning)? &(part_spec.start_part) : NULL));
+    int res= pk_read(pos, key_length, buf, 
+                     (m_user_defined_partitioning) ? 
+                     &(part_spec.start_part) 
+                     : NULL);
+    if (res == HA_ERR_KEY_NOT_FOUND)
+    {
+      /**
+       * When using rnd_pos
+       *   server first retrives a set of records (typically scans them)
+       *   and store a unique identifier (for ndb this is the primary key)
+       *   and later retreives the record again using rnd_pos and the
+       *   saved primary key. For ndb, since we only support committed read
+       *   the record could have been deleted in between the "save" and
+       *   the rnd_pos.
+       *   Therefor we return HA_ERR_RECORD_DELETED in this case rather than
+       *   HA_ERR_KEY_NOT_FOUND (which will cause statment to be aborted)
+       *   
+       */
+      res= HA_ERR_RECORD_DELETED;
+    }
+    DBUG_RETURN(res);
   }
 }
 
