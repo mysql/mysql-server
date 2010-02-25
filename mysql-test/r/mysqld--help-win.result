@@ -97,12 +97,6 @@ The following options may be given as the first argument:
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
  The DATETIME format (ignored)
- -C, --default-character-set=name 
- Set the default character set (deprecated option, use
- --character-set-server instead).
- --default-collation=name 
- Set the default collation (deprecated option, use
- --collation-server instead).
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -111,10 +105,6 @@ The following options may be given as the first argument:
  The default week format used by WEEK() functions
  --delay-key-write[=name] 
  Type of DELAY_KEY_WRITE
- --delay-key-write-for-all-tables 
- Don't flush key buffers between writes for any MyISAM
- table (Deprecated option, use --delay-key-write=all
- instead).
  --delayed-insert-limit=# 
  After inserting delayed_insert_limit rows, the INSERT
  DELAYED handler will check if there are any SELECT
@@ -134,7 +124,6 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
- --enable-locking    Deprecated option, use --external-locking instead.
  --engine-condition-pushdown 
  Push supported query conditions to the storage engine.
  Deprecated, use --optimizer-switch instead.
@@ -240,10 +229,6 @@ The following options may be given as the first argument:
  can safely set this to TRUE
  --log-error[=name]  Error log file
  --log-isam[=name]   Log all MyISAM changes to file.
- -0, --log-long-format 
- Log some extra information to update log. Please note
- that this option is deprecated; see --log-short-format
- option.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
  --log-queries-not-using-indexes 
@@ -270,9 +255,6 @@ The following options may be given as the first argument:
  transactions that affect more than one storage engine,
  when binary log is disabled)
  --log-tc-size=#     Size of transaction coordinator log.
- --log-update[=name] The update log is deprecated since version 5.0, is
- replaced by the binary log and this option justs turns on
- --log-bin instead.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
@@ -502,7 +484,6 @@ The following options may be given as the first argument:
  When reading rows in sorted order after a sort, the rows
  are read through this buffer to avoid a disk seeks. If
  not set, then it's set to the value of record_buffer
- --record-buffer=#   Deprecated; use --read-buffer-size instead.
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
  The location and name to use for the file that keeps a
@@ -599,8 +580,6 @@ The following options may be given as the first argument:
  --rpl-recovery-rank=# 
  Unused, will be removed
  --safe-mode         Skip some optimize stages (for testing).
- --safe-show-database 
- Deprecated option; use GRANT SHOW DATABASES instead...
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -610,10 +589,6 @@ The following options may be given as the first argument:
  files within specified directory
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
- -O, --set-variable=name 
- Change the value of a variable. Please note that this
- option is deprecated;you can set variables directly with
- --variable-name=value.
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
@@ -622,7 +597,6 @@ The following options may be given as the first argument:
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables!
  --skip-host-cache   Don't cache host names.
- --skip-locking      Deprecated option, use --skip-external-locking instead.
  --skip-name-resolve Don't resolve hostnames. All hostnames are IP's or
  'localhost'.
  --skip-networking   Don't allow connection with TCP/IP
@@ -631,8 +605,6 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
- --skip-symlink      Don't allow symlinking of tables. Deprecated option.  Use
- --skip-symbolic-links instead.
  --skip-thread-priority 
  Don't give threads different priorities. This option is
  deprecated because it has no effect; the implied behavior
@@ -684,10 +656,6 @@ The following options may be given as the first argument:
  --sporadic-binlog-dump-fail 
  Option used by mysql-test for debugging and testing of
  replication.
- --sql-bin-update-same 
- The update log is deprecated since version 5.0, is
- replaced by the binary log and this option does nothing
- anymore.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
  --standalone        Dummy option to start as a standalone program (NT).
@@ -756,7 +724,6 @@ The following options may be given as the first argument:
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
- -W, --warnings[=#]  Deprecated; use --log-warnings instead.
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -784,8 +751,6 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
-default-character-set latin1
-default-collation latin1_swedish_ci
 default-storage-engine MyISAM
 default-time-zone (No default value)
 default-week-format 0
@@ -795,7 +760,6 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
-enable-locking FALSE
 engine-condition-pushdown TRUE
 event-scheduler OFF
 expire-logs-days 0
@@ -842,7 +806,6 @@ log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-tc tc.log
 log-tc-size 24576
-log-update (No default value)
 log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
@@ -925,7 +888,6 @@ range-alloc-block-size 4096
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
-record-buffer 131072
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
@@ -985,7 +947,6 @@ updatable-views-with-limit YES
 use-symbolic-links FALSE
 verbose TRUE
 wait-timeout 28800
-warnings 1
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.
