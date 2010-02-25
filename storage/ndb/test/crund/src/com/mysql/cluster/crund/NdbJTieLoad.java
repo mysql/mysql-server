@@ -178,7 +178,7 @@ public class NdbJTieLoad extends NdbBase {
 
         // load native library (better diagnostics doing it explicitely)
         out.println();
-        loadSystemLibrary("ndbjtie");
+        loadSystemLibrary("ndbclient");
 
         // instantiate NDB cluster singleton
         out.println();

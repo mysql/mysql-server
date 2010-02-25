@@ -229,6 +229,8 @@ public class JpaLoad extends Driver {
                     for (int i = 0; i < countB; i++) {
                         final B0 o = new B0();
                         o.setId(i);
+                        // XXX NPE with OpenJPA on ClusterJPA
+                        o.setCvarbinary_def(new byte[0]);
                         em.persist(o);
                     }
                 }

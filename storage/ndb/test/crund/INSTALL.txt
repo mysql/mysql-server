@@ -76,23 +76,22 @@ software needs to be downloaded, installed, and configured in CRUND.
 1) Configure CRUND
 
     Create the configuration files (*.properties, *.cnf, and *.ini) from
-    their respective *.sample:
+    their respective files in ./config_sample:
 
-        $ for f in *.sample ; do cp -v $f `basename $f .sample` ; done
-	config.ini.sample -> config.ini
-	crundClusterj.properties.sample -> crundClusterj.properties
-	crundDerby.properties.sample -> crundDerby.properties
-	crundMysql.properties.sample -> crundMysql.properties
-	crundNdbapi.properties.sample -> crundNdbapi.properties
-	crundNdbj.properties.sample -> crundNdbj.properties
-	crundNdbjtie.properties.sample -> crundNdbjtie.properties
-	crundOpenjpaClusterj.properties.sample -> crundOpenjpaClusterj.properties
-	crundOpenjpaDerby.properties.sample -> crundOpenjpaDerby.properties
-	crundOpenjpaMysql.properties.sample -> crundOpenjpaMysql.properties
-	crundRun.properties.sample -> crundRun.properties
-	env.properties.sample -> env.properties
-	my.cnf.sample -> my.cnf
-
+        $ cp -v config_samples/* .
+        config_samples/config.ini -> ./config.ini
+        config_samples/crundClusterj.properties -> ./crundClusterj.properties
+        config_samples/crundDerby.properties -> ./crundDerby.properties
+        config_samples/crundMysql.properties -> ./crundMysql.properties
+        config_samples/crundNdbapi.properties -> ./crundNdbapi.properties
+        config_samples/crundNdbj.properties -> ./crundNdbj.properties
+        config_samples/crundNdbjtie.properties -> ./crundNdbjtie.properties
+        config_samples/crundOpenjpaClusterj.properties -> ./crundOpenjpaClusterj.properties
+        config_samples/crundOpenjpaDerby.properties -> ./crundOpenjpaDerby.properties
+        config_samples/crundOpenjpaMysql.properties -> ./crundOpenjpaMysql.properties
+        config_samples/crundRun.properties -> ./crundRun.properties
+        config_samples/env.properties -> ./env.properties
+        config_samples/my.cnf -> ./my.cnf
 
     All of CRUND's external software dependencies are declared in this file
     along with additional information for downloading and installing:

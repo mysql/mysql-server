@@ -22,9 +22,6 @@ package com.mysql.cluster.crund;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
-import java.io.Serializable;
-import java.util.Collection;
-import javax.jdo.annotations.NotPersistent;
 
 /**
  * An Entity test interface for use with ClusterJ.
