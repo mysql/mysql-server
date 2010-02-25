@@ -2287,7 +2287,7 @@ private:
   void setLogTail(Signal* signal, Uint32 keepGci);
   Uint32 remainingLogSize(const LogFileRecordPtr &sltCurrLogFilePtr,
 			  const LogPartRecordPtr &sltLogPartPtr);
-  void checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
+  bool checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
   void initFsopenconf(Signal* signal);
   void initFsrwconf(Signal* signal, bool write);
   void initLfo(Signal* signal);
@@ -2540,7 +2540,7 @@ private:
   void execLogComp_extra_files_closed(Signal* signal);
   void closeWriteLogLab(Signal* signal);
   void closeExecLogLab(Signal* signal);
-  void writePageZeroLab(Signal* signal);
+  void writePageZeroLab(Signal* signal, Uint32 from);
   void lastWriteInFileLab(Signal* signal);
   void initWriteEndLab(Signal* signal);
   void initFirstPageLab(Signal* signal);
