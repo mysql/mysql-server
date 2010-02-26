@@ -210,4 +210,19 @@ Error	1140	Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP colum
 Note	1003	select 1 AS `1` from `test`.`t1` where <not>(<exists>(...))
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1;
+#
+# Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
+#
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (d int);
+INSERT INTO t2 VALUES (NULL), (0);
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = NULL)) AS `(SELECT 1 FROM t2 WHERE d = c)` from `test`.`t1`
+DROP TABLE t1, t2;
 End of 5.1 tests.
