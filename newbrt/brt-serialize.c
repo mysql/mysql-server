@@ -288,10 +288,12 @@ static inline int roundup2(int n, int alignment) {
     return (n+alignment-1)&~(alignment-1);
 }
 
+static const int target_sub_block_size = 512*1024;
+static const int max_sub_blocks = 8;
+
 // choose the number of sub blocks such that the sub block size
 // is around 1 meg.  put an upper bound on the number of sub blocks.
 static int choose_sub_block_sizes(int total_size, int maxn, struct sub_block_sizes sizes[]) {
-    const int target_sub_block_size = 512*1024;
     const int alignment = 256;
 
     int n, subsize;
@@ -518,7 +520,6 @@ int toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct b
 
     // select the number of sub blocks and their sizes. 
     // impose an upper bound on the number of sub blocks.
-    int max_sub_blocks = 4;
     struct sub_block_sizes sub_block_sizes[max_sub_blocks];
     int n_sub_blocks = choose_sub_block_sizes(calculated_size-uncompressed_magic_len, max_sub_blocks, sub_block_sizes);
     assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
