@@ -24,7 +24,6 @@ rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-31 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_slave_load_remove_tmpfile @windows  # Bug#50474 2010-01-28 alik rpl_slave_load_remove_tmpfile failed on windows debug enabled binary
 rpl.rpl_sync* @windows                   # Bug#50473 2010-01-31 alik rpl_sync fails on windows debug enabled binaries
-rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
 
 # Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
 # Usually the test cases from ndb and rpl_ndb test suites are not run in PB,
