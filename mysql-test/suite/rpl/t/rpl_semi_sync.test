@@ -3,6 +3,10 @@ source include/not_embedded.inc;
 source include/have_innodb.inc;
 source include/master-slave.inc;
 
+# -- [DISABLED Bug#49557]
+# This test case fails on Windows due to Bug#49557.
+source include/not_windows.inc;
+
 let $engine_type= InnoDB;
 #let $engine_type= MyISAM;
 
