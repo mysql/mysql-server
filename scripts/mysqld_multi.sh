@@ -71,7 +71,6 @@ sub main
       print "WARNING: --config-file is deprecated and will be removed\n";
       print "in MySQL 5.6.  Please use --defaults-extra-file instead\n";
     }
-   }
   }
 
   foreach (@defaults_options)
