@@ -2556,16 +2556,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                          (int) table_list->lock_type);
 
           /*
-            If we are performing DDL operation we also should ensure
-            that we will find TABLE instance with upgradable metadata
-            lock,
-          */
-          if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-              table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
-              ! table->mdl_ticket->is_upgradable_or_exclusive())
-            distance= -1;
-
-          /*
             Find a table that either has the exact lock type requested,
             or has the best suitable lock. In case there is no locked
             table that has an equal or higher lock than requested,
@@ -2598,13 +2588,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     if (best_table)
     {
-      if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-          table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
-          ! best_table->mdl_ticket->is_upgradable_or_exclusive())
-      {
-        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), alias);
-        DBUG_RETURN(TRUE);
-      }
       table= best_table;
       table->query_id= thd->query_id;
       DBUG_PRINT("info",("Using locked table"));
@@ -4354,7 +4337,8 @@ end:
 
 /**
   Acquire upgradable (SNW, SNRW) metadata locks on tables to be opened
-  for LOCK TABLES or a DDL statement.
+  for LOCK TABLES or a DDL statement. Under LOCK TABLES, we can't take
+  new locks, so use open_tables_check_upgradable_mdl() instead.
 
   @param thd           Thread context.
   @param tables_start  Start of list of tables on which upgradable locks
@@ -4374,10 +4358,15 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
 
+  DBUG_ASSERT(!thd->locked_tables_mode);
+
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        !(table->open_type == OT_TEMPORARY_ONLY ||
+          (table->open_type != OT_BASE_ONLY &&
+           find_temporary_table(thd, table))))
     {
       table->mdl_request.set_type(table->lock_type > TL_WRITE_ALLOW_READ ?
                                   MDL_SHARED_NO_READ_WRITE :
@@ -4405,6 +4394,58 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
     {
       table->mdl_request.ticket= NULL;
       table->mdl_request.set_type(MDL_SHARED_WRITE);
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Check for upgradable (SNW, SNRW) metadata locks on tables to be opened
+  for a DDL statement. Under LOCK TABLES, we can't take new locks, so we
+  must check if appropriate locks were pre-acquired.
+
+  @param thd           Thread context.
+  @param tables_start  Start of list of tables on which upgradable locks
+                       should be searched for.
+  @param tables_end    End of list of tables.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (e.g. connection was killed)
+*/
+
+static bool
+open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
+                                 TABLE_LIST *tables_end)
+{
+  TABLE_LIST *table;
+
+  DBUG_ASSERT(thd->locked_tables_mode);
+
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        !(table->open_type == OT_TEMPORARY_ONLY ||
+          (table->open_type != OT_BASE_ONLY &&
+           find_temporary_table(thd, table))))
+    {
+      /*
+        We don't need to do anything about the found TABLE instance as it
+        will be handled later in open_tables(), we only need to check that
+        an upgradable lock is already acquired. When we enter LOCK TABLES
+        mode, SNRW locks are acquired before all other locks. So if under
+        LOCK TABLES we find that there is TABLE instance with upgradeable
+        lock, all other instances of TABLE for the same table will have the
+        same ticket.
+
+        Note that find_table_for_mdl_upgrade() will report an error if a
+        ticket is not found.
+      */
+      if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
+                                      table->table_name, FALSE))
+        return TRUE;
     }
   }
 
@@ -4498,12 +4539,31 @@ restart:
     lock will be reused (thanks to the fact that in recursive case
     metadata locks are acquired without waiting).
   */
-  if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-      ! thd->locked_tables_mode)
+  if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL)
   {
-    if (open_tables_acquire_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table(),
-                                           &ot_ctx))
+    /*
+      open_tables_acquire_upgradable_mdl() does not currenly handle
+      these two flags. At this point, that does not matter as they
+      are not used together with MYSQL_OPEN_TAKE_UPGRADABLE_MDL.
+    */
+    DBUG_ASSERT(!(flags & (MYSQL_OPEN_SKIP_TEMPORARY |
+                           MYSQL_OPEN_TEMPORARY_ONLY)));
+    if (thd->locked_tables_mode)
+    {
+      /*
+        Under LOCK TABLES, we can't acquire new locks, so we instead
+        need to check if appropriate locks were pre-acquired.
+      */
+      if (open_tables_check_upgradable_mdl(thd, *start,
+                                           thd->lex->first_not_own_table()))
+      {
+        error= TRUE;
+        goto err;
+      }
+    }
+    else if (open_tables_acquire_upgradable_mdl(thd, *start,
+                                                thd->lex->first_not_own_table(),
+                                                &ot_ctx))
     {
       error= TRUE;
       goto err;
