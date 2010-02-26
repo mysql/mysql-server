@@ -9,5 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-rpl_row_create_table    : Bug#45576 2009-12-01 joro rpl_row_create_table fails on PB2
