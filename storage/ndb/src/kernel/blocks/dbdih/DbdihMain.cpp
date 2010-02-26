@@ -14197,6 +14197,8 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   keepGci = (Uint32)-1;
   oldestRestorableGci = 0;
 
+  Uint32 maxLcpId = 0;              // LcpId of latest valid LCP
+  Uint32 maxLcpNo = MAX_LCP_STORED; // Index of latest valid LCP
   for (Uint32 i = 0; i < MAX_LCP_STORED; i++)
   {
     jam();
@@ -14212,24 +14214,25 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
         /*-----------------------------------------------------------------*/
         fmgReplicaPtr.p->lcpStatus[i] = ZINVALID;
       }
-      else
+      else if (fmgReplicaPtr.p->lcpId[i] > maxLcpId)
       {
         jam();
-        if (fmgReplicaPtr.p->maxGciCompleted[i] < keepGci)
-        {
-          jam();
-          keepGci = fmgReplicaPtr.p->maxGciCompleted[i];
-        }
-
-        if (fmgReplicaPtr.p->maxGciStarted[i] > oldestRestorableGci)
-        {
-          jam();
-          oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[i];
-        }
+        maxLcpId = fmgReplicaPtr.p->lcpId[i];
+        maxLcpNo = i;
       }
     }
   }
 
+  if (maxLcpNo < MAX_LCP_STORED)
+  {
+    /**
+     * Only consider latest LCP (wrt to how to cut REDO)
+     */
+    jam();
+    keepGci = fmgReplicaPtr.p->maxGciCompleted[maxLcpNo];
+    oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[maxLcpNo];
+  }
+  
   if (oldestRestorableGci == 0 && keepGci == Uint32(-1))
   {
     jam();
