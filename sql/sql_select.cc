@@ -13307,12 +13307,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if (select_limit >= table_records)
     {
-      /* 
-        filesort() and join cache are usually faster than reading in 
-        index order and not using join cache
-        */
-      if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
-        DBUG_RETURN(0);
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
 
@@ -13462,6 +13456,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	}      
       }
     }
+
+    /*
+      filesort() and join cache are usually faster than reading in 
+      index order and not using join cache, except in case that chosen
+      index is clustered primary key.
+    */
+    if ((select_limit >= table_records) &&
+        (tab->type == JT_ALL &&
+         tab->join->tables > tab->join->const_tables + 1) &&
+         ((unsigned) best_key != table->s->primary_key ||
+          !table->file->primary_key_is_clustered()))
+      DBUG_RETURN(0);
+
     if (best_key >= 0)
     {
       bool quick_created= FALSE;
