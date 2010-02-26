@@ -51,7 +51,7 @@ DROP TABLE t1;
 #
 SET lc_messages=sr_YU;
 Warnings:
-Warning	1287	'sr_YU' is deprecated; use 'sr_RS' instead
+Warning	1287	'sr_YU' is deprecated and will be removed in a future release. Please use sr_RS instead
 SHOW VARIABLES LIKE 'lc_messages';
 Variable_name	Value
 lc_messages	sr_RS

@@ -467,10 +467,11 @@ uint my_instr_mb(CHARSET_INFO *cs,
 
 /* BINARY collations handlers for MB charsets */
 
-static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-				const uchar *s, size_t slen,
-				const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+int
+my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                    const uchar *s, size_t slen,
+                    const uchar *t, size_t tlen,
+                    my_bool t_is_prefix)
 {
   size_t len=min(slen,tlen);
   int cmp= memcmp(s,t,len);
@@ -503,10 +504,11 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     0 if strings are equal
 */
 
-static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-                                 const uchar *a, size_t a_length, 
-                                 const uchar *b, size_t b_length,
-                                 my_bool diff_if_only_endspace_difference)
+int
+my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                      const uchar *a, size_t a_length, 
+                      const uchar *b, size_t b_length,
+                      my_bool diff_if_only_endspace_difference)
 {
   const uchar *end;
   size_t length;
@@ -562,14 +564,17 @@ static size_t my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-		      const char *s, const char *t)
+int
+my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                     const char *s, const char *t)
 {
   return strcmp(s,t);
 }
 
-static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-		      const uchar *key, size_t len,ulong *nr1, ulong *nr2)
+
+void
+my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
+                    const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
   
@@ -787,10 +792,11 @@ fill_max_and_min:
 }
 
 
-static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
-		  const char *str,const char *str_end,
-		  const char *wildstr,const char *wildend,
-		  int escape, int w_one, int w_many)
+int
+my_wildcmp_mb_bin(CHARSET_INFO *cs,
+                  const char *str,const char *str_end,
+                  const char *wildstr,const char *wildend,
+                  int escape, int w_one, int w_many)
 {
   int result= -1;				/* Not found, using wildcards */
 

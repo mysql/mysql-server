@@ -5018,10 +5018,8 @@ ER_UNKNOWN_STORAGE_ENGINE 42000
         ger "Unbekannte Speicher-Engine '%s'"
         por "Motor de tabela desconhecido '%s'"
         spa "Desconocido motor de tabla '%s'"
-# When using this error code, use ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER)
-# for the message string.  See, for example, code in mysql_priv.h.
 ER_WARN_DEPRECATED_SYNTAX  
-        eng "'%s' is deprecated; use '%s' instead"
+        eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
         ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
         por "'%s' é desatualizado. Use '%s' em seu lugar"
         spa "'%s' está desaprobado, use '%s' en su lugar"
@@ -6321,3 +6319,5 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
 
+ER_TOO_LONG_INDEX_COMMENT
+  eng "Comment for index '%-.64s' is too long (max = %lu)"

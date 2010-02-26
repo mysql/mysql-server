@@ -12,9 +12,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
-
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c ft_stem.c
                                 ha_myisam.cc
@@ -29,28 +26,42 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 				rt_split.c sort.c sp_key.c ft_eval.h mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.c)
 
-MYSQL_STORAGE_ENGINE(MYISAM)
+MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
+  STORAGE_ENGINE 
+  MANDATORY 
+  RECOMPILE_FOR_EMBEDDED)
 
-IF(NOT SOURCE_SUBLIBS)
-  ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-  TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys dbug strings zlib)
+TARGET_LINK_LIBRARIES(myisam mysys)
 
-  ADD_EXECUTABLE(myisamchk myisamchk.c)
-  TARGET_LINK_LIBRARIES(myisamchk myisam mysys dbug strings zlib)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam)
 
-  ADD_EXECUTABLE(myisamlog myisamlog.c)
-  TARGET_LINK_LIBRARIES(myisamlog myisam mysys dbug strings zlib)
+MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
+TARGET_LINK_LIBRARIES(myisamchk myisam)
 
-  ADD_EXECUTABLE(myisampack myisampack.c)
-  TARGET_LINK_LIBRARIES(myisampack myisam mysys dbug strings zlib)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
+TARGET_LINK_LIBRARIES(myisamlog myisam)
 
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
+TARGET_LINK_LIBRARIES(myisampack myisam)
+
+IF(WITH_UNIT_TESTS AND FALSE)
+  ADD_EXECUTABLE(mi_test1 mi_test1.c)
+  TARGET_LINK_LIBRARIES(mi_test1 myisam)
+
+  ADD_EXECUTABLE(mi_test2 mi_test2.c)
+  TARGET_LINK_LIBRARIES(mi_test2 myisam)
+
+  ADD_EXECUTABLE(mi_test3 mi_test3.c)
+  TARGET_LINK_LIBRARIES(mi_test3  myisam)
+
+  ADD_EXECUTABLE(sp_test sp_test.c)
+  TARGET_LINK_LIBRARIES(sp_test myisam)
+
+  ADD_EXECUTABLE(rt_test rt_test.c)
+  TARGET_LINK_LIBRARIES(rt_test myisam)
+ENDIF()
+  
+IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
-
-  IF(EMBED_MANIFESTS)
-    MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisamlog" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
-  ENDIF(EMBED_MANIFESTS)
-
-ENDIF(NOT SOURCE_SUBLIBS)
+ENDIF()
