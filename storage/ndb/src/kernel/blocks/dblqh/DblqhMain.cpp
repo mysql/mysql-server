@@ -20392,7 +20392,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     Uint32 i;
-    void * logPartPtr;
+    void * logPartPtr = 0;
     GcpRecordPtr gcp; gcp.i = RNIL;
     for(i = 0; i<4; i++)
     {
