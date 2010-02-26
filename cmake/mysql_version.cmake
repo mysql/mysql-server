@@ -1,0 +1,160 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+
+# Read value for a variable from configure.in
+
+MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
+ IF(NOT ${var})
+   IF (EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
+     FILE (STRINGS  ${CMAKE_SOURCE_DIR}/configure.in str  REGEX  "^[ ]*${keyword}=")
+    IF(str)
+      STRING(REPLACE "${keyword}=" "" str ${str})
+      STRING(REGEX REPLACE  "[ ].*" ""  str ${str})
+      SET(${var} ${str} CACHE INTERNAL "Config variable")
+    ENDIF()
+   ENDIF()
+ ENDIF()
+ENDMACRO()
+
+
+# Read mysql version for configure script
+
+MACRO(GET_MYSQL_VERSION)
+
+  IF(NOT VERSION_STRING)
+    IF(EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  str REGEX "AM_INIT_AUTOMAKE")
+      STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\)]+" VERSION_STRING "${str}")
+      IF(NOT VERSION_STRING)
+        STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION_STRING "${str}")
+        IF(NOT VERSION_STRING)
+          FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
+          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zAZ0-9]+" VERSION_STRING "${str}")
+        ENDIF()
+      ENDIF()
+    ENDIF()
+  ENDIF()
+
+  
+  IF(NOT VERSION_STRING)
+    MESSAGE(FATAL_ERROR 
+  "VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
+  "when calling cmake")
+  ENDIF()
+  
+  SET(VERSION ${VERSION_STRING})
+  
+  # Remove trailing (non-numeric) part of the version string
+  STRING(REGEX REPLACE "[^\\.0-9].*" "" VERSION_STRING ${VERSION_STRING})
+ 
+  STRING(REGEX REPLACE "([0-9]+)\\.[0-9]+\\.[0-9]+" "\\1" MAJOR_VERSION "${VERSION_STRING}")
+  STRING(REGEX REPLACE "[0-9]+\\.([0-9]+)\\.[0-9]+" "\\1" MINOR_VERSION "${VERSION_STRING}")
+  STRING(REGEX REPLACE "[0-9]+\\.[0-9]+\\.([0-9]+)" "\\1" PATCH "${VERSION_STRING}")
+  SET(MYSQL_BASE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}" CACHE INTERNAL "MySQL Base version")
+  SET(MYSQL_NO_DASH_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}")
+  MATH(EXPR MYSQL_VERSION_ID "10000*${MAJOR_VERSION} + 100*${MINOR_VERSION} + ${PATCH}")
+  MARK_AS_ADVANCED(VERSION MYSQL_VERSION_ID MYSQL_BASE_VERSION)
+  SET(CPACK_PACKAGE_VERSION_MAJOR ${MAJOR_VERSION})
+  SET(CPACK_PACKAGE_VERSION_MINOR ${MINOR_VERSION})
+  SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH})
+ENDMACRO()
+
+# Get mysql version and other interesting variables
+GET_MYSQL_VERSION()
+
+MYSQL_GET_CONFIG_VALUE("PROTOCOL_VERSION" PROTOCOL_VERSION)
+MYSQL_GET_CONFIG_VALUE("DOT_FRM_VERSION" DOT_FRM_VERSION)
+MYSQL_GET_CONFIG_VALUE("MYSQL_TCP_PORT_DEFAULT" MYSQL_TCP_PORT_DEFAULT)
+MYSQL_GET_CONFIG_VALUE("MYSQL_UNIX_ADDR_DEFAULT" MYSQL_UNIX_ADDR_DEFAULT)
+MYSQL_GET_CONFIG_VALUE("SHARED_LIB_MAJOR_VERSION" SHARED_LIB_MAJOR_VERSION)
+IF(NOT MYSQL_TCP_PORT_DEFAULT)
+ SET(MYSQL_TCP_PORT_DEFAULT "3306")
+ENDIF()
+IF(NOT MYSQL_TCP_PORT)
+  SET(MYSQL_TCP_PORT ${MYSQL_TCP_PORT_DEFAULT})
+  SET(MYSQL_TCP_PORT_DEFAULT "0")
+ELSEIF(MYSQL_TCP_PORT EQUAL MYSQL_TCP_PORT_DEFAULT)
+  SET(MYSQL_TCP_PORT_DEFAULT "0")
+ENDIF()
+
+
+IF(NOT MYSQL_UNIX_ADDR)
+  SET(MYSQL_UNIX_ADDR "/tmp/mysql.sock")
+ENDIF()
+IF(NOT COMPILATION_COMMENT)
+  SET(COMPILATION_COMMENT "Source distribution")
+ENDIF()
+
+
+INCLUDE(package_name)
+IF(NOT CPACK_PACKAGE_FILE_NAME)
+  GET_PACKAGE_FILE_NAME(CPACK_PACKAGE_FILE_NAME)
+ENDIF()
+
+IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
+  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
+ENDIF()
+SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
+SET(CPACK_SOURCE_GENERATOR "TGZ")
+INCLUDE(cpack_source_ignore_files)
+
+# Defintions for windows version resources
+SET(PRODUCTNAME "MySQL Server")
+SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
+
+# Add version information to the exe and dll files
+# Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
+# for more info.
+IF(MSVC)
+  GET_TARGET_PROPERTY(location gen_versioninfo LOCATION)
+  IF(NOT location)
+    GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+    SET(FILETYPE VFT_APP)
+    CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
+    ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
+
+    SET(FILETYPE VFT_DLL)
+    CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
+      ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
+       ${CMAKE_BINARY_DIR}/versioninfo_dll.res
+    COMMAND ${CMAKE_RC_COMPILER} versioninfo_exe.rc
+    COMMAND ${CMAKE_RC_COMPILER} versioninfo_dll.rc
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+   )
+   ADD_CUSTOM_TARGET(gen_versioninfo
+      DEPENDS 
+     ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
+     ${CMAKE_BINARY_DIR}/versioninfo_dll.res
+   )
+  ENDIF()
+  
+  FUNCTION(ADD_VERSION_INFO target)
+    GET_TARGET_PROPERTY(target_type ${target} TYPE)
+    ADD_DEPENDENCIES(${target} gen_versioninfo)
+    IF(target_type MATCHES "SHARED" OR target_type MATCHES "MODULE")
+       SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
+        "\"${CMAKE_BINARY_DIR}/versioninfo_dll.res\"")
+    ELSEIF(target_type MATCHES "EXE")
+      SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
+      "${target_link_flags} \"${CMAKE_BINARY_DIR}/versioninfo_exe.res\"")
+    ENDIF()
+  ENDFUNCTION()
+ELSE()
+  FUNCTION(ADD_VERSION_INFO)
+  ENDFUNCTION()
+ENDIF()

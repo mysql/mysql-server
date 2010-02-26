@@ -27,6 +27,9 @@
 --source include/have_sjis.inc
 --source include/have_utf8.inc
 --source include/have_ucs2.inc
+--source include/have_utf8mb4.inc
+--source include/have_utf16.inc
+--source include/have_utf32.inc
 
 --source include/load_sysvars.inc
 ###################################################

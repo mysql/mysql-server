@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-
 SET(MYISAMMRG_SOURCES  myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myrg_info.c
 				ha_myisammrg.cc
 				myrg_locking.c myrg_open.c myrg_panic.c myrg_queue.c myrg_range.c
@@ -22,4 +20,4 @@ SET(MYISAMMRG_SOURCES  myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myr
 				myrg_rprev.c myrg_rrnd.c myrg_rsame.c myrg_static.c myrg_update.c
 				myrg_write.c myrg_records.c)
 
-MYSQL_STORAGE_ENGINE(MYISAMMRG)
+MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES} STORAGE_ENGINE MANDATORY RECOMPILE_FOR_EMBEDDED)
