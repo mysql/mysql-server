@@ -427,6 +427,11 @@ static void init_available_charsets(void)
 }
 
 
+void free_charsets(void)
+{
+  charsets_initialized= MY_PTHREAD_ONCE_INIT;
+}
+
 uint get_collation_number(const char *name)
 {
   my_pthread_once(&charsets_initialized, init_available_charsets);
