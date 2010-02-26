@@ -22,7 +22,7 @@ eval $test_insert;
 
 connection slave;
 START SLAVE;
-wait_for_slave_to_stop;
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
