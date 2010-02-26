@@ -1,0 +1,32 @@
+--source include/not_embedded.inc
+--source include/have_csv.inc
+
+# Only run test if "mysql_upgrade" is found
+--require r/have_mysql_upgrade.result
+--disable_query_log
+select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
+--enable_query_log
+
+--echo #
+--echo # Bug#49823: mysql_upgrade fatal error due to general_log / slow_low CSV NULL
+--echo #
+
+USE test;
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug49823.frm $MYSQLD_DATADIR/test/bug49823.frm;
+copy_file std_data/bug49823.CSM $MYSQLD_DATADIR/test/bug49823.CSM;
+copy_file std_data/bug49823.CSV $MYSQLD_DATADIR/test/bug49823.CSV;
+
+SET @saved_general_log = @@GLOBAL.general_log;
+SET GLOBAL general_log = OFF;
+USE mysql;
+FLUSH TABLES;
+REPAIR TABLE test.bug49823;
+RENAME TABLE general_log TO renamed_general_log;
+RENAME TABLE test.bug49823 TO general_log;
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+DROP TABLE general_log;
+RENAME TABLE renamed_general_log TO general_log;
+SET GLOBAL general_log = @saved_general_log;
+USE test;
