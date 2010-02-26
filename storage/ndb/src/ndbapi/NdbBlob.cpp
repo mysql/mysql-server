@@ -2041,7 +2041,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
   if (isKeyOp()) {
     if (isReadOp()) {
       // upgrade lock mode
-      if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+      if ((theNdbOp->theLockMode == NdbOperation::LM_CommittedRead) ||
+          (theNdbOp->theLockMode == NdbOperation::LM_SimpleRead))
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
       // add read of head+inline in this op
       if (getHeadInlineValue(theNdbOp) == -1)
@@ -2071,7 +2072,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
       /* Old Api scans only have saved lockmode state at this pre-finalisation
        * point, so it's easy to change the mode
        */ 
-      if (sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead)
+      if ((sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead) ||
+          (sop->m_savedLockModeOldApi == NdbOperation::LM_SimpleRead))
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
     }
     else
@@ -2080,7 +2082,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
        * to call the setReadLockMode method to do the right thing to change
        * the lockmode
        */
-      if (sop->theLockMode == NdbOperation::LM_CommittedRead)
+      if ((sop->theLockMode == NdbOperation::LM_CommittedRead) ||
+          (sop->theLockMode == NdbOperation::LM_SimpleRead))
         sop->setReadLockMode(NdbOperation::LM_Read);
     }
 
