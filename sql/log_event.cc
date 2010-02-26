@@ -2521,6 +2521,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     case SQLCOM_ASSIGN_TO_KEYCACHE:
     case SQLCOM_PRELOAD_KEYS:
     case SQLCOM_FLUSH:
+    case SQLCOM_RESET:
     case SQLCOM_CHECK:
       implicit_commit= TRUE;
       break;
