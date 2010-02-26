@@ -8200,7 +8200,8 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   else
   {
     DBUG_ASSERT(cond->type() == Item::COND_ITEM);
-    ((Item_cond *) cond)->add_at_head(&eq_list);
+    if (eq_list.elements)
+      ((Item_cond *) cond)->add_at_head(&eq_list);
   }
 
   cond->quick_fix_field();
@@ -15664,7 +15665,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
   Item_cond_and *cond=new Item_cond_and();
   TABLE *table=join_tab->table;
-  int error;
+  int error= 0;
   if (!cond)
     DBUG_RETURN(TRUE);
 
@@ -15682,7 +15683,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     cond->fix_fields(thd, (Item**)&cond);
   if (join_tab->select)
   {
-    error=(int) cond->add(join_tab->select->cond);
+    if (join_tab->select->cond)
+      error=(int) cond->add(join_tab->select->cond);
     join_tab->select_cond=join_tab->select->cond=cond;
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
