@@ -741,8 +741,8 @@ void st_select_lex_unit::reinit_exec_mechanism()
     TRUE  - error
 */
 
-bool st_select_lex_unit::change_result(select_subselect *new_result,
-                                       select_subselect *old_result)
+bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
+                                       select_result_interceptor *old_result)
 {
   bool res= FALSE;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())

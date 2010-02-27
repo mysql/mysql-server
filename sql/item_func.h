@@ -1047,6 +1047,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1509,7 +1510,9 @@ public:
   Item_func_inet_aton(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "inet_aton"; }
-  void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
+  void fix_length_and_dec()
+    { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -1633,6 +1636,9 @@ private:
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
   
+protected:
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
+
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
