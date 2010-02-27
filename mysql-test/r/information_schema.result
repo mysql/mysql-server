@@ -522,14 +522,6 @@ select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 AUTO_INCREMENT
 4
 drop table t1;
-create table t1 (s1 int);
-insert into t1 values (0),(9),(0);
-select s1 from t1 where s1 in (select version from
-information_schema.tables) union select version from
-information_schema.tables;
-s1
-10
-drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
