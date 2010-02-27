@@ -2521,6 +2521,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     case SQLCOM_ASSIGN_TO_KEYCACHE:
     case SQLCOM_PRELOAD_KEYS:
     case SQLCOM_FLUSH:
+    case SQLCOM_RESET:
     case SQLCOM_CHECK:
       implicit_commit= TRUE;
       break;
@@ -7480,7 +7481,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
-    if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
+    if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
       uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)

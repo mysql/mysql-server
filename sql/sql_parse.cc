@@ -325,6 +325,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHECK]=              CF_AUTO_COMMIT_TRANS;
 }
 
@@ -2077,7 +2078,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables))
+        || open_and_lock_tables(thd, all_tables, TRUE, 0))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2414,7 +2415,7 @@ case SQLCOM_PREPARE:
         create_table->open_type= OT_BASE_ONLY;
       }
 
-      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE, 0)))
+      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -3007,7 +3008,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables)))
+    if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3109,7 +3110,7 @@ end_with_restore_list:
       goto error;
 
     thd_proc_info(thd, "init");
-    if ((res= open_and_lock_tables(thd, all_tables)))
+    if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
@@ -3237,7 +3238,7 @@ end_with_restore_list:
     List<set_var_base> *lex_var_list= &lex->var_list;
 
     if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables)))
+         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -3303,9 +3304,9 @@ end_with_restore_list:
     {
       Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
-      res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
-                                         MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
-                                         &lock_tables_prelocking_strategy) ||
+      res= (open_and_lock_tables(thd, all_tables, FALSE,
+                                 MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                                 &lock_tables_prelocking_strategy) ||
             thd->locked_tables_list.init_locked_tables(thd));
     }
 
@@ -4008,7 +4009,7 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-	  open_and_lock_tables(thd, all_tables))
+          open_and_lock_tables(thd, all_tables, TRUE, 0))
        goto error;
 
       /*
@@ -4132,6 +4133,47 @@ create_sp_error:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
+#ifdef HAVE_DLOPEN
+      if (lex->sql_command == SQLCOM_DROP_FUNCTION &&
+          ! lex->spname->m_explicit_name)
+      {
+        /* DROP FUNCTION <non qualified name> */
+        udf_func *udf = find_udf(lex->spname->m_name.str,
+                                 lex->spname->m_name.length);
+        if (udf)
+        {
+          if (check_access(thd, DELETE_ACL, "mysql", NULL, NULL, 1, 0))
+            goto error;
+
+          if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
+          {
+            my_ok(thd);
+            break;
+          }
+          my_error(ER_SP_DROP_FAILED, MYF(0),
+                   "FUNCTION (UDF)", lex->spname->m_name.str);
+          goto error;
+        }
+
+        if (lex->spname->m_db.str == NULL)
+        {
+          if (lex->drop_if_exists)
+          {
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                                "FUNCTION (UDF)", lex->spname->m_name.str);
+            res= FALSE;
+            my_ok(thd);
+            break;
+          }
+          my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                   "FUNCTION (UDF)", lex->spname->m_name.str);
+          goto error;
+        }
+        /* Fall thought to test for a stored function */
+      }
+#endif
+
       int sp_result;
       int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
                  TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
@@ -4178,34 +4220,6 @@ create_sp_error:
 	}
 #endif
       }
-      else
-      {
-#ifdef HAVE_DLOPEN
-	if (lex->sql_command == SQLCOM_DROP_FUNCTION)
-	{
-          udf_func *udf = find_udf(lex->spname->m_name.str,
-                                   lex->spname->m_name.length);
-          if (udf)
-          {
-            if (check_access(thd, DELETE_ACL, "mysql", NULL, NULL, 1, 0))
-	      goto error;
-
-	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
-	    {
-	      my_ok(thd);
-	      break;
-	    }
-	  }
-	}
-#endif
-	if (lex->spname->m_db.str)
-	  sp_result= SP_KEY_NOT_FOUND;
-	else
-	{
-	  my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-	  goto error;
-	}
-      }
       res= sp_result;
       switch (sp_result) {
       case SP_OK:
@@ -4217,7 +4231,7 @@ create_sp_error:
           res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-			      SP_COM_STRING(lex), lex->spname->m_name.str);
+                              SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
             my_ok(thd);
 	  break;
@@ -4510,7 +4524,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables)))
+  if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
     {

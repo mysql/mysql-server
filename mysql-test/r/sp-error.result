@@ -46,7 +46,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Note	1305	PROCEDURE foo does not exist
+Note	1305	PROCEDURE test.foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 show create function foo|
@@ -1028,7 +1028,7 @@ drop table t1|
 drop function bug_13627_f|
 drop function if exists bug12329;
 Warnings:
-Note	1305	FUNCTION bug12329 does not exist
+Note	1305	FUNCTION test.bug12329 does not exist
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);

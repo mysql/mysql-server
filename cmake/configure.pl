@@ -130,12 +130,12 @@ foreach my $option (@ARGV)
   }
   if($option =~ /with-ssl=/)
   {
-    $cmakeargs = $cmakeargs." -DWITH_SSL=bundled";
+    $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
     next;
   }
   if($option =~ /with-ssl/)
   {
-    $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
+    $cmakeargs = $cmakeargs." -DWITH_SSL=bundled";
     next;
   }
   if($option =~ /prefix=/)
