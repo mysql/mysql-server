@@ -1038,7 +1038,7 @@ JOIN::optimize()
     error= -1;
     DBUG_RETURN(1);
   }
-  if (const_tables && !thd->locked_tables &&
+  if (const_tables && !thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK))
     mysql_unlock_some_tables(thd, all_tables, const_tables);
   if (!conds && outer_join)
@@ -2516,9 +2516,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
-#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
   uchar buff[STACK_BUFF_ALLOC];
-#endif
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(0);                           // Fatal error flag is set
   if (select)
@@ -4392,7 +4390,7 @@ best_access_path(JOIN      *join,
               */
               if (table->quick_keys.is_set(key) &&
                   (const_part & ((1 << table->quick_key_parts[key])-1)) ==
-                  ((1 << table->quick_key_parts[key])-1) &&
+                  (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
               {
@@ -6960,7 +6958,7 @@ void JOIN::join_free()
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (can_unlock && lock && thd->lock &&
+  if (can_unlock && lock && thd->lock && ! thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
       (select_lex == (thd->lex->unit.fake_select_lex ?
@@ -11166,6 +11164,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
                                  fields);
       rc= join->result->send_data(*columns_list);
     }
+    /*
+      An error can happen when evaluating the conds 
+      (the join condition and piece of where clause 
+      relevant to this join table).
+    */
+    if (join->thd->is_error())
+      error= NESTED_LOOP_ERROR;
   }
   else
   {
@@ -12316,6 +12321,12 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     int error;
+    if (join->tables &&
+        join->join_tab->is_using_loose_index_scan())
+    {
+      /* Copy non-aggregated fields when loose index scan is used. */
+      copy_fields(&join->tmp_table_param);
+    }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;

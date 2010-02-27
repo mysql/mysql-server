@@ -74,6 +74,8 @@ static MYSQL_FILE instrumented_stdin;
 */
 my_bool my_basic_init(void)
 {
+  char * str;
+
   if (my_basic_init_done)
     return 0;
   my_basic_init_done= 1;
@@ -81,6 +83,19 @@ my_bool my_basic_init(void)
   mysys_usage_id++;
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
+
+#ifndef VMS
+  /* Default creation of new files */
+  if ((str= getenv("UMASK")) != 0)
+    my_umask= (int) (atoi_octal(str) | 0600);
+  /* Default creation of new dir's */
+  if ((str= getenv("UMASK_DIR")) != 0)
+    my_umask_dir= (int) (atoi_octal(str) | 0700);
+#endif
+
+  /* $HOME is needed early to parse configuration files located in ~/ */
+  if ((home_dir= getenv("HOME")) != 0)
+    home_dir= intern_filename(home_dir_buff, home_dir);
 
   init_glob_errs();
 
@@ -124,7 +139,6 @@ my_bool my_basic_init(void)
 
 my_bool my_init(void)
 {
-  char * str;
   if (my_init_done)
     return 0;
   my_init_done= 1;
@@ -142,24 +156,11 @@ my_bool my_init(void)
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
-    if (!home_dir)
-    {					/* Don't initialize twice */
-      my_win_init();
-      if ((home_dir=getenv("HOME")) != 0)
-	home_dir=intern_filename(home_dir_buff,home_dir);
-#ifndef VMS
-      /* Default creation of new files */
-      if ((str=getenv("UMASK")) != 0)
-	my_umask=(int) (atoi_octal(str) | 0600);
-	/* Default creation of new dir's */
-      if ((str=getenv("UMASK_DIR")) != 0)
-	my_umask_dir=(int) (atoi_octal(str) | 0700);
-#endif
+    my_win_init();
 #ifdef VMS
-      init_ctype();			/* Stupid linker don't link _ctype.c */
+    init_ctype();                       /* Stupid linker don't link _ctype.c */
 #endif
-      DBUG_PRINT("exit",("home: '%s'",home_dir));
-    }
+    DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
     win32_init_tcp_ip();
 #endif

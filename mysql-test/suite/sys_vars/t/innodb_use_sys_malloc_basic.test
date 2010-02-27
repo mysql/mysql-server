@@ -1,0 +1,28 @@
+
+#
+#  2010-01-27 OBN - Added 
+#
+
+--source include/have_innodb.inc
+
+#
+# show the global and session values;
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_adaptive_flushing in (0, 1);
+select @@global.innodb_use_sys_malloc;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_use_sys_malloc;
+show global variables like 'innodb_use_sys_malloc';
+show session variables like 'innodb_use_sys_malloc';
+select * from information_schema.global_variables where variable_name='innodb_use_sys_malloc';
+select * from information_schema.session_variables where variable_name='innodb_use_sys_malloc';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_use_sys_malloc=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_use_sys_malloc=1;
+

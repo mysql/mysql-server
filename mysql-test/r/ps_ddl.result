@@ -269,8 +269,6 @@ Part 7: TABLE -> TABLE (TRIGGER dependencies) transitions
 =====================================================================
 # Test 7-a: dependent PROCEDURE has changed
 #
-# Note, this scenario is not supported, subject of Bug#12093
-#
 create table t1 (a int);
 create trigger t1_ai after insert on t1 for each row
 call p1(new.a);
@@ -282,10 +280,9 @@ drop procedure p1;
 create procedure p1 (a int) begin end;
 set @var= 2;
 execute stmt using @var;
-ERROR 42000: PROCEDURE test.p1 does not exist
 # Cleanup
 drop procedure p1;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 # Test 7-b: dependent FUNCTION has changed
@@ -361,11 +358,13 @@ set @var=8;
 # XXX: bug, the SQL statement in the trigger is still
 # pointing at table 't3', since the view was expanded
 # at first statement execution.
+# Since the view definition is inlined in the statement
+# at prepare, changing the view definition does not cause 
+# repreparation.
 # Repreparation of the main statement doesn't cause repreparation
 # of trigger statements.
 execute stmt using @var;
-ERROR 42S02: Table 'test.t3' doesn't exist
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 #
@@ -382,6 +381,7 @@ select * from t3;
 a
 6
 7
+8
 flush table t1;
 set @var=9;
 execute stmt using @var;
@@ -396,6 +396,7 @@ select * from t3;
 a
 6
 7
+8
 drop view v1;
 drop table t1,t2,t3;
 # Test 7-d: dependent TABLE has changed
@@ -707,6 +708,9 @@ deallocate prepare stmt;
 =====================================================================
 Part 16: VIEW -> TEMPORARY TABLE transitions
 =====================================================================
+#
+# Test 1: Merged view
+#
 create table t2 (a int);
 insert into t2 (a) values (1);
 create view t1 as select * from t2;
@@ -720,16 +724,72 @@ SUCCESS
 create temporary table t1 (a int);
 execute stmt;
 a
-call p_verify_reprepare_count(1);
+1
+call p_verify_reprepare_count(0);
 SUCCESS
 
 drop view t1;
 execute stmt;
-a
+ERROR 42S02: Table 'test.t1' doesn't exist
 call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+#
+# Test 2: Materialized view
+#
+create table t2 (a int);
+insert into t2 (a) values (1);
+create algorithm = temptable view t1 as select * from t2;
+prepare stmt from "select * from t1";
+execute stmt;
+a
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create temporary table t1 (a int);
+execute stmt;
+a
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop view t1;
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t2;
+drop temporary table t1;
+deallocate prepare stmt;
+#
+# Test 3: View referencing an Information schema table
+#
+create view t1 as select table_name from information_schema.views;
+prepare stmt from "select * from t1";
+execute stmt;
+table_name
+t1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create temporary table t1 (a int);
+execute stmt;
+table_name
+t1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop view t1;
+execute stmt;
+table_name
+call p_verify_reprepare_count(0);
+SUCCESS
+
 drop temporary table t1;
 deallocate prepare stmt;
 =====================================================================
@@ -1695,7 +1755,7 @@ SUCCESS
 drop table t2;
 create temporary table t2 (a int);
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 execute stmt;
@@ -1711,7 +1771,7 @@ SUCCESS
 
 drop table t2;
 execute stmt;
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
@@ -1755,21 +1815,21 @@ SUCCESS
 
 drop table t1;
 deallocate prepare stmt;
-# XXX: no validation of the first table in case of
-# CREATE TEMPORARY TABLE. This is a shortcoming of the current code,
-# but since validation is not strictly necessary, nothing is done
-# about it.
-# Will be fixed as part of work on Bug#21431 "Incomplete support of
-# temporary tables"
 create table t1 (a int);
 insert into t1 (a) values (1);
 prepare stmt from "create temporary table if not exists t2 as select * from t1";
 execute stmt;
 drop table t2;
 execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
 execute stmt;
 Warnings:
 Note	1050	Table 't2' already exists
+call p_verify_reprepare_count(1);
+SUCCESS
+
 select * from t2;
 a
 1
@@ -1777,6 +1837,9 @@ a
 execute stmt;
 Warnings:
 Note	1050	Table 't2' already exists
+call p_verify_reprepare_count(0);
+SUCCESS
+
 select * from t2;
 a
 1
@@ -1790,7 +1853,7 @@ Note	1050	Table 't2' already exists
 select * from t2;
 a
 1
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 drop table t1;
@@ -2026,11 +2089,11 @@ drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show keys from t1 where (1) in (select * from t1)";
 execute stmt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 drop table t1;
 create table t1 (x int);
 execute stmt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 drop table t1;
 deallocate prepare stmt;
 #

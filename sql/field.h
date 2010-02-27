@@ -472,7 +472,6 @@ public:
   }
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
-  friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;

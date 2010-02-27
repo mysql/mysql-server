@@ -118,6 +118,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   net_clear_error(net);
   thd->current_stmt= stmt;
 
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();				// Fix if more than one connect
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
@@ -746,11 +747,6 @@ void THD::clear_data_list()
   cur_data= 0;
 }
 
-void THD::clear_error()
-{
-  if (stmt_da->is_error())
-    stmt_da->reset_diagnostics_area();
-}
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)

@@ -1,6 +1,6 @@
 select * from performance_schema.MUTEX_INSTANCES limit 1;
 NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
-#	#	NULL
+#	#	#
 select * from performance_schema.MUTEX_INSTANCES
 where name='FOO';
 NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID

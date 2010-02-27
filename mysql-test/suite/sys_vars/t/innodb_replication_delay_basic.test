@@ -1,0 +1,52 @@
+
+#
+# 2010-01-27 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_replication_delay;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+select @@global.innodb_replication_delay >=0;
+select @@global.innodb_replication_delay;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_replication_delay;
+show global variables like 'innodb_replication_delay';
+show session variables like 'innodb_replication_delay';
+select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+select * from information_schema.session_variables where variable_name='innodb_replication_delay';
+
+#
+# show that it's writable
+#
+set global innodb_replication_delay=10;
+select @@global.innodb_replication_delay;
+select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+select * from information_schema.session_variables where variable_name='innodb_replication_delay';
+--error ER_GLOBAL_VARIABLE
+set session innodb_replication_delay=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_replication_delay=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_replication_delay=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_replication_delay="foo";
+
+set global innodb_replication_delay=-7;
+select @@global.innodb_replication_delay;
+select * from information_schema.global_variables where variable_name='innodb_replication_delay';
+
+#
+# cleanup
+#
+SET @@global.innodb_replication_delay = @start_global_value;
+SELECT @@global.innodb_replication_delay;

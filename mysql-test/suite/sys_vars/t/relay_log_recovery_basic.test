@@ -1,3 +1,9 @@
+
+
+#
+# 2010-01-10 - Added check for I_S values aver variable value change
+#
+
 --source include/not_embedded.inc
 
 SET @start_global_value = @@global.relay_log_recovery;
@@ -19,8 +25,12 @@ select * from information_schema.session_variables where variable_name='relay_lo
 #
 set global relay_log_recovery=1;
 select @@global.relay_log_recovery;
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
 set global relay_log_recovery=OFF;
 select @@global.relay_log_recovery;
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
 --error ER_GLOBAL_VARIABLE
 set session relay_log_recovery=1;
 

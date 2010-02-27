@@ -184,9 +184,6 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", 'a', "Deprecated. Use --create-options instead.",
-   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -239,7 +236,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"create-options", OPT_CREATE_OPTIONS,
+  {"create-options", 'a',
    "Include all MySQL specific create options.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
@@ -304,9 +301,6 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
    (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-slave", 'x', "Deprecated, renamed to --lock-all-tables.",
-   (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
   {"flush-logs", 'F', "Flush logs file in server before starting dump. "
    "Note that if you dump many databases at once (using the option "
    "--databases= or --all-databases), the logs will be flushed for "
@@ -394,8 +388,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (uchar**) &opt_no_data,
    (uchar**) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-set-names", 'N',
-   "Deprecated. Use --skip-set-charset instead.",
+  {"no-set-names", 'N',  "Same as--skip-set-charset.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
@@ -433,9 +426,6 @@ static struct my_option my_long_options[] =
    "Add 'SET NAMES default_character_set' to the output.",
    (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,

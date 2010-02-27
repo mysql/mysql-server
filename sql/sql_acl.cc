@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
+#include "transaction.h"
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -659,13 +660,6 @@ my_bool acl_reload(THD *thd)
   my_bool return_val= TRUE;
   DBUG_ENTER("acl_reload");
 
-  if (thd->locked_tables)
-  {					// Can't have locked tables here
-    thd->lock=thd->locked_tables;
-    thd->locked_tables=0;
-    close_thread_tables(thd);
-  }
-
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
@@ -678,8 +672,8 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary=
-    tables[2].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  init_mdl_requests(tables);
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -723,7 +717,9 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(return_val);
 }
 
@@ -1586,9 +1582,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.alias= tables.table_name= (char*) "user";
-  tables.db= (char*) "mysql";
+  tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3113,14 +3107,15 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 			    ? tables+2 : 0);
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3137,7 +3132,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
-      thd->current_stmt_binlog_row_based= save_binlog_row_based;
+      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+      if (save_binlog_row_based)
+        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
     }
   }
@@ -3153,7 +3150,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
   }
 
@@ -3281,7 +3280,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   /* Tables are automatically closed */
   thd->lex->restore_backup_query_tables_list(&backup);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -3340,14 +3341,15 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3364,7 +3366,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
-      thd->current_stmt_binlog_row_based= save_binlog_row_based;
+      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+      if (save_binlog_row_based)
+        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
     }
   }
@@ -3374,7 +3378,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   {						// Should never happen
     close_thread_tables(thd);
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);
   }
 
@@ -3452,7 +3458,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   mysql_rwlock_unlock(&LOCK_grant);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   /* Tables are automatically closed */
   DBUG_RETURN(result);
@@ -3490,14 +3498,15 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
+  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
 #ifdef HAVE_REPLICATION
   /*
@@ -3514,7 +3523,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
     {
       /* Restore the state of binlog format */
-      thd->current_stmt_binlog_row_based= save_binlog_row_based;
+      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+      if (save_binlog_row_based)
+        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
     }
   }
@@ -3524,7 +3535,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
   }
 
@@ -3585,7 +3598,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (!result)
     my_ok(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(result);
 }
@@ -3833,11 +3848,10 @@ static my_bool grant_reload_procs_priv(THD *thd)
   my_bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
-  bzero((char*) &table, sizeof(table));
-  table.alias= table.table_name= (char*) "procs_priv";
-  table.db= (char *) "mysql";
-  table.lock_type= TL_READ;
-  table.skip_temporary= 1;
+  table.init_one_table("mysql", 5, "procs_priv",
+                       strlen("procs_priv"), "procs_priv",
+                       TL_READ);
+  table.open_type= OT_BASE_ONLY;
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3903,7 +3917,9 @@ my_bool grant_reload(THD *thd)
   tables[0].db= tables[1].db= (char *) "mysql";
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
-  tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
+  tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
+  init_mdl_requests(tables);
+
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
@@ -3934,7 +3950,9 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -5187,6 +5205,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     (tables+4)->lock_type= TL_WRITE;
   tables->db= (tables+1)->db= (tables+2)->db= 
     (tables+3)->db= (tables+4)->db= (char*) "mysql";
+  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5797,14 +5816,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
   }
 
@@ -5850,7 +5871,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -5885,14 +5908,16 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
   }
 
@@ -5932,7 +5957,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   close_thread_tables(thd);
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -5967,14 +5994,16 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* RENAME USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
   }
 
@@ -6024,7 +6053,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -6057,13 +6088,15 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   if ((result= open_grant_tables(thd, tables)))
   {
     /* Restore the state of binlog format */
-    thd->current_stmt_binlog_row_based= save_binlog_row_based;
+    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
   }
 
@@ -6219,7 +6252,9 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result && !binlog_error)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(result || binlog_error);
 }
@@ -6328,8 +6363,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     row-based replication.  The flag will be reset at the end of the
     statement.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   /* Remove procedure access */
   do
@@ -6366,7 +6401,9 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   thd->pop_internal_handler();
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(error_handler.has_errors());
 }

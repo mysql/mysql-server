@@ -20,6 +20,7 @@
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
 #include "rpl_utility.h"
+#include "transaction.h"
 
 static int count_relay_log_space(Relay_log_info* rli);
 
@@ -123,7 +124,7 @@ int init_relay_log_info(Relay_log_info* rli,
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
     Note that the I/O thread flushes it to disk after writing every
-    event, in flush_master_info(mi, 1).
+    event, in flush_master_info(mi, 1, ?).
   */
 
   /*
@@ -1216,12 +1217,13 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   */
   if (error)
   {
-    ha_autocommit_or_rollback(thd, 1); // if a "statement transaction"
-    end_trans(thd, ROLLBACK); // if a "real transaction"
+    trans_rollback_stmt(thd); // if a "statement transaction"
+    trans_rollback(thd);      // if a "real transaction"
   }
   m_table_map.clear_tables();
-  close_thread_tables(thd);
-  clear_tables_to_lock();
+  slave_close_thread_tables(thd);
+  if (error)
+    thd->mdl_context.release_transactional_locks();
   clear_flag(IN_STMT);
   /*
     Cleanup for the flags that have been set at do_apply_event.
@@ -1249,4 +1251,9 @@ void Relay_log_info::clear_tables_to_lock()
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
 }
 
+void Relay_log_info::slave_close_thread_tables(THD *thd)
+{
+  close_thread_tables(thd);
+  clear_tables_to_lock();
+}
 #endif
