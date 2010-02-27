@@ -15211,12 +15211,12 @@ static void test_bug11909()
 
 static void test_bug11901()
 {
-  MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[2];
+/*  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[2]; */
   int rc;
-  char workdept[20];
-  ulong workdept_len;
-  uint32 empno;
+/*  char workdept[20];
+  ulong workdept_len; 
+  uint32 empno; */
   const char *stmt_text;
 
   myheader("test_bug11901");
