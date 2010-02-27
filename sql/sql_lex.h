@@ -540,6 +540,10 @@ public:
     Item_type_holders from which this list consist may have pointers to Field,
     pointers is valid only after preparing SELECTS of this unit and before
     any SELECT of this unit execution
+
+    TODO:
+    Possibly this member should be protected, and its direct use replaced
+    by get_unit_column_types(). Check the places where it is used.
   */
   List<Item> types;
   /*
@@ -592,7 +596,8 @@ public:
   bool add_fake_select_lex(THD *thd);
   void init_prepare_fake_select_lex(THD *thd);
   inline bool is_prepared() { return prepared; }
-  bool change_result(select_subselect *result, select_subselect *old_result);
+  bool change_result(select_result_interceptor *result,
+                     select_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 

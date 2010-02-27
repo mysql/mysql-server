@@ -168,7 +168,8 @@ static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
-				 table_map used_table);
+				 table_map used_table,
+                                 bool exclude_expensive_cond);
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
@@ -525,15 +526,63 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
-    /* Is it subselect? */
+    /*
+      Are we in a subquery predicate?
+      TODO: the block below will be executed for every PS execution without need.
+    */
     if ((subselect= select_lex->master_unit()->item))
     {
-      Item_subselect::trans_res res;
-      if ((res= subselect->select_transformer(this)) !=
+      Item_subselect::trans_res trans_res;
+      Item_in_subselect *in_subs= NULL;
+
+      /*
+        Check if the subquery predicate can be executed via materialization.
+        The required conditions are:
+          1. Subquery predicate is an IN/=ANY subq predicate
+          2. Subquery is a single SELECT (not a UNION)
+          3. Subquery is not a table-less query. In this case there is no
+             point in materializing.
+          4. Subquery predicate is a top-level predicate
+             (this implies it is not negated)
+             TODO: this is a limitation that should be lifeted once we
+             implement correct NULL semantics (WL#3830)
+          5. Subquery is non-correlated
+             TODO:
+             This is an overly restrictive condition. It can be extended to:
+             (Subquery is non-correlated ||
+              Subquery is correlated to any query outer to IN predicate ||
+              (Subquery is correlated to the immediate outer query &&
+               Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+               aggregate functions) && subquery predicate is not under "NOT IN"))
+
+         (*) The subquery must be part of a SELECT statement. The current
+              condition also excludes multi-table update statements.
+
+        We have to determine whether we will perform subquery materialization
+        before calling the IN=>EXISTS transformation, so that we know whether to
+        perform the whole transformation or only that part of it which wraps
+        Item_in_subselect in an Item_in_optimizer.
+      */
+      if (subselect->substype() == Item_subselect::IN_SUBS &&           // 1
+          !select_lex->master_unit()->first_select()->next_select() &&  // 2
+          select_lex->master_unit()->first_select()->leaf_tables &&     // 3
+          thd->lex->sql_command == SQLCOM_SELECT)                       // *
+      {
+        in_subs= (Item_in_subselect*) subselect;
+        in_subs->use_hash_sj= (in_subs->is_top_level_item() &&          // 4
+                               !in_subs->is_correlated);                // 5
+      }
+
+      /*
+        For IN predicates, if Item_in_subselect::use_hash_sj == TRUE,
+        the only transformation that will take place is wrapping
+        Item_in_subselect in an Item_in_optimizer.
+      */
+      if ((trans_res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
       {
         select_lex->fix_prepare_information(thd, &conds, &having);
-	DBUG_RETURN((res == Item_subselect::RES_ERROR));
+	DBUG_RETURN((trans_res == Item_subselect::RES_ERROR));
       }
     }
   }
@@ -811,6 +860,7 @@ JOIN::optimize()
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
+
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
@@ -972,7 +1022,7 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, 0);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
@@ -1340,6 +1390,30 @@ JOIN::optimize()
     init_ftfuncs(thd, select_lex, test(order));
 
   /*
+    Create all structures needed for materialized subquery execution,
+    assuming this is the outer-most query. This phase must be after
+    substitute_for_best_equal_field() because that function may replace
+    items with other items from a multiple equality, and we need to reference
+    the correct items in the index access method of the IN predicate.
+  */
+  if (is_top_level_join())
+     /* Alternatively check: (&lex.select_lex == join->select) */
+  {
+    for (SELECT_LEX *sl= thd->lex->all_selects_list; sl;
+         sl= sl->next_select_in_list())
+    {
+      Item_subselect *subquery_predicate= sl->master_unit()->item;
+      if (subquery_predicate &&
+          subquery_predicate->substype() == Item_subselect::IN_SUBS)
+      {
+        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
+        if (in_subs->use_hash_sj && in_subs->setup_hash_sj_engine())
+          DBUG_RETURN(1);
+      }
+    }
+  }
+
+  /*
     is this simple IN subquery?
   */
   if (!group_list && !order &&
@@ -1452,7 +1526,7 @@ JOIN::optimize()
       for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
       {
         Item *item= *tmp_order->item;
-        if (item->walk(&Item::is_expensive_processor, 0, (uchar*)0))
+        if (item->is_expensive())
         {
           /* Force tmp table without sort */
           need_tmp=1; simple_order=simple_group=0;
@@ -2163,7 +2237,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables);
+						 used_tables, 0);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -2186,7 +2260,7 @@ JOIN::exec()
                                          QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
-						   ~used_tables);
+						   ~used_tables, 0);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
                                          "having after sort",
                                          QT_ORDINARY););
@@ -6233,7 +6307,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         COND *const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
-                              (table_map) 0);
+                              (table_map) 0, 1);
         DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
@@ -6243,7 +6317,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             JOIN_TAB *cond_tab= tab->first_inner;
             COND *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
-                                         (  table_map) 0);
+                                           (  table_map) 0, 0);
             if (!tmp)
               continue;
             tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -6308,7 +6382,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
       tmp= NULL;
       if (cond)
-        tmp= make_cond_for_table(cond,used_tables,current_map);
+        tmp= make_cond_for_table(cond,used_tables,current_map, 0);
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
@@ -6363,7 +6437,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map);
+              make_cond_for_table(tmp, current_map, current_map, 0);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -6486,7 +6560,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                 (tmp=make_cond_for_table(cond,
 					 join->const_table_map |
 					 current_map,
-					 current_map)))
+					 current_map, 0)))
 	    {
               DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
 	      tab->cache.select=(SQL_SELECT*)
@@ -6516,7 +6590,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           JOIN_TAB *cond_tab= join_tab->first_inner;
           COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
                                          join->const_table_map,
-                                         (table_map) 0);
+                                         (table_map) 0, 0);
           if (!tmp)
             continue;
           tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -6548,7 +6622,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           current_map= tab->table->map;
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
-                                             current_map);
+                                              current_map, 0);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
@@ -10509,16 +10583,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     */
     DBUG_PRINT("info",("hidden_field_count: %d", param->hidden_field_count));
 
-    null_pack_length-=hidden_null_pack_length;
-    keyinfo->key_parts= ((field_count-param->hidden_field_count)+
-			 test(null_pack_length));
-    table->distinct= 1;
-    share->keys= 1;
     if (blob_count)
     {
-      using_unique_constraint=1;
+      /*
+        Special mode for index creation in MyISAM used to support unique
+        indexes on blobs with arbitrary length. Such indexes cannot be
+        used for lookups.
+      */
       share->uniques= 1;
     }
+    null_pack_length-=hidden_null_pack_length;
+    keyinfo->key_parts= ((field_count-param->hidden_field_count)+
+			 (share->uniques ? test(null_pack_length) : 0));
+    table->distinct= 1;
+    share->keys= 1;
     if (!(key_part_info= (KEY_PART_INFO*)
           alloc_root(&table->mem_root,
                      keyinfo->key_parts * sizeof(KEY_PART_INFO))))
@@ -10531,7 +10609,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->rec_per_key=0;
-    if (null_pack_length)
+
+    /*
+      Create an extra field to hold NULL bits so that unique indexes on
+      blobs can distinguish NULL from 0. This extra field is not needed
+      when we do not use UNIQUE indexes for blobs.
+    */
+    if (null_pack_length && share->uniques)
     {
       key_part_info->null_bit=0;
       key_part_info->offset=hidden_null_pack_length;
@@ -10558,6 +10642,22 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->field=    *reg_field;
       key_part_info->offset=   (*reg_field)->offset(table->record[0]);
       key_part_info->length=   (uint16) (*reg_field)->pack_length();
+      /* TODO:
+        The below method of computing the key format length of the
+        key part is a copy/paste from opt_range.cc, and table.cc.
+        This should be factored out, e.g. as a method of Field.
+        In addition it is not clear if any of the Field::*_length
+        methods is supposed to compute the same length. If so, it
+        might be reused.
+      */
+      key_part_info->store_length= key_part_info->length;
+
+      if ((*reg_field)->real_maybe_null())
+        key_part_info->store_length+= HA_KEY_NULL_LENGTH;
+      if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
+          (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
+        key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
 	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
@@ -12816,9 +12916,17 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 
 
 static COND *
-make_cond_for_table(COND *cond, table_map tables, table_map used_table)
+make_cond_for_table(COND *cond, table_map tables, table_map used_table,
+                    bool exclude_expensive_cond)
 {
-  if (used_table && !(cond->used_tables() & used_table))
+  if (used_table && !(cond->used_tables() & used_table) &&
+      /*
+        Exclude constant conditions not checked at optimization time if
+        the table we are pushing conditions to is the first one.
+        As a result, such conditions are not considered as already checked
+        and will be checked at execution time, attached to the first table.
+      */
+      !((used_table & 1) && cond->is_expensive()))
     return (COND*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
@@ -12832,7 +12940,8 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,used_table);
+	Item *fix=make_cond_for_table(item,tables,used_table,
+                                      exclude_expensive_cond);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -12862,7 +12971,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,0L);
+	Item *fix=make_cond_for_table(item,tables,0L, exclude_expensive_cond);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -12884,7 +12993,12 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
     of the test
   */
 
-  if (cond->marker == 3 || (cond->used_tables() & ~tables))
+  if (cond->marker == 3 || (cond->used_tables() & ~tables) ||
+      /*
+        When extracting constant conditions, treat expensive conditions as
+        non-constant, so that they are not evaluated at optimization time.
+      */
+      (!used_table && exclude_expensive_cond && cond->is_expensive()))
     return (COND*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
@@ -13888,7 +14002,7 @@ static bool fix_having(JOIN *join, Item **having)
   table_map used_tables= join->const_table_map | table->table->map;
 
   DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
-  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
+  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables, 0);
   if (sort_table_cond)
   {
     if (!table->select)
@@ -13903,10 +14017,9 @@ static bool fix_having(JOIN *join, Item **having)
 	return 1;
     table->select_cond=table->select->cond;
     table->select_cond->top_level_item();
-    DBUG_EXECUTE("where",print_where(table->select_cond,
-				     "select and having",
+    DBUG_EXECUTE("where",print_where(table->select_cond, "select and having",
                                      QT_ORDINARY););
-    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
+    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables, 0);
     DBUG_EXECUTE("where",
                  print_where(*having,"having after make_cond", QT_ORDINARY););
   }

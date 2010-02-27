@@ -252,7 +252,7 @@ public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
-  {}
+  { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
   bool is_null();
@@ -261,6 +261,7 @@ public:
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
+  Item *transform(Item_transformer transformer, uchar *arg);
 };
 
 class Comp_creator

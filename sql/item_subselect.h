@@ -25,9 +25,11 @@
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;
-class select_subselect;
+class select_result_interceptor;
 class subselect_engine;
+class subselect_hash_sj_engine;
 class Item_bool_func2;
+class Cached_item;
 
 /* base class for subselects */
 
@@ -74,12 +76,12 @@ public:
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
   /*
-     We need this method, because some compilers do not allow 'this'
-     pointer in constructor initialization list, but we need pass pointer
-     to subselect Item class to select_subselect classes constructor.
+    We need this method, because some compilers do not allow 'this'
+    pointer in constructor initialization list, but we need to pass a pointer
+    to subselect Item class to select_result_interceptor's constructor.
   */
   virtual void init (st_select_lex *select_lex,
-		     select_subselect *result);
+		     select_result_interceptor *result);
 
   ~Item_subselect();
   void cleanup();
@@ -137,7 +139,7 @@ public:
   st_select_lex* get_select_lex();
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
-  friend class select_subselect;
+  friend class select_result_interceptor;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
   friend int  Item_field::fix_outer_field(THD *, Field **, Item **);
@@ -246,14 +248,15 @@ public:
 };
 
 
-/*
-  IN subselect: this represents "left_exr IN (SELECT ...)"
+/**
+  Representation of IN subquery predicates of the form
+  "left_expr IN (SELECT ...)".
 
+  @detail
   This class has: 
-   - (as a descendant of Item_subselect) a "subquery execution engine" which 
-      allows it to evaluate subqueries. (and this class participates in
-      execution by having was_null variable where part of execution result
-      is stored.
+   - A "subquery execution engine" (as a subclass of Item_subselect) that allows
+     it to evaluate subqueries. (and this class participates in execution by
+     having was_null variable where part of execution result is stored.
    - Transformation methods (todo: more on this).
 
   This class is not used directly, it is "wrapped" into Item_in_optimizer
@@ -265,6 +268,12 @@ class Item_in_subselect :public Item_exists_subselect
 protected:
   Item *left_expr;
   /*
+    Cache of the left operand of the subquery predicate. Allocated in the
+    runtime memory root, for each execution, thus need not be freed.
+  */
+  List<Cached_item> *left_expr_cache;
+
+  /*
     expr & optimizer used in subselect rewriting to store Item for
     all JOIN in UNION
   */
@@ -273,9 +282,17 @@ protected:
   bool was_null;
   bool abort_on_null;
   bool transformed;
+
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
+
+  /*
+    True if this predicate will be executed via subquery materialization
+    (hash semi-join), false if it should be executed via IN=>EXISTS
+    transformation.
+  */
+  bool use_hash_sj;
 
   bool *get_cond_guard(int i)
   {
@@ -292,8 +309,9 @@ public:
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), optimizer(0), abort_on_null(0), transformed(0),
-     pushed_cond_guards(NULL), upper_item(0)
+    :Item_exists_subselect(), left_expr_cache(0), optimizer(0),
+    abort_on_null(0), transformed(0), pushed_cond_guards(NULL),
+    use_hash_sj(0), upper_item(0)
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -318,10 +336,16 @@ public:
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
+  bool setup_hash_sj_engine();
+  bool init_left_expr_cache();
+  bool test_if_left_expr_changed();
+  bool is_expensive_processor(uchar *arg);
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
+  friend class Item_in_optimizer;
   friend class subselect_indexsubquery_engine;
+  friend class subselect_hash_sj_engine;
 };
 
 
@@ -346,7 +370,7 @@ public:
 class subselect_engine: public Sql_alloc
 {
 protected:
-  select_subselect *result; /* results storage class */
+  select_result_interceptor *result; /* results storage class */
   THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
@@ -354,7 +378,11 @@ protected:
   bool maybe_null; /* may be null (first item in select) */
 public:
 
-  subselect_engine(Item_subselect *si, select_subselect *res)
+  enum enum_engine_type {ABSTRACT_ENGINE, SINGLE_SELECT_ENGINE,
+                         UNION_ENGINE, UNIQUESUBQUERY_ENGINE,
+                         INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE};
+
+  subselect_engine(Item_subselect *si, select_result_interceptor *res)
     :thd(0)
   {
     result= res;
@@ -404,11 +432,13 @@ public:
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str, enum_query_type query_type)= 0;
-  virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
+  virtual bool change_result(Item_subselect *si,
+                             select_result_interceptor *result)= 0;
   virtual bool no_tables()= 0;
   virtual bool is_executed() const { return FALSE; }
   /* Check if subquery produced any rows during last query execution */
   virtual bool no_rows() = 0;
+  virtual enum_engine_type engine_type() { return ABSTRACT_ENGINE; }
 
 protected:
   void set_row(List<Item> &item_list, Item_cache **row);
@@ -424,7 +454,7 @@ class subselect_single_select_engine: public subselect_engine
   JOIN * join; /* corresponding JOIN structure */
 public:
   subselect_single_select_engine(st_select_lex *select,
-				 select_subselect *result,
+				 select_result_interceptor *result,
 				 Item_subselect *item);
   void cleanup();
   int prepare();
@@ -435,11 +465,14 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_result_interceptor *result);
   bool no_tables();
   bool may_be_null();
   bool is_executed() const { return executed; }
   bool no_rows();
+  virtual enum_engine_type engine_type() { return SINGLE_SELECT_ENGINE; }
+
+  friend class subselect_hash_sj_engine;
 };
 
 
@@ -448,7 +481,7 @@ class subselect_union_engine: public subselect_engine
   st_select_lex_unit *unit;  /* corresponding unit structure */
 public:
   subselect_union_engine(st_select_lex_unit *u,
-			 select_subselect *result,
+			 select_result_interceptor *result,
 			 Item_subselect *item);
   void cleanup();
   int prepare();
@@ -459,10 +492,11 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_result_interceptor *result);
   bool no_tables();
   bool is_executed() const;
   bool no_rows();
+  virtual enum_engine_type engine_type() { return UNION_ENGINE; }
 };
 
 
@@ -506,7 +540,6 @@ public:
   {
     set_thd(thd_arg);
   }
-  ~subselect_uniquesubquery_engine();
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
@@ -516,11 +549,12 @@ public:
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_result_interceptor *result);
   bool no_tables();
   int scan_table();
   bool copy_ref_key();
   bool no_rows() { return empty_result_set; }
+  virtual enum_engine_type engine_type() { return UNIQUESUBQUERY_ENGINE; }
 };
 
 
@@ -570,6 +604,7 @@ public:
   {}
   int exec();
   virtual void print (String *str, enum_query_type query_type);
+  virtual enum_engine_type engine_type() { return INDEXSUBQUERY_ENGINE; }
 };
 
 
@@ -578,9 +613,56 @@ inline bool Item_subselect::is_evaluated() const
   return engine->is_executed();
 }
 
+
 inline bool Item_subselect::is_uncacheable() const
 {
   return engine->uncacheable();
 }
 
+
+/**
+  Compute an IN predicate via a hash semi-join. The subquery is materialized
+  during the first evaluation of the IN predicate. The IN predicate is executed
+  via the functionality inherited from subselect_uniquesubquery_engine.
+*/
+
+class subselect_hash_sj_engine: public subselect_uniquesubquery_engine
+{
+protected:
+  /* TRUE if the subquery was materialized into a temp table. */
+  bool is_materialized;
+  /*
+    The old engine already chosen at parse time and stored in permanent memory.
+    Through this member we can re-create and re-prepare materialize_join for
+    each execution of a prepared statement. We akso resuse the functionality
+    of subselect_single_select_engine::[prepare | cols].
+  */
+  subselect_single_select_engine *materialize_engine;
+  /*
+    QEP to execute the subquery and materialize its result into a
+    temporary table. Created during the first call to exec().
+  */
+  JOIN                           *materialize_join;
+
+public:
+  subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
+                               subselect_single_select_engine *old_engine)
+    :subselect_uniquesubquery_engine(thd, NULL, in_predicate, NULL),
+    is_materialized(FALSE), materialize_engine(old_engine),
+    materialize_join(NULL)
+  {}
+  ~subselect_hash_sj_engine();
+
+  bool init_permanent(List<Item> *tmp_columns);
+  bool init_runtime();
+  void cleanup();
+  int prepare() { return 0; }
+  int exec();
+  void print (String *str, enum_query_type query_type);
+  uint cols()
+  {
+    return materialize_engine->cols();
+  }
+  virtual enum_engine_type engine_type() { return HASH_SJ_ENGINE; }
+};
 #endif /* ITEM_SUBSELECT_INCLUDED */
