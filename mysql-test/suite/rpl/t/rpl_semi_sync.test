@@ -3,6 +3,10 @@ source include/not_embedded.inc;
 source include/have_innodb.inc;
 source include/master-slave.inc;
 
+# -- [DISABLED Bug#49557]
+# This test case fails on Windows due to Bug#49557.
+source include/not_windows.inc;
+
 let $engine_type= InnoDB;
 #let $engine_type= MyISAM;
 
@@ -11,6 +15,7 @@ disable_query_log;
 connection master;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 call mtr.add_suppression("Read semi-sync reply");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT.");
 connection slave;
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
@@ -193,8 +198,38 @@ select count(distinct a) from t1;
 select min(a) from t1;
 select max(a) from t1;
 
+--echo
+--echo # BUG#50157
+--echo # semi-sync replication crashes when replicating a transaction which
+--echo # include 'CREATE TEMPORARY TABLE `MyISAM_t` SELECT * FROM `Innodb_t` ;
+
+connection master;
+echo [ on master ];
+SET SESSION AUTOCOMMIT= 0;
+CREATE TABLE t2(c1 INT) ENGINE=innodb;
+sync_slave_with_master;
+
+connection master;
+BEGIN;
+--echo
+--echo # Even though it is in a transaction, this statement is binlogged into binlog
+--echo # file immediately.
+--disable_warnings
+CREATE TEMPORARY TABLE t3 SELECT c1 FROM t2 where 1=1;
+--enable_warnings
+--echo
+--echo # These statements will not be binlogged until the transaction is committed
+INSERT INTO t2 VALUES(11);
+INSERT INTO t2 VALUES(22);
+COMMIT;
+
+DROP TABLE t2, t3;
+SET SESSION AUTOCOMMIT= 1;
+sync_slave_with_master;
+
+
 --echo #
---echo # Test semi-sync master will switch OFF after one transacton
+--echo # Test semi-sync master will switch OFF after one transaction
 --echo # timeout waiting for slave reply.
 --echo #
 connection slave;

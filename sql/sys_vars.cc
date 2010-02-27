@@ -33,6 +33,7 @@
 #include <thr_alarm.h>
 #include "slave.h"
 #include "rpl_mi.h"
+#include "transaction.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -241,15 +242,25 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
   /*
-    If RBR and open temporary tables, their CREATE TABLE may not be in the
-    binlog, so we can't toggle to SBR in this connection.
+     If RBR and open temporary tables, their CREATE TABLE may not be in the
+     binlog, so we can't toggle to SBR in this connection.
+
+     If binlog_format=MIXED, there are open temporary tables, and an unsafe
+     statement is executed, then subsequent statements are logged in row
+     format and hence changes to temporary tables may be lost. So we forbid
+     switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
+     open temp tables and we are logging in row format.
   */
-  if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
-      thd->temporary_tables)
+  if (thd->temporary_tables && var->type == OPT_SESSION &&
+      var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
+      ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+        thd->is_current_stmt_binlog_format_row()) ||
+       thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
     return true;
   }
+
   /*
     if in a stored function/trigger, it's too late to change mode
   */
@@ -324,7 +335,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
     return true;
   if (var->type == OPT_GLOBAL ||
       (thd->variables.binlog_direct_non_trans_update ==
-       var->save_result.ulonglong_value))
+       static_cast<my_bool>(var->save_result.ulonglong_value)))
     return false;
 
   return false;
@@ -852,6 +863,12 @@ static Sys_var_mybool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
        GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
+static Sys_var_ulong Sys_lock_wait_timeout(
+       "lock_wait_timeout",
+       "Timeout in seconds to wait for a lock before returning an error.",
+       SESSION_VAR(lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
+
 #ifdef HAVE_MLOCKALL
 static Sys_var_mybool Sys_locked_in_memory(
        "locked_in_memory",
@@ -1373,7 +1390,7 @@ static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->active_transaction())
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return true;
@@ -1395,7 +1412,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   if (check_read_only(self, thd, 0)) // just in case
     goto end;
 
-  if (thd->global_read_lock)
+  if (thd->global_read_lock.is_acquired())
   {
     /*
       This connection already holds the global read lock.
@@ -1421,7 +1438,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  if (lock_global_read_lock(thd))
+  if (thd->global_read_lock.lock_global_read_lock(thd))
     goto end_with_mutex_unlock;
 
   /*
@@ -1433,10 +1450,10 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
     goto end_with_read_lock;
 
-  if ((result= make_global_read_lock_block_commit(thd)))
+  if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
@@ -1445,7 +1462,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
  end_with_read_lock:
   /* Release the lock */
-  unlock_global_read_lock(thd);
+  thd->global_read_lock.unlock_global_read_lock(thd);
  end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
  end:
@@ -1937,13 +1954,6 @@ static Sys_var_ulong Sys_table_cache_size(
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
        BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_table_lock_wait_timeout(
-       "table_lock_wait_timeout",
-       "Timeout in seconds to wait for a table level lock before returning an "
-       "error. Used only if the connection has active cursors",
-       GLOBAL_VAR(table_lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024*1024*1024), DEFAULT(50), BLOCK_SIZE(1));
-
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
@@ -2129,11 +2139,13 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)
   { // activating autocommit
 
-    if (ha_commit(thd))
+    if (trans_commit(thd))
     {
       thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
       return true;
     }
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
 
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
@@ -2192,30 +2204,6 @@ static Sys_var_bit Sys_log_binlog(
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIN_LOG,
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
        ON_UPDATE(fix_sql_log_bin));
-
-static bool deprecated_log_update(sys_var *self, THD *thd, set_var *var)
-{
-  /*
-    The update log is not supported anymore since 5.0.
-    See sql/mysqld.cc/, comments in function init_server_components() for an
-    explaination of the different warnings we send below
-  */
-
-  if (opt_sql_bin_update)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                 ER_UPDATE_LOG_DEPRECATED_TRANSLATED,
-                 ER(ER_UPDATE_LOG_DEPRECATED_TRANSLATED));
-  else
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                 ER_UPDATE_LOG_DEPRECATED_IGNORED,
-                 ER(ER_UPDATE_LOG_DEPRECATED_IGNORED));
-  return check_has_super(self, thd, var);
-}
-static Sys_var_bit Sys_log_update(
-       "sql_log_update", "alias for sql_log_bin",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIN_LOG,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(deprecated_log_update), ON_UPDATE(fix_sql_log_bin));
 
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
@@ -2956,14 +2944,14 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 static Sys_var_struct Sys_lc_messages(
        "lc_messages", "Set the language used for the error messages",
        SESSION_VAR(lc_messages), NO_CMD_LINE,
-       offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
+       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_messages),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_struct Sys_lc_time_names(
        "lc_time_names", "Set the language used for the month "
        "names and the days of the week",
        SESSION_VAR(lc_time_names), NO_CMD_LINE,
-       offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
+       my_offsetof(MY_LOCALE, name), DEFAULT(&my_default_lc_time_names),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_locale));
 
 static Sys_var_tz Sys_time_zone(

@@ -572,7 +572,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   TABLE_LIST tables;
   DBUG_ENTER("Event_db_repository::open_event_table");
 
-  tables.init_one_table("mysql", "event", lock_type);
+  tables.init_one_table("mysql", 5, "event", 5, "event", lock_type);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1053,8 +1053,8 @@ update_timing_fields_for_event(THD *thd,
     Turn off row binlogging of event timing updates. These are not used
     for RBR of events replicated to the slave.
   */
-  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
-  thd->clear_current_stmt_binlog_format_row();
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   DBUG_ASSERT(thd->security_ctx->master_access & SUPER_ACL);
 
@@ -1097,7 +1097,9 @@ end:
   if (table)
     close_thread_tables(thd);
   /* Restore the state of binlog format */
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(test(ret));
 }
@@ -1129,7 +1131,7 @@ Event_db_repository::check_system_tables(THD *thd)
 
 
   /* Check mysql.db */
-  tables.init_one_table("mysql", "db", TL_READ);
+  tables.init_one_table("mysql", 5, "db", 2, "db", TL_READ);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1144,7 +1146,7 @@ Event_db_repository::check_system_tables(THD *thd)
     close_thread_tables(thd);
   }
   /* Check mysql.user */
-  tables.init_one_table("mysql", "user", TL_READ);
+  tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {
@@ -1164,7 +1166,7 @@ Event_db_repository::check_system_tables(THD *thd)
     close_thread_tables(thd);
   }
   /* Check mysql.event */
-  tables.init_one_table("mysql", "event", TL_READ);
+  tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
 
   if (simple_open_n_lock_tables(thd, &tables))
   {

@@ -118,6 +118,8 @@ void PFS_engine_table_share::check_one_table(THD *thd)
   TABLE_LIST tables;
 
   tables.init_one_table(PERFORMANCE_SCHEMA_str.str,
+                        PERFORMANCE_SCHEMA_str.length,
+                        m_name.str, m_name.length,
                         m_name.str, TL_READ);
 
   /* Work around until Bug#32115 is backported. */
@@ -219,7 +221,7 @@ int PFS_engine_table::read_row(TABLE *table,
   if (! m_share_ptr->m_checked)
   {
     my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name);
+             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 
@@ -256,7 +258,7 @@ int PFS_engine_table::update_row(TABLE *table,
   if (! m_share_ptr->m_checked)
   {
     my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name);
+             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 

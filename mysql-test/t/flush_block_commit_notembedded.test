@@ -9,7 +9,7 @@
 --source include/have_log_bin.inc
 --source include/have_innodb.inc
 
-# Save the initial number of concurrent sessions
+--echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 
@@ -24,14 +24,14 @@ connection con1;
 CREATE TABLE t1 (a INT) ENGINE=innodb;
 RESET MASTER;
 SET AUTOCOMMIT=0;
-INSERT t1 VALUES (1);
+SELECT 1;
 --echo # Switch to connection con2
 connection con2;
 FLUSH TABLES WITH READ LOCK;
 SHOW MASTER STATUS;
 --echo # Switch to connection con1
 connection con1;
-send COMMIT;
+send INSERT INTO t1 VALUES (1);
 --echo # Switch to connection con2
 connection con2;
 sleep 1;
@@ -43,11 +43,30 @@ reap;
 DROP TABLE t1;
 SET AUTOCOMMIT=1;
 
+# GLR blocks new transactions
+create table t1 (a int) engine=innodb;
+connection con1;
+flush tables with read lock;
+connection con2;
+begin;
+--send insert into t1 values (1);
+connection con1;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock" and
+        info = "insert into t1 values (1)";
+--source include/wait_condition.inc
+unlock tables;
+connection con2;
+--reap
+commit;
+drop table t1;
+
 --echo # Switch to connection default and close connections con1 and con2
 connection default;
 disconnect con1;
 disconnect con2;
 
-# Wait till all disconnects are completed
+--echo # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

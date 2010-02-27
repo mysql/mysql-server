@@ -27,6 +27,7 @@
 #include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
+#include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
 
@@ -887,16 +888,16 @@ void ha_close_connection(THD* thd)
   a transaction in a given engine is read-write and will not
   involve the two-phase commit protocol!
 
-  At the end of a statement, server call
-  ha_autocommit_or_rollback() is invoked. This call in turn
-  invokes handlerton::prepare() for every involved engine.
-  Prepare is followed by a call to handlerton::commit_one_phase()
-  If a one-phase commit will suffice, handlerton::prepare() is not
-  invoked and the server only calls handlerton::commit_one_phase().
-  At statement commit, the statement-related read-write engine
-  flag is propagated to the corresponding flag in the normal
-  transaction.  When the commit is complete, the list of registered
-  engines is cleared.
+  At the end of a statement, server call trans_commit_stmt is
+  invoked. This call in turn invokes handlerton::prepare()
+  for every involved engine. Prepare is followed by a call
+  to handlerton::commit_one_phase() If a one-phase commit
+  will suffice, handlerton::prepare() is not invoked and
+  the server only calls handlerton::commit_one_phase().
+  At statement commit, the statement-related read-write
+  engine flag is propagated to the corresponding flag in the
+  normal transaction.  When the commit is complete, the list
+  of registered engines is cleared.
 
   Rollback is handled in a similar fashion.
 
@@ -907,7 +908,7 @@ void ha_close_connection(THD* thd)
   do not "register" in thd->transaction lists, and thus do not
   modify the transaction state. Besides, each DDL in
   MySQL is prefixed with an implicit normal transaction commit
-  (a call to end_active_trans()), and thus leaves nothing
+  (a call to trans_commit_implicit()), and thus leaves nothing
   to modify.
   However, as it has been pointed out with CREATE TABLE .. SELECT,
   some DDL statements can start a *new* transaction.
@@ -1151,7 +1152,7 @@ int ha_commit_trans(THD *thd, bool all)
     uint rw_ha_count;
     bool rw_trans;
 
-    DBUG_EXECUTE_IF("crash_commit_before", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1162,7 +1163,7 @@ int ha_commit_trans(THD *thd, bool all)
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
     if (rw_trans &&
-        wait_if_global_read_lock(thd, 0, 0))
+        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
     {
       ha_rollback_trans(thd, all);
       DBUG_RETURN(1);
@@ -1203,7 +1204,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1211,17 +1212,17 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
     if (cookie)
       tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
-      start_waiting_global_read_lock(thd);
+      thd->global_read_lock.start_waiting_global_read_lock(thd);
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
@@ -1366,47 +1367,6 @@ int ha_rollback_trans(THD *thd, bool all)
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  DBUG_RETURN(error);
-}
-
-/**
-  This is used to commit or rollback a single statement depending on
-  the value of error.
-
-  @note
-    Note that if the autocommit is on, then the following call inside
-    InnoDB will commit or rollback the whole transaction (= the statement). The
-    autocommit mechanism built into InnoDB is based on counting locks, but if
-    the user has used LOCK TABLES then that mechanism does not know to do the
-    commit.
-*/
-int ha_autocommit_or_rollback(THD *thd, int error)
-{
-  DBUG_ENTER("ha_autocommit_or_rollback");
-
-  if (thd->transaction.stmt.ha_list)
-  {
-    if (!error)
-    {
-      if (ha_commit_trans(thd, 0))
-	error=1;
-    }
-    else 
-    {
-      (void) ha_rollback_trans(thd, 0);
-      if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-        (void) ha_rollback(thd);
-    }
-
-    thd->variables.tx_isolation=thd->session_tx_isolation;
-  }
-  else
-  {
-    if (!error)
-      RUN_HOOK(transaction, after_commit, (thd, FALSE));
-    else
-      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  }
   DBUG_RETURN(error);
 }
 
@@ -3001,20 +2961,13 @@ static bool update_frm_version(TABLE *table)
                              path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
-    char *key= table->s->table_cache_key.str;
-    uint key_length= table->s->table_cache_key.length;
-    TABLE *entry;
-    HASH_SEARCH_STATE state;
 
     int4store(version, MYSQL_VERSION_ID);
 
     if ((result= mysql_file_pwrite(file, (uchar*) version, 4, 51L, MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
-         entry;
-         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
-      entry->s->mysql_version= MYSQL_VERSION_ID;
+    table->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
   if (file >= 0)
@@ -3507,7 +3460,7 @@ int ha_enable_transaction(THD *thd, bool on)
       So, let's commit an open transaction (if any) now.
     */
     if (!(error= ha_commit_trans(thd, 0)))
-      error= end_trans(thd, COMMIT);
+      error= trans_commit_implicit(thd);
   }
   DBUG_RETURN(error);
 }
@@ -4498,9 +4451,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
    DESCRIPTION
        This function will generate and write table maps for all tables
-       that are locked by the thread 'thd'.  Either manually locked
-       (stored in THD::locked_tables) and automatically locked (stored
-       in THD::lock) are considered.
+       that are locked by the thread 'thd'.
 
    RETURN VALUE
        0   All OK
@@ -4508,25 +4459,22 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
    SEE ALSO
        THD::lock
-       THD::locked_tables
 */
 
 static int write_locked_table_maps(THD *thd)
 {
   DBUG_ENTER("write_locked_table_maps");
-  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx "
                        "thd->extra_lock: 0x%lx",
-                       (long) thd, (long) thd->lock,
-                       (long) thd->locked_tables, (long) thd->extra_lock));
+                       (long) thd, (long) thd->lock, (long) thd->extra_lock));
 
   DBUG_PRINT("debug", ("get_binlog_table_maps(): %d", thd->get_binlog_table_maps()));
 
   if (thd->get_binlog_table_maps() == 0)
   {
-    MYSQL_LOCK *locks[3];
+    MYSQL_LOCK *locks[2];
     locks[0]= thd->extra_lock;
     locks[1]= thd->lock;
-    locks[2]= thd->locked_tables;
     for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
       MYSQL_LOCK const *const lock= locks[i];

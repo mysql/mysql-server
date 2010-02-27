@@ -102,6 +102,19 @@ struct timespec {
   (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
 
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -121,9 +134,11 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 void pthread_exit(void *a);
 int pthread_join(pthread_t thread, void **value_ptr);
+int pthread_cancel(pthread_t thread);
 
-
+#ifndef ETIMEDOUT
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
+#endif
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
@@ -155,6 +170,7 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 #define pthread_yield() SwitchToThread()
+#define my_sigset(A,B) signal(A,B)
 
 #else /* Normal threads */
 
@@ -412,6 +428,33 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.ts_sec > TS2.ts_sec || \
+    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
+   ((TS1.ts_sec < TS2.ts_sec || \
+     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
+#else
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
@@ -694,23 +737,30 @@ extern uint thd_lib_detected;
   Warning:
   When compiling without threads, this file is not included.
   See the *other* declarations of thread_safe_xxx in include/my_global.h
-
-  Second warning:
-  See include/config-win.h, for yet another implementation.
 */
 #ifdef THREAD
 #ifndef thread_safe_increment
+#ifdef _WIN32
+#define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
+#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
+#else
 #define thread_safe_increment(V,L) \
         (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
         (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
 #endif
+#endif
 
 #ifndef thread_safe_add
+#ifdef _WIN32
+#define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
+#define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
+#else
 #define thread_safe_add(V,C,L) \
         (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
+#endif
 #endif
 #endif
 

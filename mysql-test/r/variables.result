@@ -569,9 +569,6 @@ set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_log_update=1;
-Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
@@ -1066,11 +1063,9 @@ set global default_storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
-show global variables where Variable_name='table_definition_cache' or
-Variable_name='table_lock_wait_timeout';
+show global variables where Variable_name='table_definition_cache';
 Variable_name	Value
 table_definition_cache	#
-table_lock_wait_timeout	#
 
 # --
 # -- Bug#34820: log_output can be set to illegal value.

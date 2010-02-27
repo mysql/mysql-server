@@ -911,7 +911,7 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
     cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
     return cnvitem;
   }
-  return NULL;
+  return Item::safe_charset_converter(tocs);
 }
 
 
@@ -1493,7 +1493,12 @@ left_is_superset(DTCollation *left, DTCollation *right)
   if (left->collation->state & MY_CS_UNICODE &&
       (left->derivation < right->derivation ||
        (left->derivation == right->derivation &&
-        !(right->collation->state & MY_CS_UNICODE))))
+        (!(right->collation->state & MY_CS_UNICODE) ||
+         /* The code below makes 4-byte utf8 a superset over 3-byte utf8 */
+         (left->collation->state & MY_CS_UNICODE_SUPPLEMENT &&
+          !(right->collation->state & MY_CS_UNICODE_SUPPLEMENT) &&
+          left->collation->mbmaxlen > right->collation->mbmaxlen &&
+          left->collation->mbminlen == right->collation->mbminlen)))))
     return TRUE;
   /* Allow convert from ASCII */
   if (right->repertoire == MY_REPERTOIRE_ASCII &&
@@ -1757,7 +1762,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
   {
     Item* conv;
     uint32 dummy_offset;
-    if (!String::needs_conversion(0, (*arg)->collation.collation,
+    if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation,
                                   &dummy_offset))
       continue;

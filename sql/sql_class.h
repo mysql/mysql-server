@@ -26,6 +26,7 @@
 #include <mysql/plugin_audit.h>
 #include "log.h"
 #include "rpl_tblmap.h"
+#include "mdl.h"
 
 
 class Reprepare_observer;
@@ -38,6 +39,7 @@ class sp_rcontext;
 class sp_cache;
 class Parser_state;
 class Rows_log_event;
+class Sroutine_hash_entry;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -340,6 +342,7 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
+  ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
@@ -765,6 +768,8 @@ struct st_savepoint {
   char                *name;
   uint                 length;
   Ha_trx_info         *ha_list;
+  /** Last acquired lock before this savepoint was set. */
+  MDL_ticket     *mdl_savepoint;
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
@@ -848,12 +853,17 @@ typedef I_List<Item_change_record> Item_change_list;
 
 
 /**
-  Type of prelocked mode.
-  See comment for THD::prelocked_mode for complete description.
+  Type of locked tables mode.
+  See comment for THD::locked_tables_mode for complete description.
 */
 
-enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
-                          PRELOCKED_UNDER_LOCK_TABLES= 2};
+enum enum_locked_tables_mode
+{
+  LTM_NONE= 0,
+  LTM_LOCK_TABLES,
+  LTM_PRELOCKED,
+  LTM_PRELOCKED_UNDER_LOCK_TABLES
+};
 
 
 /**
@@ -892,11 +902,6 @@ public:
     XXX Why are internal temporary tables added to this list?
   */
   TABLE *temporary_tables;
-  /**
-    List of tables that were opened with HANDLER OPEN and are
-    still in use by this thread.
-  */
-  TABLE *handler_tables;
   TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
@@ -906,19 +911,13 @@ public:
     statement ends.
     Manual mode comes into play when a user issues a 'LOCK TABLES'
     statement. In this mode the user can only use the locked tables.
-    Trying to use any other tables will give an error. The locked tables are
-    stored in 'locked_tables' member.  Manual locking is described in
+    Trying to use any other tables will give an error.
+    The locked tables are also stored in this member, however,
+    thd->locked_tables_mode is turned on.  Manual locking is described in
     the 'LOCK_TABLES' chapter of the MySQL manual.
     See also lock_tables() for details.
   */
   MYSQL_LOCK *lock;
-  /*
-    Tables that were locked with explicit or implicit LOCK TABLES.
-    (Implicit LOCK TABLES happens when we are prelocking tables for
-     execution of statement which uses stored routines. See description
-     THD::prelocked_mode for more info.)
-  */
-  MYSQL_LOCK *locked_tables;
 
   /*
     CREATE-SELECT keeps an extra lock for the table being
@@ -928,29 +927,34 @@ public:
   MYSQL_LOCK *extra_lock;
 
   /*
-    prelocked_mode_type enum and prelocked_mode member are used for
-    indicating whenever "prelocked mode" is on, and what type of
-    "prelocked mode" is it.
+    Enum enum_locked_tables_mode and locked_tables_mode member are
+    used to indicate whether the so-called "locked tables mode" is on,
+    and what kind of mode is active.
 
-    Prelocked mode is used for execution of queries which explicitly
-    or implicitly (via views or triggers) use functions, thus may need
-    some additional tables (mentioned in query table list) for their
-    execution.
+    Locked tables mode is used when it's necessary to open and
+    lock many tables at once, for usage across multiple
+    (sub-)statements.
+    This may be necessary either for queries that use stored functions
+    and triggers, in which case the statements inside functions and
+    triggers may be executed many times, or for implementation of
+    LOCK TABLES, in which case the opened tables are reused by all
+    subsequent statements until a call to UNLOCK TABLES.
 
-    First open_tables() call for such query will analyse all functions
-    used by it and add all additional tables to table its list. It will
-    also mark this query as requiring prelocking. After that lock_tables()
-    will issue implicit LOCK TABLES for the whole table list and change
-    thd::prelocked_mode to non-0. All queries called in functions invoked
-    by the main query will use prelocked tables. Non-0 prelocked_mode
-    will also surpress mentioned analysys in those queries thus saving
-    cycles. Prelocked mode will be turned off once close_thread_tables()
-    for the main query will be called.
-
-    Note: Since not all "tables" present in table list are really locked
-    thd::prelocked_mode does not imply thd::locked_tables.
+    The kind of locked tables mode employed for stored functions and
+    triggers is also called "prelocked mode".
+    In this mode, first open_tables() call to open the tables used
+    in a statement analyses all functions used by the statement
+    and adds all indirectly used tables to the list of tables to
+    open and lock.
+    It also marks the parse tree of the statement as requiring
+    prelocking. After that, lock_tables() locks the entire list
+    of tables and changes THD::locked_tables_modeto LTM_PRELOCKED.
+    All statements executed inside functions or triggers
+    use the prelocked tables, instead of opening their own ones.
+    Prelocked mode is turned off automatically once close_thread_tables()
+    of the main statement is called.
   */
-  prelocked_mode_type prelocked_mode;
+  enum enum_locked_tables_mode locked_tables_mode;
   ulong	version;
   uint current_tablenr;
 
@@ -962,28 +966,56 @@ public:
     Flags with information about the open tables state.
   */
   uint state_flags;
-
-  /*
-    This constructor serves for creation of Open_tables_state instances
-    which are used as backup storage.
+  /**
+     This constructor initializes Open_tables_state instance which can only
+     be used as backup storage. To prepare Open_tables_state instance for
+     operations which open/lock/close tables (e.g. open_table()) one has to
+     call init_open_tables_state().
   */
   Open_tables_state() : state_flags(0U) { }
 
-  Open_tables_state(ulong version_arg);
+  /**
+     Prepare Open_tables_state instance for operations dealing with tables.
+  */
+  void init_open_tables_state(THD *thd, ulong version_arg)
+  {
+    reset_open_tables_state(thd);
+    version= version_arg;
+  }
 
   void set_open_tables_state(Open_tables_state *state)
   {
     *this= *state;
   }
 
-  void reset_open_tables_state()
+  void reset_open_tables_state(THD *thd)
   {
-    open_tables= temporary_tables= handler_tables= derived_tables= 0;
-    extra_lock= lock= locked_tables= 0;
-    prelocked_mode= NON_PRELOCKED;
+    open_tables= temporary_tables= derived_tables= 0;
+    extra_lock= lock= 0;
+    locked_tables_mode= LTM_NONE;
     state_flags= 0U;
     m_reprepare_observer= NULL;
   }
+};
+
+
+/**
+  Storage for backup of Open_tables_state. Must
+  be used only to open system tables (TABLE_CATEGORY_SYSTEM
+  and TABLE_CATEGORY_LOG).
+*/
+
+class Open_tables_backup: public Open_tables_state
+{
+public:
+  /**
+    When we backup the open tables state to open a system
+    table or tables, points at the last metadata lock
+    acquired before the backup. Is used to release
+    metadata locks on system tables after they are
+    no longer used.
+  */
+  MDL_ticket *mdl_system_tables_svp;
 };
 
 /**
@@ -1148,6 +1180,217 @@ private:
 
 
 /**
+  An abstract class for a strategy specifying how the prelocking
+  algorithm should extend the prelocking set while processing
+  already existing elements in the set.
+*/
+
+class Prelocking_strategy
+{
+public:
+  virtual ~Prelocking_strategy() { }
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking) = 0;
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
+};
+
+
+/**
+  A Strategy for prelocking algorithm suitable for DML statements.
+
+  Ensures that all tables used by all statement's SF/SP/triggers and
+  required for foreign key checks are prelocked and SF/SPs used are
+  cached.
+*/
+
+class DML_prelocking_strategy : public Prelocking_strategy
+{
+public:
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  A strategy for prelocking algorithm to be used for LOCK TABLES
+  statement.
+*/
+
+class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
+{
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  Strategy for prelocking algorithm to be used for ALTER TABLE statements.
+
+  Unlike DML or LOCK TABLES strategy, it doesn't
+  prelock triggers, views or stored routines, since they are not
+  used during ALTER.
+*/
+
+class Alter_table_prelocking_strategy : public Prelocking_strategy
+{
+public:
+
+  Alter_table_prelocking_strategy(Alter_info *alter_info)
+    : m_alter_info(alter_info)
+  {}
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+
+private:
+  Alter_info *m_alter_info;
+};
+
+
+/**
+  A context of open_tables() function, used to recover
+  from a failed open_table() or open_routine() attempt.
+
+  Implemented in sql_base.cc.
+*/
+
+class Open_table_context
+{
+public:
+  enum enum_open_table_action
+  {
+    OT_NO_ACTION= 0,
+    OT_WAIT_MDL_LOCK,
+    OT_WAIT_TDC,
+    OT_DISCOVER,
+    OT_REPAIR
+  };
+  Open_table_context(THD *thd);
+
+  bool recover_from_failed_open(THD *thd, MDL_request *mdl_request,
+                                TABLE_LIST *table);
+  bool request_backoff_action(enum_open_table_action action_arg);
+
+  void add_request(MDL_request *request)
+  { m_mdl_requests.push_front(request); }
+
+  bool can_recover_from_failed_open() const
+  { return m_action != OT_NO_ACTION; }
+
+  /**
+    When doing a back-off, we close all tables acquired by this
+    statement.  Return an MDL savepoint taken at the beginning of
+    the statement, so that we can rollback to it before waiting on
+    locks.
+  */
+  MDL_ticket *start_of_statement_svp() const
+  {
+    return m_start_of_statement_svp;
+  }
+
+  MDL_request *get_global_mdl_request(THD *thd);
+
+private:
+  /** List of requests for all locks taken so far. Used for waiting on locks. */
+  MDL_request_list m_mdl_requests;
+  /** Back off action. */
+  enum enum_open_table_action m_action;
+  MDL_ticket *m_start_of_statement_svp;
+  /**
+    Whether we had any locks when this context was created.
+    If we did, they are from the previous statement of a transaction,
+    and we can't safely do back-off (and release them).
+  */
+  bool m_has_locks;
+  /**
+    Request object for global intention exclusive lock which is acquired during
+    opening tables for statements which take upgradable shared metadata locks.
+  */
+  MDL_request *m_global_mdl_request;
+};
+
+
+/**
+  Tables that were locked with LOCK TABLES statement.
+
+  Encapsulates a list of TABLE_LIST instances for tables
+  locked by LOCK TABLES statement, memory root for metadata locks,
+  and, generally, the context of LOCK TABLES statement.
+
+  In LOCK TABLES mode, the locked tables are kept open between
+  statements.
+  Therefore, we can't allocate metadata locks on execution memory
+  root -- as well as tables, the locks need to stay around till
+  UNLOCK TABLES is called.
+  The locks are allocated in the memory root encapsulated in this
+  class.
+
+  Some SQL commands, like FLUSH TABLE or ALTER TABLE, demand that
+  the tables they operate on are closed, at least temporarily.
+  This class encapsulates a list of TABLE_LIST instances, one
+  for each base table from LOCK TABLES list,
+  which helps conveniently close the TABLEs when it's necessary
+  and later reopen them.
+
+  Implemented in sql_base.cc
+*/
+
+class Locked_tables_list
+{
+private:
+  MEM_ROOT m_locked_tables_root;
+  TABLE_LIST *m_locked_tables;
+  TABLE_LIST **m_locked_tables_last;
+  /** An auxiliary array used only in reopen_tables(). */
+  TABLE **m_reopen_array;
+  /**
+    Count the number of tables in m_locked_tables list. We can't
+    rely on thd->lock->table_count because it excludes
+    non-transactional temporary tables. We need to know
+    an exact number of TABLE objects.
+  */
+  size_t m_locked_tables_count;
+public:
+  Locked_tables_list()
+    :m_locked_tables(NULL),
+    m_locked_tables_last(&m_locked_tables),
+    m_reopen_array(NULL),
+    m_locked_tables_count(0)
+  {
+    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+  }
+  void unlock_locked_tables(THD *thd);
+  ~Locked_tables_list()
+  {
+    unlock_locked_tables(0);
+  }
+  bool init_locked_tables(THD *thd);
+  TABLE_LIST *locked_tables() { return m_locked_tables; }
+  void unlink_from_list(THD *thd, TABLE_LIST *table_list,
+                        bool remove_from_locked_tables);
+  void unlink_all_closed_tables(THD *thd,
+                                MYSQL_LOCK *lock,
+                                size_t reopen_count);
+  bool reopen_tables(THD *thd);
+};
+
+
+/**
   Storage engine specific thread local data.
 */
 
@@ -1173,6 +1416,45 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
+/**
+  An instance of the global read lock in a connection.
+  Implemented in lock.cc.
+*/
+
+class Global_read_lock
+{
+public:
+  enum enum_grl_state
+  {
+    GRL_NONE,
+    GRL_ACQUIRED,
+    GRL_ACQUIRED_AND_BLOCKS_COMMIT
+  };
+
+  Global_read_lock()
+    :m_protection_count(0), m_state(GRL_NONE), m_mdl_global_shared_lock(NULL)
+  {}
+
+  bool lock_global_read_lock(THD *thd);
+  void unlock_global_read_lock(THD *thd);
+  bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                                bool is_not_commit);
+  void start_waiting_global_read_lock(THD *thd);
+  bool make_global_read_lock_block_commit(THD *thd);
+  bool is_acquired() const { return m_state != GRL_NONE; }
+  bool has_protection() const { return m_protection_count > 0; }
+  MDL_ticket *global_shared_lock() const { return m_mdl_global_shared_lock; }
+private:
+  uint           m_protection_count;            // GRL protection count
+  /**
+    In order to acquire the global read lock, the connection must
+    acquire a global shared metadata lock, to prohibit all DDL.
+  */
+  enum_grl_state m_state;
+  MDL_ticket *m_mdl_global_shared_lock;
+};
+
+
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 /**
@@ -1185,6 +1467,8 @@ class THD :public Statement,
            public Open_tables_state
 {
 public:
+  MDL_context mdl_context;
+
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
 
@@ -1478,6 +1762,7 @@ public:
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
   } transaction;
+  Global_read_lock global_read_lock;
   Field      *dup_field;
 #ifndef __WIN__
   sigset_t signals;
@@ -1697,7 +1982,7 @@ public:
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
-  uint	     tmp_table, global_read_lock;
+  uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -1722,8 +2007,6 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
-  /* tells if current statement should binlog row-based(1) or stmt-based(0) */
-  bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
@@ -1834,6 +2117,8 @@ public:
   */
   Parser_state *m_parser_state;
 
+  Locked_tables_list locked_tables_list;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif
@@ -1856,7 +2141,6 @@ public:
   /* Debug Sync facility. See debug_sync.cc. */
   struct st_debug_sync_control *debug_sync_control;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-
   THD();
   ~THD();
 
@@ -1969,11 +2253,11 @@ public:
   }
   /**
     Returns TRUE if session is in a multi-statement transaction mode.
- 
+
     OPTION_NOT_AUTOCOMMIT: When autocommit is off, a multi-statement
     transaction is implicitly started on the first statement after a
     previous transaction has been ended.
- 
+
     OPTION_BEGIN: Regardless of the autocommit status, a multi-statement
     transaction can be explicitly started with the statements "START
     TRANSACTION", "BEGIN [WORK]", "[COMMIT | ROLLBACK] AND CHAIN", etc.
@@ -2009,7 +2293,7 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
-#ifndef EMBEDDED_LIBRARY
+
   /**
     Clear the current error, if any.
     We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
@@ -2025,6 +2309,7 @@ public:
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
+#ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
@@ -2032,7 +2317,6 @@ public:
     return vio_ok() ? vio_is_connected(net.vio) : FALSE;
   }
 #else
-  void clear_error();
   inline bool vio_ok() const { return TRUE; }
   inline bool is_connected() { return TRUE; }
 #endif
@@ -2043,7 +2327,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(main_da.is_error());
+    DBUG_ASSERT(stmt_da->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2119,8 +2403,8 @@ public:
   void set_status_var_init();
   bool is_context_analysis_only()
     { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
-  void reset_n_backup_open_tables_state(Open_tables_state *backup);
-  void restore_backup_open_tables_state(Open_tables_state *backup);
+  void reset_n_backup_open_tables_state(Open_tables_backup *backup);
+  void restore_backup_open_tables_state(Open_tables_backup *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
@@ -2395,6 +2679,14 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
+  void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
+  {
+    DBUG_ASSERT(locked_tables_mode == LTM_NONE);
+
+    mdl_context.set_trans_sentinel();
+    locked_tables_mode= mode_arg;
+  }
+  void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
 private:
 
@@ -3117,6 +3409,36 @@ public:
   joins are currently prohibited in these statements.
 */
 #define CF_REEXECUTION_FRAGILE    (1U << 5)
+/**
+  Implicitly commit before the SQL statement is executed.
+
+  Statements marked with this flag will cause any active
+  transaction to end (commit) before proceeding with the
+  command execution.
+
+  This flag should be set for statements that probably can't
+  be rolled back or that do not expect any previously metadata
+  locked tables.
+*/
+#define CF_IMPLICT_COMMIT_BEGIN   (1U << 6)
+/**
+  Implicitly commit after the SQL statement.
+
+  Statements marked with this flag are automatically committed
+  at the end of the statement.
+
+  This flag should be set for statements that will implicitly
+  open and take metadata locks on system tables that should not
+  be carried for the whole duration of a active transaction.
+*/
+#define CF_IMPLICIT_COMMIT_END    (1U << 7)
+/**
+  CF_IMPLICT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
+  to ensure that the active transaction is implicitly committed
+  before and after every DDL statement and any statement that
+  modifies our currently non-transactional system tables.
+*/
+#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
 
 /**
   Diagnostic statement.
@@ -3127,6 +3449,33 @@ public:
   do not modify the diagnostics area during execution.
 */
 #define CF_DIAGNOSTIC_STMT        (1U << 8)
+
+/**
+  SQL statements that must be protected against impending global read lock
+  to prevent deadlock. This deadlock could otherwise happen if the statement
+  starts waiting for the GRL to go away inside mysql_lock_tables while at the
+  same time having "old" opened tables. The thread holding the GRL can be
+  waiting for these "old" opened tables to be closed, causing a deadlock
+  (FLUSH TABLES WITH READ LOCK).
+ */
+#define CF_PROTECT_AGAINST_GRL  (1U << 10)
+
+/* Bits in server_command_flags */
+
+/**
+  Skip the increase of the global query id counter. Commonly set for
+  commands that are stateless (won't cause any change on the server
+  internal states).
+*/
+#define CF_SKIP_QUERY_ID        (1U << 0)
+
+/**
+  Skip the increase of the number of statements that clients have
+  sent to the server. Commonly used for commands that will cause
+  a statement to be executed but the statement might have not been
+  sent by the user (ie: stored procedure).
+*/
+#define CF_SKIP_QUESTIONS       (1U << 1)
 
 /* Functions in sql_class.cc */
 

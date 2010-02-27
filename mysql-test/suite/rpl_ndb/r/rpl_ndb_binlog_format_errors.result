@@ -43,11 +43,11 @@ SELECT * FROM t /* Should be empty */;
 a
 * Modify both row-only and stmt-only table
 CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
 INSERT INTO t_stmt VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved.
+ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
 SELECT * FROM t_stmt /* should be empty */;
 a
-DROP TRIGGER trig_2;
 * Stmt-only table and binlog_format=row
 INSERT INTO t_stmt VALUES (1);
 ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.

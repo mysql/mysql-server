@@ -46,7 +46,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Note	1305	PROCEDURE foo does not exist
+Note	1305	PROCEDURE test.foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 show create function foo|
@@ -512,7 +512,7 @@ select * from t1;
 end|
 lock table t1 read|
 alter procedure bug9566 comment 'Some comment'|
-ERROR HY000: Table 'proc' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables|
 drop procedure bug9566|
 drop procedure if exists bug7299|
@@ -1028,7 +1028,7 @@ drop table t1|
 drop function bug_13627_f|
 drop function if exists bug12329;
 Warnings:
-Note	1305	FUNCTION bug12329 does not exist
+Note	1305	FUNCTION test.bug12329 does not exist
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);
@@ -1686,6 +1686,17 @@ AVG (a)
 NULL
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 ERROR 42000: FUNCTION test.non_existent does not exist
+DROP TABLE t1;
+CREATE TABLE t1 ( f2 INTEGER, f3 INTEGER );
+INSERT INTO t1 VALUES  ( 1, 1 );
+CREATE FUNCTION func_1 () RETURNS INTEGER
+BEGIN
+INSERT INTO t1 SELECT * FROM t1 ;
+RETURN 1 ;
+END|
+INSERT INTO t1 SELECT * FROM (SELECT 2 AS f1, 2 AS f2) AS A WHERE func_1() = 5;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP FUNCTION func_1;
 DROP TABLE t1;
 #
 # Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 

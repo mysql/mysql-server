@@ -44,6 +44,7 @@
 
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "transaction.h"
 #include "debug_sync.h"
 
 /*
@@ -204,12 +205,6 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-Open_tables_state::Open_tables_state(ulong version_arg)
-  :version(version_arg), state_flags(0U)
-{
-  reset_open_tables_state();
-}
-
 /*
   The following functions form part of the C plugin API
 */
@@ -254,13 +249,16 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_function, 
-                              const char *calling_file, 
+const char *set_thd_proc_info(THD *thd, const char *info,
+                              const char *calling_function,
+                              const char *calling_file,
                               const unsigned int calling_line)
 {
+  if (!thd)
+    thd= current_thd;
+
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
                            (info != NULL) ? info : "(null)"));
 #if defined(ENABLED_PROFILING)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
@@ -447,7 +445,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   Open_tables_state(refresh_version), rli_fake(0),
+   rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
@@ -461,7 +459,6 @@ THD::THD()
    examined_row_count(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
-   global_read_lock(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -479,6 +476,7 @@ THD::THD()
 {
   ulong tmp;
 
+  mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that
     the destructor works OK in case of an error. The main_mem_root
@@ -490,7 +488,7 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  some_tables_deleted=no_errors=password= 0;
+  no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
@@ -548,6 +546,9 @@ THD::THD()
   slave_net = 0;
   command=COM_CONNECT;
   *scramble= '\0';
+
+  /* Call to init() below requires fully initialized Open_tables_state. */
+  init_open_tables_state(this, refresh_version);
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -986,29 +987,41 @@ void THD::cleanup(void)
   }
 #endif
   {
-    ha_rollback(this);
+    transaction.xid_state.xa_state= XA_NOTR;
+    trans_rollback(this);
     xid_cache_delete(&transaction.xid_state);
   }
-  if (locked_tables)
-  {
-    lock=locked_tables; locked_tables=0;
-    close_thread_tables(this);
-  }
+
+  locked_tables_list.unlock_locked_tables(this);
+  mysql_ha_cleanup(this);
+
+  DBUG_ASSERT(open_tables == NULL);
+  /*
+    If the thread was in the middle of an ongoing transaction (rolled
+    back a few lines above) or under LOCK TABLES (unlocked the tables
+    and left the mode a few lines above), there will be outstanding
+    metadata locks. Release them.
+  */
+  mdl_context.release_transactional_locks();
+
+  /* Release the global read lock, if acquired. */
+  if (global_read_lock.is_acquired())
+    global_read_lock.unlock_global_read_lock(this);
+
+  /* All metadata locks must have been released by now. */
+  DBUG_ASSERT(!mdl_context.has_locks());
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
-  if (global_read_lock)
-    unlock_global_read_lock(this);
   if (ull)
   {
     mysql_mutex_lock(&LOCK_user_locks);
@@ -1044,6 +1057,7 @@ THD::~THD()
   if (!cleanup_done)
     cleanup();
 
+  mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
   plugin_thdvar_cleanup(this);
@@ -1412,8 +1426,7 @@ void THD::add_changed_table(TABLE *table)
 {
   DBUG_ENTER("THD::add_changed_table(table)");
 
-  DBUG_ASSERT(variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-  DBUG_ASSERT(table->file->has_transactions());
+  DBUG_ASSERT(in_multi_stmt_transaction() && table->file->has_transactions());
   add_changed_table(table->s->table_cache_key.str,
                     (long) table->s->table_cache_key.length);
   DBUG_VOID_RETURN;
@@ -1736,7 +1749,7 @@ bool select_send::send_eof()
   ha_release_temporary_latches(thd);
 
   /* Unlock tables before sending packet to gain some speed */
-  if (thd->lock)
+  if (thd->lock && ! thd->locked_tables_mode)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
@@ -3014,28 +3027,31 @@ bool Security_context::user_matches(Security_context *them)
   access to mysql.proc table to find definitions of stored routines.
 ****************************************************************************/
 
-void THD::reset_n_backup_open_tables_state(Open_tables_state *backup)
+void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
 {
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
-  reset_open_tables_state();
+  backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
+  reset_open_tables_state(this);
   state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
 
 
-void THD::restore_backup_open_tables_state(Open_tables_state *backup)
+void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 {
   DBUG_ENTER("restore_backup_open_tables_state");
+  mdl_context.rollback_to_savepoint(backup->mdl_system_tables_svp);
   /*
     Before we will throw away current open tables state we want
     to be sure that it was properly cleaned up.
   */
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
-              handler_tables == 0 && derived_tables == 0 &&
-              lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED &&
+              derived_tables == 0 &&
+              lock == 0 &&
+              locked_tables_mode == LTM_NONE &&
               m_reprepare_observer == NULL);
+
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
@@ -3296,6 +3312,22 @@ void THD::set_query_id(query_id_t new_query_id)
 
 
 /**
+  Leave explicit LOCK TABLES or prelocked mode and restore value of
+  transaction sentinel in MDL subsystem.
+*/
+
+void THD::leave_locked_tables_mode()
+{
+  locked_tables_mode= LTM_NONE;
+  /* Make sure we don't release the global read lock when leaving LTM. */
+  mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
+  /* Also ensure that we don't release metadata locks for open HANDLERs. */
+  if (handler_tables_hash.records)
+    mysql_ha_move_tickets_after_trans_sentinel(this);
+}
+
+
+/**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
   @param  thd   Thread handle
@@ -3536,7 +3568,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 {
   DBUG_ENTER("THD::decide_logging_format");
   DBUG_PRINT("info", ("query: %s", query()));
-  DBUG_PRINT("info", ("variables.binlog_format: %ld",
+  DBUG_PRINT("info", ("variables.binlog_format: %u",
                       variables.binlog_format));
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
@@ -3573,7 +3605,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         "PRELOCKED_UNDER_LOCK_TABLES",
       };
       DBUG_PRINT("debug", ("prelocked_mode: %s",
-                           prelocked_mode_name[prelocked_mode]));
+                           prelocked_mode_name[locked_tables_mode]));
     }
 #endif
 
@@ -3677,7 +3709,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       lock history on the slave will be different from the master.
     */
     if (mixed_engine ||
-        trans_has_updated_trans_table(this) && !all_trans_engines)
+        (trans_has_updated_trans_table(this) && !all_trans_engines))
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     DBUG_PRINT("info", ("flags_all_set: 0x%llx", flags_all_set));
@@ -3807,7 +3839,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
                         "and (options & OPTION_BIN_LOG) = 0x%llx "
-                        "and binlog_format = %ld "
+                        "and binlog_format = %u "
                         "and binlog_filter->db_ok(db) = %d",
                         mysql_bin_log.is_open(),
                         (variables.option_bits & OPTION_BIN_LOG),
@@ -4405,7 +4437,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     If we are in prelocked mode, the flushing will be done inside the
     top-most close_thread_tables().
   */
-  if (this->prelocked_mode == NON_PRELOCKED)
+  if (this->locked_tables_mode <= LTM_LOCK_TABLES)
     if (int error= binlog_flush_pending_rows_event(TRUE, is_trans))
       DBUG_RETURN(error);
 
