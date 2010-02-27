@@ -1469,7 +1469,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     goto end;
 #endif /* EMBEDDED_LIBRARY */
 
-  if (simple_open_n_lock_tables(new_thd, &tables))
+  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please "
@@ -1746,7 +1746,8 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
-  if (! (table = open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table = open_ltable(thd, &tables, TL_WRITE,
+                             MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_plugin);
@@ -1817,7 +1818,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_plugin);

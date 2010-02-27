@@ -1,3 +1,4 @@
+--source include/not_windows.inc
 #
 # Check if the variable MY_PERROR is set
 #
@@ -17,3 +18,17 @@ enable_query_log;
 # As there is no error code defined for 10000, expect error
 --error 1
 --exec $MY_PERROR 10000 2>&1
+
+#
+# Bug#10143 (Perror not showing error description)
+#
+
+# test reported case
+--exec $MY_PERROR 1062 2>&1
+
+# test errors that contain characters to escape in the text.
+--exec $MY_PERROR 1076 2>&1
+--exec $MY_PERROR 1459 2>&1
+--exec $MY_PERROR 1461 2>&1
+
+

@@ -2086,7 +2086,7 @@ CREATE TABLE t1 ( bug_table_seq   INTEGER NOT NULL);
 CREATE OR REPLACE VIEW v1 AS SELECT * from t1;
 DROP PROCEDURE IF EXISTS p1;
 Warnings:
-Note	1305	PROCEDURE p1 does not exist
+Note	1305	PROCEDURE test.p1 does not exist
 CREATE PROCEDURE p1 ( )
 BEGIN
 DO (SELECT  @next := IFNULL(max(bug_table_seq),0) + 1 FROM v1);
@@ -4004,3 +4004,36 @@ CREATE VIEW t2 AS SELECT * FROM t1;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP TABLE t1, t2;
+#
+# Bug#48315 Metadata lock is not taken for merged views that
+#           use an INFORMATION_SCHEMA table
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+# Connection default
+CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
+CREATE TABLE t1 (str VARCHAR(50));
+CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+# CALL p1() so the view is merged.
+CALL p1();
+# Connection 3
+LOCK TABLE t1 READ;
+# Connection default
+# Try to CALL p1() again, this time it should block for t1.
+# Sending:
+CALL p1();
+# Connection 2
+# ... then try to drop the view. This should block.
+# Sending:
+DROP VIEW v1;
+# Connection 3
+# Now allow CALL p1() to complete
+UNLOCK TABLES;
+# Connection default
+# Reaping: CALL p1()
+# Connection 2
+# Reaping: DROP VIEW v1
+# Connection default
+DROP PROCEDURE p1;
+DROP TABLE t1;

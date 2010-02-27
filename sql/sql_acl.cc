@@ -675,7 +675,7 @@ my_bool acl_reload(THD *thd)
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
   init_mdl_requests(tables);
 
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     /*
       Execution might have been interrupted; only print the error message
@@ -1602,7 +1602,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 #endif
 
-  if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(1);
 
   mysql_mutex_lock(&acl_cache->lock);
@@ -3040,7 +3040,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_and_lock_tables(thd, table_list))
+      if (open_and_lock_tables(thd, table_list, TRUE, 0))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))
@@ -3146,7 +3146,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   Query_tables_list backup;
   thd->lex->reset_n_backup_query_tables_list(&backup);
-  if (simple_open_n_lock_tables(thd,tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
@@ -3374,7 +3374,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
 #endif
 
-  if (simple_open_n_lock_tables(thd,tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
     close_thread_tables(thd);
     /* Restore the state of binlog format */
@@ -3531,7 +3531,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif
 
-  if (simple_open_n_lock_tables(thd,tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
@@ -3853,7 +3853,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
                        TL_READ);
   table.open_type= OT_BASE_ONLY;
 
-  if (simple_open_n_lock_tables(thd, &table))
+  if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     close_thread_tables(thd);
     DBUG_RETURN(TRUE);
@@ -3924,7 +3924,7 @@ my_bool grant_reload(THD *thd)
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
   */
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
     goto end;
 
   mysql_rwlock_wrlock(&LOCK_grant);
@@ -5227,7 +5227,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   }
 #endif
 
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
     close_thread_tables(thd);
     DBUG_RETURN(-1);
