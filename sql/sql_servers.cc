@@ -253,7 +253,7 @@ bool servers_reload(THD *thd)
 
   tables[0].init_one_table("mysql", 5, "servers", 7, "servers", TL_READ);
 
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     /*
       Execution might have been interrupted; only print the error message
@@ -390,7 +390,7 @@ insert_server(THD *thd, FOREIGN_SERVER *server)
   tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
 
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     goto end;
 
   /* insert the server into the table */
@@ -611,7 +611,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   if ((error= delete_server_record_in_cache(server_options)))
     goto end;
 
-  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {
     error= my_errno;
     goto end;
@@ -728,7 +728,7 @@ int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   tables.init_one_table("mysql", 5, "servers", 7, "servers",
                          TL_WRITE);
 
-  if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {
     error= my_errno;
     goto end;

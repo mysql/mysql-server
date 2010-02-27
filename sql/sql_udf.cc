@@ -163,7 +163,7 @@ void udf_init()
 
   tables.init_one_table(db, sizeof(db)-1, "func", 4, "func", TL_READ);
 
-  if (simple_open_n_lock_tables(new_thd, &tables))
+  if (open_and_lock_tables(new_thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     DBUG_PRINT("error",("Can't open udf table"));
     sql_print_error("Can't open the mysql.func table. Please "
@@ -505,7 +505,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
   /* Allow creation of functions even if we can't open func table */
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     goto err;
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
@@ -596,7 +596,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 
   tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
 
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);

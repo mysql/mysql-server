@@ -1,5 +1,6 @@
 EXTRA_DIST = \
 	cmake_parse_arguments.cmake \
+	cpack_source_ignore_files.cmake \
 	package_name.cmake \
 	configurable_file_content.in \
 	check_minimal_version.cmake \
