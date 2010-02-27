@@ -2635,10 +2635,20 @@ void subselect_union_engine::print(String *str, enum_query_type query_type)
 void subselect_uniquesubquery_engine::print(String *str,
                                             enum_query_type query_type)
 {
+  char *table_name= tab->table->s->table_name.str;
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
+  if (table_name[0] == '#')
+  {
+    /*
+      Temporary tables' names change across runs, so they can't be used for
+      EXPLAIN EXTENDED.
+    */
+    str->append(STRING_WITH_LEN("<temporary table>"));
+  }
+  else
+    str->append(table_name, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
