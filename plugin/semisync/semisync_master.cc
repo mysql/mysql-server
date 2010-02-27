@@ -65,7 +65,7 @@ static int gettimeofday(struct timeval *tv, void *tz)
 
 ActiveTranx::ActiveTranx(mysql_mutex_t *lock,
 			 unsigned long trace_level)
-  : Trace(trace_level),
+  : Trace(trace_level), allocator_(max_connections),
     num_entries_(max_connections << 1), /* Transaction hash table size
                                          * is set to double the size
                                          * of max_connections */
@@ -115,25 +115,6 @@ unsigned int ActiveTranx::get_hash_value(const char *log_file_name,
   return (hash1 + hash2) % num_entries_;
 }
 
-ActiveTranx::TranxNode* ActiveTranx::alloc_tranx_node()
-{
-  MYSQL_THD thd= (MYSQL_THD)current_thd;
-  /* The memory allocated for TranxNode will be automatically freed at
-     the end of the command of current THD. And because
-     ha_autocommit_or_rollback() will always be called before that, so
-     we are sure that the node will be removed from the active list
-     before it get freed. */
-  TranxNode *trx_node = (TranxNode *)thd_alloc(thd, sizeof(TranxNode));
-  if (trx_node)
-  {
-    trx_node->log_name_[0] = '\0';
-    trx_node->log_pos_= 0;
-    trx_node->next_= 0;
-    trx_node->hash_next_= 0;
-  }
-  return trx_node;
-}
-
 int ActiveTranx::compare(const char *log_file_name1, my_off_t log_file_pos1,
 			 const char *log_file_name2, my_off_t log_file_pos2)
 {
@@ -159,7 +140,7 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
 
   function_enter(kWho);
 
-  ins_node = alloc_tranx_node();
+  ins_node = allocator_.allocate_node();
   if (!ins_node)
   {
     sql_print_error("%s: transaction node allocation failed for: (%s, %lu)",
@@ -271,6 +252,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
 
     /* Clear the hash table. */
     memset(trx_htb_, 0, num_entries_ * sizeof(TranxNode *));
+    allocator_.free_all_nodes();
 
     /* Clear the active transaction list. */
     if (trx_front_ != NULL)
@@ -311,6 +293,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     }
 
     trx_front_ = new_front;
+    allocator_.free_nodes_before(trx_front_);
 
     if (trace_level_ & kTraceDetail)
       sql_print_information("%s: cleared %d nodes back until pos (%s, %lu)",

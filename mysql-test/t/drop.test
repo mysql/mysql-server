@@ -100,8 +100,8 @@ drop database if exists mysqltest;
 drop table if exists t1;
 --enable_warnings
 create table t1 (i int);
-lock tables t1 read;
 create database mysqltest;
+lock tables t1 read;
 connect (addconroot1, localhost, root,,);
 --send drop table t1
 connect (addconroot2, localhost, root,,);

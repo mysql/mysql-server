@@ -34,6 +34,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #include <stdarg.h>
 #include <typelib.h>
+#ifdef _WIN32
+#include <malloc.h> /*for alloca*/
+#endif
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
@@ -234,6 +237,9 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
+
+extern const char *(*proc_info_hook)(void *, const char *, const char *,
+                                     const char *, const unsigned int);
 
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;

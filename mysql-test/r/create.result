@@ -785,7 +785,7 @@ drop table t1;
 create table t1 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create table t1 select * from t1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR 42S02: Table 'test.t1' doesn't exist
 create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create table t1 (primary key(a)) select "b" as b;
@@ -802,6 +802,11 @@ ERROR 42S01: Table 't1' already exists
 create table if not exists t1 select 1 as i;
 Warnings:
 Note	1050	Table 't1' already exists
+select * from t1;
+i
+1
+create table if not exists t1 select * from t1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
 select * from t1;
 i
 1
@@ -1548,13 +1553,13 @@ CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH		
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE		
 DROP TABLE t1;
 create user mysqltest_1@'test@test';
 ERROR HY000: Malformed hostname (illegal symbol: '@')
@@ -1953,3 +1958,22 @@ END ;|
 ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
 DROP TABLE t1;
 DROP TABLE B;
+#
+# Bug #47107 assert in notify_shared_lock on incorrect 
+#            CREATE TABLE , HANDLER
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(f1 integer);
+# The following CREATE TABLEs before gave an assert.
+HANDLER t1 OPEN AS A;
+CREATE TABLE t1 SELECT 1 AS f2;
+ERROR 42S01: Table 't1' already exists
+HANDLER t1 OPEN AS A;
+CREATE TABLE t1(f1 integer);
+ERROR 42S01: Table 't1' already exists
+CREATE TABLE t2(f1 integer);
+HANDLER t1 OPEN AS A;
+CREATE TABLE t1 LIKE t2;
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t2;
+DROP TABLE t1;

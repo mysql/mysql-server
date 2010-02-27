@@ -54,6 +54,7 @@
 #include <stdio.h>
 #include <tlhelp32.h>
 #include <signal.h>
+#include <stdlib.h>
 
 static int verbose= 0;
 static char safe_process_name[32]= {0};
@@ -186,14 +187,20 @@ int main(int argc, const char** argv )
         die("No real args -> nothing to do");
       /* Copy the remaining args to child_arg */
       for (int j= i+1; j < argc; j++) {
-	if (strchr (argv[j], ' ')) {
-	  /* Protect with "" if this arg contains a space */
-	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
-                         "\"%s\" ", argv[j]);
-	} else {
-	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
-	                 "%s ", argv[j]);
-	}
+        arg= argv[j];
+        if (strchr (arg, ' ') &&
+            arg[0] != '\"' &&
+            arg[strlen(arg)] != '\"')
+        {
+          /* Quote arg that contains spaces and are not quoted already */
+          to+= _snprintf(to, child_args + sizeof(child_args) - to,
+                         "\"%s\" ", arg);
+        }
+        else
+        {
+          to+= _snprintf(to, child_args + sizeof(child_args) - to,
+          "%s ", arg);
+        }
       }
       break;
     } else {
@@ -245,6 +252,10 @@ int main(int argc, const char** argv )
     Make all processes associated with the job terminate when the
     last handle to the job is closed.
   */
+#ifndef JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE  0x00002000
+#endif
+
   jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
   if (SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation,
                               &jeli, sizeof(jeli)) == 0)

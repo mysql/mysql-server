@@ -68,10 +68,13 @@ drop table t1;
 create table t1 (c1 int);
 lock table t1 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION 
 flush tables with read lock;
 lock table t1 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
 flush tables with read lock;
 --error 1223
 lock table t1 write;
@@ -84,12 +87,12 @@ create table t2 (c1 int);
 create table t3 (c1 int);
 lock table t1 read, t2 read, t3 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 lock table t1 read, t2 read, t3 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
-# Release all table locks and the global read lock.
 unlock tables;
 drop table t1, t2, t3;
 
@@ -157,6 +160,7 @@ flush tables with read lock;
 unlock tables;
 
 lock tables t1 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 unlock tables;
 
@@ -199,3 +203,24 @@ set global general_log= @old_general_log;
 set global read_only= @old_read_only;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Additional test for bug #51136 "Crash in pthread_rwlock_rdlock
+--echo #                                 on TEMPORARY + HANDLER + LOCK + SP".
+--echo # Also see the main test for this bug in include/handler.inc.
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create temporary table t2 (j int);
+flush tables with read lock;
+lock table t2 read;
+--echo # This commit should not release any MDL locks.
+commit;
+--echo # The below statement crashed before the bug fix as it
+--echo # has attempted to release global shared metadata lock
+--echo # which was already released by commit.
+unlock tables;
+drop tables t1, t2;
