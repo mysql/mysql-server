@@ -59,6 +59,9 @@
    toku_os_get_max_process_data_size;
    toku_os_get_phys_memory_size;
 
+   toku_do_assert;
+   toku_do_assert_fail;
+
  local: *;
 };
 
