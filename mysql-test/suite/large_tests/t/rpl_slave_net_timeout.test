@@ -38,7 +38,7 @@ let $idle_time=`select @@global.slave_net_timeout * 2`;
 # slave.net_read_timeout < slave_net_timeout
 # won't cause reconnecting by the slave within at least 
 # slave_net_timeout interval.
-
+--replace_result $MASTER_MYPORT MASTER_PORT 
 eval change master to master_host = '127.0.0.1',master_port = $MASTER_MYPORT,
 master_user = 'root', master_heartbeat_period = 0;
 

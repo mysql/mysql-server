@@ -11,7 +11,7 @@ set @@global.general_log = ON;
 set @@global.log_output = 'table,file';
 include/stop_slave.inc
 set @@global.slave_net_timeout = @@global.net_read_timeout * 2;
-change master to master_host = '127.0.0.1',master_port = 13020,
+change master to master_host = '127.0.0.1',master_port = MASTER_PORT,
 master_user = 'root', master_heartbeat_period = 0;
 include/start_slave.inc
 include/stop_slave.inc
