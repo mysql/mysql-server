@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <signal.h>
 #if !TOKU_WINDOWS
 #include <execinfo.h>
 #endif
