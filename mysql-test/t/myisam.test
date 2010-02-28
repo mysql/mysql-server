@@ -1587,5 +1587,20 @@ REPLACE INTO t1 VALUES
 CHECK TABLE t1;
 DROP TABLE t1;
 
---echo End of 5.1 tests
 
+--echo #
+--echo # Bug#51304: checksum table gives different results
+--echo # for same data when using bit fields
+--echo #
+CREATE TABLE t1(a INT, b BIT(1));
+INSERT INTO t1 VALUES(1, 0), (2, 1);
+CREATE TABLE t2 SELECT * FROM t1;
+--copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t3.frm
+--copy_file $MYSQLD_DATADIR/test/t1.MYD $MYSQLD_DATADIR/test/t3.MYD
+--copy_file $MYSQLD_DATADIR/test/t1.MYI $MYSQLD_DATADIR/test/t3.MYI
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t2 EXTENDED;
+CHECKSUM TABLE t3 EXTENDED;
+DROP TABLE t1, t2, t3;
+
+--echo End of 5.1 tests
