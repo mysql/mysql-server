@@ -2799,7 +2799,7 @@ static Sys_var_ulong Sys_slave_net_timeout(
        "slave_net_timeout", "Number of seconds to wait for more data "
        "from a master/slave connection before aborting the read",
        GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(SLAVE_NET_TIMEOUT), BLOCK_SIZE(1),
+       VALID_RANGE(1, UINT_MAX), DEFAULT(SLAVE_NET_TIMEOUT), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_slave_net_timeout));
 
