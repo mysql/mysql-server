@@ -136,13 +136,9 @@ START SLAVE;
 # BUG#22864 (Rollback following CREATE ... SELECT discards 'CREATE
 # table' from log):
 --echo ================ BUG#22864 ================
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-connection master;
-RESET MASTER;
-connection slave;
-START SLAVE;
+
+--source include/master-slave-reset.inc
+
 connection master;
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT);
@@ -160,10 +156,6 @@ INSERT INTO t1 VALUES (4),(5),(6);
 ROLLBACK;
 
 SHOW TABLES;
-SELECT   TABLE_NAME,ENGINE
-  FROM   INFORMATION_SCHEMA.TABLES
- WHERE   TABLE_NAME LIKE 't_'
-ORDER BY TABLE_NAME;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 SELECT * FROM t3 ORDER BY a;
@@ -173,10 +165,6 @@ SELECT * FROM t4 ORDER BY a;
 SHOW BINLOG EVENTS FROM 106;
 sync_slave_with_master;
 SHOW TABLES;
-SELECT   TABLE_NAME,ENGINE
-  FROM   INFORMATION_SCHEMA.TABLES
- WHERE   TABLE_NAME LIKE 't_'
-ORDER BY TABLE_NAME;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 SELECT * FROM t3 ORDER BY a;
