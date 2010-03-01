@@ -1,0 +1,12 @@
+
+set names binary;
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--source include/ctype_numconv.inc
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
