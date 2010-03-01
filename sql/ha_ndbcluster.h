@@ -446,6 +446,7 @@ class ha_ndbcluster: public handler
   int final_drop_index(TABLE *table_arg);
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
+  virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
@@ -799,6 +800,8 @@ private:
   bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
+  key_map btree_keys;
+
   /*
     Pointer to row returned from scan nextResult().
   */
