@@ -554,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(2) NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -655,7 +655,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varbinary(12) DEFAULT NULL
+  `f` varchar(12) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -666,7 +666,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varbinary(10) DEFAULT NULL
+  `y` varchar(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
@@ -677,7 +677,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varbinary(19) DEFAULT NULL
+  `y` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
@@ -699,7 +699,7 @@ testc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` varbinary(19) DEFAULT NULL
+  `dt` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
@@ -710,7 +710,7 @@ testv
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` varbinary(19) DEFAULT NULL
+  `dt` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;

@@ -2293,7 +2293,7 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
-#ifndef EMBEDDED_LIBRARY
+
   /**
     Clear the current error, if any.
     We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
@@ -2309,6 +2309,7 @@ public:
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
+#ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
@@ -2316,7 +2317,6 @@ public:
     return vio_ok() ? vio_is_connected(net.vio) : FALSE;
   }
 #else
-  void clear_error();
   inline bool vio_ok() const { return TRUE; }
   inline bool is_connected() { return TRUE; }
 #endif

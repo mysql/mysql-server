@@ -198,12 +198,12 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
     if (((THD *) Thd) != NULL)                                              \
       push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
-                        ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER),             \
-                        (Old), #VerHi "." #VerLo, (New));                   \
+                        ER(ER_WARN_DEPRECATED_SYNTAX),                      \
+                        (Old), (New));                                      \
     else                                                                    \
       sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in MySQL %s. Please use %s instead.",              \
-                        (Old), #VerHi "." #VerLo, (New));                   \
+                        "in a future release. Please use %s instead.",      \
+                        (Old), (New));                                      \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -218,7 +218,8 @@ extern CHARSET_INFO *error_message_charset_info;
 
 enum Derivation
 {
-  DERIVATION_IGNORABLE= 5,
+  DERIVATION_IGNORABLE= 6,
+  DERIVATION_NUMERIC= 5,
   DERIVATION_COERCIBLE= 4,
   DERIVATION_SYSCONST= 3,
   DERIVATION_IMPLICIT= 2,
@@ -226,6 +227,8 @@ enum Derivation
   DERIVATION_EXPLICIT= 0
 };
 
+#define my_charset_numeric      my_charset_latin1
+#define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 typedef struct my_locale_errmsgs
 {
@@ -869,6 +872,16 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #endif
 #include "item.h"
 extern my_decimal decimal_zero;
+
+/* my_decimal.cc */
+bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
+                     uint fixed_dec, char filler, String *str,
+                     CHARSET_INFO *cs);
+inline bool str_set_decimal(const my_decimal *val, String *str,
+                            CHARSET_INFO *cs)
+{
+  return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
+}
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -2027,7 +2040,7 @@ extern bool in_bootstrap;
 extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
-extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
+extern my_bool opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern uint slave_exec_mode_options;
 extern ulonglong slave_type_conversions_options;
@@ -2243,8 +2256,17 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
-timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+/* Character set-aware version of str_to_time() */
+bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+                 MYSQL_TIME *l_time, int *warning);
+/* Character set-aware version of str_to_datetime() */
+timestamp_type str_to_datetime(CHARSET_INFO *cs,
+                               const char *str, uint length,
+                               MYSQL_TIME *l_time, uint flags, int *was_cut);
+bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str,uint length,
+                           MYSQL_TIME *l_time);
+timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs,
+                                         const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
@@ -2534,13 +2556,13 @@ inline bool is_user_table(TABLE * table)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 void kill_delayed_threads(void);
-bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 #else
 extern "C" void unireg_clear(int exit_code);
 #define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 inline void kill_delayed_threads(void) {}
-#define check_stack_overrun(A, B, C) 0
 #endif
+
+bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 /* This must match the path length limit in the ER_NOT_RW_DIR error msg. */
 #define ER_NOT_RW_DIR_PATHSIZE 200
@@ -2639,7 +2661,6 @@ enum options_mysqld
   OPT_BOOTSTRAP,
   OPT_CONSOLE,
   OPT_DEBUG_SYNC_TIMEOUT,
-  OPT_DELAY_KEY_WRITE_ALL,
   OPT_ISAM_LOG,
   OPT_KEY_BUFFER_SIZE,
   OPT_KEY_CACHE_AGE_THRESHOLD,
@@ -2658,19 +2679,16 @@ enum options_mysqld
   OPT_SAFE,
   OPT_SERVER_ID,
   OPT_SKIP_HOST_CACHE,
-  OPT_SKIP_LOCK,
   OPT_SKIP_NEW,
   OPT_SKIP_PRIOR,
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
-  OPT_SKIP_SYMLINKS,
   OPT_SLOW_QUERY_LOG,
   OPT_SSL_CA,
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
   OPT_SSL_KEY,
-  OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN
 };

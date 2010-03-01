@@ -19,7 +19,7 @@
 
 man1_MANS =   @man1_files@
 man8_MANS =   @man8_files@
-EXTRA_DIST =  $(man1_MANS) $(man8_MANS)
+EXTRA_DIST =  $(man1_MANS) $(man8_MANS) CMakeLists.txt
 
 # "make_win_*" are not needed in Unix binary packages,
 install-data-hook:

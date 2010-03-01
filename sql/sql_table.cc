@@ -2791,7 +2791,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                                                sql_field->interval_list);
         List_iterator<String> int_it(sql_field->interval_list);
         String conv, *tmp;
-        char comma_buf[2];
+        char comma_buf[4]; /* 4 bytes for utf32 */
         int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
                                           (uchar*) comma_buf + 
                                           sizeof(comma_buf));

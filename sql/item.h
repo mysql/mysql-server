@@ -44,9 +44,10 @@ class Item_field;
 
 #define MY_COLL_ALLOW_SUPERSET_CONV   1
 #define MY_COLL_ALLOW_COERCIBLE_CONV  2
-#define MY_COLL_ALLOW_CONV            3
 #define MY_COLL_DISALLOW_NONE         4
-#define MY_COLL_CMP_CONV              7
+
+#define MY_COLL_ALLOW_CONV (MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV)
+#define MY_COLL_CMP_CONV   (MY_COLL_ALLOW_CONV | MY_COLL_DISALLOW_NONE)
 
 class DTCollation {
 public:
@@ -91,6 +92,12 @@ public:
     derivation= derivation_arg;
     repertoire= repertoire_arg;
   }
+  void set_numeric()
+  {
+    collation= &my_charset_numeric;
+    derivation= DERIVATION_NUMERIC;
+    repertoire= MY_REPERTOIRE_NUMERIC;
+  }
   void set(CHARSET_INFO *collation_arg)
   {
     collation= collation_arg;
@@ -105,6 +112,7 @@ public:
   {
     switch(derivation)
     {
+      case DERIVATION_NUMERIC:   return "NUMERIC";
       case DERIVATION_IGNORABLE: return "IGNORABLE";
       case DERIVATION_COERCIBLE: return "COERCIBLE";
       case DERIVATION_IMPLICIT:  return "IMPLICIT";
@@ -690,6 +698,77 @@ public:
       If value is not null null_value flag will be reset to FALSE.
   */
   virtual String *val_str(String *str)=0;
+
+  /*
+    Returns string representation of this item in ASCII format.
+
+    SYNOPSIS
+      val_str_ascii()
+      str - similar to val_str();
+
+    NOTE
+      This method is introduced for performance optimization purposes.
+
+      1. val_str() result of some Items in string context
+      depends on @@character_set_results.
+      @@character_set_results can be set to a "real multibyte" character
+      set like UCS2, UTF16, UTF32. (We'll use only UTF32 in the examples
+      below for convenience.)
+
+      So the default string result of such functions
+      in these circumstances is real multi-byte character set, like UTF32.
+
+      For example, all numbers in string context
+      return result in @@character_set_results:
+
+      SELECT CONCAT(20010101); -> UTF32
+
+      We do sprintf() first (to get ASCII representation)
+      and then convert to UTF32;
+      
+      So these kind "data sources" can use ASCII representation
+      internally, but return multi-byte data only because
+      @@character_set_results wants so.
+      Therefore, conversion from ASCII to UTF32 is applied internally.
+
+
+      2. Some other functions need in fact ASCII input.
+
+      For example,
+        inet_aton(), GeometryFromText(), Convert_TZ(), GET_FORMAT().
+
+      Similar, fields of certain type, like DATE, TIME,
+      when you insert string data into them, expect in fact ASCII input.
+      If they get non-ASCII input, for example UTF32, they
+      convert input from UTF32 to ASCII, and then use ASCII
+      representation to do further processing.
+
+
+      3. Now imagine we pass result of a data source of the first type
+         to a data destination of the second type.
+
+      What happens:
+        a. data source converts data from ASCII to UTF32, because
+           @@character_set_results wants so and passes the result to
+           data destination.
+        b. data destination gets UTF32 string.
+        c. data destination converts UTF32 string to ASCII,
+           because it needs ASCII representation to be able to handle data
+           correctly.
+
+      As a result we get two steps of unnecessary conversion:
+      From ASCII to UTF32, then from UTF32 to ASCII.
+
+      A better way to handle these situations is to pass ASCII
+      representation directly from the source to the destination.
+
+      This is why val_str_ascii() introduced.
+
+    RETURN
+      Similar to val_str()
+  */
+  virtual String *val_str_ascii(String *str);
+  
   /*
     Return decimal representation of item with fixed point.
 
@@ -863,6 +942,16 @@ public:
 
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
+
+  /*
+    For backward compatibility, to make numeric
+    data types return "binary" charset in client-side metadata.
+  */
+  virtual CHARSET_INFO *charset_for_protocol(void) const
+  {
+    return result_type() == STRING_RESULT ? collation.collation :
+                                            &my_charset_bin;
+  };
 
   virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   {
@@ -1069,6 +1158,20 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+  uint32 max_char_length() const
+  { return max_length / collation.collation->mbmaxlen; }
+  void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
+  {
+    max_length= max_char_length_arg * cs->mbmaxlen;
+    collation.collation= cs;
+  }
+  void fix_char_length(uint32 max_char_length_arg)
+  { max_length= max_char_length_arg * collation.collation->mbmaxlen; }
+  void fix_length_and_charset_datetime(uint32 max_char_length_arg)
+  {
+    collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
+    fix_char_length(max_char_length_arg);
+  }
 };
 
 
@@ -1371,12 +1474,30 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
                             Item **args, uint nargs, uint flags, int item_sep);
 bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
-
+inline bool
+agg_item_charsets_for_string_result(DTCollation &c, const char *name,
+                                    Item **items, uint nitems,
+                                    int item_sep= 1)
+{
+  uint flags= MY_COLL_ALLOW_SUPERSET_CONV |
+              MY_COLL_ALLOW_COERCIBLE_CONV;
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+}
+inline bool
+agg_item_charsets_for_comparison(DTCollation &c, const char *name,
+                                 Item **items, uint nitems,
+                                 int item_sep= 1)
+{
+  uint flags= MY_COLL_ALLOW_SUPERSET_CONV |
+              MY_COLL_ALLOW_COERCIBLE_CONV |
+              MY_COLL_DISALLOW_NONE;
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+}
 
 class Item_num: public Item_basic_constant
 {
 public:
-  Item_num() {}                               /* Remove gcc warning */
+  Item_num() { collation.set_numeric(); } /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
@@ -1561,6 +1682,8 @@ public:
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
+  CHARSET_INFO *charset_for_protocol(void) const
+  { return field->charset_for_protocol(); }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
