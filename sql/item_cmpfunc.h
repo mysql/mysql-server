@@ -637,6 +637,11 @@ public:
   {
     Item_func::print(str, query_type);
   }
+  void fix_length_and_dec()
+  {
+    Item_bool_func2::fix_length_and_dec();
+    fix_char_length(2); // returns "1" or "0" or "-1"
+  }
 };
 
 

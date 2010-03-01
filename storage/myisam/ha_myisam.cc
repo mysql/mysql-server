@@ -274,7 +274,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       keydef[i].seg[j].bit_start= keydef[i].seg[j].bit_end=
         keydef[i].seg[j].bit_length= 0;
       keydef[i].seg[j].bit_pos= 0;
-      keydef[i].seg[j].language= field->charset()->number;
+      keydef[i].seg[j].language= field->charset_for_protocol()->number;
 
       if (field->null_ptr)
       {
