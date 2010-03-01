@@ -6077,8 +6077,8 @@ each time the SQL thread starts.",
    TC_LOG_PAGE_SIZE, 0},
 #endif
   {"log-update", OPT_UPDATE_LOG,
-   "The update log is deprecated since version 5.0, is replaced by the binary \
-log and this option justs turns on --log-bin instead.",
+   "The update log is deprecated since version 5.0, is replaced by the binary "
+   "log and this option just turns on --log-bin instead.",
    (uchar**) &opt_update_logname, (uchar**) &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
@@ -6338,7 +6338,10 @@ thread is in the relay logs.",
    "Tells the slave thread to not replicate to the specified database. To specify more than one database to ignore, use the directive multiple times, once for each database. This option will not work if you use cross database updates. If you need cross database updates to work, make sure you have 3.23.28 or later, and use replicate-wild-ignore-table=db_name.%. ",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-ignore-table", OPT_REPLICATE_IGNORE_TABLE,
-   "Tells the slave thread to not replicate to the specified table. To specify more than one table to ignore, use the directive multiple times, once for each table. This will work for cross-datbase updates, in contrast to replicate-ignore-db.",
+   "Tells the slave thread to not replicate to the specified table. To specify "
+   "more than one table to ignore, use the directive multiple times, once for "
+   "each table. This will work for cross-database updates, in contrast to "
+   "replicate-ignore-db.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
@@ -6360,7 +6363,13 @@ Can't be set to 1 if --log-slave-updates is used.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   // In replication, we may need to tell the other servers how to connect
   {"report-host", OPT_REPORT_HOST,
-   "Hostname or IP of the slave to be reported to to the master during slave registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset if you do not want the slave to register itself with the master. Note that it is not sufficient for the master to simply read the IP of the slave off the socket once the slave connects. Due to NAT and other routing issues, that IP may not be valid for connecting to the slave from the master or other hosts.",
+   "Hostname or IP of the slave to be reported to the master during slave "
+   "registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset "
+   "if you do not want the slave to register itself with the master. Note that "
+   "it is not sufficient for the master to simply read the IP of the slave "
+   "from the socket once the slave connects. Due to NAT and other routing "
+   "issues, that IP may not be valid for connecting to the slave from the "
+   "master or other hosts.",
    (uchar**) &report_host, (uchar**) &report_host, 0, GET_STR, REQUIRED_ARG, 0, 0,
    0, 0, 0, 0},
   {"report-password", OPT_REPORT_PASSWORD, "Undocumented.",
@@ -6665,7 +6674,10 @@ log and this option does nothing anymore.",
    (uchar**) &max_system_variables.keep_files_on_create,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
-   "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
+   "The size of the buffer used for index blocks for MyISAM tables. Increase "
+   "this to get better index handling (for all reads and multiple writes) to "
+   "as much as you can afford; 1GB on a 4GB machine that mainly runs MySQL is "
+   "quite common.",
    (uchar**) &dflt_key_cache_var.param_buff_size,
    (uchar**) 0,
    0, (GET_ULL | GET_ASK_ADDR),
@@ -6836,7 +6848,9 @@ The minimum value for this variable is 4096.",
    (uchar**) &myisam_mmap_size, (uchar**) &myisam_mmap_size, 0,
    GET_ULL, REQUIRED_ARG, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 0, 1, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
-   "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
+   "Specifies whether several threads should be used when repairing MyISAM "
+   "tables. For values > 1, one thread is used per index. The value of 1 "
+   "disables parallel repair.",
    (uchar**) &global_system_variables.myisam_repair_threads,
    (uchar**) &max_system_variables.myisam_repair_threads, 0,
    GET_ULONG, REQUIRED_ARG, 1, 1, ULONG_MAX, 0, 1, 0},
