@@ -22,7 +22,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
                     ${CMAKE_SOURCE_DIR}/sql)
 
-LINK_LIBRARIES(ndbmgmclient ndbclient)
 ADD_LIBRARY(ndbconf
                Config.cpp
                ConfigInfo.cpp
@@ -34,10 +33,17 @@ ADD_EXECUTABLE(ndb_mgmd
                main.cpp
                Services.cpp
                ConfigManager.cpp)
-TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)
+TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient ndbmgmclient)
 
 INSTALL(TARGETS ndb_mgmd DESTINATION libexec)
 
 ADD_EXECUTABLE(MgmConfig-t
                testConfig.cpp)
-TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)
+TARGET_LINK_LIBRARIES(MgmConfig-t 
+                      ndbmgmapi
+                      ndbtrace
+                      ndbconf 
+                      ndblogger
+                      ndbgeneral 
+                      ndbportlib 
+                      wsock32)

@@ -11,7 +11,7 @@
 --source suite/ndb/include/have_junit.inc
 --source suite/ndb/include/have_clusterj.inc
 
---let JAVA_CLASSPATH=-classpath $CLUSTERJ_TEST_JAR
+--let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni

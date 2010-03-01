@@ -20,6 +20,7 @@ my $basedir = dirname($mysql_test_dir);
 #
 # Check if the needed jars and libs are available
 #
+
 my $clusterj_jar = my_find_file($basedir,
                                 ["storage/ndb/clusterj", "share/mysql/java"],
                                 "clusterj-*.jar", NOT_REQUIRED);
@@ -29,8 +30,9 @@ my $clusterj_test_jar = my_find_file($basedir,
                                     "clusterj-test-*.jar", NOT_REQUIRED);
 
 my $ndbclient_lib = my_find_file($basedir,
-                                ["storage/ndb/src/.libs", "lib/mysql"],
-                                ["libndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
+                                ["storage/ndb/src/.lib", 
+                                 "lib/mysql"],
+                                ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
                                 NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_clusterj_result.inc", 'w') or die;

@@ -22,16 +22,16 @@ SET ( CLASSPATH
   target/classes
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie.jar
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/jtie.jar)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
 
 SET ( JAR_DEPENDENCIES
   clusterj-api.jar
   clusterj-core.jar
   ndbjtie.jar)
 
-CREATE_JAR(cluster-tie.jar ${JAVA_SOURCE_DIRS} 
-  CLASSPATH ${CLASSPATH} 
+CREATE_JAR(clusterj-tie ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH}
   DEPENDENCIES ${JAR_DEPENDENCIES})
 
 

@@ -16,16 +16,21 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/query/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model/*.java)
 
 SET ( CLASSPATH 
   target/classes
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
   ${WITH_CLASSPATH})
 
-CREATE_JAR(cluster-jpatest.jar ${JAVA_SOURCE_DIRS} 
+SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model)
+CREATE_MANIFEST(manifest.mf ${CLUSTERJ_JPATEST_EXPORTS} clusterj-jpatest)
+
+CREATE_JAR(clusterj-jpatest ${JAVA_SOURCE_DIRS} 
   CLASSPATH ${CLASSPATH}
+  MANIFEST manifest.mf
+  ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
   DEPENDENCIES clusterj-api.jar)
 
 

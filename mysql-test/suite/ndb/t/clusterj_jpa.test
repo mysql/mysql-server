@@ -19,7 +19,7 @@
 --enable_warnings
 --enable_abort_on_error
 
---let JAVA_CLASSPATH=-classpath $CLUSTERJ_JPA_JAR
+--let JAVA_CLASSPATH=$CLUSTERJ_JPA_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JPA_TEST_JAR
 --let JAVA_CLASSPATH_2=$CLUSTERJ_TEST_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH

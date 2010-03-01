@@ -21,7 +21,8 @@ DIST_SUBDIRS = myapi myjapi unload
 SUBDIRS =  myapi myjapi unload
 
 ## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = jtie_unit_tests-t
+EXTRA_DIST = jtie_unit_tests-t \
+	CMakeLists.txt
 
 ## cleanup
 MOSTLYCLEANFILES = *.log

@@ -26,7 +26,8 @@ DIST_SUBDIRS = . test
 SUBDIRS = . test
 
 ## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = $(JTIE_DIR)/*.java CMakeLists.txt
+EXTRA_DIST = $(JTIE_DIR)/*.java \
+  CMakeLists.txt 
 
 ## ----------------------------------------------------------------------
 

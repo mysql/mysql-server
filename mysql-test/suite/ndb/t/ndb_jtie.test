@@ -7,7 +7,7 @@
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_ndbjtie_junit.inc
 
---let JAVA_CLASSPATH=-classpath $CLUSTERJ_JAR
+--let JAVA_CLASSPATH=$CLUSTERJ_JAR
 --let JAVA_CLASSPATH_1=$NDBJTIE_JUNIT_JAR
 --let JAVA_CLASSPATH_2=$NDBJTIE_UNLOAD_JUNIT_JAR
 --let JAVA_JVM_OPTS=-ea -Xcheck:jni -Djtie.unit.ndb.connectstring=$NDB_CONNECTSTRING

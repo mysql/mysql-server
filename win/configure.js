@@ -112,13 +112,15 @@ try
     configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\")");
     configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"" +
                          GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\")");
-    var version = GetVersion(configureIn);
+    var version = GetVersionExt(configureIn);
     configfile.WriteLine("SET (VERSION \"" + version + "\")");
     configfile.WriteLine("SET (MYSQL_BASE_VERSION \"" +
                          GetBaseVersion(version) + "\")");
     configfile.WriteLine("SET (MYSQL_VERSION_ID \"" +
                          GetVersionId(version) + "\")");
     configfile.WriteLine("SET (WITH_NDB_TEST \"" + with_ndb_test + "\")");
+    var javaVersion = GetJavaNdbVersion(configureIn);
+    configfile.WriteLine("SET (JAVA_NDB_VERSION \"" + javaVersion + "\")");
 
     var engineOptions = ParsePlugins();
     for (option in engineOptions)
@@ -158,6 +160,99 @@ function GetVersion(str)
     var end = str.indexOf(")", pos);
     if (end == -1) return null;
     return str.substring(pos, end);
+}
+
+// GetVersionExt is a more advanced version of GetVersion
+// allows to ignore lines with comments and 
+// find AM_INIT_AUTOMAKE and AC_INIT based versions
+// both found in the new configure.in
+function GetVersionExt(str)
+{
+    var splitStr = str.split("\n");
+    var res = null;
+
+    for(i = 0; i < splitStr.length; i++)
+    {
+      var line = splitStr[i];
+      line = line.replace(/^\s+/, '');
+      if(line.indexOf("#") != 0)
+      {
+          var key = "AM_INIT_AUTOMAKE(mysql, ";
+          var pos = line.indexOf(key); //5.0.6-beta)
+          var endsym = ")";
+          if (pos == -1) 
+          {
+              // try AC_INIT([mysql], [5.1.41-ndb-7.1.2-beta])
+              key = "AC_INIT([mysql], [";
+              pos = line.indexOf(key); 
+              endsym = "])";
+          }
+          if(pos != -1) 
+          { 
+              pos += key.length;
+              var end = line.indexOf(endsym, pos);
+              if (end == -1) return null;
+              res = line.substring(pos, end);
+              return res;
+          }
+        }
+    }
+    return null;
+}
+
+function GetJavaNdbVersion(str)
+{
+    var splitStr = str.split("\n");
+    var version = new Array(4);
+    for(i = 0; i < 4; i++) 
+    {
+        version[i] = null;
+    }
+
+    for(i = 0; i < splitStr.length; i++)
+    {
+        var line = splitStr[i];
+        line = line.replace(/^\s+/, '');
+        line = line.replace(/\s+$/, '');
+        if(line.indexOf("#") != 0)
+        {
+            var key = "NDB_VERSION_";
+            var pos = line.indexOf(key); 
+ 
+            if(pos != -1)
+            {
+              end = line.indexOf("=", pos);
+              var ver = line.substring(pos, end);
+              var no = line.substring(end + 1, line.length);
+              no = no.replace(/\"/g, '');
+   
+              switch(ver) 
+              {
+                  case "NDB_VERSION_MAJOR": 
+                      version[0] = no;
+                      break;
+                  case "NDB_VERSION_MINOR":
+                      version[1] = no;
+                      break;
+                  case "NDB_VERSION_BUILD":
+                      version[2] = no;
+                      break;
+                  case "NDB_VERSION_STATUS":
+                      version[3] = no;
+                      break;
+                }
+            }
+        }
+    }
+
+    for(i = 0; i < 4; i++) 
+    {
+        if(version[i] == null) return null;
+    }
+
+    var res = "";
+    res = res.concat(version[0], ".", version[1], ".", version[2], ".", version[3]);
+    return res;
 }
 
 function GetBaseVersion(version)

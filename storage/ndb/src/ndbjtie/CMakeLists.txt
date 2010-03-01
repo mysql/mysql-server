@@ -17,6 +17,7 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(mysql)
+ADD_SUBDIRECTORY(test)
 
 IF(HAVE_JDK)
 
@@ -26,7 +27,7 @@ IF(HAVE_JDK)
                       utils 
                       jtie)
 
-  ADD_LIBRARY(ndbjtie ndbjtie_lib.cpp)
+  ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
 
 ENDIF(HAVE_JDK)
 
@@ -37,7 +38,7 @@ SET ( JAVA_SOURCE_DIRS
 
 SET ( CLASSPATH jtie/target/classes)
 
-CREATE_JAR(ndbjtie.jar ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(ndbjtie ${JAVA_SOURCE_DIRS} 
   CLASSPATH ${CLASSPATH} 
   DEPENDENCIES jtie.jar)
 

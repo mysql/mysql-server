@@ -27,8 +27,8 @@ SET ( CLASSPATH
   target/classes
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
 
-CREATE_JAR(clusterj-core.jar ${JAVA_SOURCE_DIRS} 
-  CLASSPATH ${CLASSPATH} 
+CREATE_JAR(clusterj-core ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH}
   DEPENDENCIES clusterj-api.jar)
 
 
