@@ -982,6 +982,23 @@ NdbTableImpl::getRangeListDataLen() const
   return m_range.length();
 }
 
+Uint32
+NdbTableImpl::getFragmentNodes(Uint32 fragmentId, 
+                               Uint32* nodeIdArrayPtr,
+                               Uint32 arraySize) const
+{
+  const Uint16 *shortNodeIds;
+  Uint32 nodeCount = get_nodes(fragmentId, &shortNodeIds);
+
+  for(Uint32 i = 0; 
+      ((i < nodeCount) &&
+       (i < arraySize)); 
+      i++)
+    nodeIdArrayPtr[i] = (Uint32) shortNodeIds[i];
+
+  return nodeCount;
+}
+
 int
 NdbTableImpl::updateMysqlName()
 {

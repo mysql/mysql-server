@@ -34,6 +34,7 @@ NDB_STD_OPTS_VARS;
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static int _partinfo = 0;
+static int _nodeinfo = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -53,6 +54,9 @@ static struct my_option my_long_options[] =
   { "retries", 'r', "Retry every second for # retries",
     (uchar**) &_retries, (uchar**) &_retries, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "extra-node-info", 'n', "Print node info for partitions (requires -p)",
+    (uchar**) &_nodeinfo, (uchar**) &_nodeinfo, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()
@@ -305,6 +309,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     { "Frag varsized memory", 0, NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY },
     { 0, 0, 0 }
   };
+  const Uint32 FragmentIdOffset = 0;
 
   ndbout << "-- Per partition info -- " << endl;
   
@@ -351,6 +356,12 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
 	
     for (i = 0; g_part_info[i].m_title != 0; i++)
       ndbout << g_part_info[i].m_title << "\t";
+
+    if (_nodeinfo)
+    {
+      ndbout << "Nodes\t";
+    }
+    
     ndbout << endl;
     
     while(pOp->nextResult() == 0)
@@ -374,6 +385,31 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
         else
           printf("0%*.s\t", (int)strlen(g_part_info[i].m_title), "");
       }
+
+      if (_nodeinfo)
+      {
+        Uint32 partId = g_part_info[ FragmentIdOffset ].m_rec_attr -> u_32_value();
+        
+        const Uint32 MaxReplicas = 4;
+        Uint32 nodeIds[ MaxReplicas ];
+        Uint32 nodeCnt = pTab->getFragmentNodes(partId, &nodeIds[0], MaxReplicas);
+        
+        if (nodeCnt)
+        {
+          for (Uint32 n = 0; n < nodeCnt; n++)
+          {
+            if (n > 0)
+              printf(",");
+            printf("%u", nodeIds[n]);
+          }
+          printf("\t");
+        }
+        else
+        {
+          printf("-\t");
+        }
+      }
+        
       printf("\n");
     }
   } while(0);
