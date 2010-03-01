@@ -21,7 +21,8 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 %define mysql_old_vendor	MySQL AB
-%define mysql_vendor		Sun Microsystems, Inc.
+%define mysql_vendor_2		Sun Microsystems, Inc.
+%define mysql_vendor		Oracle and/or its affiliates
 
 %define mysql_version @VERSION@
 
@@ -615,6 +616,7 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myoldvendor='%{mysql_old_vendor}'
+  myvendor_2='%{mysql_vendor_2}'
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
@@ -626,10 +628,10 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor_2" -a "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myoldvendor or $myvendor.
+vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
 Some files may be installed to different locations, including log
 files and the service startup script in %{_sysconfdir}/init.d/.
 "
@@ -1040,6 +1042,11 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Mar 01 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Set "Oracle and/or its affiliates" as the vendor and copyright owner,
+  accept upgrading from packages showing MySQL or Sun as vendor.
+
 * Fri Feb 12 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Formatting changes:
