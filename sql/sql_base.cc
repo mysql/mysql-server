@@ -4377,6 +4377,8 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
 
+  DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
+
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
