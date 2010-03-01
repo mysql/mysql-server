@@ -149,7 +149,6 @@ setup_db(atrt_config& config)
       const char* query = create_sql[i];
       if (!run_query(atrt_mysqld, query))
         return false;
-      g_logger.info("hello");
     }
     
     if (!populate_db(config, atrt_mysqld))
