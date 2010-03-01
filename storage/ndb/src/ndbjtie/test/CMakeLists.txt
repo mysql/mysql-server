@@ -1,0 +1,29 @@
+# Copyright © 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
+
+SET ( JAVA_SOURCE_DIRS
+ ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
+
+SET ( CLASSPATH 
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes)
+
+CREATE_JAR(ndbjtie-test ${JAVA_SOURCE_DIRS} 
+  CLASSPATH ${CLASSPATH} 
+  DEPENDENCIES ndbjtie.jar jtie-test-myjapi.jar)
+
