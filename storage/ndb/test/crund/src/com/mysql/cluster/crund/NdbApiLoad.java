@@ -202,7 +202,7 @@ public class NdbApiLoad extends NdbBase {
                     });
 
                 ops.add(
-                    new Op("clearVarbinary" + (batch ? "_batch" : "")) {
+                    new Op("clearVarbinary" + length + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB) {
                             setVarbinary(countA, countB, batch, 0);
                         }
@@ -227,7 +227,7 @@ public class NdbApiLoad extends NdbBase {
                     });
 
                 ops.add(
-                    new Op("clearVarchar" + (batch ? "_batch" : "")) {
+                    new Op("clearVarchar" + length + (batch ? "_batch" : "")) {
                         public void run(int countA, int countB) {
                             setVarchar(countA, countB, batch, 0);
                         }
