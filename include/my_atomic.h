@@ -77,13 +77,13 @@
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)                                 \
   int ## S tmp=*a;                                              \
-  while (!my_atomic_cas ## S(a, &tmp, tmp+v));                  \
+  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
   v=tmp;
 #endif
 #ifndef make_atomic_fas_body
 #define make_atomic_fas_body(S)                                 \
   int ## S tmp=*a;                                              \
-  while (!my_atomic_cas ## S(a, &tmp, v));                      \
+  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
   v=tmp;
 #endif
 #ifndef make_atomic_load_body
@@ -105,7 +105,7 @@
   warning: 'transparent_union' attribute ignored
 */
 #if defined(__GNUC__) && !defined(__cplusplus) && \
-      ! (defined(__APPLE__) && defined(_ARCH_PPC64))
+      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
 /*
   we want to be able to use my_atomic_xxx functions with
   both signed and unsigned integers. But gcc will issue a warning

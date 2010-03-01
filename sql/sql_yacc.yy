@@ -968,7 +968,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
 %token  FOUND_SYM                     /* SQL-2003-R */
-%token  FRAC_SECOND_SYM
 %token  FROM
 %token  FULL                          /* SQL-2003-R */
 %token  FULLTEXT_SYM
@@ -1493,8 +1492,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
-
-%type <interval_time_st> interval_time_st
 
 %type <interval_time_st> interval_time_stamp
 
@@ -9535,7 +9532,7 @@ using_list:
         ;
 
 interval:
-          interval_time_st {}
+          interval_time_stamp    {}
         | DAY_HOUR_SYM           { $$=INTERVAL_DAY_HOUR; }
         | DAY_MICROSECOND_SYM    { $$=INTERVAL_DAY_MICROSECOND; }
         | DAY_MINUTE_SYM         { $$=INTERVAL_DAY_MINUTE; }
@@ -9550,27 +9547,6 @@ interval:
         ;
 
 interval_time_stamp:
-          interval_time_st       {}
-        | FRAC_SECOND_SYM
-          { 
-            $$=INTERVAL_MICROSECOND; 
-            /*
-              FRAC_SECOND was mistakenly implemented with
-              a wrong resolution. According to the ODBC
-              standard it should be nanoseconds, not
-              microseconds. Changing it to nanoseconds
-              in MySQL would mean making TIMESTAMPDIFF
-              and TIMESTAMPADD to return DECIMAL, since
-              the return value would be too big for BIGINT
-              Hence we just deprecate the incorrect
-              implementation without changing its
-              resolution.
-            */
-            WARN_DEPRECATED(yythd, 6, 2, "FRAC_SECOND", "MICROSECOND");
-          }
-        ;
-
-interval_time_st:
           DAY_SYM         { $$=INTERVAL_DAY; }
         | WEEK_SYM        { $$=INTERVAL_WEEK; }
         | HOUR_SYM        { $$=INTERVAL_HOUR; }
@@ -12307,7 +12283,6 @@ keyword_sp:
         | FILE_SYM                 {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
-        | FRAC_SECOND_SYM          {}
         | GEOMETRY_SYM             {}
         | GEOMETRYCOLLECTION       {}
         | GET_FORMAT               {}

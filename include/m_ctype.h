@@ -98,20 +98,20 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
-#define MY_CS_UNICODE	128    /* is a charset is full unicode   */
+#define MY_CS_UNICODE	128    /* is a charset is BMP Unicode    */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
 #define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
 #define MY_CS_HIDDEN	2048   /* don't display in SHOW          */	
 #define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
+#define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
 #define MY_REPERTOIRE_ASCII      1 /* Pure ASCII            U+0000..U+007F */
 #define MY_REPERTOIRE_EXTENDED   2 /* Extended characters:  U+0080..U+FFFF */
 #define MY_REPERTOIRE_UNICODE30  3 /* ASCII | EXTENDED:     U+0000..U+FFFF */
-
 
 typedef struct my_uni_idx_st
 {
@@ -304,10 +304,14 @@ typedef struct charset_info_st
 
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
+
 extern CHARSET_INFO my_charset_big5_chinese_ci;
 extern CHARSET_INFO my_charset_big5_bin;
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 extern CHARSET_INFO my_charset_cp932_bin;
+extern CHARSET_INFO my_charset_cp1250_czech_ci;
 extern CHARSET_INFO my_charset_eucjpms_japanese_ci;
 extern CHARSET_INFO my_charset_eucjpms_bin;
 extern CHARSET_INFO my_charset_euckr_korean_ci;
@@ -316,7 +320,6 @@ extern CHARSET_INFO my_charset_gb2312_chinese_ci;
 extern CHARSET_INFO my_charset_gb2312_bin;
 extern CHARSET_INFO my_charset_gbk_chinese_ci;
 extern CHARSET_INFO my_charset_gbk_bin;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
 extern CHARSET_INFO my_charset_latin1_german2_ci;
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_latin2_czech_ci;
@@ -329,11 +332,22 @@ extern CHARSET_INFO my_charset_ucs2_bin;
 extern CHARSET_INFO my_charset_ucs2_unicode_ci;
 extern CHARSET_INFO my_charset_ujis_japanese_ci;
 extern CHARSET_INFO my_charset_ujis_bin;
+extern CHARSET_INFO my_charset_utf16_bin;
+extern CHARSET_INFO my_charset_utf16_general_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf32_bin;
+extern CHARSET_INFO my_charset_utf32_general_ci;
+extern CHARSET_INFO my_charset_utf32_unicode_ci;
+
 extern CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
-extern CHARSET_INFO my_charset_cp1250_czech_ci;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
+extern CHARSET_INFO my_charset_utf8mb4_bin;
+extern CHARSET_INFO my_charset_utf8mb4_general_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+#define MY_UTF8MB3                 "utf8"
+#define MY_UTF8MB4                 "utf8mb4"
+
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,
@@ -430,6 +444,19 @@ my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
 			    char *min_str, char *max_str,
 			    size_t *min_length, size_t *max_length);
 
+my_bool  my_like_range_utf16(CHARSET_INFO *cs,
+			     const char *ptr, size_t ptr_length,
+			     pbool escape, pbool w_one, pbool w_many,
+			     size_t res_length,
+			     char *min_str, char *max_str,
+			     size_t *min_length, size_t *max_length);
+
+my_bool  my_like_range_utf32(CHARSET_INFO *cs,
+			     const char *ptr, size_t ptr_length,
+			     pbool escape, pbool w_one, pbool w_many,
+			     size_t res_length,
+			     char *min_str, char *max_str,
+			     size_t *min_length, size_t *max_length);
 
 int my_wildcmp_8bit(CHARSET_INFO *,
 		    const char *str,const char *str_end,
@@ -479,6 +506,31 @@ uint my_instr_mb(struct charset_info_st *,
                  const char *b, size_t b_length,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch);
+
+int my_strnncoll_mb_bin(CHARSET_INFO * cs,
+                        const uchar *s, size_t slen,
+                        const uchar *t, size_t tlen,
+                        my_bool t_is_prefix);
+
+int my_strnncollsp_mb_bin(CHARSET_INFO *cs,
+                          const uchar *a, size_t a_length,
+                          const uchar *b, size_t b_length,
+                          my_bool diff_if_only_endspace_difference);
+
+int my_wildcmp_mb_bin(CHARSET_INFO *cs,
+                      const char *str,const char *str_end,
+                      const char *wildstr,const char *wildend,
+                      int escape, int w_one, int w_many);
+
+int my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                         const char *s, const char *t);
+
+void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
+                         const uchar *key, size_t len,ulong *nr1, ulong *nr2);
+
+size_t my_strnxfrm_unicode(CHARSET_INFO *,
+                           uchar *dst, size_t dstlen,
+                           const uchar *src, size_t srclen);
 
 int my_wildcmp_unicode(CHARSET_INFO *cs,
                        const char *str, const char *str_end,

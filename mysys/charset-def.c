@@ -45,6 +45,53 @@ extern CHARSET_INFO my_charset_ucs2_hungarian_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_sinhala_uca_ci;
 #endif
 
+
+#ifdef HAVE_CHARSET_utf32
+extern CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf32_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf32_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf32_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf32_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf32_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf32_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_sinhala_uca_ci;
+#endif /* HAVE_CHARSET_utf32 */
+
+
+#ifdef HAVE_CHARSET_utf16
+extern CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf16_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf16_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf16_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf16_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf16_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf16_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_sinhala_uca_ci;
+#endif  /* HAVE_CHARSET_utf16 */
+
+
 #ifdef HAVE_CHARSET_utf8
 extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
@@ -69,6 +116,28 @@ extern CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8_general_cs;
 #endif
 #endif
+
+#ifdef HAVE_CHARSET_utf8mb4
+extern CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
+#endif /* HAVE_CHARSET_utf8mb4 */
 
 #endif /* HAVE_UCA_COLLATIONS */
 
@@ -191,7 +260,91 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_utf8_hungarian_uca_ci);
   add_compiled_collation(&my_charset_utf8_sinhala_uca_ci);
 #endif
-#endif
+#endif /* HAVE_CHARSET_utf8 */
+
+
+#ifdef HAVE_CHARSET_utf8mb4
+  add_compiled_collation(&my_charset_utf8mb4_general_ci);
+  add_compiled_collation(&my_charset_utf8mb4_bin);
+#ifdef HAVE_UCA_COLLATIONS
+  add_compiled_collation(&my_charset_utf8mb4_unicode_ci);
+  add_compiled_collation(&my_charset_utf8mb4_icelandic_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_latvian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_romanian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_slovenian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_polish_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_estonian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_spanish_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_swedish_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_turkish_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_czech_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_danish_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_lithuanian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_slovak_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_spanish2_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_roman_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_persian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_esperanto_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_hungarian_uca_ci);
+  add_compiled_collation(&my_charset_utf8mb4_sinhala_uca_ci);
+#endif /* HAVE_UCA_COLLATIONS  */
+#endif /* HAVE_CHARSET_utf8mb4 */
+
+
+#ifdef HAVE_CHARSET_utf16
+  add_compiled_collation(&my_charset_utf16_general_ci);
+  add_compiled_collation(&my_charset_utf16_bin);
+#ifdef HAVE_UCA_COLLATIONS
+  add_compiled_collation(&my_charset_utf16_unicode_ci);
+  add_compiled_collation(&my_charset_utf16_icelandic_uca_ci);
+  add_compiled_collation(&my_charset_utf16_latvian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_romanian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_slovenian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_polish_uca_ci);
+  add_compiled_collation(&my_charset_utf16_estonian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_spanish_uca_ci);
+  add_compiled_collation(&my_charset_utf16_swedish_uca_ci);
+  add_compiled_collation(&my_charset_utf16_turkish_uca_ci);
+  add_compiled_collation(&my_charset_utf16_czech_uca_ci);
+  add_compiled_collation(&my_charset_utf16_danish_uca_ci);
+  add_compiled_collation(&my_charset_utf16_lithuanian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_slovak_uca_ci);
+  add_compiled_collation(&my_charset_utf16_spanish2_uca_ci);
+  add_compiled_collation(&my_charset_utf16_roman_uca_ci);
+  add_compiled_collation(&my_charset_utf16_persian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_esperanto_uca_ci);
+  add_compiled_collation(&my_charset_utf16_hungarian_uca_ci);
+  add_compiled_collation(&my_charset_utf16_sinhala_uca_ci);
+#endif /* HAVE_UCA_COLLATIOINS */
+#endif /* HAVE_CHARSET_utf16 */
+
+
+#ifdef HAVE_CHARSET_utf32
+  add_compiled_collation(&my_charset_utf32_general_ci);
+  add_compiled_collation(&my_charset_utf32_bin);
+#ifdef HAVE_UCA_COLLATIONS
+  add_compiled_collation(&my_charset_utf32_unicode_ci);
+  add_compiled_collation(&my_charset_utf32_icelandic_uca_ci);
+  add_compiled_collation(&my_charset_utf32_latvian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_romanian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_slovenian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_polish_uca_ci);
+  add_compiled_collation(&my_charset_utf32_estonian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_spanish_uca_ci);
+  add_compiled_collation(&my_charset_utf32_swedish_uca_ci);
+  add_compiled_collation(&my_charset_utf32_turkish_uca_ci);
+  add_compiled_collation(&my_charset_utf32_czech_uca_ci);
+  add_compiled_collation(&my_charset_utf32_danish_uca_ci);
+  add_compiled_collation(&my_charset_utf32_lithuanian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_slovak_uca_ci);
+  add_compiled_collation(&my_charset_utf32_spanish2_uca_ci);
+  add_compiled_collation(&my_charset_utf32_roman_uca_ci);
+  add_compiled_collation(&my_charset_utf32_persian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_esperanto_uca_ci);
+  add_compiled_collation(&my_charset_utf32_hungarian_uca_ci);
+  add_compiled_collation(&my_charset_utf32_sinhala_uca_ci);
+#endif /* HAVE_UCA_COLLATIONS */
+#endif /* HAVE_CHARSET_utf32 */
 
   /* Copy compiled charsets */
   for (cs=compiled_charsets; cs->name; cs++)

@@ -23,7 +23,6 @@ rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_inn
 rpl.rpl_killed_ddl @windows              # Bug#47638 2010-01-20 alik The rpl_killed_ddl test fails on Windows
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
