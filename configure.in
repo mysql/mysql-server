@@ -10,12 +10,12 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.41-ndb-7.0.13)
+AM_INIT_AUTOMAKE(mysql, 5.1.41-ndb-7.0.14)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=13
+NDB_VERSION_BUILD=14
 NDB_VERSION_STATUS=""
 
 PROTOCOL_VERSION=10

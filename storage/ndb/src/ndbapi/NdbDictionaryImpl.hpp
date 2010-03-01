@@ -174,6 +174,10 @@ public:
   const Int32 * getRangeListData() const;
   Uint32 getRangeListDataLen() const;
 
+  Uint32 getFragmentNodes(Uint32 fragmentId, 
+                          Uint32* nodeIdArrayPtr,
+                          Uint32 arraySize) const;
+
   const char * getMysqlName() const;
   int updateMysqlName();
 
