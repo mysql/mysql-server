@@ -1897,18 +1897,15 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   mysql_ha_rm_tables(thd, tables);
 
   /* Disable drop of enabled log tables, must be done before name locking */
-  mysql_mutex_lock(&LOCK_open);
   for (table= tables; table; table= table->next_local)
   {
     if (check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
-      mysql_mutex_unlock(&LOCK_open);
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(1);
     }
   }
-  mysql_mutex_unlock(&LOCK_open);
 
   if (!drop_temporary)
   {
@@ -2061,6 +2058,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
             Is exclusive meta-data lock enough ?
     */
     DEBUG_SYNC(thd, "rm_table_part2_before_delete_table");
+    DBUG_EXECUTE_IF("sleep_before_part2_delete_table",
+                    my_sleep(100000););
     mysql_mutex_lock(&LOCK_open);
     if (drop_temporary ||
         ((access(path, F_OK) &&
@@ -7128,6 +7127,8 @@ view_err:
     create_info->data_file_name=create_info->index_file_name=0;
 
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
+  DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
+                  my_sleep(100000););
   /*
     Create a table with a temporary name.
     With create_info->frm_only == 1 this creates a .frm file only.
