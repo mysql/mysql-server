@@ -20,10 +20,12 @@ package com.mysql.clusterj.openjpatest;
 
 import com.mysql.clusterj.jpatest.AbstractJPABaseTest;
 import com.mysql.clusterj.jpatest.JpaLoad;
+import com.mysql.clusterj.jpatest.SlowTest;
 
 /**
  *
  */
+@SlowTest
 public class CrundTest extends AbstractJPABaseTest {
 
     @Override

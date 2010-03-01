@@ -59,9 +59,9 @@ public interface Query<E> {
     Results<E> execute(Map<String, ?> parameters);
 
     /**
-     * Get the index used by execution of this query.
-     * @return the index
+     * Explain this query.
+     * @return the data about the execution of this query
      */
-    String getTheIndexUsed();
+    Map<String, Object> explain();
 
 }

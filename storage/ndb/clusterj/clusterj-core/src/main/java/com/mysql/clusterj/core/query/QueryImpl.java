@@ -79,11 +79,11 @@ public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
     }
 
     /**
-     * Get the index used by execution of this query.
-     * @return the index
+     * Explain this query.
+     * @return the data about the execution of this query
      */
-    public String getTheIndexUsed() {
-        return dobj.getTheIndexUsed();
+    public Map<String, Object> explain() {
+        return dobj.explain();
     }
 
 }

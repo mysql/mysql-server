@@ -111,7 +111,6 @@ public interface Session {
      * The id field is used to determine which instance is to be saved.
      * If the instance exists in the database it will be updated.
      * If the instance does not exist, it will be created.
-     * Only primitive fields and fields changed will be written to the database.
      * @param instance the instance to update
      */
     <T> T savePersistent(T instance);

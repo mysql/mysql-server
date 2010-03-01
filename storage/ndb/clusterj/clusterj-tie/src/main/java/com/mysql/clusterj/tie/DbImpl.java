@@ -65,6 +65,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public void close() {
+        Ndb.delete(ndb);
     }
 
     public com.mysql.clusterj.core.store.Dictionary getDictionary() {
