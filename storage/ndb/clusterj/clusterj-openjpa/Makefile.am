@@ -32,7 +32,7 @@ clusterjpa_jar = clusterjpa.jar
 
 OPENJPA_EXPORT=com.mysql.clusterj.openjpa
 
-CLUSTERJPA_JAR_DIRS = ../clusterj-api ../clusterj-core ../clusterj-tie ../clusterj-openjpa ../../src/ndbjtie ../../src/ndbjtie/jtie
+CLUSTERJPA_JAR_DIRS = clusterj-api clusterj-core clusterj-tie clusterj-openjpa 
 
 CLUSTERJPA_MANIFEST = CLUSTERJPA_MANIFEST.MF
 
@@ -108,15 +108,21 @@ $(clusterjpa_version_jar) : classclusterj_openjpa.stamp $(CLUSTERJPA_MANIFEST)
 	for i in $(CLUSTERJPA_JAR_DIRS); do \
 	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
 	  @JAR@ uvf $@ -C $$i/target/classes com/mysql; \
-	  if test -x $$i/src/main/resources/META-INF/services; then \
-	    @JAR@ uvf $@ -C $$i/src/main/resources META-INF/services; \
+	@JAR@ cvfm $@ $(CLUSTERJPA_MANIFEST); \
+	for i in $(CLUSTERJPA_JAR_DIRS); do \
+	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
+	  @JAR@ uvf $@ -C ../$$i/target/classes com/mysql; \
+	  if test -x ../$$i/src/main/resources/META-INF/services; then \
+	    @JAR@ uvf $@ -C ../$$i/src/main/resources META-INF/services; \
 	  fi; \
-	  BUNDLE=$$i/src/main/resources/com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
+	  BUNDLE=../$$i/src/main/resources/com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
 	  if test -e $$BUNDLE; then \
-	    @JAR@ uvf $@ -C $$i/src/main/resources com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
+	    @JAR@ uvf $@ -C ../$$i/src/main/resources com/mysql/clusterj/$$BASE_NAME/Bundle.properties; \
 	  fi; \
 	done; \
-	echo $$CLASS_DIRS; 
+	@JAR@ uvf $@ -C ../../src/ndbjtie/target/classes com/mysql; \
+	@JAR@ uvf $@ -C ../../src/ndbjtie/jtie/target/classes com/mysql; \
+	echo $$CLASS_DIRS;
 
 ## create a versioned link
 install-data-hook:

@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 
+import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.SessionSPI;
@@ -83,6 +84,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     private String indexName;
 
     private Index storeIndex;
+
+    private Map<String, Object> explain;
 
     public QueryDomainTypeImpl(DomainTypeHandler<T> domainTypeHandler, Class<T> cls) {
         this.cls = cls;
@@ -146,7 +149,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @return the results of executing the query
      */
     public List<T> getResultList(QueryExecutionContextImpl context) {
-	SessionSPI session = context.getSession();
+        SessionSPI session = context.getSession();
         session.startAutoTransaction();
         // Mark parameters used in this query.
         if (where != null) {
@@ -163,19 +166,18 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         // set up results and table information
         List<T> resultList = new ArrayList<T>();
         try {
-	    // execute the query
-	    ResultData resultData = getResultData(context);
-	    // put the result data into the result list
-	    while (resultData.next()) {
-	        T row = (T) session.newInstance(cls);
-	        ValueHandler handler =
-	                domainTypeHandler.getValueHandler(row);
-	        // set values from result set into object
-	        domainTypeHandler.objectSetValues(resultData, handler);
-	        resultList.add(row);
-	    }
-	    session.endAutoTransaction();
-	    return resultList;
+            // execute the query
+            ResultData resultData = getResultData(context);
+            // put the result data into the result list
+            while (resultData.next()) {
+                T row = (T) session.newInstance(cls);
+                ValueHandler handler =domainTypeHandler.getValueHandler(row);
+                // set values from result set into object
+                domainTypeHandler.objectSetValues(resultData, handler);
+                resultList.add(row);
+            }
+            session.endAutoTransaction();
+            return resultList;
         } catch (ClusterJException ex) {
             session.failAutoTransaction();
             throw ex;
@@ -201,11 +203,14 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         index = where==null?
             CandidateIndexImpl.getIndexForNullWhereClause():
             where.getBestCandidateIndex(context);
-        int scanType = index.getScanType();
+        ScanType scanType = index.getScanType();
+        explain = new HashMap<String, Object>();
+        explain.put("ScanType", scanType.toString());
+        explain.put("IndexUsed", theIndexUsed);
 
         switch (scanType) {
 
-            case PredicateImpl.PRIMARY_KEY: {
+            case PRIMARY_KEY: {
                 // perform a select operation
                 Operation op = session.getSelectOperation(domainTypeHandler.getStoreTable());
                 // set key values into the operation
@@ -217,10 +222,11 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 return rs;
             }
 
-            case PredicateImpl.INDEX_SCAN: {
+            case INDEX_SCAN: {
                 storeIndex = index.getStoreIndex();
                 indexName = storeIndex.getName();
                 theIndexUsed = indexName;
+                explain.put("IndexUsed", theIndexUsed);
                 if (logger.isDetailEnabled()) logger.detail("Using index scan with index " + indexName);
 
                 // perform an index scan operation
@@ -236,7 +242,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 return rs;
             }
 
-            case PredicateImpl.TABLE_SCAN: {
+            case TABLE_SCAN: {
                 if (logger.isDetailEnabled()) logger.detail("Using table scan");
                 // perform a table scan operation
                 ScanOperation op = session.getTableScanOperation(domainTypeHandler.getStoreTable());
@@ -251,10 +257,11 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 return rs;
             }
 
-            case PredicateImpl.UNIQUE_SCAN: {
+            case UNIQUE_SCAN: {
                 storeIndex = index.getStoreIndex();
                 indexName = storeIndex.getName();
                 theIndexUsed = indexName;
+                explain.put("IndexUsed", theIndexUsed);
                 if (logger.isDetailEnabled()) logger.detail("Using unique scan with index " + indexName);
                 // perform a unique lookup operation
                 IndexOperation op = session.getIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
@@ -279,8 +286,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         return domainTypeHandler.createCandidateIndexes();
     }
 
-    public String getTheIndexUsed() {
-        return theIndexUsed;
+    public Map<String, Object> explain() {
+        return explain;
     }
 
     public Class<T> getType() {

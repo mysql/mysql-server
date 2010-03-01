@@ -225,7 +225,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
                 actualSet.add(result.getId());
             }
             errorIfNotEqual("Wrong index used in  " + theQuery + " query: ",
-                    expectedIndex, query.getTheIndexUsed());
+                    expectedIndex, query.explain().get("IndexUsed"));
             errorIfNotEqual("Wrong ids returned from " + theQuery + " query: ",
                     expectedSet, actualSet);
             }

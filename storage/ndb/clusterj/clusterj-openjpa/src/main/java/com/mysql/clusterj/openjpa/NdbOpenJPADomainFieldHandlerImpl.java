@@ -501,8 +501,10 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
             buffer.append(handler.getName());
             buffer.append(" returned columns: ");
             buffer.append(Arrays.toString(columnNames.toArray()));
-            buffer.append(" using index ");
-            buffer.append(((QueryDomainTypeImpl<?>)queryDomainType).getTheIndexUsed());
+            buffer.append(" using strategy ");
+            buffer.append(((QueryDomainTypeImpl<?>)queryDomainType).explain().get("ScanType"));
+            buffer.append(" with index ");
+            buffer.append(((QueryDomainTypeImpl<?>)queryDomainType).explain().get("IndexUsed"));
             logger.detail(buffer.toString());
         }
         return queryResult;

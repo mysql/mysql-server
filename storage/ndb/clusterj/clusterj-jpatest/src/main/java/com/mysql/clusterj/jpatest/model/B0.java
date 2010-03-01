@@ -47,7 +47,9 @@ public class B0 implements Serializable {
     private double cdouble;
     
     private String cstring;
-    
+
+    private byte[] bytes;
+
     @javax.persistence.ManyToOne
     @javax.persistence.Column(name="a_id")
     @org.apache.openjpa.persistence.jdbc.Index(name="FK_a_id")
@@ -93,6 +95,14 @@ public class B0 implements Serializable {
     
     public float getCfloat() {
         return cfloat;
+    }
+    
+    public void setBytes(byte[] value) {
+        this.bytes = value;
+    }
+    
+    public byte[] getBytes() {
+        return bytes;
     }
     
     public void setCfloat(float cfloat) {

@@ -20,6 +20,7 @@ package com.mysql.clusterj.core.query;
 
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 
+import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.Operation;
@@ -49,7 +50,7 @@ public class CandidateIndexImpl {
     private boolean unique;
     private boolean hash;
     private CandidateColumnImpl[] candidateColumns;
-    private int scanType = PredicateImpl.TABLE_SCAN;
+    private ScanType scanType = PredicateImpl.ScanType.TABLE_SCAN;
     private int fieldScore = 1;
 
     public CandidateIndexImpl(
@@ -135,9 +136,9 @@ public class CandidateIndexImpl {
                 }
             }
             if ("PRIMARY".equals(indexName)) {
-                scanType = PredicateImpl.PRIMARY_KEY;
+                scanType = PredicateImpl.ScanType.PRIMARY_KEY;
             } else {
-                scanType = PredicateImpl.UNIQUE_SCAN;
+                scanType = PredicateImpl.ScanType.UNIQUE_SCAN;
             }
             return 100;
         } else {
@@ -146,7 +147,7 @@ public class CandidateIndexImpl {
             // extra credit for equals
             for (CandidateColumnImpl candidateColumn: candidateColumns) {
                 if ((candidateColumn.equalBound)) {
-                    scanType = PredicateImpl.INDEX_SCAN;
+                    scanType = PredicateImpl.ScanType.INDEX_SCAN;
                     if (!lowerBoundDone) {
                         result += fieldScore;
                         lastLowerBoundColumn = candidateColumn;
@@ -163,7 +164,7 @@ public class CandidateIndexImpl {
                     boolean hasUpperBound = candidateColumn.hasUpperBound();
                     // keep going until both upper and lower are done
                     if (hasLowerBound || hasUpperBound) {
-                        scanType = PredicateImpl.INDEX_SCAN;
+                        scanType = PredicateImpl.ScanType.INDEX_SCAN;
                     }
                     if (!lowerBoundDone) {
                         if (hasLowerBound) {
@@ -196,7 +197,7 @@ public class CandidateIndexImpl {
         return result;
     }
 
-    public int getScanType() {
+    public ScanType getScanType() {
         return scanType;
     }
 

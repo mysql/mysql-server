@@ -71,8 +71,11 @@ clusterj_api_DATA = $(clusterj_api_version_JAR)
 
 EXTRA_DIST = \
   $(clusterj_api_src)/com/mysql/clusterj/*.java \
+  $(clusterj_api_src)/com/mysql/clusterj/package.html \
   $(clusterj_api_src)/com/mysql/clusterj/query/*.java \
+  $(clusterj_api_src)/com/mysql/clusterj/query/package.html \
   $(clusterj_api_src)/com/mysql/clusterj/annotation/*.java \
+  $(clusterj_api_src)/com/mysql/clusterj/annotation/package.html \
   pom.xml CMakeLists.txt
 
 $(MANIFEST): 

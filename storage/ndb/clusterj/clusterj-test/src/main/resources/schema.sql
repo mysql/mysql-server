@@ -117,8 +117,6 @@ create table longintstringfk (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 drop table if exists a;
-drop table if exists b0;
-
 CREATE TABLE a (
         id              INT             NOT NULL,
         cint            INT,
@@ -129,6 +127,7 @@ CREATE TABLE a (
         CONSTRAINT PK_A_0 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists b0;
 CREATE TABLE b0 (
         id              INT             NOT NULL,
         cint            INT,
@@ -137,10 +136,11 @@ CREATE TABLE b0 (
         cdouble         DOUBLE,
         a_id            INT,
         cstring         VARCHAR(100),
-        cvarchar_ascii  VARCHAR(100) CHARACTER SET ASCII,
-        ctext_ascii     TEXT(100) CHARACTER SET ASCII,
-        cvarchar_ucs2   VARCHAR(100) CHARACTER SET ASCII,
-        ctext_ucs2      TEXT(100) CHARACTER SET ASCII,
+        cvarchar_ascii  VARCHAR(100),
+        ctext_ascii     TEXT(100),
+        cvarchar_ucs2   VARCHAR(100),
+        ctext_ucs2      TEXT(100),
+        bytes           VARBINARY(202),
         KEY FK_a_id (a_id),
         CONSTRAINT PK_B0_0 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
@@ -168,11 +168,6 @@ unique key idx_bytes_null_hash (bytes_null_hash) using hash
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
-# create unique index idx_bytes_null_hash using hash on bytestype(bytes_null_hash);
-# create index idx_bytes_null_btree on bytestype(bytes_null_btree);
-# the following statement causes a bizarre error
-# create unique index idx_bytes_null_both on bytestype(bytes_null_both);
-
 drop table if exists doubletypes;
 create table doubletypes (
  id int not null primary key,
@@ -185,17 +180,16 @@ create table doubletypes (
  double_not_null_hash double,
  double_not_null_btree double,
  double_not_null_both double,
- double_not_null_none double
+ double_not_null_none double,
+ unique key idx_double_null_hash (double_null_hash) using hash,
+ key idx_double_null_btree (double_null_btree),
+ unique key idx_double_null_both (double_null_both),
+
+ unique key idx_double_not_null_hash (double_not_null_hash) using hash,
+ key idx_double_not_null_btree (double_not_null_btree),
+ unique key idx_double_not_null_both (double_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_double_null_hash using hash on doubletypes(double_null_hash);
-create index idx_double_null_btree on doubletypes(double_null_btree);
-create unique index idx_double_null_both on doubletypes(double_null_both);
-
-create unique index idx_double_not_null_hash using hash on doubletypes(double_not_null_hash);
-create index idx_double_not_null_btree on doubletypes(double_not_null_btree);
-create unique index idx_double_not_null_both on doubletypes(double_not_null_both);
 
 drop table if exists floattypes;
 create table floattypes (
@@ -209,17 +203,16 @@ create table floattypes (
  float_not_null_hash float,
  float_not_null_btree float,
  float_not_null_both float,
- float_not_null_none float
+ float_not_null_none float,
+ unique key idx_float_null_hash (float_null_hash) using hash,
+ key idx_float_null_btree (float_null_btree),
+ unique key idx_float_null_both (float_null_both),
+
+ unique key idx_float_not_null_hash (float_not_null_hash) using hash,
+ key idx_float_not_null_btree (float_not_null_btree),
+ unique key idx_float_not_null_both (float_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_float_null_hash using hash on floattypes(float_null_hash);
-create index idx_float_null_btree on floattypes(float_null_btree);
-create unique index idx_float_null_both on floattypes(float_null_both);
-
-create unique index idx_float_not_null_hash using hash on floattypes(float_not_null_hash);
-create index idx_float_not_null_btree on floattypes(float_not_null_btree);
-create unique index idx_float_not_null_both on floattypes(float_not_null_both);
 
 drop table if exists t_basic;
 create table t_basic (
@@ -227,10 +220,11 @@ create table t_basic (
   name varchar(32),
   age int,
   magic int not null,
-  primary key(id)) 
-  engine=ndbcluster;
-create unique index idx_unique_hash_magic using hash on t_basic(magic);
-create index idx_btree_age on t_basic(age);
+  primary key(id),
+
+  unique key idx_unique_hash_magic (magic) using hash,
+  key idx_btree_age (age)
+) ENGINE=ndbcluster;
 
 drop table if exists dn2id;
 create table dn2id (
@@ -253,9 +247,9 @@ create table dn2id (
  a13 varchar(128) NOT NULL DEFAULT '',
  a14 varchar(128) NOT NULL DEFAULT '',
  a15 varchar(128) NOT NULL DEFAULT '',
- PRIMARY KEY (a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15)
+ PRIMARY KEY (a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15),
+ unique key idx_unique_hash_eid (eid) using hash
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-create unique index idx_unique_hash_eid using hash on dn2id (eid);
 
 drop table if exists nullvalues;
 create table nullvalues (
@@ -391,37 +385,37 @@ create table allprimitives (
  long_null_hash bigint,
  long_null_btree bigint,
  long_null_both bigint,
- long_null_none bigint
+ long_null_none bigint,
+
+ unique key idx_int_not_null_hash (int_not_null_hash) using hash,
+ key idx_int_not_null_btree (int_not_null_btree),
+ unique key idx_int_not_null_both (int_not_null_both),
+ unique key idx_int_null_hash (int_null_hash) using hash,
+ key idx_int_null_btree (int_null_btree),
+ unique key idx_int_null_both (int_null_both),
+
+ unique key idx_byte_not_null_hash (byte_not_null_hash) using hash,
+ key idx_byte_not_null_btree (byte_not_null_btree),
+ unique key idx_byte_not_null_both (byte_not_null_both),
+ unique key idx_byte_null_hash (byte_null_hash) using hash,
+ key idx_byte_null_btree (byte_null_btree),
+ unique key idx_byte_null_both (byte_null_both),
+
+ unique key idx_short_not_null_hash (short_not_null_hash) using hash,
+ key idx_short_not_null_btree (short_not_null_btree),
+ unique key idx_short_not_null_both (short_not_null_both),
+ unique key idx_short_null_hash (short_null_hash) using hash,
+ key idx_short_null_btree (short_null_btree),
+ unique key idx_short_null_both (short_null_both),
+
+ unique key idx_long_not_null_hash (long_not_null_hash) using hash,
+ key idx_long_not_null_btree (long_not_null_btree),
+ unique key idx_long_not_null_both (long_not_null_both),
+ unique key idx_long_null_hash (long_null_hash) using hash,
+ key idx_long_null_btree (long_null_btree),
+ unique key idx_long_null_both (long_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_int_not_null_hash using hash on allprimitives(int_not_null_hash);
-create index idx_int_not_null_btree on allprimitives(int_not_null_btree);
-create unique index idx_int_not_null_both on allprimitives(int_not_null_both);
-create unique index idx_int_null_hash using hash on allprimitives(int_null_hash);
-create index idx_int_null_btree on allprimitives(int_null_btree);
-create unique index idx_int_null_both on allprimitives(int_null_both);
-
-create unique index idx_byte_not_null_hash using hash on allprimitives(byte_not_null_hash);
-create index idx_byte_not_null_btree on allprimitives(byte_not_null_btree);
-create unique index idx_byte_not_null_both on allprimitives(byte_not_null_both);
-create unique index idx_byte_null_hash using hash on allprimitives(byte_null_hash);
-create index idx_byte_null_btree on allprimitives(byte_null_btree);
-create unique index idx_byte_null_both on allprimitives(byte_null_both);
-
-create unique index idx_short_not_null_hash using hash on allprimitives(short_not_null_hash);
-create index idx_short_not_null_btree on allprimitives(short_not_null_btree);
-create unique index idx_short_not_null_both on allprimitives(short_not_null_both);
-create unique index idx_short_null_hash using hash on allprimitives(short_null_hash);
-create index idx_short_null_btree on allprimitives(short_null_btree);
-create unique index idx_short_null_both on allprimitives(short_null_both);
-
-create unique index idx_long_not_null_hash using hash on allprimitives(long_not_null_hash);
-create index idx_long_not_null_btree on allprimitives(long_not_null_btree);
-create unique index idx_long_not_null_both on allprimitives(long_not_null_both);
-create unique index idx_long_null_hash using hash on allprimitives(long_null_hash);
-create index idx_long_null_btree on allprimitives(long_null_btree);
-create unique index idx_long_null_both on allprimitives(long_null_both);
 
 drop table if exists decimaltypes;
 create table decimaltypes (
@@ -430,13 +424,13 @@ create table decimaltypes (
  decimal_null_hash decimal(10,5),
  decimal_null_btree decimal(10,5),
  decimal_null_both decimal(10,5),
- decimal_null_none decimal(10,5)
+ decimal_null_none decimal(10,5),
+
+ unique key idx_decimal_null_hash (decimal_null_hash) using hash,
+ key idx_decimal_null_btree (decimal_null_btree),
+ unique key idx_decimal_null_both (decimal_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_decimal_null_hash using hash on decimaltypes(decimal_null_hash);
-create index idx_decimal_null_btree on decimaltypes(decimal_null_btree);
-create unique index idx_decimal_null_both on decimaltypes(decimal_null_both);
 
 drop table if exists bigintegertypes;
 create table bigintegertypes (
@@ -445,13 +439,13 @@ create table bigintegertypes (
  decimal_null_hash decimal(10),
  decimal_null_btree decimal(10),
  decimal_null_both decimal(10),
- decimal_null_none decimal(10)
+ decimal_null_none decimal(10),
+
+ unique key idx_decimal_null_hash (decimal_null_hash) using hash,
+ key idx_decimal_null_btree (decimal_null_btree),
+ unique key idx_decimal_null_both (decimal_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_decimal_null_hash using hash on bigintegertypes(decimal_null_hash);
-create index idx_decimal_null_btree on bigintegertypes(decimal_null_btree);
-create unique index idx_decimal_null_both on bigintegertypes(decimal_null_both);
 
 drop table if exists timestamptypes;
 create table timestamptypes (
@@ -460,13 +454,13 @@ create table timestamptypes (
  timestamp_not_null_hash timestamp not null,
  timestamp_not_null_btree timestamp not null,
  timestamp_not_null_both timestamp not null,
- timestamp_not_null_none timestamp not null
+ timestamp_not_null_none timestamp not null,
+
+ unique key idx_timestamp_not_null_hash (timestamp_not_null_hash) using hash,
+ key idx_timestamp_not_null_btree (timestamp_not_null_btree),
+ unique key idx_timestamp_not_null_both (timestamp_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_timestamp_not_null_hash using hash on timestamptypes(timestamp_not_null_hash);
-create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_btree);
-create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
 drop table if exists stringtype;
 create table stringtype (
@@ -475,13 +469,13 @@ create table stringtype (
  string_null_hash varchar(10),
  string_null_btree varchar(10),
  string_null_both varchar(10),
- string_null_none varchar(10)
+ string_null_none varchar(10),
+
+ unique key idx_string_null_hash (string_null_hash) using hash,
+ key idx_string_null_btree (string_null_btree),
+ unique key idx_string_null_both (string_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_string_null_hash using hash on stringtype(string_null_hash);
-create index idx_string_null_btree on stringtype(string_null_btree);
-create unique index idx_string_null_both on stringtype(string_null_both);
 
 drop table if exists yeartypes;
 create table yeartypes (
@@ -495,17 +489,17 @@ create table yeartypes (
  year_not_null_hash year,
  year_not_null_btree year,
  year_not_null_both year,
- year_not_null_none year
+ year_not_null_none year,
+
+ unique key idx_year_null_hash (year_null_hash) using hash,
+ key idx_year_null_btree (year_null_btree),
+ unique key idx_year_null_both (year_null_both),
+
+ unique key idx_year_not_null_hash (year_not_null_hash) using hash,
+ key idx_year_not_null_btree (year_not_null_btree),
+ unique key idx_year_not_null_both (year_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_year_null_hash using hash on yeartypes(year_null_hash);
-create index idx_year_null_btree on yeartypes(year_null_btree);
-create unique index idx_year_null_both on yeartypes(year_null_both);
-
-create unique index idx_year_not_null_hash using hash on yeartypes(year_not_null_hash);
-create index idx_year_not_null_btree on yeartypes(year_not_null_btree);
-create unique index idx_year_not_null_both on yeartypes(year_not_null_both);
 
 drop table if exists timetypes;
 create table timetypes (
@@ -519,17 +513,17 @@ create table timetypes (
  time_not_null_hash time,
  time_not_null_btree time,
  time_not_null_both time,
- time_not_null_none time
+ time_not_null_none time,
+
+ unique key idx_time_null_hash (time_null_hash) using hash,
+ key idx_time_null_btree (time_null_btree),
+ unique key idx_time_null_both (time_null_both),
+
+ unique key idx_time_not_null_hash (time_not_null_hash) using hash,
+ key idx_time_not_null_btree (time_not_null_btree),
+ unique key idx_time_not_null_both (time_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_time_null_hash using hash on timetypes(time_null_hash);
-create index idx_time_null_btree on timetypes(time_null_btree);
-create unique index idx_time_null_both on timetypes(time_null_both);
-
-create unique index idx_time_not_null_hash using hash on timetypes(time_not_null_hash);
-create index idx_time_not_null_btree on timetypes(time_not_null_btree);
-create unique index idx_time_not_null_both on timetypes(time_not_null_both);
 
 drop table if exists datetypes;
 create table datetypes (
@@ -543,17 +537,17 @@ create table datetypes (
  date_not_null_hash date,
  date_not_null_btree date,
  date_not_null_both date,
- date_not_null_none date
+ date_not_null_none date,
+
+ unique key idx_date_null_hash (date_null_hash) using hash,
+ key idx_date_null_btree (date_null_btree),
+ unique key idx_date_null_both (date_null_both),
+
+ unique key idx_date_not_null_hash (date_not_null_hash) using hash,
+ key idx_date_not_null_btree (date_not_null_btree),
+ unique key idx_date_not_null_both (date_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_date_null_hash using hash on datetypes(date_null_hash);
-create index idx_date_null_btree on datetypes(date_null_btree);
-create unique index idx_date_null_both on datetypes(date_null_both);
-
-create unique index idx_date_not_null_hash using hash on datetypes(date_not_null_hash);
-create index idx_date_not_null_btree on datetypes(date_not_null_btree);
-create unique index idx_date_not_null_both on datetypes(date_not_null_both);
 
 drop table if exists datetimetypes;
 create table datetimetypes (
@@ -567,15 +561,15 @@ create table datetimetypes (
  datetime_not_null_hash datetime,
  datetime_not_null_btree datetime,
  datetime_not_null_both datetime,
- datetime_not_null_none datetime
+ datetime_not_null_none datetime,
+
+ unique key idx_datetime_null_hash (datetime_null_hash) using hash,
+ key idx_datetime_null_btree (datetime_null_btree),
+ unique key idx_datetime_null_both (datetime_null_both),
+
+ unique key idx_datetime_not_null_hash (datetime_not_null_hash) using hash,
+ key idx_datetime_not_null_btree (datetime_not_null_btree),
+ unique key idx_datetime_not_null_both (datetime_not_null_both)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_datetime_null_hash using hash on datetimetypes(datetime_null_hash);
-create index idx_datetime_null_btree on datetimetypes(datetime_null_btree);
-create unique index idx_datetime_null_both on datetimetypes(datetime_null_both);
-
-create unique index idx_datetime_not_null_hash using hash on datetimetypes(datetime_not_null_hash);
-create index idx_datetime_not_null_btree on datetimetypes(datetime_not_null_btree);
-create unique index idx_datetime_not_null_both on datetimetypes(datetime_not_null_both);
 

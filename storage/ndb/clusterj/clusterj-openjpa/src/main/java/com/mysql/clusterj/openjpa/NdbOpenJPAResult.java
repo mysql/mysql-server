@@ -154,6 +154,9 @@ public class NdbOpenJPAResult extends AbstractResult implements Result {
             case JavaSQLTypes.TIMESTAMP:
                 result = new java.sql.Timestamp(resultData.getLong(columnName));
                 break;
+            case JavaSQLTypes.BYTES:
+                result = resultData.getBytes(columnName);
+                break;
             default:
                 if (logger.isDetailEnabled()) {
                     logger.detail("Unsupported Meta Type: " + metaType);

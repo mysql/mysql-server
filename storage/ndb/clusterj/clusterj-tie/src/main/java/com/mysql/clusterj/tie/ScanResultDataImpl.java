@@ -59,13 +59,14 @@ class ScanResultDataImpl extends ResultDataImpl {
         // NdbScanOperation may have many results.
         boolean done = false;
         boolean fetch = false;
-        boolean force = false; // always false for scans
+        boolean force = true; // always true for scans
         while (!done) {
             int result = ndbScanOperation.nextResult(fetch, force);
             switch (result) {
                 case RESULT_READY:
                     return true;
                 case SCAN_FINISHED:
+                    ndbScanOperation.close(true, true);
                     return false;
                 case CACHE_EMPTY:
                     fetch = true;

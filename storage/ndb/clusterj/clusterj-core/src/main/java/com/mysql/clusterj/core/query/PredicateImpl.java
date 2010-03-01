@@ -46,10 +46,16 @@ public abstract class PredicateImpl implements Predicate {
     protected QueryDomainTypeImpl<?> dobj;
 
     /** Scan types. */
-    protected static final int INDEX_SCAN = 0;
-    protected static final int TABLE_SCAN = 1;
-    protected static final int UNIQUE_SCAN = 2;
-    protected static final int PRIMARY_KEY = 3;
+    protected enum ScanType {
+        INDEX_SCAN,
+        TABLE_SCAN,
+        UNIQUE_SCAN,
+        PRIMARY_KEY
+    }
+//    protected static final int INDEX_SCAN = 0;
+//    protected static final int TABLE_SCAN = 1;
+//    protected static final int UNIQUE_SCAN = 2;
+//    protected static final int PRIMARY_KEY = 3;
 
     public PredicateImpl(QueryDomainTypeImpl<?> dobj) {
         this.dobj = dobj;

@@ -636,7 +636,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 op.setNull(fmd.storeColumn);
             } else {
                 op.setBytes(fmd.storeColumn, value);
-            } 
+            }
         }
 
         public String handler() {
