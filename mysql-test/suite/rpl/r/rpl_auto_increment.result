@@ -332,8 +332,6 @@ id
 2
 3
 4
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
 DROP TABLE t1;
 DROP TABLE t2;
 Comparing tables master:test.t1 and slave:test.t1
