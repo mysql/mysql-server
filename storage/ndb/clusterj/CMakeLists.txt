@@ -15,11 +15,14 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 
+SET(BASE_NAMES api core tie)
+
 ADD_SUBDIRECTORY(clusterj-api)
 ADD_SUBDIRECTORY(clusterj-core)
 ADD_SUBDIRECTORY(clusterj-tie)
 IF(HAVE_OPENJPA)
   ADD_SUBDIRECTORY(clusterj-openjpa)
+  LIST(APPEND BASE_NAMES openjpa)
 ENDIF(HAVE_OPENJPA)
 IF(HAVE_JUNIT)
   ADD_SUBDIRECTORY(clusterj-test)
@@ -27,4 +30,30 @@ IF(HAVE_JUNIT)
     ADD_SUBDIRECTORY(clusterj-jpatest)
   ENDIF(HAVE_OPENJPA)
 ENDIF(HAVE_JUNIT)
+
+FOREACH(BASE_NAME ${BASE_NAMES})
+
+  SET(BASE_DIR ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-${BASE_NAME})
+  SET(BUNDLE ${BASE_DIR}/src/main/resources/com/mysql/clusterj/${BASE_NAME}/Bundle.properties)
+
+  LIST(APPEND JAVA_CLASS_DIRS "${BASE_DIR}/target/classes" "com/mysql/clusterj")
+
+  IF(EXISTS ${BASE_DIR}/src/main/resources/META-INF/services)
+    LIST(APPEND JAVA_CLASS_DIRS "${BASE_DIR}/src/main/resources" "META-INF/services")
+  ENDIF()  
+  IF(EXISTS ${BUNDLE})
+    LIST(APPEND JAVA_CLASS_DIRS "${BASE_DIR}/src/main/resources" "com/mysql/clusterj/${BASE_NAME}/Bundle.properties")
+  ENDIF() 
+ 
+ENDFOREACH(BASE_NAME ${BASE_NAMES})
+
+LIST(APPEND JAVA_CLASS_DIRS "${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes" "com/mysql/ndbjtie")
+LIST(APPEND JAVA_CLASS_DIRS "${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes" "com/mysql/jtie")
+
+SET(CLUSTERJ_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation,com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie)
+CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
+CREATE_JAR_FROM_CLASSES(clusterj ${JAVA_CLASS_DIRS}
+  MANIFEST clusterj_manifest.mf
+  DEPENDENCIES clusterj-api.jar ndbjtie.jar jtie.jar)
+
 

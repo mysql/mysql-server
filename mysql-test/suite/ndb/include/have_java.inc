@@ -1,6 +1,8 @@
 --perl
 use strict;
 use IO::File;
+use lib "lib/";
+use My::Platform;
 
 #
 # Looks for java executable (/bin/java) in several locations:
@@ -11,14 +13,19 @@ use IO::File;
 #
 # If java executable is found, MTR_JAVA will be set to reflect this location
 #
-my $java_args = "-d32";
-
-# Architecture dependent paths, will be expanded with -64 if we are running on 64 bit build
+my $java_args = "";
 my $arch_paths = ['/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'];
-my $bits = $ENV{MYSQL_SYSTEM_ARCHITECTURE};
-if ($bits == 64) {
+
+if(!IS_WINDOWS)
+{
+  $java_args = "-d32";
+
+  # Architecture dependent paths, will be expanded with -64 if we are running on 64 bit build
+  my $bits = $ENV{MYSQL_SYSTEM_ARCHITECTURE};
+  if ($bits == 64) {
     $arch_paths = [map { $_ . "-64" } @$arch_paths];
     $java_args = "-d64";
+  }
 }
 
 my $java_paths = [$ENV{MTR_JAVA}, $ENV{JAVA_HOME}, $ENV{JDK_HOME}, '/usr/lib/jvm/java',

@@ -2,6 +2,7 @@
 use strict;
 use lib "lib/";
 use My::Exec;
+use My::Platform;
 
 ##
 ## run_java.inc - include script to run Java
@@ -35,6 +36,13 @@ my $java_args = $ENV{MTR_JAVA_ARGS} || '';
 my $jvm_opts = $ENV{JAVA_JVM_OPTS} || '';
 my $class_args = $ENV{JAVA_ARGUMENTS} || '';
 
+my $sep = ":";
+if(IS_WINDOWS)
+{
+  $sep = ";";
+}
+
+
 # The length of the variables that can be passed in environment variables are limited
 # (around 1024 characters) - this trick lets you plit the classpath in several variables to
 # be avle to pass longer classpaths
@@ -43,7 +51,7 @@ for my $i (1..9)
   my $env = $ENV{"JAVA_CLASSPATH_$i"} || '';
   if ($env)
   {
-    $java_classpath .= ":$env";
+    $java_classpath .= "$sep$env";
   }
   my $jvm = $ENV{"JAVA_JVM_OPTS_$i"} || '';
   if ($jvm)
@@ -54,10 +62,10 @@ for my $i (1..9)
 
 if ($ENV{MTR_CLASSPATH})
 {
-  $java_classpath .= ":$ENV{MTR_CLASSPATH}"
+  $java_classpath .= "$sep$ENV{MTR_CLASSPATH}"
 }
 
-my $cmd = "$java $java_args $jvm_opts $java_classpath $java_class $class_args";
+my $cmd = "$java $java_args $jvm_opts -classpath \"$java_classpath\" $java_class $class_args";
 my $res = exec_print_on_error($cmd);
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} || die "Need MYSQLTEST_VARDIR";
@@ -68,7 +76,7 @@ if ($res)
 }
 else
 {
-  print $F "die Java run failed;\n";
+  print $F "die \'$cmd\' run failed;\n";
 }
 $F->close();
 

@@ -60,7 +60,8 @@ EXTRA_DIST = $(MYJAPI_DIR)/*.java  \
 	MyApiWrapper.hpp \
 	myjapi_MyJapi.hpp \
 	myjapi_MyJapiCtypes.hpp \
-	myjapi_classes.hpp
+	myjapi_classes.hpp \
+	CMakeLists.txt
 
 classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 	mkdir -p $(JAVAROOT)

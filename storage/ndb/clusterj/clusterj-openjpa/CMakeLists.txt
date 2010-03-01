@@ -28,6 +28,10 @@ SET(JAR_DEPENDENCIES
   clusterj-api.jar
   clusterj-core.jar)
 
-CREATE_JAR(cluster-openjpa.jar ${JAVA_SOURCE_DIRS} 
-  CLASSPATH ${CLASSPATH} 
-  DEPENDENCIES ${JAR_DEPENDENCIES})
+SET(CLUSTERJPA_EXPORTS "${CLUSTERJ_EXPORTS},com.mysql.clusterj.openjpa")
+CREATE_MANIFEST(clusterjpa_manifest.mf ${CLUSTERJPA_EXPORTS} clusterjpa)
+CREATE_JAR_FROM_CLASSES(clusterjpa ${JAVA_CLASS_DIRS}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes com/mysql/clusterj
+  MANIFEST clusterjpa_manifest.mf
+  DEPENDENCIES clusterj-api.jar ndbjtie.jar jtie.jar)
+

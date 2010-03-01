@@ -21,6 +21,7 @@ include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
 ## files to be distributed and not covered in the automatic rules
 EXTRA_DIST = $(TEST_DIR)/*.java \
+	CMakeLists.txt \
 	ndbjtie_unit_tests-t
 
 NDBJTIE = ../

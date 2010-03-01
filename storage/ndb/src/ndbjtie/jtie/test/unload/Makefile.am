@@ -41,7 +41,7 @@ TEST_DIR = $(srcdir)/test
 TEST_CLASSES = $(TEST_DIR)/MyLoadUnloadTest.class
 
 ## files to be distributed and not covered in the automatic rules
-EXTRA_DIST = $(TEST_DIR)/*.java
+EXTRA_DIST = $(TEST_DIR)/*.java CMakeLists.txt
 
 ## ----------------------------------------------------------------------
 
