@@ -66,7 +66,7 @@ ulong events_waits_history_per_thread;
 /** Number of instruments class per thread. */
 ulong instr_class_per_thread;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
-ulong locker_lost;
+ulong locker_lost= 0;
 
 /**
   Mutex instrumentation instances array.
