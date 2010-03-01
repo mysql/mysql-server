@@ -5754,6 +5754,7 @@ NdbDictionaryImpl::createUndofile(const NdbUndofileImpl & file,
     DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   DBUG_PRINT("info", ("Failed to find filegroup"));
+  m_error.code = 789;
   DBUG_RETURN(-1);
 }
 
