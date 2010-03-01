@@ -748,6 +748,14 @@ NdbDictionary::Table::setRangeListData(const Int32* data, Uint32 len)
   return m_impl.setRangeListData(data, len);
 }
 
+Uint32
+NdbDictionary::Table::getFragmentNodes(Uint32 fragmentId, 
+                                       Uint32* nodeIdArrayPtr,
+                                       Uint32 arraySize) const
+{
+  return m_impl.getFragmentNodes(fragmentId, nodeIdArrayPtr, arraySize);
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Table::getObjectStatus() const {
   return m_impl.m_status;
