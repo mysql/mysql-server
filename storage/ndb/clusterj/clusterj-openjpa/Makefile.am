@@ -107,10 +107,6 @@ $(clusterjpa_version_jar) : classclusterj_openjpa.stamp $(CLUSTERJPA_MANIFEST)
 	@JAR@ cvfm $@ $(CLUSTERJPA_MANIFEST); \
 	for i in $(CLUSTERJPA_JAR_DIRS); do \
 	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
-	  @JAR@ uvf $@ -C $$i/target/classes com/mysql; \
-	@JAR@ cvfm $@ $(CLUSTERJPA_MANIFEST); \
-	for i in $(CLUSTERJPA_JAR_DIRS); do \
-	  BASE_NAME=`echo $$i | sed 's/clusterj-//'`; \
 	  @JAR@ uvf $@ -C ../$$i/target/classes com/mysql; \
 	  if test -x ../$$i/src/main/resources/META-INF/services; then \
 	    @JAR@ uvf $@ -C ../$$i/src/main/resources META-INF/services; \
