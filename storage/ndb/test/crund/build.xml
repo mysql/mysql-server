@@ -21,7 +21,7 @@
     -XX:+UseParallelGC
     "Throughput" collector: use a parallel young generation collector.
     The old (tenured) generation is still cleaned with the default collector.
-    Default with -server. Cannot be used with -XX:+UseConcMarkSweepGC. 
+    Default with -server. Cannot be used with -XX:+UseConcMarkSweepGC.
 
     -XX:+UseParallelOldGC  (supported by: 1.5.0.6)
     Use the parallel old generation collector (for certain phases).
@@ -230,7 +230,7 @@
   <target name="compile.all" depends="init,compile.ndbapi,compile.ndbjtie,compile.ndbj,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
 
   <!-- <target name="compile" depends="set.compile,init,javac,javah"/> -->
-  <target name="compile" depends="init,compile.ndbapi,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
+  <target name="compile" depends="init,compile.driver,compile.ndbapi,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
 
   <!-- compiles all code with optimization -->
   <target name="compile.opt" depends="set.compile.opt,compile"/>
@@ -269,8 +269,8 @@
   <target name="set.run">
     <property name="jvmflags" value="-ea ${jvm-args}"/>
     <java classname="dummy" fork="true" failonerror="true">
-      <jvmarg line="${jvmflags}"/> 
-      <jvmarg line="-version"/> 
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-version"/>
     </java>
   </target>
 
@@ -278,8 +278,8 @@
   <target name="set.run.opt">
     <property name="jvmflags" value="-da ${jvm-args}"/>
     <java classname="dummy" fork="true" failonerror="true">
-      <jvmarg line="${jvmflags}"/> 
-      <jvmarg line="-version"/> 
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-version"/>
     </java>
   </target>
 
@@ -287,6 +287,19 @@
   <target name="run" depends="set.run">
     <property name="jvmflags" value="-ea ${jvm-args}"/>
   </target>
+
+  <!-- #################################################################
+       # Driver
+       ################################################################# -->
+
+  <!-- compiles the benchmark driver -->
+  <target name="compile.driver" depends="set.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   includes="com/mysql/cluster/crund/Driver.java"/>
+  </target>
+
+  <!-- compiles the benchmark driver with optimizations -->
+  <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
   <!-- #################################################################
        # NDBAPI
@@ -346,7 +359,7 @@
 
     <java classname="com.mysql.cluster.crund.NdbApiLoad"
      fork="true" failonerror="true" classpathref="classpath.ndbapi.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <!-- path to NDB client lib, native benchmark backend -->
       <!--<jvmarg line="-Djava.library.path='${ndb.libdir}:${build}'"/>-->
       <jvmarg line="-Djava.library.path='${ndb.libdir}:./src/crundndb'"/>
@@ -415,7 +428,7 @@
 
     <java classname="com.mysql.cluster.crund.NdbJTieLoad"
      fork="true" failonerror="true" classpathref="classpath.ndbjtie.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundNdbjtie.properties"/>
@@ -490,7 +503,7 @@
 
     <java classname="com.mysql.cluster.crund.NdbjLoad"
      fork="true" failonerror="true" classpathref="classpath.ndbj.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndbj.libdir}'"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundNdbj.properties"/>
@@ -571,7 +584,7 @@
 
     <java classname="com.mysql.cluster.crund.ClusterjLoad"
      fork="true" failonerror="true" classpathref="classpath.clusterj.ndbj.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndbj.libdir}'"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundClusterj.properties"/>
@@ -611,7 +624,7 @@
 
     <java classname="com.mysql.cluster.crund.ClusterjLoad"
      fork="true" failonerror="true" classpathref="classpath.clusterj.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundClusterj.properties"/>
@@ -708,7 +721,7 @@
     <property name="mysql.dbpassword" value=""/>
     <java classname="com.mysql.cluster.crund.JdbcDriverTest"
      fork="true" failonerror="true" classpathref="classpath.mysql.run">
-      <jvmarg value="-ea"/> 
+      <jvmarg value="-ea"/>
       <sysproperty key="jdbc.driver" value="${mysql.dbdriver}"/>
       <sysproperty key="jdbc.url" value="${mysql.dburl}"/>
       <sysproperty key="jdbc.user" value="${mysql.dbuser}"/>
@@ -789,7 +802,7 @@
 
     <java classname="org.apache.derby.tools.ij"
      fork="true" classpathref="classpath.derby.ij">
-      <arg value="src/tables_derby.sql"/> 
+      <arg value="src/tables_derby.sql"/>
     </java>
   </target>
 
@@ -806,7 +819,7 @@
 
     <java classname="com.mysql.cluster.crund.JdbcDriverTest"
      fork="true" failonerror="true" classpathref="classpath.derby.run">
-      <jvmarg value="-ea"/> 
+      <jvmarg value="-ea"/>
       <sysproperty key="jdbc.driver" value="${derby.dbdriver}"/>
       <sysproperty key="jdbc.url" value="${derby.dburl}"/>
       <sysproperty key="jdbc.user" value="${derby.dbuser}"/>
@@ -822,7 +835,7 @@
 
     <java classname="com.mysql.cluster.crund.JdbcLoad"
      fork="true" failonerror="true" classpathref="classpath.derby.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <arg line="-p crundRun.properties"/>
       <arg line="-p crundDerby.properties"/>
     </java>
@@ -835,7 +848,38 @@
        # OpenJPA
        ################################################################# -->
 
-  <!-- enhancer task for OpenJPA
+  <!--
+  <path id="jpa.enhancement.classpath">
+    <pathelement location="bin"/>
+
+    <!- lib contains all of the jars that came with the OpenJPA
+         binary download ->
+    <fileset dir="lib">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+
+  <target name="enhance" depends="build">
+    <!- This is a bit of a hack, but I needed to copy the
+         persistence.xml file from my src dir
+         to the build dir when we run enhancement ->
+    <copy includeemptydirs="false" todir="bin">
+      <fileset dir="src" excludes="**/*.launch, **/*.java"/>
+    </copy>
+
+    <!- define the openjpac task ->
+    <taskdef name="openjpac"
+	     classname="org.apache.openjpa.ant.PCEnhancerTask">
+      <classpath refid="jpa.enhancement.classpath"/>
+    </taskdef>
+
+    <!- invoke enhancer the enhancer ->
+    <openjpac>
+      <classpath refid="jpa.enhancement.classpath"/>
+    </openjpac>
+    <echo message="Enhancing complete."/>
+  </target>
+
   <target name="enhance">
     <- define the openjpac task; this can be done at the top of the ->
     <- build.xml file, so it will be available for all targets ->
@@ -851,7 +895,7 @@
   </target>
 
  The enhancer can be invoked at build time via the included openjpac script
- or via its Java class, org.apache.openjpa.enhance.PCEnhancer. 
+ or via its Java class, org.apache.openjpa.enhance.PCEnhancer.
 
  The enhancer accepts the standard set of command-line arguments defined by
  the configuration framework (see Section 3, “Command Line Configuration”),
@@ -872,12 +916,12 @@
       classes with a temporary class loader. This allows other code to then
       load the enhanced version of the class within the same JVM. Defaults
       to true. Try setting this flag to false as a debugging step if you
-      run into class loading problems when running the enhancer. 
+      run into class loading problems when running the enhancer.
 
 Each additional argument to the enhancer must be one of the following:
     * The full name of a class.
     * The .java file for a class.
-    * The .class file of a class. 
+    * The .class file of a class.
 
 If you do not supply any arguments to the enhancer, it will run on the -
      - classes in your persistent class list (see Section 1, “Persistent
@@ -895,8 +939,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
      problematic; however, when running the enhancer multiple times over a
      subclass whose parent class is not yet enhanced, class loading errors
      can occur. In the event of a class load error, simply re-compile and
-     re-enhance the offending classes. 
-
+     re-enhance the offending classes.
 -->
 
   <!-- sets the paths for running against OpenJPA -->
@@ -966,11 +1009,97 @@ Note that the enhancement process for subclasses introduces dependencies on -
     </path>
   </target>
 
+  <!-- sets the paths for enhancing classes for OpenJPA -->
+  <target name="set.paths.openjpa.enhance" depends="set.paths.jpa.compile">
+    <!-- check path to OpenJPA API jar -->
+    <condition property="openjpa.jar" value="${OPENJPA_JAR}">
+      <not>
+	<equals arg1="${OPENJPA_JAR}" arg2="$${OPENJPA_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property OPENJPA_JAR not set!" unless="openjpa.jar" />
+
+    <!-- check path to JTA API jar (needed by OpenJPA)-->
+    <condition property="jta.api.jar" value="${JTA_API_JAR}">
+      <not>
+	<equals arg1="${JTA_API_JAR}" arg2="$${JTA_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property JTA_API_JAR not set!" unless="jta.api.jar" />
+
+    <!-- check path to Apache Commons Lang jar (needed by OpenJPA) -->
+    <condition property="commons.lang.jar" value="${COMMONS_LANG_JAR}">
+      <not>
+	<equals arg1="${COMMONS_LANG_JAR}" arg2="$${COMMONS_LANG_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_LANG_JAR not set!" unless="commons.lang.jar" />
+
+    <!-- check path to Apache Commons Collections jar (needed by OpenJPA) -->
+    <condition property="commons.collections.jar" value="${COMMONS_COLLECTIONS_JAR}">
+      <not>
+	<equals arg1="${COMMONS_COLLECTIONS_JAR}" arg2="$${COMMONS_COLLECTIONS_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_COLLECTIONS_JAR not set!" unless="commons.collections.jar" />
+
+    <!-- check path to Apache Commons Pool jar (not sure if needed!) -->
+    <condition property="commons.pool.jar" value="${COMMONS_POOL_JAR}">
+      <not>
+	<equals arg1="${COMMONS_POOL_JAR}" arg2="$${COMMONS_POOL_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_POOL_JAR not set!" unless="commons.pool.jar" />
+
+    <!-- check path to Serp API jar (needed for byte code enhancement?) -->
+    <condition property="serp.jar" value="${SERP_JAR}">
+      <not>
+	<equals arg1="${SERP_JAR}" arg2="$${SERP_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property SERP_JAR not set!" unless="serp.jar" />
+
+    <path id="classpath.openjpa.enhance">
+      <path refid="classpath.jpa.compile"/>
+      <pathelement location="${openjpa.jar}"/>
+      <pathelement location="${jta.api.jar}"/>
+      <pathelement location="${commons.lang.jar}"/>
+      <pathelement location="${commons.collections.jar}"/>
+      <pathelement location="${commons.pool.jar}"/>
+      <pathelement location="${serp.jar}"/>
+      <!-- location of persistence.xml: -->
+      <pathelement location="${src.java}"/>
+    </path>
+  </target>
+
   <!-- compiles the benchmark against OpenJPA -->
   <target name="compile.openjpa" depends="compile.jpa"/>
 
   <!-- compiles the benchmark against OpenJPA with optimizations -->
   <target name="compile.openjpa.opt" depends="set.compile.opt,compile.openjpa"/>
+
+  <!-- enhances the benchmark for OpenJPA -->
+  <property name="openjpa.Log" value="DefaultLevel=TRACE, Enhance=TRACE"/>
+  <target name="enhance.openjpa" depends="compile.openjpa,set.paths.openjpa.enhance">
+
+    <!-- define the openjpac task -->
+    <taskdef name="openjpac" classname="org.apache.openjpa.ant.PCEnhancerTask">
+      <classpath refid="classpath.openjpa.enhance"/>
+    </taskdef>
+
+    <!-- invoke enhancer the enhancer -->
+    <echo message="using:" />
+    <echo message="  classpath.openjpa.enhance: ${toString:classpath.openjpa.enhance}" />
+
+    <openjpac>
+      <classpath refid="classpath.openjpa.enhance"/>
+      <fileset dir="build/com/mysql/cluster/crund">
+        <include name="A.class" />
+        <include name="B0.class" />
+      </fileset>
+    </openjpac>
+    <echo message="Enhancing complete."/>
+  </target>
 
   <!-- #################################################################
        # OpenJPA over MySQL JDBC
@@ -993,7 +1122,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
 
     <java classname="com.mysql.cluster.crund.JpaLoad"
      fork="true" failonerror="true" classpathref="classpath.openjpa.mysql.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <!-- javaagent argument for automatic class-enhancement -->
       <jvmarg value="-javaagent:${javaagent.openjpa}"/>
       <arg line="-p crundRun.properties"/>
@@ -1020,6 +1149,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <fail message="property CLUSTERJPA_JAR not set!" unless="clusterjpa.jar" />
 
     <path id="classpath.openjpa.clusterj.run">
+      <pathelement location="${build}"/>
       <pathelement location="${clusterjpa.jar}"/>
       <path refid="classpath.openjpa.run"/>
       <path refid="classpath.clusterj.run"/>
@@ -1030,13 +1160,13 @@ Note that the enhancement process for subclasses introduces dependencies on -
   <!-- runs the benchmark against OpenJPA over ClusterJ + MySQL JDBC -->
   <target name="run.openjpa.clusterj" depends="set.run,set.paths.openjpa.clusterj.run">
     <echo message="using:" />
-    <echo message="  javaagent.openjpa: ${javaagent.openjpa}" />
+    <!-- <echo message="  javaagent.openjpa: ${javaagent.openjpa}" /> -->
     <echo message="  classpath.openjpa.clusterj.run: ${toString:classpath.openjpa.clusterj.run}" />
     <echo message="" />
 
     <java classname="com.mysql.cluster.crund.JpaLoad"
      fork="true" failonerror="true" classpathref="classpath.openjpa.clusterj.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <!-- javaagent argument for automatic class-enhancement -->
       <jvmarg value="-javaagent:${javaagent.openjpa}"/>
       <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
@@ -1069,7 +1199,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
 
     <java classname="com.mysql.cluster.crund.JpaLoad"
      fork="true" failonerror="true" classpathref="classpath.openjpa.derby.run">
-      <jvmarg line="${jvmflags}"/> 
+      <jvmarg line="${jvmflags}"/>
       <!-- javaagent argument for automatic class-enhancement -->
       <jvmarg value="-javaagent:${javaagent.openjpa}"/>
       <arg line="-p crundRun.properties"/>

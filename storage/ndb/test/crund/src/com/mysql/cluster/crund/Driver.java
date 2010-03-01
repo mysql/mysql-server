@@ -96,6 +96,8 @@ abstract public class Driver {
     protected boolean renewOperations = false;
     protected boolean renewConnection = false;
     protected boolean allowExtendedPC = false;
+    protected int aRows = (1 << 8);
+    protected int bRows = (1 << 8);
     protected int aStart = (1 << 8), aEnd = (1 << 12), aIncr = (1 << 2);
     protected int bStart = (1 << 8), bEnd = (1 << 12), bIncr = (1 << 2);
     protected int maxVarbinaryBytes = 100;
@@ -309,6 +311,7 @@ abstract public class Driver {
         loadProperties();
         initProperties();
         printProperties();
+        checkProperties();
         openLogFile();
 
         // init log buffers
@@ -388,12 +391,14 @@ abstract public class Driver {
         renewOperations = parseBoolean("renewOperations");
         renewConnection = parseBoolean("renewConnection");
         allowExtendedPC = parseBoolean("allowExtendedPC");
-        aStart = parseInt("aStart", 1 << 8);
-        aEnd = parseInt("aEnd", 1 << 12);
-        aIncr = parseInt("aIncr", 1 << 2);
-        bStart = parseInt("bStart", 1 << 8);
-        bEnd = parseInt("bEnd", 1 << 12);
-        bIncr = parseInt("bIncr", 1 << 2);
+        aRows = parseInt("aRows", 0);
+        bRows = parseInt("bRows", 0);
+        aStart = parseInt("aStart", 0);
+        aEnd = parseInt("aEnd", 0);
+        aIncr = parseInt("aIncr", 0);
+        bStart = parseInt("bStart", 0);
+        bEnd = parseInt("bEnd", 0);
+        bIncr = parseInt("bIncr", 0);
         maxVarbinaryBytes = parseInt("maxVarbinaryBytes", 100);
         maxVarcharChars = parseInt("maxVarcharChars", 100);
         maxBlobBytes = parseInt("maxBlobBytes", 1000);
@@ -422,9 +427,11 @@ abstract public class Driver {
         out.println("renewOperations:            " + renewOperations);
         out.println("renewConnection:            " + renewConnection);
         out.println("allowExtendedPC:            " + allowExtendedPC);
+        out.println("aRows:                      " + aRows);
         out.println("aStart:                     " + aStart);
         out.println("aEnd:                       " + aEnd);
         out.println("aIncr:                      " + aIncr);
+        out.println("bRows:                      " + bRows);
         out.println("bStart:                     " + bStart);
         out.println("bEnd:                       " + bEnd);
         out.println("bIncr:                      " + bIncr);
@@ -437,6 +444,109 @@ abstract public class Driver {
         out.println("exclude:                    " + exclude);
     }
 
+    /**
+     * Checks the benchmark's properties.
+     */
+    protected void checkProperties() {
+        out.println();
+        out.print("checking properties ...     ");
+        final StringBuilder msg = new StringBuilder();        
+        final String eol = System.getProperty("line.separator");        
+        if (aRows > 0) {
+            if (aStart > 0) {
+                msg.append("[ignored] aStart:           ");
+                msg.append(aStart);
+                msg.append(eol);
+            }
+            if (aEnd > 0) {
+                msg.append("[ignored] aEnd:             ");
+                msg.append(aEnd);
+                msg.append(eol);
+            }
+            if (aIncr > 0) {
+                msg.append("[ignored] aIncr:            ");
+                msg.append(aIncr);
+                msg.append(eol);
+            }
+            aStart = aRows;
+            aEnd = aRows;
+            aIncr = 2;
+        } else {
+            if (aStart <= 0) {
+                aStart = (1 << 8);
+                msg.append("[changed] aStart:           ");
+                msg.append(aStart);
+                msg.append(eol);
+            }
+            if (aEnd < aStart) {
+                aEnd = aStart;
+                msg.append("[changed] aEnd:             ");
+                msg.append(aEnd);
+                msg.append(eol);
+            }
+            if (aIncr <= 1) {
+                aIncr = 2;
+                msg.append("[changed] aIncr:            ");
+                msg.append(aIncr);
+                msg.append(eol);
+            }
+        }
+        if (bRows > 0) {
+            if (bRows < aRows) {
+                bRows = aRows;
+                msg.append("[changed] bRows:            ");
+                msg.append(bRows);
+                msg.append(eol);
+            }
+            if (bStart > 0) {
+                msg.append("[ignored] bStart:           ");
+                msg.append(bStart);
+                msg.append(eol);
+            }
+            if (bEnd > 0) {
+                msg.append("[ignored] bEnd:             ");
+                msg.append(bEnd);
+                msg.append(eol);
+            }
+            if (bIncr > 0) {
+                msg.append("[ignored] bIncr:            ");
+                msg.append(bIncr);
+                msg.append(eol);
+            }
+            bStart = bRows;
+            bEnd = bRows;
+            bIncr = 2;
+        } else {
+            if (bStart < aStart) {
+                bStart = aStart;
+                msg.append("[changed] bStart:           ");
+                msg.append(bStart);
+                msg.append(eol);
+            }
+            if (bEnd < bStart) {
+                bEnd = bStart;
+                msg.append("[changed] bEnd:             ");
+                msg.append(bEnd);
+                msg.append(eol);
+            }
+            if (bIncr <= 1) {
+                bIncr = 2;
+                msg.append("[changed] bIncr:            ");
+                msg.append(bIncr);
+                msg.append(eol);
+            }
+        }
+        if (msg.length() == 0) {
+            out.println("[ok]");
+        } else {
+            out.println();
+            out.print(msg.toString());
+        }
+        out.println("data range:                 "
+                    + "[A=" + aStart + ".." + aEnd
+                    + ", B=" + bStart + ".." + bEnd + "]");
+    }
+    
     /**
      * Opens the benchmark's data log file.
      */
