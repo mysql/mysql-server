@@ -2795,7 +2795,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }
-static Sys_var_ulong Sys_slave_net_timeout(
+static Sys_var_uint Sys_slave_net_timeout(
        "slave_net_timeout", "Number of seconds to wait for more data "
        "from a master/slave connection before aborting the read",
        GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),
