@@ -1894,6 +1894,7 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
   const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::open_indexes");
   m_has_unique_index= FALSE;
+  btree_keys.clear_all();
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
@@ -1906,6 +1907,9 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
+
+    if (error == 0 && test(index_flags(i, 0, 0) & HA_READ_RANGE))
+      btree_keys.set_bit(i);
   }
 
   if (error && !ignore_error)
