@@ -2600,6 +2600,10 @@ TESTCASE("Bug45497",
          "Connect to ndb_mgmd until it can't handle more connections"){
   STEP(runTestBug45497);
 }
+TESTCASE("TestGetVersion",
+ 	 "Test 'get version' and 'ndb_mgm_get_version'"){
+  STEPS(runTestGetVersion, 20);
+}
 TESTCASE("TestDumpEvents",
  	 "Test 'dump events'"){
   STEPS(runTestDumpEvents, 1);
