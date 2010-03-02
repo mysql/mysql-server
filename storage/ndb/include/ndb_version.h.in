@@ -373,4 +373,17 @@ ndb_suma_not_started_ref(Uint32 x)
 
 #define NDBD_UNLOCK_OP_SUPPORTED NDB_MAKE_VERSION(7,0,12)
 
+#define NDBD_ROUTE_EXEC_FRAG NDB_MAKE_VERSION(7,0,13)
+
+static
+inline
+int
+ndb_route_exec_frag(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  return x >= NDBD_ROUTE_EXEC_FRAG;
+}
+
 #endif
