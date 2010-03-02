@@ -128,13 +128,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
+    if (((uchar*)Thd) != NULL)                                                       \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
+                        ER_WARN_DEPRECATED_SYNTAX,                                   \
+                        ER(ER_WARN_DEPRECATED_SYNTAX),                               \
+                        (Old), (New));                                               \
     else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in a future release. Please use %s instead.", (Old), (New)); \
+      sql_print_warning("'%s' is deprecated and will be removed "                    \
+                        "in a future release. Please use '%s' instead.",             \
+                        (Old), (New));                                               \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -1139,7 +1141,7 @@ int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
 bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                   Item **ref_pointer_array);
+                   Item **ref_pointer_array, ORDER *group_list= NULL);
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
