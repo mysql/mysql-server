@@ -321,8 +321,8 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
-    info->state= &info->s->state.state;
   }
+  info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
 
   /*

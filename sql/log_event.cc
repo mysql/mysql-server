@@ -3187,6 +3187,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
+
+      /*
+        Resetting the enable_slow_log thd variable.
+
+        We need to reset it back to the opt_log_slow_slave_statements
+        value after the statement execution (and slow logging
+        is done). It might have changed if the statement was an
+        admin statement (in which case, down in mysql_parse execution
+        thd->enable_slow_log is set to the value of
+        opt_log_slow_admin_statements).
+      */
+      thd->enable_slow_log= opt_log_slow_slave_statements;
     }
     else
     {
@@ -8747,7 +8759,7 @@ static bool record_compare(TABLE *table)
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
   bool result= FALSE;
-  uchar saved_x[2], saved_filler[2];
+  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
   {

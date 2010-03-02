@@ -682,7 +682,7 @@ select timestampadd(SQL_TSI_FRAC_SECOND, 1, date) from t1;
 timestampadd(SQL_TSI_FRAC_SECOND, 1, date)
 2003-01-02 00:00:00.000001
 Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 5.6. Please use MICROSECOND instead
+Warning	1287	'FRAC_SECOND' is deprecated and will be removed in a future release. Please use MICROSECOND instead
 select timestampdiff(MONTH, '2001-02-01', '2001-05-01') as a;
 a
 3
@@ -717,7 +717,7 @@ select timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05
 a
 7689538999999
 Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 5.6. Please use MICROSECOND instead
+Warning	1287	'FRAC_SECOND' is deprecated and will be removed in a future release. Please use MICROSECOND instead
 select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
 timestampdiff(SQL_TSI_DAY, '1900-02-01', '1900-03-01') as a2,
 timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
@@ -1088,7 +1088,7 @@ timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 5.6. Please use MICROSECOND instead
+Warning	1287	'FRAC_SECOND' is deprecated and will be removed in a future release. Please use MICROSECOND instead
 Note	1003	select timestampdiff(WEEK,'2001-02-01','2001-05-01') AS `a1`,timestampdiff(SECOND_FRAC,'2001-02-01 12:59:59.120000','2001-05-01 12:58:58.119999') AS `a2`
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
@@ -1287,12 +1287,12 @@ SELECT TIMESTAMPADD(FRAC_SECOND, 1, '2008-02-18');
 TIMESTAMPADD(FRAC_SECOND, 1, '2008-02-18')
 2008-02-18 00:00:00.000001
 Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 5.6. Please use MICROSECOND instead
+Warning	1287	'FRAC_SECOND' is deprecated and will be removed in a future release. Please use MICROSECOND instead
 SELECT TIMESTAMPDIFF(FRAC_SECOND, '2008-02-17', '2008-02-18');
 TIMESTAMPDIFF(FRAC_SECOND, '2008-02-17', '2008-02-18')
 86400000000
 Warnings:
-Warning	1287	The syntax 'FRAC_SECOND' is deprecated and will be removed in MySQL 5.6. Please use MICROSECOND instead
+Warning	1287	'FRAC_SECOND' is deprecated and will be removed in a future release. Please use MICROSECOND instead
 SELECT DATE_ADD('2008-02-18', INTERVAL 1 FRAC_SECOND);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND)' at line 1
 SELECT DATE_SUB('2008-02-18', INTERVAL 1 FRAC_SECOND);

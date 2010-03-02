@@ -5341,8 +5341,9 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     create_new_thread(thd);
   }
   CloseHandle(connectOverlapped.hEvent);
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* _WIN32 */
 
@@ -5578,9 +5579,9 @@ error:
   if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
   if (event_connect_answer)	CloseHandle(event_connect_answer);
   if (smem_event_connect_request) CloseHandle(smem_event_connect_request);
-
+  DBUG_LEAVE;
   decrement_handler_count();
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* HAVE_SMEM */
 #endif /* EMBEDDED_LIBRARY */
@@ -5797,12 +5798,12 @@ struct my_option my_long_options[] =
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-increment-increment", OPT_AUTO_INCREMENT,
-   "Auto-increment columns are incremented by this",
+   "Auto-increment columns are incremented by this.",
    (uchar**) &global_system_variables.auto_increment_increment,
    (uchar**) &max_system_variables.auto_increment_increment, 0, GET_ULONG,
    OPT_ARG, 1, 1, 65535, 0, 1, 0 },
   {"auto-increment-offset", OPT_AUTO_INCREMENT_OFFSET,
-   "Offset added to Auto-increment columns. Used when auto-increment-increment != 1",
+   "Offset added to Auto-increment columns. Used when auto-increment-increment != 1.",
    (uchar**) &global_system_variables.auto_increment_offset,
    (uchar**) &max_system_variables.auto_increment_offset, 0, GET_ULONG, OPT_ARG,
    1, 1, 65535, 0, 1, 0 },
@@ -5815,7 +5816,7 @@ struct my_option my_long_options[] =
    (uchar**) &mysql_home_ptr, (uchar**) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"big-tables", OPT_BIG_TABLES,
-   "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors).",
+   "Allow big result sets by saving all temporary sets on file (solves most 'table full' errors).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (uchar**) &my_bind_addr_str, (uchar**) &my_bind_addr_str, 0, GET_STR,
@@ -5823,11 +5824,10 @@ struct my_option my_long_options[] =
   {"binlog_format", OPT_BINLOG_FORMAT,
    "Does not have any effect without '--log-bin'. "
    "Tell the master the form of binary logging to use: either 'row' for "
-   "row-based binary logging, or 'statement' for statement-based binary "
+   "row-based binary logging, 'statement' for statement-based binary "
    "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
-   "for those statements where only row-based is correct: those which "
-   "involve user-defined functions (i.e. UDFs) or the UUID() function; for "
-   "those, row-based binary logging is automatically used. "
+   "for statements where only row-based is correct: Statements that involve "
+   "user-defined functions (i.e., UDFs) or the UUID() function."
 #ifdef HAVE_NDB_BINLOG
    "If ndbcluster is enabled and binlog_format is `mixed', the format switches"
    " to 'row' and back implicitly per each query accessing a NDB table."
@@ -5838,7 +5838,7 @@ struct my_option my_long_options[] =
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
-   "Tells the master that updates to the given database should not be logged tothe binary log.",
+   "Tells the master that updates to the given database should not be logged to the binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
@@ -5882,10 +5882,10 @@ struct my_option my_long_options[] =
    (uchar**) &max_system_variables.completion_type, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 2, 0, 1, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
-   "Use concurrent insert with MyISAM. Disable with --concurrent-insert=0",
+   "Use concurrent insert with MyISAM. Disable with --concurrent-insert=0.",
    (uchar**) &myisam_concurrent_insert, (uchar**) &myisam_concurrent_insert,
    0, GET_ULONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
-  {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
+  {"console", OPT_CONSOLE, "Write error output on screen; don't remove the console window on windows.",
    (uchar**) &opt_console, (uchar**) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
@@ -5913,7 +5913,7 @@ struct my_option my_long_options[] =
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
-   "Don't flush key buffers between writes for any MyISAM table (Deprecated option, use --delay-key-write=all instead).",
+   "Don't flush key buffers between writes for any MyISAM table. (Deprecated option, use --delay-key-write=all instead.)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_OPENSSL
   {"des-key-file", OPT_DES_KEY_FILE,
@@ -5951,7 +5951,7 @@ struct my_option my_long_options[] =
   /* See how it's handled in get_one_option() */
   {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
    NULL,  NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
+  {"exit-info", 'T', "Used for debugging. Use at your own risk.", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
    (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
@@ -5961,11 +5961,11 @@ struct my_option my_long_options[] =
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"gdb", OPT_DEBUGGING,
-   "Set up signals usable for debugging",
+   "Set up signals usable for debugging.",
    (uchar**) &opt_debugging, (uchar**) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"general_log", OPT_GENERAL_LOG,
-   "Enable|disable general log", (uchar**) &opt_log,
+   "Enable/disable general log.", (uchar**) &opt_log,
    (uchar**) &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGE_OPTION
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
@@ -5979,9 +5979,10 @@ Disable with --skip-super-large-pages.",
    GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif
   {"ignore-builtin-innodb", OPT_IGNORE_BUILTIN_INNODB ,
-   "Disable initialization of builtin InnoDB plugin",
+   "Disable initialization of builtin InnoDB plugin.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-connect", OPT_INIT_CONNECT, "Command(s) that are executed for each new connection",
+  {"init-connect", OPT_INIT_CONNECT, 
+   "Command(s) that are executed for each new connection.",
    (uchar**) &opt_init_connect, (uchar**) &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
@@ -6013,7 +6014,7 @@ each time the SQL thread starts.",
    (uchar**) &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"local-infile", OPT_LOCAL_INFILE,
-   "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0).",
+   "Enable/disable LOAD DATA LOCAL INFILE (takes values 1 or 0).",
    (uchar**) &opt_local_infile,
    (uchar**) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
    1, 0, 0, 0, 0, 0},
@@ -6051,8 +6052,9 @@ each time the SQL thread starts.",
   */
   {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a stored function (or trigger) is allowed only to users having the SUPER privilege "
-   "and only if this stored function (trigger) may not break binary logging."
+   "a stored function (or trigger) is allowed only to users having the SUPER "
+   "privilege, and only if this stored function (trigger) may not break "
+   "binary logging."
    "Note that if ALL connections to this server ALWAYS use row-based binary "
    "logging, the security issues do not exist and the binary logging cannot "
    "break, so you can safely set this to 1."
@@ -6109,7 +6111,7 @@ each time the SQL thread starts.",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", OPT_LOG_TC,
    "Path to transaction coordinator log (used for transactions that affect "
-   "more than one storage engine, when binary log is disabled)",
+   "more than one storage engine, when binary log is disabled).",
    (uchar**) &opt_tc_log_file, (uchar**) &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_MMAP
@@ -6133,7 +6135,9 @@ log and this option justs turns on --log-bin instead.",
    (uchar**) &max_system_variables.low_priority_updates,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"master-connect-retry", OPT_MASTER_CONNECT_RETRY,
-   "The number of seconds the slave thread will sleep before retrying to connect to the master in case the master goes down or the connection is lost.",
+   "The number of seconds the slave thread will sleep before retrying to "
+   "connect to the master, in case the master goes down or the connection "
+   "is lost.",
    (uchar**) &master_connect_retry, (uchar**) &master_connect_retry, 0, GET_UINT,
    REQUIRED_ARG, 60, 0, 0, 0, 0, 0},
   {"master-host", OPT_MASTER_HOST,
@@ -6146,7 +6150,9 @@ thread is in the master's binlogs.",
    (uchar**) &master_info_file, (uchar**) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-password", OPT_MASTER_PASSWORD,
-   "The password the slave thread will authenticate with when connecting to the master. If not set, an empty password is assumed.The value in master.info will take precedence if it can be read.",
+   "The password the slave thread will authenticate with when connecting to "
+   "the master. If not set, an empty password is assumed. The value in "
+   "master.info will take precedence if it can be read.",
    (uchar**)&master_password, (uchar**)&master_password, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-port", OPT_MASTER_PORT,
@@ -6170,8 +6176,8 @@ thread is in the master's binlogs.",
    (uchar**) &master_ssl_capath, (uchar**) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
-   "Master SSL certificate file name. Only applies if you have enabled \
-master-ssl",
+   "Master SSL certificate file name. Only applies if you have enabled "
+   "master-ssl.",
    (uchar**) &master_ssl_cert, (uchar**) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
@@ -6238,14 +6244,14 @@ master-ssl",
 #ifdef HAVE_NDB_BINLOG
   {"ndb-report-thresh-binlog-epoch-slip", OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
    "Threshold on number of epochs to be behind before reporting binlog status. "
-   "E.g. 3 means that if the difference between what epoch has been received "
+   "E.g., 3 means that if the difference between what epoch has been received "
    "from the storage nodes and what has been applied to the binlog is 3 or more, "
    "a status message will be sent to the cluster log.",
    (uchar**) &ndb_report_thresh_binlog_epoch_slip,
    (uchar**) &ndb_report_thresh_binlog_epoch_slip,
    0, GET_ULONG, REQUIRED_ARG, 3, 0, 256, 0, 0, 0},
   {"ndb-report-thresh-binlog-mem-usage", OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
-   "Threshold on percentage of free memory before reporting binlog status. E.g. "
+   "Threshold on percentage of free memory before reporting binlog status. E.g., "
    "10 means that if amount of available memory for receiving binlog data from "
    "the storage nodes goes below 10%, "
    "a status message will be sent to the cluster log.",
@@ -6260,7 +6266,7 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_use_exact_count,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb_use_exact_count", OPT_NDB_USE_EXACT_COUNT,
-   "same as --ndb-use-exact-count.",
+   "Same as --ndb-use-exact-count.",
    (uchar**) &global_system_variables.ndb_use_exact_count,
    (uchar**) &global_system_variables.ndb_use_exact_count,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
@@ -6271,7 +6277,7 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_use_transactions,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb_use_transactions", OPT_NDB_USE_TRANSACTIONS,
-   "same as --ndb-use-transactions.",
+   "Same as --ndb-use-transactions.",
    (uchar**) &global_system_variables.ndb_use_transactions,
    (uchar**) &global_system_variables.ndb_use_transactions,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
@@ -6286,7 +6292,9 @@ master-ssl",
    (uchar**) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   { "ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
-    "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
+    "A dedicated thread is created to, at the given milliseconds interval, "
+    "invalidate the query cache if another MySQL server in the cluster has "
+    "changed the data in the database.",
     (uchar**) &opt_ndb_cache_check_time, (uchar**) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
     0, 0, LONG_TIMEOUT, 0, 1, 0},
   {"ndb-index-stat-enable", OPT_NDB_INDEX_STAT_ENABLE,
@@ -6301,12 +6309,13 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
-  {"new", 'n', "Use very new possible 'unsafe' functions.",
+  {"new", 'n', "Use very new, possibly 'unsafe', functions.",
    (uchar**) &global_system_variables.new_mode,
    (uchar**) &max_system_variables.new_mode,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef NOT_YET
-  {"no-mix-table-types", OPT_NO_MIX_TYPE, "Don't allow commands with uses two different table types.",
+  {"no-mix-table-types", OPT_NO_MIX_TYPE, 
+   "Don't allow commands that use two different table types.",
    (uchar**) &opt_no_mix_types, (uchar**) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
@@ -6320,10 +6329,12 @@ master-ssl",
    (uchar**) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"one-thread", OPT_ONE_THREAD,
-   "(deprecated): Only use one thread (for debugging under Linux). Use thread-handling=no-threads instead",
+   "(Deprecated): Only use one thread (for debugging under Linux). Use "
+   "thread-handling=no-threads instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"old-style-user-limits", OPT_OLD_STYLE_USER_LIMITS,
-   "Enable old-style user limits (before 5.0.3 user resources were counted per each user+host vs. per account)",
+   "Enable old-style user limits (before 5.0.3, user resources were counted "
+   "per each user+host vs. per account).",
    (uchar**) &opt_old_style_user_limits, (uchar**) &opt_old_style_user_limits,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
@@ -6339,10 +6350,10 @@ master-ssl",
    (uchar**) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
    "Maximum time in seconds to wait for the port to become free. "
-   "(Default: no wait)", (uchar**) &mysqld_port_timeout,
+   "(Default: No wait).", (uchar**) &mysqld_port_timeout,
    (uchar**) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #if defined(ENABLED_PROFILING)
-  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory",
+  {"profiling_history_size", OPT_PROFILING, "Limit of query profiling memory.",
    (uchar**) &global_system_variables.profiling_history_size,
    (uchar**) &max_system_variables.profiling_history_size,
    0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
@@ -6412,7 +6423,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
-   "Deprecated option; use GRANT SHOW DATABASES instead...",
+   "Deprecated option; use GRANT SHOW DATABASES instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-user-create", OPT_SAFE_USER_CREATE,
@@ -6426,7 +6437,7 @@ Can't be set to 1 if --log-slave-updates is used.",
    (uchar**) &opt_secure_auth, (uchar**) &opt_secure_auth, 0, GET_BOOL, NO_ARG,
    my_bool(0), 0, 0, 0, 0, 0},
   {"secure-file-priv", OPT_SECURE_FILE_PRIV,
-   "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files within specified directory",
+   "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files within specified directory.",
    (uchar**) &opt_secure_file_priv, (uchar**) &opt_secure_file_priv, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
@@ -6434,7 +6445,8 @@ Can't be set to 1 if --log-slave-updates is used.",
    (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, UINT_MAX32,
    0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated;you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; "
+   "you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory", OPT_ENABLE_SHARED_MEMORY,
@@ -6447,12 +6459,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
-   "Show user and password in SHOW SLAVE HOSTS on this master",
+   "Show user and password in SHOW SLAVE HOSTS on this master.",
    (uchar**) &opt_show_slave_auth_info, (uchar**) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", OPT_SKIP_GRANT,
-   "Start without grant tables. This gives all users FULL ACCESS to all tables!",
+   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
    (uchar**) &opt_noacl, (uchar**) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
 #endif
@@ -6467,7 +6479,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-networking", OPT_SKIP_NETWORKING,
    "Don't allow connection with TCP/IP.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"skip-new", OPT_SKIP_NEW, "Don't use new, possible wrong routines.",
+  {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
 #ifdef SAFEMALLOC
@@ -6485,7 +6497,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
    "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
+  {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option. Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
    "Don't give threads different priorities. Deprecated option.", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -6500,11 +6512,11 @@ replicating a LOAD DATA INFILE command.",
    "Tells the slave thread to continue replication when a query event returns an error from the provided list.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-exec-mode", OPT_SLAVE_EXEC_MODE,
-   "Modes for how replication events should be executed.  Legal values are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, replication will not stop for operations that are idempotent. In STRICT mode, replication will stop on any unexpected difference between the master and the slave.",
+   "Modes for how replication events should be executed. Legal values are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, replication will not stop for operations that are idempotent. In STRICT mode, replication will stop on any unexpected difference between the master and the slave.",
    (uchar**) &slave_exec_mode_str, (uchar**) &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
-   "Enable|disable slow query log", (uchar**) &opt_slow_log,
+   "Enable/disable slow query log.", (uchar**) &opt_slow_log,
    (uchar**) &opt_slow_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", OPT_SOCKET, "Socket file to use for connection.",
    (uchar**) &mysqld_unix_port, (uchar**) &mysqld_unix_port, 0, GET_STR,
@@ -6566,7 +6578,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
 
   {"timed_mutexes", OPT_TIMED_MUTEXES,
-   "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
+   "Specify whether to time mutexes (only InnoDB mutexes are currently supported).",
    (uchar**) &timed_mutexes, (uchar**) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
@@ -6587,7 +6599,7 @@ log and this option does nothing anymore.",
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Used with --help option for detailed help",
+  {"verbose", 'v', "Used with --help option for detailed help.",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -6605,7 +6617,7 @@ log and this option does nothing anymore.",
    (uchar**) &binlog_cache_size, (uchar**) &binlog_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, 32*1024L, IO_SIZE, ULONG_MAX, 0, IO_SIZE, 0},
   {"bulk_insert_buffer_size", OPT_BULK_INSERT_BUFFER_SIZE,
-   "Size of tree cache used in bulk insert optimisation. Note that this is a limit per thread!",
+   "Size of tree cache used in bulk insert optimization. Note that this is a limit per thread.",
    (uchar**) &global_system_variables.bulk_insert_buff_size,
    (uchar**) &max_system_variables.bulk_insert_buff_size,
    0, GET_ULONG, REQUIRED_ARG, 8192*1024, 0, ULONG_MAX, 0, 1, 0},
@@ -6614,7 +6626,7 @@ log and this option does nothing anymore.",
     (uchar**) &connect_timeout, (uchar**) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
   { "date_format", OPT_DATE_FORMAT,
-    "The DATE format (For future).",
+    "The DATE format (for future).",
     (uchar**) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
     (uchar**) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6656,7 +6668,7 @@ log and this option does nothing anymore.",
     (uchar**) &flush_time, (uchar**) &flush_time, 0, GET_ULONG, REQUIRED_ARG,
     FLUSH_TIME, 0, LONG_TIMEOUT, 0, 1, 0},
   { "ft_boolean_syntax", OPT_FT_BOOLEAN_SYNTAX,
-    "List of operators for MATCH ... AGAINST ( ... IN BOOLEAN MODE)",
+    "List of operators for MATCH ... AGAINST ( ... IN BOOLEAN MODE).",
     0, 0, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN,
@@ -6668,7 +6680,7 @@ log and this option does nothing anymore.",
     (uchar**) &ft_min_word_len, (uchar**) &ft_min_word_len, 0, GET_ULONG,
     REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_query_expansion_limit", OPT_FT_QUERY_EXPANSION_LIMIT,
-    "Number of best matches to use for query expansion",
+    "Number of best matches to use for query expansion.",
     (uchar**) &ft_query_expansion_limit, (uchar**) &ft_query_expansion_limit, 0, GET_ULONG,
     REQUIRED_ARG, 20, 0, 1000, 0, 1, 0},
   { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
@@ -6676,7 +6688,7 @@ log and this option does nothing anymore.",
     (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "group_concat_max_len", OPT_GROUP_CONCAT_MAX_LEN,
-    "The maximum length of the result of function  group_concat.",
+    "The maximum length of the result of function group_concat.",
     (uchar**) &global_system_variables.group_concat_max_len,
     (uchar**) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, ULONG_MAX, 0, 1, 0},
@@ -6704,30 +6716,36 @@ log and this option does nothing anymore.",
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
-   "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
+   "This characterizes the number of hits a hot block has to be untouched "
+   "until it is considered aged enough to be downgraded to a warm block. "
+   "This specifies the percentage ratio of that number of hits to the total "
+   "number of blocks in key cache.",
    (uchar**) &dflt_key_cache_var.param_age_threshold,
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ULONG_MAX, 0, 100, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
-   "The default size of key cache blocks",
+   "The default size of key cache blocks.",
    (uchar**) &dflt_key_cache_var.param_block_size,
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_BLOCK_SIZE, 512, 1024 * 16, 0, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
-   "The minimum percentage of warm blocks in key cache",
+   "The minimum percentage of warm blocks in key cache.",
    (uchar**) &dflt_key_cache_var.param_division_limit,
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
-   "Log all queries that have taken more than long_query_time seconds to execute to file. "
-   "The argument will be treated as a decimal value with microsecond precission.",
+   "Log all queries that have taken more than long_query_time seconds to "
+   "execute. The argument will be treated as a decimal value with "
+   "microsecond precision.",
    (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
-   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.  Should be set to 2 if you are using a case insensitive file system",
+   "If set to 1, table names are stored in lowercase on disk and table names "
+   "will be case-insensitive.  Should be set to 2 if you are using a case-"
+   "insensitive file system.",
    (uchar**) &lower_case_table_names,
    (uchar**) &lower_case_table_names, 0, GET_UINT, OPT_ARG,
 #ifdef FN_NO_CASE_SENCE
@@ -6737,7 +6755,7 @@ log and this option does nothing anymore.",
 #endif
    , 0, 2, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
-   "Max packetlength to send/receive from to server.",
+   "The maximum packet length to send to or receive from server.",
    (uchar**) &global_system_variables.max_allowed_packet,
    (uchar**) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
@@ -6796,7 +6814,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_relay_log_size, (uchar**) &max_relay_log_size, 0, GET_ULONG,
    REQUIRED_ARG, 0L, 0L, 1024*1024L*1024L, 0, IO_SIZE, 0},
   { "max_seeks_for_key", OPT_MAX_SEEKS_FOR_KEY,
-    "Limit assumed max number of seeks when looking up rows based on a key",
+    "Limit assumed max number of seeks when looking up rows based on a key.",
     (uchar**) &global_system_variables.max_seeks_for_key,
     (uchar**) &max_system_variables.max_seeks_for_key, 0, GET_ULONG,
     REQUIRED_ARG, ULONG_MAX, 1, ULONG_MAX, 0, 1, 0 },
@@ -6872,7 +6890,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
-   "Use memory mapping for reading and writing MyISAM tables",
+   "Use memory mapping for reading and writing MyISAM tables.",
    (uchar**) &opt_myisam_use_mmap,
    (uchar**) &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG, 0, 
     0, 0, 0, 0, 0},
@@ -6898,7 +6916,8 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.net_retry_count,0,
    GET_ULONG, REQUIRED_ARG, MYSQLD_NET_RETRY_COUNT, 1, ULONG_MAX, 0, 1, 0},
   {"net_write_timeout", OPT_NET_WRITE_TIMEOUT,
-   "Number of seconds to wait for a block to be written to a connection  before aborting the write.",
+   "Number of seconds to wait for a block to be written to a connection before "
+   "aborting the write.",
    (uchar**) &global_system_variables.net_write_timeout,
    (uchar**) &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
@@ -6938,12 +6957,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
-   "The size of the buffer that is allocated when preloading indexes",
+   "The size of the buffer that is allocated when preloading indexes.",
    (uchar**) &global_system_variables.preload_buff_size,
    (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
    REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
   {"query_alloc_block_size", OPT_QUERY_ALLOC_BLOCK_SIZE,
-   "Allocation block size for query parsing and execution",
+   "Allocation block size for query parsing and execution.",
    (uchar**) &global_system_variables.query_alloc_block_size,
    (uchar**) &max_system_variables.query_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
@@ -6953,7 +6972,8 @@ The minimum value for this variable is 4096.",
    (uchar**) &query_cache_limit, (uchar**) &query_cache_limit, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 0, ULONG_MAX, 0, 1, 0},
   {"query_cache_min_res_unit", OPT_QUERY_CACHE_MIN_RES_UNIT,
-   "minimal size of unit in wich space for results is allocated (last unit will be trimed after writing all result data.",
+   "Minimal size of unit in which space for results is allocated (last unit "
+   "will be trimmed after writing all result data).",
    (uchar**) &query_cache_min_res_unit, (uchar**) &query_cache_min_res_unit,
    0, GET_ULONG, REQUIRED_ARG, QUERY_CACHE_MIN_RESULT_DATA_SIZE,
    0, ULONG_MAX, 0, 1, 0},
@@ -6969,19 +6989,19 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.query_cache_type,
    0, GET_ULONG, REQUIRED_ARG, 1, 0, 2, 0, 1, 0},
   {"query_cache_wlock_invalidate", OPT_QUERY_CACHE_WLOCK_INVALIDATE,
-   "Invalidate queries in query cache on LOCK for write",
+   "Invalidate queries in query cache on LOCK for write.",
    (uchar**) &global_system_variables.query_cache_wlock_invalidate,
    (uchar**) &max_system_variables.query_cache_wlock_invalidate,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /*HAVE_QUERY_CACHE*/
   {"query_prealloc_size", OPT_QUERY_PREALLOC_SIZE,
-   "Persistent buffer for query parsing and execution",
+   "Persistent buffer for query parsing and execution.",
    (uchar**) &global_system_variables.query_prealloc_size,
    (uchar**) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, QUERY_ALLOC_PREALLOC_SIZE,
    ULONG_MAX, 0, 1024, 0},
   {"range_alloc_block_size", OPT_RANGE_ALLOC_BLOCK_SIZE,
-   "Allocation block size for storing ranges during optimization",
+   "Allocation block size for storing ranges during optimization.",
    (uchar**) &global_system_variables.range_alloc_block_size,
    (uchar**) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX,
@@ -6993,12 +7013,15 @@ The minimum value for this variable is 4096.",
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE,
    0},
   {"read_only", OPT_READONLY,
-   "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
+   "Make all non-temporary tables read-only, with the exception of replication "
+   "(slave) threads and users with the SUPER privilege.",
    (uchar**) &opt_readonly,
    (uchar**) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"read_rnd_buffer_size", OPT_RECORD_RND_BUFFER,
-   "When reading rows in sorted order after a sort, the rows are read through this buffer to avoid a disk seeks. If not set, then it's set to the value of record_buffer.",
+   "When reading rows in sorted order after a sort, the rows are read through "
+   "this buffer to avoid disk seeks. If not set, then it's set to the value of "
+   "record_buffer.",
    (uchar**) &global_system_variables.read_rnd_buff_size,
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
@@ -7103,7 +7126,8 @@ The minimum value for this variable is 4096.",
    DEFAULT_CONCURRENCY, 1, 512, 0, 1, 0},
 #if HAVE_POOL_OF_THREADS == 1
   {"thread_pool_size", OPT_THREAD_CACHE_SIZE,
-   "How many threads we should create to handle query requests in case of 'thread_handling=pool-of-threads'",
+   "How many threads we should create to handle query requests in case of "
+   "'thread_handling=pool-of-threads'.",
    (uchar**) &thread_pool_size, (uchar**) &thread_pool_size, 0, GET_ULONG,
    REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
 #endif
@@ -7123,18 +7147,18 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
-   "Allocation block size for transactions to be stored in binary log",
+   "Allocation block size for transactions to be stored in binary log.",
    (uchar**) &global_system_variables.trans_alloc_block_size,
    (uchar**) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
-   "Persistent buffer for transactions to be stored in binary log",
+   "Persistent buffer for transactions to be stored in binary log.",
    (uchar**) &global_system_variables.trans_prealloc_size,
    (uchar**) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"thread_handling", OPT_THREAD_HANDLING,
-   "Define threads usage for handling queries:  "
-   "one-thread-per-connection or no-threads", 0, 0,
+   "Define threads usage for handling queries: "
+   "one-thread-per-connection or no-threads.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,
    "1 = YES = Don't issue an error message (warning only) if a VIEW without presence of a key of the underlying table is used in queries with a LIMIT clause for updating. 0 = NO = Prohibit update of a VIEW, which does not contain a key of the underlying table and the query uses a LIMIT clause (usually get from GUI tools).",
@@ -7148,7 +7172,11 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
   {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-   "Causes updates to non-transactional engines using statement format to be written directly to binary log. Before using this option make sure that there are no dependencies between transactional and non-transactional tables such as in the statement INSERT INTO t_myisam SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
+   "Causes updates to non-transactional engines using statement format to be "
+   "written directly to binary log. Before using this option, make sure that "
+   "there are no dependencies between transactional and non-transactional "
+   "tables such as in the statement INSERT INTO t_myisam SELECT * FROM "
+   "t_innodb; otherwise, slaves may diverge from the master.",
    (uchar**) &global_system_variables.binlog_direct_non_trans_update, (uchar**) &max_system_variables.binlog_direct_non_trans_update, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -7698,27 +7726,27 @@ static void usage(void)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
   puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others\n\
+Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
 Copyright (C) 2008 Sun Microsystems, Inc.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server\n");
+Starts the MySQL database server.\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
-    puts("\nFor more help options (several pages), use mysqld --verbose --help");
+    puts("\nFor more help options (several pages), use mysqld --verbose --help.");
   else
   {
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
-  --install                     Install the default service (NT)\n\
-  --install-manual              Install the default service started manually (NT)\n\
-  --install service_name        Install an optional service (NT)\n\
-  --install-manual service_name Install an optional service started manually (NT)\n\
-  --remove                      Remove the default service from the service list (NT)\n\
-  --remove service_name         Remove the service_name from the service list (NT)\n\
-  --enable-named-pipe           Only to be used for the	default server (NT)\n\
-  --standalone                  Dummy option to start as a standalone server (NT)\
+  --install                     Install the default service (NT).\n\
+  --install-manual              Install the default service started manually (NT).\n\
+  --install service_name        Install an optional service (NT).\n\
+  --install-manual service_name Install an optional service started manually (NT).\n\
+  --remove                      Remove the default service from the service list (NT).\n\
+  --remove service_name         Remove the service_name from the service list (NT).\n\
+  --enable-named-pipe           Only to be used for the default server (NT).\n\
+  --standalone                  Dummy option to start as a standalone server (NT).\
 ");
   puts("");
 #endif
