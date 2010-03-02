@@ -89,5 +89,5 @@ execute s1;
 insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
 explain extended select * from t1 where a in (select pk from t10 where pk<3);
 
-drop table t0, t1;
+drop table t0, t1, t2;
 drop table t10, t11, t12;

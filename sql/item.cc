@@ -6621,7 +6621,7 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
   if (depended_from == new_parent)
   {
-    *ref= outer_ref; //psergey-merge: check
+    *ref= outer_ref;
     outer_ref->fix_after_pullout(new_parent, ref);
   }
 }
