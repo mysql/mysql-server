@@ -23,16 +23,12 @@
 
 class ExecFragReq {
   /**
-   * Sender(s)
-   */
-  friend class Dbdih;
-
-  /**
-   * Receiver(s)
+   * Sender & Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
 
 private:
   Uint32 userPtr;
@@ -41,5 +37,6 @@ private:
   Uint32 fragId;
   Uint32 startGci;
   Uint32 lastGci;
+  Uint32 dst; // Final destination
 };
 #endif

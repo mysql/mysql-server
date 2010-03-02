@@ -16346,8 +16346,29 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
       execFragReq->fragId = fragptr.p->fragId;
       execFragReq->startGci = fragptr.p->srStartGci[index];
       execFragReq->lastGci = fragptr.p->srLastGci[index];
-      sendSignal(ref, GSN_EXEC_FRAGREQ, signal, 
-		 ExecFragReq::SignalLength, JBB);
+      execFragReq->dst = ref;
+
+      if (isNdbMtLqh())
+      {
+        jam();
+        // send via local proxy
+        sendSignal(DBLQH_REF, GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
+      else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+      {
+        jam();
+        // send via remote proxy
+        sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
+      else
+      {
+        jam();
+        // send direct
+        sendSignal(ref, GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
     }
     signal->theData[0] = next;
     sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
@@ -16437,13 +16458,6 @@ void Dblqh::execEXEC_FRAGREF(Signal* signal)
 /* *************** */
 void Dblqh::execEXEC_SRCONF(Signal* signal) 
 {
-  // wl4391_todo workaround until timing fixed
-  if (cnoOutstandingExecFragReq != 0) {
-    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
-    sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
-                        signal, 10, signal->getLength());
-    return;
-  }
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   arrGuard(nodeId, MAX_NDB_NODES);
@@ -16458,12 +16472,29 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
      * ----------------------------------------------------------------- */
     return;
   }
+
+  if (cnoOutstandingExecFragReq != 0)
+  {
+    /**
+     * This should now have been fixed!
+     *   but could occur during upgrade
+     * old: wl4391_todo workaround until timing fixed
+     */
+    jam();
+    ndbassert(false);
+    m_sr_exec_sr_conf.clear(nodeId);
+    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
+    sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
+                        signal, 10, signal->getLength());
+    return;
+  }
   
   /* ------------------------------------------------------------------------
    *  CLEAR NODE SYSTEM RESTART EXECUTION STATE TO PREPARE FOR NEXT PHASE OF
    *  LOG EXECUTION.
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_conf.clear();
+  cnoFragmentsExecSr = 0;
 
   /* ------------------------------------------------------------------------
    *  NOW CHECK IF ALL FRAGMENTS IN THIS PHASE HAVE COMPLETED. IF SO START THE
@@ -17929,9 +17960,31 @@ void Dblqh::sendExecConf(Signal* signal)
       ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
       for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
         jam();
+        Uint32 ref = fragptr.p->execSrBlockref[i];
         signal->theData[0] = fragptr.p->execSrUserptr[i];
-        sendSignal(fragptr.p->execSrBlockref[i], GSN_EXEC_FRAGCONF, 
-		   signal, 1, JBB);
+
+        if (isNdbMtLqh())
+        {
+          jam();
+          // send via own proxy
+          signal->theData[1] = ref;
+          sendSignal(DBLQH_REF, GSN_EXEC_FRAGCONF, signal, 2, JBB);
+        }
+        else if (refToInstance(ref) != 0 &&
+                 ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+        {
+          jam();
+          // send via remote proxy
+          signal->theData[1] = ref;
+          sendSignal(numberToRef(refToMain(ref), refToNode(ref)),
+                     GSN_EXEC_FRAGCONF, signal, 2, JBB);
+        }
+        else
+        {
+          jam();
+          // send direct
+          sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 1, JBB);
+        }
       }//for
       fragptr.p->execSrNoReplicas = 0;
     }//if
@@ -19142,6 +19195,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     csrPhasesCompleted = 0;
     cmasterDihBlockref = 0;
     cnoFragmentsExecSr = 0;
+    cnoOutstandingExecFragReq = 0;
     clcpCompletedState = LCP_IDLE;
     csrExecUndoLogState = EULS_IDLE;
     c_lcpId = 0;
@@ -20462,8 +20516,6 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
  * ------------------------------------------------------------------------- */
 void Dblqh::startExecSr(Signal* signal) 
 {
-  cnoFragmentsExecSr = 0;
-  cnoOutstandingExecFragReq = 0;
   c_lcp_complete_fragments.first(fragptr);
   signal->theData[0] = fragptr.i;
   sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
