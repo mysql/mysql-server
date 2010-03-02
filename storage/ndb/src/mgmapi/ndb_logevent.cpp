@@ -19,6 +19,7 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <mgmapi.h>
+#include <mgmapi_internal.h>
 
 #include <NdbOut.hpp>
 #include <Properties.hpp>
@@ -51,6 +52,22 @@ struct ndb_logevent_handle {
   NDB_SOCKET_TYPE socket;
   enum ndb_logevent_handle_error m_error;
 };
+
+/*
+  Create a new NdbLogEventHandle for reading events from
+  the same socket as the NdbMgmHandle
+*/
+
+NdbLogEventHandle
+ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh)
+{
+  NdbLogEventHandle h=
+    (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
+
+  h->socket= _ndb_mgm_get_socket(mh);
+
+  return h;
+}
 
 extern "C"
 NdbLogEventHandle
