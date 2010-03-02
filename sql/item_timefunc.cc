@@ -379,7 +379,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	if (tmp - val > 6)
 	  tmp= (char*) val + 6;
 	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
-	frac_part= 6 - (uint) (tmp - val);
+	frac_part= 6 - (int) (tmp - val);
 	if (frac_part > 0)
 	  l_time->second_part*= (ulong) log_10_int[frac_part];
 	val= tmp;
@@ -870,7 +870,7 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
       value= value*LL(10) + (longlong) (*str - '0');
     if (transform_msec && i == count - 1) // microseconds always last
     {
-      long msec_length= 6 - (uint) (str - start);
+      long msec_length= 6 - (int) (str - start);
       if (msec_length > 0)
 	value*= (long) log_10_int[msec_length];
     }

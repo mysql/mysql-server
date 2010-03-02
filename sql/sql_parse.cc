@@ -4009,9 +4009,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->options |
+			(select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->net.report_error;
       if (unlikely(res))
