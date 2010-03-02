@@ -1667,6 +1667,18 @@ PARTITION p03 VALUES LESS THAN MAXVALUE ) ;
 INSERT INTO t4 select * from t2;
 set @f_date='2006-09-28';
 set @t_date='2006-10-02';
+SELECT t1.id AS MyISAM_part
+FROM t1
+WHERE t1.id IN (
+SELECT distinct id
+FROM t4
+WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
+ORDER BY t1.id
+;
+MyISAM_part
+16421
+19092
+22589
 drop table t1, t2, t4;
 CREATE TABLE t1 (
 taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',

@@ -1664,15 +1664,14 @@ INSERT INTO t4 select * from t2;
 set @f_date='2006-09-28';
 set @t_date='2006-10-02';
 
-# WL#1110 - disabled test - wrong result - missing row
-#SELECT t1.id AS MyISAM_part
-#FROM t1
-#WHERE t1.id IN (
-#    SELECT distinct id
-#    FROM t4
-#    WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-#ORDER BY t1.id
-#;
+SELECT t1.id AS MyISAM_part
+FROM t1
+WHERE t1.id IN (
+    SELECT distinct id
+    FROM t4
+    WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
+ORDER BY t1.id
+;
 drop table t1, t2, t4;
 
 CREATE TABLE t1 (
