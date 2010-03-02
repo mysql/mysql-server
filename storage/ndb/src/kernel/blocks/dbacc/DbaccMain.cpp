@@ -8198,14 +8198,15 @@ void Dbacc::takeRecOutOfFreeOverpage(Signal* signal)
 }//Dbacc::takeRecOutOfFreeOverpage()
 
 void
-Dbacc::reportMemoryUsage(Signal* signal, int gth){
+Dbacc::reportMemoryUsage(Signal* signal, int gth, BlockReference ref)
+{
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = gth;
   signal->theData[2] = sizeof(* rpPageptr.p);
   signal->theData[3] = cnoOfAllocatedPages;
   signal->theData[4] = cpageCount;
   signal->theData[5] = DBACC;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+  sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
 
 void
@@ -8308,6 +8309,12 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
   if(dumpState->args[0] == DumpStateOrd::DumpPageMemory && 
      signal->getLength() == 1){
     reportMemoryUsage(signal, 0);
+    return;
+  }
+
+  if(dumpState->args[0] == DumpStateOrd::DumpPageMemory &&
+     signal->getLength() == 2){
+    reportMemoryUsage(signal, 0, dumpState->args[1]);
     return;
   }
   
