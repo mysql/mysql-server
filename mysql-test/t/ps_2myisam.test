@@ -18,8 +18,8 @@ let $type= 'MYISAM' ;
 #  record ((key, icp-func-result) -> result-row).
 # This needs to be resolved by disabling either ICP or the cache,
 # most likely the cache.
-set @save_engine_condition_pushdown= @@engine_condition_pushdown;
-set @@engine_condition_pushdown= 0;
+set @optimizer_switch= @@optimizer_switch;
+set @@optimizer_switch= "engine_condition_pushdown=off";
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 
@@ -49,7 +49,7 @@ drop table t2 ;
 -- source include/ps_conv.inc
 
 drop table t1, t9;
-set @@engine_condition_pushdown= @save_engine_condition_pushdown;
+set @@optimizer_switch= @optimizer_switch;
 
 
 # End of 4.1 tests

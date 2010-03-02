@@ -555,7 +555,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     */
     if ((subselect= select_lex->master_unit()->item))
     {
-      bool do_delay= TRUE;
+      bool do_semijoin= test(thd->variables.optimizer_switch &
+                             OPTIMIZER_SWITCH_SEMIJOIN);
       /*
         Check if we're in subquery that is a candidate for flattening into a
         semi-join (which is done done in flatten_subqueries()). The
@@ -581,7 +582,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           select_lex->outer_select()->join &&                           // (*)
           select_lex->master_unit()->first_select()->leaf_tables &&     // (**) 
           select_lex->outer_select()->leaf_tables &&
-          do_delay)
+          do_semijoin)
       {
         Item_in_subselect *in_subs= (Item_in_subselect*)subselect;
 
@@ -612,7 +613,8 @@ JOIN::prepare(Item ***rref_pointer_array,
       else
       {
         Item_in_subselect *in_subs= NULL;
-
+        bool do_materialize= test(thd->variables.optimizer_switch &
+                                  OPTIMIZER_SWITCH_MATERIALIZATION);
         /*
           Check if the subquery predicate can be executed via materialization.
           The required conditions are:
@@ -641,7 +643,8 @@ JOIN::prepare(Item ***rref_pointer_array,
           perform the whole transformation or only that part of it which wraps
           Item_in_subselect in an Item_in_optimizer.
         */
-        if (subselect->substype() == Item_subselect::IN_SUBS &&           // 1
+        if (do_materialize && 
+            subselect->substype() == Item_subselect::IN_SUBS &&           // 1
             !select_lex->master_unit()->first_select()->next_select() &&  // 2
             select_lex->master_unit()->first_select()->leaf_tables &&     // 3
             thd->lex->sql_command == SQLCOM_SELECT)                       // *
@@ -661,60 +664,6 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
     }
   }
-//psergey-merge: todo: VV
-#if 0
-      Item_subselect::trans_res trans_res;
-      Item_in_subselect *in_subs= NULL;
-
-      /*
-        Check if the subquery predicate can be executed via materialization.
-        The required conditions are:
-          1. Subquery predicate is an IN/=ANY subq predicate
-          2. Subquery is a single SELECT (not a UNION)
-          3. Subquery is not a table-less query. In this case there is no
-             point in materializing.
-          4. Subquery predicate is a top-level predicate
-             (this implies it is not negated)
-             TODO: this is a limitation that should be lifeted once we
-             implement correct NULL semantics (WL#3830)
-          5. Subquery is non-correlated
-             TODO:
-             This is an overly restrictive condition. It can be extended to:
-             (Subquery is non-correlated ||
-              Subquery is correlated to any query outer to IN predicate ||
-              (Subquery is correlated to the immediate outer query &&
-               Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-               aggregate functions) && subquery predicate is not under "NOT IN"))
-
-         (*) The subquery must be part of a SELECT statement. The current
-              condition also excludes multi-table update statements.
-
-        We have to determine whether we will perform subquery materialization
-        before calling the IN=>EXISTS transformation, so that we know whether to
-        perform the whole transformation or only that part of it which wraps
-        Item_in_subselect in an Item_in_optimizer.
-      */
-      if (subselect->substype() == Item_subselect::IN_SUBS &&           // 1
-          !select_lex->master_unit()->first_select()->next_select() &&  // 2
-          select_lex->master_unit()->first_select()->leaf_tables &&     // 3
-          thd->lex->sql_command == SQLCOM_SELECT)                       // *
-      {
-        in_subs= (Item_in_subselect*) subselect;
-        in_subs->use_hash_sj= (in_subs->is_top_level_item() &&          // 4
-                               !in_subs->is_correlated);                // 5
-      }
-
-      /*
-        For IN predicates, if Item_in_subselect::use_hash_sj == TRUE,
-        the only transformation that will take place is wrapping
-        Item_in_subselect in an Item_in_optimizer.
-      */
-      if ((trans_res= subselect->select_transformer(this)) !=
-      {
-        select_lex->fix_prepare_information(thd, &conds, &having);
-	DBUG_RETURN((trans_res == Item_subselect::RES_ERROR));
-      }
-#endif      
 
   select_lex->fix_prepare_information(thd, &conds, &having);
 
