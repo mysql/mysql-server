@@ -2407,7 +2407,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
 
   if (args.size() > max_params)
   {
-    ndbout_c("ERROR: Too many arguments, max %u allowed", max_params);
+    ndbout_c("ERROR: Too many arguments, max %d allowed", (int)max_params);
     return -1;
   }
 
@@ -2422,7 +2422,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
                "(Value must be between 0 and 0xffffffff.)", arg);
       return -1;
     }
-    assert(num_params < max_params);
+    assert(num_params < (int)max_params);
     params[num_params] = strtoll(arg, NULL, 0);
     num_params++;
   }
