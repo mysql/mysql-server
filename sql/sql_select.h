@@ -639,6 +639,7 @@ public:
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
+  bool setup_subquery_materialization();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 

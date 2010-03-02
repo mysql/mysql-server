@@ -301,14 +301,12 @@ create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
-# WL#1110 - disabled test - wrong result
-# the problem is not IS specific.
-#create table t1 (s1 int);
-#insert into t1 values (0),(9),(0);
-#select s1 from t1 where s1 in (select version from
-#information_schema.tables) union select version from
-#information_schema.tables;
-#drop table t1;
+create table t1 (s1 int);
+insert into t1 values (0),(9),(0);
+select s1 from t1 where s1 in (select version from
+information_schema.tables) union select version from
+information_schema.tables;
+drop table t1;
 
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 set names latin2;
