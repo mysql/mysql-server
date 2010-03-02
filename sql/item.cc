@@ -2209,14 +2209,14 @@ String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value, &my_charset_bin);
+  str->set_int(value, unsigned_flag, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
-  str_value.set(value, &my_charset_bin);
+  str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
 }
 
@@ -5690,9 +5690,14 @@ void Item_field::print(String *str, enum_query_type query_type)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
     field->val_str(&tmp);
-    str->append('\'');
-    str->append(tmp);
-    str->append('\'');
+    if (field->is_null())
+      str->append("NULL");
+    else
+    {
+      str->append('\'');
+      str->append(tmp);
+      str->append('\'');
+    }
     return;
   }
   Item_ident::print(str, query_type);

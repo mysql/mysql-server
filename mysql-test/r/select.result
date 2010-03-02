@@ -4050,10 +4050,10 @@ join_0.c1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 SHOW WARNINGS;
 Level	Code	Message
-Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 DROP TABLE t1;
 SELECT 1 AS ` `;
 
@@ -4648,17 +4648,17 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
