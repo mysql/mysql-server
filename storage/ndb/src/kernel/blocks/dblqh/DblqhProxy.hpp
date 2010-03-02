@@ -398,6 +398,14 @@ protected:
   void execEXEC_SR_2(Signal*, GlobalSignalNumber gsn);
   void sendEXEC_SR_2(Signal*, Uint32 ssId);
 
+  /**
+   * GSN_EXEC_FRAGREQ & GSN_EXEC_FRAGCONF needs to
+   *   be passed via proxy for correct serialization
+   *   wrt to GSN_EXEC_SRREQ & GSN_EXEC_SRCONF
+   */
+  void execEXEC_FRAGREQ(Signal*);
+  void execEXEC_FRAGCONF(Signal*);
+
   // GSN_DROP_FRAG_REQ
   struct Ss_DROP_FRAG_REQ : SsParallel {
     DropFragReq m_req;
