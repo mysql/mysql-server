@@ -3904,6 +3904,114 @@ release:
   }
 }
 
+
+bool
+MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
+                         Uint32 dump_type,
+                         Vector<SimpleSignal>& events)
+{
+  Uint32 nodes_counter[MAX_NDB_NODES];
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  // Send the dump command to all requested NDB nodes
+  const bool all = nodes.isclear();
+  for (int i = 1; i < MAX_NDB_NODES; i++)
+  {
+    // Check if node should be involved
+    if (!all && !nodes.get(i))
+      continue;
+
+    // Only request from confirmed DB nodes
+    const ClusterMgr::Node node = ss.getNodeInfo(i);
+    if (node.m_info.getType() != NodeInfo::DB ||
+        !node.is_confirmed())
+    {
+      nodes.clear(i);
+      continue;
+    }
+
+    SimpleSignal ssig;
+    DumpStateOrd * const dumpOrd = (DumpStateOrd*)ssig.getDataPtrSend();
+
+    dumpOrd->args[0] = dump_type;
+    dumpOrd->args[1] = ss.getOwnRef(); // Return to sender
+
+    if (ss.sendSignal(i, ssig, CMVMI, GSN_DUMP_STATE_ORD, 2) == SEND_OK)
+    {
+      nodes.set(i);
+      nodes_counter[i] = 0;
+    }
+  }
+
+
+  while (true)
+  {
+    // Check if all nodes are done
+    if (nodes.isclear())
+      break;
+
+    SimpleSignal *signal = ss.waitFor();
+    switch (signal->readSignalNumber()) {
+    case GSN_EVENT_REP:{
+      const NodeId nodeid = refToNode(signal->header.theSendersBlockRef);
+      const EventReport * const event =
+        (const EventReport*)signal->getDataPtr();
+
+      if (!nodes.get(nodeid))
+      {
+        // The reporting node was not expected
+        assert(false);
+        return false;
+      }
+
+      // Save signal
+      events.push_back(SimpleSignal(*signal));
+
+      // Check if node is done
+      nodes_counter[nodeid]++;
+      if (nodes_counter[nodeid] == reports_per_node)
+        nodes.clear(nodeid);
+
+      break;
+    }
+
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+        (const NodeFailRep*)signal->getDataPtr();
+      for (NodeId i = 1; i < MAX_NDB_NODES; i++)
+      {
+        if (NdbNodeBitmask::get(rep->theNodes, i))
+        {
+          nodes.clear(i);
+
+          // Remove any previous reports from this node
+          // it should not be reported
+          for (unsigned j = 0; j < events.size(); j++)
+          {
+            const SimpleSignal& ssig = events[j];
+            const NodeId nodeid = refToNode(ssig.header.theSendersBlockRef);
+            if (nodeid == i)
+            {
+              events.erase(j);
+              j--;
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    default:
+      // Ignore all other signals
+      break;
+    }
+  }
+  ss.unlock();
+
+  return true;
+}
+
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
