@@ -15515,6 +15515,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
    *  LOG EXECUTION.
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_conf.clear();
+  cnoFragmentsExecSr = 0;
 
   /* ------------------------------------------------------------------------
    *  NOW CHECK IF ALL FRAGMENTS IN THIS PHASE HAVE COMPLETED. IF SO START THE
@@ -18237,6 +18238,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     csrPhasesCompleted = 0;
     cmasterDihBlockref = 0;
     cnoFragmentsExecSr = 0;
+    cnoOutstandingExecFragReq = 0;
     clcpCompletedState = LCP_IDLE;
     csrExecUndoLogState = EULS_IDLE;
     c_lcpId = 0;
@@ -19557,8 +19559,6 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
  * ------------------------------------------------------------------------- */
 void Dblqh::startExecSr(Signal* signal) 
 {
-  cnoFragmentsExecSr = 0;
-  cnoOutstandingExecFragReq = 0;
   c_lcp_complete_fragments.first(fragptr);
   signal->theData[0] = fragptr.i;
   sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
