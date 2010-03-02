@@ -241,4 +241,16 @@ DELETE FROM t1 ORDER BY (f1(10)) LIMIT 1;
 ERROR 42000: Incorrect number of arguments for FUNCTION test.f1; expected 0, got 1
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# Bug #49552 : sql_buffer_result cause crash + not found records 
+#   in multitable delete/subquery
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SET SESSION SQL_BUFFER_RESULT=1;
+DELETE t1 FROM (SELECT SUM(a) a FROM t1) x,t1;
+SET SESSION SQL_BUFFER_RESULT=DEFAULT;
+SELECT * FROM t1;
+a
+DROP TABLE t1;
 End of 5.0 tests
