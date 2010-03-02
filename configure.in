@@ -19,6 +19,11 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
+# Various people throughout the community may parse configure.in to
+# get the MySQL version from the source branch.  If the formatting
+# of this line is going to be changed, please announce the change to
+# internals@lists.mysql.com in advance of pushing the change.
+#
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().

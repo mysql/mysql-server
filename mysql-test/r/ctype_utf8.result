@@ -1899,6 +1899,20 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 DROP TABLE t1;
 End of 5.0 tests
 Start of 5.4 tests
+SET NAMES utf8mb3;
+SHOW VARIABLES LIKE 'character_set_results%';
+Variable_name	Value
+character_set_results	utf8
+CREATE TABLE t1 (a CHAR CHARACTER SET utf8mb3 COLLATE utf8mb3_bin);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SELECT _utf8mb3'test';
+test
+test
 CREATE TABLE t1 (
 clipid INT NOT NULL,
 Tape TINYTEXT,
