@@ -193,6 +193,10 @@ btr_leaf_page_release(
 	mtr_t*		mtr);		/*!< in: mtr */
 /**************************************************************//**
 Gets the child node file address in a node pointer.
+NOTE: the offsets array must contain all offsets for the record since
+we read the last field according to offsets and assume that it contains
+the child page number. In other words offsets must have been retrieved
+with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return	child node address */
 UNIV_INLINE
 ulint
