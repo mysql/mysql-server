@@ -262,9 +262,14 @@ void Item_subselect::update_used_tables()
 
 void Item_subselect::print(String *str)
 {
-  str->append('(');
-  engine->print(str);
-  str->append(')');
+  if (engine)
+  {
+    str->append('(');
+    engine->print(str);
+    str->append(')');
+  }
+  else
+    str->append("(...)");
 }
 
 
