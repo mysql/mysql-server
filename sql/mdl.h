@@ -624,10 +624,11 @@ private:
   /**
     Read-write lock protecting m_waiting_for member.
 
-    TODO/FIXME: Replace with RW-lock which will prefer readers
-                on all platforms and not only on Linux.
+    @note The fact that this read-write lock prefers readers is
+          important as deadlock detector won't work correctly
+          otherwise. @sa Comment for MDL_lock::m_rwlock.
   */
-  rw_lock_t m_waiting_for_lock;
+  rw_pr_lock_t m_waiting_for_lock;
   MDL_ticket *m_waiting_for;
   uint m_deadlock_weight;
   /**
@@ -651,9 +652,9 @@ private:
 
   void will_wait_for(MDL_ticket *pending_ticket)
   {
-    rw_wrlock(&m_waiting_for_lock);
+    rw_pr_wrlock(&m_waiting_for_lock);
     m_waiting_for= pending_ticket;
-    rw_unlock(&m_waiting_for_lock);
+    rw_pr_unlock(&m_waiting_for_lock);
   }
 
   void set_deadlock_weight(uint weight)
@@ -669,9 +670,9 @@ private:
 
   void stop_waiting()
   {
-    rw_wrlock(&m_waiting_for_lock);
+    rw_pr_wrlock(&m_waiting_for_lock);
     m_waiting_for= NULL;
-    rw_unlock(&m_waiting_for_lock);
+    rw_pr_unlock(&m_waiting_for_lock);
   }
 
   void wait_reset()
