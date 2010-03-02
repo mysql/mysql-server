@@ -2226,6 +2226,7 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     mysql_cond_wait(cond, mutex);
 
@@ -4359,6 +4360,7 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   TABLE_LIST *table;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
+  DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
 
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
