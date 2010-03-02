@@ -6363,10 +6363,9 @@ RETURN tracks;
 END|
 
 SELECT bug21493('111111')|
-# WL#1110 - disabled test - wrong result
-#SELECT bug21493('222222')|
+SELECT bug21493('222222')|
 
-#SELECT bug21493(Member_ID) FROM t3|
+SELECT bug21493(Member_ID) FROM t3|
 
 DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
