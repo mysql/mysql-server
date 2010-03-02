@@ -410,6 +410,7 @@ ErrorBundle ErrorCodes[] = {
   { 779,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
   { 791,  HA_WRONG_CREATE_OPTION, SE, "Too many total bits in bitfields" },
   { 764,  HA_WRONG_CREATE_OPTION, SE, "Invalid extent size" },
+  { 789,  HA_WRONG_CREATE_OPTION, AE, "Logfile group not found" },
   { 765,  DMEC, SE, "Out of filegroup records" },
   { 750,  IE, SE, "Invalid file type" },
   { 751,  DMEC, SE, "Out of file records" },
