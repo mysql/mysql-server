@@ -30,7 +30,9 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
-
+sub mtr_milli_sleep($);
+sub start_timer($);
+sub has_expired($);
 
 ##############################################################################
 #
@@ -167,11 +169,18 @@ sub mtr_exe_exists (@) {
 }
 
 
-sub mtr_milli_sleep {
+sub mtr_milli_sleep ($) {
   die "usage: mtr_milli_sleep(milliseconds)" unless @_ == 1;
   my ($millis)= @_;
 
   select(undef, undef, undef, ($millis/1000));
 }
+
+# Simple functions to start and check timers (have to be actively polled)
+# Timer can be "killed" by setting it to 0
+
+sub start_timer ($) { return time + $_[0]; }
+
+sub has_expired ($) { return $_[0] && time gt $_[0]; }
 
 1;

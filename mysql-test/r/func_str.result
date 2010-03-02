@@ -1307,12 +1307,12 @@ explain extended select encode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select encode('','zxcv') AS `enc` from `test`.`t1`
+Note	1003	select encode(NULL,'zxcv') AS `enc` from `test`.`t1`
 explain extended select decode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select decode('','zxcv') AS `enc` from `test`.`t1`
+Note	1003	select decode(NULL,'zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;

@@ -1474,9 +1474,21 @@ public:
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  bool add(Item *item) { return list.push_back(item); }
-  bool add_at_head(Item *item) { return list.push_front(item); }
-  void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
+  bool add(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_back(item);
+  }
+  bool add_at_head(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_front(item);
+  }
+  void add_at_head(List<Item> *nlist)
+  {
+    DBUG_ASSERT(nlist->elements);
+    list.prepand(nlist);
+  }
   bool fix_fields(THD *, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
