@@ -241,10 +241,12 @@ STOP SLAVE;
 SET GLOBAL storage_engine=@storage_engine;
 START SLAVE;
 ================ BUG#22864 ================
-STOP SLAVE;
-RESET SLAVE;
-RESET MASTER;
-START SLAVE;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -264,15 +266,6 @@ t1
 t2
 t3
 t4
-SELECT   TABLE_NAME,ENGINE
-FROM   INFORMATION_SCHEMA.TABLES
-WHERE   TABLE_NAME LIKE 't_'
-ORDER BY TABLE_NAME;
-TABLE_NAME	ENGINE
-t1	MyISAM
-t2	InnoDB
-t3	InnoDB
-t4	InnoDB
 SELECT * FROM t1 ORDER BY a;
 a
 1
@@ -334,15 +327,6 @@ t1
 t2
 t3
 t4
-SELECT   TABLE_NAME,ENGINE
-FROM   INFORMATION_SCHEMA.TABLES
-WHERE   TABLE_NAME LIKE 't_'
-ORDER BY TABLE_NAME;
-TABLE_NAME	ENGINE
-t1	MyISAM
-t2	InnoDB
-t3	InnoDB
-t4	InnoDB
 SELECT * FROM t1 ORDER BY a;
 a
 1

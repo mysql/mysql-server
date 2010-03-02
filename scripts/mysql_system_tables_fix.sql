@@ -221,12 +221,29 @@ ALTER TABLE func
 
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
-ALTER TABLE general_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE general_log
+  MODIFY event_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY thread_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY command_type VARCHAR(64) NOT NULL,
+  MODIFY argument MEDIUMTEXT NOT NULL;
 SET GLOBAL general_log = @old_log_state;
 
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
-ALTER TABLE slow_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE slow_log
+  MODIFY start_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY query_time TIME NOT NULL,
+  MODIFY lock_time TIME NOT NULL,
+  MODIFY rows_sent INTEGER NOT NULL,
+  MODIFY rows_examined INTEGER NOT NULL,
+  MODIFY db VARCHAR(512) NOT NULL,
+  MODIFY last_insert_id INTEGER NOT NULL,
+  MODIFY insert_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY sql_text MEDIUMTEXT NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
 #
