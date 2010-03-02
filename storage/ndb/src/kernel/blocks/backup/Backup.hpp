@@ -664,7 +664,8 @@ public:
   /* Sheck timers for reporting at certain points */
   void checkReportStatus(Signal* signal, BackupRecordPtr ptr);
   /* Send backup status, invoked either periodically, or explicitly */
-  void reportStatus(Signal* signal, BackupRecordPtr ptr);
+  void reportStatus(Signal* signal, BackupRecordPtr ptr,
+                    BlockReference ref = CMVMI_REF);
 
   void sendSTTORRY(Signal*);
   void createSequence(Signal* signal);

@@ -254,7 +254,7 @@ static const char* helpText =
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
 "PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "CONNECT [<connectstring>]              Connect to management server (reconnect if already connected)\n"
-"<id> REPORT <report type specifier>   Query reporting of information about the cluster\n"
+"<id> REPORT <report-type>              Display report for <report-type>\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -556,10 +556,8 @@ static const char* helpTextReport =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for REPORT command\n"
 "---------------------------------------------------------------------------\n"
-"REPORT  Query reporting of information about the cluster\n\n"
-"REPORT <report type specifier> \n"
-"                   The report will show in the clusterlog if the\n"
-"                   log level is set.\n"
+"REPORT  Displays a report of type <report-type> for the specified data \n"
+"        node, or for all data nodes using ALL\n"
 ;
 static void helpTextReportFn();
 
@@ -1070,6 +1068,68 @@ invalid_command(const char *cmd)
 }
 
 
+// Utility class for easier checking of args
+// given to the commands
+class ClusterInfo {
+  ndb_mgm_cluster_state* m_status;
+
+public:
+  ClusterInfo() :
+    m_status(NULL) {};
+
+  ~ClusterInfo() {
+    if (m_status)
+      free(m_status);
+  }
+
+  bool fetch(NdbMgmHandle handle, bool all_nodes = false) {
+
+    const ndb_mgm_node_type types[2] = {
+      NDB_MGM_NODE_TYPE_NDB,
+      NDB_MGM_NODE_TYPE_UNKNOWN
+    };
+    m_status = ndb_mgm_get_status2(handle,
+                                   !all_nodes ? types : 0);
+    if (m_status == NULL)
+    {
+      ndbout_c("ERROR: couldn't fetch cluster status");
+      return false;
+    }
+    return true;
+  }
+
+  bool is_valid_ndb_nodeid(int nodeid) const {
+    // Check valid NDB nodeid
+    if (nodeid < 1 || nodeid >= MAX_NDB_NODES)
+    {
+      ndbout_c("ERROR: illegal nodeid %d!", nodeid);
+      return false;
+    }
+    return true;
+  }
+
+  bool is_ndb_node(int nodeid) const {
+
+    if (!is_valid_ndb_nodeid(nodeid))
+      return false;
+
+    bool found = false;
+    for (int i = 0; i < m_status->no_of_nodes; i++)
+    {
+      if (m_status->node_states[i].node_id == nodeid &&
+          m_status->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB)
+        found = true;
+    }
+
+    if (!found)
+      ndbout_c("ERROR: node %d is not a NDB node!", nodeid);
+
+    return found;
+  }
+};
+
+
+
 static void
 split_args(const char* line, Vector<BaseString>& args)
 {
@@ -1414,7 +1474,10 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
   } else if(strcasecmp(cmd, "RESTART") == 0) {
     retval = (this->*fun)(nodeId, allAfterSecondToken, true);
   } else if (strcasecmp(cmd, "STATUS") == 0) {
-    (this->*fun)(nodeId, allAfterSecondToken, true);    
+    (this->*fun)(nodeId, allAfterSecondToken, true);
+  } else if (strcasecmp(cmd, "REPORT") == 0) {
+    Guard g(m_print_mutex);
+    retval = executeReport(nodeId, allAfterSecondToken, true);
   } else {
     Guard g(m_print_mutex);
     struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
@@ -2395,104 +2458,143 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   return ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
 }
 
-struct st_report_cmd
+static void
+report_memoryusage(const ndb_logevent& event)
 {
+  const ndb_logevent_MemoryUsage& usage = event.MemoryUsage;
+  const Uint32 block = usage.block;
+  const Uint32 total = usage.pages_total;
+  const Uint32 used = usage.pages_used;
+  assert(event.type == NDB_LE_MemoryUsage);
+
+  ndbout_c("Node %u: %s usage is %d%%(%d %dK pages of total %d)",
+           event.source_nodeid,
+           (block == DBACC ? "Index" : (block == DBTUP ? "Data" : "<unknown>")),
+           (total ? (used * 100 / total) : 0),
+           used,
+           usage.page_size_kb/1024,
+           total);
+}
+
+
+static void
+report_backupstatus(const ndb_logevent& event)
+{
+  const ndb_logevent_BackupStatus& status = event.BackupStatus;
+  assert(event.type == NDB_LE_BackupStatus);
+
+
+  if (status.starting_node)
+    ndbout_c("Node %u: Local backup status: backup %u started from node %u\n"
+             " #Records: %llu #LogRecords: %llu\n"
+             " Data: %llu bytes Log: %llu bytes",
+             event.source_nodeid,
+             status.backup_id,
+             refToNode(status.starting_node),
+             make_uint64(status.n_records_lo, status.n_records_hi),
+             make_uint64(status.n_log_records_lo, status.n_log_records_hi),
+             make_uint64(status.n_bytes_lo, status.n_bytes_hi),
+             make_uint64(status.n_log_bytes_lo, status.n_log_bytes_hi));
+  else
+    ndbout_c("Node %u: Backup not started",
+             event.source_nodeid);
+}
+
+
+static const
+struct st_report_cmd {
   const char *name;
   const char *help;
-  Ndb_logevent_type ndb_logevent_type;
-  Uint32 dump_cmd;
+   Ndb_logevent_type type;
+  void (*print_event_fn)(const ndb_logevent&);
+} report_cmds[] = {
+
+  { "BackupStatus",
+    "Report backup status of respective node",
+    NDB_LE_BackupStatus,
+    report_backupstatus },
+
+  { "MemoryUsage",
+    "Report memory usage of respective node",
+    NDB_LE_MemoryUsage,
+    report_memoryusage },
+
+  { 0, 0, NDB_LE_ILLEGAL_TYPE, 0 }
 };
 
-static struct st_report_cmd report_cmds[] = {
-  {  "BackupStatus", "Report backup status of respective node",
-     NDB_LE_BackupStatus, 100000 }
-  ,{ "MemoryUsage",  "Report memory usage of respective node",
-     NDB_LE_MemoryUsage, 1000 }
-};
-
-static unsigned n_report_cmds =
-sizeof(report_cmds)/sizeof(struct st_report_cmd);
 
 int
-CommandInterpreter::executeReport(int processId, const char* parameters,
+CommandInterpreter::executeReport(int nodeid, const char* parameters,
                                   bool all) 
 {
   if (emptyString(parameters))
   {
-    ndbout_c("  missing report type specifier");
+    ndbout_c("ERROR: missing report type specifier!");
     return -1;
   }
 
   Vector<BaseString> args;
   split_args(parameters, args);
 
-  int found = -1;
-  unsigned len = args[0].length();
-  for (unsigned i = 0; i < n_report_cmds; i++)
+  const st_report_cmd* report_cmd = report_cmds;
+  for (; report_cmd->name; report_cmd++)
   {
-    if (strncasecmp(report_cmds[i].name, args[0].c_str(), len) == 0)
-    {
-      if (found >= 0)
-      {
-        found = -1;
-        break;
-      }
-      found = i;
-      if (len == strlen(report_cmds[i].name))
-        break;
-    }
+    if (strncasecmp(report_cmd->name, args[0].c_str(),
+                    args[0].length()) == 0)
+      break;
   }
 
-  if (found >= 0)
+  if (!report_cmd->name)
   {
-    struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
-    if (cl == NULL)
+    ndbout_c("ERROR: '%s' - report type specifier unknown!", args[0].c_str());
+    return -1;
+  }
+
+  if (!all)
+  {
+    ClusterInfo info;
+    if (!info.fetch(m_mgmsrv))
     {
-      ndbout_c("Can't get status of node %d.", processId);
       printError();
       return -1;
     }
-    NdbAutoPtr<char> ap1((char*)cl);
-    int i = 0;
-    while ((i < cl->no_of_nodes) && cl->node_states[i].node_id != processId)
-      i++;
-    if (processId &&
-        cl->node_states[i].node_type != NDB_MGM_NODE_TYPE_NDB)
-    {
-      ndbout_c("Node %d: is not a data node.", processId);
+
+    // Check that given nodeid is a NDB node
+    if (!info.is_ndb_node(nodeid))
       return -1;
-    }
-
-    struct st_report_cmd &cmd = report_cmds[found];
-    if (cmd.dump_cmd)
-    {
-      int pars[25];
-      Uint32 no = 1;
-      pars[0] = cmd.dump_cmd;
-      struct ndb_mgm_reply reply;
-      return ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
-    }
-    else
-    {
-      ndbout_c("do ndb_le_ %u",
-               (unsigned) cmd.ndb_logevent_type);
-    }
-    return 0;
   }
 
-  ndbout_c("  '%s' - report type specifier unknown or ambiguous", args[0].c_str());
-  return -1;
-}
-
-
-static void helpTextReportFn()
-{
-  ndbout_c("<report type specifier> =");
-  for (unsigned i = 0; i < n_report_cmds; i++)
+  struct ndb_mgm_events* events =
+    ndb_mgm_dump_events(m_mgmsrv, report_cmd->type,
+                        all ? 0 : 1, &nodeid);
+  if (!events)
   {
-    ndbout_c("  %s\t- %s", report_cmds[i].name, report_cmds[i].help);
+    ndbout_c("ERROR: failed to fetch report!");
+    printError();
+    return -1;
   }
+
+
+  for (int i = 0; i < events->no_of_events; i++)
+  {
+    const ndb_logevent& event = events->events[i];
+    report_cmd->print_event_fn(event);
+  }
+
+  free(events);
+  return 0;
 }
+
+
+static void
+helpTextReportFn()
+{
+  ndbout_c("  <report-type> =");
+  const st_report_cmd* report_cmd = report_cmds;
+  for (; report_cmd->name; report_cmd++)
+    ndbout_c("    %s\t- %s", report_cmd->name, report_cmd->help);
+}
+
 
 //*****************************************************************************
 //*****************************************************************************
