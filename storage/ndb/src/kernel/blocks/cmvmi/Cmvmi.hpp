@@ -126,7 +126,10 @@ private:
   void sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode);
 
   Uint32 c_memusage_report_frequency;
-  void reportDMUsage(Signal* signal, int incDec);
+  void reportDMUsage(Signal* signal, int incDec,
+                     BlockReference ref = CMVMI_REF);
+  void reportIMUsage(Signal* signal, int incDec,
+                     BlockReference ref = CMVMI_REF);
 
   NDB_TICKS m_start_time;
 };

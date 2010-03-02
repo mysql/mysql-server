@@ -41,32 +41,10 @@ extern "C" int write_history(const char *command);
 
 #include "ndb_mgmclient.hpp"
 
-const char *progname = "ndb_mgm";
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 
 static Ndb_mgmclient* com;
-
-#ifndef NDB_WIN32
-extern "C"
-void 
-handler(int sig)
-{
-  DBUG_ENTER("handler");
-  switch(sig){
-  case SIGPIPE:
-    /**
-     * Will happen when connection to mgmsrv is broken
-     * Reset connected flag
-     */
-    printf("Got SIGPIPE!\n");
-    if (com)
-      com->disconnect();
-    break;
-  }
-  DBUG_VOID_RETURN;
-}
-#endif
 
 static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
@@ -162,13 +140,6 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-  // Install our own signal handler for SIGPIPE that calls
-  // 'Ndb_mgmclient' disconnect. In order to avoid that the
-  // mgmapi installs its own SIGPIPE handler, the Ndb_mgmclient will
-  // use 'ndb_mgm_set_ignore_sigpipe(handle, 0)'
-#if defined SIGPIPE && !defined _WIN32
-  signal(SIGPIPE, handler);
-#endif
   com = new Ndb_mgmclient(opt_connect_str,opt_verbose);
   int ret= 0;
   BaseString histfile;
