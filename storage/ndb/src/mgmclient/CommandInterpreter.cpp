@@ -924,22 +924,11 @@ CommandInterpreter::connect(bool interactive)
     ndbout_c("Can't create handle to management server.");
     exit(-1);
   }
-  if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv, 0)) {
-    ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
-             ndb_mgm_get_latest_error(m_mgmsrv),
-             ndb_mgm_get_latest_error_desc(m_mgmsrv));
-    exit(-1);
-  }
+
   if (interactive) {
     m_mgmsrv2 = ndb_mgm_create_handle();
     if(m_mgmsrv2 == NULL) {
       ndbout_c("Can't create 2:nd handle to management server.");
-      exit(-1);
-    }
-    if (ndb_mgm_set_ignore_sigpipe(m_mgmsrv2, 0)) {
-      ndbout_c("Can't set 'ignore_sigpipe', error: %d - %s",
-               ndb_mgm_get_latest_error(m_mgmsrv2),
-               ndb_mgm_get_latest_error_desc(m_mgmsrv2));
       exit(-1);
     }
   }
