@@ -41,7 +41,6 @@ extern "C" int write_history(const char *command);
 
 #include "ndb_mgmclient.hpp"
 
-const char *progname = "ndb_mgm";
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 
