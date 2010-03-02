@@ -563,7 +563,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	BOOL made_new_home = FALSE;
         char* new_home = NULL;
     	toku_struct_stat buf;
-        if (home[strlen(home)-1] == '\\') {
+        if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
             new_home = toku_malloc(strlen(home));
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
