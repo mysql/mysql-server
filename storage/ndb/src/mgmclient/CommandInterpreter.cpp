@@ -848,10 +848,17 @@ printLogEvent(struct ndb_logevent* event)
 #define EVENT MemoryUsage
     case NDB_LE_MemoryUsage:
     {
+
+      if (Q(gth) == 0)
+      {
+        // Only print MemoryUsage report for increased/decreased
+        break;
+      }
+
       const int percent = Q(pages_total) ? (Q(pages_used)*100)/Q(pages_total) : 0;
       ndbout_c("Node %u: %s usage %s %d%s(%d %dK pages of total %d)", R,
                (Q(block) == DBACC ? "Index" : (Q(block) == DBTUP ?"Data":"<unknown>")),
-               (Q(gth) == 0 ? "is" : (Q(gth) > 0 ? "increased to" : "decreased to")),
+               (Q(gth) > 0 ? "increased to" : "decreased to"),
                percent, "%",
                Q(pages_used), Q(page_size_kb)/1024, Q(pages_total));
       break;
@@ -2424,38 +2431,51 @@ int
 CommandInterpreter::executeDumpState(int processId, const char* parameters,
 				     bool all) 
 {
-  if(emptyString(parameters)){
-    ndbout << "Expected argument" << endl;
+  if(emptyString(parameters))
+  {
+    ndbout_c("ERROR: Expected argument!");
     return -1;
   }
 
-  Uint32 no = 0;
-  int pars[25];
-  
-  char * tmpString = my_strdup(parameters,MYF(MY_WME));
-  My_auto_ptr<char> ap1(tmpString);
-  char * tmpPtr = 0;
-  char * item = strtok_r(tmpString, " ", &tmpPtr);
-  while(item != NULL){
-    if (0x0 <= strtoll(item, NULL, 0) && strtoll(item, NULL, 0) <= 0xffffffff){
-      pars[no] = strtol(item, NULL, 0); 
-    } else {
-      ndbout << "Illegal value in argument to signal." << endl
-	     << "(Value must be between 0 and 0xffffffff.)" 
-	     << endl;
+  int params[25];
+  int num_params = 0;
+  const size_t max_params = sizeof(params)/sizeof(params[0]);
+
+  Vector<BaseString> args;
+  split_args(parameters, args);
+
+  if (args.size() > max_params)
+  {
+    ndbout_c("ERROR: Too many arguments, max %u allowed", max_params);
+    return -1;
+  }
+
+  for (size_t i = 0; i < args.size(); i++)
+  {
+    const char* arg = args[i].c_str();
+
+    if (strtoll(arg, NULL, 0) < 0 ||
+        strtoll(arg, NULL, 0) > 0xffffffff)
+    {
+      ndbout_c("ERROR: Illegal value '%s' in argument to signal.\n"
+               "(Value must be between 0 and 0xffffffff.)", arg);
       return -1;
     }
-    no++;
-    item = strtok_r(NULL, " ", &tmpPtr);
+    assert(num_params < max_params);
+    params[num_params] = strtoll(arg, NULL, 0);
+    num_params++;
   }
+
   ndbout << "Sending dump signal with data:" << endl;
-  for (Uint32 i=0; i<no; i++) {
-    ndbout.setHexFormat(1) << pars[i] << " ";
+  for (int i = 0; i < num_params; i++)
+  {
+    ndbout.setHexFormat(1) << params[i] << " ";
     if (!((i+1) & 0x3)) ndbout << endl;
   }
-  
+  ndbout << endl;
+
   struct ndb_mgm_reply reply;
-  return ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
+  return ndb_mgm_dump_state(m_mgmsrv, processId, params, num_params, &reply);
 }
 
 static void
