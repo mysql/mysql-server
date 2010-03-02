@@ -207,16 +207,24 @@ SELECT * FROM t2;
 
 INSERT INTO t1 VALUES(4);
 INSERT INTO t2 VALUES(4);
+COMMIT;
+SELECT * FROM t1;
+SELECT * FROM t2;
 FLUSH LOGS;
 sync_slave_with_master;
 
-let $diff_table_1= master:test.t1;
-let $diff_table_2= slave:test.t1;
-source include/diff_tables.inc;
+connection slave;
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection master;
 
-let $diff_table_1= master:test.t2;
-let $diff_table_2= slave:test.t2;
-source include/diff_tables.inc;
+#let $diff_table_1= master:test.t1;
+#let $diff_table_2= slave:test.t1;
+#source include/diff_tables.inc;
+
+#let $diff_table_1= master:test.t2;
+#let $diff_table_2= slave:test.t2;
+#source include/diff_tables.inc;
 
 connection master;
 DROP TABLE t1;

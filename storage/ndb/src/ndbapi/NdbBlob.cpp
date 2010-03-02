@@ -2070,7 +2070,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
   if (isKeyOp()) {
     if (isReadOp()) {
       // upgrade lock mode
-      if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+      if ((theNdbOp->theLockMode == NdbOperation::LM_CommittedRead) ||
+          (theNdbOp->theLockMode == NdbOperation::LM_SimpleRead))
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         theNdbOp->setReadLockMode(NdbOperation::LM_Read);
@@ -2086,7 +2087,7 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
           if (likely(theNdb->getMinDbNodeVersion() >=
                      NDBD_UNLOCK_OP_SUPPORTED))
           {
-            /* We've upgraded the lock from LM_Committed to LM_Read
+            /* We've upgraded the lock from Committed/Simple to LM_Read
              * Now modify the read operation to request an NdbLockHandle
              * so that we can unlock the main table op on close()
              */
@@ -2141,7 +2142,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
       /* Old Api scans only have saved lockmode state at this pre-finalisation
        * point, so it's easy to change the mode
        */ 
-      if (sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead)
+      if ((sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead) ||
+          (sop->m_savedLockModeOldApi == NdbOperation::LM_SimpleRead))
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
@@ -2154,7 +2156,8 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
        * to call the setReadLockMode method to do the right thing to change
        * the lockmode
        */
-      if (sop->theLockMode == NdbOperation::LM_CommittedRead)
+      if ((sop->theLockMode == NdbOperation::LM_CommittedRead) ||
+          (sop->theLockMode == NdbOperation::LM_SimpleRead))
       {
         assert(! theNdbOp->m_blob_lock_upgraded);
         sop->setReadLockMode(NdbOperation::LM_Read);
@@ -3312,11 +3315,11 @@ NdbBlob::close(bool execPendingBlobOps)
       if (theNdbOp->theLockHandle->m_openBlobCount == 0)
       {
         DBUG_PRINT("info",
-                   ("Upgraded LM_CommittedRead->LM_Read lock "
+                   ("Upgraded -> LM_Read lock "
                     "now no longer required.  Issuing unlock "
                     " operation"));
         /* We can now issue an unlock operation for the main
-         * table row - it was supposed to be LM_CommittedRead
+         * table row - it was supposed to be LM_CommittedRead / LM_SimpleRead
          */
         const NdbOperation* op = theNdbCon->unlock(theNdbOp->theLockHandle,
                                                    NdbOperation::AbortOnError);

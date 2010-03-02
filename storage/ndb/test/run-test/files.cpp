@@ -388,8 +388,6 @@ remove_dir(const char * path, bool inclusive)
   if (access(path, 0))
     return true;
 
-  g_logger.info("remove_dir");
-
   const int max_retries = 20;
   int attempt = 0;
 

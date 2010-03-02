@@ -945,6 +945,17 @@ public:
     Uint32 getRangeListDataLen() const;
 
     /**
+     * Get list of nodes storing given fragment, primary
+     * is normally entry 0
+     * Returns : 0 for error, > 0 for fragment count
+     * If fragment count is > arraySize param, only arraySize
+     * entries are written.
+     */
+    Uint32 getFragmentNodes(Uint32 fragmentId, 
+                            Uint32* nodeIdArrayPtr,
+                            Uint32 arraySize) const;
+
+    /**
      * Set table object type
      */
     void setObjectType(Object::Type type);
