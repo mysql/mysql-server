@@ -1261,6 +1261,45 @@ extern "C" {
 
 #endif
 
+  /**
+   *   Struct containing array of ndb_logevents
+   *   of the requested type, describing for example
+   *   memoryusage or baclupstatus for the whole cluster,
+   *   returned from ndb_mgm_dump_events()
+   */
+  struct ndb_mgm_events {
+    /** Number of entries in the logevents array */
+    int no_of_events;
+    /** Array of ndb_logevents  */
+    struct ndb_logevent events [
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+                    1
+#endif
+    ];
+  };
+
+  /**
+   * Get an array of ndb_logevent of a specified type, describing
+   * for example memoryusage or backupstatus for the whole cluster
+   *
+   * @note The caller must free the pointer returned by this function.
+   *
+   * @param   handle        Management handle.
+   * @param   type          Which ndb_logevent to request
+   * @param   no_of_nodes   Number of database nodes to request info from<br>
+   *                          0: All database nodes in cluster<br>
+   *                          n: Only the <var>n</var> node(s) specified in<br>
+   *                             the array node_list
+   * @param   node_list     List of node IDs of database nodes to request<br>
+   *                        info from
+   *
+   * @return                struct with array of ndb_logevent's
+   *                        (or <var>NULL</var> on error).
+   */
+  struct ndb_mgm_events*
+  ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
+                      int no_of_nodes, const int * node_list);
+
 #ifdef __cplusplus
 }
 #endif
@@ -1268,3 +1307,4 @@ extern "C" {
 /** @} */
 
 #endif
+

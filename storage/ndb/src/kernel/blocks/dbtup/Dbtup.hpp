@@ -3118,7 +3118,8 @@ private:
   Uint32 c_max_list_size[MAX_FREE_LIST + 1];
 
   void initGlobalTemporaryVars();
-  void reportMemoryUsage(Signal* signal, int incDec);
+  void reportMemoryUsage(Signal* signal, int incDec,
+                         BlockReference ref = CMVMI_REF);
 
   
 #ifdef VM_TRACE
