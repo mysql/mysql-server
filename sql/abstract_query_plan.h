@@ -66,13 +66,7 @@ namespace AQP
 
     const Table_access* get_table_access(uint access_no) const;
 
-    /**
-      @return The number of table access operations in the nested loop join.
-    */
-    uint get_access_count() const
-    { 
-      return m_access_count;
-    }
+    uint get_access_count() const;
 
     const Table_access* 
       get_referred_table_access(const Item_field* field_item) const;
@@ -138,12 +132,22 @@ namespace AQP
   {
     /** For default initialization.*/
     AT_VOID,
+    /** Do a lookup of a single primary key.*/
     AT_PRIMARY_KEY,
+    /** Do a lookup of a single unique index key.*/
     AT_UNIQUE_KEY,
-    AT_ORDERED_RANGE,
+    /** Scan an ordered index with a single upper and lower bound pair.*/
+    AT_ORDERED_INDEX_SCAN,
+    /** Do a multi range read for a set of primary keys.*/
     AT_MULTI_PRIMARY_KEY,
+    /** Do a multi range read for a set of unique index keys.*/
     AT_MULTI_UNIQUE_KEY,
-    AT_MULTI_RANGE,
+    /** 
+      Do a multi range read for a mix of ranges (for which there is an
+      ordered index), and either primary keys or unique index keys.
+    */
+    AT_MULTI_MIXED,
+    /** Scan a table. (No index is assumed to be used.) */
     AT_TABLE_SCAN,
     /**
       The access method has not yet been decided, or it has properties that
@@ -164,13 +168,7 @@ namespace AQP
     friend inline bool equal(const Table_access*, const Table_access*);
   public:
 
-    /** Get the type of this operation.*/
-    enum_access_type get_access_type() const
-    {
-      if (m_access_type == AT_VOID)
-	compute_type_and_index();
-      return m_access_type;
-    }
+    enum_access_type get_access_type() const;
 
     uint get_no_of_key_fields() const;
 
@@ -178,12 +176,9 @@ namespace AQP
 
     const KEY_PART_INFO* get_key_part_info(uint field_no) const;
 
-    uint get_access_no() const
-    { 
-      return m_tab_no;
-    }
+    uint get_access_no() const;
 
-    int32 get_index_no() const;
+    int get_index_no() const;
 
     st_table* get_table() const;
 
@@ -201,65 +196,19 @@ namespace AQP
     mutable enum_access_type m_access_type;
 
     /** The index to use for this operation (if applicable )*/
-    mutable int32 m_index_no;
+    mutable int m_index_no;
 
-    explicit Table_access(const JOIN_TAB* root_tab, uint tab_no);
+    explicit Table_access();
 
     const JOIN_TAB* get_join_tab() const;
 
     void compute_type_and_index() const;
-
-    explicit Table_access()
-      :m_root_tab(NULL),
-      m_tab_no(0),
-      m_access_type(AT_VOID),
-      m_index_no(-1)
-    {}
 
     /** No copying*/
     Table_access(const Table_access&);
     Table_access& operator=(const Table_access&);
   }; 
   // class Table_access
-
-  /**
-    This class represents a subset of the access methods in a Join_plan.
-   */
-  class Table_access_set
-  {
-    friend inline bool equal(Table_access_set, Table_access_set);
-    friend inline const Table_access_set intersection(Table_access_set,
-						      Table_access_set);
-  public:
-    explicit Table_access_set() :m_map(0){};
-
-    /** Add 'access' to the set.*/
-    void add(const Table_access* access)
-    {
-      m_map|=  static_cast<table_map>(1) << access->get_access_no();
-    }
-
-    /** Check if the set cointains 'access'.*/
-    bool contains(const Table_access* access) const
-    {
-      return (m_map & (static_cast<table_map>(1) << access->get_access_no()))
-	!= 0;
-    }
-
-    /** Check if the set is empty.*/
-    bool is_empty() const
-    { 
-      return m_map == 0;
-    }
-
-  private:
-    /**
-      A bit map of st_table::map id's. (These are unique for each join_tab
-      in a plan.)
-     */
-    table_map m_map;
-  }; 
-  // class Table_access_set
 
   /**
     Get the n'th table access operation.
@@ -273,39 +222,40 @@ namespace AQP
   }
 
   /**
-    Get the number of the index to use for this access operation.
+     @return The number of table access operations in the nested loop join.
   */
-  inline int32 Table_access::get_index_no() const
+  inline uint Join_plan::get_access_count() const
+  { 
+    return m_access_count;
+  }
+
+  /** Get the type of this operation.*/
+  inline enum_access_type Table_access::get_access_type() const
+  {
+    if (m_access_type == AT_VOID)
+      compute_type_and_index();
+    return m_access_type;
+  }
+
+  /**
+    @return The number of the index to use for this access operation (
+    or -1 for non-index operations).
+  */
+  inline int Table_access::get_index_no() const
   {
     if (m_access_type == AT_VOID)
       compute_type_and_index();
 	
-    DBUG_ASSERT(m_access_type != AT_VOID &&
-                m_access_type != AT_TABLE_SCAN);
     return m_index_no;
   }
 
-  inline bool equal(const Table_access* access_a,
-		    const Table_access* access_b)
-  {
-    DBUG_ASSERT(access_a->m_root_tab == access_b->m_root_tab);
-    return access_a->m_tab_no == access_b->m_tab_no;
-  }
-
-  /** Check if sets are identical.*/
-  inline bool equal(Table_access_set set_a,
-		    Table_access_set set_b)
-  {
-    return set_a.m_map == set_b.m_map;
-  }
-
-  /** Compute the intersection between two sets.*/
-  inline const Table_access_set intersection(const Table_access_set set_a,
-					     const Table_access_set set_b)
-  {
-    Table_access_set result;
-    result.m_map= set_a.m_map & set_b.m_map;
-    return result;
+  /** 
+    Get the number of this Table_access within the enclosing Join_plan. 
+    (This number will be in the range 0 to Join_plan::get_access_count() - 1.)
+  */
+  inline uint Table_access::get_access_no() const
+  { 
+    return m_tab_no;
   }
 
 }; 

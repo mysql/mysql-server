@@ -164,8 +164,6 @@ class NdbQueryLookupOperationDefImpl : public NdbQueryOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
-
   virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
                              const constVoidPtr actualParam[]) const;
 
@@ -181,9 +179,6 @@ protected:
   virtual const NdbQueryLookupOperationDef& getInterface() const
   { return m_interface; }
 
-  virtual NdbQueryOperationDef::Type getType() const
-  { return NdbQueryOperationDef::PrimaryKeyAccess; }
-
   virtual bool isScanOperation() const
   { return false; }
 
@@ -192,6 +187,29 @@ protected:
   NdbQueryOperandImpl* m_keys[MAX_ATTRIBUTES_IN_INDEX+1];
 
 }; // class NdbQueryLookupOperationDefImpl
+
+class NdbQueryPKLookupOperationDefImpl : public NdbQueryLookupOperationDefImpl
+{
+  friend class NdbQueryBuilder;  // Allow privat access from builder interface
+
+public:
+  virtual int serializeOperation(Uint32Buffer& serializedDef);
+
+private:
+  virtual ~NdbQueryPKLookupOperationDefImpl() {}
+
+  explicit NdbQueryPKLookupOperationDefImpl (
+                           const NdbTableImpl& table,
+                           const NdbQueryOperand* const keys[],
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix)
+  {}
+
+  virtual NdbQueryOperationDef::Type getType() const
+  { return NdbQueryOperationDef::PrimaryKeyAccess; }
+
+}; // class NdbQueryPKLookupOperationDefImpl
 
 
 class NdbQueryIndexOperationDefImpl : public NdbQueryLookupOperationDefImpl
@@ -665,8 +683,8 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   // Check for propper NULL termination of keys[] spec
   returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
-  NdbQueryLookupOperationDefImpl* op =
-    new NdbQueryLookupOperationDefImpl(tableImpl,
+  NdbQueryPKLookupOperationDefImpl* op =
+    new NdbQueryPKLookupOperationDefImpl(tableImpl,
                                        keys,ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
@@ -1964,7 +1982,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
 } // appendKeyPattern
 
 int
-NdbQueryLookupOperationDefImpl
+NdbQueryPKLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
@@ -2038,7 +2056,7 @@ NdbQueryLookupOperationDefImpl
 #endif
 
   return 0;
-} // NdbQueryLookupOperationDefImpl::serializeOperation
+} // NdbQueryPKLookupOperationDefImpl::serializeOperation
 
 
 int

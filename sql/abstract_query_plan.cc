@@ -194,7 +194,7 @@ namespace AQP
     case JT_CONST:
       m_index_no= join_tab->ref.key;
 
-      if (m_index_no == (int32)join_tab->table->s->primary_key)
+      if (m_index_no == static_cast<int>(join_tab->table->s->primary_key))
       {
         DBUG_PRINT("info", ("Operation %d is a primary key lookup.", m_tab_no));
         m_access_type= AT_PRIMARY_KEY;
@@ -221,14 +221,15 @@ namespace AQP
       if (key_info[m_index_no].key_parts == join_tab->ref.key_parts  &&
          (key_info[m_index_no].flags & (HA_NOSAME | HA_END_SPACE_KEY)) == HA_NOSAME)
       {
-        m_access_type= (m_index_no==(int32)join_tab->table->s->primary_key) 
+        m_access_type= 
+          (m_index_no == static_cast<int32>(join_tab->table->s->primary_key)) 
               ? AT_PRIMARY_KEY
               : AT_UNIQUE_KEY;
         DBUG_PRINT("info", ("Operation %d is an unique key referrence.", m_tab_no));
       }
       else
       {
-        m_access_type= AT_ORDERED_RANGE;
+        m_access_type= AT_ORDERED_INDEX_SCAN;
         DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       }
       break;
@@ -236,7 +237,7 @@ namespace AQP
     case JT_NEXT:
       DBUG_ASSERT(join_tab->index < MAX_KEY);
       m_index_no=    join_tab->index;
-      m_access_type= AT_ORDERED_RANGE;
+      m_access_type= AT_ORDERED_INDEX_SCAN;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       break;
 
@@ -294,7 +295,7 @@ namespace AQP
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type= AT_MULTI_PRIMARY_KEY; // MRR w/ multiple PK's
             else
-              m_access_type= AT_MULTI_RANGE;       // MRR w/ both range and PKs
+              m_access_type= AT_MULTI_MIXED;       // MRR w/ both range and PKs
           }
           else
           {
@@ -302,7 +303,7 @@ namespace AQP
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type= AT_MULTI_UNIQUE_KEY; // MRR with multiple unique keys
             else
-              m_access_type= AT_MULTI_RANGE;      // MRR w/ both range and unique keys
+              m_access_type= AT_MULTI_MIXED;      // MRR w/ both range and unique keys
           }
         }
         else
@@ -329,6 +330,13 @@ namespace AQP
   }
   // Table_access::compute_type_and_index()
 
+
+  inline Table_access::Table_access()
+    :m_root_tab(NULL),
+     m_tab_no(0),
+     m_access_type(AT_VOID),
+     m_index_no(-1)
+  {}
 
   /**
     @param plan Iterate over fields within this plan.
