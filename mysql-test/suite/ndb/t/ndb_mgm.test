@@ -86,3 +86,31 @@ exec $mgm_cmd -e "2 REPORT BACKUPSTATUS";
 
 echo Testing HELP for REPORT;
 exec $mgm_cmd -e "HELP REPORT";
+
+#
+# Test <ALL|nodeid> DUMP <arg>[ <argN>]
+#
+echo Missing dump arg;
+--error 255
+exec $mgm_cmd -e "ALL DUMP  ";
+
+echo Illegal argument 4294967300;
+--error 255
+exec $mgm_cmd -e "1 DUMP 4294967300";
+
+echo Illegal argument -1;
+--error 255
+exec $mgm_cmd -e "1 DUMP -1";
+
+echo ALL DUMP 1;
+exec $mgm_cmd -e "ALL DUMP 1 ";
+
+echo 1 DUMP 1 2;
+exec $mgm_cmd -e "1 DUMP 1 2";
+
+echo max DUMP args;
+exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25";
+
+echo more than max DUMP args;
+--error 255
+exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26";
