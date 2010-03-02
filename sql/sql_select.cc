@@ -1893,29 +1893,9 @@ JOIN::optimize()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
-  /*
-    Create all structures needed for materialized subquery execution,
-    assuming this is the outer-most query. This phase must be after
-    substitute_for_best_equal_field() because that function may replace
-    items with other items from a multiple equality, and we need to reference
-    the correct items in the index access method of the IN predicate.
-  */
-  if (is_top_level_join())
-     /* Alternatively check: (&lex.select_lex == join->select) */
-  {
-    for (SELECT_LEX *sl= thd->lex->all_selects_list; sl;
-         sl= sl->next_select_in_list())
-    {
-      Item_subselect *subquery_predicate= sl->master_unit()->item;
-      if (subquery_predicate &&
-          subquery_predicate->substype() == Item_subselect::IN_SUBS)
-      {
-        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
-        if (in_subs->use_hash_sj && in_subs->setup_hash_sj_engine())
-          DBUG_RETURN(1);
-      }
-    }
-  }
+  /* Create all structures needed for materialized subquery execution. */
+  if (setup_subquery_materialization())
+    DBUG_RETURN(1);
 
   /*
     is this simple IN subquery?
@@ -3529,6 +3509,49 @@ bool JOIN::flatten_subqueries()
   }
   sj_subselects.clear();
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Setup for execution all subqueries of a query, for which the optimizer
+  chose hash semi-join.
+
+  @detail Iterate over all subqueries of the query, and if they are under an
+  IN predicate, and the optimizer chose to compute it via hash semi-join,
+  initialize all data structures needed for the execution of the IN
+  predicate.
+
+  This method is part of the "code generation" query processing phase.
+
+  This phase must be called after substitute_for_best_equal_field() because
+  that function may replace items with other items from a multiple equality,
+  and we need to reference the correct items in the index access method of the
+  IN predicate.
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool JOIN::setup_subquery_materialization()
+{
+  for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit(); un;
+       un= un->next_unit())
+  {
+    for (SELECT_LEX *sl= un->first_select(); sl;
+         sl= sl->next_select())
+    {
+      Item_subselect *subquery_predicate= sl->master_unit()->item;
+      if (subquery_predicate &&
+          subquery_predicate->substype() == Item_subselect::IN_SUBS)
+      {
+        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
+        if (in_subs->use_hash_sj && in_subs->setup_hash_sj_engine())
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
 }
 
 
