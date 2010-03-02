@@ -1847,8 +1847,8 @@ void Item_in_optimizer::cleanup()
 
 bool Item_in_optimizer::is_null()
 {
-  cache->store(args[0]);
-  return (null_value= (cache->null_value || args[1]->is_null()));
+  val_int();
+  return null_value;
 }
 
 
@@ -4143,9 +4143,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
+  void *orig_thd_marker= thd->thd_marker;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
+
+  if (functype() == COND_OR_FUNC)
+    thd->thd_marker= 0;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4204,10 +4208,44 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
+  thd->thd_marker= orig_thd_marker;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
 }
+
+
+void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
+
+  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
+  not_null_tables_cache= 0;
+
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    item->fix_after_pullout(new_parent, li.ref());
+    item= *li.ref();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
+  }
+}
+
 
 bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {

@@ -1833,8 +1833,14 @@ void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
+void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array);
+#define EXTRA_DEBUG_DUMP_TABLE_LISTS
+#ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
+void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
+#endif
 #endif
 void mysql_print_status();
+
 /* key.cc */
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart);

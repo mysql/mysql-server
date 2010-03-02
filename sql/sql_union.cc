@@ -65,7 +65,8 @@ bool select_union::send_data(List<Item> &values)
   {
     /* create_myisam_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
+        create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
+                                &tmp_table_param.recinfo, error, 1))
       return 1;
   }
   return 0;
@@ -505,6 +506,7 @@ bool st_select_lex_unit::exec()
         sl->join->select_options= 
           (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
           sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
 	saved_error= sl->join->optimize();
       }
       if (!saved_error)

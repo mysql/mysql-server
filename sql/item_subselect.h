@@ -36,13 +36,15 @@ class Cached_item;
 class Item_subselect :public Item_result_field
 {
   my_bool value_assigned; /* value already assigned to subselect */
-protected:
+public:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */
+public:
   st_select_lex_unit *unit;
+protected:
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
   /* old engine if engine was changed */
@@ -265,8 +267,9 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
-protected:
+public:
   Item *left_expr;
+protected:
   /*
     Cache of the left operand of the subquery predicate. Allocated in the
     runtime memory root, for each execution, thus need not be freed.
@@ -286,6 +289,9 @@ protected:
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
+  
+  /* Priority of this predicate in the convert-to-semi-join-nest process. */
+  int sj_convert_priority;
 
   /*
     True if this predicate will be executed via subquery materialization
@@ -293,6 +299,19 @@ public:
     transformation.
   */
   bool use_hash_sj;
+
+  Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
+
+  /* TRUE <=> This Item was converted to semi-join nest and should be removed */
+  bool converted_to_sj;
+
+  /* 
+    Location of the subquery predicate. It is either
+     - pointer to join nest if the subquery predicate is in the ON expression
+     - (TABLE_LIST*)1 if the predicate is in the WHERE.
+  */
+  TABLE_LIST *expr_join_nest;
+  Item **ref_ptr;
 
   bool *get_cond_guard(int i)
   {
@@ -305,13 +324,11 @@ public:
   }
   bool have_guarded_conds() { return test(pushed_cond_guards); }
 
-  Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
-
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), optimizer(0),
     abort_on_null(0), transformed(0), pushed_cond_guards(NULL),
-    use_hash_sj(0), upper_item(0)
+    use_hash_sj(0), upper_item(0), converted_to_sj(FALSE)
   {}
 
   subs_type substype() { return IN_SUBS; }

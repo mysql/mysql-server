@@ -2170,6 +2170,19 @@ table_map Item_field::used_tables() const
 }
 
 
+void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  if (new_parent == depended_from)
+    depended_from= NULL;
+  Name_resolution_context *ctx= new Name_resolution_context();
+  ctx->outer_context= NULL; // We don't build a complete name resolver
+  ctx->select_lex= new_parent;
+  ctx->first_name_resolution_table= context->first_name_resolution_table;
+  ctx->last_name_resolution_table=  context->last_name_resolution_table;
+  this->context=ctx;
+}
+
+
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
   Item_field *new_item= new Item_field(thd, this);
@@ -4609,7 +4622,6 @@ error:
   return TRUE;
 }
 
-
 Item *Item_field::safe_charset_converter(CHARSET_INFO *tocs)
 {
   no_const_subst= 1;
@@ -6605,6 +6617,23 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   return err;
 }
 
+void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  if (depended_from == new_parent)
+  {
+    *ref= outer_ref; //psergey-merge: check
+    outer_ref->fix_after_pullout(new_parent, ref);
+  }
+}
+
+void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
+{
+  if (depended_from == new_parent)
+  {
+    (*ref)->fix_after_pullout(new_parent, ref);
+    depended_from= NULL;
+  }
+}
 
 /**
   Compare two view column references for equality.

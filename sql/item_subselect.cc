@@ -671,7 +671,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), optimizer(0), transformed(0),
-  pushed_cond_guards(NULL), use_hash_sj(0), upper_item(0)
+  pushed_cond_guards(NULL), use_hash_sj(0), upper_item(0), converted_to_sj(FALSE)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1671,7 +1671,11 @@ void Item_in_subselect::print(String *str, enum_query_type query_type)
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
-  
+  ref_ptr= ref;
+
+  if (converted_to_sj)
+    return !( (*ref)= new Item_int(1));
+
   if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
@@ -2070,6 +2074,11 @@ int subselect_single_select_engine::exec()
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
     unit->set_limit(unit->global_parameters);
+    if (join->flatten_subqueries())
+    {
+      thd->is_fatal_error= TRUE;
+      DBUG_RETURN(1);
+    }
     if (join->optimize())
     {
       thd->where= save_where;
@@ -2639,7 +2648,7 @@ void subselect_uniquesubquery_engine::print(String *str,
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  if (table_name[0] == '#')
+  if (tab->table->s->table_category == TABLE_CATEGORY_TEMPORARY)
   {
     /*
       Temporary tables' names change across runs, so they can't be used for
