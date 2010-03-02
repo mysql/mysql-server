@@ -838,10 +838,17 @@ printLogEvent(struct ndb_logevent* event)
 #define EVENT MemoryUsage
     case NDB_LE_MemoryUsage:
     {
+
+      if (Q(gth) == 0)
+      {
+        // Only print MemoryUsage report for increased/decreased
+        break;
+      }
+
       const int percent = Q(pages_total) ? (Q(pages_used)*100)/Q(pages_total) : 0;
       ndbout_c("Node %u: %s usage %s %d%s(%d %dK pages of total %d)", R,
                (Q(block) == DBACC ? "Index" : (Q(block) == DBTUP ?"Data":"<unknown>")),
-               (Q(gth) == 0 ? "is" : (Q(gth) > 0 ? "increased to" : "decreased to")),
+               (Q(gth) > 0 ? "increased to" : "decreased to"),
                percent, "%",
                Q(pages_used), Q(page_size_kb)/1024, Q(pages_total));
       break;
