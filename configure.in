@@ -2266,7 +2266,8 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setstacksize pthread_condattr_create \
-  pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock pthread_sigmask \
+  pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock \
+  pthread_rwlockattr_setkind_np pthread_sigmask \
   readlink realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep thr_yield \

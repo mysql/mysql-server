@@ -148,10 +148,37 @@ public:
   /**
     Read-write lock protecting this lock context.
 
-    TODO/FIXME: Replace with RW-lock which will prefer readers
-                on all platforms and not only on Linux.
+    @note The fact that we use read-write lock prefers readers here is
+          important as deadlock detector won't work correctly otherwise.
+
+          For example, imagine that we have following waiters graph:
+
+                       ctxA -> obj1 -> ctxB -> obj1 -|
+                        ^                            |
+                        |----------------------------|
+
+          and both ctxA and ctxB start deadlock detection process:
+
+            ctxA read-locks obj1             ctxB read-locks obj2
+            ctxA goes deeper                 ctxB goes deeper
+
+          Now ctxC comes in who wants to start waiting on obj1, also
+          ctxD comes in who wants to start waiting on obj2.
+
+            ctxC tries to write-lock obj1   ctxD tries to write-lock obj2
+            ctxC is blocked                 ctxD is blocked
+
+          Now ctxA and ctxB resume their search:
+
+            ctxA tries to read-lock obj2    ctxB tries to read-lock obj1
+
+          If m_rwlock prefers writes (or fair) both ctxA and ctxB would be
+          blocked because of pending write locks from ctxD and ctxC
+          correspondingly. Thus we will get a deadlock in deadlock detector.
+          If m_wrlock prefers readers (actually ignoring pending writers is
+          enough) ctxA and ctxB will continue and no deadlock will occur.
   */
-  rw_lock_t m_rwlock;
+  rw_pr_lock_t m_rwlock;
 
   bool is_empty() const
   {
@@ -213,12 +240,12 @@ public:
     m_ref_release(0),
     m_is_destroyed(FALSE)
   {
-    my_rwlock_init(&m_rwlock, NULL);
+    rw_pr_init(&m_rwlock);
   }
 
   virtual ~MDL_lock()
   {
-    rwlock_destroy(&m_rwlock);
+    rw_pr_destroy(&m_rwlock);
   }
   inline static void destroy(MDL_lock *lock);
 public:
@@ -480,7 +507,7 @@ bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
   lock->m_ref_usage++;
   mysql_mutex_unlock(&m_mutex);
 
-  rw_wrlock(&lock->m_rwlock);
+  rw_pr_wrlock(&lock->m_rwlock);
   lock->m_ref_release++;
   if (unlikely(lock->m_is_destroyed))
   {
@@ -495,7 +522,7 @@ bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
     */
     uint ref_usage= lock->m_ref_usage;
     uint ref_release= lock->m_ref_release;
-    rw_unlock(&lock->m_rwlock);
+    rw_pr_unlock(&lock->m_rwlock);
     if (ref_usage == ref_release)
       MDL_lock::destroy(lock);
     return TRUE;
@@ -538,7 +565,7 @@ void MDL_map::remove(MDL_lock *lock)
   lock->m_is_destroyed= TRUE;
   ref_usage= lock->m_ref_usage;
   ref_release= lock->m_ref_release;
-  rw_unlock(&lock->m_rwlock);
+  rw_pr_unlock(&lock->m_rwlock);
   mysql_mutex_unlock(&m_mutex);
   if (ref_usage == ref_release)
     MDL_lock::destroy(lock);
@@ -559,7 +586,7 @@ MDL_context::MDL_context()
   m_deadlock_weight(0),
   m_signal(NO_WAKE_UP)
 {
-  my_rwlock_init(&m_waiting_for_lock, NULL);
+  rw_pr_init(&m_waiting_for_lock);
   mysql_mutex_init(NULL /* pfs key */, &m_signal_lock, NULL);
   mysql_cond_init(NULL /* pfs key */, &m_signal_cond, NULL);
 }
@@ -581,7 +608,7 @@ void MDL_context::destroy()
 {
   DBUG_ASSERT(m_tickets.is_empty());
 
-  rwlock_destroy(&m_waiting_for_lock);
+  rw_pr_destroy(&m_waiting_for_lock);
   mysql_mutex_destroy(&m_signal_lock);
   mysql_cond_destroy(&m_signal_cond);
 }
@@ -1071,7 +1098,7 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 
 void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
 {
-  rw_wrlock(&m_rwlock);
+  rw_pr_wrlock(&m_rwlock);
   (this->*list).remove_ticket(ticket);
   if (is_empty())
     mdl_locks.remove(this);
@@ -1082,7 +1109,7 @@ void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
       which now might be able to do it. Wake them up!
     */
     wake_up_waiters();
-    rw_unlock(&m_rwlock);
+    rw_pr_unlock(&m_rwlock);
   }
 }
 
@@ -1102,9 +1129,9 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type)
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  rw_rdlock(&m_rwlock);
+  rw_pr_rdlock(&m_rwlock);
   result= (m_waiting.bitmap() & incompatible_granted_types_bitmap()[type]);
-  rw_unlock(&m_rwlock);
+  rw_pr_unlock(&m_rwlock);
   return result;
 }
 
@@ -1298,7 +1325,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   {
     ticket->m_lock= lock;
     lock->m_granted.add_ticket(ticket);
-    rw_unlock(&lock->m_rwlock);
+    rw_pr_unlock(&lock->m_rwlock);
 
     m_tickets.push_front(ticket);
 
@@ -1308,7 +1335,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   {
     /* We can't get here if we allocated a new lock. */
     DBUG_ASSERT(! lock->is_empty());
-    rw_unlock(&lock->m_rwlock);
+    rw_pr_unlock(&lock->m_rwlock);
     MDL_ticket::destroy(ticket);
   }
 
@@ -1349,9 +1376,9 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   ticket->m_lock= mdl_request->ticket->m_lock;
   mdl_request->ticket= ticket;
 
-  rw_wrlock(&ticket->m_lock->m_rwlock);
+  rw_pr_wrlock(&ticket->m_lock->m_rwlock);
   ticket->m_lock->m_granted.add_ticket(ticket);
-  rw_unlock(&ticket->m_lock->m_rwlock);
+  rw_pr_unlock(&ticket->m_lock->m_rwlock);
 
   m_tickets.push_front(ticket);
 
@@ -1457,7 +1484,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
     if (ticket->is_upgradable_or_exclusive())
       lock->notify_shared_locks(this);
 
-    rw_unlock(&lock->m_rwlock);
+    rw_pr_unlock(&lock->m_rwlock);
 
     set_deadlock_weight(mdl_request->get_deadlock_weight());
     will_wait_for(ticket);
@@ -1492,7 +1519,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       return TRUE;
     }
-    rw_wrlock(&lock->m_rwlock);
+    rw_pr_wrlock(&lock->m_rwlock);
   }
 
   lock->m_waiting.remove_ticket(ticket);
@@ -1502,7 +1529,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
     (*lock->cached_object_release_hook)(lock->cached_object);
   lock->cached_object= NULL;
 
-  rw_unlock(&lock->m_rwlock);
+  rw_pr_unlock(&lock->m_rwlock);
 
   m_tickets.push_front(ticket);
 
@@ -1647,7 +1674,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
   is_new_ticket= ! has_lock(mdl_svp, mdl_xlock_request.ticket);
 
   /* Merge the acquired and the original lock. @todo: move to a method. */
-  rw_wrlock(&mdl_ticket->m_lock->m_rwlock);
+  rw_pr_wrlock(&mdl_ticket->m_lock->m_rwlock);
   if (is_new_ticket)
     mdl_ticket->m_lock->m_granted.remove_ticket(mdl_xlock_request.ticket);
   /*
@@ -1659,7 +1686,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
   mdl_ticket->m_type= MDL_EXCLUSIVE;
   mdl_ticket->m_lock->m_granted.add_ticket(mdl_ticket);
 
-  rw_unlock(&mdl_ticket->m_lock->m_rwlock);
+  rw_pr_unlock(&mdl_ticket->m_lock->m_rwlock);
 
   if (is_new_ticket)
   {
@@ -1677,7 +1704,7 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   MDL_ticket *ticket;
   bool result= FALSE;
 
-  rw_rdlock(&m_rwlock);
+  rw_pr_rdlock(&m_rwlock);
 
   Ticket_iterator granted_it(m_granted);
   Ticket_iterator waiting_it(m_waiting);
@@ -1729,7 +1756,7 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   }
 
 end:
-  rw_unlock(&m_rwlock);
+  rw_pr_unlock(&m_rwlock);
   return result;
 }
 
@@ -1738,7 +1765,7 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
 {
   bool result= FALSE;
 
-  rw_rdlock(&m_waiting_for_lock);
+  rw_pr_rdlock(&m_waiting_for_lock);
 
   if (m_waiting_for)
   {
@@ -1767,14 +1794,14 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
       deadlock_ctx->victim= this;
     else if (deadlock_ctx->victim->m_deadlock_weight >= m_deadlock_weight)
     {
-      rw_unlock(&deadlock_ctx->victim->m_waiting_for_lock);
+      rw_pr_unlock(&deadlock_ctx->victim->m_waiting_for_lock);
       deadlock_ctx->victim= this;
     }
     else
-      rw_unlock(&m_waiting_for_lock);
+      rw_pr_unlock(&m_waiting_for_lock);
   }
   else
-    rw_unlock(&m_waiting_for_lock);
+    rw_pr_unlock(&m_waiting_for_lock);
 
   return result;
 }
@@ -1800,7 +1827,7 @@ bool MDL_context::find_deadlock()
     if (deadlock_ctx.victim != this)
     {
       deadlock_ctx.victim->awake(VICTIM_WAKE_UP);
-      rw_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      rw_pr_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
       /*
         After adding new arc to waiting graph we found that it participates
         in some loop (i.e. there is a deadlock). We decided to destroy this
@@ -1813,7 +1840,7 @@ bool MDL_context::find_deadlock()
     else
     {
       DBUG_ASSERT(&deadlock_ctx.victim->m_waiting_for_lock == &m_waiting_for_lock);
-      rw_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      rw_pr_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
       return TRUE;
     }
   }
@@ -1870,14 +1897,14 @@ MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
     if (lock->can_grant_lock(mdl_request->type, this))
     {
-      rw_unlock(&lock->m_rwlock);
+      rw_pr_unlock(&lock->m_rwlock);
       return FALSE;
     }
 
     MDL_ticket *pending_ticket;
     if (! (pending_ticket= MDL_ticket::create(this, mdl_request->type)))
     {
-      rw_unlock(&lock->m_rwlock);
+      rw_pr_unlock(&lock->m_rwlock);
       return TRUE;
     }
 
@@ -1886,7 +1913,7 @@ MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     lock->m_waiting.add_ticket(pending_ticket);
 
     wait_reset();
-    rw_unlock(&lock->m_rwlock);
+    rw_pr_unlock(&lock->m_rwlock);
 
     set_deadlock_weight(MDL_DEADLOCK_WEIGHT_DML);
     will_wait_for(pending_ticket);
@@ -2037,7 +2064,7 @@ void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
   if (m_type != MDL_EXCLUSIVE)
     return;
 
-  rw_wrlock(&m_lock->m_rwlock);
+  rw_pr_wrlock(&m_lock->m_rwlock);
   /*
     To update state of MDL_lock object correctly we need to temporarily
     exclude ticket from the granted queue and then include it back.
@@ -2046,7 +2073,7 @@ void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
   m_type= type;
   m_lock->m_granted.add_ticket(this);
   m_lock->wake_up_waiters();
-  rw_unlock(&m_lock->m_rwlock);
+  rw_pr_unlock(&m_lock->m_rwlock);
 }
 
 
