@@ -1013,6 +1013,131 @@ int runTestGetVersion(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestDumpEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+
+  NdbMgmHandle h= ndb_mgm_create_handle();
+  if (!h)
+  {
+    g_err << "ndb_mgm_create_handle failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (ndb_mgm_set_connectstring(h, mgm) != 0 ||
+      ndb_mgm_connect(h,0,0,0) != 0)
+  {
+    ndbout_c("connect failed, %d: %s",
+             ndb_mgm_get_latest_error(h),
+             ndb_mgm_get_latest_error_msg(h));
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+
+  // Test with unsupported logevent_type
+  {
+    const Ndb_logevent_type unsupported = NDB_LE_NDBStopForced;
+    g_info << "ndb_mgm_dump_events(" << unsupported << ")" << endl;
+
+    const struct ndb_mgm_events* events =
+      ndb_mgm_dump_events(h, unsupported, 0, 0);
+    if (events != NULL)
+    {
+      g_err << "ndb_mgm_dump_events returned events "
+            << "for unsupported Ndb_logevent_type" << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    if (ndb_mgm_get_latest_error(h) != NDB_MGM_USAGE_ERROR ||
+        strcmp("ndb_logevent_type 59 not supported",
+               ndb_mgm_get_latest_error_desc(h)))
+    {
+      g_err << "Unexpected error for unsupported logevent type, "
+            << ndb_mgm_get_latest_error(h)
+            << ", desc: " << ndb_mgm_get_latest_error_desc(h) << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+  }
+
+  // Test with nodes >= MAX_NDB_NODES
+  for (int i = MAX_NDB_NODES; i < MAX_NDB_NODES + 3; i++)
+  {
+    g_info << "ndb_mgm_dump_events(NDB_LE_MemoryUsage, 1, "
+           << i << ")" << endl;
+
+    const struct ndb_mgm_events* events =
+      ndb_mgm_dump_events(h, NDB_LE_MemoryUsage, 1, &i);
+    if (events != NULL)
+    {
+      g_err << "ndb_mgm_dump_events returned events "
+            << "for too large nodeid" << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+    int invalid_nodeid;
+    if (ndb_mgm_get_latest_error(h) != NDB_MGM_USAGE_ERROR ||
+        sscanf(ndb_mgm_get_latest_error_desc(h),
+               "invalid nodes: '%d'", &invalid_nodeid) != 1 ||
+        invalid_nodeid != i)
+    {
+      g_err << "Unexpected error for too large nodeid, "
+            << ndb_mgm_get_latest_error(h)
+            << ", desc: " << ndb_mgm_get_latest_error_desc(h) << endl;
+      ndb_mgm_destroy_handle(&h);
+      return NDBT_FAILED;
+    }
+
+  }
+
+  int l = 0;
+  int loops = ctx->getNumLoops();
+  while (l<loops)
+  {
+    const Ndb_logevent_type supported[] =
+      {
+        NDB_LE_MemoryUsage,
+        NDB_LE_BackupStatus,
+        (Ndb_logevent_type)0
+      };
+
+    // Test with supported logevent_type
+    for (int i = 0; supported[i]; i++)
+    {
+      g_info << "ndb_mgm_dump_events(" << supported[i] << ")" << endl;
+
+      struct ndb_mgm_events* events =
+        ndb_mgm_dump_events(h, supported[i], 0, 0);
+      if (events == NULL)
+      {
+        g_err << "ndb_mgm_dump_events failed, type: " << supported[i]
+              << ", error: " << ndb_mgm_get_latest_error(h)
+              << ", msg: " << ndb_mgm_get_latest_error_msg(h) << endl;
+        ndb_mgm_destroy_handle(&h);
+        return NDBT_FAILED;
+      }
+
+      if (events->no_of_events < 0)
+      {
+        g_err << "ndb_mgm_dump_events returned a negative number of events: "
+              << events->no_of_events << endl;
+        free(events);
+        ndb_mgm_destroy_handle(&h);
+        return NDBT_FAILED;
+      }
+
+      g_info << "Got " << events->no_of_events << " events" << endl;
+      free(events);
+    }
+
+    l++;
+  }
+
+  ndb_mgm_destroy_handle(&h);
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testMgm);
 TESTCASE("SingleUserMode", 
@@ -1076,7 +1201,11 @@ TESTCASE("Bug40922",
 TESTCASE("TestGetVersion",
  	 "Test 'get version' and 'ndb_mgm_get_version'"){
   STEPS(runTestGetVersion, 20);
- }
+}
+TESTCASE("TestDumpEvents",
+ 	 "Test 'dump events'"){
+  STEPS(runTestDumpEvents, 1);
+}
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
