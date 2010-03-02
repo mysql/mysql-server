@@ -1305,6 +1305,17 @@ static Sys_var_ulong Sys_optimizer_prune_level(
        SESSION_VAR(optimizer_prune_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1), DEFAULT(1), BLOCK_SIZE(1));
 
+/** Warns about deprecated value 63 */
+static bool fix_optimizer_search_depth(sys_var *self, THD *thd,
+                                       enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  if (sv->optimizer_search_depth == MAX_TABLES+2)
+    WARN_DEPRECATED(thd, 6, 0, "optimizer-search-depth=63",
+                    "a search depth less than 63");
+  return false;
+}
+
 static Sys_var_ulong Sys_optimizer_search_depth(
        "optimizer_search_depth",
        "Maximum depth of search performed by the query optimizer. Values "
@@ -1313,10 +1324,12 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        "than the number of tables in a relation result in faster "
        "optimization, but may produce very bad query plans. If set to 0, "
        "the system will automatically pick a reasonable value; if set to "
-       "63, the optimizer will switch to the original find_best search"
-       "(used for testing/comparison)",
+       "63, the optimizer will switch to the original find_best search. "
+       "NOTE: The value 63 and its associated behaviour is deprecated",
        SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MAX_TABLES+2), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
+       VALID_RANGE(0, MAX_TABLES+2), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_optimizer_search_depth));
 
 static const char *optimizer_switch_names[]=
 {
@@ -2795,7 +2808,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }
-static Sys_var_ulong Sys_slave_net_timeout(
+static Sys_var_uint Sys_slave_net_timeout(
        "slave_net_timeout", "Number of seconds to wait for more data "
        "from a master/slave connection before aborting the read",
        GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),

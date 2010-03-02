@@ -111,3 +111,99 @@ commit;
 # which was already released by commit.
 unlock tables;
 drop tables t1, t2;
+# 
+# Tests for WL#5000  FLUSH TABLES|TABLE table_list WITH READ LOCK
+#
+# I. Check the incompatible changes in the grammar.
+#
+flush tables with read lock, hosts;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' hosts' at line 1
+flush privileges, tables;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tables' at line 1
+flush privileges, tables with read lock;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tables with read lock' at line 1
+flush privileges, tables;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tables' at line 1
+flush tables with read lock, tables;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' tables' at line 1
+show tables;
+Tables_in_test
+#
+# II. Check the allowed syntax.
+#
+drop table if exists t1, t2, t3;
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+lock table t1 read, t2 read;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+flush tables with read lock;
+flush tables t1, t2 with read lock;
+flush tables t1, t2 with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+select * from t1;
+a
+select * from t2;
+a
+select * from t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+insert into t1 (a) values (1);
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+insert into t2 (a) values (1);
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+insert into t3 (a) values (1);
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+lock table no_such_table read;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+#
+# We implicitly left the locked tables
+# mode but still have the read lock.
+# 
+insert into t2 (a) values (1);
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+insert into t1 (a) values (1);
+insert into t2 (a) values (1);
+flush table t1, t2 with read lock;
+select * from t1;
+a
+1
+select * from t2;
+a
+1
+select * from t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+insert into t1 (a) values (2);
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+insert into t2 (a) values (2);
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+insert into t3 (a) values (2);
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+lock table no_such_table read;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+insert into t3 (a) values (2);
+# 
+# III. Concurrent tests.
+#
+# --> connection default
+#
+# Check that flush tables <list> with read lock
+# does not affect non-locked tables.
+#
+flush tables t1 with read lock;
+# --> connection con1;
+select * from t1;
+a
+1
+select * from t2;
+a
+1
+insert into t2 (a) values (3);
+# --> connection default;
+unlock tables;
+# --> connection con1
+drop table t1, t2, t3;
