@@ -155,7 +155,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
-#define ZREPORT_MEMORY_USAGE 8
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -853,7 +852,6 @@ private:
 
   void zpagesize_error(const char* where);
 
-  void reportMemoryUsage(Signal* signal, int gth);
   void reenable_expand_after_redo_log_exection_complete(Signal*);
 
   // charsets
