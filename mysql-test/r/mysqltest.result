@@ -325,6 +325,7 @@ outer=2 ifval=0
 outer=1 ifval=1
 here is the sourced script
 ERROR 42S02: Table 'test.nowhere' doesn't exist
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'else' at line 1
 
 In loop
 here is the sourced script

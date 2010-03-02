@@ -863,7 +863,7 @@ while ($outer)
 }
 
 # Test source in an if in a while which is false on 1st iteration
-# Also test --error in same context
+# Also test --error and --disable_abort_on_error in same context
 let $outer= 2; # Number of outer loops
 let $ifval= 0; # false 1st time
 while ($outer)
@@ -874,6 +874,10 @@ while ($outer)
     --source $MYSQLTEST_VARDIR/tmp/sourced.inc
     --error ER_NO_SUCH_TABLE
     SELECT * from nowhere;
+    --disable_abort_on_error
+# Statement giving a different error, to make sure we don't mask it
+    SELECT * FROM nowhere else;
+    --enable_abort_on_error
   }
   dec $outer;
   inc $ifval;
