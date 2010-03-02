@@ -222,7 +222,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
+Last_Errno	1642
 Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -240,7 +240,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	<Last_IO_Errno>
 Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
+Last_SQL_Errno	1642
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	0.0.0.0
 Replicate_Ignore_Server_Ids	
@@ -268,7 +268,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
+Last_Errno	1642
 Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -286,7 +286,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	<Last_IO_Errno>
 Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
+Last_SQL_Errno	1642
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	0.0.0.0
 Replicate_Ignore_Server_Ids	
@@ -314,7 +314,7 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
+Last_Errno	1642
 Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
@@ -332,7 +332,7 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	<Last_IO_Errno>
 Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
+Last_SQL_Errno	1642
 Last_SQL_Error	<Last_SQL_Error>
 Master_Bind	0.0.0.0
 Replicate_Ignore_Server_Ids	
