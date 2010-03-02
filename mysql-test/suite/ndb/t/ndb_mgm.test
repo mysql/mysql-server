@@ -36,3 +36,53 @@ let $mysql_version = mysql-$mysql_version;
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
 exec $mgm_cmd -e "show";
 
+#
+# Test the [ALL|<nodeid>] REPORT [MEMORYUSAGE|BACKUPSTATUS]
+#
+echo Missing report type specifier;
+--error 255
+exec $mgm_cmd -e "ALL REPORT  ";
+
+echo Unknown report type specifier;
+--error 255
+exec $mgm_cmd -e "ALL REPORT something";
+
+echo ALL REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "ALL REPORT MEMORYUSAGE";
+
+echo 1 REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "1 REPORT  MEMORYUSAGE";
+
+echo 2 REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "2  REPORT MEMORYUSAGE";
+
+echo Testing abbreviated form;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "2    REPORT Mem";
+
+echo Request memoryusage from non NDB node 3;
+--error 255
+exec $mgm_cmd -e "3 REPORT MEMORYUSAGE";
+
+echo Request memoryusage from non existing node 17;
+--error 255
+exec $mgm_cmd -e "17 REPORT MEMORYUSAGE";
+
+echo Request memoryusage from illegal nodeid 49;
+--error 255
+exec $mgm_cmd -e "49 REPORT MEMORYUSAGE";
+
+echo ALL REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "ALL REPORT BACKUPSTATUS";
+
+echo 1 REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "1 REPORT    BACKUPSTATUS";
+
+echo 2 REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "2 REPORT BACKUPSTATUS";
+
+echo Testing HELP for REPORT;
+exec $mgm_cmd -e "HELP REPORT";

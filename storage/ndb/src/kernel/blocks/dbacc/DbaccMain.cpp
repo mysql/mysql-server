@@ -108,40 +108,6 @@ void Dbacc::execCONTINUEB(Signal* signal)
       releaseDirResources(signal, fragIndex, dirIndex, startIndex);
       break;
     }
-  case ZREPORT_MEMORY_USAGE:{
-    jam();
-    Uint32 cnt = signal->theData[1];
-    static int c_currentMemUsed = 0;
-    int now = cpageCount ? (cnoOfAllocatedPages * 100)/cpageCount : 0;
-    const int thresholds[] = { 99, 90, 80, 0};
-    
-    Uint32 i = 0;
-    const Uint32 sz = sizeof(thresholds)/sizeof(thresholds[0]);
-    for(i = 0; i<sz; i++){
-      if(now >= thresholds[i]){
-	now = thresholds[i];
-	break;
-      }
-    }
-    
-    if(now != c_currentMemUsed || 
-       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
-    {
-      reportMemoryUsage(signal, 
-			now > c_currentMemUsed ? 1 : 
-			now < c_currentMemUsed ? -1 : 0);
-      cnt = 0;
-      c_currentMemUsed = now;
-    }
-    else
-    {
-      cnt ++;
-    }
-    signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    signal->theData[1] = cnt;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
-    return;
-  }
 
   default:
     ndbrequire(false);
@@ -191,9 +157,6 @@ void Dbacc::execNDB_STTOR(Signal* signal)
     break;
   case ZSPH6:
     jam();
-    signal->theData[0] = ZREPORT_MEMORY_USAGE;
-    signal->theData[1] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);    
     break;
   default:
     jam();
@@ -8013,6 +7976,9 @@ void Dbacc::releaseOverpage(Signal* signal)
   }//while
 }//Dbacc::releaseOverpage()
 
+
+extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
+
 /* ------------------------------------------------------------------------- */
 /* RELEASE_PAGE                                                              */
 /* ------------------------------------------------------------------------- */
@@ -8038,6 +8004,9 @@ void Dbacc::releasePage(Signal* signal)
   rpPageptr.p->word32[0] = cfirstfreepage;
   cfirstfreepage = rpPageptr.i;
   cnoOfAllocatedPages--;
+
+  g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+
 }//Dbacc::releasePage()
 
 /* --------------------------------------------------------------------------------- */
@@ -8160,10 +8129,13 @@ void Dbacc::seizePage(Signal* signal)
     ptrCheckGuard(spPageptr, cpagesize, page8);
     cfirstfreepage = spPageptr.p->word32[0];
     cnoOfAllocatedPages++;
-  }//if
 
-  if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
-    cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
+    if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
+      cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
+
+    g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+
+  }
 
 }//Dbacc::seizePage()
 
@@ -8249,16 +8221,6 @@ void Dbacc::takeRecOutOfFreeOverpage(Signal* signal)
   }//if
 }//Dbacc::takeRecOutOfFreeOverpage()
 
-void
-Dbacc::reportMemoryUsage(Signal* signal, int gth){
-  signal->theData[0] = NDB_LE_MemoryUsage;
-  signal->theData[1] = gth;
-  signal->theData[2] = sizeof(* rpPageptr.p);
-  signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = cpageCount;
-  signal->theData[5] = DBACC;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
-}
 
 void Dbacc::execDBINFO_SCANREQ(Signal *signal)
 {
@@ -8418,12 +8380,6 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-  if(dumpState->args[0] == DumpStateOrd::DumpPageMemory && 
-     signal->getLength() == 1){
-    reportMemoryUsage(signal, 0);
-    return;
-  }
-  
   if(dumpState->args[0] == DumpStateOrd::EnableUndoDelayDataWrite){
     ndbout << "Dbacc:: delay write of datapages for table = " 
 	   << dumpState->args[1]<< endl;

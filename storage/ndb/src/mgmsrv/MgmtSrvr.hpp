@@ -560,6 +560,9 @@ public:
     return m_version_string.c_str();
   }
 
+  bool request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
+                      Uint32 dump_type,
+                      Vector<SimpleSignal>& events);
 };
 
 #endif // MgmtSrvr_H
