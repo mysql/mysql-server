@@ -1614,8 +1614,21 @@ sub executable_setup () {
       my_find_bin($basedir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbmtd", NOT_REQUIRED);
-    mtr_report(" - multi threaded ndbd, will be used \"round robin\"")
-      if ($exe_ndbmtd);
+    if ($exe_ndbmtd)
+    {
+      my $mtr_ndbmtd = $ENV{MTR_NDBMTD};
+      if ($mtr_ndbmtd)
+      {
+	mtr_report(" - multi threaded ndbd found, will be used always");
+	$exe_ndbd = $exe_ndbmtd;
+      }
+      else
+      {
+	mtr_report(" - multi threaded ndbd found, will be ".
+		   "used \"round robin\"");
+      }
+    }
+
 
     $exe_ndb_mgmd=
       my_find_bin($basedir,

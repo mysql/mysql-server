@@ -55,6 +55,9 @@
 extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
+// Index pages used by ACC instances
+Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
+
 extern void mt_set_section_chunk_size();
 
 Cmvmi::Cmvmi(Block_context& ctx) :
@@ -152,6 +155,9 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   c_memusage_report_frequency = 0;
 
   m_start_time = NdbTick_CurrentMillisecond() / 1000; // seconds
+
+  bzero(g_acc_pages_used, sizeof(g_acc_pages_used));
+
 }
 
 Cmvmi::~Cmvmi()
@@ -456,7 +462,8 @@ void Cmvmi::execSTTOR(Signal* signal)
      */
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = 0;
-    signal->theData[2] = 3;
+    signal->theData[2] = 0;
+    signal->theData[3] = 0;
     execCONTINUEB(signal);
     
     sendSTTORRY(signal);
@@ -1104,33 +1111,41 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 	      g_sectionSegmentPool.getNoOfFree());
   }
 
-  if (dumpState->args[0] == 1000)
+  if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
   {
-    Uint32 len = signal->getLength();
-    if (signal->getLength() == 1)
+    const Uint32 len = signal->getLength();
+    if (len == 1)
     {
+      // Start dumping resource limits
       signal->theData[1] = 0;
       signal->theData[2] = ~0;
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
 
+      // Dump data and index memory
       reportDMUsage(signal, 0);
+      reportIMUsage(signal, 0);
       return;
     }
+
+    if (len == 2)
+    {
+      // Dump data and index memory to specific ref
+      Uint32 result_ref = signal->theData[1];
+      reportDMUsage(signal, 0, result_ref);
+      reportIMUsage(signal, 0, result_ref);
+      return;
+    }
+
     Uint32 id = signal->theData[1];
     Resource_limit rl;
-    if (!m_ctx.m_mm.get_resource_limit(id, rl))
-      len = 2;
-    else
+    if (m_ctx.m_mm.get_resource_limit(id, rl))
     {
       if (rl.m_min || rl.m_curr || rl.m_max)
       {
         infoEvent("Resource %d min: %d max: %d curr: %d",
                   id, rl.m_min, rl.m_max, rl.m_curr);
       }
-    }
 
-    if (len == 3)
-    {
       signal->theData[0] = 1000;
       signal->theData[1] = id+1;
       signal->theData[2] = ~0;
@@ -2182,6 +2197,58 @@ Cmvmi::sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode){
   }
 }
 
+
+static Uint32
+calc_percent(Uint32 used, Uint32 total)
+{
+  return (total ? (used * 100)/total : 0);
+}
+
+
+static Uint32
+sum_array(const Uint32 array[], unsigned sz)
+{
+  Uint32 sum = 0;
+  for (unsigned i = 0; i < sz; i++)
+    sum += array[i];
+  return sum;
+}
+
+
+/*
+  Check if any of the given thresholds has been
+  passed since last
+
+  Returns:
+   -1       no threshold passed
+   0 - 100  threshold passed
+*/
+
+static int
+check_threshold(Uint32 last, Uint32 now)
+{
+  assert(last <= 100 && now <= 100);
+
+  static const Uint32 thresholds[] = { 100, 99, 90, 80, 0 };
+
+  Uint32 passed;
+  for (size_t i = 0; i < NDB_ARRAY_SIZE(thresholds); i++)
+  {
+    if (now >= thresholds[i])
+    {
+      passed = thresholds[i];
+      break;
+    }
+  }
+  assert(passed <= 100);
+
+  if (passed == last)
+    return -1; // Already reported this level
+
+  return passed;
+}
+
+
 void
 Cmvmi::execCONTINUEB(Signal* signal)
 {
@@ -2190,43 +2257,54 @@ Cmvmi::execCONTINUEB(Signal* signal)
   {
     jam();
     Uint32 cnt = signal->theData[1];
-    Uint32 usedLast = signal->theData[2];
+    Uint32 tup_percent_last = signal->theData[2];
+    Uint32 acc_percent_last = signal->theData[3];
 
-    Resource_limit rl;
-    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
-
-    /**
-     * The world is not (yet) ready for unified Index/Data memory
-     */
-    rl.m_min -= f_accpages;
-    rl.m_max -= f_accpages;
-    rl.m_curr -= f_accpages;
-
-    Uint32 tmp = rl.m_min;
-    Uint32 now = tmp ? (rl.m_curr * 100)/tmp : 0;
-    static const Uint32 thresholds[] = { 100, 90, 80, 0 };
-    
-    Uint32 i = 0;
-    const Uint32 sz = sizeof(thresholds)/sizeof(thresholds[0]);
-    for(i = 0; i<sz; i++)
     {
-      if(now >= thresholds[i])
+      // Data memory threshold
+      Resource_limit rl;
+      m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
+
+      const Uint32 tup_pages_used = rl.m_curr - f_accpages;
+      const Uint32 tup_pages_total = rl.m_min - f_accpages;
+      const Uint32 tup_percent_now = calc_percent(tup_pages_used,
+                                                  tup_pages_total);
+
+      int passed;
+      if ((passed = check_threshold(tup_percent_last, tup_percent_now)) != -1)
       {
-	now = thresholds[i];
-	break;
+        jam();
+        reportDMUsage(signal, tup_percent_now >= tup_percent_last ? 1 : -1);
+        tup_percent_last = passed;
       }
     }
-    
-    if(now != usedLast || 
-       (c_memusage_report_frequency && cnt + 1 == c_memusage_report_frequency))
+
+    {
+      // Index memory threshold
+      const Uint32 acc_pages_used =
+        sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+      const Uint32 acc_pages_total = f_accpages * 4;
+      const Uint32 acc_percent_now = calc_percent(acc_pages_used,
+                                                  acc_pages_total);
+
+      int passed;
+      if ((passed = check_threshold(acc_percent_last, acc_percent_now)) != -1)
+      {
+        jam();
+        reportIMUsage(signal, acc_percent_now >= acc_percent_last ? 1 : -1);
+        acc_percent_last = passed;
+      }
+    }
+
+    // Index and data memory report frequency
+    if(c_memusage_report_frequency &&
+       cnt + 1 == c_memusage_report_frequency)
     {
       jam();
-      reportDMUsage(signal, 
-                    now > usedLast ? 1 : 
-                    now < usedLast ? -1 : 0);
+      reportDMUsage(signal, 0);
+      reportIMUsage(signal, 0);
       cnt = 0;
-      usedLast = 0;
-    } 
+    }
     else
     {
       jam();
@@ -2234,33 +2312,46 @@ Cmvmi::execCONTINUEB(Signal* signal)
     }
     signal->theData[0] = ZREPORT_MEMORY_USAGE;
     signal->theData[1] = cnt; // seconds since last report
-    signal->theData[2] = usedLast; // last threshold
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 3);
+    signal->theData[2] = tup_percent_last; // last reported threshold for TUP
+    signal->theData[3] = acc_percent_last; // last reported threshold for ACC
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 4);
     return;
   }
   }
 }
 
 void
-Cmvmi::reportDMUsage(Signal* signal, int incDec)
+Cmvmi::reportDMUsage(Signal* signal, int incDec, BlockReference ref)
 {
   Resource_limit rl;
   m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
-  
-  /**
-   * The world is not (yet) ready for unified Index/Data memory
-   */
-  rl.m_min -= f_accpages;
-  rl.m_max -= f_accpages;
-  rl.m_curr -= f_accpages;
+
+  const Uint32 tup_pages_used = rl.m_curr - f_accpages;
+  const Uint32 tup_pages_total = rl.m_min - f_accpages;
 
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(GlobalPage);
-  signal->theData[3] = rl.m_curr;
-  signal->theData[4] = rl.m_min;
+  signal->theData[3] = tup_pages_used;
+  signal->theData[4] = tup_pages_total;
   signal->theData[5] = DBTUP;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+  sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
+}
+
+
+void
+Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
+{
+  const Uint32 acc_pages_used =
+    sum_array(g_acc_pages_used, NDB_ARRAY_SIZE(g_acc_pages_used));
+
+  signal->theData[0] = NDB_LE_MemoryUsage;
+  signal->theData[1] = incDec;
+  signal->theData[2] = 8192;
+  signal->theData[3] = acc_pages_used;
+  signal->theData[4] = f_accpages * 4;
+  signal->theData[5] = DBACC;
+  sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
 
 

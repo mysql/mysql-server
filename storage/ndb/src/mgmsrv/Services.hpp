@@ -124,12 +124,12 @@ public:
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);
 
-  void getNdbInfo(Parser_t::Context &ctx, Properties const &args);
-
   void create_nodegroup(Parser_t::Context &ctx, Properties const &args);
   void drop_nodegroup(Parser_t::Context &ctx, Properties const &args);
 
   void show_variables(Parser_t::Context &ctx, Properties const &args);
+
+  void dump_events(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {
