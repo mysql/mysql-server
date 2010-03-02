@@ -1707,6 +1707,7 @@ void st_select_lex::init_query()
 void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
+  sj_nests.empty();
   group_list.empty();
   type= db= 0;
   having= 0;

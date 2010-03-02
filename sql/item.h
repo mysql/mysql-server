@@ -478,7 +478,8 @@ typedef Item* (Item::*Item_transformer) (uchar *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
 
-class Item {
+class Item
+{
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
   /* Cache of the result of is_expensive(). */
@@ -566,6 +567,12 @@ public:
   virtual void make_field(Send_field *field);
   Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
+  /*
+    Fix after some tables has been pulled out. Basically re-calculate all
+    attributes that are dependent on the tables.
+  */
+  virtual void fix_after_pullout(st_select_lex *new_parent, Item **ref) {};
+
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1528,6 +1535,7 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
@@ -2309,6 +2317,7 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   int save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -2479,6 +2488,7 @@ public:
     outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;

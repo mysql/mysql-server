@@ -1482,6 +1482,7 @@ public:
   bool add_at_head(Item *item) { return list.push_front(item); }
   void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }

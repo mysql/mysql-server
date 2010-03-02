@@ -1164,6 +1164,8 @@ enum enum_open_type
        (TABLE_LIST::natural_join != NULL)
        - JOIN ... USING
          (TABLE_LIST::join_using_fields != NULL)
+     - semi-join
+       ;
 */
 
 struct LEX;
@@ -1206,6 +1208,16 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  Item          *sj_on_expr;
+  /*
+    (Valid only for semi-join nests) Bitmap of tables that are within the
+    semi-join (this is different from bitmap of all nest's children because
+    tables that were pulled out of the semi-join nest remain listed as
+    nest's children).
+  */
+  table_map     sj_inner_tables;
+  /* Number of IN-compared expressions */
+  uint          sj_in_exprs; 
   /*
     The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
@@ -1754,8 +1766,16 @@ typedef struct st_nested_join
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
   */
-  uint              counter;
+  uint              counter_;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /*
+    (Valid only for semi-join nests) Bitmap of tables outside the semi-join
+    that are used within the semi-join's ON condition.
+  */
+  table_map         sj_depends_on;
+  /* Outer non-trivially correlated tables */
+  table_map         sj_corr_tables;
+  List<Item>        sj_outer_expr_list;
 } NESTED_JOIN;
 
 
