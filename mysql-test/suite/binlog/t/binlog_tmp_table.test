@@ -82,3 +82,69 @@ select * from foo;
 
 # clean up
 drop table foo;
+
+#################################################################
+# BUG#51226
+#################################################################
+
+RESET MASTER;
+
+-- let $dbname=b51226
+
+connect (con1,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connect (con2,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+#
+# action: on con1 create the database and the tmp table
+# 
+-- connection con1
+-- eval create database $dbname
+-- eval use $dbname
+create temporary table t1(i int);
+
+#
+# action: on con1 create the tmp table
+# 
+-- connection con2
+-- eval use $dbname
+create temporary table t1(i int);
+
+# action: at this point, the last event binlogged contains the
+#         pseudo_thread_id from con2. So now we switch to con1, issue
+#         a statement that fails and close the connection (which logs
+#         implicitely a DROP TEMPORARY TABLE).  
+#
+#         Before the patch this would not log con1's pseudo_thread_id
+#         because the failing statement would reset THD context
+#         (unsetting the thread_specific_used flag, and consequently,
+#         causing the DROP event to be logged without pseudo_thread_id
+#         in its header).
+
+-- connection con1
+-- error 1050
+create temporary table t1(i int);
+-- disconnect con1
+
+-- connection default
+-- let $wait_binlog_event= DROP
+-- source include/wait_for_binlog_event.inc
+
+# action: insert in the t1. This would cause the the test to fail,
+#         because when replaying the binlog the previous implicit drop
+#         temp table would have been executed under the wrong
+#         pseudo_thread_id, dropping the tmp table on con2.
+-- connection con2
+insert into t1 values(1);
+-- disconnect con2
+
+-- connection default
+-- let $wait_binlog_event= DROP
+-- source include/wait_for_binlog_event.inc
+
+-- eval DROP DATABASE $dbname
+FLUSH LOGS;
+
+# assertion: assert that when replaying the binary log will succeed,
+#            instead of failing with "Table 'XXX.YYY' doesn't exist"
+-- let $MYSQLD_DATADIR= `select @@datadir`
+-- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL
