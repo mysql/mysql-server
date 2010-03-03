@@ -4326,14 +4326,16 @@ create_sp_error:
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
-	if (sp_automatic_privileges && !opt_noacl &&
-	    sp_revoke_privileges(thd, db, name,
+        if (sp_automatic_privileges && !opt_noacl &&
+            sp_revoke_privileges(thd, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
-	{
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-		       ER_PROC_AUTO_REVOKE_FAIL,
-		       ER(ER_PROC_AUTO_REVOKE_FAIL));
-	}
+        {
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_PROC_AUTO_REVOKE_FAIL,
+                       ER(ER_PROC_AUTO_REVOKE_FAIL));
+          /* If this happens, an error should have been reported. */
+          goto error;
+        }
 #endif
       }
       res= sp_result;
