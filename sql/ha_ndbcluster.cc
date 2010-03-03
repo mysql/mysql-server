@@ -225,17 +225,23 @@ private:
   const ha_query_def_list* const m_next;
 };
 
+/** 
+ * This type is used in conjunction with AQP::Join_plan and represents a set 
+ * of the table access operations of the join plan.
+ */
+typedef Bitmap<(MAX_TABLES > 64 ? MAX_TABLES : 64)> ha_table_access_map;
 
+/** This class represents a pushed (N-way) join operation.*/
 class ha_pushed_join
 {
 public:
   ha_pushed_join(const AQP::Join_plan& plan, 
-                 Bitmap<64>& pushed_joins,
+                 ha_table_access_map& pushed_operations,
                  uint field_refs, Field* const fields[],
                  const NdbQueryDef* query_def)
   :
     m_query_def(query_def),
-    m_join_count(0),
+    m_operation_count(0),
     m_field_count(field_refs)
   {
     DBUG_ASSERT(query_def != NULL);
@@ -243,10 +249,10 @@ public:
     for (uint i= 0; i < plan.get_access_count(); i++)
     {
       const AQP::Table_access* const join_tab= plan.get_table_access(i);
-      if (pushed_joins.is_set(join_tab->get_access_no()))
+      if (pushed_operations.is_set(join_tab->get_access_no()))
       {
-        DBUG_ASSERT(m_join_count < MAX_PUSHED_JOINS);
-        m_tables[m_join_count++] = join_tab->get_table();
+        DBUG_ASSERT(m_operation_count < MAX_PUSHED_OPERATIONS);
+        m_tables[m_operation_count++] = join_tab->get_table();
       }
     }
     for (uint i= 0; i < field_refs; i++)
@@ -255,36 +261,78 @@ public:
     }
   }
 
-  uint get_join_count() const
-  { return m_join_count; }
+  /** Get the number of pushed table access operations.*/
+  uint get_operation_count() const
+  { return m_operation_count; }
 
+  /**
+   * In a pushed join, fields in lookup keys and scan bounds may refer to 
+   * result fields of table access operation that execute prior to the pushed
+   * join. This method returns the number of such references.
+   */
   uint get_field_referrences_count() const
   { return m_field_count; }
 
+  /** Get the no'th referred field of table access operations that executes
+   * prior to the pushed join.*/
   Field* get_field_ref(uint no) const
-  { return m_referred_fields[no]; }
+  { 
+    DBUG_ASSERT(no < m_field_count);
+    return m_referred_fields[no]; 
+  }
 
   const NdbQueryDef& get_query_def() const
   { return *m_query_def; }
 
+  /** Get the table that is accessed by the i'th table access operation.*/
   TABLE* get_table(uint i) const
   { 
-    DBUG_ASSERT(i < m_join_count);
+    DBUG_ASSERT(i < m_operation_count);
     return m_tables[i];
   }
 
-  static const uint MAX_KEY_PART= 16;
+  /** 
+   * This is the maximal number of fields in the key of any pushed table
+   * access operation.
+   */
+  static const uint MAX_KEY_PART= MAX_KEY;
+  /**
+   * In a pushed join, fields in lookup keys and scan bounds may refer to 
+   * result fields of table access operation that execute prior to the pushed
+   * join. This constant specifies the maximal number of such references for 
+   * a query.
+   */
   static const uint MAX_REFERRED_FIELDS= 16;
-  static const uint MAX_LINKED_KEYS= 16;
-  static const uint MAX_PUSHED_JOINS= 32;
+  /**
+   * For each table access operation in a pushed join, this is the maximal 
+   * number of key fields that may refer to the fields of the parent operation.
+   */
+  static const uint MAX_LINKED_KEYS= MAX_KEY;
+  /** 
+   * This is the maximal number of table access operations there can be in a 
+   * single pushed join.
+   */
+  static const uint MAX_PUSHED_OPERATIONS= MAX_TABLES;
 
 private:
   const NdbQueryDef* const m_query_def;  // Definition of pushed join query
 
-  uint m_join_count;
-  st_table* m_tables[MAX_PUSHED_JOINS];
+  /** This is the number of table access operations in the pushed join.*/
+  uint m_operation_count;
 
+  /** This is the tables that are accessed by the pushed join.*/
+  st_table* m_tables[MAX_PUSHED_OPERATIONS];
+
+  /**
+   * This is the number of referred fields of table access operation that 
+   * execute prior to the pushed join.
+   */
   const uint m_field_count;
+
+  /**
+   * These are the referred fields of table access operation that execute 
+   * prior to the pushed join.
+   */
   Field* m_referred_fields[MAX_REFERRED_FIELDS];
 }; // class ha_pushed_join
 
@@ -317,7 +365,7 @@ const char* get_referred_table_access_name(const Item_field* field_item){
  ****************************************************************/
 static bool
 field_ref_is_join_pushable(const AQP::Join_plan& plan, 
-                           const Bitmap<64> parent_scope,
+                           const ha_table_access_map parent_scope,
                            const AQP::Table_access* child_access,
                            const Item* join_items[ha_pushed_join::MAX_LINKED_KEYS+1],
                            const AQP::Table_access*& parent)
@@ -359,8 +407,8 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
 
   bool multiple_parents= false;
   bool outside_scope= false;
-  Bitmap<64> current_parents(0);
-  Bitmap<64> all_common_parents(0);
+  ha_table_access_map current_parents(0);
+  ha_table_access_map all_common_parents(0);
 
   for (uint key_part_no= 0; 
        key_part_no < child_access->get_no_of_key_fields(); 
@@ -399,7 +447,7 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
     }
 
     // 1) Calculate current parent referrences
-    Bitmap<64> field_possible_parents(0);
+    ha_table_access_map field_possible_parents(0);
     const AQP::Table_access* const referred_table= 
       plan.get_referred_table_access(key_item_field);
     if (referred_table && 
@@ -617,7 +665,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   DBUG_PRINT("info", ("join_root is pushable:"));
   DBUG_EXECUTE("info", join_root->dbug_print(););
 
-  Bitmap<64> pushed_joins(0);
+  ha_table_access_map pushed_joins(0);
   pushed_joins.set_bit(join_root->get_access_no());
 
   /**
@@ -628,7 +676,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
    * appendable child.
    */
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
-  const NdbQueryOperationDef* operation_defs[ha_pushed_join::MAX_PUSHED_JOINS];
+  const NdbQueryOperationDef* operation_defs[ha_pushed_join::MAX_PUSHED_OPERATIONS];
 
   uint push_cnt= 0;
   uint fld_refs= 0;
@@ -851,7 +899,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
     pushed_joins.set_bit(join_tab->get_access_no());
     push_cnt++;
 
-    if (push_cnt >= ha_pushed_join::MAX_PUSHED_JOINS)
+    if (push_cnt >= ha_pushed_join::MAX_PUSHED_OPERATIONS)
       break;
   } // for (uint join_cnt= 1; join_cnt<plan.get_access_count(); join_cnt++)
 
@@ -894,7 +942,7 @@ ha_ndbcluster::has_pushed_joins() const
   if (!m_pushed_join)
     return 0;
   else
-    return m_pushed_join->get_join_count();
+    return m_pushed_join->get_operation_count();
 }
 
 
@@ -3902,7 +3950,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   DBUG_PRINT("info", 
              ("executing chain of %d unique key lookups."
               " First table is %s.", 
-              m_pushed_join->get_join_count(),
+              m_pushed_join->get_operation_count(),
               m_pushed_join->get_table(0)->alias)
              );
   NdbOperation::OperationOptions options;
@@ -3972,7 +4020,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     DBUG_RETURN(NULL);
   m_active_query= query;
 
-  for (uint i = 0; i < m_pushed_join->get_join_count(); i++)
+  for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
   {
     const TABLE* const tab= m_pushed_join->get_table(i);
     DBUG_ASSERT(tab->file->ht == ht);
@@ -4125,7 +4173,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_PRINT("info", 
                ("executing chain of a index scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->get_join_count() - 1,
+                m_pushed_join->get_operation_count() - 1,
                 m_pushed_join->get_table(0)->alias)
               );
 
@@ -4186,7 +4234,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       }
     }
 
-    for (uint i = 0; i < m_pushed_join->get_join_count(); i++)
+    for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
     {
       const TABLE* const tab= m_pushed_join->get_table(i);
       DBUG_ASSERT(tab->file->ht == ht);
@@ -4366,7 +4414,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     DBUG_PRINT("info", 
                ("executing chain of a table scan + %d primary key joins."
                 " First table is %s.", 
-                m_pushed_join->get_join_count() - 1,
+                m_pushed_join->get_operation_count() - 1,
                 m_pushed_join->get_table(0)->alias)
                );
 
@@ -4434,7 +4482,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       }
     }
 
-    for (uint i = 0; i < m_pushed_join->get_join_count(); i++)
+    for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
     {
       const TABLE* const tab= m_pushed_join->get_table(i);
       DBUG_ASSERT(tab->file->ht == ht);
@@ -12543,7 +12591,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           DBUG_PRINT("info", 
             ("executing chain of a index scan + %d primary key joins."
              " First table is %s.", 
-             m_pushed_join->get_join_count() - 1,
+             m_pushed_join->get_operation_count() - 1,
              m_pushed_join->get_table(0)->alias));
 
           const void* paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {NULL};
@@ -12583,7 +12631,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             }
           }
 
-          for (uint i = 0; i < m_pushed_join->get_join_count(); i++)
+          for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
           {
             const TABLE* const tab= m_pushed_join->get_table(i);
             DBUG_ASSERT(tab->file->ht == ht);
