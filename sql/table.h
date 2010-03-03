@@ -950,6 +950,21 @@ public:
   */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
+
+  inline void set_keyread(bool flag)
+  {
+    DBUG_ASSERT(file);
+    if (flag && !key_read)
+    {
+      key_read= 1;
+      file->extra(HA_EXTRA_KEYREAD);
+    }
+    else if (!flag && key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+  }
 };
 
 
