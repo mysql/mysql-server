@@ -1508,20 +1508,23 @@ static void clean_up_mutexes()
    mysys/thr_mutex.c, will give a warning on first wrong mutex usage!
 */
 
+#ifdef SAFE_MUTEX
+#define always_in_that_order(A,B)               \
+  pthread_mutex_lock(A); pthread_mutex_lock(B); \
+  pthread_mutex_unlock(B); pthread_mutex_unlock(A)
+#else
+#define always_in_that_order(A,B)
+#endif
+
 static void register_mutex_order()
 {
-#ifdef SAFE_MUTEX
   /*
     We must have LOCK_open before LOCK_global_system_variables because
     LOCK_open is hold while sql_plugin.c::intern_sys_var_ptr() is called.
   */
-  pthread_mutex_lock(&LOCK_open);
-  pthread_mutex_lock(&LOCK_global_system_variables);
-
-  pthread_mutex_unlock(&LOCK_global_system_variables);
-  pthread_mutex_unlock(&LOCK_open);
-#endif
+  always_in_that_order(&LOCK_open, &LOCK_global_system_variables);
 }
+#undef always_in_that_order
 
 
 /****************************************************************************

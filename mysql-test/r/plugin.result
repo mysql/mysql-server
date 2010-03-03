@@ -12,6 +12,15 @@ CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SELECT * FROM t1;
 a
 DROP TABLE t1;
+set global example_ulong_var=500;
+set global example_enum_var= e1;
+show status like 'example%';
+Variable_name	Value
+example_func_example	enum_var is 0, ulong_var is 500, really
+show variables like 'example%';
+Variable_name	Value
+example_enum_var	e1
+example_ulong_var	500
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN EXAMPLE;
 ERROR 42000: PLUGIN EXAMPLE does not exist
