@@ -3877,7 +3877,8 @@ ibuf_delete(
 	const dtuple_t*	entry,	/*!< in: entry */
 	buf_block_t*	block,	/*!< in/out: block */
 	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in/out: mtr; must be committed
+				before latching any further pages */
 {
 	page_cur_t	page_cur;
 	ulint		low_match;
@@ -3946,6 +3947,66 @@ ibuf_delete(
 }
 
 /*********************************************************************//**
+Restores insert buffer tree cursor position
+@return	TRUE if the position was restored; FALSE if not */
+static __attribute__((nonnull))
+ibool
+ibuf_restore_pos(
+/*=============*/
+	ulint		space,	/*!< in: space id */
+	ulint		page_no,/*!< in: index page number where the record
+				should belong */
+	const dtuple_t*	search_tuple,
+				/*!< in: search tuple for entries of page_no */
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
+	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor whose
+				position is to be restored */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
+
+	if (btr_pcur_restore_position(mode, pcur, mtr)) {
+
+		return(TRUE);
+	}
+
+	if (fil_space_get_flags(space) == ULINT_UNDEFINED) {
+		/* The tablespace has been dropped.  It is possible
+		that another thread has deleted the insert buffer
+		entry.  Do not complain. */
+		btr_pcur_commit_specify_mtr(pcur, mtr);
+	} else {
+		fprintf(stderr,
+			"InnoDB: ERROR: Submit the output to"
+			" http://bugs.mysql.com\n"
+			"InnoDB: ibuf cursor restoration fails!\n"
+			"InnoDB: ibuf record inserted to page %lu:%lu\n",
+			(ulong) space, (ulong) page_no);
+		fflush(stderr);
+
+		rec_print_old(stderr, btr_pcur_get_rec(pcur));
+		rec_print_old(stderr, pcur->old_rec);
+		dtuple_print(stderr, search_tuple);
+
+		rec_print_old(stderr,
+			      page_rec_get_next(btr_pcur_get_rec(pcur)));
+		fflush(stderr);
+
+		btr_pcur_commit_specify_mtr(pcur, mtr);
+
+		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
+		if (!btr_validate_index(ibuf->index, NULL)) {
+			ut_error;
+		}
+
+		fprintf(stderr, "InnoDB: ibuf tree ok\n");
+		fflush(stderr);
+	}
+
+	return(FALSE);
+}
+
+/*********************************************************************//**
 Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
@@ -3999,41 +4060,8 @@ ibuf_delete_rec(
 
 	mtr_start(mtr);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr);
-
-	if (!success) {
-		if (fil_space_get_flags(space) == ULINT_UNDEFINED) {
-			/* The tablespace has been dropped.  It is possible
-			that another thread has deleted the insert buffer
-			entry.  Do not complain. */
-			goto commit_and_exit;
-		}
-
-		fprintf(stderr,
-			"InnoDB: ERROR: Submit the output to"
-			" http://bugs.mysql.com\n"
-			"InnoDB: ibuf cursor restoration fails!\n"
-			"InnoDB: ibuf record inserted to page %lu\n",
-			(ulong) page_no);
-		fflush(stderr);
-
-		rec_print_old(stderr, btr_pcur_get_rec(pcur));
-		rec_print_old(stderr, pcur->old_rec);
-		dtuple_print(stderr, search_tuple);
-
-		rec_print_old(stderr,
-			      page_rec_get_next(btr_pcur_get_rec(pcur)));
-		fflush(stderr);
-
-		btr_pcur_commit_specify_mtr(pcur, mtr);
-
-		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_index(ibuf->index, NULL)) {
-			ut_error;
-		}
-
-		fprintf(stderr, "InnoDB: ibuf tree ok\n");
-		fflush(stderr);
+	if (!ibuf_restore_pos(space, page_no, search_tuple,
+			      BTR_MODIFY_TREE, pcur, mtr)) {
 
 		goto func_exit;
 	}
@@ -4048,8 +4076,6 @@ ibuf_delete_rec(
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
 #endif
 	ibuf_size_update(root, mtr);
-
-commit_and_exit:
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
@@ -4339,8 +4365,29 @@ loop:
 
 			case IBUF_OP_DELETE:
 				ibuf_delete(entry, block, dummy_index, &mtr);
-				break;
+				/* Because ibuf_delete() will latch an
+				insert buffer bitmap page, commit mtr
+				before latching any further pages.
+				Store and restore the cursor position. */
+				ut_ad(rec == btr_pcur_get_rec(&pcur));
+				ut_ad(page_rec_is_user_rec(rec));
+				ut_ad(ibuf_rec_get_page_no(rec) == page_no);
+				ut_ad(ibuf_rec_get_space(rec) == space);
 
+				btr_pcur_store_position(&pcur, &mtr);
+				btr_pcur_commit_specify_mtr(&pcur, &mtr);
+
+				if (!ibuf_restore_pos(space, page_no,
+						      search_tuple,
+						      BTR_MODIFY_LEAF,
+						      &pcur, &mtr)) {
+
+					mops[op]++;
+					ibuf_dummy_index_free(dummy_index);
+					goto loop;
+				}
+
+				break;
 			default:
 				ut_error;
 			}
