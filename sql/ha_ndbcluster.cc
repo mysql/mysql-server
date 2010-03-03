@@ -904,6 +904,7 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
   DBUG_ENTER("test_push_flag");
   switch (flag) {
   case HA_PUSH_BLOCK_CONST_TABLE:
+  case HA_PUSH_PREFER_INDEX:
   {
     /**
      * We don't support join push down if...
@@ -936,20 +937,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
   }
   DBUG_RETURN(false);
 }
-
-
-/**
- * Prefer ordered indexscan over filesort?
- *
- * At least where we may have a pushed join, it will pay of 
- * doing an ordered index scan which may be pushable.
- */
-bool 
-ha_ndbcluster::prefer_index() const  // TODO: discuss w/ mainline when merged up
-{
-  return true;
-}
-
 
 static struct st_ndb_status g_ndb_status;
 static long g_ndb_status_conflict_fn_max= 0;
@@ -2982,7 +2969,17 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER,
+  HA_READ_ORDER |
+  /*
+    NOTE 1: our ordered indexes are not really clustered
+    but since accesing data when scanning index is free
+    it's a good approxiamtion
+
+    NOTE 2: We really should consider DD attributes here too
+    (for which there is IO to read data when scanning index)
+    but that will need to handled later...
+  */
+  HA_CLUSTERED_INDEX,
 
   /* UNIQUE_INDEX */
   HA_ONLY_WHOLE_INDEX,
@@ -2991,13 +2988,15 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER,
+  HA_READ_ORDER |
+  HA_CLUSTERED_INDEX,
 
   /* ORDERED_INDEX */
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER
+  HA_READ_ORDER |
+  HA_CLUSTERED_INDEX
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
@@ -3030,6 +3029,14 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
   DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
               HA_KEY_SCAN_NOT_ROR);
+}
+
+bool
+ha_ndbcluster::primary_key_is_clustered()
+{
+  if (table->s->primary_key != MAX_KEY)
+    return test(index_flags(table->s->primary_key, 0, 0) & HA_CLUSTERED_INDEX);
+  return FALSE;
 }
 
 bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)

@@ -232,7 +232,13 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_KEY_SCAN_NOT_ROR     128
+
+/*
+  no IO if read data when scan index
+  i.e index is covering
+*/
+#define HA_CLUSTERED_INDEX      256
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -391,6 +397,9 @@ enum ha_push_flag {
 
   /* Handler want to block const table optimization */
   HA_PUSH_BLOCK_CONST_TABLE
+
+  /* Handler prefers index scan over file-sort for order by wo/ limit */
+  ,HA_PUSH_PREFER_INDEX
 };
 
 /**
@@ -1844,12 +1853,6 @@ public:
   */
   virtual const handler* member_of_pushed_join() const
   { return NULL; }
-
-  /**
-    Do handler prefer ordered indexscan over filesort?
-  */
-  virtual bool prefer_index() const
-  { return false; }
 
   virtual int push_flag(enum ha_push_flag flag)
   { return -1; }
