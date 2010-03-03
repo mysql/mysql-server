@@ -2159,14 +2159,16 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) ha_rnd_end();
+    if (!is_executing_pushed_join())
+      (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
     (void) ha_index_init(primary_key, 0);
     error=index_first(buf);
-    (void) ha_index_end();
+    if (!is_executing_pushed_join())
+      (void) ha_index_end();
   }
   DBUG_RETURN(error);
 }
@@ -4372,7 +4374,14 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   if (!error)
   {
     error= index_read_map(buf, key, keypart_map, find_flag);
-    error1= index_end();
+
+    // Don't end index access for pushed joins as we have not
+    // accessed the result rows from the linked childs yet.
+    // Pushed joins are cleaned up together with this handler instance
+    if (is_executing_pushed_join())
+      error1= 0;
+    else
+      error1= index_end();
   }
   return error ?  error : error1;
 }

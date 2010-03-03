@@ -1841,21 +1841,26 @@ public:
   { return 0; }
 
   /**
-    Reports #tables included in pushed join starting from 
-    this handler instance.
+    Reports #tables included in pushed join definition 
+    starting from this handler instance.
   */
   virtual uint has_pushed_joins() const
   { return 0; }
 
   /**
-    Is this handler instance part of a pushed join sequence
+    Is this handler instance part of a pushed join definition
     having the returned handler instance as parent?
   */
   virtual const handler* member_of_pushed_join() const
   { return NULL; }
 
-  virtual int push_flag(enum ha_push_flag flag)
-  { return -1; }
+  /**
+   Does this handler instance currently execute a pushed join?
+   (Implies 'member_of_pushed_join()==TRUE' && 
+    'has_pushed_joins() > 0'
+  */
+  virtual bool is_executing_pushed_join() const
+  { return FALSE; }
 
   virtual bool test_push_flag(enum ha_push_flag flag) const
   {
