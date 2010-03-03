@@ -1728,7 +1728,16 @@ select 1;
 --reap
 EOF
 --error 1
---exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in 2>&1
+# Must filter unpredictable extra warning from output
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in > $MYSQL_TMP_DIR/mysqltest.out 2>&1
+--perl
+  my $dir= $ENV{'MYSQL_TMP_DIR'};
+  open (FILE, "$dir/mysqltest.out");
+  while (<FILE>) {
+    print unless /Note: net_clear/; # This shows up on rare occations
+  }
+EOF
+remove_file $MYSQL_TMP_DIR/mysqltest.out;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.in;
 
 drop table t1;
