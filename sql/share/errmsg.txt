@@ -6206,6 +6206,13 @@ ER_TOO_MANY_CONCURRENT_TRXS
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
 
+ER_DEBUG_SYNC_TIMEOUT
+  eng "debug sync point wait timed out"
+  ger "Debug Sync Point Wartezeit überschritten"
+ER_DEBUG_SYNC_HIT_LIMIT
+  eng "debug sync point hit limit reached"
+  ger "Debug Sync Point Hit Limit erreicht"
+
 ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
   eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
 ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
@@ -6243,12 +6250,6 @@ ER_MESSAGE_AND_STATEMENT
 
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
-ER_DEBUG_SYNC_TIMEOUT
-  eng "debug sync point wait timed out"
-  ger "Debug Sync Point Wartezeit überschritten"
-ER_DEBUG_SYNC_HIT_LIMIT
-  eng "debug sync point hit limit reached"
-  ger "Debug Sync Point Hit Limit erreicht"
 
 ER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"

@@ -109,8 +109,8 @@ SELECT * FROM t_stmt /* should be empty */;
 INSERT INTO t_slave_stmt VALUES (1);
 --echo [on slave]
 --connection slave
-# 1642 = ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
---let $slave_sql_errno= 1642
+# 1644 = ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+--let $slave_sql_errno= 1644
 --let $show_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 --connection slave
@@ -233,8 +233,8 @@ SET @@session.binlog_format = MIXED;
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 --echo [on slave]
 --connection slave
-# 1644 = ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
---let $slave_sql_errno= 1644
+# 1646 = ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+--let $slave_sql_errno= 1646
 --let $show_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 --connection slave
