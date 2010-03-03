@@ -52,7 +52,7 @@ class NdbQuery;
 class NdbQueryOperationTypeWrapper;
 class ha_query_def_list;
 
-namespace AQP{
+namespace AQP {
   class Join_plan;
 };
 
@@ -553,7 +553,7 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  virtual uint make_pushed_join(const AQP::Join_plan& plan);
+  uint make_pushed_join(const AQP::Join_plan& plan);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
@@ -562,7 +562,10 @@ static void set_tabname(const char *pathname, char *tabname);
   { return m_pushed_join_member;
   }
 
-  bool prefer_index() const;
+  bool is_executing_pushed_join() const
+  { 
+    return (m_active_query != NULL);
+  }
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map);
@@ -655,7 +658,6 @@ private:
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
-  bool check_is_pushed() const;
   bool check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
