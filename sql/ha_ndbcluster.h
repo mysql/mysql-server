@@ -460,6 +460,7 @@ class ha_ndbcluster: public handler
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  bool primary_key_is_clustered();
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
