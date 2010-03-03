@@ -1894,7 +1894,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
   DBUG_ASSERT(m_file_buffer);
-  DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
+  DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to ? to : "(nil)"));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
   if (to == NULL && table_arg == NULL)
