@@ -2019,7 +2019,7 @@ extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern bool opt_large_files, server_id_supplied;
-extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern bool opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
 extern ulonglong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;

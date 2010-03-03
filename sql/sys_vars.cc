@@ -1494,8 +1494,7 @@ static Sys_var_mybool Sys_readonly(
 static Sys_var_ulong Sys_read_rnd_buff_size(
        "read_rnd_buffer_size",
        "When reading rows in sorted order after a sort, the rows are read "
-       "through this buffer to avoid a disk seeks. If not set, then it's "
-       "set to the value of record_buffer",
+       "through this buffer to avoid a disk seeks",
        SESSION_VAR(read_rnd_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, INT_MAX32), DEFAULT(256*1024), BLOCK_SIZE(1));
 

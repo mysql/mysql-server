@@ -358,7 +358,7 @@ static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
 
-bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
+bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -4005,53 +4005,6 @@ static int init_server_components()
   }
 
   /* need to configure logging before initializing storage engines */
-  if (opt_update_log)
-  {
-    /*
-      Update log is removed since 5.0. But we still accept the option.
-      The idea is if the user already uses the binlog and the update log,
-      we completely ignore any option/variable related to the update log, like
-      if the update log did not exist. But if the user uses only the update
-      log, then we translate everything into binlog for him (with warnings).
-      Implementation of the above :
-      - If mysqld is started with --log-update and --log-bin,
-      ignore --log-update (print a warning), push a warning when SQL_LOG_UPDATE
-      is used,
-      This will completely ignore SQL_LOG_UPDATE
-      - If mysqld is started with --log-update only,
-      change it to --log-bin (with the filename passed to log-update,
-      plus '-bin') (print a warning), push a warning when SQL_LOG_UPDATE is
-      used.
-      This will translate SQL_LOG_UPDATE to SQL_LOG_BIN.
-    */
-    if (opt_bin_log)
-    {
-      opt_sql_bin_update= 0;
-      sql_print_error("The update log is no longer supported by MySQL in \
-version 5.0 and above. It is replaced by the binary log.");
-    }
-    else
-    {
-      opt_sql_bin_update= 1;
-      opt_bin_log= 1;
-      if (opt_update_logname)
-      {
-        /* as opt_bin_log==0, no need to free opt_bin_logname */
-        if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
-        {
-          sql_print_error("Out of memory");
-          return EXIT_OUT_OF_MEMORY;
-        }
-        sql_print_error("The update log is no longer supported by MySQL in \
-version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
-with --log-bin='%s' instead.",opt_bin_logname);
-      }
-      else
-        sql_print_error("The update log is no longer supported by MySQL in \
-version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
-with --log-bin instead.");
-    }
-  }
   if (opt_log_slave_updates && !opt_bin_log)
   {
     sql_print_warning("You need to use --log-bin to make "
@@ -6281,9 +6234,6 @@ Can't be set to 1 if --log-slave-updates is used.",
    (uchar**)&global_system_variables.tx_isolation,
    (uchar**)&global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
-  {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
-   (uchar**) &my_use_symdir, (uchar**) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
@@ -6964,7 +6914,6 @@ static int mysql_init_variables(void)
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_log= opt_slow_log= 0;
-  opt_update_log= 0;
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_ignore_builtin_innodb= 0;
@@ -7661,7 +7610,7 @@ static void set_server_version(void)
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end= strmov(end, "-debug");
 #endif
-  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
+  if (opt_log || opt_slow_log || opt_bin_log)
     strmov(end, "-log");                        // This may slow down system
 }
 
