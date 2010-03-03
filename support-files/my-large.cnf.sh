@@ -25,7 +25,7 @@ socket		= @MYSQL_UNIX_ADDR@
 [mysqld]
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
-skip-locking
+skip-external-locking
 key_buffer_size = 256M
 max_allowed_packet = 1M
 table_open_cache = 256
@@ -115,7 +115,7 @@ server-id	= 1
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		
-#log-update 	= /path-to-dedicated-directory/hostname
+#log-bin 	= /path-to-dedicated-directory/hostname
 
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
