@@ -148,7 +148,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "add-user", OPT_ADD_USER,
-    "Add a user to the password file",
+    "Add a user to the password file.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
 #ifndef __WIN__
@@ -164,11 +164,11 @@ static struct my_option my_long_options[] =
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "check-password-file", OPT_CHECK_PASSWORD_FILE,
-    "Check the password file for consistency",
+    "Check the password file for consistency.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "clean-password-file", OPT_CLEAN_PASSWORD_FILE,
-    "Clean the password file",
+    "Clean the password file.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
 #ifndef DBUG_OFF
@@ -185,11 +185,11 @@ static struct my_option my_long_options[] =
     0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "drop-user", OPT_DROP_USER,
-    "Drop existing user from the password file",
+    "Drop existing user from the password file.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "edit-user", OPT_EDIT_USER,
-    "Edit existing user in the password file",
+    "Edit existing user in the password file.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
 #ifdef __WIN__
@@ -200,7 +200,7 @@ static struct my_option my_long_options[] =
 #endif
 
   { "list-users", OPT_LIST_USERS,
-    "Print out a list of registered users",
+    "Print out a list of registered users.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
 #ifndef __WIN__
@@ -218,7 +218,7 @@ static struct my_option my_long_options[] =
     0, 0, 0, 0, 0 },
 
   { "mysqld-safe-compatible", OPT_MYSQLD_SAFE_COMPATIBLE,
-    "Start Instance Manager in mysqld_safe compatible manner",
+    "Start Instance Manager in mysqld_safe-compatible manner.",
     (uchar* *) &Options::Main::mysqld_safe_compatible,
     (uchar* *) &Options::Main::mysqld_safe_compatible,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
@@ -227,7 +227,7 @@ static struct my_option my_long_options[] =
     "Print out a user entry as a line for the password file and exit.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "password", OPT_PASSWORD, "Password to update the password file",
+  { "password", OPT_PASSWORD, "Password to update the password file.",
     (uchar* *) &Options::User_management::password,
     (uchar* *) &Options::User_management::password,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -243,7 +243,7 @@ static struct my_option my_long_options[] =
     (uchar* *) &Options::Main::pid_file_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "port", OPT_PORT, "Port number to use for connections",
+  { "port", OPT_PORT, "Port number to use for connections.",
     (uchar* *) &Options::Main::port_number,
     (uchar* *) &Options::Main::port_number,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
@@ -273,14 +273,14 @@ static struct my_option my_long_options[] =
     (uchar* *) &Options::Service::stand_alone,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
-  { "user", OPT_USER, "Username to start mysqlmanager",
+  { "user", OPT_USER, "Username to start mysqlmanager.",
     (uchar* *) &Options::Daemon::user,
     (uchar* *) &Options::Daemon::user,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
   { "username", OPT_USERNAME,
-    "Username to update the password file",
+    "Username to update the password file.",
     (uchar* *) &Options::User_management::user_name,
     (uchar* *) &Options::User_management::user_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -312,16 +312,16 @@ static void usage()
 {
   version();
 
-  printf("Copyright (C) 2003, 2004 MySQL AB\n"
+  printf("Copyright (C) 2003, 2004 MySQL AB.\n"
   "This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
-  "and you are welcome to modify and redistribute it under the GPL license\n");
+  "and you are welcome to modify and redistribute it under the GPL license.\n");
   printf("Usage: %s [OPTIONS] \n", my_progname);
 
   my_print_help(my_long_options);
   printf("\nThe following options may be given as the first argument:\n"
-  "--print-defaults        Print the program argument list and exit\n"
+  "--print-defaults        Print the program argument list and exit.\n"
   "--defaults-file=#       Only read manager configuration and instance\n"
-  "                        setings from the given file #. The same file\n"
+  "                        settings from the given file #. The same file\n"
   "                        will be used to modify configuration of instances\n"
   "                        with SET commands.\n");
   my_print_variables(my_long_options);

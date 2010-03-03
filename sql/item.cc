@@ -2209,14 +2209,14 @@ String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value, &my_charset_bin);
+  str->set_int(value, unsigned_flag, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
-  str_value.set(value, &my_charset_bin);
+  str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
 }
 
@@ -4300,17 +4300,33 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               It's not an Item_field in the select list so we must make a new
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
+
+              NOTE: If we are fixing an alias reference inside ORDER/GROUP BY
+              item tree, then we use new Item_ref as an intermediate value
+              to resolve referenced item only.
+              In this case the new Item_ref item is unused.
             */
             Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-            thd->change_item_tree(reference, rf);
+
+            bool save_group_fix_field= thd->lex->current_select->group_fix_field;
             /*
-              Because Item_ref never substitutes itself with other items 
-              in Item_ref::fix_fields(), we can safely use the original 
-              pointer to it even after fix_fields()
-             */
-            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
+              No need for recursive resolving of aliases.
+            */
+            thd->lex->current_select->group_fix_field= 0;
+
+            bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
+            thd->lex->current_select->group_fix_field= save_group_fix_field;
+            if (ret)
+              return TRUE;
+
+            if (save_group_fix_field && alias_name_used)
+              thd->change_item_tree(reference, *rf->ref);
+            else
+              thd->change_item_tree(reference, rf);
+
+            return FALSE;
           }
         }
       }
@@ -5141,7 +5157,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr, unsigned_flag);
   }
-  return error ? error : (field->table->in_use->is_error() ? 2 : 0);
+  return error ? error : (field->table->in_use->is_error() ? 1 : 0);
 }
 
 
@@ -6472,7 +6488,8 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+        field_arg->real_type() != MYSQL_TYPE_ENUM)
     {
       if (field_arg->reset())
       {
