@@ -268,6 +268,17 @@ SELECT RELEASE_LOCK('Bug44521');
 RELEASE_LOCK('Bug44521')
 1
 DROP PROCEDURE p;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1 (inp TEXT) RETURNS INT NO SQL RETURN sleep(60);
+CREATE VIEW v1 AS SELECT f1('a') FROM t1;
+SELECT * FROM v1;;
+SELECT * FROM v1;
+ERROR 70100: Query execution was interrupted
+ERROR 70100: Query execution was interrupted
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION f1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
