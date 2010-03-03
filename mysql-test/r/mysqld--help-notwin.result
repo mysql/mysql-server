@@ -484,8 +484,7 @@ The following options may be given as the first argument:
  the SUPER privilege
  --read-rnd-buffer-size=# 
  When reading rows in sorted order after a sort, the rows
- are read through this buffer to avoid a disk seeks. If
- not set, then it's set to the value of record_buffer
+ are read through this buffer to avoid a disk seeks
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
  The location and name to use for the file that keeps a
@@ -715,9 +714,6 @@ The following options may be given as the first argument:
  Prohibit update of a VIEW, which does not contain a key
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
- -s, --use-symbolic-links 
- Enable symbolic link support. Deprecated option; use
- --symbolic-links instead.
  -u, --user=name     Run mysqld daemon as user.
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
@@ -941,7 +937,6 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 updatable-views-with-limit YES
-use-symbolic-links FALSE
 verbose TRUE
 wait-timeout 28800
 

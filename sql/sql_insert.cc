@@ -607,7 +607,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
-    runs without --log-update or --log-bin).
+    runs without --log-bin).
   */
   bool log_on= ((thd->variables.option_bits & OPTION_BIN_LOG) ||
                 (!(thd->security_ctx->master_access & SUPER_ACL)));

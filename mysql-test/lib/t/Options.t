@@ -45,42 +45,30 @@ my @tests=
 
   [
    [ ],
-   ['-O', 'max_binlog_size=1' ],
    ['--max_binlog_size=1' ]
   ],
 
   [
-   ['-O', 'max_binlog_size=1' ],
-   ['-O', 'max_binlog_size=1' ],
-   [ ],
-  ],
-
-  [
-   ['-O', 'max_binlog_size=1' ],
    [ ],
    ['--max_binlog_size=default' ]
   ],
 
   [
    [ ],
-   ['-O', 'max_binlog_size=1', '--binlog-format=row' ],
    ['--max_binlog_size=1', '--binlog-format=row' ]
   ],
   [
    ['--binlog-format=statement' ],
-   ['-O', 'max_binlog_size=1', '--binlog-format=row' ],
    ['--max_binlog_size=1', '--binlog-format=row']
   ],
 
   [
    [ '--binlog-format=statement' ],
-   ['-O', 'max_binlog_size=1', '--binlog-format=statement' ],
    ['--max_binlog_size=1' ]
   ],
 
  [
    [ '--binlog-format=statement' ],
-   ['-O', 'max_binlog_size=1', '--binlog-format=statement' ],
    ['--max_binlog_size=1' ]
  ],
 
@@ -93,7 +81,7 @@ my @tests=
 
  [
   [ '--binlog-format=statement' ],
-  ['--relay-log=/path/to/a/relay-log', '-O', 'max_binlog_size=1'],
+  ['--relay-log=/path/to/a/relay-log', '--max_binlog_size=1'],
   ['--max_binlog_size=1', '--relay-log=/path/to/a/relay-log', '--binlog-format=default' ]
  ],
 
