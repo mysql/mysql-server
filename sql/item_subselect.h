@@ -284,7 +284,6 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
-  bool transformed;
 
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
@@ -293,17 +292,15 @@ public:
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
   int sj_convert_priority;
 
-  /*
-    True if this predicate will be executed via subquery materialization
-    (hash semi-join), false if it should be executed via IN=>EXISTS
-    transformation.
-  */
-  bool use_hash_sj;
-
+  /* The method chosen to execute the IN predicate.  */
+  enum enum_exec_method {
+    NOT_TRANSFORMED, /* No execution method was chosen for this IN. */
+    SEMI_JOIN,   /* IN was converted to semi-join nest and should be removed. */
+    IN_TO_EXISTS, /* IN was converted to correlated EXISTS. */
+    MATERIALIZATION /* IN will be executed via subquery materialization. */
+  };
+  enum_exec_method exec_method;
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
-
-  /* TRUE <=> This Item was converted to semi-join nest and should be removed */
-  bool converted_to_sj;
 
   /* 
     Location of the subquery predicate. It is either
@@ -327,8 +324,8 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), optimizer(0),
-    abort_on_null(0), transformed(0), pushed_cond_guards(NULL),
-    use_hash_sj(0), upper_item(0), converted_to_sj(FALSE)
+    abort_on_null(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
+    upper_item(0)
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -342,6 +339,9 @@ public:
   trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
   trans_res single_value_transformer(JOIN *join, Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
+  trans_res single_value_in_to_exists_transformer(JOIN * join,
+                                                  Comp_creator *func);
+  trans_res row_value_in_to_exists_transformer(JOIN * join);
   longlong val_int();
   double val_real();
   String *val_str(String*);
@@ -353,7 +353,7 @@ public:
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
-  bool setup_hash_sj_engine();
+  bool setup_engine();
   bool init_left_expr_cache();
   bool test_if_left_expr_changed();
   bool is_expensive_processor(uchar *arg);
@@ -490,6 +490,7 @@ public:
   virtual enum_engine_type engine_type() { return SINGLE_SELECT_ENGINE; }
 
   friend class subselect_hash_sj_engine;
+  friend class Item_in_subselect;
 };
 
 

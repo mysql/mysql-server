@@ -549,6 +549,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
+    Item_in_subselect *in_subs= NULL;
     /*
       Are we in a subquery predicate?
       TODO: the block below will be executed for every PS execution without need.
@@ -557,6 +558,9 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       bool do_semijoin= test(thd->variables.optimizer_switch &
                              OPTIMIZER_SWITCH_SEMIJOIN);
+      if (subselect->substype() == Item_subselect::IN_SUBS)
+        in_subs= (Item_in_subselect*)subselect;
+
       DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
       /*
         Check if we're in subquery that is a candidate for flattening into a
@@ -567,6 +571,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           3. Subquery does not have GROUP BY or ORDER BY
           4. Subquery does not use aggregate functions or HAVING
           5. Subquery predicate is at the AND-top-level of ON/WHERE clause
+          6. No execution method was already chosen (by a prepared statement).
 
           (*). We are not in a subquery of a single table UPDATE/DELETE that 
                doesn't have a JOIN (TODO: We should handle this at some
@@ -575,7 +580,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           (**). We're not in a confluent table-less subquery, like
                 "SELECT 1". 
       */
-      if (subselect->substype() == Item_subselect::IN_SUBS &&           // 1
+      if (in_subs &&                                                    // 1
           !select_lex->master_unit()->first_select()->next_select() &&  // 2
           !select_lex->group_list.elements && !order &&                 // 3
           !having && !select_lex->with_sum_func &&                      // 4
@@ -583,10 +588,10 @@ JOIN::prepare(Item ***rref_pointer_array,
           select_lex->outer_select()->join &&                           // (*)
           select_lex->master_unit()->first_select()->leaf_tables &&     // (**) 
           select_lex->outer_select()->leaf_tables &&
-          do_semijoin)
+          do_semijoin &&
+          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED)   // 6
       {
         DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
-        Item_in_subselect *in_subs= (Item_in_subselect*)subselect;
 
         if (thd->stmt_arena->state != Query_arena::PREPARED)
         {
@@ -621,25 +626,26 @@ JOIN::prepare(Item ***rref_pointer_array,
         /*
           Check if the subquery predicate can be executed via materialization.
           The required conditions are:
-            1. Subquery predicate is an IN/=ANY subq predicate
-            2. Subquery is a single SELECT (not a UNION)
-            3. Subquery is not a table-less query. In this case there is no
-               point in materializing.
-            4. Subquery predicate is a top-level predicate
-               (this implies it is not negated)
-               TODO: this is a limitation that should be lifeted once we
-               implement correct NULL semantics (WL#3830)
-            5. Subquery is non-correlated
-               TODO:
-               This is an overly restrictive condition. It can be extended to:
-               (Subquery is non-correlated ||
-                Subquery is correlated to any query outer to IN predicate ||
-                (Subquery is correlated to the immediate outer query &&
-                 Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-                 aggregate functions) && subquery predicate is not under "NOT IN"))
+          1. Subquery predicate is an IN/=ANY subq predicate
+          2. Subquery is a single SELECT (not a UNION)
+          3. Subquery is not a table-less query. In this case there is no
+             point in materializing.
+          4. Subquery predicate is a top-level predicate
+             (this implies it is not negated)
+             TODO: this is a limitation that should be lifeted once we
+             implement correct NULL semantics (WL#3830)
+          5. Subquery is non-correlated
+             TODO:
+             This is an overly restrictive condition. It can be extended to:
+             (Subquery is non-correlated ||
+              Subquery is correlated to any query outer to IN predicate ||
+              (Subquery is correlated to the immediate outer query &&
+               Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+               aggregate functions) && subquery predicate is not under "NOT IN"))
+          6. No execution method was already chosen (by a prepared statement).
 
-           (*) The subquery must be part of a SELECT statement. The current
-                condition also excludes multi-table update statements.
+          (*) The subquery must be part of a SELECT statement. The current
+               condition also excludes multi-table update statements.
 
           We have to determine whether we will perform subquery materialization
           before calling the IN=>EXISTS transformation, so that we know whether to
@@ -647,14 +653,15 @@ JOIN::prepare(Item ***rref_pointer_array,
           Item_in_subselect in an Item_in_optimizer.
         */
         if (do_materialize && 
-            subselect->substype() == Item_subselect::IN_SUBS &&           // 1
+            in_subs  &&                                                   // 1
             !select_lex->master_unit()->first_select()->next_select() &&  // 2
             select_lex->master_unit()->first_select()->leaf_tables &&     // 3
             thd->lex->sql_command == SQLCOM_SELECT)                       // *
         {
-          in_subs= (Item_in_subselect*) subselect;
-          in_subs->use_hash_sj= (in_subs->is_top_level_item() &&          // 4
-                                 !in_subs->is_correlated);                // 5
+          if (in_subs->is_top_level_item() &&                             // 4
+              !in_subs->is_correlated &&                                  // 5
+              in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
+            in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
         }
 
         Item_subselect::trans_res trans_res;
@@ -3302,7 +3309,7 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
   /* 3. Remove the original subquery predicate from the WHERE/ON */
   *(subq_pred->ref_ptr)= new Item_int(1);
-  subq_pred->converted_to_sj= TRUE; // for subsequent executions
+  subq_pred->exec_method= Item_in_subselect::SEMI_JOIN; // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->tables counter */
@@ -3520,9 +3527,11 @@ bool JOIN::flatten_subqueries()
   chose hash semi-join.
 
   @detail Iterate over all subqueries of the query, and if they are under an
-  IN predicate, and the optimizer chose to compute it via hash semi-join,
-  initialize all data structures needed for the execution of the IN
-  predicate.
+  IN predicate, and the optimizer chose to compute it via hash semi-join:
+  - try to initialize all data structures needed for the materialized execution
+    of the IN predicate,
+  - if this fails, then perform the IN=>EXISTS transformation which was
+    previously blocked during JOIN::prepare.
 
   This method is part of the "code generation" query processing phase.
 
@@ -3549,7 +3558,8 @@ bool JOIN::setup_subquery_materialization()
           subquery_predicate->substype() == Item_subselect::IN_SUBS)
       {
         Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
-        if (in_subs->use_hash_sj && in_subs->setup_hash_sj_engine())
+        if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
+            in_subs->setup_engine())
           return TRUE;
       }
     }

@@ -670,8 +670,8 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), left_expr_cache(0), optimizer(0), transformed(0),
-  pushed_cond_guards(NULL), use_hash_sj(0), upper_item(0), converted_to_sj(FALSE)
+  Item_exists_subselect(), left_expr_cache(0), optimizer(0),
+  pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -922,35 +922,19 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
        - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
        - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
    
-    If that fails, the subquery will be handled with class Item_in_optimizer, 
-    Inject the predicates into subquery, i.e. convert it to:
-
-    - If the subquery has aggregates, GROUP BY, or HAVING, convert to
-
-       SELECT ie FROM ...  HAVING subq_having AND 
-                                   trigcond(oe $cmp$ ref_or_null_helper<ie>)
-                                   
-      the addition is wrapped into trigger only when we want to distinguish
-      between NULL and FALSE results.
-
-    - Otherwise (no aggregates/GROUP BY/HAVING) convert it to one of the
-      following:
-
-      = If we don't need to distinguish between NULL and FALSE subquery:
-        
-        SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
-
-      = If we need to distinguish between those:
-
-        SELECT 1 FROM ...
-          WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
-          HAVING trigcond(<is_not_null_test>(ie))
+    If that fails, the subquery will be handled with class Item_in_optimizer.
+    There are two possibilites:
+    - If the subquery execution method is materialization, then the subquery is
+      not transformed any further.
+    - Otherwise the IN predicates is transformed into EXISTS by injecting
+      equi-join predicates and possibly other helper predicates. For details
+      see method single_value_in_like_transformer().
 
   RETURN
-    RES_OK     - OK, either subquery was transformed, or appopriate
-                 predicates where injected into it.
-    RES_REDUCE - The subquery was reduced to non-subquery
-    RES_ERROR  - Error
+    RES_OK     Either subquery was transformed, or appopriate
+                       predicates where injected into it.
+    RES_REDUCE The subquery was reduced to non-subquery
+    RES_ERROR  Error
 */
 
 Item_subselect::trans_res
@@ -1092,11 +1076,55 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     If this IN predicate can be computed via materialization, do not
     perform the IN -> EXISTS transformation.
   */
-  if (use_hash_sj)
-  {
-    transformed= FALSE;
+  if (exec_method == MATERIALIZATION)
     DBUG_RETURN(RES_OK);
-  }
+
+  /* Perform the IN=>EXISTS transformation. */
+  DBUG_RETURN(single_value_in_to_exists_transformer(join, func));
+}
+
+
+/**
+  Transofrm an IN predicate into EXISTS via predicate injection.
+
+  @details The transformation injects additional predicates into the subquery
+  (and makes the subquery correlated) as follows.
+
+  - If the subquery has aggregates, GROUP BY, or HAVING, convert to
+
+    SELECT ie FROM ...  HAVING subq_having AND 
+                               trigcond(oe $cmp$ ref_or_null_helper<ie>)
+                                   
+    the addition is wrapped into trigger only when we want to distinguish
+    between NULL and FALSE results.
+
+  - Otherwise (no aggregates/GROUP BY/HAVING) convert it to one of the
+    following:
+
+    = If we don't need to distinguish between NULL and FALSE subquery:
+        
+      SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
+
+    = If we need to distinguish between those:
+
+      SELECT 1 FROM ...
+        WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
+        HAVING trigcond(<is_not_null_test>(ie))
+
+    @param join  Join object of the subquery (i.e. 'child' join).
+    @param func  Subquery comparison creator
+
+    @retval RES_OK     Either subquery was transformed, or appopriate
+                       predicates where injected into it.
+    @retval RES_REDUCE The subquery was reduced to non-subquery
+    @retval RES_ERROR  Error
+*/
+
+Item_subselect::trans_res
+Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creator *func)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  DBUG_ENTER("Item_in_subselect::single_value_in_like_transformer");
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
@@ -1277,11 +1305,8 @@ Item_subselect::trans_res
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
   SELECT_LEX *select_lex= join->select_lex;
-  Item *having_item= 0;
   uint cols_num= left_expr->cols();
-  bool is_having_used= (join->having || select_lex->with_sum_func ||
-                        select_lex->group_list.first ||
-                        !select_lex->table_list.elements);
+
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
   if (select_lex->item_list.elements != left_expr->cols())
@@ -1329,28 +1354,44 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     If this IN predicate can be computed via materialization, do not
     perform the IN -> EXISTS transformation.
   */
-  if (use_hash_sj)
-  {
-    transformed= FALSE;
+  if (exec_method == MATERIALIZATION)
     DBUG_RETURN(RES_OK);
-  }
 
-  /*
-    Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
-    TODO:
-    The IF-ELSE below can be refactored so that there is no duplication of the
-    statements that create the new conditions. For this we have to invert the IF
-    and the FOR statements as this:
-    for (each left operand)
-      create the equi-join condition
-      if (is_having_used || !abort_on_null)
-        create the "is null" and is_not_null_test items
-      if (is_having_used)
-        add the equi-join and the null tests to HAVING
-      else
-        add the equi-join and the "is null" to WHERE
-        add the is_not_null_test to HAVING
-  */
+  /* Perform the IN=>EXISTS transformation. */
+  DBUG_RETURN(row_value_in_to_exists_transformer(join));
+}
+
+
+/**
+  Tranform a (possibly non-correlated) IN subquery into a correlated EXISTS.
+
+  @todo
+  The IF-ELSE below can be refactored so that there is no duplication of the
+  statements that create the new conditions. For this we have to invert the IF
+  and the FOR statements as this:
+  for (each left operand)
+    create the equi-join condition
+    if (is_having_used || !abort_on_null)
+      create the "is null" and is_not_null_test items
+    if (is_having_used)
+      add the equi-join and the null tests to HAVING
+    else
+      add the equi-join and the "is null" to WHERE
+      add the is_not_null_test to HAVING
+*/
+
+Item_subselect::trans_res
+Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  Item *having_item= 0;
+  uint cols_num= left_expr->cols();
+  bool is_having_used= (join->having || select_lex->with_sum_func ||
+                        select_lex->group_list.first ||
+                        !select_lex->table_list.elements);
+
+  DBUG_ENTER("Item_in_subselect::row_value_in_like_transformer");
+
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (is_having_used)
   {
@@ -1623,7 +1664,12 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   if (result)
     goto err;
 
-  transformed= 1;
+  /*
+    If we didn't choose an execution method up to this point, we choose
+    the IN=>EXISTS transformation.
+  */
+  if (exec_method == NOT_TRANSFORMED)
+    exec_method= IN_TO_EXISTS;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
@@ -1657,7 +1703,7 @@ err:
 
 void Item_in_subselect::print(String *str, enum_query_type query_type)
 {
-  if (transformed)
+  if (exec_method == IN_TO_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -1673,7 +1719,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   bool result = 0;
   ref_ptr= ref;
 
-  if (converted_to_sj)
+  if (exec_method == SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
   if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
@@ -1684,24 +1730,32 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 
 
 /**
-  Create an engine to compute the subselect via materialization,
-  and replace the current engine with the new one.
+  Try to create an engine to compute the subselect via materialization,
+  and if this fails, revert to execution via the IN=>EXISTS transformation.
 
   @details
     The purpose of this method is to hide the implementation details
     of this Item's execution. The method creates a new engine for
-    materialized execution, and initializes the engine. The initialization
-    of the new engine is divided in two parts - a permanent one that lives
-    across prepared statements, and one that is repeated for each execution.
+    materialized execution, and initializes the engine.
+
+    If this initialization fails
+    - either because it wasn't possible to create the needed temporary table
+      and its index,
+    - or because of a memory allocation error,
+    then we revert back to execution via the IN=>EXISTS tranformation.
+
+    The initialization of the new engine is divided in two parts - a permanent
+    one that lives across prepared statements, and one that is repeated for each
+    execution.
 
   @returns
-    @retval TRUE  if a memory allocation error occurred
-    @retval FALSE if successful
+    @retval TRUE  memory allocation error occurred
+    @retval FALSE an execution method was chosen successfully
 */
 
-bool Item_in_subselect::setup_hash_sj_engine()
+bool Item_in_subselect::setup_engine()
 {
-  subselect_hash_sj_engine *new_engine;
+  subselect_hash_sj_engine *new_engine= NULL;
   bool res= FALSE;
 
   DBUG_ENTER("Item_in_subselect::create_materialize_engine");
@@ -1722,8 +1776,25 @@ bool Item_in_subselect::setup_hash_sj_engine()
     if (!(new_engine= new subselect_hash_sj_engine(thd, this,
                                                    old_engine)) ||
         new_engine->init_permanent(unit->get_unit_column_types()))
-      res= TRUE;
-    engine= new_engine;
+    {
+      Item_subselect::trans_res trans_res;
+      /*
+        If for some reason we cannot use materialization for this IN predicate,
+        delete all materialization-related objects, and apply the IN=>EXISTS
+        transformation.
+      */
+      delete new_engine;
+      new_engine= NULL;
+
+      if (left_expr->cols() == 1)
+        trans_res= single_value_in_to_exists_transformer(old_engine->join,
+                                                         &eq_creator);
+      else
+        trans_res= row_value_in_to_exists_transformer(old_engine->join);
+      res= (trans_res != Item_subselect::RES_OK);
+    }
+    if (new_engine)
+      engine= new_engine;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
@@ -1735,7 +1806,7 @@ bool Item_in_subselect::setup_hash_sj_engine()
   }
 
   /* Initilizations done in runtime memory, repeated for each execution. */
-  if (!res)
+  if (new_engine)
     res= new_engine->init_runtime();
 
   DBUG_RETURN(res);
@@ -1797,14 +1868,14 @@ bool Item_in_subselect::test_if_left_expr_changed()
 
 bool Item_in_subselect::is_expensive_processor(uchar *arg)
 {
-  return use_hash_sj;
+  return exec_method == MATERIALIZATION;
 }
 
 
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
-  transformed= 1;
+  exec_method= IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
   return select_in_like_transformer(join, func);
@@ -1813,7 +1884,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 
 void Item_allany_subselect::print(String *str, enum_query_type query_type)
 {
-  if (transformed)
+  if (exec_method == IN_TO_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -2893,7 +2964,6 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   */
   if (!(tmp_result_sink= new select_union))
     DBUG_RETURN(TRUE);
-  result= tmp_result_sink;
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns, TRUE,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
@@ -2904,23 +2974,32 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   tmp_key= tmp_table->key_info;
   tmp_key_parts= tmp_key->key_parts;
 
-  /* The temporary table must have exactly one index. */
-  DBUG_ASSERT(tmp_table->s->keys == 1);
-  /* TODO:
+  /*
      If the subquery has blobs, or the total key lenght is bigger than some
      length, then the created index cannot be used for lookups and we
-     can't use hash semi join. Here we test that this is not the case.
-     To make this work properly, we eithr have to detect this case before
-     deciding whether to use semi join, or backtrack and redo the
-     IN => EXISTS transformation as this is the only way currently to
-     execute this.
+     can't use hash semi join. If this is the case, delete the temporary
+     table since it will not be used, and tell the caller we failed to
+     initialize the engine.
   */
-  DBUG_ASSERT(!tmp_table->s->uniques);
+  if (tmp_table->s->keys == 0)
+  {
+    DBUG_ASSERT(tmp_table->s->db_type() == myisam_hton);
+    DBUG_ASSERT(
+      tmp_table->s->uniques ||
+      tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
+      tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
+    free_tmp_table(thd, tmp_table);
+    delete result;
+    result= NULL;
+    DBUG_RETURN(TRUE);
+  }
+  result= tmp_result_sink;
+
   /*
-    Make sure that the index on the temp table doesn't have the
-    extra key part created when s->uniques > 0.
+    Make sure there is only one index on the temp table, and it doesn't have
+    the extra key part created when s->uniques > 0.
   */
-  DBUG_ASSERT(tmp_columns->elements == tmp_key_parts);
+  DBUG_ASSERT(tmp_table->s->keys == 1 && tmp_columns->elements == tmp_key_parts);
 
 
   /* 2. Create/initialize execution related objects. */
@@ -3000,7 +3079,8 @@ bool subselect_hash_sj_engine::init_runtime()
 subselect_hash_sj_engine::~subselect_hash_sj_engine()
 {
   delete result;
-  free_tmp_table(thd, tab->table);
+  if (tab)
+    free_tmp_table(thd, tab->table);
 }
 
 
@@ -3012,7 +3092,7 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
 void subselect_hash_sj_engine::cleanup()
 {
   is_materialized= FALSE;
-  result->cleanup();
+  result->cleanup(); /* Resets the temp table as well. */
   materialize_engine->cleanup();
   subselect_uniquesubquery_engine::cleanup();
 }
@@ -3046,10 +3126,19 @@ int subselect_hash_sj_engine::exec()
     materialize_join->exec();
     is_materialized= TRUE;
     /*
-      If the subquery returned no rows, there is no need to perform
-      lookups for empty subqueries.
+      TODO:
+      - unlock all subquery tables as we don't need them. Look at
+        the code for single-value subqueries.
+      - the temp table used for grouping in the subquery can be freed
+        immediately after materialization (yet i's done together with unlocking).
+     */
+    /*
+      If the subquery returned no rows, the temporary table is empty, so we know
+      directly that the result of IN is FALSE. We first update the table statistics,
+      then we test if the temporary table for the query result is empty.
     */
-    if (!materialize_join->send_records)
+    tab->table->file->info(HA_STATUS_VARIABLE);
+    if (!tab->table->file->stats.records)
     {
       empty_result_set= TRUE;
       item_in->value= FALSE;
