@@ -133,7 +133,7 @@ static void env_remove_open_txn(DB_ENV *UU(env), DB_TXN *txn) {
     toku_list_remove((struct toku_list *) (void *) &txn->open_txns);
 }
 
-static int toku_txn_abort(DB_TXN * txn);
+static int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION, void*);
 
 /* db methods */
 static inline int db_opened(DB *db) {
@@ -366,7 +366,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags);
 static int toku_db_close(DB * db, u_int32_t flags);
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int internal);
-static int toku_txn_commit(DB_TXN * txn, u_int32_t flags);
+static int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION, void*);
 static int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
 
 static void finalize_file_removal(int fd, void * extra);
@@ -710,7 +710,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         assert(r==0);
     }
     if (using_txns) {
-        r = toku_txn_commit(txn, 0);
+        r = toku_txn_commit(txn, 0, NULL, NULL);
         assert(r==0);
     }
     toku_ydb_unlock();
@@ -1602,13 +1602,14 @@ static void ydb_yield (voidfp f, void *UU(v)) {
     toku_ydb_lock();
 }
 
-static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
+static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
+                           TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             txn->mgrp->i->is_panicked = r_child;
             txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent commit.\n");
@@ -1636,12 +1637,12 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
         //r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
-        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+        r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
     else
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
         //r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
-        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
+        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL, poll, poll_extra);
 
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         txn->mgrp->i->is_panicked = r;
@@ -1689,12 +1690,13 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
     return -1;
 }
 
-static int toku_txn_abort(DB_TXN * txn) {
+static int toku_txn_abort(DB_TXN * txn,
+                          TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children (abort or commit are both correct, commit is cheaper)
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             txn->mgrp->i->is_panicked = r_child;
             txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent abort.\n");
@@ -1714,7 +1716,7 @@ static int toku_txn_abort(DB_TXN * txn) {
     assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
-    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
+    int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         txn->mgrp->i->is_panicked = r;
         txn->mgrp->i->panic_string = toku_strdup("Error during abort.\n");
@@ -1750,17 +1752,31 @@ static int locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     toku_ydb_lock(); u_int32_t r = toku_txn_stat(txn, txn_stat); toku_ydb_unlock(); return r;
 }
 
-static int locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
+static int locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
+                                           TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
-    toku_ydb_lock(); int r = toku_txn_commit(txn, flags); toku_ydb_unlock();
+    toku_ydb_lock(); int r = toku_txn_commit(txn, flags, poll, poll_extra); toku_ydb_unlock();
     toku_multi_operation_client_unlock(); //Cannot checkpoint during a commit.
     return r;
 }
 
-static int locked_txn_abort(DB_TXN *txn) {
+static int locked_txn_abort_with_progress(DB_TXN *txn,
+                                          TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     toku_multi_operation_client_lock(); //Cannot checkpoint during an abort.
-    toku_ydb_lock(); int r = toku_txn_abort(txn); toku_ydb_unlock();
+    toku_ydb_lock(); int r = toku_txn_abort(txn, poll, poll_extra); toku_ydb_unlock();
     toku_multi_operation_client_unlock(); //Cannot checkpoint during an abort.
+    return r;
+}
+
+static int locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
+    int r;
+    r = locked_txn_commit_with_progress(txn, flags, NULL, NULL);
+    return r;
+}
+
+static int locked_txn_abort(DB_TXN *txn) {
+    int r;
+    r = locked_txn_abort_with_progress(txn, NULL, NULL);
     return r;
 }
 
@@ -1813,11 +1829,17 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     memset(result, 0, result_size);
     //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
     result->mgrp = env;
-    result->abort = locked_txn_abort;
-    result->commit = locked_txn_commit;
-    result->id = locked_txn_id;
-    result->parent = stxn;
+#define STXN(name) result->name = locked_txn_ ## name
+    STXN(abort);
+    STXN(commit);
+    STXN(abort_with_progress);
+    STXN(commit_with_progress);
+    STXN(id);
+#undef STXN
     result->txn_stat = locked_txn_stat;
+
+
+    result->parent = stxn;
 #if !TOKUDB_NATIVE_H
     MALLOC(db_txn_struct_i(result));
     if (!db_txn_struct_i(result)) {
@@ -4087,11 +4109,11 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     if (using_txns) {
 	// close txn
 	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
 	    assert(r==0);  // TODO panic
 	}
 	else {         // abort
-	    int r2 = toku_txn_abort(child);
+	    int r2 = toku_txn_abort(child, NULL, NULL);
 	    assert(r2==0);  // TODO panic
 	}
     }
@@ -4475,11 +4497,11 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     if (using_txns) {
 	// close txn
 	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
 	    assert(r==0);  // TODO panic
 	}
 	else {         // abort
-	    int r2 = toku_txn_abort(child);
+	    int r2 = toku_txn_abort(child, NULL, NULL);
 	    assert(r2==0);  // TODO panic
 	}
     }
@@ -4596,11 +4618,11 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     if (using_txns) {
 	// close txn
 	if (r == 0) {  // commit
-	    r = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
 	    assert(r==0);  // TODO panic
 	}
 	else {         // abort
-	    int r2 = toku_txn_abort(child);
+	    int r2 = toku_txn_abort(child, NULL, NULL);
 	    assert(r2==0);  // TODO panic
 	}
     }
@@ -4809,8 +4831,8 @@ static inline int toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed,
 
 static inline int toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
     if (!changed) return r;
-    if (r==0) return toku_txn_commit(txn, 0);
-    toku_txn_abort(txn);
+    if (r==0) return toku_txn_commit(txn, 0, NULL, NULL);
+    toku_txn_abort(txn, NULL, NULL);
     return r; 
 }
 
@@ -5300,11 +5322,11 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     if (using_txns) {
 	// close txn
 	if (rval == 0) {  // all well so far, commit child
-	    rval = toku_txn_commit(child, DB_TXN_NOSYNC);
+	    rval = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
 	    assert(rval==0);
 	}
 	else {         // abort child
-	    int r2 = toku_txn_abort(child);
+	    int r2 = toku_txn_abort(child, NULL, NULL);
 	    assert(r2==0);
 	    for (i=0; i<N; i++) {
 		if (new_inames[i]) {

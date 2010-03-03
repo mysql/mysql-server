@@ -458,7 +458,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("  u_int64_t        fsync_time;              /* total time required to fsync         */ \n");
     printf("} ENGINE_STATUS;\n");
 
-
     print_dbtype();
 //    print_db_notices();
     print_defines();
@@ -544,10 +543,21 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]), 0);
     assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
     {
+        //txn progress info
+        printf("typedef struct __toku_txn_progress {\n");
+        printf("  uint64_t entries_total;\n");
+        printf("  uint64_t entries_processed;\n");
+        printf("  uint8_t  is_commit;\n");
+        printf("  uint8_t  stalled_on_checkpoint;\n");
+        printf("} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;\n");
+        printf("typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);\n");
+
 	printf("struct txn_stat {\n  u_int64_t rolltmp_raw_count;\n};\n");
 	const char *extra[] = {
             "int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
             "struct { void *next, *prev; } open_txns",
+            "int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
+            "int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
             NULL,
         };
 	print_struct("db_txn", INTERNAL_AT_END, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), extra);

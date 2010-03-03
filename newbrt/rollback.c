@@ -7,17 +7,34 @@
 
 static void note_txn_closing (TOKUTXN txn);
 
+void
+toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint) {
+    if (txn->progress_poll_fun) {
+        TOKU_TXN_PROGRESS_S progress = {
+            .entries_total     = txn->num_rollentries,
+            .entries_processed = txn->num_rollentries_processed,
+            .is_commit = is_commit,
+            .stalled_on_checkpoint = stall_for_checkpoint};
+        txn->progress_poll_fun(&progress, txn->progress_poll_fun_extra);
+    }
+}
+
 int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
     rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv, lsn);
+    txn->num_rollentries_processed++;
+    if (txn->num_rollentries_processed % 1024 == 0)
+        toku_poll_txn_progress_function(txn, TRUE, FALSE);
     return r;
 }
 
 int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
     rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv, lsn);
-    if (r!=0) return r;
-    return 0;
+    txn->num_rollentries_processed++;
+    if (txn->num_rollentries_processed % 1024 == 0)
+        toku_poll_txn_progress_function(txn, FALSE, FALSE);
+    return r;
 }
 
 void toku_rollback_txn_close (TOKUTXN txn) {
@@ -156,6 +173,7 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         //save that in the parent.  Since the commit really happens in the root txn.
         txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
         txn->parent->has_done_work         |= txn->has_done_work;
+        txn->parent->num_rollentries       += txn->num_rollentries;
     } else {
         // do the commit calls and free everything
         // we do the commit calls in reverse order too.

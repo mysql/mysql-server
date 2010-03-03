@@ -36,6 +36,10 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->oldest_logentry = result->newest_logentry = 0;
 
     result->rollentry_arena = memarena_create();
+    result->num_rollentries = 0;
+    result->num_rollentries_processed = 0;
+    result->progress_poll_fun = NULL;
+    result->progress_poll_fun_extra = NULL;
 
     if (toku_omt_size(logger->live_txns) == 0) {
         assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
@@ -73,16 +77,21 @@ died:
 
 
 // Doesn't close the txn, just performs the commit operations.
-int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv) {
-    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN);
+int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
+                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN, poll, poll_extra);
 }
 
-int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn) {
+int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     int r;
     // panic handled in log_commit
 
     //Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
     int do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->has_done_work));
+
+    txn->progress_poll_fun = poll;
+    txn->progress_poll_fun_extra = poll_extra;
 
     r = toku_log_commit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (r!=0)
@@ -92,15 +101,19 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 }
 
 // Doesn't close the txn, just performs the abort operations.
-int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv) {
-    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN);
+int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
+                       TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+    return toku_txn_abort_with_lsn(txn, yield, yieldv, ZERO_LSN, poll, poll_extra);
 }
 
-int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn) {
+int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
+                            TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
     //printf("%s:%d abort\n", __FILE__, __LINE__);
+    txn->progress_poll_fun = poll;
+    txn->progress_poll_fun_extra = poll_extra;
     int r=0;
     r = toku_log_xabort(txn->logger, (LSN*)0, 0, txn->txnid64);
     if (r!=0) 

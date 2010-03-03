@@ -9,6 +9,7 @@
 
 // these routines in rollback.c
 
+void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint);
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
 int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
 void toku_rollback_txn_close (TOKUTXN txn);
