@@ -3082,7 +3082,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-
+  void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
                            const char *alias);
