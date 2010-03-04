@@ -425,4 +425,17 @@ select hex(a) from t1;
 show create table t1;
 drop table t1;
 
+--echo #
+--echo # Bug#50591 bit(31) causes Duplicate entry '1-NULL' for key 'group_key'
+--echo #
+CREATE TABLE t1(a INT, b BIT(7) NOT NULL);
+INSERT INTO t1 VALUES (NULL, 0),(NULL, 0);
+SELECT SUM(a) FROM t1 GROUP BY b, a;
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT, b BIT(7) NOT NULL, c BIT(8) NOT NULL);
+INSERT INTO t1 VALUES (NULL, 0, 0),(NULL, 0, 0);
+SELECT SUM(a) FROM t1 GROUP BY c, b, a;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

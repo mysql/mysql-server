@@ -608,10 +608,10 @@ bool THD::handle_condition(uint sql_errno,
 
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
-       error_handler= m_internal_handler->m_prev_internal_handler)
+       error_handler= error_handler->m_prev_internal_handler)
   {
-    if (error_handler-> handle_condition(this, sql_errno, sqlstate, level, msg,
-                                         cond_hdl))
+    if (error_handler->handle_condition(this, sql_errno, sqlstate, level, msg,
+					cond_hdl))
     {
       return TRUE;
     }
@@ -621,10 +621,12 @@ bool THD::handle_condition(uint sql_errno,
 }
 
 
-void THD::pop_internal_handler()
+Internal_error_handler *THD::pop_internal_handler()
 {
   DBUG_ASSERT(m_internal_handler != NULL);
+  Internal_error_handler *popped_handler= m_internal_handler;
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
+  return popped_handler;
 }
 
 
