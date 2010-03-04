@@ -80,7 +80,7 @@ sub mtr_get_opts_from_file ($) {
   {
     chomp;
 
-    #    --set-variable=init_connect=set @a='a\\0c'
+    #    --init_connect=set @a='a\\0c'
     s/^\s+//;                           # Remove leading space
     s/\s+$//;                           # Remove ending space
 
