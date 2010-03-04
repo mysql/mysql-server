@@ -4,9 +4,14 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
-# Remember to also update version.c in ndb.
-# When changing major version number please also check switch statement
-# in client/mysqlbinlog.cc:check_master_version().
+dnl Various people throughout the community may parse configure.in to
+dnl get the MySQL version from the source branch.  If the formatting
+dnl of this line is going to be changed, please announce the change to
+dnl internals@lists.mysql.com in advance of pushing the change.
+dnl
+dnl Remember to also update version.c in ndb.
+dnl When changing major version number please also check switch statement
+dnl in client/mysqlbinlog.cc:check_master_version().
 AC_INIT([MySQL Server], [5.5.3-m2], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -2747,7 +2752,7 @@ case $SYSTEM_TYPE in
     fi
 
     # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "./cmd-line-utils/readline"]
+    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
     then
 	AC_MSG_ERROR([This commercially licensed MySQL source package can't
 	      be built with libreadline. Please use --with-libedit to use
