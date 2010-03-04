@@ -330,7 +330,6 @@ typedef struct system_variables
   uint dynamic_variables_head;  /* largest valid variable offset */
   uint dynamic_variables_size;  /* how many bytes are in use */
   
-  ulonglong myisam_max_extra_sort_file_size;
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
@@ -1280,7 +1279,7 @@ public:
     OT_DISCOVER,
     OT_REPAIR
   };
-  Open_table_context(THD *thd);
+  Open_table_context(THD *thd, ulong timeout);
 
   bool recover_from_failed_open(THD *thd, MDL_request *mdl_request,
                                 TABLE_LIST *table);
@@ -1305,6 +1304,11 @@ public:
 
   MDL_request *get_global_mdl_request(THD *thd);
 
+  inline ulong get_timeout() const
+  {
+    return m_timeout;
+  }
+
 private:
   /** List of requests for all locks taken so far. Used for waiting on locks. */
   MDL_request_list m_mdl_requests;
@@ -1322,6 +1326,11 @@ private:
     opening tables for statements which take upgradable shared metadata locks.
   */
   MDL_request *m_global_mdl_request;
+  /**
+    Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
+    tables or to the "lock_wait_timeout" system variable for regular tables.
+  */
+  uint m_timeout;
 };
 
 
@@ -2584,7 +2593,7 @@ public:
   /**
     Remove the error handler last pushed.
   */
-  void pop_internal_handler();
+  Internal_error_handler *pop_internal_handler();
 
   /**
     Raise an exception condition.

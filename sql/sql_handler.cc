@@ -311,7 +311,11 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     if (!reopen)
       my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     else
+    {
       hash_tables->table= NULL;
+      /* Safety, cleanup the pointer to satisfy MDL assertions. */
+      hash_tables->mdl_request.ticket= NULL;
+    }
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }

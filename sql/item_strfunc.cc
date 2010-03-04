@@ -41,6 +41,38 @@ C_MODE_END
 
 String my_empty_string("",default_charset_info);
 
+/*
+  For the Items which have only val_str_ascii() method
+  and don't have their own "native" val_str(),
+  we provide a "wrapper" method to convert from ASCII
+  to Item character set when it's necessary.
+  Conversion happens only in case of "tricky" Item character set (e.g. UCS2).
+  Normally conversion does not happen, and val_str_ascii() is immediately
+  returned instead.
+*/
+String *Item_str_ascii_func::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+
+  if (!(collation.collation->state & MY_CS_NONASCII))
+    return val_str_ascii(str);
+  
+  DBUG_ASSERT(str != &ascii_buf);
+  
+  uint errors;
+  String *res= val_str_ascii(&ascii_buf);
+  if (!res)
+    return 0;
+  
+  if ((null_value= str->copy(res->ptr(), res->length(),
+                             &my_charset_latin1, collation.collation,
+                             &errors)))
+    return 0;
+  
+  return str;
+}
+
+
 
 /*
   Convert an array of bytes to a hexadecimal representation.
@@ -112,7 +144,7 @@ longlong Item_str_func::val_int()
 }
 
 
-String *Item_func_md5::val_str(String *str)
+String *Item_func_md5::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
@@ -139,7 +171,6 @@ String *Item_func_md5::val_str(String *str)
 
 void Item_func_md5::fix_length_and_dec()
 {
-  max_length=32;
   /*
     The MD5() function treats its parameter as being a case sensitive. Thus
     we set binary collation on it so different instances of MD5() will be
@@ -148,10 +179,11 @@ void Item_func_md5::fix_length_and_dec()
   args[0]->collation.set(
       get_charset_by_csname(args[0]->collation.collation->csname,
                             MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  fix_length_and_charset(32, default_charset());
 }
 
 
-String *Item_func_sha::val_str(String *str)
+String *Item_func_sha::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
@@ -181,7 +213,6 @@ String *Item_func_sha::val_str(String *str)
 
 void Item_func_sha::fix_length_and_dec()
 {
-  max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
   /*
     The SHA() function treats its parameter as being a case sensitive. Thus
     we set binary collation on it so different instances of MD5() will be
@@ -190,6 +221,8 @@ void Item_func_sha::fix_length_and_dec()
   args[0]->collation.set(
       get_charset_by_csname(args[0]->collation.collation->csname,
                             MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  // size of hex representation of hash
+  fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
 
@@ -414,7 +447,7 @@ void Item_func_concat::fix_length_and_dec()
 {
   ulonglong max_result_length= 0;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -772,7 +805,7 @@ void Item_func_concat_ws::fix_length_and_dec()
 {
   ulonglong max_result_length;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
 
   /*
@@ -843,8 +876,8 @@ String *Item_func_reverse::val_str(String *str)
 
 void Item_func_reverse::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
-  max_length = args[0]->max_length;
+  agg_arg_charsets_for_string_result(collation, args, 1);
+  fix_char_length(args[0]->max_char_length());
 }
 
 /**
@@ -987,7 +1020,7 @@ void Item_func_replace::fix_length_and_dec()
   }
   max_length= (ulong) max_result_length;
   
-  if (agg_arg_charsets(collation, args, 3, MY_COLL_CMP_CONV, 1))
+  if (agg_arg_charsets_for_comparison(collation, args, 3))
     return;
 }
 
@@ -1046,7 +1079,7 @@ void Item_func_insert::fix_length_and_dec()
   ulonglong max_result_length;
 
   // Handle character set for args[0] and args[3].
-  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 3))
+  if (agg_arg_charsets_for_string_result(collation, args, 2, 3))
     return;
   max_result_length= ((ulonglong) args[0]->max_length+
                       (ulonglong) args[3]->max_length);
@@ -1094,7 +1127,7 @@ String *Item_str_conv::val_str(String *str)
 
 void Item_func_lcase::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   multiply= collation.collation->casedn_multiply;
   converter= collation.collation->cset->casedn;
   max_length= args[0]->max_length * multiply;
@@ -1102,7 +1135,7 @@ void Item_func_lcase::fix_length_and_dec()
 
 void Item_func_ucase::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   multiply= collation.collation->caseup_multiply;
   converter= collation.collation->cset->caseup;
   max_length= args[0]->max_length * multiply;
@@ -1150,7 +1183,7 @@ void Item_str_func::left_right_max_length()
 
 void Item_func_left::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   left_right_max_length();
 }
 
@@ -1183,7 +1216,7 @@ String *Item_func_right::val_str(String *str)
 
 void Item_func_right::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   left_right_max_length();
 }
 
@@ -1239,7 +1272,7 @@ void Item_func_substr::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
 
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
@@ -1264,7 +1297,7 @@ void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
 
-  if (agg_arg_charsets(collation, args, 2, MY_COLL_CMP_CONV, 1))
+  if (agg_arg_charsets_for_comparison(collation, args, 2))
     return;
 }
 
@@ -1594,7 +1627,7 @@ void Item_func_trim::fix_length_and_dec()
   max_length= args[0]->max_length;
   if (arg_count == 1)
   {
-    collation.set(args[0]->collation);
+    agg_arg_charsets_for_string_result(collation, args, 1);
     remove.set_charset(collation.collation);
     remove.set_ascii(" ",1);
   }
@@ -1602,7 +1635,7 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets(collation, &args[1], 2, MY_COLL_CMP_CONV, -1))
+    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
       return;
   }
 }
@@ -1627,7 +1660,7 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 
 /* Item_func_password */
 
-String *Item_func_password::val_str(String *str)
+String *Item_func_password::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str); 
@@ -1636,7 +1669,7 @@ String *Item_func_password::val_str(String *str)
   if (res->length() == 0)
     return &my_empty_string;
   my_make_scrambled_password(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, &my_charset_latin1);
   return str;
 }
 
@@ -1651,7 +1684,7 @@ char *Item_func_password::alloc(THD *thd, const char *password,
 
 /* Item_func_old_password */
 
-String *Item_func_old_password::val_str(String *str)
+String *Item_func_old_password::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str);
@@ -1660,7 +1693,7 @@ String *Item_func_old_password::val_str(String *str)
   if (res->length() == 0)
     return &my_empty_string;
   my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, &my_charset_latin1);
   return str;
 }
 
@@ -1880,7 +1913,7 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
 
 void Item_func_soundex::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   max_length=args[0]->max_length;
   set_if_bigger(max_length, 4 * collation.collation->mbminlen);
   tmp_value.set_charset(collation.collation);
@@ -2186,7 +2219,7 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
 
-  if (agg_arg_charsets(collation, args+1, arg_count-1, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation, args + 1, arg_count - 1))
     return;
 
   for (uint i= 1 ; i < arg_count ; i++)
@@ -2253,7 +2286,7 @@ void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
   
   for (uint i=0 ; i < arg_count ; i++)
@@ -2423,7 +2456,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 
 void Item_func_repeat::fix_length_and_dec()
 {
-  collation.set(args[0]->collation);
+  agg_arg_charsets_for_string_result(collation, args, 1);
   if (args[1]->const_item())
   {
     /* must be longlong to avoid truncation */
@@ -2507,7 +2540,7 @@ err:
 void Item_func_rpad::fix_length_and_dec()
 {
   // Handle character set for args[0] and args[2].
-  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 2))
+  if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return;
   if (args[1]->const_item())
   {
@@ -2609,7 +2642,7 @@ String *Item_func_rpad::val_str(String *str)
 void Item_func_lpad::fix_length_and_dec()
 {
   // Handle character set for args[0] and args[2].
-  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 2))
+  if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return;
   
   if (args[1]->const_item())
@@ -2779,8 +2812,7 @@ String *Item_func_conv_charset::val_str(String *str)
 void Item_func_conv_charset::fix_length_and_dec()
 {
   collation.set(conv_charset, DERIVATION_IMPLICIT);
-  max_length = args[0]->max_length / args[0]->collation.collation->mbmaxlen *
-               conv_charset->mbmaxlen;
+  fix_char_length(args[0]->max_char_length());
 }
 
 void Item_func_conv_charset::print(String *str, enum_query_type query_type)
@@ -2870,7 +2902,7 @@ String *Item_func_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
 
-  CHARSET_INFO *cs= args[0]->collation.collation; 
+  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
   str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
@@ -2881,7 +2913,7 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
-  CHARSET_INFO *cs= args[0]->collation.collation; 
+  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
   str->copy(cs->name, (uint) strlen(cs->name),
@@ -2915,7 +2947,7 @@ String *Item_func_hex::val_str(String *str)
     if ((null_value= args[0]->null_value))
       return 0;
     ptr= longlong2str(dec,ans,16);
-    if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
+    if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
       return &my_empty_string;			// End of memory
     return str;
   }
@@ -3120,11 +3152,11 @@ void Item_func_export_set::fix_length_and_dec()
 {
   uint length=max(args[1]->max_length,args[2]->max_length);
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
-  max_length=length*64+sep_length*63;
 
-  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1,
-                       MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation,
+                                         args + 1, min(4, arg_count) - 1))
     return;
+  fix_char_length(length * 64 + sep_length * 63);
 }
 
 String* Item_func_inet_ntoa::val_str(String* str)
@@ -3143,6 +3175,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
     return 0;					// Null value
 
+  str->set_charset(collation.collation);
   str->length(0);
   int4store(buf,n);
 
@@ -3160,11 +3193,11 @@ String* Item_func_inet_ntoa::val_str(String* str)
     num[0]=(char) n1+'0';
     num[1]=(char) n2+'0';
     num[2]=(char) c+'0';
-    uint length=(n1 ? 4 : n2 ? 3 : 2);		// Remove pre-zero
-
-    (void) str->append(num+4-length,length);
+    uint length= (n1 ? 4 : n2 ? 3 : 2);         // Remove pre-zero
+    uint dot_length= (p <= buf) ? 1 : 0;
+    (void) str->append(num + 4 - length, length - dot_length,
+                       &my_charset_latin1);
   }
-  str->length(str->length()-1);			// Remove last '.';
   return str;
 }
 

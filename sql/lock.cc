@@ -251,6 +251,7 @@ static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock)
                  MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK Ignore a global read lock
                  MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY Ignore SET GLOBAL READ_ONLY
                  MYSQL_LOCK_IGNORE_FLUSH            Ignore a flush tables.
+                 MYSQL_LOCK_IGNORE_TIMEOUT          Use maximum timeout value.
    @param need_reopen  Out parameter, TRUE if some tables were altered
                        or deleted and should be reopened by caller.
 
@@ -276,6 +277,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
 
   if (mysql_lock_tables_check(thd, tables, count, flags))
     DBUG_RETURN (NULL);
+
+  ulong timeout= (flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
+    LONG_TIMEOUT : thd->variables.lock_wait_timeout;
 
   for (;;)
   {
@@ -336,8 +340,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                      sql_lock->lock_count,
                                                      sql_lock->lock_count,
-                                                     thd->lock_id,
-                                                     thd->variables.lock_wait_timeout)];
+                                                     thd->lock_id, timeout)];
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
       if (sql_lock->table_count)
