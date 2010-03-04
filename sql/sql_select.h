@@ -242,6 +242,7 @@ typedef struct st_join_table {
   uint		used_fields,used_fieldlength,used_blobs;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
+  /* TRUE <=> index-based access method must return records in order */
   bool		sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
@@ -408,7 +409,13 @@ public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
-  TABLE    **table,**all_tables,*sort_by_table;
+  TABLE    **table,**all_tables;
+  /*
+    The table which has an index that allows to produce the requried ordering.
+    A special value of 0x1 means that the ordering will be produced by
+    passing 1st non-const table to filesort(). NULL means no such table exists.
+  */
+  TABLE    *sort_by_table;
   uint	   tables;        /* Number of tables in the join */
   uint     outer_tables;  /* Number of tables that are not inside semijoin */
   uint     const_tables;
