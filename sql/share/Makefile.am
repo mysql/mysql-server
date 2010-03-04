@@ -23,7 +23,7 @@ dist-hook:
 	  test -d $(distdir)/$$dir || mkdir $(distdir)/$$dir; \
 	  $(INSTALL_DATA) $(srcdir)/$$dir/*.* $(distdir)/$$dir; \
 	done; \
-	sleep 1 ; touch $(srcdir)/*/errmsg.sys
+	sleep 1 ; touch $(builddir)/*/errmsg.sys
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/Index.xml $(distdir)/charsets
 
@@ -40,12 +40,12 @@ install-data-local:
 	for lang in @AVAILABLE_LANGUAGES@; \
 	do \
 		$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/$$lang; \
-		$(INSTALL_DATA) $(srcdir)/$$lang/errmsg.sys \
+		$(INSTALL_DATA) $(builddir)/$$lang/errmsg.sys \
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
-	$(INSTALL_DATA) $(srcdir)/errmsg-utf8.txt \
-	$(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
+	$(INSTALL_DATA) $(builddir)/errmsg-utf8.txt \
+        $(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
@@ -54,7 +54,7 @@ uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(pkgdatadir)
 
 distclean-local:
-	@RM@ -f */errmsg.sys
+	@RM@ -f $(builddir)/*/errmsg.sys
 
 # Do nothing
 link_sources:
