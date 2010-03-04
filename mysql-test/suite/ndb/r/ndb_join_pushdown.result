@@ -1150,6 +1150,11 @@ primary key(a3, b3)) engine = ndb;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
+create table t3_hash (a3 int, b3 int, c3 int not null, d3 int not null,
+primary key(a3, b3) using hash) engine = ndb;
+insert into t3_hash values (0x1f, 0x2f, 1, 0x1f);
+insert into t3_hash values (0x2f, 0x3f, 2, 0x2f);
+insert into t3_hash values (0x3f, 0x1f, 3, 0x3f);
 explain
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1201,6 +1206,7 @@ select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 a	b	a	b
 63	31	31	47
 create unique index t3_d3 on t3(d3);
+create unique index t3_d3 on t3_hash(d3);
 commit;
 explain
 select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
@@ -1242,6 +1248,19 @@ a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31
 47	63	2	47	47	63	2	47
 explain
+select * from t3_hash x, t3_hash y
+where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
+and  (y.a3=x.d3 and y.b3=x.b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	index_merge	PRIMARY,t3_d3	PRIMARY,t3_d3	8,4	NULL	2	Using sort_union(PRIMARY,t3_d3); Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,test.x.b3	1	
+select * from t3_hash x, t3_hash y
+where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
+and  (y.a3=x.d3 and y.b3=x.b3);
+a3	b3	c3	d3	a3	b3	c3	d3
+31	47	1	31	31	47	1	31
+47	63	2	47	47	63	2	47
+explain
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	1	Parent of 2 pushed join@1; Using where with pushed condition
@@ -1258,7 +1277,7 @@ a	b	a	b
 47	63	63	31
 63	31	31	47
 79	NULL	NULL	NULL
-drop table t1,t2,t3;
+drop table t1,t2,t3, t3_hash;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(a3), unique key(d3)) engine = ndb;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
