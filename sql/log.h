@@ -629,6 +629,16 @@ public:
   }
 };
 
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+extern TYPELIB binlog_row_image_typelib;
+
 enum enum_binlog_format {
   /*
     statement-based except for cases where only row-based can work (UUID()

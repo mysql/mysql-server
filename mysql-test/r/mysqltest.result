@@ -553,6 +553,8 @@ hello
 mysqltest: At line 1: Max delimiter length(16) exceeded
 hello
 hello
+val is 5
+val is 5
 mysqltest: At line 1: test of die
 Some output
 create table t1( a int, b char(255), c timestamp);

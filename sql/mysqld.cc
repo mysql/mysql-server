@@ -509,6 +509,14 @@ TYPELIB binlog_format_typelib=
     binlog_format_names, NULL };
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
+
+const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
+TYPELIB binlog_row_image_typelib=
+  { array_elements(binlog_row_image_names) - 1, "",
+    binlog_row_image_names, NULL };
+ulong opt_binlog_row_image_id= (ulong) BINLOG_ROW_IMAGE_FULL;
+const char *opt_binlog_row_image_arg=
+  binlog_row_image_names[BINLOG_ROW_IMAGE_MINIMAL];
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
@@ -5738,7 +5746,8 @@ enum options_mysqld
   OPT_SYNC_RELAY_LOG_INFO,
   OPT_SYNC_MASTER_INFO,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_BINLOG_ROW_IMAGE
 };
 
 
@@ -7074,6 +7083,18 @@ The minimum value for this variable is 4096.",
    "Causes updates to non-transactional engines using statement format to be written directly to binary log. Before using this option make sure that there are no dependencies between transactional and non-transactional tables such as in the statement INSERT INTO t_myisam SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
    (uchar**) &global_system_variables.binlog_direct_non_trans_update, (uchar**) &max_system_variables.binlog_direct_non_trans_update, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
+  {"binlog-row-image", OPT_BINLOG_ROW_IMAGE,
+    "Controls whether rows should be logged in 'FULL', 'NOBLOB' or "
+    "'MINIMAL' formats. 'FULL', means that all columns in the before "
+    "and after image are logged. 'NOBLOB', means that mysqld avoids logging "
+    "blob columns whenever possible (eg, blob column was not changed or "
+    "is not part of primary key). 'MINIMAL', means that a PK equivalent (PK "
+    "columns or full row if there is no PK in the table) is logged in the "
+    "before image, and only changed columns are logged in the after image. "
+    "(Default: FULL).",
+    (uchar **) &opt_binlog_row_image_arg,
+    (uchar **) &opt_binlog_row_image_arg,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7819,6 +7840,8 @@ static int mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+  global_system_variables.binlog_row_image= BINLOG_ROW_IMAGE_FULL;
+
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -8115,6 +8138,13 @@ mysqld_get_one_option(int optid,
     int id;
     id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
+    break;
+  }
+  case OPT_BINLOG_ROW_IMAGE:
+  {
+    int id;
+    id= find_type_or_exit(argument, &binlog_row_image_typelib, opt->name);
+    global_system_variables.binlog_row_image= opt_binlog_row_image_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:

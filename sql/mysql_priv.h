@@ -1874,6 +1874,7 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
+extern ulong opt_binlog_row_image_id;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
 #endif /* MYSQL_SERVER */
@@ -1998,6 +1999,7 @@ extern TYPELIB thread_handling_typelib;
 extern uint8 uc_update_queries[SQLCOM_END+1];
 extern uint sql_command_flags[];
 extern TYPELIB log_output_typelib;
+extern TYPELIB binlog_row_image_typelib;
 
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_community_features;
