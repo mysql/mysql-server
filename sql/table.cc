@@ -3365,7 +3365,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
-  if (thd->get_internal_handler())
+  if (thd->killed || thd->get_internal_handler())
     return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
@@ -4374,7 +4374,7 @@ void st_table::mark_columns_used_by_index(uint index)
   MY_BITMAP *bitmap= &tmp_set;
   DBUG_ENTER("st_table::mark_columns_used_by_index");
 
-  (void) file->extra(HA_EXTRA_KEYREAD);
+  set_keyread(TRUE);
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
@@ -4397,8 +4397,7 @@ void st_table::restore_column_maps_after_mark_index()
 {
   DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
 
-  key_read= 0;
-  (void) file->extra(HA_EXTRA_NO_KEYREAD);
+  set_keyread(FALSE);
   default_column_bitmaps();
   file->column_bitmaps_signal();
   DBUG_VOID_RETURN;

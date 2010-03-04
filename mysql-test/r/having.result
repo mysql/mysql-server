@@ -430,4 +430,24 @@ SELECT b, COUNT(DISTINCT a) FROM t1 GROUP BY b HAVING b is NULL;
 b	COUNT(DISTINCT a)
 NULL	1
 DROP TABLE t1;
+#
+# Bug#50995 Having clause on subquery result produces incorrect results.
+#
+CREATE TABLE t1
+(
+id1 INT,
+id2 INT NOT NULL,
+INDEX id1(id2)
+);
+INSERT INTO t1 SET id1=1, id2=1;
+INSERT INTO t1 SET id1=2, id2=1;
+INSERT INTO t1 SET id1=3, id2=1;
+SELECT t1.id1,
+(SELECT 0 FROM DUAL
+WHERE t1.id1=t1.id1) AS amount FROM t1
+WHERE t1.id2 = 1
+HAVING amount > 0
+ORDER BY t1.id1;
+id1	amount
+DROP TABLE t1;
 End of 5.0 tests

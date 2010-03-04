@@ -53,7 +53,7 @@ enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 static struct my_option my_long_options[] =
 {
   {"all-databases", 'A',
-   "Check all the databases. This will be same as  --databases with all databases selected.",
+   "Check all the databases. This is the same as --databases with all databases selected.",
    (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"analyze", 'a', "Analyze given tables.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -63,7 +63,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_all_in_1, (uchar**) &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
 #ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"auto-repair", OPT_AUTO_REPAIR,
@@ -71,7 +71,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_auto_repair, (uchar**) &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (uchar**) &charsets_dir,
+   "Directory for character set files.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -85,7 +85,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"databases", 'B',
-   "To check several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames.",
+   "Check several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names.",
    (uchar**) &opt_databases, (uchar**) &opt_databases, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
@@ -113,7 +113,7 @@ static struct my_option my_long_options[] =
   {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
     (uchar**) &opt_fix_table_names, (uchar**) &opt_fix_table_names,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"force", 'f', "Continue even if we get an sql-error.",
+  {"force", 'f', "Continue even if we get an SQL error.",
    (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"extended", 'e',
@@ -134,7 +134,7 @@ static struct my_option my_long_options[] =
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
-   "Password to use when connecting to server. If password is not given it's solicited on the tty.",
+   "Password to use when connecting to server. If password is not given, it's solicited on the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
@@ -149,7 +149,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_mysql_port,
    (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
@@ -165,7 +165,7 @@ static struct my_option my_long_options[] =
 #endif
   {"silent", 's', "Print only error messages.", (uchar**) &opt_silent,
    (uchar**) &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "The socket file to use for connection.",
    (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -221,14 +221,14 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team\n");
+  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
-  puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
+  puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
   puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options -c,-r,-a and -o are exclusive to each other, which");
+  puts("above. The options -c, -r, -a, and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
   puts("The option -c will be used by default, if none was specified. You");
   puts("can change the default behavior by making a symbolic link, or");

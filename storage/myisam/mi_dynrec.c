@@ -933,8 +933,16 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
   }
 
   if (block_info.next_filepos != HA_OFFSET_ERROR)
+  {
+    /*
+      delete_dynamic_record() may change data file position.
+      IO cache must be notified as it may still have cached
+      data, which has to be flushed later.
+    */
+    info->rec_cache.seek_not_done= 1;
     if (delete_dynamic_record(info,block_info.next_filepos,1))
       goto err;
+  }
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);

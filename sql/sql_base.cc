@@ -2169,6 +2169,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
 
@@ -4591,7 +4592,20 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         safe_to_ignore_table= prelock_handler.safely_trapped_errors();
       }
       else
+      {
         tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+
+        /*
+          Skip further processing if there has been a fatal error while
+          trying to open a table. For example, this might happen due to
+          stack shortage, unknown definer in views, etc.
+        */
+        if (!tables->table && thd->is_error())
+        {
+          result= -1;
+          goto err;
+        }
+      }
     }
     else
       DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",

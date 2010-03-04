@@ -785,4 +785,19 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+#
+# Bug#50591 bit(31) causes Duplicate entry '1-NULL' for key 'group_key'
+#
+CREATE TABLE t1(a INT, b BIT(7) NOT NULL);
+INSERT INTO t1 VALUES (NULL, 0),(NULL, 0);
+SELECT SUM(a) FROM t1 GROUP BY b, a;
+SUM(a)
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(a INT, b BIT(7) NOT NULL, c BIT(8) NOT NULL);
+INSERT INTO t1 VALUES (NULL, 0, 0),(NULL, 0, 0);
+SELECT SUM(a) FROM t1 GROUP BY c, b, a;
+SUM(a)
+NULL
+DROP TABLE t1;
 End of 5.1 tests
