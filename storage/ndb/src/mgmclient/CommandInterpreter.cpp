@@ -167,11 +167,6 @@ private:
   NdbMutex *m_print_mutex;
 };
 
-struct event_thread_param {
-  NdbMgmHandle *m;
-  NdbMutex **p;
-};
-
 NdbMutex* print_mutex;
 
 /*
@@ -860,6 +855,11 @@ printLogEvent(struct ndb_logevent* event)
 
 //*****************************************************************************
 //*****************************************************************************
+
+struct event_thread_param {
+  NdbMgmHandle *m;
+  NdbMutex **p;
+};
 
 static int do_event_thread;
 static void*
