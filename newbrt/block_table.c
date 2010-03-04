@@ -322,11 +322,6 @@ calculate_size_on_disk (struct translation *t) {
     return r;
 }
 
-static void
-translation_update_size_on_disk (struct translation *t) {
-    t->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size = calculate_size_on_disk(t);
-}
-
 // We cannot free the disk space allocated to this blocknum if it is still in use by the given translation table.
 static inline BOOL
 translation_prevents_freeing(struct translation *t, BLOCKNUM b, struct block_translation_pair *old_pair) {
@@ -480,7 +475,6 @@ toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header
         maybe_expand_translation(t); //Ensure a never used blocknums is available
         result = t->smallest_never_used_blocknum;
         t->smallest_never_used_blocknum.b++;
-        translation_update_size_on_disk(t);
     } else {  // reuse a previously used blocknum
         result = t->blocknum_freelist_head;
         BLOCKNUM next = t->block_translation[result.b].u.next_free_blocknum;
@@ -832,4 +826,54 @@ toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size) 
     unlock_for_blocktable(bt);
 }
 
+void
+toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATION report) {
+    //Requires:  blocktable lock is held.
+    //Requires:  report->file_size_bytes is already filled in.
+    
+    //Count the headers.
+    report->data_bytes                   = BLOCK_ALLOCATOR_HEADER_RESERVE;
+    report->data_blocks                  = 1;
+    report->checkpoint_bytes_additional  = BLOCK_ALLOCATOR_HEADER_RESERVE;
+    report->checkpoint_blocks_additional = 1;
+
+    struct translation *current = &bt->current;
+    int64_t i;
+    for (i = 0; i < current->length_of_array; i++) {
+        struct block_translation_pair *pair = &current->block_translation[i];
+        if (pair->size > 0) {
+            report->data_bytes += pair->size;
+            report->data_blocks++;
+        }
+    }
+    struct translation *checkpointed = &bt->checkpointed;
+    for (i = 0; i < checkpointed->length_of_array; i++) {
+        struct block_translation_pair *pair = &checkpointed->block_translation[i];
+        if (pair->size > 0 &&
+            !(i < current->length_of_array &&
+                current->block_translation[i].size > 0 &&
+                current->block_translation[i].u.diskoff == pair->u.diskoff)
+           ) {
+                report->checkpoint_bytes_additional += pair->size;
+                report->checkpoint_blocks_additional++;
+        }
+    }
+    struct translation *inprogress = &bt->inprogress;
+    for (i = 0; i < inprogress->length_of_array; i++) {
+        struct block_translation_pair *pair = &inprogress->block_translation[i];
+        if (pair->size > 0 &&
+            !(i < current->length_of_array &&
+                current->block_translation[i].size > 0 &&
+                current->block_translation[i].u.diskoff == pair->u.diskoff) &&
+            !(i < checkpointed->length_of_array &&
+                checkpointed->block_translation[i].size > 0 &&
+                checkpointed->block_translation[i].u.diskoff == pair->u.diskoff)
+           ) {
+                report->checkpoint_bytes_additional += pair->size;
+                report->checkpoint_blocks_additional++;
+        }
+    }
+
+    block_allocator_get_unused_statistics(bt->block_allocator, report);
+}
 

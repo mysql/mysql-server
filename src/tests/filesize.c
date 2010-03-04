@@ -25,6 +25,27 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_PRIVATE;
 
 int ninsert, nread, nread_notfound, nread_failed, ndelete, ndelete_notfound, ndelete_failed;
 
+static TOKU_DB_FRAGMENTATION_S report;
+
+static void
+check_fragmentation(void) {
+    int r = db->get_fragmentation(db, &report);
+    CKERR(r);
+}
+
+static void
+print_fragmentation(void) {
+    printf("Fragmentation:\n");
+    printf("\tTotal file size in bytes (file_size_bytes): %"PRIu64"\n", report.file_size_bytes);
+    printf("\tCompressed User Data in bytes (data_bytes): %"PRIu64"\n", report.data_bytes);
+    printf("\tNumber of blocks of compressed User Data (data_blocks): %"PRIu64"\n", report.data_blocks);
+    printf("\tAdditional bytes used for checkpoint system (checkpoint_bytes_additional): %"PRIu64"\n", report.checkpoint_bytes_additional);
+    printf("\tAdditional blocks used for checkpoint system  (checkpoint_blocks_additional): %"PRIu64"\n", report.checkpoint_blocks_additional);
+    printf("\tUnused space in file (unused_bytes): %"PRIu64"\n", report.unused_bytes);
+    printf("\tNumber of contiguous regions of unused space (unused_blocks): %"PRIu64"\n", report.unused_blocks);
+    printf("\tSize of largest contiguous unused space (largest_unused_block): %"PRIu64"\n", report.largest_unused_block);
+}
+
 static void
 close_em (void)
 {
@@ -147,6 +168,9 @@ getsizeM(void) {
     int r = toku_stat(path, &buf);
     CKERR(r);    
     int sizeM = (int)buf.st_size >> 20;
+    check_fragmentation();
+    if (verbose>1)
+        print_fragmentation();
     return sizeM;
 }
 
@@ -205,7 +229,11 @@ int test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__(
     setup();
     if (verbose) print_engine_status(env);
     test_filesize();
-    if (verbose) print_engine_status(env);
+    if (verbose) {
+        print_engine_status(env);
+    }
+    check_fragmentation();
+    if (verbose) print_fragmentation();
     close_em();
     return 0;
 }

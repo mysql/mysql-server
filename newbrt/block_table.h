@@ -61,8 +61,9 @@ enum translation_type {TRANSLATION_NONE=0,
 int toku_blocktable_iterate(BLOCK_TABLE bt, enum translation_type type, BLOCKTABLE_CALLBACK f, void *extra, BOOL data_only, BOOL used_only); 
 void toku_blocktable_internal_fragmentation(BLOCK_TABLE bt, int64_t *total_sizep, int64_t *used_sizep);
 
-//ROOT FIFO (To delete)
-u_int64_t toku_block_allocator_allocated_limit(BLOCK_TABLE bt);
+void toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATION report);
+//Requires:  blocktable lock is held.
+//Requires:  report->file_size_bytes is already filled in.
 
 #endif
 

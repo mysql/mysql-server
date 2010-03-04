@@ -5338,3 +5338,22 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_d
     return r;
 }
 
+int
+toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
+    int r;
+
+    toku_brtheader_lock(brt->h);
+
+    int64_t file_size;
+    if (toku_cachefile_is_dev_null(brt->cf))
+        r = EINVAL;
+    else
+        r = toku_os_get_file_size(toku_cachefile_fd(brt->cf), &file_size);
+    if (r==0) {
+        report->file_size_bytes = file_size;
+        toku_block_table_get_fragmentation_unlocked(brt->h->blocktable, report);
+    }
+    toku_brtheader_unlock(brt->h);
+    return r;
+}
+

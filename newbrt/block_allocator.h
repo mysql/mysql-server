@@ -116,4 +116,10 @@ block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, u_int64_t b, 
 // Return 0 if there is a block that big, return nonzero if b is too big.
 // This is probably only useful for tests.
 
+void
+block_allocator_get_unused_statistics(BLOCK_ALLOCATOR ba, TOKU_DB_FRAGMENTATION report);
+//Requires: report->file_size_bytes is filled in
+//Requires: report->data_bytes is filled in
+//Requires: report->checkpoint_bytes_additional is filled in
+
 #endif
