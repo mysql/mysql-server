@@ -644,6 +644,13 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
                         " -> not pushable"));
     DBUG_RETURN(0);
   }
+  if (access_type == AQP::AT_MULTI_PRIMARY_KEY ||
+      access_type == AQP::AT_MULTI_UNIQUE_KEY)
+  {
+    DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_MULTI_KEY"
+                        " -> not (yet) pushable"));
+    DBUG_RETURN(0);
+  }
   if (uses_blob_value(table->read_set))
   {
     DBUG_PRINT("info", ("'read_set' contain BLOB columns -> not pushable"));
@@ -719,9 +726,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
     if (push_cnt == 0)
     {
       if (access_type == AQP::AT_PRIMARY_KEY ||
-          access_type == AQP::AT_UNIQUE_KEY  ||
-          access_type == AQP::AT_MULTI_PRIMARY_KEY  ||
-          access_type == AQP::AT_MULTI_UNIQUE_KEY)
+          access_type == AQP::AT_UNIQUE_KEY)
       {
         const KEY *key= &table->key_info[join_root->get_index_no()];
         const NdbQueryOperand* root_key[ha_pushed_join::MAX_KEY_PART+1]= {NULL};
@@ -739,7 +744,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
         root_key[key->key_parts]= NULL;
 
         // Primary key access assumed
-        if (access_type == AQP::AT_PRIMARY_KEY || access_type == AQP::AT_MULTI_PRIMARY_KEY)
+        if (access_type == AQP::AT_PRIMARY_KEY)
         {
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
@@ -3170,6 +3175,17 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
 
 
 /**
+ * Check if this table access operation is part if a pushed join operation
+ * which is actively executing.
+ */
+bool 
+ha_ndbcluster::check_is_pushed() const
+{
+  return (m_pushed_join_member && m_pushed_join_member->m_active_query);
+}
+
+
+/**
   Read one record from NDB using primary key.
 */
 
@@ -3788,8 +3804,7 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
 
   // Handler might have decided to not execute the pushed joins which has been prepared
   // In this case we do an unpushed index_read based on 'Plain old' NdbOperations
-  if (unlikely(!(m_pushed_join_member &&
-                 m_pushed_join_member->is_executing_pushed_join())))
+  if (unlikely(!check_is_pushed()))
   {
     DBUG_RETURN(index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT));
   }
@@ -6068,7 +6083,10 @@ int ha_ndbcluster::index_init(uint index, bool sorted)
 int ha_ndbcluster::index_end()
 {
   DBUG_ENTER("ha_ndbcluster::index_end");
-  DBUG_RETURN(close_scan());
+  if (m_active_query)
+    DBUG_RETURN(0); // Pushed join may have unread child results
+  else
+    DBUG_RETURN(close_scan());
 }
 
 /**
@@ -6347,7 +6365,10 @@ int ha_ndbcluster::close_scan()
 int ha_ndbcluster::rnd_end()
 {
   DBUG_ENTER("rnd_end");
-  DBUG_RETURN(close_scan());
+  if (m_active_query)
+    DBUG_RETURN(0); // Pushed join may have unread child results
+  else
+    DBUG_RETURN(close_scan());
 }
 
 
@@ -12425,15 +12446,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
 
   /**
-   * blobs and unique hash index with NULL can't be batched currently.
-   * Neither are pushed lookup joins batchable.
+   * blobs and unique hash index with NULL can't be batched currently
    */
   if (uses_blob_value(table->read_set) ||
       (cur_index_type ==  UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
        null_value_index_search(ranges, ranges+range_count, buffer))
-      || (m_pushed_join && !m_disable_pushed_join &&
-         !m_pushed_join->get_query_def().isScanQuery())
       || m_delete_cannot_batch || m_update_cannot_batch)
   {
     DBUG_PRINT("info", ("read_multi_range not possible, falling back to default handler implementation"));
@@ -12480,7 +12498,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
 
-  DBUG_ASSERT(m_active_query == NULL);
+  DBUG_ASSERT(m_active_query == NULL);;
   m_active_query= 0;
   m_multi_cursor= 0;
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
@@ -12492,8 +12510,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   uint i;
   int error;
   bool any_real_read= FALSE;
-  bool pushable_scan= m_pushed_join && !m_disable_pushed_join &&
-                      m_pushed_join->get_query_def().isScanQuery();
 
   if (m_read_before_write_removal_possible)
     check_read_before_write_removal();
@@ -12530,7 +12546,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     r->range_flag&= ~(uint)SKIP_RANGE;
 
-    if (pushable_scan || read_multi_needs_scan(cur_index_type, key_info, r))
+    if ((m_pushed_join && m_pushed_join->get_query_def().isScanQuery()) ||    // Pushed joins currently restricted to ordered range scan i mrr
+        read_multi_needs_scan(cur_index_type, key_info, r))
     {
       if (!trans)
       {
@@ -12567,7 +12584,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       /* Create the scan operation for the first scan range. */
-      if (pushable_scan)
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
       {
         if (!m_active_query)
         {
@@ -12632,7 +12649,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             handler->_m_next_row= 0;
           }
         }
-      } // if (pushable_scan)
+      } // check_if_pushable_parent()
 
       else if (!m_multi_cursor)
       {
@@ -12786,7 +12803,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !m_pushed_join->get_query_def().isScanQuery())
       {
         DBUG_ASSERT(false);  // Incomplete code, should not be executed
-                             // Currently executed by calling handler::read_multi_range_first()
         const NdbQuery* query;
         if (!(query= pk_unique_index_read_key_pushed(active_index,
                                            r->start_key.key,
@@ -12795,6 +12811,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
       else
       {
+        if (m_pushed_join)
+        {
+          DBUG_PRINT("info", ("Cannot push join due to incomplete implementation."));
+        }
         const NdbOperation* op;
         if (!(op= pk_unique_index_read_key(active_index,
                                            r->start_key.key,
