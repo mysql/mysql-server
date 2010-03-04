@@ -2420,7 +2420,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
       return -1;
     }
     assert(num_params < (int)max_params);
-    params[num_params] = strtoll(arg, NULL, 0);
+    params[num_params] = (int)strtoll(arg, NULL, 0);
     num_params++;
   }
 
