@@ -404,10 +404,16 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
 
 int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 {
-  my_off_t root;
+  my_off_t root= info->s->state.key_root[keynr];
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if (!info->buff_used)
+  if (root == HA_OFFSET_ERROR)
+  {
+    my_errno= HA_ERR_END_OF_FILE;
+    return -1;
+  }
+  
+  if (!info->buff_used && !info->page_changed)
   {
     uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
@@ -428,16 +434,8 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 
     return 0;
   }
-  else
-  {
-    if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-    {
-      my_errno= HA_ERR_END_OF_FILE;
-      return -1;
-    }
-  
-    return rtree_get_req(info, keyinfo, key_length, root, 0);
-  }
+
+  return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
 
