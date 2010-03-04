@@ -5053,6 +5053,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
