@@ -1590,6 +1590,32 @@ public:
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
+
+#ifndef DBUG_OFF
+  void dbug_print()
+  {
+    fprintf(DBUG_FILE, "<field ");
+    if (field)
+    {
+      fprintf(DBUG_FILE, "'%s.%s': ", field->table->alias, field->field_name);
+      field->dbug_print();
+    }
+    else
+      fprintf(DBUG_FILE, "NULL");
+
+    fprintf(DBUG_FILE, ", result_field: ");
+    if (result_field)
+    {
+      fprintf(DBUG_FILE, "'%s.%s': ",
+              result_field->table->alias, result_field->field_name);
+      result_field->dbug_print();
+    }
+    else
+      fprintf(DBUG_FILE, "NULL");
+    fprintf(DBUG_FILE, ">\n");
+  }
+#endif
+
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -2832,9 +2858,24 @@ class Cached_item_field :public Cached_item
   uint length;
 
 public:
-  Cached_item_field(Item_field *item)
+#ifndef DBUG_OFF
+  void dbug_print()
   {
-    field= item->field;
+    uchar *org_ptr;
+    org_ptr= field->ptr;
+    fprintf(DBUG_FILE, "new: ");
+    field->dbug_print();
+    field->ptr= buff;
+    fprintf(DBUG_FILE, ", old: ");
+    field->dbug_print();
+    field->ptr= org_ptr;
+    fprintf(DBUG_FILE, "\n");
+  }
+#endif
+  Cached_item_field(Field *arg_field) : field(arg_field)
+  {
+    field= arg_field;
+    /* TODO: take the memory allocation below out of the constructor. */
     buff= (uchar*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
@@ -3298,7 +3339,8 @@ void mark_select_range_as_dependent(THD *thd,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
-extern Cached_item *new_Cached_item(THD *thd, Item *item);
+extern Cached_item *new_Cached_item(THD *thd, Item *item,
+                                    bool use_result_field);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);

@@ -33,8 +33,8 @@ set @@optimizer_switch="semijoin=off";
 ******************************************************************************/
 
 # test re-optimization/re-execution with different execution methods
-# see thest from sp.test BUG#21493
-set @@optimizer_switch="materialization=off";
+# prepare once, exec with different modes
+
 # run query
 set @@optimizer_switch="semijoin=off";
 # run query
@@ -43,7 +43,86 @@ set @@optimizer_switch="semijoin=off";
 # GROUP BY a1,a2 ORDER BY a2
 
 # materialize the result of subquery over temp-table view
+
  
+/******************************************************************************
+* Test the cache of the left operand of IN.                                   *
+******************************************************************************/
+
+# Test that default values of Cached_item are not used for comparison
+drop table if exists t1, t2;
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (5),(1),(0);
+insert into t2 values (0), (1);
+select s2 from t2 where s2 in (select s1 from t1);
+
+drop table if exists t1, t2, t3;
+create table t1 (a int not null, b int not null);
+create table t2 (c int not null, d int not null);
+create table t3 (e int not null);
+
+# the first outer row has no matching inner row
+insert into t1 values (1,10);
+insert into t1 values (1,20);
+insert into t1 values (2,10);
+insert into t1 values (2,20);
+insert into t1 values (2,30);
+insert into t1 values (3,20);
+insert into t1 values (4,40);
+
+insert into t2 values (2,10);
+insert into t2 values (2,20);
+insert into t2 values (2,40);
+insert into t2 values (3,20);
+insert into t2 values (4,10);
+insert into t2 values (5,10);
+
+insert into t3 values (10);
+insert into t3 values (10);
+insert into t3 values (20);
+insert into t3 values (30);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+create index it1a on t1(a);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# the first outer row has a matching inner row
+insert into t2 values (1,10);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# cacheing for IN predicates inside a having clause - here the cached
+# items are changed to point to temporary tables.
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+# create an index that can be used for the outer query GROUP BY 
+create index iab on t1(a, b);
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+explain extended
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+explain extended
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+
 
 /******************************************************************************
 * Test NULL semantics.                                                        *
@@ -63,7 +142,7 @@ set @@optimizer_switch="semijoin=off";
 
 
 /******************************************************************************
-* Test column types/sizes that affect materialization.                        *
+* Column types/sizes that affect materialization.                             *
 ******************************************************************************/
 
 /*

@@ -275,6 +275,7 @@ protected:
     runtime memory root, for each execution, thus need not be freed.
   */
   List<Cached_item> *left_expr_cache;
+  bool first_execution;
 
   /*
     expr & optimizer used in subselect rewriting to store Item for
@@ -323,9 +324,9 @@ public:
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), left_expr_cache(0), optimizer(0),
-    abort_on_null(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
-    upper_item(0)
+    :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+    optimizer(0), abort_on_null(0), pushed_cond_guards(NULL),
+    exec_method(NOT_TRANSFORMED), upper_item(0)
   {}
   void cleanup();
   subs_type substype() { return IN_SUBS; }
@@ -342,6 +343,7 @@ public:
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(JOIN * join);
+  virtual bool exec();
   longlong val_int();
   double val_real();
   String *val_str(String*);
@@ -355,7 +357,6 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   bool setup_engine();
   bool init_left_expr_cache();
-  bool test_if_left_expr_changed();
   bool is_expensive_processor(uchar *arg);
 
   friend class Item_ref_null_helper;
@@ -660,14 +661,16 @@ protected:
     QEP to execute the subquery and materialize its result into a
     temporary table. Created during the first call to exec().
   */
-  JOIN                           *materialize_join;
+  JOIN *materialize_join;
+  /* Temp table context of the outer select's JOIN. */
+  TMP_TABLE_PARAM *tmp_param;
 
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                                subselect_single_select_engine *old_engine)
     :subselect_uniquesubquery_engine(thd, NULL, in_predicate, NULL),
     is_materialized(FALSE), materialize_engine(old_engine),
-    materialize_join(NULL)
+    materialize_join(NULL), tmp_param(NULL)
   {}
   ~subselect_hash_sj_engine();
 

@@ -314,6 +314,10 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
+enum_nested_loop_state end_send_group(JOIN *join, JOIN_TAB *join_tab,
+                                      bool end_of_records);
+enum_nested_loop_state end_write_group(JOIN *join, JOIN_TAB *join_tab,
+                                       bool end_of_records);
 
 /**
   Information about a position of table within a join order. Used in join
@@ -920,4 +924,5 @@ inline bool optimizer_flag(THD *thd, uint flag)
   return (thd->variables.optimizer_switch & flag);
 }
 
+int test_if_item_cache_changed(List<Cached_item> &list);
 #endif /* SQL_SELECT_INCLUDED */
