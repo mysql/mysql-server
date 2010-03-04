@@ -405,16 +405,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   view= lex->unlink_first_table(&link_to_local);
 
-  if (mode != VIEW_CREATE_NEW)
+  if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
   {
-    if (mode == VIEW_ALTER &&
-        fill_defined_view_parts(thd, view))
-    {
-      res= TRUE;
-      goto err;
-    }
-    sp_cache_invalidate();
+    res= TRUE;
+    goto err;
   }
+
+  sp_cache_invalidate();
 
   if (!lex->definer)
   {

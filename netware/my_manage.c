@@ -201,8 +201,7 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port,ch
   add_arg(&al, "--silent");
 
 #ifdef NOT_USED
-  add_arg(&al, "-O");
-  add_arg(&al, "connect_timeout=10");
+  add_arg(&al, "--connect_timeout=10");
   add_arg(&al, "-w");
 #endif
 
@@ -301,8 +300,7 @@ int stop_server(char *bin_dir, char *user, char *password, int port,
 	add_arg(&al, "--port=%u", port);
 	add_arg(&al, "--user=%s", user);
 	add_arg(&al, "--password=%s", password);
-	add_arg(&al, "-O");
-	add_arg(&al, "shutdown_timeout=20");
+	add_arg(&al, "--shutdown_timeout=20");
 	add_arg(&al, "shutdown");
 
 	// spawn

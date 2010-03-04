@@ -20,5 +20,21 @@ sleep(2)
 SELECT count(*) > 0 FROM mysql.slow_log;
 count(*) > 0
 1
+'Bug#47905 stored procedures not logged correctly to slow query log'
+TRUNCATE mysql.slow_log;
+CREATE PROCEDURE p_test() 
+BEGIN
+select sleep(2);
+select 1;
+END//
+CALL p_test();
+sleep(2)
+0
+1
+1
+SELECT count(*) > 0 FROM mysql.slow_log;
+count(*) > 0
+1
+DROP PROCEDURE p_test;
 SET @@global.log_output = @global_log_output;
 SET @global.slow_query_log = @global_slow_query_log;

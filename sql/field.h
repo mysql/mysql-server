@@ -414,11 +414,14 @@ public:
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual CHARSET_INFO *charset_for_protocol(void) const
+  { return binary() ? &my_charset_bin : charset(); }
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset_arg) { }
   virtual enum Derivation derivation(void) const
   { return DERIVATION_IMPLICIT; }
+  virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
@@ -599,6 +602,9 @@ public:
 	    const char *field_name_arg,
             uint8 dec_arg, bool zero_arg, bool unsigned_arg);
   Item_result result_type () const { return REAL_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
   friend class Create_field;
@@ -1169,6 +1175,10 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
@@ -1261,14 +1271,18 @@ public:
 	     CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATE_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_date(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1305,15 +1319,19 @@ public:
 		CHARSET_INFO *cs)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_newdate(bool maybe_null_arg, const char *field_name_arg,
                 CHARSET_INFO *cs)
     :Field_str((uchar*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
-               NONE, field_name_arg, cs) {}
+               NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum_field_types real_type() const { return MYSQL_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
@@ -1341,14 +1359,18 @@ public:
 	     CHARSET_INFO *cs)
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_time(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
     :Field_str((uchar*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
@@ -1376,16 +1398,20 @@ public:
 		 CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
