@@ -144,4 +144,94 @@ from t0 where a in
 
 drop table t0, t1,t2,t3;
 
+#
+# Bug #27348: Assertion abort for a query with two subqueries to be flattened  
+#  
 
+CREATE TABLE t1 (
+  ID int(11) NOT NULL auto_increment,
+  Name char(35) NOT NULL default '',
+  Country char(3) NOT NULL default '',
+  Population int(11) NOT NULL default '0',
+  PRIMARY KEY  (ID),
+  INDEX (Population),
+  INDEX (Country) 
+);
+CREATE TABLE t2 (
+  Code char(3) NOT NULL default '',
+  Name char(52) NOT NULL default '',
+  SurfaceArea float(10,2) NOT NULL default '0.00',
+  Population int(11) NOT NULL default '0',
+  Capital int(11) default NULL,
+  PRIMARY KEY  (Code),
+  UNIQUE INDEX (Name),
+  INDEX (Population)
+);
+CREATE TABLE t3 (
+  Country char(3) NOT NULL default '',
+  Language char(30) NOT NULL default '',
+  Percentage float(3,1) NOT NULL default '0.0',
+  PRIMARY KEY  (Country, Language),
+  INDEX (Percentage)
+);
+
+--disable_query_log
+INSERT INTO t1 VALUES
+(1,'Kabul','AFG',1780000),(2,'Qandahar','AFG',237500),
+(3,'Herat','AFG',186800),(4,'Mazar-e-Sharif','AFG',127800),
+(5,'Amsterdam','NLD',731200),(6,'Rotterdam','NLD',593321),
+(7,'Haag','NLD',440900),(8,'Utrecht','NLD',234323),
+(9,'Eindhoven','NLD',201843),(10,'Tilburg','NLD',193238),
+(11,'Groningen','NLD',172701),(12,'Breda','NLD',160398),
+(13,'Apeldoorn','NLD',153491),(14,'Nijmegen','NLD',152463),
+(15,'Enschede','NLD',149544),(16,'Haarlem','NLD',148772),
+(17,'Almere','NLD',142465),(18,'Arnhem','NLD',138020),
+(19,'Zaanstad','NLD',135621),(20,'´s-Hertogenbosch','NLD',129170),
+(21,'Amersfoort','NLD',126270),(22,'Maastricht','NLD',122087),
+(23,'Dordrecht','NLD',119811),(24,'Leiden','NLD',117196),
+(25,'Haarlemmermeer','NLD',110722),(26,'Zoetermeer','NLD',110214),
+(27,'Emmen','NLD',105853),(28,'Zwolle','NLD',105819),
+(29,'Ede','NLD',101574),(30,'Delft','NLD',95268);
+
+INSERT INTO t2 VALUES 
+('AFG','Afghanistan',652090.00,22720000,1),
+('NLD','Netherlands',41526.00,15864000,5),
+('ANT','Netherlands Antilles',800.00,217000,33),
+('ALB','Albania',28748.00,3401200,34),
+('DZA','Algeria',2381741.00,31471000,35),
+('ASM','American Samoa',199.00,68000,54),
+('AND','Andorra',468.00,78000,55),
+('AGO','Angola',1246700.00,12878000,56),
+('AIA','Anguilla',96.00,8000,62),
+('ATG','Antigua and Barbuda',442.00,68000,63),
+('ARE','United Arab Emirates',83600.00,2441000,65),
+('ARG','Argentina',2780400.00,37032000,69),
+('ARM','Armenia',29800.00,3520000,126),
+('ABW','Aruba',193.00,103000,129),
+('AUS','Australia',7741220.00,18886000,135),
+('AZE','Azerbaijan',86600.00,7734000,144);
+
+INSERT INTO t3 VALUES 
+('AFG','Pashto',52.4),('NLD','Dutch',95.6),
+('ANT','Papiamento',86.2),('ALB','Albaniana',97.9),
+('DZA','Arabic',86.0),('ASM','Samoan',90.6),
+('AND','Spanish',44.6),('AGO','Ovimbundu',37.2),
+('AIA','English',0.0),('ATG','Creole English',95.7),
+('ARE','Arabic',42.0),('ARG','Spanish',96.8),
+('ARM','Armenian',93.4),('ABW','Papiamento',76.7),
+('AUS','English',81.2),('AZE','Azerbaijani',89.0),
+('BHS','Creole English',89.7),('BHR','Arabic',67.7),
+('BGD','Bengali',97.7),('BRB','Bajan',95.1),
+('BEL','Dutch',59.2),('BLZ','English',50.8);
+--enable_query_log
+
+EXPLAIN
+SELECT Name FROM t2 
+  WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
+        AND
+        t2.Code IN (SELECT Country FROM t3 
+                           WHERE Language='English' AND Percentage > 10 AND
+                                 t2.Population > 100000);
+
+DROP TABLE t1,t2,t3;
+  

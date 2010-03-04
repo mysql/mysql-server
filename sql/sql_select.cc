@@ -3148,10 +3148,8 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   SELECT_LEX *parent_lex= parent_join->select_lex;
   TABLE_LIST *emb_tbl_nest= NULL;
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
-  Query_arena *arena, backup;
   THD *thd= parent_join->thd;
   DBUG_ENTER("convert_subq_to_sj");
-  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
     1. Find out where to put the predicate into.
@@ -3308,7 +3306,8 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* A theory: no need to re-connect the next_global chain */
 
   /* 3. Remove the original subquery predicate from the WHERE/ON */
-  *(subq_pred->ref_ptr)= new Item_int(1);
+
+  // The subqueries were replaced for Item_int(1) earlier
   subq_pred->exec_method= Item_in_subselect::SEMI_JOIN; // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
@@ -3434,8 +3433,6 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
       parent_lex->ftfunc_list->push_front(ifm);
   }
 
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(FALSE);
 }
 
@@ -3456,9 +3453,10 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
 bool JOIN::flatten_subqueries()
 {
-  DBUG_ENTER("JOIN::flatten_subqueries");
+  Query_arena *arena, backup;
   Item_in_subselect **in_subq;
   Item_in_subselect **in_subq_end;
+  DBUG_ENTER("JOIN::flatten_subqueries");
 
   if (sj_subselects.elements() == 0)
     DBUG_RETURN(FALSE);
@@ -3484,17 +3482,26 @@ bool JOIN::flatten_subqueries()
   */
   sj_subselects.sort(subq_sj_candidate_cmp);
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
-  bool do_converts= TRUE;
+  /* Replace all subqueries to be flattened for Item_int(1) */
+  arena= thd->activate_stmt_arena_if_needed(&backup);
   for (in_subq= sj_subselects.front(); 
        in_subq != in_subq_end && 
        tables + ((*in_subq)->sj_convert_priority % MAX_TABLES) < MAX_TABLES;
        in_subq++)
   {
-    if (!do_converts)
-      break;
+    *((*in_subq)->ref_ptr)= new Item_int(1);
+  }
+ 
+  for (in_subq= sj_subselects.front(); 
+       in_subq != in_subq_end && 
+       tables + ((*in_subq)->sj_convert_priority % MAX_TABLES) < MAX_TABLES;
+       in_subq++)
+  {
     if (convert_subq_to_sj(this, *in_subq))
       DBUG_RETURN(TRUE);
   }
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
 
   /* 3. Finalize those we didn't convert */
   for (; in_subq!= in_subq_end; in_subq++)
