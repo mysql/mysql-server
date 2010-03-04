@@ -529,7 +529,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode)
+  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -549,13 +549,26 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if (order)
   {
+    bool real_order= FALSE;
     ORDER *ord;
     for (ord= order; ord; ord= ord->next)
     {
       Item *item= *ord->item;
+      /*
+        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
+        there. Such fields don't contain any data to sort.
+      */
+      if (!real_order &&
+          (item->type() != Item::FIELD_ITEM ||
+           ((Item_field *) item)->field->maybe_null() ||
+           ((Item_field *) item)->field->sort_length()))
+        real_order= TRUE;
+
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
         item->split_sum_func(thd, ref_pointer_array, all_fields);
     }
+    if (!real_order)
+      order= NULL;
   }
 
   if (having && having->with_sum_func)
@@ -952,6 +965,7 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      const_tables= tables;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -1631,6 +1645,11 @@ JOIN::reinit()
 
   if (join_tab_save)
     memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+
+  /* need to reset ref access state (see join_read_key) */
+  if (join_tab)
+    for (uint i= 0; i < tables; i++)
+      join_tab[i].ref.key_err= TRUE;
 
   if (tmp_join)
     restore_tmp();
@@ -3718,20 +3737,20 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       cond_func=(Item_func_match *)cond;
     else if (func->arg_count == 2)
     {
-      Item_func *arg0=(Item_func *)(func->arguments()[0]),
-                *arg1=(Item_func *)(func->arguments()[1]);
-      if (arg1->const_item()  &&
-           arg0->type() == Item::FUNC_ITEM            &&
-           arg0->functype() == Item_func::FT_FUNC     &&
+      Item *arg0= func->arguments()[0],
+           *arg1= func->arguments()[1];
+      if (arg1->const_item() && arg1->cols() == 1 &&
+           arg0->type() == Item::FUNC_ITEM &&
+           ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
           ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func=(Item_func_match *) arg0;
-      else if (arg0->const_item() &&
-                arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC   &&
+           (functype == Item_func::GT_FUNC && arg1->val_real() >= 0)))
+        cond_func= (Item_func_match *) arg0;
+      else if (arg0->const_item() && arg0->cols() == 1 &&
+                arg1->type() == Item::FUNC_ITEM &&
+                ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
                ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func=(Item_func_match *) arg1;
+                (functype == Item_func::LT_FUNC && arg0->val_real() >= 0)))
+        cond_func= (Item_func_match *) arg1;
     }
   }
   else if (cond->type() == Item::COND_ITEM)
@@ -5946,6 +5965,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     {
       *e1= res;
       res->quick_fix_field();
+      res->update_used_tables();
     }
   }
   else
@@ -7154,6 +7174,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
     table_map depend_map;
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
+    order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
         && !order->item[0]->with_sum_func)
@@ -7211,7 +7232,19 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   for (order=first_order; order ; order=order->next)
   {
     table_map order_tables=order->item[0]->used_tables();
-    if (order->item[0]->with_sum_func)
+    if (order->item[0]->with_sum_func ||
+        /*
+          If the outer table of an outer join is const (either by itself or
+          after applying WHERE condition), grouping on a field from such a
+          table will be optimized away and filesort without temporary table
+          will be used unless we prevent that now. Filesort is not fit to
+          handle joins and the join condition is not applied. We can't detect
+          the case without an expensive test, however, so we force temporary
+          table for all queries containing more than one table, ROLLUP, and an
+          outer join.
+         */
+        (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
+        join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
@@ -7619,7 +7652,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item);
+        item_equal->add(const_item, field_item);
       }
       else
       {
@@ -13799,7 +13832,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->type != JT_NEXT && 
+    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
              tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
