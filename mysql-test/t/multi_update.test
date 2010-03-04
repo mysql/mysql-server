@@ -637,5 +637,17 @@ drop table t1, t2, t3;
 # Add further tests from here
 #
 
+--echo #
+--echo # Bug#49534: multitable IGNORE update with sql_safe_updates error
+--echo # causes debug assertion
+--echo #
+CREATE TABLE t1( a INT, KEY( a ) );
+INSERT INTO t1 VALUES (1), (2), (3);
+SET SESSION sql_safe_updates = 1;
+--echo # Must not cause failed assertion
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+UPDATE IGNORE t1, t1 t1a SET t1.a = 1 WHERE t1a.a = 1;
+DROP TABLE t1;
+
 
 --echo end of tests
