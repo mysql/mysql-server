@@ -133,7 +133,7 @@ public:
                     int *node_ids, int no_of_nodes);
 public:
   bool connect(bool interactive);
-  bool disconnect();
+  void disconnect(void);
 
   /**
    * A execute function definition
@@ -1003,8 +1003,8 @@ CommandInterpreter::connect(bool interactive)
   DBUG_RETURN(m_connected);
 }
 
-bool 
-CommandInterpreter::disconnect() 
+void
+CommandInterpreter::disconnect(void)
 {
   DBUG_ENTER("CommandInterpreter::disconnect");
 
@@ -1021,7 +1021,7 @@ CommandInterpreter::disconnect()
     ndb_mgm_destroy_handle(&m_mgmsrv);
     m_connected= false;
   }
-  DBUG_RETURN(true);
+  DBUG_VOID_RETURN;
 }
 
 //*****************************************************************************
