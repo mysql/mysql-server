@@ -1723,9 +1723,9 @@ srv_printf_innodb_monitor(
 		"Per second averages calculated from the last %lu seconds\n",
 		(ulong)time_elapsed);
 
-	fputs("----------\n"
-		"BACKGROUND THREAD\n"
-		"----------\n", file);
+	fputs("-----------------\n"
+	      "BACKGROUND THREAD\n"
+	      "-----------------\n", file);
 	srv_print_master_thread_info(file);
 
 	fputs("----------\n"
@@ -2530,7 +2530,10 @@ loop:
 						BUF_FLUSH_LIST,
 						n_flush,
 						IB_ULONGLONG_MAX);
-				skip_sleep = TRUE;
+
+				if (n_flush == PCT_IO(100)) {
+					skip_sleep = TRUE;
+				}
 			}
 		}
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -314,12 +314,15 @@ log_reserve_and_write_fast(
 	ulint		data_len;
 #ifdef UNIV_LOG_LSN_DEBUG
 	/* length of the LSN pseudo-record */
-	ulint		lsn_len = 1
-		+ mach_get_compressed_size(log_sys->lsn >> 32)
-		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
+	ulint		lsn_len;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 	mutex_enter(&log_sys->mutex);
+#ifdef UNIV_LOG_LSN_DEBUG
+	lsn_len = 1
+		+ mach_get_compressed_size(log_sys->lsn >> 32)
+		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
+#endif /* UNIV_LOG_LSN_DEBUG */
 
 	data_len = len
 #ifdef UNIV_LOG_LSN_DEBUG

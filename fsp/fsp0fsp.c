@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -869,9 +869,7 @@ fsp_init_file_page_low(
 		return;
 	}
 
-#ifdef UNIV_BASIC_LOG_DEBUG
-	memset(page, 0xff, UNIV_PAGE_SIZE);
-#endif
+	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
 	memset(page + FIL_PAGE_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
