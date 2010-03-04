@@ -325,6 +325,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHECK]=              CF_AUTO_COMMIT_TRANS;
 }
 
@@ -1587,6 +1588,113 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 
 /**
+  Implementation of FLUSH TABLES <table_list> WITH READ LOCK.
+
+  In brief: take exclusive locks, expel tables from the table
+  cache, reopen the tables, enter the 'LOCKED TABLES' mode,
+  downgrade the locks.
+
+  Required privileges
+  -------------------
+  Since the statement implicitly enters LOCK TABLES mode,
+  it requires LOCK TABLES privilege on every table.
+  But since the rest of FLUSH commands require
+  the global RELOAD_ACL, it also requires RELOAD_ACL.
+
+  Compatibility with the global read lock
+  ---------------------------------------
+  We don't wait for the GRL, since neither the
+  5.1 combination that this new statement is intended to
+  replace (LOCK TABLE <list> WRITE; FLUSH TABLES;),
+  nor FLUSH TABLES WITH READ LOCK do.
+  @todo: this is not implemented, Dmitry disagrees.
+  Currently we wait for GRL in another connection,
+  but are compatible with a GRL in our own connection.
+
+  Behaviour under LOCK TABLES
+  ---------------------------
+  Bail out: i.e. don't perform an implicit UNLOCK TABLES.
+  This is not consistent with LOCK TABLES statement, but is
+  in line with behaviour of FLUSH TABLES WITH READ LOCK, and we
+  try to not introduce any new statements with implicit
+  semantics.
+
+  Compatibility with parallel updates
+  -----------------------------------
+  As a result, we will wait for all open transactions
+  against the tables to complete. After the lock downgrade,
+  new transactions will be able to read the tables, but not
+  write to them.
+
+  Differences from FLUSH TABLES <list>
+  -------------------------------------
+  - you can't flush WITH READ LOCK a non-existent table
+  - you can't flush WITH READ LOCK under LOCK TABLES
+  - currently incompatible with the GRL (@todo: fix)
+*/
+
+static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
+{
+  Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  TABLE_LIST *table_list;
+
+  /*
+    This is called from SQLCOM_FLUSH, the transaction has
+    been committed implicitly.
+  */
+
+  /* RELOAD_ACL is checked by the caller. Check table-level privileges. */
+  if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                         FALSE, UINT_MAX, FALSE))
+    goto error;
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    goto error;
+  }
+
+  /*
+    @todo: Since lock_table_names() acquires a global IX
+    lock, this actually waits for a GRL in another connection.
+    We are thus introducing an incompatibility.
+    Do nothing for now, since not taking a global IX violates
+    current internal MDL asserts, fix after discussing with
+    Dmitry.
+  */
+  if (lock_table_names(thd, all_tables))
+    goto error;
+
+  if  (open_and_lock_tables(thd, all_tables, FALSE,
+                            MYSQL_OPEN_HAS_MDL_LOCK,
+                            &lock_tables_prelocking_strategy) ||
+       thd->locked_tables_list.init_locked_tables(thd))
+  {
+    close_thread_tables(thd);
+    goto error;
+  }
+
+  /*
+    Downgrade the exclusive locks.
+    Use MDL_SHARED_NO_WRITE as the intended
+    post effect of this call is identical
+    to LOCK TABLES <...> READ, and we didn't use
+    thd->in_lock_talbes and thd->sql_command= SQLCOM_LOCK_TABLES
+    hacks to enter the LTM.
+    @todo: release the global IX lock here!!!
+  */
+  for (table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+    table_list->mdl_request.ticket->downgrade_exclusive_lock(MDL_SHARED_NO_WRITE);
+
+  return FALSE;
+
+error:
+  return TRUE;
+}
+
+
+/**
   Read query from packet and store in thd->query.
   Used in COM_QUERY and COM_STMT_PREPARE.
 
@@ -2077,7 +2185,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables))
+        || open_and_lock_tables(thd, all_tables, TRUE, 0))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2414,7 +2522,7 @@ case SQLCOM_PREPARE:
         create_table->open_type= OT_BASE_ONLY;
       }
 
-      if (!(res= open_and_lock_tables_derived(thd, lex->query_tables, TRUE, 0)))
+      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /*
           Is table which we are changing used somewhere in other parts
@@ -3007,7 +3115,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables)))
+    if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3109,7 +3217,7 @@ end_with_restore_list:
       goto error;
 
     thd_proc_info(thd, "init");
-    if ((res= open_and_lock_tables(thd, all_tables)))
+    if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
@@ -3237,7 +3345,7 @@ end_with_restore_list:
     List<set_var_base> *lex_var_list= &lex->var_list;
 
     if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables)))
+         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -3303,9 +3411,9 @@ end_with_restore_list:
     {
       Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
-      res= (open_and_lock_tables_derived(thd, all_tables, FALSE,
-                                         MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
-                                         &lock_tables_prelocking_strategy) ||
+      res= (open_and_lock_tables(thd, all_tables, FALSE,
+                                 MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                                 &lock_tables_prelocking_strategy) ||
             thd->locked_tables_list.init_locked_tables(thd));
     }
 
@@ -3727,8 +3835,17 @@ end_with_restore_list:
   case SQLCOM_FLUSH:
   {
     bool write_to_binlog;
+
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
+
+    if (first_table && lex->type & REFRESH_READ_LOCK)
+    {
+      if (flush_tables_with_read_lock(thd, all_tables))
+        goto error;
+      my_ok(thd);
+      break;
+    }
 
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
@@ -4008,7 +4125,7 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-	  open_and_lock_tables(thd, all_tables))
+          open_and_lock_tables(thd, all_tables, TRUE, 0))
        goto error;
 
       /*
@@ -4209,14 +4326,16 @@ create_sp_error:
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
-	if (sp_automatic_privileges && !opt_noacl &&
-	    sp_revoke_privileges(thd, db, name,
+        if (sp_automatic_privileges && !opt_noacl &&
+            sp_revoke_privileges(thd, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE))
-	{
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-		       ER_PROC_AUTO_REVOKE_FAIL,
-		       ER(ER_PROC_AUTO_REVOKE_FAIL));
-	}
+        {
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_PROC_AUTO_REVOKE_FAIL,
+                       ER(ER_PROC_AUTO_REVOKE_FAIL));
+          /* If this happens, an error should have been reported. */
+          goto error;
+        }
 #endif
       }
       res= sp_result;
@@ -4523,7 +4642,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables)))
+  if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
     {

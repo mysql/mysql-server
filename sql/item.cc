@@ -201,6 +201,37 @@ bool Item::val_bool()
 }
 
 
+/*
+  For the items which don't have its own fast val_str_ascii()
+  implementation we provide a generic slower version,
+  which converts from the Item character set to ASCII.
+  For better performance conversion happens only in 
+  case of a "tricky" Item character set (e.g. UCS2).
+  Normally conversion does not happen.
+*/
+String *Item::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+
+  if (!(collation.collation->state & MY_CS_NONASCII))
+    return val_str(str);
+  
+  DBUG_ASSERT(str != &str_value);
+  
+  uint errors;
+  String *res= val_str(&str_value);
+  if (!res)
+    return 0;
+  
+  if ((null_value= str->copy(res->ptr(), res->length(),
+                             collation.collation, &my_charset_latin1,
+                             &errors)))
+    return 0;
+  
+  return str;
+}
+
+
 String *Item::val_string_from_real(String *str)
 {
   double nr= val_real();
@@ -443,10 +474,11 @@ uint Item::decimal_precision() const
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
   {
     uint prec= 
-      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+      my_decimal_length_to_precision(max_char_length(), decimals,
+                                     unsigned_flag);
     return min(prec, DECIMAL_MAX_PRECISION);
   }
-  return min(max_length, DECIMAL_MAX_PRECISION);
+  return min(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 
 
@@ -783,15 +815,40 @@ Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 */
 Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
 {
+  /*
+    Item_num returns pure ASCII result,
+    so conversion is needed only in case of "tricky" character
+    sets like UCS2. If tocs is not "tricky", return the item itself.
+  */
+  if (!(tocs->state & MY_CS_NONASCII))
+    return this;
+  
   Item_string *conv;
-  char buf[64];
-  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
-  s= val_str(&tmp);
-  if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
+  uint conv_errors;
+  char buf[64], buf2[64];
+  String tmp(buf, sizeof(buf), &my_charset_bin);
+  String cstr(buf2, sizeof(buf2), &my_charset_bin);
+  String *ostr= val_str(&tmp);
+  char *ptr;
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                             cstr.charset(),
+                                             collation.derivation)))
   {
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
   }
+  if (!(ptr= current_thd->strmake(cstr.ptr(), cstr.length())))
+    return NULL;
+  conv->str_value.set(ptr, cstr.length(), cstr.charset());
+  /* Ensure that no one is going to change the result string */
+  conv->str_value.mark_as_const();
+  conv->fix_char_length(max_char_length());
   return conv;
 }
 
@@ -910,7 +967,7 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
     char buff[40];
     String tmp(buff,sizeof(buff), &my_charset_bin),*res;
     if (!(res=val_str(&tmp)) ||
-        str_to_datetime_with_warn(res->ptr(), res->length(),
+        str_to_datetime_with_warn(res->charset(), res->ptr(), res->length(),
                                   ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
       goto err;
   }
@@ -945,8 +1002,8 @@ bool Item::get_time(MYSQL_TIME *ltime)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
-  if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
+  if (!(res=val_str_ascii(&tmp)) ||
+      str_to_time_with_warn(res->charset(), res->ptr(), res->length(), ltime))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -1655,6 +1712,11 @@ bool agg_item_collations(DTCollation &c, const char *fname,
     my_coll_agg_error(av, count, fname, item_sep);
     return TRUE;
   }
+  
+  /* If all arguments where numbers, reset to @@collation_connection */
+  if (c.derivation == DERIVATION_NUMERIC)
+    c.set(Item::default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_NUMERIC);
+
   return FALSE;
 }
 
@@ -1900,13 +1962,14 @@ void Item_field::set_field(Field *field_par)
   field=result_field=field_par;			// for easy coding with fields
   maybe_null=field->maybe_null();
   decimals= field->decimals();
-  max_length= field_par->max_display_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
   db_name= field_par->table->s->db.str;
   alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  collation.set(field_par->charset(), field_par->derivation());
+  collation.set(field_par->charset(), field_par->derivation(),
+                field_par->repertoire());
+  fix_char_length(field_par->char_length());
   fixed= 1;
   if (field->table->s->tmp_table == SYSTEM_TMP_TABLE)
     any_privileges= 0;
@@ -2215,14 +2278,14 @@ String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value, &my_charset_bin);
+  str->set_int(value, unsigned_flag, collation.collation);
   return str;
 }
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
-  str_value.set(value, &my_charset_bin);
+  str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
 }
 
@@ -2245,7 +2308,7 @@ String *Item_uint::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set((ulonglong) value, &my_charset_bin);
+  str->set((ulonglong) value, collation.collation);
   return str;
 }
 
@@ -2345,7 +2408,7 @@ double Item_decimal::val_real()
 
 String *Item_decimal::val_str(String *result)
 {
-  result->set_charset(&my_charset_bin);
+  result->set_charset(&my_charset_numeric);
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, result);
   return result;
 }
@@ -4472,17 +4535,33 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               It's not an Item_field in the select list so we must make a new
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
+
+              NOTE: If we are fixing an alias reference inside ORDER/GROUP BY
+              item tree, then we use new Item_ref as an intermediate value
+              to resolve referenced item only.
+              In this case the new Item_ref item is unused.
             */
             Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-            thd->change_item_tree(reference, rf);
+
+            bool save_group_fix_field= thd->lex->current_select->group_fix_field;
             /*
-              Because Item_ref never substitutes itself with other items 
-              in Item_ref::fix_fields(), we can safely use the original 
-              pointer to it even after fix_fields()
-             */
-            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
+              No need for recursive resolving of aliases.
+            */
+            thd->lex->current_select->group_fix_field= 0;
+
+            bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
+            thd->lex->current_select->group_fix_field= save_group_fix_field;
+            if (ret)
+              return TRUE;
+
+            if (save_group_fix_field && alias_name_used)
+              thd->change_item_tree(reference, *rf->ref);
+            else
+              thd->change_item_tree(reference, rf);
+
+            return FALSE;
           }
         }
       }
@@ -4871,7 +4950,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->col_name=		name;
   tmp_field->charsetnr=         collation.collation->number;
   tmp_field->flags=             (maybe_null ? 0 : NOT_NULL_FLAG) | 
-                                (my_binary_compare(collation.collation) ?
+                                (my_binary_compare(charset_for_protocol()) ?
                                  BINARY_FLAG : 0);
   tmp_field->type=              field_type_arg;
   tmp_field->length=max_length;
@@ -5317,7 +5396,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr, unsigned_flag);
   }
-  return error ? error : (field->table->in_use->is_error() ? 2 : 0);
+  return error ? error : (field->table->in_use->is_error() ? 1 : 0);
 }
 
 
@@ -6709,7 +6788,8 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+        field_arg->real_type() != MYSQL_TYPE_ENUM)
     {
       if (field_arg->reset())
       {
