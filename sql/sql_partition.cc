@@ -2128,8 +2128,6 @@ static int check_part_field(enum_field_types sql_type,
   }
   switch (sql_type)
   {
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2151,6 +2149,8 @@ static int check_part_field(enum_field_types sql_type,
       *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_FLOAT:

@@ -1,4 +1,44 @@
 drop table if exists t1;
+CREATE TABLE t1 (a DECIMAL)
+PARTITION BY RANGE COLUMNS (a)
+(PARTITION p0 VALUES LESS THAN (0));
+ERROR HY000: Field 'a' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (a BLOB)
+PARTITION BY RANGE COLUMNS (a)
+(PARTITION p0 VALUES LESS THAN ("X"));
+ERROR HY000: A BLOB field is not allowed in partition function
+CREATE TABLE t1 (a TEXT)
+PARTITION BY RANGE COLUMNS (a)
+(PARTITION p0 VALUES LESS THAN ("X"));
+ERROR HY000: A BLOB field is not allowed in partition function
+CREATE TABLE t1 (a FLOAT)
+PARTITION BY RANGE COLUMNS (a)
+(PARTITION p0 VALUES LESS THAN (0.0));
+ERROR HY000: Field 'a' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (a DOUBLE)
+PARTITION BY RANGE COLUMNS (a)
+(PARTITION p0 VALUES LESS THAN (0.0));
+ERROR HY000: Field 'a' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (d TIMESTAMP)
+PARTITION BY RANGE COLUMNS(d)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01'),
+PARTITION p1 VALUES LESS THAN ('2040-01-01'));
+ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (d BIT(1))
+PARTITION BY RANGE COLUMNS(d)
+(PARTITION p0 VALUES LESS THAN (0),
+PARTITION p1 VALUES LESS THAN (1));
+ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (d ENUM("YES","NO"))
+PARTITION BY RANGE COLUMNS(d)
+(PARTITION p0 VALUES LESS THAN ("NO"),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
+CREATE TABLE t1 (d SET("Car","MC"))
+PARTITION BY RANGE COLUMNS(d)
+(PARTITION p0 VALUES LESS THAN ("MC"),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
 create table t1 (a int, b int)
 partition by range columns (a,b)
 ( partition p0 values less than (maxvalue, 10),
@@ -430,16 +470,6 @@ partition by range columns(d)
 ( partition p0 values less than ('2000-01-01'),
 partition p1 values less than ('2040-01-01'));
 ERROR HY000: Partition column values of incorrect type
-create table t1 (d timestamp)
-partition by range columns(d)
-( partition p0 values less than ('2000-01-01'),
-partition p1 values less than ('2040-01-01'));
-ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
-create table t1 (d bit(1))
-partition by range columns(d)
-( partition p0 values less than (0),
-partition p1 values less than (1));
-ERROR HY000: Field 'd' is of a not allowed type for this type of partitioning
 create table t1 (a int, b int)
 partition by range columns(a,b)
 (partition p0 values less than (maxvalue, 10));
