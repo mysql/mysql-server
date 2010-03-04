@@ -53,11 +53,12 @@ public:
    *
    *   @return true until quit/bye/exit has been typed
    */
-  int execute(const char *_line, int _try_reconnect=-1, bool interactive=1, int *error= 0);
+  bool execute(const char *line, int try_reconnect = -1,
+               bool interactive = true, int *error = NULL);
 
 private:
   void printError();
-  int execute_impl(const char *_line, bool interactive=1);
+  bool execute_impl(const char *line, bool interactive);
 
   /**
    *   Analyse the command line, after the first token.
@@ -135,7 +136,7 @@ public:
   int executeDropNodeGroup(char* parameters);
 public:
   bool connect(bool interactive);
-  bool disconnect();
+  void disconnect(void);
 
   /**
    * A execute function definition
@@ -162,15 +163,10 @@ private:
   const char *m_constr;
   bool m_connected;
   int m_verbose;
-  int try_reconnect;
+  int m_try_reconnect;
   int m_error;
   struct NdbThread* m_event_thread;
   NdbMutex *m_print_mutex;
-};
-
-struct event_thread_param {
-  NdbMgmHandle *m;
-  NdbMutex **p;
 };
 
 NdbMutex* print_mutex;
@@ -189,16 +185,11 @@ Ndb_mgmclient::~Ndb_mgmclient()
 {
   delete m_cmd;
 }
-int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, bool interactive, int *error)
+bool Ndb_mgmclient::execute(const char *line, int try_reconnect,
+                            bool interactive, int *error)
 {
-  return m_cmd->execute(_line,_try_reconnect,interactive, error);
+  return m_cmd->execute(line, try_reconnect, interactive, error);
 }
-int
-Ndb_mgmclient::disconnect()
-{
-  return m_cmd->disconnect();
-}
-
 
 /*
  * The CommandInterpreter
@@ -655,13 +646,14 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *_host,int verbose) 
-  : m_verbose(verbose)
+CommandInterpreter::CommandInterpreter(const char *host,int verbose) :
+  m_constr(host),
+  m_connected(false),
+  m_verbose(verbose),
+  m_try_reconnect(0),
+  m_error(-1),
+  m_event_thread(NULL)
 {
-  m_constr= _host;
-  m_connected= false;
-  m_event_thread= NULL;
-  try_reconnect = 0;
   m_print_mutex= NdbMutex_Create();
 }
 
@@ -874,7 +866,13 @@ printLogEvent(struct ndb_logevent* event)
 //*****************************************************************************
 //*****************************************************************************
 
-static int do_event_thread= 0;
+struct event_thread_param {
+  NdbMgmHandle *m;
+  NdbMutex **p;
+};
+
+static int do_event_thread = 0;
+
 static void*
 event_thread_run(void* p)
 {
@@ -944,7 +942,7 @@ CommandInterpreter::connect(bool interactive)
     exit(-1);
   }
 
-  if(ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, 5, 1))
     DBUG_RETURN(m_connected); // couldn't connect, always false
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
@@ -953,7 +951,7 @@ CommandInterpreter::connect(bool interactive)
     BaseString constr;
     constr.assfmt("%s:%d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-       !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
+       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, 5, 1))
     {
       DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
                          host, port));
@@ -1019,8 +1017,8 @@ CommandInterpreter::connect(bool interactive)
   DBUG_RETURN(m_connected);
 }
 
-bool 
-CommandInterpreter::disconnect() 
+void
+CommandInterpreter::disconnect(void)
 {
   DBUG_ENTER("CommandInterpreter::disconnect");
 
@@ -1037,19 +1035,19 @@ CommandInterpreter::disconnect()
     ndb_mgm_destroy_handle(&m_mgmsrv);
     m_connected= false;
   }
-  DBUG_RETURN(true);
+  DBUG_VOID_RETURN;
 }
 
 //*****************************************************************************
 //*****************************************************************************
 
-int 
-CommandInterpreter::execute(const char *_line, int _try_reconnect,
-			    bool interactive, int *error) 
+bool
+CommandInterpreter::execute(const char *_line, int try_reconnect,
+			    bool interactive, int *error)
 {
-  if (_try_reconnect >= 0)
-    try_reconnect=_try_reconnect;
-  int result= execute_impl(_line, interactive);
+  if (try_reconnect >= 0)
+    m_try_reconnect = try_reconnect;
+  bool result= execute_impl(_line, interactive);
   if (error)
     *error= m_error;
 
@@ -1143,19 +1141,19 @@ split_args(const char* line, Vector<BaseString>& args)
 }
 
 
-int 
-CommandInterpreter::execute_impl(const char *_line, bool interactive) 
+bool
+CommandInterpreter::execute_impl(const char *_line, bool interactive)
 {
   DBUG_ENTER("CommandInterpreter::execute_impl");
-  DBUG_PRINT("enter",("line=\"%s\"",_line));
+  DBUG_PRINT("enter",("line='%s'", _line));
   m_error= 0;
 
-  char * line;
   if(_line == NULL) {
     m_error = -1;
     DBUG_RETURN(false);
   }
-  line = my_strdup(_line,MYF(MY_WME));
+
+  char* line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
 
   int do_continue;
@@ -2451,7 +2449,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
       return -1;
     }
     assert(num_params < (int)max_params);
-    params[num_params] = strtoll(arg, NULL, 0);
+    params[num_params] = (int)strtoll(arg, NULL, 0);
     num_params++;
   }
 
