@@ -2229,7 +2229,7 @@ public:
   /**
     Remove the error handler last pushed.
   */
-  void pop_internal_handler();
+  Internal_error_handler *pop_internal_handler();
 
   /**
     Raise an exception condition.
