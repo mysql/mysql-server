@@ -38,6 +38,7 @@ extern "C" {
 
 #define my_wc_t ulong
 
+#define MY_CS_REPLACEMENT_CHARACTER 0xFFFD
 
 /*
   On i386 we store Unicode->CS conversion tables for

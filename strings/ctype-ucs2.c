@@ -50,8 +50,6 @@
 static unsigned long lfactor[9]=
 { 1L, 10L, 100L, 1000L, 10000L, 100000L, 1000000L, 10000000L, 100000000L };
 
-#define REPLACEMENT_CHAR 0xFFFD;
-
 
 
 #ifdef HAVE_CHARSET_mb2_or_mb4
@@ -1145,7 +1143,7 @@ my_tosort_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
   }
   else
   {
-    *wc= REPLACEMENT_CHAR;
+    *wc= MY_CS_REPLACEMENT_CHARACTER;
   }
 }
 
@@ -1874,7 +1872,7 @@ my_tosort_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
   }
   else
   {
-    *wc= REPLACEMENT_CHAR;
+    *wc= MY_CS_REPLACEMENT_CHARACTER;
   }
 }
 
