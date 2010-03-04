@@ -185,6 +185,9 @@ int main(int argc, char** argv){
 
   ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
+  // Don't allow negative return code
+  if (ret < 0)
+    ret = 255;
   return ret;
 }
 
