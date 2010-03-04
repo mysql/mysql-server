@@ -8078,20 +8078,29 @@ pick_table_access_method(JOIN_TAB *tab)
   }
 }
 
+
+
+    /*
+      Determine if the set is already ordered for ORDER BY, so it can 
+      disable join cache because it will change the ordering of the results.
+      Code handles sort table that is at any location (not only first after 
+      the const tables) despite the fact that it's currently prohibited.
+      We must disable join cache if the first non-const table alone is
+      ordered. If there is a temp table the ordering is done as a last
+      operation and doesn't prevent join cache usage.
+    */
 uint make_join_orderinfo(JOIN *join)
 {
   uint i;
+  if (join->need_tmp)
+    return join->tables;
+
   for (i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *table=tab->table;
-    if ((table == join->sort_by_table &&
-         (!join->order || join->skip_sort_order ||
-          test_if_skip_sort_order(tab, join->order, join->select_limit,
-                                  FALSE, &table->keys_in_use_for_order_by)) 
-         //psergey-merge-todo: ^ check what should be instead of the above
-         // FALSE! check the last argument!
-        ) ||
+    if ((table == join->sort_by_table && 
+         (!join->order || join->skip_sort_order)) ||
         (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
     {
       break;
@@ -8102,12 +8111,25 @@ uint make_join_orderinfo(JOIN *join)
 
 
 /*
-  ...
+  Plan refinement stage: do various set ups for the executioner
+
   SYNOPSIS
     make_join_readinfo()
-      join
-      options
-      no_jbuf_after  X.
+      join           Join being processed
+      options        Join's options (checking for SELECT_DESCRIBE, 
+                     SELECT_NO_JOIN_CACHE)
+      no_jbuf_after  Don't use join buffering after table with this number.
+
+  DESCRIPTION
+    Plan refinement stage: do various set ups for the executioner
+      - set up use of join buffering
+      - push index conditions
+      - increment counters
+      - etc
+
+  RETURN 
+    FALSE - OK
+    TRUE  - Out of memory
 */
 
 static bool
@@ -8115,7 +8137,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
-  bool ordered_set= 0; //psergey-merge-todo: sort this out!
   bool sorted= 1;
   DBUG_ENTER("make_join_readinfo");
 
@@ -8127,22 +8148,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
-
-    /*
-      Determine if the set is already ordered for ORDER BY, so it can 
-      disable join cache because it will change the ordering of the results.
-      Code handles sort table that is at any location (not only first after 
-      the const tables) despite the fact that it's currently prohibited.
-      We must disable join cache if the first non-const table alone is
-      ordered. If there is a temp table the ordering is done as a last
-      operation and doesn't prevent join cache usage.
+    /* 
+      TODO: don't always instruct first table's ref/range access method to 
+      produce sorted output.
     */
-    if (!ordered_set && !join->need_tmp && 
-        (table == join->sort_by_table ||
-         (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
-      ordered_set= 1;
-
-
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
     table->status=STATUS_NO_RECORD;
