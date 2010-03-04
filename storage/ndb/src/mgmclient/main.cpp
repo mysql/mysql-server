@@ -49,7 +49,7 @@ static Ndb_mgmclient* com;
 NDB_STD_OPTS_VARS;
 
 static const char default_prompt[]= "ndb_mgm> ";
-static unsigned _try_reconnect;
+static unsigned opt_try_reconnect;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
 static unsigned opt_verbose = 1;
@@ -63,7 +63,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (uchar**) &_try_reconnect, (uchar**) &_try_reconnect, 0,
+    (uchar**) &opt_try_reconnect, (uchar**) &opt_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
@@ -86,7 +86,7 @@ static void usage()
 }
 
 static bool
-read_and_execute(int _try_reconnect)
+read_and_execute(int try_reconnect)
 {
   static char *line_read = (char *)NULL;
 
@@ -115,7 +115,7 @@ read_and_execute(int _try_reconnect)
     line_read= strdup(linebuffer);
   }
 #endif
-  return com->execute(line_read, _try_reconnect, 1);
+  return com->execute(line_read, try_reconnect, 1);
 }
 
 int main(int argc, char** argv){
@@ -163,7 +163,7 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(_try_reconnect))
+    while(read_and_execute(opt_try_reconnect))
       ;
 
 #ifdef HAVE_READLINE
@@ -179,7 +179,7 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str,_try_reconnect, 0, &ret);
+    com->execute(opt_execute_str, opt_try_reconnect, 0, &ret);
   }
   delete com;
 
