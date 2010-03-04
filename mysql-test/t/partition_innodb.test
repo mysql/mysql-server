@@ -2,10 +2,37 @@
 --source include/have_innodb.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo # Bug#50104: Partitioned table with just 1 partion works with fk
+--echo #
+CREATE TABLE t2 (
+  id INT,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB ;
+
+CREATE TABLE t1 (
+  id INT NOT NULL AUTO_INCREMENT,
+  parent_id INT DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY parent_id (parent_id)
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 1;
+
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 2;
+
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+
+DROP TABLE t1, t2;
 
 #
 # Bug#47029: Crash when reorganize partition with subpartition
