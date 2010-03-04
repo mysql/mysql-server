@@ -6083,10 +6083,7 @@ int ha_ndbcluster::index_init(uint index, bool sorted)
 int ha_ndbcluster::index_end()
 {
   DBUG_ENTER("ha_ndbcluster::index_end");
-  if (m_active_query)
-    DBUG_RETURN(0); // Pushed join may have unread child results
-  else
-    DBUG_RETURN(close_scan());
+  DBUG_RETURN(close_scan());
 }
 
 /**
@@ -6110,6 +6107,21 @@ check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
   }
   return 0;
 }
+
+
+int ha_ndbcluster::index_read_idx_map(uchar* buf, uint index,
+                                      const uchar* key,
+                                      key_part_map keypart_map,
+                                      enum ha_rkey_function find_flag)
+{
+  DBUG_ENTER("ha_ndbcluster::index_read_idx_map");
+  int error= index_init(index, 0);
+  if (unlikely(error))
+    DBUG_RETURN(error);
+
+  DBUG_RETURN(index_read_map(buf, key, keypart_map, find_flag));
+}
+
 
 int ha_ndbcluster::index_read(uchar *buf,
                               const uchar *key, uint key_len, 
@@ -6174,11 +6186,50 @@ int ha_ndbcluster::index_last(uchar *buf)
   DBUG_RETURN(ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL));
 }
 
+
 int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_ndbcluster::index_read_last");
   DBUG_RETURN(index_read(buf, key, key_len, HA_READ_PREFIX_LAST));
 }
+
+
+/**
+  Read first row (only) from a table.
+
+  This is actually (yet) never called for ndbcluster tables, as these table types
+  does not set HA_STATS_RECORDS_IS_EXACT.
+
+  Implemented regardless of this as the default implememtation would break 
+  any pushed joins as it calls ha_rnd_end() / ha_index_end() at end of execution.
+  */
+int ha_ndbcluster::read_first_row(uchar * buf, uint primary_key)
+{
+  register int error;
+  DBUG_ENTER("ha_ndbcluster::read_first_row");
+
+  ha_statistic_increment(&SSV::ha_read_first_count);
+
+  /*
+    If there is very few deleted rows in the table, find the first row by
+    scanning the table.
+    TODO remove the test for HA_READ_ORDER
+  */
+  if (stats.deleted < 10 || primary_key >= MAX_KEY ||
+      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
+  {
+    (void) ha_rnd_init(1);
+    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+  }
+  else
+  {
+    /* Find the first row through the primary key */
+    (void) ha_index_init(primary_key, 0);
+    error=index_first(buf);
+  }
+  DBUG_RETURN(error);
+}
+
 
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
                                            const key_range *end_key,
@@ -6309,6 +6360,7 @@ int ha_ndbcluster::rnd_init(bool scan)
   DBUG_RETURN(0);
 }
 
+
 int ha_ndbcluster::close_scan()
 {
   /*
@@ -6362,13 +6414,11 @@ int ha_ndbcluster::close_scan()
   DBUG_RETURN(0);
 }
 
+
 int ha_ndbcluster::rnd_end()
 {
   DBUG_ENTER("rnd_end");
-  if (m_active_query)
-    DBUG_RETURN(0); // Pushed join may have unread child results
-  else
-    DBUG_RETURN(close_scan());
+  DBUG_RETURN(close_scan());
 }
 
 
