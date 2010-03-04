@@ -708,6 +708,12 @@ insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 
+create table t3_hash (a3 int, b3 int, c3 int not null, d3 int not null,
+ primary key(a3, b3) using hash) engine = ndb;
+insert into t3_hash values (0x1f, 0x2f, 1, 0x1f);
+insert into t3_hash values (0x2f, 0x3f, 2, 0x2f);
+insert into t3_hash values (0x3f, 0x1f, 3, 0x3f);
+
 explain
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 --sorted_result
@@ -742,6 +748,7 @@ select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 
 # Tests usage of unique index
 create unique index t3_d3 on t3(d3); 
+create unique index t3_d3 on t3_hash(d3);
 commit;
 
 # Use an unique key to lookup root in pushed join:
@@ -771,6 +778,15 @@ explain
  where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
    and  (y.a3=x.d3 and y.b3=x.b3);
 
+explain
+  select * from t3_hash x, t3_hash y
+  where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
+    and  (y.a3=x.d3 and y.b3=x.b3);
+# No 'sorted_result' required as index merge itself sort on PK
+  select * from t3_hash x, t3_hash y
+  where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
+    and  (y.a3=x.d3 and y.b3=x.b3);
+
 # Any ordered index may also be used to scan a 'range'
 explain
   select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
@@ -783,7 +799,7 @@ insert into t1 values (0x4f, null);
 --sorted_result
 select * from t1 left join t1 as t2 on t2.a = t1.b;
 
-drop table t1,t2,t3;
+drop table t1,t2,t3, t3_hash;
 
 
 create table t3 (a3 int, b3 int, c3 int, d3 int,
