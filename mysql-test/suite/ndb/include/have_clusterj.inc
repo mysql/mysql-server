@@ -30,7 +30,8 @@ my $clusterj_test_jar = my_find_file($basedir,
                                     "clusterj-test-*.jar", NOT_REQUIRED);
 
 my $ndbclient_lib = my_find_file($basedir,
-                                ["storage/ndb/src/.lib", 
+                                ["storage/ndb/src/.libs", 
+                                 "storage/ndb/src", 
                                  "lib/mysql"],
                                 ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
                                 NOT_REQUIRED);
