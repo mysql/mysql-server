@@ -3055,9 +3055,27 @@ cmp_event(const void *_a, const void *_b)
   const ndb_logevent *a = (const ndb_logevent*)_a;
   const ndb_logevent *b = (const ndb_logevent*)_b;
 
-  if (a->source_nodeid > b->source_nodeid)
-    return 1;
-  return -1;
+  // So far all events are of same type
+  assert(a->type == b->type);
+
+  // Primarily sort on source_nodeid
+  const unsigned diff = (a->source_nodeid - b->source_nodeid);
+  if (diff)
+    return diff;
+
+  // Equal nodeid, go into more detailed compare
+  // for some event types where order is important
+  switch(a->type){
+  case NDB_LE_MemoryUsage:
+    // Return DataMemory before IndexMemory (ie. TUP vs ACC)
+    return (b->MemoryUsage.block - a->MemoryUsage.block);
+    break;
+
+  default:
+    break;
+  }
+
+  return 0;
 }
 
 NdbLogEventHandle
