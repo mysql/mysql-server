@@ -142,17 +142,12 @@ flush_cached_records(JOIN *join, JOIN_TAB *join_tab, bool skip_last);
 static enum_nested_loop_state
 end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
-end_send_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static enum_nested_loop_state
-end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
-static int test_if_group_changed(List<Cached_item> &list);
 static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
@@ -3533,7 +3528,7 @@ bool JOIN::flatten_subqueries()
   Setup for execution all subqueries of a query, for which the optimizer
   chose hash semi-join.
 
-  @detail Iterate over all subqueries of the query, and if they are under an
+  @details Iterate over all subqueries of the query, and if they are under an
   IN predicate, and the optimizer chose to compute it via hash semi-join:
   - try to initialize all data structures needed for the materialized execution
     of the IN predicate,
@@ -3557,8 +3552,7 @@ bool JOIN::setup_subquery_materialization()
   for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit(); un;
        un= un->next_unit())
   {
-    for (SELECT_LEX *sl= un->first_select(); sl;
-         sl= sl->next_select())
+    for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
     {
       Item_subselect *subquery_predicate= sl->master_unit()->item;
       if (subquery_predicate &&
@@ -14530,7 +14524,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 	/* ARGSUSED */
-static enum_nested_loop_state
+enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records)
 {
@@ -14539,7 +14533,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_ENTER("end_send_group");
 
   if (!join->first_record || end_of_records ||
-      (idx=test_if_group_changed(join->group_fields)) >= 0)
+      (idx=test_if_item_cache_changed(join->group_fields)) >= 0)
   {
     if (join->first_record || 
         (end_of_records && !join->group && !join->group_optimized_away))
@@ -14619,7 +14613,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      (void) test_if_group_changed(join->group_fields);
+      (void)(test_if_item_cache_changed(join->group_fields));
     }
     if (idx < (int) join->send_group_parts)
     {
@@ -14644,7 +14638,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 	/* ARGSUSED */
-static enum_nested_loop_state
+enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  bool end_of_records)
 {
@@ -14834,7 +14828,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 	/* ARGSUSED */
-static enum_nested_loop_state
+enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 		bool end_of_records)
 {
@@ -14848,7 +14842,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
   }
   if (!join->first_record || end_of_records ||
-      (idx=test_if_group_changed(join->group_fields)) >= 0)
+      (idx=test_if_item_cache_changed(join->group_fields)) >= 0)
   {
     if (join->first_record || (end_of_records && !join->group))
     {
@@ -14887,7 +14881,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      (void) test_if_group_changed(join->group_fields);
+      (void)(test_if_item_cache_changed(join->group_fields));
     }
     if (idx < (int) join->send_group_parts)
     {
@@ -17395,7 +17389,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
   {
     for (; group ; group=group->next)
     {
-      Cached_item *tmp=new_Cached_item(join->thd, *group->item);
+      Cached_item *tmp=new_Cached_item(join->thd, *group->item, FALSE);
       if (!tmp || join->group_fields.push_front(tmp))
 	return TRUE;
     }
@@ -17405,10 +17399,22 @@ alloc_group_fields(JOIN *join,ORDER *group)
 }
 
 
-static int
-test_if_group_changed(List<Cached_item> &list)
+/*
+  Test if a single-row cache of items changed, and update the cache.
+
+  @details Test if a list of items that typically represents a result
+  row has changed. If the value of some item changed, update the cached
+  value for this item.
+  
+  @param list list of <item, cached_value> pairs stored as Cached_item.
+
+  @return -1 if no item changed
+  @return index of the first item that changed
+*/
+
+int test_if_item_cache_changed(List<Cached_item> &list)
 {
-  DBUG_ENTER("test_if_group_changed");
+  DBUG_ENTER("test_if_item_cache_changed");
   List_iterator<Cached_item> li(list);
   int idx= -1,i;
   Cached_item *buff;

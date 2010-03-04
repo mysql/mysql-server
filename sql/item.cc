@@ -5208,6 +5208,7 @@ void Item_field::save_org_in_field(Field *to)
 int Item_field::save_in_field(Field *to, bool no_conversions)
 {
   int res;
+  DBUG_ENTER("Item_field::save_in_field");
   if (result_field->is_null())
   {
     null_value=1;
@@ -5216,10 +5217,11 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   else
   {
     to->set_notnull();
+    DBUG_EXECUTE("info", dbug_print(););
     res= field_conv(to,result_field);
     null_value=0;
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 

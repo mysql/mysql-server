@@ -141,6 +141,7 @@ void Item_in_subselect::cleanup()
     delete left_expr_cache;
     left_expr_cache= NULL;
   }
+  first_execution= TRUE;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
 }
@@ -288,6 +289,50 @@ bool Item_subselect::exec()
   }
   return (res);
 }
+
+
+/*
+  Compute the IN predicate if the left operand's cache changed.
+*/
+
+bool Item_in_subselect::exec()
+{
+  DBUG_ENTER("Item_in_subselect::exec");
+  DBUG_ASSERT(exec_method != MATERIALIZATION ||
+              (exec_method == MATERIALIZATION &&
+               engine->engine_type() == subselect_engine::HASH_SJ_ENGINE));
+  /*
+    Initialize the cache of the left predicate operand. This has to be done as
+    late as now, because Cached_item directly contains a resolved field (not
+    an item, and in some cases (when temp tables are created), these fields
+    end up pointing to the wrong field. One solution is to change Cached_item
+    to not resolve its field upon creation, but to resolve it dynamically
+    from a given Item_ref object.
+    TODO: the cache should be applied conditionally based on:
+    - rules - e.g. only if the left operand is known to be ordered, and/or
+    - on a cost-based basis, that takes into account the cost of a cache
+      lookup, the cache hit rate, and the savings per cache hit.
+  */
+  if (!left_expr_cache && exec_method == MATERIALIZATION)
+    init_left_expr_cache();
+
+  /* If the new left operand is already in the cache, reuse the old result. */
+  if (left_expr_cache && test_if_item_cache_changed(*left_expr_cache) < 0)
+  {
+    /* Always compute IN for the first row as the cache is not valid for it. */
+    if (!first_execution)
+      DBUG_RETURN(FALSE);
+    first_execution= FALSE;
+  }
+
+  /*
+    The exec() method below updates item::value, and item::null_value, thus if
+    we don't call it, the next call to item::val_int() will return whatever
+    result was computed by its previous call.
+  */
+  DBUG_RETURN(Item_subselect::exec());
+}
+
 
 Item::Type Item_subselect::type() const
 {
@@ -448,8 +493,9 @@ void Item_singlerow_subselect::reset()
 Item_subselect::trans_res
 Item_singlerow_subselect::select_transformer(JOIN *join)
 {
+  DBUG_ENTER("Item_singlerow_subselect::select_transformer");
   if (changed)
-    return RES_OK;
+    DBUG_RETURN(RES_OK);
 
   SELECT_LEX *select_lex= join->select_lex;
   Query_arena *arena= thd->stmt_arena;
@@ -492,9 +538,9 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     */
     substitution->walk(&Item::remove_dependence_processor, 0,
 		       (uchar *) select_lex->outer_select());
-    return RES_REDUCE;
+    DBUG_RETURN(RES_REDUCE);
   }
-  return RES_OK;
+  DBUG_RETURN(RES_OK);
 }
 
 
@@ -684,8 +730,9 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), left_expr_cache(0), optimizer(0),
-  pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
+  Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+  optimizer(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
+  upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -1138,7 +1185,7 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creator *func)
 {
   SELECT_LEX *select_lex= join->select_lex;
-  DBUG_ENTER("Item_in_subselect::single_value_in_like_transformer");
+  DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
@@ -1404,7 +1451,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                         select_lex->group_list.first ||
                         !select_lex->table_list.elements);
 
-  DBUG_ENTER("Item_in_subselect::row_value_in_like_transformer");
+  DBUG_ENTER("Item_in_subselect::row_value_in_to_exists_transformer");
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (is_having_used)
@@ -1772,7 +1819,7 @@ bool Item_in_subselect::setup_engine()
   subselect_hash_sj_engine *new_engine= NULL;
   bool res= FALSE;
 
-  DBUG_ENTER("Item_in_subselect::create_materialize_engine");
+  DBUG_ENTER("Item_in_subselect::setup_engine");
 
   if (engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE)
   {
@@ -1799,7 +1846,7 @@ bool Item_in_subselect::setup_engine()
       */
       delete new_engine;
       new_engine= NULL;
-
+      exec_method= NOT_TRANSFORMED;
       if (left_expr->cols() == 1)
         trans_res= single_value_in_to_exists_transformer(old_engine->join,
                                                          &eq_creator);
@@ -1820,8 +1867,8 @@ bool Item_in_subselect::setup_engine()
   }
 
   /* Initilizations done in runtime memory, repeated for each execution. */
-  if (new_engine)
-    res= new_engine->init_runtime();
+  if (new_engine && (res= new_engine->init_runtime()))
+    DBUG_RETURN(res);
 
   DBUG_RETURN(res);
 }
@@ -1830,47 +1877,56 @@ bool Item_in_subselect::setup_engine()
 /**
   Initialize the cache of the left operand of the IN predicate.
 
-  @retval TRUE  if a memory allocation error occurred
+  @note This method has the same purpose as alloc_group_fields(),
+  but it takes a different kind of collection of items, and the
+  list we push to is dynamically allocated.
+
+  @retval TRUE  if a memory allocation error occurred or the cache is
+                not applicable to the current query
   @retval FALSE if success
 */
 
 bool Item_in_subselect::init_left_expr_cache()
 {
-  Cached_item *cur_item_cache;
+  JOIN *outer_join;
+  Next_select_func end_select;
+  bool use_result_field= FALSE;
+
+  outer_join= unit->outer_select()->join;
+  if (!outer_join || !outer_join->tables)
+    return TRUE;
+  /*
+    If we use end_[send | write]_group to handle complete rows of the outer
+    query, make the cache of the left IN operand use Item_field::result_field
+    instead of Item_field::field.  We need this because normally
+    Cached_item_field uses Item::field to fetch field data, while
+    copy_ref_key() that copies the left IN operand into a lookup key uses
+    Item::result_field. In the case end_[send | write]_group result_field is
+    one row behind field.
+  */
+  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
+  if (end_select == end_send_group || end_select == end_write_group)
+    use_result_field= TRUE;
+
   if (!(left_expr_cache= new List<Cached_item>))
     return TRUE;
+
   for (uint i= 0; i < left_expr->cols(); i++)
   {
-    if (!(cur_item_cache= new_Cached_item(thd, left_expr->element_index(i))))
+    Cached_item *cur_item_cache= new_Cached_item(thd,
+                                                 left_expr->element_index(i),
+                                                 use_result_field);
+    if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
       return TRUE;
-    left_expr_cache->push_front(cur_item_cache);
   }
   return FALSE;
-}
-
-
-/**
-  Check if the left operand of an IN predicate changed.
-
-  @detail TODO
-
-  @retval TRUE  if the operand changed
-  @retval FALSE o/w
-*/
-
-bool Item_in_subselect::test_if_left_expr_changed()
-{
-  /*
-    TODO: Caching of the left IN operand still remains to be implemented.
-  */
-  return TRUE;
 }
 
 
 /*
   Callback to test if an IN predicate is expensive.
 
-  @detail
+  @details
     IN predicates are considered expensive only if they will be executed via
     materialization. The return value affects the behavior of
     make_cond_for_table() in such a way that it is unchanged when we use
@@ -1889,10 +1945,11 @@ bool Item_in_subselect::is_expensive_processor(uchar *arg)
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
+  DBUG_ENTER("Item_allany_subselect::select_transformer");
   exec_method= IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
-  return select_in_like_transformer(join, func);
+  DBUG_RETURN(select_in_like_transformer(join, func));
 }
 
 
@@ -2485,6 +2542,7 @@ int subselect_uniquesubquery_engine::exec()
                                      tab->ref.key_buff,
                                      make_prev_keypart_map(tab->ref.key_parts),
                                      HA_READ_KEY_EXACT);
+  DBUG_PRINT("info", ("lookup result: %i", error));
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     error= report_error(table, error);
@@ -3085,8 +3143,7 @@ bool subselect_hash_sj_engine::init_runtime()
   /* Let our engine reuse this query plan for materialization. */
   materialize_join= materialize_engine->join;
   materialize_join->change_result(result);
-  /* Initialize the cache of the left predicate operand. */
-  return ((Item_in_subselect *)item)->init_left_expr_cache();
+  return FALSE;
 }
 
 
@@ -3099,7 +3156,9 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
 
 
 /**
-  @note
+  Cleanup performed after each PS execution.
+
+  @detail
   Called in the end of JOIN::prepare for PS from Item_subselect::cleanup.
 */
 
@@ -3138,18 +3197,21 @@ int subselect_hash_sj_engine::exec()
     if (materialize_join->optimize())
       DBUG_RETURN(TRUE);     
     materialize_join->exec();
-    is_materialized= TRUE;
     /*
       TODO:
-      - unlock all subquery tables as we don't need them. Look at
-        the code for single-value subqueries.
-      - the temp table used for grouping in the subquery can be freed
-        immediately after materialization (yet i's done together with unlocking).
+      - Unlock all subquery tables as we don't need them. To implement this
+        we need to add new functionality to JOIN::join_free that can unlock
+        all tables in a subquery (and all its subqueries).
+      - The temp table used for grouping in the subquery can be freed
+        immediately after materialization (yet it's done together with
+        unlocking).
      */
+    is_materialized= TRUE;
     /*
       If the subquery returned no rows, the temporary table is empty, so we know
-      directly that the result of IN is FALSE. We first update the table statistics,
-      then we test if the temporary table for the query result is empty.
+      directly that the result of IN is FALSE. We first update the table
+      statistics, then we test if the temporary table for the query result is
+      empty.
     */
     tab->table->file->info(HA_STATUS_VARIABLE);
     if (!tab->table->file->stats.records)
@@ -3158,25 +3220,22 @@ int subselect_hash_sj_engine::exec()
       item_in->value= FALSE;
       /* TODO: check we need this: item_in->null_value= FALSE; */
       DBUG_RETURN(FALSE);
-    }      
+    }
+    /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
+    tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);
+    if (tmp_param && !tmp_param->copy_field)
+      tmp_param= NULL;
   }
 
   /*
-    Perform a hash-index lookup if the left predicate operand changed.
-    Notice that the exec() method below updates
-    item::value, and item::null_value, thus if we don't call it,
-    the next call to item::val_int() will return whatever result
-    was computed by its previous call.
+    Lookup the left IN operand in the hash index of the materialized subquery.
   */
-  if (item_in->test_if_left_expr_changed())
-    DBUG_RETURN(subselect_uniquesubquery_engine::exec());
-
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(subselect_uniquesubquery_engine::exec());
 }
 
 
 /**
-  Print the state of this engine into a string for debugging and 
+  Print the state of this engine into a string for debugging and views.
 */
 
 void subselect_hash_sj_engine::print(String *str, enum_query_type query_type)
