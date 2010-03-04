@@ -280,15 +280,15 @@ static void run_test(void)
 }
 
 // ------------ infrastructure ----------
-static void do_args(int argc, char *argv[]);
+static void do_args(int argc, char * const argv[]);
 
-int test_main(int argc, char **argv) {
+int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     run_test();
     return 0;
 }
 
-static void do_args(int argc, char *argv[]) {
+static void do_args(int argc, char * const argv[]) {
     int resultcode;
     char *cmd = argv[0];
     argc--; argv++;

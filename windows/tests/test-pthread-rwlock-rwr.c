@@ -15,7 +15,7 @@ static void *f(void *arg) {
     return arg;
 }
 
-int test_main(int argc  __attribute__((__unused__)), char *argv[]  __attribute__((__unused__))) {
+int test_main(int argc  __attribute__((__unused__)), char *const argv[]  __attribute__((__unused__))) {
     int r;
     toku_pthread_rwlock_t rwlock;
     toku_pthread_t tid;

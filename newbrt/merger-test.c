@@ -112,7 +112,7 @@ static void test1 (void) {
     }
 }
 
-int main (int argc, char *argv[] __attribute__((__unused__))) {
+int main (int argc, char *const argv[] __attribute__((__unused__))) {
     assert(argc==1);
     test0();
     test1();

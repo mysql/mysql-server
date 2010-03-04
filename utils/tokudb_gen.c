@@ -53,7 +53,7 @@ bool           force_unique   = true;
 bool           duplicates     = false;
 bool           dupsort        = false;
 
-static int test_main (int argc, char *argv[]) {
+static int test_main (int argc, char *const argv[]) {
    int ch;
 
    /* Set up the globals. */

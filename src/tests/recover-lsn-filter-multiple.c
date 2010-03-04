@@ -184,7 +184,7 @@ static void run_recover (void) {
 
 const char *cmd;
 
-static void test_parse_args (int argc, char *argv[]) {
+static void test_parse_args (int argc, char * const argv[]) {
     int resultcode;
     cmd = argv[0];
     argc--; argv++;
@@ -213,7 +213,7 @@ static void test_parse_args (int argc, char *argv[]) {
     }
 }
 
-int test_main (int argc, char *argv[]) {
+int test_main (int argc, char * const argv[]) {
     test_parse_args(argc, argv);
     if (do_test) {
 	run_test();

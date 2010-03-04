@@ -14,7 +14,7 @@
 // ENVDIR is defined in the Makefile
 
 int
-test_main(int argc, char** argv) {
+test_main(int argc, char*const* argv) {
     DB_ENV *dbenv;
     int r;
     if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;

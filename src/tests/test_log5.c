@@ -71,7 +71,7 @@ static void make_db (BOOL close_env) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char *const argv[]) {
     BOOL close_env = TRUE;
     for (int i=1; i<argc; i++) {
         if (strcmp(argv[i], "--no-shutdown") == 0)

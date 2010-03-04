@@ -127,7 +127,7 @@ test_txn_abort (u_int32_t dup_mode) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     test_txn_abort(0);
 //    test_txn_abort(DB_DUP|DB_DUPSORT);

@@ -92,7 +92,7 @@ static void checkpoint_callback_1(void * extra) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     int limit = 4;
     parse_args(argc, argv);
 

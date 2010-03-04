@@ -84,7 +84,7 @@ test_cursor_nonleaf_expand (int n, int reverse) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
     system("rm -rf " ENVDIR);

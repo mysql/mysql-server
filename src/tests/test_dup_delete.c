@@ -731,7 +731,7 @@ test_i0i1ci0_search (int n, int dup_mode) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     int i;
     int r;
 

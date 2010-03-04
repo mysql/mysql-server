@@ -3,7 +3,7 @@
 #include <test.h>
 #include <toku_assert.h>
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     char fname[] = "pwrite4g.data";
     int r;
     unlink(fname);

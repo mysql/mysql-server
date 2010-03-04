@@ -242,9 +242,9 @@ resend_signals(void) {
 #if IS_TDB && !TOKU_WINDOWS && TDB_IS_STATIC
 #include <ydb.h>
 #endif
-static int test_main (int argc, char *argv[]);
+static int test_main (int argc, char *const argv[]);
 int
-main(int argc, char *argv[]) {
+main(int argc, char *const argv[]) {
     int r;
 #if IS_TDB && !TOKU_WINDOWS && TDB_IS_STATIC
     toku_ydb_init();

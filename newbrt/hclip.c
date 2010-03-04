@@ -5,7 +5,7 @@
 // Clip horizontally (100 chars by default)
 #include <stdio.h>
 #include <stdlib.h>
-int main (int argc, char *argv[]) {
+int main (int argc, char *const argv[]) {
     int targcol=100;
     int c;
     int col=0;

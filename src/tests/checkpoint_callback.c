@@ -67,7 +67,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
 
     db_env_set_checkpoint_callback(checkpoint_callback_1, &string_1);

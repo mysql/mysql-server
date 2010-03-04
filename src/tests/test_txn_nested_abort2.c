@@ -74,7 +74,7 @@ test_txn_abort (void) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     test_txn_abort();
     return 0;

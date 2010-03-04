@@ -536,7 +536,7 @@ test1514(void) {
 }
 #endif
 
-int main (int argc, const char *argv[]) {
+int main (int argc, const char *const argv[]) {
     struct timeval t1,t2,t3;
     long long total_n_items = default_n_items;
     char *endptr;

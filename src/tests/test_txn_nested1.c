@@ -197,7 +197,7 @@ test_txn_abort (int insert, int secondnum) {
 #endif
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     setup_db();
     test_txn_nesting(MAX_NEST);

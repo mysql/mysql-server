@@ -93,7 +93,7 @@ test_txn_recover3 (int nrows) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

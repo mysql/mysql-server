@@ -157,7 +157,7 @@ test_env_startup(int logging) {
 
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     test_env_startup(0);  // transactionless env
     test_env_startup(1);  // with transactions and logging

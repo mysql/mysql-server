@@ -189,7 +189,7 @@ runtests(u_int32_t dup_flags) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
     runtests(0);

@@ -231,7 +231,7 @@ test_txn_nested_jumble (int iteration) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
     initialize_values();
     int i;

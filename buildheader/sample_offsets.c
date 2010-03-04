@@ -201,7 +201,7 @@ void sample_dbt_offsets (void) {
     sort_and_dump_fields("dbt", sizeof(DBT));
 }
 
-int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     open_file();
     fprintf(outf, "/* BDB offsets on a %d-bit machine */\n", __WORDSIZE);
     fprintf(outf, "#define DB_VERSION_MAJOR_%d %d\n", __WORDSIZE, DB_VERSION_MAJOR);

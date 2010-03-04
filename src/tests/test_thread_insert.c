@@ -60,7 +60,7 @@ usage (void) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     const char *dbfile = "test.db";
     const char *dbname = "main";
     int nthreads = 2;

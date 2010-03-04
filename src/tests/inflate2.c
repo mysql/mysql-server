@@ -116,7 +116,7 @@ doit (void)
     return;
 }
 
-int test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int test_main (int argc __attribute__((__unused__)), char * const argv[] __attribute__((__unused__))) {
     setup();
     doit();
     close_em();

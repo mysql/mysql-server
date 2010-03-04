@@ -171,7 +171,7 @@ do_test (void) {
 BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE;
 
 static void
-x1_parse_args (int argc, char *argv[]) {
+x1_parse_args (int argc, char * const argv[]) {
     int resultcode;
     cmd = argv[0];
     argc--; argv++;
@@ -223,7 +223,7 @@ x1_parse_args (int argc, char *argv[]) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     x1_parse_args(argc, argv);
     if (do_commit) {
 	do_x1_shutdown (TRUE, FALSE);

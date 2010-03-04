@@ -31,7 +31,7 @@ test_env_open_flags (int env_open_flags, int expectr) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

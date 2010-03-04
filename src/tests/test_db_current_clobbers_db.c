@@ -17,7 +17,7 @@ DB *db;
 DB_TXN* null_txn = NULL;
 
 int
-test_main (int UU(argc), char UU(*argv[])) {
+test_main (int UU(argc), char UU(*const argv[])) {
     int r;
     system("rm -rf " ENVDIR);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);    CKERR(r);

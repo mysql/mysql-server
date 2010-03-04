@@ -13,7 +13,7 @@ DB_ENV *env;
 DB *db;
 DB_TXN *txn=0;
 
-int main (int argc, char *argv[]) {
+int main (int argc, char *const argv[]) {
     int r;
     int i;
     r = system("rm -rf ./" DIR);

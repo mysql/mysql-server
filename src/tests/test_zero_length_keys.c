@@ -139,7 +139,7 @@ test_insert_zero_length_keys (int n, int dup_mode, const char *fname) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   

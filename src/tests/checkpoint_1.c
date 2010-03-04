@@ -154,7 +154,7 @@ static void checkpoint_callback_2(void * extra) {
 
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     u_int32_t n;
     int snap;

@@ -5,7 +5,7 @@
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
-int test_main (int argc, char *argv[]) {
+int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     int r;
     system("rm -rf " ENVDIR);

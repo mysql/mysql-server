@@ -510,17 +510,17 @@ static void run_test (int iter) {
 
 
 // ------------ infrastructure ----------
-static void do_args(int argc, char *argv[]);
+static void do_args(int argc, char *const argv[]);
 
 static int iter_arg = 0;
 
-int test_main(int argc, char **argv) {
+int test_main(int argc, char *const*argv) {
     do_args(argc, argv);
     run_test(iter_arg);
     return 0;
 }
 
-static void do_args(int argc, char *argv[]) {
+static void do_args(int argc, char *const argv[]) {
     int resultcode;
     char *cmd = argv[0];
     argc--; argv++;

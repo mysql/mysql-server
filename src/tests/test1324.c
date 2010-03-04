@@ -76,7 +76,7 @@ do_1324 (int moreflags)
 }
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char *const argv[])
 {
     parse_args(argc, argv);
     do_1324(DB_INIT_LOG);

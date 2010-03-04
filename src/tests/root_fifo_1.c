@@ -107,7 +107,7 @@ static void root_fifo_1(int n, int create_outside) {
     r = env->close(env, 0); assert(r == 0); env = null_env;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     int n = -1;
 

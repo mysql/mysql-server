@@ -365,7 +365,7 @@ progress_test_2(void) {
 }
 
 int
-test_main (int argc, char *argv[])
+test_main (int argc, char * const argv[])
 {
     parse_args(argc, argv);
     int commit;

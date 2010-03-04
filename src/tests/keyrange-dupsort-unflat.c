@@ -67,7 +67,7 @@ static void test (void) {
 }
 
 int
-test_main (int argc , char *argv[]) {
+test_main (int argc , char * const argv[]) {
     parse_args(argc, argv);
     test();
     return 0;

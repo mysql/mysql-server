@@ -114,7 +114,7 @@ get_choice_lock_table_split_fcreate(void) {
 }
 
 static void
-do_args(int argc, char *argv[]) {
+do_args(int argc, char * const argv[]) {
     cmd = argv[0];
     int i;
     //Clear
@@ -588,7 +588,7 @@ recover_and_verify(void) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char * const argv[]) {
     crash_during_checkpoint = 0; //Do not crash during checkpoint (possibly during recovery).
     do_args(argc, argv);
     env_startup();

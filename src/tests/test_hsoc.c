@@ -113,7 +113,7 @@ test_hsoc (int pagesize, int dup_mode) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
     test_hsoc(4096, DB_DUP + DB_DUPSORT);

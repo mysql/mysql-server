@@ -107,7 +107,7 @@ test_txn_abort (int n, int which_guys_to_abort) {
 }
 
 int
-test_main(int argc, char *argv[]) {
+test_main(int argc, char *const argv[]) {
     int i,j;
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];

@@ -99,7 +99,7 @@ printtdiff (char *str) {
 }
 
 int
-test_main (int argc, char *argv[]) {
+test_main (int argc, char *const argv[]) {
     progname=argv[0];
     parse_args(argc, argv);
 

@@ -263,7 +263,7 @@ static void run_test (void) {
     CKERR(r);
 }
 
-int test_main (int argc, char *argv[]) {
+int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     uint32_t which;
     for (which = 0; which < MAX_DBS; which++) {
