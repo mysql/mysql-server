@@ -1,3 +1,27 @@
+2010-03-03	The InnoDB Team
+
+	* handler/handler0alter.cc, innodb-index.result, innodb-index.test,
+	innodb.result, innodb.test:
+	Disallow a duplicate index name when creating an index.
+
+2010-02-11	The InnoDB Team
+
+	* include/mem0mem.h, include/mem0mem.ic, mem/mem0mem.c:
+	Fix Bug #49535 Available memory check slows down crash
+	recovery tens of times
+
+2010-02-09	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug #38901 InnoDB logs error repeatedly when trying to load
+	page into buffer pool
+
+2010-02-09	The InnoDB Team
+
+	* srv/srv0srv.c:
+	Let the master thread sleep if the amount of work to be done is
+	calibrated as taking less than a second.
+
 2010-02-04	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, buf/buf0buf.c,
@@ -6,6 +30,12 @@
 	Pass the file name and line number of the caller of the
 	b-tree cursor functions to the buffer pool requests, in order
 	to make the latch diagnostics more accurate.
+
+2010-02-03	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#49001 SHOW INNODB STATUS deadlock info incorrect
+	when deadlock detection aborts
 
 2010-02-03	The InnoDB Team
 
