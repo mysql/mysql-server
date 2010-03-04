@@ -3718,7 +3718,9 @@ int pull_out_semijoin_tables(JOIN *join)
       {
         if (tbl->table && !(pulled_tables & tbl->table->map))
         {
-          if (find_eq_ref_candidate(tbl->table, sj_nest->nested_join->used_tables))
+          if (find_eq_ref_candidate(tbl->table, 
+                                    sj_nest->nested_join->used_tables & 
+                                    ~pulled_tables))
           {
             pulled_a_table= TRUE;
             pulled_tables |= tbl->table->map;
@@ -18789,13 +18791,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        ha_rows examined_rows;
+        double examined_rows;
         if (tab->select && tab->select->quick)
-          examined_rows= tab->select->quick->records;
+          examined_rows= rows2double(tab->select->quick->records);
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+          examined_rows= rows2double(tab->limit ? tab->limit : 
+                                     tab->table->file->records());
         else
-          examined_rows=(ha_rows)join->best_positions[i].records_read; 
+          examined_rows= join->best_positions[i].records_read; 
  
         item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
                                          MY_INT64_NUM_DECIMAL_DIGITS));
