@@ -1,0 +1,5 @@
+--source include/have_utf8mb4.inc
+
+let $engine= MyISAM;
+--source include/ctype_utf8mb4.inc
+
