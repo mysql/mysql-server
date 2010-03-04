@@ -214,6 +214,69 @@ ulong convert_month_to_period(ulong month)
 
 
 /*
+  Convert a string to 8-bit representation,
+  for use in str_to_time/str_to_date/str_to_date.
+  
+  In the future to_ascii() can be extended to convert
+  non-ASCII digits to ASCII digits
+  (for example, ARABIC-INDIC, DEVANAGARI, BENGALI, and so on)
+  so DATE/TIME/DATETIME values understand digits in the
+  respected scripts.
+*/
+static uint
+to_ascii(CHARSET_INFO *cs,
+         const char *src, uint src_length,
+         char *dst, uint dst_length)
+                     
+{
+  int cnvres;
+  my_wc_t wc;
+  const char *srcend= src + src_length;
+  char *dst0= dst, *dstend= dst + dst_length - 1;
+  while (dst < dstend &&
+         (cnvres= (cs->cset->mb_wc)(cs, &wc,
+                                    (const uchar*) src,
+                                    (const uchar*) srcend)) > 0 &&
+         wc < 128)
+  {
+    src+= cnvres;
+    *dst++= wc;
+  }
+  *dst= '\0';
+  return dst - dst0;
+}
+
+
+/* Character set-aware version of str_to_time() */
+bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+                 MYSQL_TIME *l_time, int *warning)
+{
+  char cnv[32];
+  if ((cs->state & MY_CS_NONASCII) != 0)
+  {
+    length= to_ascii(cs, str, length, cnv, sizeof(cnv));
+    str= cnv;
+  }
+  return str_to_time(str, length, l_time, warning);
+}
+
+
+/* Character set-aware version of str_to_datetime() */
+timestamp_type str_to_datetime(CHARSET_INFO *cs,
+                               const char *str, uint length,
+                               MYSQL_TIME *l_time, uint flags, int *was_cut)
+{
+  char cnv[32];
+  if ((cs->state & MY_CS_NONASCII) != 0)
+  {
+    length= to_ascii(cs, str, length, cnv, sizeof(cnv));
+    str= cnv;
+  }
+  return str_to_datetime(str, length, l_time, flags, was_cut);
+}
+
+
+/*
   Convert a timestamp string to a MYSQL_TIME value and produce a warning 
   if string was truncated during conversion.
 
@@ -222,14 +285,15 @@ ulong convert_month_to_period(ulong month)
 */
 
 timestamp_type
-str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
+str_to_datetime_with_warn(CHARSET_INFO *cs,
+                          const char *str, uint length, MYSQL_TIME *l_time,
                           uint flags)
 {
   int was_cut;
   THD *thd= current_thd;
   timestamp_type ts_type;
   
-  ts_type= str_to_datetime(str, length, l_time,
+  ts_type= str_to_datetime(cs, str, length, l_time,
                            (flags | (thd->variables.sql_mode &
                                      (MODE_INVALID_DATES |
                                       MODE_NO_ZERO_DATE))),
@@ -284,7 +348,8 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
     See str_to_time() for more info.
 */
 bool
-str_to_time_with_warn(const char *str, uint length, MYSQL_TIME *l_time)
+str_to_time_with_warn(CHARSET_INFO *cs,
+                      const char *str, uint length, MYSQL_TIME *l_time)
 {
   int warning;
   bool ret_val= str_to_time(str, length, l_time, &warning);
@@ -697,7 +762,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
 {
   uint length= (uint) my_time_to_str(l_time, (char*) str->ptr());
   str->length(length);
-  str->set_charset(&my_charset_bin);
+  str->set_charset(&my_charset_numeric);
 }
 
 
@@ -706,7 +771,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 {
   uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
   str->length(length);
-  str->set_charset(&my_charset_bin);
+  str->set_charset(&my_charset_numeric);
 }
 
 
@@ -715,7 +780,7 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 {
   uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr());
   str->length(length);
-  str->set_charset(&my_charset_bin);
+  str->set_charset(&my_charset_numeric);
 }
 
 

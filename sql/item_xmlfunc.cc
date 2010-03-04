@@ -2569,7 +2569,7 @@ void Item_xml_str_func::fix_length_and_dec()
 
   nodeset_func= 0;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+  if (agg_arg_charsets_for_comparison(collation, args, arg_count))
     return;
 
   if (collation.collation->mbminlen > 1)
