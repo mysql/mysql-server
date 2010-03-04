@@ -27,7 +27,7 @@ if ! test -e ../licenses/install_licenses_amd64.bat; then
     exit 1
 fi
 echo Installing licenses...
-(cd ../licenses && cmd /c install_licenses_amd64.bat)
+(cd ../licenses && cmd /c install_licenses_amd64.bat) > /dev/null
 echo Done installing licenses.
 echo
 
@@ -60,9 +60,14 @@ fi
 #Set up aliases
 ( cd amd64/symlinks && cp -d * /usr/local/bin/ )
 
+#Copy nightly script.
+cp -u nightly.sh ~/
+
+
 echo You can now install the intel compiler.
 echo You must restart cygwin after intel compiler is installed.
 echo If the intel compiler is already installed, just restart cygwin.
 
+echo
 
 
