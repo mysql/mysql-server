@@ -3,7 +3,9 @@
 # (WL#1110: Subquery optimization: materialization)
 #
 
+--disable_warnings
 drop table if exists t1, t2, t3;
+--enable_warnings
 
 create table t1 (a1 char(8), a2 char(8));
 create table t2 (b1 char(8), b2 char(8));
@@ -22,6 +24,7 @@ insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
 
+set @optimizer_switch= @@optimizer_switch;
 # force the use of materialization --
 set @@optimizer_switch="semijoin=off";
 
@@ -35,6 +38,12 @@ set @@optimizer_switch="materialization=off";
 # run query
 set @@optimizer_switch="semijoin=off";
 # run query
+
+# materialize the result of temp tables
+# GROUP BY a1,a2 ORDER BY a2
+
+# materialize the result of subquery over temp-table view
+ 
 
 /******************************************************************************
 * Test NULL semantics.                                                        *
@@ -60,6 +69,8 @@ set @@optimizer_switch="semijoin=off";
 /*
   Test that BLOBs are not materialized (except when arguments of some functions).
 */
+# restore default
+set @@optimizer_switch= @optimizer_switch;
 # force materialization to be always considered
 set @@optimizer_switch="semijoin=off";
 set @prefix_len = 6;
@@ -68,7 +79,10 @@ set @prefix_len = 6;
 set @blob_len = 16;
 set @suffix_len = @blob_len - @prefix_len;
 
+--disable_warnings
 drop table if exists t1_16, t2_16, t3_16;
+--enable_warnings
+
 create table t1_16 (a1 blob(16), a2 blob(16));
 create table t2_16 (b1 blob(16), b2 blob(16));
 create table t3_16 (c1 blob(16), c2 blob(16));
@@ -96,11 +110,11 @@ insert into t3_16 values
 insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
+
 # single value transformer
 explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_16
@@ -110,7 +124,6 @@ where a1 in (select b1 from t2_16 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_16
@@ -120,7 +133,6 @@ where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_16
@@ -132,19 +144,16 @@ where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
-# anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
-set @@group_concat_max_len = 256;
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
 
 explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_16
@@ -156,7 +165,10 @@ drop table t1_16, t2_16, t3_16;
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
 
+--disable_warnings
 drop table if exists t1_512, t2_512, t3_512;
+--enable_warnings
+
 create table t1_512 (a1 blob(512), a2 blob(512));
 create table t2_512 (b1 blob(512), b2 blob(512));
 create table t3_512 (c1 blob(512), c2 blob(512));
@@ -188,7 +200,6 @@ insert into t3_512 values
 explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select b1 from t2_512 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_512
@@ -198,7 +209,6 @@ where a1 in (select b1 from t2_512 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_512
@@ -208,7 +218,6 @@ where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_512
@@ -220,19 +229,16 @@ where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
-# anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
-set @@group_concat_max_len = 256;
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
 
 explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_512
@@ -244,7 +250,10 @@ drop table t1_512, t2_512, t3_512;
 set @blob_len = 1024;
 set @suffix_len = @blob_len - @prefix_len;
 
+--disable_warnings
 drop table if exists t1_1024, t2_1024, t3_1024;
+--enable_warnings
+
 create table t1_1024 (a1 blob(1024), a2 blob(1024));
 create table t2_1024 (b1 blob(1024), b2 blob(1024));
 create table t3_1024 (c1 blob(1024), c2 blob(1024));
@@ -272,11 +281,11 @@ insert into t3_1024 values
 insert into t3_1024 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
+
 # single value transformer
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select b1 from t2_1024 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1024
@@ -286,7 +295,6 @@ where a1 in (select b1 from t2_1024 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1024
@@ -296,7 +304,6 @@ where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1024
@@ -308,19 +315,16 @@ where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
-#anything < (CONVERT_IF_BIGGER_TO_BLOB = 1024)
-set @@group_concat_max_len = 256; 
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1024)
 
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1024
@@ -332,7 +336,10 @@ drop table t1_1024, t2_1024, t3_1024;
 set @blob_len = 1025;
 set @suffix_len = @blob_len - @prefix_len;
 
+--disable_warnings
 drop table if exists t1_1025, t2_1025, t3_1025;
+--enable_warnings
+
 create table t1_1025 (a1 blob(1025), a2 blob(1025));
 create table t2_1025 (b1 blob(1025), b2 blob(1025));
 create table t3_1025 (c1 blob(1025), c2 blob(1025));
@@ -360,11 +367,11 @@ insert into t3_1025 values
 insert into t3_1025 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
+
 # single value transformer
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select b1 from t2_1025 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1025
@@ -374,7 +381,6 @@ where a1 in (select b1 from t2_1025 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1025
@@ -384,7 +390,6 @@ where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1025
@@ -396,19 +401,16 @@ where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
-# anything < (CONVERT_IF_BIGGER_TO_BLOB = 1025)
-set @@group_concat_max_len = 256; 
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1025)
 
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
-show warnings;
 
 select left(a1,7), left(a2,7)
 from t1_1025
@@ -416,7 +418,55 @@ where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
 drop table t1_1025, t2_1025, t3_1025;
 
-# test for BIT fields - possibly problem with MEMORY
+# test for BIT fields
+create table t1bit (a1 bit(3), a2 bit(3));
+create table t2bit (b1 bit(3), b2 bit(3));
+
+insert into t1bit values (b'000', b'100');
+insert into t1bit values (b'001', b'101');
+insert into t1bit values (b'010', b'110');
+
+insert into t2bit values (b'001', b'101');
+insert into t2bit values (b'010', b'110');
+insert into t2bit values (b'110', b'111');
+
+
+# restore default
+set @@optimizer_switch= @optimizer_switch;
+set @@optimizer_switch="semijoin=off";
+
+explain extended select bin(a1), bin(a2)
+from t1bit
+where (a1, a2) in (select b1, b2 from t2bit);
+
+select bin(a1), bin(a2)
+from t1bit
+where (a1, a2) in (select b1, b2 from t2bit);
+
+drop table t1bit, t2bit;
+
+# test mixture of BIT and BLOB
+create table t1bb (a1 bit(3), a2 blob(3));
+create table t2bb (b1 bit(3), b2 blob(3));
+
+insert into t1bb values (b'000', '100');
+insert into t1bb values (b'001', '101');
+insert into t1bb values (b'010', '110');
+
+insert into t2bb values (b'001', '101');
+insert into t2bb values (b'010', '110');
+insert into t2bb values (b'110', '111');
+
+explain extended select bin(a1), a2
+from t1bb
+where (a1, a2) in (select b1, b2 from t2bb);
+
+select bin(a1), a2
+from t1bb
+where (a1, a2) in (select b1, b2 from t2bb);
+
+drop table t1bb, t2bb;
+
 
 /******************************************************************************
 * IN=>EXISTS transformation produces 'ref' lookups.                           *

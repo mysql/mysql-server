@@ -2967,7 +2967,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns, TRUE,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                         "materialized subselect"))
+                         "materialized subselect", TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= tmp_result_sink->table;
