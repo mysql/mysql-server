@@ -6983,6 +6983,8 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
                                           scanner->send)) <= 0))
       return -1;
     
+    if (wc > 0xFFFF)
+      wc= MY_CS_REPLACEMENT_CHARACTER;
     scanner->page= wc >> 8;
     scanner->code= wc & 0xFF;
     scanner->sbeg+= mb_len;

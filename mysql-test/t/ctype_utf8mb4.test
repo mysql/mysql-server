@@ -1737,6 +1737,51 @@ SELECT CONCAT(utf8mb4, _utf8 '¿') FROM t1;
 SELECT CONCAT('a', _utf8 '¿') FROM t1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#51675 Server crashes on inserting 4 byte char.
+--echo # after ALTER TABLE to 'utf8mb4' 
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 ( 
+  subject varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci, 
+  p VARCHAR(15) CHARACTER SET utf8 
+) DEFAULT CHARSET=latin1; 
+
+# Alter old table, add index 
+ALTER TABLE t1 ADD INDEX (subject); 
+
+# Alter old 'utf8' table to new 'utf8mb4'
+ALTER TABLE t1
+  DEFAULT CHARACTER SET utf8,
+  MODIFY subject varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  MODIFY p varchar(255) CHARACTER SET utf8;
+SHOW CREATE TABLE t1; 
+
+INSERT INTO t1(subject) VALUES ('abcd'); 
+# Insert 4 byte characters
+INSERT INTO t1(subject) VALUES(x'f0909080');
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #51676 Server crashes on SELECT, ORDER BY on 'utf8mb4' column
+--echo #
+SET NAMES utf8mb4; 
+CREATE TABLE t1 ( 
+  subject varchar(255) character set utf8mb4 collate utf8mb4_unicode_ci, 
+  p varchar(15) character set utf8mb4 
+) DEFAULT CHARSET=latin1; 
+# Insert 4 byte characters 
+# 4byte character 
+INSERT INTO t1(subject) VALUES(0xF0909080);
+# mix of 3 byte & 4 byte 
+INSERT INTO t1(subject) VALUES(0x616263F0909080646566);
+SHOW CREATE TABLE t1; 
+SELECT *  FROM t1 ORDER BY 1;
+SELECT hex(subject), length(subject), char_length(subject), octet_length(subject) FROM t1 ORDER BY 1; 
+SELECT subject FROM t1 ORDER BY 1;
+DROP TABLE t1;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
