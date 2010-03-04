@@ -2456,16 +2456,16 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT *  FROM t1 ORDER BY 1;
 subject	p
-𐐀	NULL
 abc𐐀def	NULL
+𐐀	NULL
 SELECT hex(subject), length(subject), char_length(subject), octet_length(subject) FROM t1 ORDER BY 1;
 hex(subject)	length(subject)	char_length(subject)	octet_length(subject)
 616263F0909080646566	10	7	10
 F0909080	4	1	4
 SELECT subject FROM t1 ORDER BY 1;
 subject
-𐐀
 abc𐐀def
+𐐀
 DROP TABLE t1;
 #
 # End of 5.5 tests
