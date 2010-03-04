@@ -25,7 +25,7 @@ class Ndb_mgmclient
 public:
   Ndb_mgmclient(const char*,int verbose=0);
   ~Ndb_mgmclient();
-  bool execute(const char *_line, int _try_reconnect = -1,
+  bool execute(const char *line, int try_reconnect = -1,
                bool interactive = true, int *error = NULL);
 private:
   CommandInterpreter *m_cmd;
