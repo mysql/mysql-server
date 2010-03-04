@@ -1,0 +1,69 @@
+#
+# BUG#40045: Replication failure on RBR + no PK + UPDATE + integer key + char
+# with no key
+#
+# BUG#40007: Replication failure with RBR + no PK + 2 indexed fields 
+#
+# TEST DESCRIPTION
+# ================
+#
+#   This test is structure in seven cases. In all of them, roughly the same
+#   update and delete operations are performed, but what changes are the keys
+#   in the table: 
+#      no keys, one key, composite key (but only half is used in query),
+#      unique key, primary key
+#   
+#   The four cases are distinct because the engine on both and master and
+#   slave varies:
+#      
+#      - On rpl_row_record_find_myisam.test (this) test file:
+#        CASE 1:  MyISAM - master, MyISAM - slave
+#           test without HA_PARTIAL_COLUMN_READ engine on master and on slave
+#
+#      - On rpl_row_record_find_innodb.test:
+#        CASE 2:  InnoDB - master, MyISAM - slave
+#           test with HA_PARTIAL_COLUMN_READ engine on master but not on slave
+#           (InnoDB)
+#        CASE 3:  InnoDB - master, InnoDB - slave
+#           test with HA_PARTIAL_COLUMN_READ engine on master and on slave
+#           (InnoDB)
+#        CASE 4:  MyISAM - master, InnoDB - slave
+#           test without HA_PARTIAL_COLUMN_READ engine on master but with it on slave
+#           (InnoDB)
+#
+#   NOTE: In this file we also perform a sanity check by running the test
+#         cases to verify some of the BUGS.
+
+source include/master-slave.inc;
+source include/have_binlog_format_row.inc;
+connection master;
+
+### SANITY TESTS for BUG#40045 and BUG#40007
+
+# TEST CASE USED for verifying BUG#40045
+CREATE TABLE t1 ( i1 int, c1 char(1), key ( i1 ));
+INSERT IGNORE INTO t1 VALUES (1, 'a');
+UPDATE t1 SET c1 = 'b' WHERE i1 = 1;
+DROP TABLE t1;
+sync_slave_with_master;
+
+# TEST CASE USED for verifying BUG#40007
+connection master;
+CREATE TABLE table1_myisam ( `bit_key` bit, `int_key` int, key (`bit_key` ), key (`int_key` ));
+disable_warnings;
+INSERT IGNORE INTO table1_myisam VALUES ('1', '-2146992385');
+enable_warnings;
+UPDATE `table1_myisam` SET `bit_key` = 0 WHERE `bit_key` = 1;
+DROP TABLE table1_myisam;
+sync_slave_with_master;
+
+connection master;
+
+--echo #################################################################
+--echo # CASE 1: MyISAM - master, MyISAM - slave
+--echo #################################################################
+
+let $master_engine= MyISAM;
+let $slave_engine= MyISAM;
+
+-- source extra/rpl_tests/rpl_row_record_find.test

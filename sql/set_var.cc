@@ -210,6 +210,9 @@ static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
 static sys_var_thd_binlog_direct sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
                                                                     &SV::binlog_direct_non_trans_update);
+static sys_var_thd_binlog_row_image sys_binlog_row_image(&vars,
+                                                         "binlog_row_image",
+                                                         &SV::binlog_row_image);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -1396,6 +1399,18 @@ void fix_binlog_format_after_update(THD *thd, enum_var_type type)
   thd->reset_current_stmt_binlog_format_row();
 }
 
+bool sys_var_thd_binlog_row_image::check(THD *thd, set_var *var) {
+  /*
+    All variables that affect writing to binary log (either format or
+    turning logging on and off) use the same checking. We call the
+    superclass ::check function to assign the variable correctly, and
+    then check the value.
+   */
+  bool result= sys_var_thd_enum::check(thd, var);
+  if (!result)
+    result= check_log_update(thd, var);
+  return result;
+}
 
 static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {

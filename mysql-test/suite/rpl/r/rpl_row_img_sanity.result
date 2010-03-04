@@ -1,0 +1,756 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET @old_binlog_row_image= @@binlog_row_image;
+SET @old_binlog_row_image= @@binlog_row_image;
+#####################################################
+# (S4-7) basic assertion that binlog_row_image='FULL' is the
+######################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/stop_slave.inc
+include/start_slave.inc
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+INSERT INTO t(c1,c3) VALUES (1, 'a');
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t;
+DROP TABLE t;
+ON MASTER
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+ON SLAVE
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+include/stop_slave.inc
+include/start_slave.inc
+ITERATIONS: row_img: 3, indexes: 5
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 3, indexes: 4
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 3, indexes: 3
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 3, indexes: 2
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 3, indexes: 1
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ON MASTER
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+FLUSH TABLES;
+ON SLAVE
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+include/stop_slave.inc
+include/start_slave.inc
+ITERATIONS: row_img: 2, indexes: 5
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 2, indexes: 4
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 2, indexes: 3
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 2, indexes: 2
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 2, indexes: 1
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ON MASTER
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+FLUSH TABLES;
+ON SLAVE
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/stop_slave.inc
+include/start_slave.inc
+ITERATIONS: row_img: 1, indexes: 5
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 1, indexes: 4
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 1, indexes: 3
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 1, indexes: 2
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+ITERATIONS: row_img: 1, indexes: 1
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN master
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+SET SQL_LOG_BIN=0;
+CREATING TABLE IN slave
+CREATE TABLE t (c1 int, c2 int, c3 blob);
+SET SQL_LOG_BIN=1;
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+################## SPECIAL CASES #########################
+# the ones marked with (S#-#) are mentioned in review:
+# http://lists.mysql.com/commits/89844
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+include/stop_slave.inc
+include/start_slave.inc
+###################################
+# PK (contains blob)
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c1=2 WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+### checking master images
+### checking slave images
+###################################
+# PK (does not contain blob, but blob is updated)
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
+INSERT INTO t VALUES (1,2,"a");
+INSERT INTO t(c1,c3) VALUES (10,"a");
+INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+INSERT INTO t(c1) VALUES (1000);
+INSERT DELAYED INTO t(c1) VALUES (10000);
+UPDATE t SET c3='b' WHERE c1=1;
+DELETE FROM t WHERE c2=2;
+DROP TABLE t;
+### checking master images
+### checking slave images
+###################################
+# (S4-1) AUTOINC columns
+###################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
+INSERT INTO t(c2) VALUES (2);
+DROP TABLE t;
+##################################################################
+# (S4-2) Test that slave does not write more columns than the ones it has 
+##################################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int, c2 int, primary key(c1));
+INSERT INTO t(c2,c3) VALUES (2,'aaaaa');
+UPDATE t SET c2=3, c3='bbbbb' WHERE c2=2;
+DROP TABLE t;
+##################################################################
+# (S4-5) Test that slave fills default columns in its own columns
+##################################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int, c2 int);
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int, c2 int, c3 int DEFAULT 2005);
+INSERT INTO t(c1) VALUES (1);
+INSERT INTO t(c1) VALUES (2);
+SELECT * FROM t;
+c1	c2	c3
+1	NULL	2005
+2	NULL	2005
+SELECT * FROM t;
+c1	c2
+1	NULL
+2	NULL
+DROP TABLE t;
+##################################################################
+# (S4-6) Test that slave uses partial BI when master contains more columns
+##################################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1, c3), unique key(c1));
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int NOT NULL, c2 int, unique key(c1));
+INSERT INTO t VALUES (1, 2, 3);
+UPDATE t SET c2= 4 WHERE c1=1;
+SELECT * FROM t;
+c1	c2
+1	4
+SELECT * FROM t;
+c1	c2	c3
+1	4	3
+DROP TABLE t;
+##################################################################
+# (S4-3) Test that if master has binlog_row_image=MINIMAL and slave has 
+# NOBLOB or FULL, it will log the expected columns
+##################################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='FULL';
+SET SESSION binlog_row_image='FULL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
+INSERT INTO t VALUES (1, 2, 3);
+UPDATE t SET c2= 4 WHERE c1=1;
+DELETE FROM t WHERE c2=4;
+DROP TABLE t;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
+INSERT INTO t VALUES (1, 2, 3);
+UPDATE t SET c2= 4 WHERE c1=1;
+DELETE FROM t WHERE c2=4;
+DROP TABLE t;
+################################################################
+# (S4-4) Test that the slave stop with error if no usable data is on BI
+################################################################
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET GLOBAL binlog_row_image='MINIMAL';
+SET SESSION binlog_row_image='MINIMAL';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+FLUSH TABLES;
+SET GLOBAL binlog_row_image='NOBLOB';
+SET SESSION binlog_row_image='NOBLOB';
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+include/stop_slave.inc
+include/start_slave.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c3));
+SET SQL_LOG_BIN=1;
+CREATE TABLE t (c1 int NOT NULL, c2 int, primary key(c1));
+INSERT INTO t VALUES (1,2,3);
+UPDATE t SET c2=4 WHERE c2=2;
+DROP TABLE t;
+Could not execute Update_rows event on table test.t; Can't find record in 't', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.000001, end_log_pos 478
+include/stop_slave.inc
+DROP TABLE t;
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
