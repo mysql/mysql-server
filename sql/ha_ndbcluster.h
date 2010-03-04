@@ -463,7 +463,7 @@ class ha_ndbcluster: public handler
   int final_drop_index(TABLE *table_arg);
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
-  virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   bool primary_key_is_clustered();
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
@@ -557,7 +557,7 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  virtual uint make_pushed_join(const AQP::Join_plan& plan);
+  uint make_pushed_join(const AQP::Join_plan& plan);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
@@ -565,8 +565,6 @@ static void set_tabname(const char *pathname, char *tabname);
   const handler* member_of_pushed_join() const
   { return m_pushed_join_member;
   }
-
-  bool prefer_index() const;
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map);

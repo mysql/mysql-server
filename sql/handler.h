@@ -392,7 +392,7 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
-/* Flag used for for push_flag() / test_push_flag() */
+/* Flag used for for test_push_flag() */
 enum ha_push_flag {
 
   /* Handler want to block const table optimization */
@@ -1853,9 +1853,6 @@ public:
   */
   virtual const handler* member_of_pushed_join() const
   { return NULL; }
-
-  virtual int push_flag(enum ha_push_flag flag)
-  { return -1; }
 
   virtual bool test_push_flag(enum ha_push_flag flag) const
   {
