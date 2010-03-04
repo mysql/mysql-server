@@ -4679,7 +4679,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed)
+  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->main_da.sql_errno() : 0;
 
