@@ -5471,11 +5471,20 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 
 
 /*
-  Walk over IN-equalites and see which are bound.
-  (Q: where do we get them?)
-   A1: keep left/right list... (A2: accumulate...)
-  This step has an additional merit over KEYUSE-based bind detection 
-  because it handles ie_i's that are not keyparts.
+  Given a semi-join nest, find out which of the IN-equalities are bound
+
+  SYNOPSIS
+    get_bound_sj_equalities()
+      sj_nest           Semi-join nest
+      remaining_tables  Tables that are not yet bound
+
+  DESCRIPTION
+    Given a semi-join nest, find out which of the IN-equalities have their
+    left part expression bound (i.e. the said expression doesn't refer to
+    any of remaining_tables and can be evaluated).
+
+  RETURN
+    Bitmap of bound IN-equalities.
 */
 
 ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest, 
@@ -5685,6 +5694,7 @@ best_access_path(JOIN      *join,
              ...
         */
         if (try_sj_inside_out && 
+            table->covering_keys.is_set(key) &&
             (handled_sj_equalities | bound_sj_equalities) ==     // (1)
             PREV_BITS(ulonglong, s->emb_sj_nest->sj_in_exprs)) // (1)
         {
