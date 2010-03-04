@@ -29,9 +29,10 @@ toku_commit_fdelete (u_int8_t   file_was_open,
 	r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
 	assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
 	{
-	    int fd = toku_cachefile_fd(cf);
 	    assert(!toku_cachefile_is_dev_null(cf));
-	    toku_logger_call_remove_finalize_callback(txn->logger, fd);
+	    struct brt_header *h = toku_cachefile_get_userdata(cf);
+	    DICTIONARY_ID dict_id = h->dict_id;
+	    toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
 	}
 	r = toku_cachefile_redirect_nullfd(cf);
 	assert(r==0);
@@ -82,9 +83,10 @@ toku_rollback_fcreate (FILENUM    filenum,
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r == 0);
     {
-	int fd = toku_cachefile_fd(cf);
 	assert(!toku_cachefile_is_dev_null(cf));
-	toku_logger_call_remove_finalize_callback(txn->logger, fd);
+	struct brt_header *h = toku_cachefile_get_userdata(cf);
+	DICTIONARY_ID dict_id = h->dict_id;
+	toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
     }
     r = toku_cachefile_redirect_nullfd(cf);
     assert(r==0);
@@ -361,10 +363,11 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
 	// If r!=0 it could be because we grabbed a log on an empty table that doesn't even exist, and we never put anything into it.
 	// So, just don't do anything in this case.
 	BRT brt = brtv;
+	yield(toku_checkpoint_safe_client_lock, yield_v);
 	r = toku_brt_truncate(brt);
 	assert(r==0);
+	toku_checkpoint_safe_client_unlock();
     }
-    toku_checkpoint_safe_client_unlock();
 
     return r; 
 }
@@ -383,7 +386,7 @@ toku_commit_load (BYTESTRING UU(old_iname),
                   void      *UU(yield_v),
                   LSN        UU(oplsn))
 {
-    // need to implement
+    // TODO 2216: need to implement
     assert(1);
     return 0;
 }
@@ -396,7 +399,46 @@ toku_rollback_load (BYTESTRING UU(old_iname),
                     void      *UU(yield_v),
                     LSN        UU(oplsn)) 
 {
-    // need to implement
+    // TODO 2216: need to implement
     assert(1);
     return 0;
 }
+
+
+int
+toku_commit_dictionary_redirect (FILENUM UU(old_filenum),
+			         FILENUM UU(new_filenum),
+                                 TOKUTXN UU(txn),
+                                 YIELDF  UU(yield),
+                                 void *  UU(yield_v),
+                                 LSN     UU(oplsn)) //oplsn is the lsn of the commit
+{
+    //NO-OP
+    return 0;
+}
+
+int
+toku_rollback_dictionary_redirect (FILENUM old_filenum,
+			           FILENUM new_filenum,
+                                   TOKUTXN txn,
+                                   YIELDF  UU(yield),
+                                   void *  UU(yield_v),
+                                   LSN     UU(oplsn)) //oplsn is the lsn of the abort
+{
+    int r = 0;
+    CACHEFILE new_cf = NULL;
+    r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
+    assert(r == 0);
+    struct brt_header *new_h = toku_cachefile_get_userdata(new_cf);
+
+    CACHEFILE old_cf = NULL;
+    r = toku_cachefile_of_filenum(txn->logger->ct, old_filenum, &old_cf);
+    assert(r == 0);
+    struct brt_header *old_h = toku_cachefile_get_userdata(old_cf);
+
+    //Redirect back from new to old.
+    r = toku_dictionary_redirect_abort(old_h, new_h, txn);
+    assert(r==0);
+    return r;
+}
+

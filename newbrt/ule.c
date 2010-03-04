@@ -756,7 +756,7 @@ int le_is_provdel(LEAFENTRY le) {
 
 int
 le_has_xids(LEAFENTRY le, XIDS xids) {
-    int rval;
+    int rval=0;
 
     //Read num_uxrs
     u_int8_t num_uxrs = le->num_xrs;

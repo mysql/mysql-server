@@ -17,7 +17,6 @@ LOCKTREE_TLOG    = locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = locktree_log.$(AEXT)
 
 OBJS_RAW = \
-	db_id \
 	idlth \
 	lth \
 	rth \

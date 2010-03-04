@@ -375,7 +375,7 @@ static int swap_brt (OMTVALUE txnv, u_int32_t UU(idx), void *extra) {
 int toku_txn_note_swap_brt (BRT live, BRT zombie) {
     if (zombie->pinned_by_checkpoint) {
         //Swap checkpoint responsibility.
-        assert(!live->pinned_by_checkpoint);
+        assert(!live->pinned_by_checkpoint); //Pin only uses one brt.
         live->pinned_by_checkpoint = 1;
         zombie->pinned_by_checkpoint = 0;
     }

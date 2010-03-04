@@ -7,7 +7,8 @@ static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
 int
-test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+test_main(int argc, const char *argv[]) {
+    default_parse_args (argc, argv);
     const char *n = __FILE__ "dump.brt";
     int r;
     BRT t;
@@ -16,7 +17,7 @@ test_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__u
     unlink(n);
     assert(f);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
-    r = toku_open_brt(n, 0, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(n, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
     int i;
     for (i=0; i<10000; i++) {
 	char key[100],val[100];

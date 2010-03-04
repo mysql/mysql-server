@@ -19,8 +19,8 @@
 /* TODO: reallocate the hash idlth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
 const u_int32_t __toku_idlth_init_size = 521;
 
-static inline u_int32_t toku__idlth_hash(toku_idlth* idlth, toku_db_id* key) {
-    size_t tmp = key->saved_hash;
+static inline u_int32_t toku__idlth_hash(toku_idlth* idlth, DICTIONARY_ID dict_id) {
+    uint32_t tmp = dict_id.dictid;
     return tmp % idlth->num_buckets;
 }
 
@@ -63,14 +63,14 @@ cleanup:
     return r;
 }
 
-toku_lt_map* toku_idlth_find(toku_idlth* idlth, toku_db_id* key) {
+toku_lt_map* toku_idlth_find(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     assert(idlth);
 
-    u_int32_t index         = toku__idlth_hash(idlth, key);
+    u_int32_t index         = toku__idlth_hash(idlth, dict_id);
     toku_idlth_elt* head    = &idlth->buckets[index];
     toku_idlth_elt* current = head->next_in_bucket;
     while (current) {
-        if (toku_db_id_equals(current->value.db_id, key)) { break; }
+        if (current->value.dict_id.dictid == dict_id.dictid) { break; }
         current = current->next_in_bucket;
     }
     return current ? &current->value : NULL;
@@ -98,20 +98,20 @@ toku_lt_map* toku_idlth_next(toku_idlth* idlth) {
 }
 
 /* Element MUST exist. */
-void toku_idlth_delete(toku_idlth* idlth, toku_db_id* key) {
+void toku_idlth_delete(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     assert(idlth);
     toku__invalidate_scan(idlth);
 
     /* Must have elements. */
     assert(idlth->num_keys);
 
-    u_int32_t index = toku__idlth_hash(idlth, key);
+    u_int32_t index = toku__idlth_hash(idlth, dict_id);
     toku_idlth_elt* head    = &idlth->buckets[index]; 
     toku_idlth_elt* prev    = head; 
     toku_idlth_elt* current = prev->next_in_bucket;
 
     while (current != NULL) {
-        if (toku_db_id_equals(current->value.db_id, key)) { break; }
+        if (current->value.dict_id.dictid == dict_id.dictid) { break; }
         prev = current;
         current = current->next_in_bucket;
     }
@@ -120,26 +120,24 @@ void toku_idlth_delete(toku_idlth* idlth, toku_db_id* key) {
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
-    toku_db_id_remove_ref(&current->value.db_id);
     idlth->free(current);
     idlth->num_keys--;
     return;
 }
     
 /* Will allow you to insert it over and over.  You need to keep track. */
-int toku_idlth_insert(toku_idlth* idlth, toku_db_id* key) {
+int toku_idlth_insert(toku_idlth* idlth, DICTIONARY_ID dict_id) {
     int r = ENOSYS;
     assert(idlth);
     toku__invalidate_scan(idlth);
 
-    u_int32_t index = toku__idlth_hash(idlth, key);
+    u_int32_t index = toku__idlth_hash(idlth, dict_id);
 
     /* Allocate a new one. */
     toku_idlth_elt* element = (toku_idlth_elt*)idlth->malloc(sizeof(*element));
     if (!element) { r = ENOMEM; goto cleanup; }
     memset(element, 0, sizeof(*element));
-    element->value.db_id = key;
-    toku_db_id_add_ref(element->value.db_id);
+    element->value.dict_id = dict_id;
 
     element->next_in_iteration = idlth->iter_head.next_in_iteration;
     element->prev_in_iteration = &idlth->iter_head;
@@ -166,7 +164,6 @@ static inline void toku__idlth_clear(toku_idlth* idlth, BOOL clean) {
     while (next != head) {
         element = next;
         next    = toku__idlth_next(idlth);
-        toku_db_id_remove_ref(&element->value.db_id);
         idlth->free(element);
     }
     /* If clean is true, then we want to restore it to 'just created' status.

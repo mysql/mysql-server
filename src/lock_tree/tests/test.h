@@ -9,7 +9,6 @@
 #include <toku_assert.h>
 #include <errno.h>
 int verbose=0;
-#include <db_id.h>
 #include <lth.h>
 #include <sys/types.h>
 #include <sys/stat.h>

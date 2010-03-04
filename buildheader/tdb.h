@@ -50,11 +50,11 @@ typedef struct __toku_loader DB_LOADER;
 struct __toku_loader_internal;
 struct __toku_loader {
   struct __toku_loader_internal *i;
-  int  (*set_duplicate_callback)(DB_LOADER *loader, void (*duplicate)(DB *db, int i, DBT *key, DBT *val)); /* set the duplicate callback */
-  int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */
-  int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */
-  int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
-  int  (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
+  int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra)); /* set the error callback */
+  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */
+  int (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */
+  int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
+  int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
 };
 typedef struct __toku_engine_status {
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
@@ -193,6 +193,8 @@ typedef enum {
 #define TOKUDB_DICTIONARY_NO_HEADER -100006
 #define TOKUDB_FOUND_BUT_REJECTED -100002
 #define TOKUDB_USER_CALLBACK_ERROR -100003
+/* LOADER flags */
+#define LOADER_USE_PUTS 1
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
@@ -210,8 +212,8 @@ struct __toku_db_env {
   int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
-  int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */;
-  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t flags[/*N*/], uint32_t dbt_flags[/*N*/], void *extra);
+  int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
+  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags, void *extra);
   void *app_private;
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,

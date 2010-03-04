@@ -30,6 +30,7 @@ typedef const void *bytevec;
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
 #define TXNID_NONE_LIVING ((TXNID)0)
+#define TXNID_NONE        ((TXNID)0)
 
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 
@@ -45,9 +46,16 @@ typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
 #define MAX_LSN  ((LSN){UINT64_MAX})
 
-/* Make the FILEID a struct for the same reason. */
-typedef struct __toku_fileid { u_int32_t fileid; } FILENUM;
+/* At the brt layer, a FILENUM uniquely identifies an open file.
+ * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
+ * With the introduction of the loader (ticket 2216), it is possible for the file that holds
+ * an open dictionary to change, so these are now separate and independent unique identifiers.
+ */
+typedef struct {u_int32_t fileid;} FILENUM;
 #define FILENUM_NONE ((FILENUM){UINT32_MAX})
+
+typedef struct {u_int32_t dictid;} DICTIONARY_ID;
+#define DICTIONARY_ID_NONE ((DICTIONARY_ID){0})
 
 typedef struct {
     u_int32_t num;

@@ -1,0 +1,144 @@
+#test1305 is first, since it is the longest test.  Thus reducing the makespan on parallel checks
+# Put these one-per-line so that if we insert a new one the svn diff can understand it better.
+# Also keep them sorted.
+NEWBRT_TESTS_RAW = \
+	test1305 \
+	block_allocator_test \
+	bread-test \
+	brtloader_open_temp_file \
+	brt-serialize-test \
+	brt-serialize-sub-block-test \
+	brt-test \
+	brt-test-cursor \
+	brt-test-cursor-2 \
+	brt-test0 \
+	brt-test1 \
+	brt-test2 \
+	brt-test3 \
+	brt-test4 \
+	brt-test5 \
+	cachetable-rwlock-test \
+	cachetable-test \
+	cachetable-test2 \
+	cachetable-put-test \
+	cachetable-getandpin-test \
+	cachetable-unpin-test \
+	cachetable-rename-test \
+	cachetable-fd-test \
+	cachetable-flush-test \
+	cachetable-count-pinned-test \
+	cachetable-debug-test \
+	cachetable-debug-test \
+	cachetable-checkpoint-pending \
+	cachetable-checkpoint-test \
+	cachetable-prefetch-maybegetandpin-test \
+	cachetable-prefetch2-test \
+	cachetable-prefetch-close-test \
+	cachetable-prefetch-close-fail-test \
+	cachetable-prefetch-close-leak-test \
+	cachetable-prefetch-getandpin-test \
+	cachetable-prefetch-getandpin-fail-test \
+	cachetable-prefetch-checkpoint-test \
+	cachetable-reserve-filenum \
+	fifo-test \
+	list-test \
+	keyrange \
+	keyrange-unflat \
+	keyrange-dupsort \
+	keyrange-dupsort-unflat \
+	keytest \
+	log-test \
+	log-test2 \
+	log-test3 \
+	log-test4 \
+	log-test5 \
+	log-test6 \
+	log-test7 \
+	logcursor-timestamp \
+	logcursor-empty-logdir \
+	logcursor-empty-logfile \
+	logcursor-empty-logfile-2 \
+	memtest \
+	minicron-test \
+	omt-cursor-test \
+	omt-test \
+	recovery-cbegin \
+	recovery-cbegin-cend \
+	recovery-cbegin-cend-hello \
+	recovery-empty \
+	recovery-fopen-missing-file \
+	recovery-hello \
+	recovery-no-datadir \
+	recovery-no-log \
+	recovery-no-logdir \
+	shortcut \
+	test1308a \
+	test-assert \
+	test-brt-delete-both \
+	test-brt-overflow \
+	test-del-inorder \
+	test-inc-split \
+	test-leafentry10 \
+	test-leafentry-nested \
+	test_logcursor \
+	test_oexcl \
+	test_toku_malloc_plain_free \
+	threadpool-test \
+	workqueue-test \
+        x1764-test \
+	ybt-test \
+# This line intentially kept commented so I can have a \ on the end of the previous line
+
+# Add in the binaries that must be run in various ways.
+NEWBRT_TESTS_BINS_RAW =  $(NEWBRT_TESTS_RAW) \
+        benchmark-test \
+	cachetable-scan \
+# This line intentially kept commented so I can have a \ on the end of the previous line
+# BINS will be defined by adding .exe if appropriate.
+
+NEWBRT_TESTS_BINS = $(patsubst %,newbrt/tests/%$(BINSUF),$(NEWBRT_TESTS_BINS_RAW))
+
+# Use the "|" rule to say that these libraries must be built before the executables, but don't rebuild these just because the library gets rebuilt.
+$(NEWBRT_TESTS_BINS): | lib/libtokuportability.$(SOEXT) newbrt/libnewbrt.$(SOEXT)
+$(NEWBRT_TESTS_BINS): CPPFLAGS+=-Iinclude -Inewbrt
+$(NEWBRT_TESTS_BINS): LOADLIBES+=-Lnewbrt -lnewbrt -Llib -ltokuportability -lz -lpthread
+$(NEWBRT_TESTS_BINS): LDFLAGS+= -Wl,-rpath,newbrt -Wl,-rpath,lib
+
+NEWBRT_TESTS_CHECKS = \
+        benchmarktest_256 \
+	test-assertA \
+	test-assertB \
+	$(NEWBRT_TESTS_RAW) \
+#
+NEWBRT_TESTS_RUN_CHECKS = $(patsubst %,newbrt/tests/check_%,$(NEWBRT_TESTS_CHECKS))
+
+newbrt/tests/build: $(NEWBRT_TESTS_BINS)
+newbrt/tests/check: $(NEWBRT_TESTS_RUN_CHECKS)
+
+newbrt/tests/check_benchmarktest_256: newbrt/tests/benchmark-test$(BINSUF) $(PTHREAD_LOCAL)
+	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
+
+newbrt/tests/check_test-assertA: newbrt/tests/test-assert$(BINSUF) $(PTHREAD_LOCAL)
+	@# no arguments, should err
+	$(VGRIND) ./$< > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
+
+ifeq ($(OS_CHOICE),windows)
+    TEST_ASSERT_FAILCODE=134 #Does not use raise(SIGABRT) to fail assert, so will not overwrite 134 with 1.
+else
+    TEST_ASSERT_FAILCODE=1
+endif
+newbrt/tests/check_test-assertB: newbrt/tests/test-assert$(BINSUF) $(PTHREAD_LOCAL)
+	@# one argument, not "ok" should err
+	@rm -f test-assert.out
+	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = $(TEST_ASSERT_FAILCODE) && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
+
+newbrt/tests/check_test-assert: newbrt/tests/test-assert$(BINSUF) $(PTHREAD_LOCAL)
+	@# one argument, "ok" should not error
+	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
+
+newbrt/tests/check_test1305: VGRIND=
+newbrt/tests/check_%: newbrt/tests/%$(BINSUF)
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+
+newbrt/tests/brtloader_open_temp_file.$(OEXT): CPPFLAGS+=-Inewbrt -Iinclude
+newbrt/tests/brtloader_open_temp_file.$(OEXT):  newbrt/brtloader-internal.h

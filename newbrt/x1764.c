@@ -25,7 +25,7 @@ u_int32_t x1764_memory (const void *buf, int len)
 	}
 	c = c*17 + input;
     }
-    return (c&0xFFFFFFFF) ^ (c>>32);
+    return ~((c&0xFFFFFFFF) ^ (c>>32));
 }
 
 void x1764_init(struct x1764 *l) {
@@ -172,5 +172,5 @@ u_int32_t x1764_finish (struct x1764 *l) {
     if (len>0) {
 	l->sum = l->sum*17 + l->input;
     }
-    return (l->sum &0xffffffff) ^ (l->sum>>32);
+    return ~((l->sum &0xffffffff) ^ (l->sum>>32));
 }

@@ -3,12 +3,16 @@ LINUX_TESTS_TARGETS = $(patsubst %.c,%,$(LINUX_TESTS_SRCS))
 LINUX_TESTS_RUNTARGETS = $(patsubst %,%.tdbrun,$(LINUX_TESTS_TARGETS))
 linux/tests/build: $(LINUX_TESTS_TARGETS)
 linux/tests/check: $(LINUX_TESTS_RUNTARGETS)
+$(LINUX_TESTS_TARGETS): | $(LIBPORTABILITY)
 
-linux/tests/%: CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Itoku_include -Ilinux -Ilinux/tests
-linux/tests/%: CFLAGS = -Wall -Werror -g -O0 -std=c99 $(CC_VERSION_SPECIFIC_FLAGS)
-linux/tests/%: LOADLIBES = lib/libtokuportability.a -lpthread
+# Every directory must define these rules for its make rules.  And not with +=
+linux/tests/%: CFLAGS_DIRECTORY =
+linux/tests/%: CPPFLAGS_DIRECTORY = -Itoku_include -Ilinux -Ilinux/tests
+linux/tests/%: LOADLIBES_DIRECTORY = -Llib -ltokuportability -lpthread
+
+linux/tests/test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=linux/tests
 linux/tests/%.tdbrun: linux/tests/%
-	$(VGRIND) ./$< $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< $(TEST_EXTRA_ARGS) $(SUMMARIZE_CMD)
 linux/tests/test-gettime: LOADLIBES += -lrt
 linux/tests/foo:
 	echo $(VGRIND)

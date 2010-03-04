@@ -172,6 +172,9 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 #include "ule.h"
 #include "xids.h"
 #include "roll.h"
+#include "toku_atomic.h"
+
+static void brt_cursor_invalidate(BRT_CURSOR brtcursor);
 
 // We invalidate all the OMTCURSORS any time we push into the root of the BRT for that OMT.
 // We keep a counter on each brt header, but if the brt header is evicted from the cachetable
@@ -408,6 +411,17 @@ brtnode_memory_size (BRTNODE node)
     }
 }
 
+// assign unique dictionary id
+static uint32_t dict_id_serial = 1;
+static DICTIONARY_ID
+next_dict_id(void) {
+    uint32_t i = toku_sync_fetch_and_increment_uint32(&dict_id_serial);
+    assert(i);
+    DICTIONARY_ID d = {.dictid = i};
+    return d;
+}
+
+
 int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //    if (node->dirty && txn) {
 //        // For now just update the log_lsn.  Later we'll have to deal with the checksums.
@@ -581,7 +595,6 @@ brtheader_destroy(struct brt_header *h) {
         assert(h->type == BRTHEADER_CURRENT);
         toku_blocktable_destroy(&h->blocktable);
         if (h->descriptor.dbt.data) toku_free(h->descriptor.dbt.data);
-        if (h->fname) toku_free(h->fname);
     }
 }
 
@@ -2909,6 +2922,7 @@ static int brt_open_file(const char *fname, int *fdp) {
     fd = open(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
         r = errno;
+        assert(r!=0);
         return r;
     }
     *fdp = fd;
@@ -2918,8 +2932,9 @@ static int brt_open_file(const char *fname, int *fdp) {
 static int
 brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     struct brt_header *h = header_v;
-    BYTESTRING bs = { strlen(h->fname), // don't include the NUL
-                      h->fname };
+    char* fname_in_env = toku_cachefile_fname_in_env(cf);
+    BYTESTRING bs = { strlen(fname_in_env), // don't include the NUL
+                      fname_in_env };
     TOKULOGGER logger = toku_cachefile_logger(cf);
     FILENUM filenum = toku_cachefile_filenum (cf);
     int r = toku_log_fassociate(logger, NULL, 0, filenum, h->flags, bs);
@@ -3042,14 +3057,10 @@ brtheader_note_brt_close(BRT t) {
 }
 
 static int
-brtheader_note_brt_open(BRT live, char** fnamep) {
+brtheader_note_brt_open(BRT live) {
     struct brt_header *h = live->h;
     int retval = 0;
     toku_brtheader_lock(h);
-    //Steal fname reference.
-    char *fname = *fnamep;
-    assert(fname);
-    *fnamep     = NULL;
     while (!toku_list_empty(&h->zombie_brts)) {
         //Remove dead brt from list
         BRT zombie = toku_list_struct(toku_list_pop(&h->zombie_brts), struct brt, zombie_brt_link);
@@ -3058,14 +3069,11 @@ brtheader_note_brt_open(BRT live, char** fnamep) {
         toku_brtheader_lock(h);
         if (retval) break;
     }
-    if (retval==0)
+    if (retval==0) {
         toku_list_push(&h->live_brts, &live->live_brt_link);
-    //Use fname, or throw it away.
-    //Must not use fname on failure (or when brt is closed, a (possibly corrupt) header will be written.
-    if (retval == 0 && h->fname == NULL)
-        h->fname = fname;
-    else
-        toku_free(fname);
+        h->dictionary_opened = TRUE;
+    }
+
     toku_brtheader_unlock(h);
     return retval;
 }
@@ -3079,9 +3087,11 @@ verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     return 0;
 }
 
+// This is the actual open, used for various purposes, such as normal use, recovery, and redirect.  
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix)
-// fname is relative to the cwd (or absolute)
-int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, int recovery_force_fcreate) {
+// fname_in_cwd is relative to the cwd (or absolute)
+static int
+brt_open(BRT t, const char *fname_in_env, const char *fname_in_cwd, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, int recovery_force_fcreate, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id) {
     int r;
     BOOL txn_created = FALSE;
 
@@ -3092,46 +3102,42 @@ int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, i
 
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
-                          __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
+                          __FILE__, __LINE__, fname_in_cwd, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
 
     assert(is_create || !only_create);
-    char* brt_fname = toku_strdup(fname_in_env);
-    if (brt_fname==NULL) {
-        r = errno;
-        if (0) { died00: if (brt_fname) toku_free(brt_fname); brt_fname=NULL; }
-        goto died0;
-    }
     t->db = db;
     BOOL log_fopen = FALSE;  // set true if we're opening a pre-existing file 
     {
         int fd = -1;
         BOOL did_create = FALSE;
-        r = brt_open_file(fname, &fd);
-        FILENUM reserved_filenum = t->filenum;
+        r = brt_open_file(fname_in_cwd, &fd);
+        FILENUM reserved_filenum = use_filenum;
+        int use_reserved_filenum = reserved_filenum.fileid != FILENUM_NONE.fileid;
         if (r==ENOENT && is_create) {
-            toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, t->did_set_filenum, t->filenum);
+            toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, use_reserved_filenum, reserved_filenum);
             if (0) {
                 died1:
                 if (did_create)
                     toku_cachetable_unreserve_filenum(cachetable, reserved_filenum);
-                goto died00;
+                goto died0;
             }
-            if (t->did_set_filenum) assert(reserved_filenum.fileid == t->filenum.fileid);
+            if (use_reserved_filenum) assert(reserved_filenum.fileid == use_filenum.fileid);
             did_create = TRUE;
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, &(t->temp_descriptor));
             if (r!=0) goto died1;
-            r = brt_create_file(t, fname, &fd);
+            r = brt_create_file(t, fname_in_cwd, &fd);
         }
         if (r != 0) goto died1;
 	// TODO: #2090
-        r=toku_cachetable_openfd_with_filenum(&t->cf,
-                                              cachetable, fd, fname_in_env, t->did_set_filenum||did_create, reserved_filenum, did_create);
+        r=toku_cachetable_openfd_with_filenum(&t->cf, cachetable, fd, 
+					      fname_in_env, fname_in_cwd, 
+					      use_reserved_filenum||did_create, reserved_filenum, did_create);
         if (r != 0) goto died1;
         if (did_create || recovery_force_fcreate) {
 	    if (txn) {
-		BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
+		BYTESTRING bs = { .len=strlen(fname_in_cwd), .data = toku_strdup_in_rollback(txn, fname_in_cwd) };
 		r = toku_logger_save_rollback_fcreate(txn, toku_cachefile_filenum(t->cf), bs); // bs is a copy of the fname relative to the cwd
 		if (r != 0) goto died_after_open;
 	    }
@@ -3181,11 +3187,28 @@ int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, i
             }
         }
     }
-    if (log_fopen && !was_already_open) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
-        r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
-        if (r!=0) goto died_after_read_and_pin;
+
+    int use_reserved_dict_id = use_dictionary_id.dictid != DICTIONARY_ID_NONE.dictid;
+    if (!was_already_open) {
+	if (log_fopen) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
+	    r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf), t->flags);
+	    if (r!=0) goto died_after_read_and_pin;
+	}
+	DICTIONARY_ID dict_id;
+        if (use_reserved_dict_id)
+            dict_id = use_dictionary_id;
+        else
+            dict_id = next_dict_id();
+        t->h->dict_id = dict_id;
+    }
+    else {
+        // dict_id is already in header
+        if (use_reserved_dict_id)
+            assert(t->h->dict_id.dictid == use_dictionary_id.dictid);
     }
     assert(t->h);
+    assert(t->h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    assert(t->h->dict_id.dictid < dict_id_serial);
     if (t->did_set_descriptor) {
         if (t->h->descriptor.version!=t->temp_descriptor.version ||
             t->h->descriptor.dbt.size!=t->temp_descriptor.dbt.size ||
@@ -3221,7 +3244,7 @@ int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, i
     if (r!=0) goto died_after_read_and_pin;
 
     // brtheader_note_brt_open must be after all functions that can fail.
-    r = brtheader_note_brt_open(t, &brt_fname);
+    r = brtheader_note_brt_open(t);
     if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor.dbt;
     if (txn_created) {
@@ -3238,35 +3261,318 @@ int toku_brt_open_recovery(BRT t, const char *fname, const char *fname_in_env, i
     return 0;
 }
 
+// Open a brt for the purpose of recovery, which requires that the brt be open to a pre-determined FILENUM.  (dict_id is assigned by the brt_open() function.)
 int
-toku_brt_open(BRT t, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
-    return toku_brt_open_recovery(t, fname, fname_in_env, is_create, only_create, cachetable, txn, db, FALSE);
-}
-
-int toku_redirect_brt (const char *fname_in_env, BRT brt, TOKUTXN txn __attribute__((__unused__)))
-// Effect:   A BRT points to a file.  Change it to point to a different file.
-//  The original file remains unchanged, but the posix file descriptor is closed.  A new file descriptor is opened.
-//  The different file must be a valid BRT file.
-//  The block size and flags in the file must match the existing BRT.
-//  The new file must already have its descriptor in it (and it must match the existing descriptor).
-//  The new file will have the same filenum.
-//  This function should record a log entry for the redirect.  (And should probably fsync the log after writing that entry.)
-//  If the txn aborts, then this operation will be undone
-// Requires: Sufficient locks are held (e.g., the YDB monolithic lock, and possibly a dictionary lock) to prevent race conditions.
-{
-    int fd=0;
+toku_brt_open_recovery(BRT t, const char *fname_in_env, const char *fname_in_cwd, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db, int recovery_force_fcreate, FILENUM use_filenum) {
     int r;
-    r = brt_open_file(fname_in_env, &fd);
+    assert(use_filenum.fileid != FILENUM_NONE.fileid);
+    r = brt_open(t, fname_in_env, fname_in_cwd, is_create, only_create, cachetable,
+                 txn, db, recovery_force_fcreate, use_filenum, DICTIONARY_ID_NONE);
+    return r;
+}
+
+// Open a brt in normal use.  The FILENUM and dict_id are assigned by the brt_open() function.
+int
+toku_brt_open(BRT t, const char *fname_in_env, const char *fname_in_cwd, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
+    int r;
+    r = brt_open(t, fname_in_env, fname_in_cwd, is_create, only_create, cachetable, txn, db, FALSE, FILENUM_NONE, DICTIONARY_ID_NONE);
+    return r;
+}
+
+// Open a brt for use by redirect.  The new brt must have the same dict_id as the old_brt passed in.  (FILENUM is assigned by the brt_open() function.)
+static int
+brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, const char *fname_in_cwd, TOKUTXN txn, BRT old_brt) {
+    int r;
+    BRT t;
+    struct brt_header *old_h = old_brt->h;
+    assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    r = toku_brt_create(&t);
     assert(r==0);
-    r = toku_cachetable_redirect(brt->cf, fd, fname_in_env);
-    assert(r = 0);
+    r = toku_brt_set_flags(t, old_h->flags);
+    assert(r==0);
+    r = toku_brt_set_bt_compare(t, old_brt->compare_fun);
+    assert(r==0);
+    r = toku_brt_set_dup_compare(t, old_brt->dup_compare);
+    assert(r==0);
+    r = toku_brt_set_nodesize(t, old_brt->nodesize);
+    assert(r==0);
+    if (old_h->descriptor.version>0) {
+        r = toku_brt_set_descriptor(t, old_h->descriptor.version, &old_h->descriptor.dbt, old_brt->dbt_userformat_upgrade);
+        assert(r==0);
+    }
+    CACHETABLE ct = toku_cachefile_get_cachetable(old_brt->cf);
+    r = brt_open(t, fname_in_env, fname_in_cwd, 0, 0, ct, txn, old_brt->db, FALSE, FILENUM_NONE, old_h->dict_id);
+    assert(r==0);
+    if (old_h->descriptor.version==0) {
+        assert(t->h->descriptor.version == 0);
+    }
+    assert(t->h->dict_id.dictid == old_h->dict_id.dictid);
+    assert(t->db == old_brt->db);
+
+    *new_brtp = t;
+    return r;
+}
+
+
+
+//Callback to ydb layer to set db->i->brt = brt
+//Used for redirect.
+static void (*callback_db_set_brt)(DB *db, BRT brt)  = NULL;
+
+static void
+brt_redirect_cursors (BRT brt_to, BRT brt_from) {
+    assert(brt_to->db == brt_from->db);
+    while (!toku_list_empty(&brt_from->cursors)) {
+        struct toku_list * c_list = toku_list_head(&brt_from->cursors);
+        BRT_CURSOR c = toku_list_struct(c_list, struct brt_cursor, cursors_link);
+        brt_cursor_invalidate(c);
+
+        toku_list_remove(&c->cursors_link);
+
+        toku_list_push(&brt_to->cursors, &c->cursors_link);
+
+        c->brt = brt_to;
+    }
+}
+
+static void
+brt_redirect_db (BRT brt_to, BRT brt_from) {
+    assert(brt_to->db == brt_from->db);
+    callback_db_set_brt(brt_from->db, brt_to);
+}
+
+static int
+redirect_brt_close_delayed(DB *db, u_int32_t UU(flags)) {
+    BRT brt_to_close = db->api_internal;
+    char *error_string = NULL;
+    int r = toku_close_brt(brt_to_close, &error_string);
+    assert(r==0);
+    assert(error_string == NULL);
+    toku_free(db);
+    return 0;
+}
+
+static int
+toku_brt_header_close_redirected_brts(struct brt_header * h) {
+//Requires:
+//  toku_brt_db_delay_closed has NOT been called on any brts referring to h.
+//For each brt referring to h, close it.
+    struct toku_list *list;
+    int num_brts = 0;
+    for (list = h->live_brts.next; list != &h->live_brts; list = list->next) {
+        num_brts++;
+    }
+    assert(num_brts>0);
+    BRT brts[num_brts];
+    DB *dbs[num_brts];
+    int which = 0;
+    for (list = h->live_brts.next; list != &h->live_brts; list = list->next) {
+        XCALLOC(dbs[which]);
+        brts[which] = toku_list_struct(list, struct brt, live_brt_link);
+        assert(!brts[which]->was_closed);
+        dbs[which]->api_internal = brts[which];
+        brts[which]->db = dbs[which];
+        which++;
+    }
+    assert(which == num_brts);
+    for (which = 0; which < num_brts; which++) {
+        int r;
+        r = toku_brt_db_delay_closed(brts[which], dbs[which], redirect_brt_close_delayed, 0);
+        assert(r==0);
+    }
     return 0;
 }
 
 
-int toku_brt_get_fd(BRT brt, int *fdp) {
-    *fdp = toku_cachefile_fd(brt->cf);
-    return 0;
+
+// This function performs most of the work to redirect a dictionary to different file.
+// It is called for redirect and to abort a redirect.  (This function is almost its own inverse.)
+static int
+dictionary_redirect_internal(const char *dst_fname_in_env, const char *dst_fname_in_cwd, struct brt_header *src_h, TOKUTXN txn, struct brt_header **dst_hp) {
+    int r;
+
+    assert(toku_list_empty(&src_h->zombie_brts));
+    assert(!toku_list_empty(&src_h->live_brts));
+
+    FILENUM src_filenum = toku_cachefile_filenum(src_h->cf);
+    FILENUM dst_filenum = FILENUM_NONE;
+
+    struct brt_header *dst_h = NULL;
+    struct toku_list *list;
+    for (list = src_h->live_brts.next; list != &src_h->live_brts; list = list->next) {
+	BRT src_brt;
+	src_brt = toku_list_struct(list, struct brt, live_brt_link);
+        assert(!src_brt->was_closed);
+
+        BRT dst_brt;
+        r = brt_open_for_redirect(&dst_brt, dst_fname_in_env, dst_fname_in_cwd, txn, src_brt);
+        assert(r==0);
+        if (dst_filenum.fileid==FILENUM_NONE.fileid) {  // if first time through loop
+            dst_filenum = toku_cachefile_filenum(dst_brt->cf);
+            assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
+            assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
+        }
+        else { // All dst_brts must have same filenum
+            assert(dst_filenum.fileid == toku_cachefile_filenum(dst_brt->cf).fileid);
+        }
+        if (!dst_h) dst_h = dst_brt->h;
+        else assert(dst_h == dst_brt->h);
+
+        //Do not need to swap descriptors pointers.
+        //Done by brt_open_for_redirect
+        assert(dst_brt->db->descriptor == &dst_brt->h->descriptor.dbt);
+
+        //Set db->i->brt to new brt
+        brt_redirect_db(dst_brt, src_brt);
+        
+        //Move cursors.
+        brt_redirect_cursors (dst_brt, src_brt);
+    }
+    assert(dst_h);
+
+    r = toku_brt_header_close_redirected_brts(src_h);
+    assert(r==0);
+    *dst_hp = dst_h;
+
+    return r;
+
+}
+
+
+//This is the 'abort redirect' function.  The redirect of old_h to new_h was done
+//and now must be undone, so here we redirect new_h back to old_h.
+int
+toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn) {
+    char *old_fname_in_env = toku_cachefile_fname_in_env(old_h->cf);
+    char *old_fname_in_cwd = toku_cachefile_fname_in_cwd(old_h->cf);
+
+    int r;
+    {
+        FILENUM old_filenum = toku_cachefile_filenum(old_h->cf);
+        FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
+        assert(old_filenum.fileid!=new_filenum.fileid); //Cannot be same file.
+
+        //No living brts in old header.
+        assert(toku_list_empty(&old_h->live_brts));
+        //Must have a zombie in old header.
+        assert(!toku_list_empty(&old_h->zombie_brts));
+    }
+
+    // If application did not close all DBs using the new file, then there should 
+    // be no zombies and we need to redirect the DBs back to the original file.
+    if (!toku_list_empty(&new_h->live_brts)) {
+        assert(toku_list_empty(&new_h->zombie_brts));
+        struct brt_header *dst_h;
+        // redirect back from new_h to old_h
+        r = dictionary_redirect_internal(old_fname_in_env, old_fname_in_cwd, new_h, txn, &dst_h);
+        assert(r==0);
+        assert(dst_h == old_h);
+    }
+    else {
+        //No live brts.  Zombies on both sides will die on their own eventually.
+        //No need to redirect back.
+        assert(!toku_list_empty(&new_h->zombie_brts));
+        r = 0;
+    }
+    return r;
+}
+
+
+/****
+ * on redirect or abort:
+ *  if redirect txn_note_doing_work(txn)
+ *  if redirect connect src brt to txn (txn modified this brt)
+ *  for each src brt
+ *    open brt to dst file (create new brt struct)
+ *    if redirect connect dst brt to txn 
+ *    redirect db to new brt
+ *    redirect cursors to new brt
+ *  close all src brts
+ *  if redirect make rollback log entry
+ * 
+ * on commit:
+ *   nothing to do
+ *
+ *****/
+
+int 
+toku_dictionary_redirect (const char *dst_fname_in_env, const char *dst_fname_in_cwd, BRT old_brt, TOKUTXN txn) {
+// Input args:
+//   new file name for dictionary (relative to env, cwd)
+//   old_brt is a live brt of open handle ({DB, BRT} pair) that currently refers to old dictionary file.
+//   (old_brt may be one of many handles to the dictionary.)
+//   txn that created the loader
+// Requires: 
+//   ydb_lock is held.
+//   The brt is open.  (which implies there can be no zombies.)
+//   The new file must be a valid dictionary.
+//   The block size and flags in the new file must match the existing BRT.
+//   The new file must already have its descriptor in it (and it must match the existing descriptor).
+// Effect:   
+//   Open new BRTs (and related header and cachefile) to the new dictionary file with a new FILENUM.
+//   Redirect all DBs that point to brts that point to the old file to point to brts that point to the new file.
+//   Copy the dictionary id (dict_id) from the header of the original file to the header of the new file.
+//   Create a rollback log entry.
+//   The original BRT, header, cachefile and file remain unchanged.  They will be cleaned up on commmit.
+//   If the txn aborts, then this operation will be undone
+    int r;
+
+    struct brt_header * old_h = old_brt->h;
+
+    // dst file should not be open.  (implies that dst and src are different because src must be open.)
+    {
+        CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
+        CACHEFILE cf;
+        r = toku_cachefile_of_iname_in_env(ct, dst_fname_in_env, &cf);
+        if (r==0) {
+            r = EINVAL;
+            goto cleanup;
+        }
+        assert(r==ENOENT);
+	r = 0;	
+    }
+
+    if (txn) {
+        txn_note_doing_work(txn);
+        r = toku_txn_note_brt(txn, old_brt);  // mark old brt as touched by this txn
+        assert(r==0);
+    }
+
+    struct brt_header *new_h;
+    r = dictionary_redirect_internal(dst_fname_in_env, dst_fname_in_cwd, old_h, txn, &new_h);
+    assert(r==0);
+
+    // make rollback log entry
+    if (txn) {
+        assert(toku_list_empty(&new_h->zombie_brts));
+        assert(!toku_list_empty(&new_h->live_brts));
+        struct toku_list *list;
+        for (list = new_h->live_brts.next; list != &new_h->live_brts; list = list->next) {
+            BRT new_brt;
+            new_brt = toku_list_struct(list, struct brt, live_brt_link);
+            r = toku_txn_note_brt(txn, new_brt);          // mark new brt as touched by this txn
+            assert(r==0);
+        }
+        FILENUM old_filenum = toku_cachefile_filenum(old_h->cf);
+        FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
+        r = toku_logger_save_rollback_dictionary_redirect(txn, old_filenum, new_filenum);
+        assert(r==0);
+
+        assert(new_h->txnid_that_created_or_locked_when_empty == TXNID_NONE);
+        TXNID xid = toku_txn_get_txnid(txn);
+        new_h->txnid_that_created_or_locked_when_empty = xid;
+    }
+    
+cleanup:
+    return r;
+}
+
+
+DICTIONARY_ID
+toku_brt_get_dictionary_id(BRT brt) {
+    struct brt_header *h = brt->h;
+    DICTIONARY_ID dict_id = h->dict_id;
+    return dict_id;
 }
 
 int toku_brt_set_flags(BRT brt, unsigned int flags) {
@@ -3295,14 +3601,13 @@ int toku_brt_set_bt_compare(BRT brt, int (*bt_compare)(DB *, const DBT*, const D
     return 0;
 }
 
-int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
-    brt->dup_compare = dup_compare;
-    return 0;
+brt_compare_func toku_brt_get_bt_compare (BRT brt) {
+    return brt->compare_fun;
 }
 
-int toku_brt_set_filenum(BRT brt, FILENUM filenum) {
-    brt->did_set_filenum = TRUE;
-    brt->filenum = filenum;
+
+int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
+    brt->dup_compare = dup_compare;
     return 0;
 }
 
@@ -3489,7 +3794,7 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
     int r = 0;
     if (h->panic) {
         r = h->panic;
-    } else if (h->fname) { //Otherwise header has never fully been created.
+    } else if (h->dictionary_opened) { //Otherwise header has never fully been created.
         LSN lsn = ZERO_LSN;
         //Get LSN
         if (oplsn_valid) {
@@ -3505,8 +3810,9 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
             TOKULOGGER logger = toku_cachefile_logger(cachefile);
             if (logger) {
                 //NEED NAME
-                assert(h->fname);
-                BYTESTRING bs = {.len=strlen(h->fname), .data=h->fname};
+                char* fname_in_env = toku_cachefile_fname_in_env(cachefile);
+                assert(fname_in_env);
+                BYTESTRING bs = {.len=strlen(fname_in_env), .data=fname_in_env};
                 r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile), h->flags); // flush the log on close (if new header is being written), otherwise it might not make it out.
                 if (r!=0) return r;
             }
@@ -3572,6 +3878,9 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
     return r;
 }
 
+// Close brt.  If opsln_valid, use given oplsn as lsn in brt header instead of logging 
+// the close and using the lsn provided by logging the close.  (Subject to constraint 
+// that if a newer lsn is already in the dictionary, don't overwrite the dictionary.)
 int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     assert(!toku_brt_zombie_needed(brt));
     assert(!brt->pinned_by_checkpoint);
@@ -3617,7 +3926,6 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->flags = 0;
     brt->did_set_flags = FALSE;
     brt->did_set_descriptor = FALSE;
-    brt->did_set_filenum = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_builtin_compare_fun;
     brt->dup_compare = toku_builtin_compare_fun;
@@ -5166,7 +5474,9 @@ toku_brt_lock_destroy(void) {
     return r;
 }
 
-int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void)) {
+int toku_brt_init(void (*ydb_lock_callback)(void),
+                  void (*ydb_unlock_callback)(void),
+                  void (*db_set_brt)(DB*,BRT)) {
     int r = 0;
     //Portability must be initialized first
     if (r==0) 
@@ -5177,6 +5487,8 @@ int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(v
         r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
     if (r == 0)
         r = toku_brt_serialize_init();
+    if (r==0)
+        callback_db_set_brt = db_set_brt;
     return r;
 }
 
@@ -5269,15 +5581,15 @@ int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_
 //  - mark transaction as NEED fsync on commit
 //  - make entry in rolltmp log
 //  - make fdelete entry in recovery log
-int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p) {
+int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_in_env_dbt_p, DBT* iname_in_cwd_dbt_p) {
     assert(txn);
     int r;
-    const char *iname = iname_dbt_p->data;
+    const char *iname_in_env = iname_in_env_dbt_p->data;
     CACHEFILE cf = NULL;
     u_int8_t was_open = 0;
     FILENUM filenum   = {0};
 
-    r = toku_cachefile_of_iname(txn->logger->ct, iname, &cf);
+    r = toku_cachefile_of_iname_in_env(txn->logger->ct, iname_in_env, &cf);
     if (r == 0) {
         was_open = TRUE;
         filenum = toku_cachefile_filenum(cf);
@@ -5303,37 +5615,37 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_dbt_p, DBT* iname_within_c
     toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
                                      //before the file is actually unlinked
     {
-        const char *iname_within_cwd = iname_within_cwd_dbt_p->data;
-        BYTESTRING iname_within_cwd_bs = {
-            .len=strlen(iname_within_cwd),
-            .data = toku_strdup_in_rollback(txn, iname_within_cwd)
+        const char *iname_in_cwd = iname_in_cwd_dbt_p->data;
+        BYTESTRING iname_in_cwd_bs = {
+            .len=strlen(iname_in_cwd),
+            .data = toku_strdup_in_rollback(txn, iname_in_cwd)
         };
 	// make entry in rolltmp log
-        r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, iname_within_cwd_bs);
+        r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, iname_in_cwd_bs);
         assert(r==0); //On error we would need to remove the CF reference, which is complicated.
     }
     if (r==0)
 	// make entry in recovery log
-        r = toku_logger_log_fdelete(txn, iname);
+        r = toku_logger_log_fdelete(txn, iname_in_env);
     return r;
 }
 
 
 // 
-int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p, DBT* iname_within_cwd_dbt_p) {
+int toku_brt_remove_now(CACHETABLE ct, DBT* iname_in_env_dbt_p, DBT* iname_in_cwd_dbt_p) {
     int r;
-    const char *iname = iname_dbt_p->data;
+    const char *iname_in_env = iname_in_env_dbt_p->data;
     CACHEFILE cf;
-    r = toku_cachefile_of_iname(ct, iname, &cf);
+    r = toku_cachefile_of_iname_in_env(ct, iname_in_env, &cf);
     if (r == 0) {
         r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
     else
 	assert(r==ENOENT);
-    const char *iname_within_cwd = iname_within_cwd_dbt_p->data;
+    const char *iname_in_cwd = iname_in_cwd_dbt_p->data;
     
-    r = unlink(iname_within_cwd);  // we need a pathname relative to cwd
+    r = unlink(iname_in_cwd);  // we need a pathname relative to cwd
     assert(r==0);
     return r;
 }
@@ -5356,4 +5668,3 @@ toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
     toku_brtheader_unlock(brt->h);
     return r;
 }
-

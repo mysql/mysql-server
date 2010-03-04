@@ -1273,21 +1273,20 @@ cleanup:
     return r;
 }
 
-void toku_ltm_invalidate_lt(toku_ltm* mgr, toku_db_id* db_id) {
-    assert(mgr && db_id);
+void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
+    assert(mgr && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     toku_lt_map* map = NULL;
-    map = toku_idlth_find(mgr->idlth, db_id);
+    map = toku_idlth_find(mgr->idlth, dict_id);
     if (map) { 
-	toku_idlth_delete(mgr->idlth, db_id);
+	toku_idlth_delete(mgr->idlth, dict_id);
     }
 }
 
 
-static inline void toku_lt_set_db_id(toku_lock_tree* lt, toku_db_id* db_id) {
-    assert(lt && db_id);
+static inline void toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
+    assert(lt && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     assert(!lt->settings_final);
-    lt->db_id = db_id;
-    toku_db_id_add_ref(db_id);
+    lt->dict_id = dict_id;
 }
 
 static inline BOOL toku_lt_get_dups(toku_lock_tree* lt) {
@@ -1296,7 +1295,7 @@ static inline BOOL toku_lt_get_dups(toku_lock_tree* lt) {
 }
 
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    BOOL duplicates, toku_db_id* db_id) {
+                    BOOL duplicates, DICTIONARY_ID dict_id) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
@@ -1305,7 +1304,7 @@ int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
     BOOL added_to_ltm    = FALSE;
     BOOL added_to_idlth  = FALSE;
     
-    map = toku_idlth_find(mgr->idlth, db_id);
+    map = toku_idlth_find(mgr->idlth, dict_id);
     if (map != NULL) {
         /* Load already existing lock tree. */
         assert (map->tree != NULL);
@@ -1315,24 +1314,24 @@ int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
         r = 0;
         goto cleanup;
     }
-    /* Must create new lock tree for this db_id*/
+    /* Must create new lock tree for this dict_id*/
     r = toku_lt_create(&tree, duplicates, mgr->panic, mgr,
                        mgr->get_compare_fun_from_db,
                        mgr->get_dup_compare_from_db,
                        mgr->malloc, mgr->free, mgr->realloc);
     if (r != 0) { goto cleanup; }
-    toku_lt_set_db_id(tree, db_id);
+    toku_lt_set_dict_id(tree, dict_id);
     /* add tree to ltm */
     r = toku_ltm_add_lt(mgr, tree);
     if (r!=0) { goto cleanup; }
     added_to_ltm = TRUE;
 
     /* add mapping to idlth*/
-    r = toku_idlth_insert(mgr->idlth, db_id);
+    r = toku_idlth_insert(mgr->idlth, dict_id);
     if (r != 0) { goto cleanup; }
     added_to_idlth = TRUE;
     
-    map = toku_idlth_find(mgr->idlth, db_id);
+    map = toku_idlth_find(mgr->idlth, dict_id);
     assert(map);
     map->tree = tree;
 
@@ -1343,7 +1342,7 @@ cleanup:
     if (r != 0) {
         if (tree != NULL) {
             if (added_to_ltm)   { toku_ltm_remove_lt(mgr, tree); }
-            if (added_to_idlth) { toku_idlth_delete(mgr->idlth, db_id); } 
+            if (added_to_idlth) { toku_idlth_delete(mgr->idlth, dict_id); } 
             toku_lt_close(tree); 
         }
     }
@@ -1375,7 +1374,6 @@ int toku_lt_close(toku_lock_tree* tree) {
     toku_rth_close(tree->txns_still_locked);
 
     tree->free(tree->buf);
-    if (tree->db_id) { toku_db_id_remove_ref(&tree->db_id); }
     tree->free(tree);
     r = first_error;
 cleanup:
@@ -2216,9 +2214,9 @@ void toku_lt_add_ref(toku_lock_tree* tree) {
 
 static void toku_ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
     toku_ltm_remove_lt(mgr, tree);
-    toku_lt_map* map = toku_idlth_find(mgr->idlth, tree->db_id);
+    toku_lt_map* map = toku_idlth_find(mgr->idlth, tree->dict_id);
     if (map && map->tree == tree) {
-        toku_idlth_delete(mgr->idlth, tree->db_id);
+        toku_idlth_delete(mgr->idlth, tree->dict_id);
     }
 }
 
@@ -2228,7 +2226,7 @@ int toku_lt_remove_ref(toku_lock_tree* tree) {
     assert(tree->ref_count > 0);
     tree->ref_count--;
     if (tree->ref_count > 0) { r = 0; goto cleanup; }
-    assert(tree->db_id);
+    assert(tree->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     toku_ltm_stop_managing_lt(tree->mgr, tree);
     r = toku_lt_close(tree);
     if (r!=0) { goto cleanup; }

@@ -31,7 +31,7 @@ void *toku_malloc(size_t size)  __attribute__((__visibility__("default")));
 
 // xmalloc aborts instead of return NULL if we run out of memory
 void *toku_xmalloc(size_t size);
-void *toku_xrealloc(void*, size_t size);
+void *toku_xrealloc(void*, size_t size) __attribute__((__visibility__("default")));
 
 /* toku_tagmalloc() performs a malloc(size), but fills in the first 4 bytes with typ.
  * This "tag" is useful if you are debugging and run across a void* that is

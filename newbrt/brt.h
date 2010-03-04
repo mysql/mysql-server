@@ -30,10 +30,12 @@ typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, byte
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
-int toku_redirect_brt (const char *fname_in_env, BRT brt, TOKUTXN txn);
+int toku_dictionary_redirect (const char *dst_fname_in_env, const char *dst_fname_in_cwd, BRT old_brt, TOKUTXN txn);
 // See the brt.c file for what this toku_redirect_brt does
 
-u_int32_t toku_serialize_descriptor_size(struct descriptor *desc);
+int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn);
+
+u_int32_t toku_serialize_descriptor_size(const struct descriptor *desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
 int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade);
@@ -44,11 +46,13 @@ int toku_brt_get_nodesize(BRT, unsigned int *nodesize);
 int toku_brt_set_bt_compare(BRT, brt_compare_func);
 int toku_brt_set_dup_compare(BRT, brt_compare_func);
 
-int toku_brt_set_filenum(BRT brt, FILENUM filenum);
+brt_compare_func toku_brt_get_bt_compare (BRT brt);
 
 int brt_set_cachetable(BRT, CACHETABLE);
-int toku_brt_open(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
-int toku_brt_open_recovery(BRT, const char *fname, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, int recovery_force_fcreate);
+int toku_brt_open(BRT, const char *fname_in_env, const char *fname_in_cwd, 
+		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
+int toku_brt_open_recovery(BRT, const char *fname_in_env, const char *fname_in_cwd, 
+			   int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db, int recovery_force_fcreate, FILENUM use_filenum);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
@@ -162,7 +166,7 @@ extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 // TODO: Get rid of this
 int toku_brt_dbt_set(DBT* key, DBT* key_source);
 
-int toku_brt_get_fd(BRT, int *);
+DICTIONARY_ID toku_brt_get_dictionary_id(BRT);
 
 int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.
 
@@ -185,7 +189,9 @@ int toku_brt_stat64 (BRT, TOKUTXN,
 		     struct brtstat64_s *stat
 		     );
 
-int toku_brt_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
+int toku_brt_init(void (*ydb_lock_callback)(void),
+                  void (*ydb_unlock_callback)(void),
+                  void (*db_set_brt)(DB*,BRT));
 int toku_brt_destroy(void);
 int toku_pwrite_lock_init(void);
 int toku_pwrite_lock_destroy(void);

@@ -13,7 +13,7 @@
 
 #define VISIBLE "__attribute__((__visibility__(\"default\")))"
 
-void print_dbtype(void) {
+static void print_dbtype(void) {
     /* DBTYPE is mentioned by db_open.html */
     printf("typedef enum {\n");
     printf(" DB_BTREE=%d,\n", DB_BTREE);
@@ -69,7 +69,7 @@ enum {
         TOKUDB_DICTIONARY_NO_HEADER = -100006
 };
 
-void print_defines (void) {
+static void print_defines (void) {
     printf("#ifndef _TOKUDB_WRAP_H\n");
     dodefine(DB_VERB_DEADLOCK);
     dodefine(DB_VERB_RECOVERY);
@@ -192,6 +192,10 @@ void print_defines (void) {
     dodefine(TOKUDB_DICTIONARY_NO_HEADER);
     dodefine(TOKUDB_FOUND_BUT_REJECTED);
     dodefine(TOKUDB_USER_CALLBACK_ERROR);
+
+    /* LOADER flags */
+    printf("/* LOADER flags */\n");
+    printf("#define LOADER_USE_PUTS 1\n"); // minimize space usage
 }
 
 //#define DECL_LIMIT 100
@@ -222,7 +226,7 @@ struct fieldinfo {
 
 enum need_internal_type { NO_INTERNAL=0, INTERNAL_NAMED=1, INTERNAL_AT_END=2};
 
-void print_struct (const char *structname, enum need_internal_type need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
+static void print_struct (const char *structname, enum need_internal_type need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
     unsigned int i;
     unsigned int current_32 = 0;
     unsigned int current_64 = 0;
@@ -400,11 +404,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("struct __toku_loader_internal;\n");
     printf("struct __toku_loader {\n");
     printf("  struct __toku_loader_internal *i;\n");
-    printf("  int  (*set_duplicate_callback)(DB_LOADER *loader, void (*duplicate)(DB *db, int i, DBT *key, DBT *val)); /* set the duplicate callback */\n");
-    printf("  int  (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
-    printf("  int  (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
-    printf("  int  (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
-    printf("  int  (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */\n");
+    printf("  int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra)); /* set the error callback */\n");
+    printf("  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */\n");
+    printf("  int (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */\n");
+    printf("  int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */\n");
+    printf("  int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */\n");
     printf("};\n");
 
     //engine status info
@@ -480,8 +484,8 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
                              "int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
-			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* lookup existing iname */",
-                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t flags[/*N*/], uint32_t dbt_flags[/*N*/], void *extra)",
+			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
+                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags, void *extra)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
                              "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"

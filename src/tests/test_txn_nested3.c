@@ -132,6 +132,7 @@ randomize_no_placeholder_type(void) {
             return TYPE_DELETE;
         default:
             assert(FALSE);
+	    return 0;
     }
 }
 
@@ -150,6 +151,7 @@ randomize_type(void) {
             return TYPE_PLACEHOLDER;
         default:
             assert(FALSE);
+	    return 0;
     }
 }
 

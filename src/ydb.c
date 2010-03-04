@@ -69,11 +69,17 @@ init_dbt_realloc(DBT *dbt) {
     return dbt;
 }
 
+//Callback used for redirecting dictionaries.
+static void
+ydb_set_brt(DB *db, BRT brt) {
+    db->i->brt = brt;
+}
+
 int toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
     if (r==0) 
-        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
+        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock, ydb_set_brt);
     if (r==0) 
         r = toku_ydb_lock_init();
     return r;
@@ -369,7 +375,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION, void*);
 static int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
 
-static void finalize_file_removal(int fd, void * extra);
+static void finalize_file_removal(DICTIONARY_ID dict_id, void * extra);
 
 // Instruct db to use the default (built-in) key comparison function
 // by setting the flag bits in the db and brt structs
@@ -1915,7 +1921,6 @@ db_close_before_brt(DB *db, u_int32_t UU(flags)) {
     }
     assert(error_string==0);
     int r2 = 0;
-    if (db->i->db_id) { toku_db_id_remove_ref(&db->i->db_id); }
     if (db->i->lt) {
         r2 = toku_lt_remove_ref(db->i->lt);
 	if (r2) {
@@ -2086,7 +2091,7 @@ env_get_zombie_db_with_dname(DB_ENV *env, const char *dname) {
     return rval;
 }
 
-
+//DB->close()
 static int toku_db_close(DB * db, u_int32_t flags) {
     if (db_opened(db) && db->i->dname) {
         // internal (non-user) dictionary has no dname
@@ -3885,8 +3890,7 @@ static char *construct_full_name(int count, ...) {
         char *arg = va_arg(ap, char *);
         if (arg) {
             n += 1 + strlen(arg) + 1;
-            char *newname = toku_malloc(n);
-            assert(newname);
+            char *newname = toku_xmalloc(n);
             if (name && !toku_os_is_absolute_name(arg))
                 snprintf(newname, n, "%s/%s", name, arg);
             else
@@ -3941,11 +3945,13 @@ static toku_dbt_cmp toku_db_get_dup_compare(DB* db) {
     return db->i->brt->dup_compare;
 }
 
+/***** TODO 2216 delete this 
 static int toku_db_fd(DB *db, int *fdp) {
     HANDLE_PANICKED_DB(db);
     if (!db_opened(db)) return EINVAL;
     return toku_brt_get_fd(db->i->brt, fdp);
 }
+*******/
 
 static int
 db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
@@ -3994,13 +4000,16 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, int n) {
 		   8  + // hex value of n if non-neg
 		   sizeof("_L___.tokudb")]; // extra pieces
     if (n < 0)
-	bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION);
+	bytes = snprintf(inamebase, sizeof(inamebase),
+                         "%s_%"PRIx64"_%"PRIx32            ".tokudb",
+                         hint, id, BRT_LAYOUT_VERSION);
     else
-	bytes = snprintf(inamebase, sizeof(inamebase), "%s_%"PRIx64"_%"PRIx32"_L_%"PRIx32".tokudb", hint, id, BRT_LAYOUT_VERSION, n);
+	bytes = snprintf(inamebase, sizeof(inamebase),
+                         "%s_%"PRIx64"_%"PRIx32"_L_%"PRIx32".tokudb",
+                         hint, id, BRT_LAYOUT_VERSION, n);
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);
     char *rval;
-    //TODO: #2037 add 'tokudb.dictionaries' directory inside data_dir!!!
     if (env->i->data_dir)
         rval = construct_full_name(2, env->i->data_dir, inamebase);
     else
@@ -4070,7 +4079,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     //  - look up dname, get iname
     //  - if dname does not exist, create iname and make entry in directory
     DBT dname_dbt;  // holds dname
-    DBT iname_dbt;  // holds iname
+    DBT iname_dbt;  // holds iname_in_env
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
     r = toku_db_get(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
@@ -4122,7 +4131,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 }
 
 static int 
-db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode) {
+db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, int mode) {
     int r;
 
     //Set comparison functions if not yet set.
@@ -4161,14 +4170,14 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mod
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    char *iname_from_cwd = construct_full_name(2, db->dbenv->i->dir, iname); // allocates memory for iname_from_cwd
-    assert(iname_from_cwd);
-    r = toku_brt_open(db->i->brt, iname_from_cwd, iname,
+    char *iname_in_cwd = construct_full_name(2, db->dbenv->i->dir, iname_in_env); // allocates memory for iname_in_cwd
+    assert(iname_in_cwd);
+    r = toku_brt_open(db->i->brt, iname_in_env, iname_in_cwd, 
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN,
 		      db);
-    toku_free(iname_from_cwd);
+    toku_free(iname_in_cwd);
     if (r != 0)
         goto error_cleanup;
 
@@ -4178,14 +4187,8 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mod
         BOOL dups;
         toku_brt_get_flags(db->i->brt, &brtflags);
         dups = (BOOL)((brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP));
-
-        int db_fd;
-        r = toku_db_fd(db, &db_fd);
-        if (r!=0) goto error_cleanup;
-        assert(db_fd>=0);
-        r = toku_db_id_create(&db->i->db_id, db_fd);
-        if (r!=0) { goto error_cleanup; }
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->db_id);
+	db->i->dict_id = toku_brt_get_dictionary_id(db->i->brt);
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->dict_id);
         if (r!=0) { goto error_cleanup; }
     }
     //Add to transaction's list of 'must close' if necessary.
@@ -4198,10 +4201,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mod
     return 0;
  
 error_cleanup:
-    if (db->i->db_id) {
-        toku_db_id_remove_ref(&db->i->db_id);
-        db->i->db_id = NULL;
-    }
+    db->i->dict_id = DICTIONARY_ID_NONE;
     db->i->opened = 0;
     if (db->i->lt) {
         toku_lt_remove_ref(db->i->lt);
@@ -4412,21 +4412,15 @@ env_dbremove_subdb(DB_ENV * env, DB_TXN * txn, const char *fname, const char *db
 //Called during committing an fdelete ONLY IF you still have an fd AND it is not connected to /dev/null
 //Called during aborting an fcreate (harmless to do, and definitely correct)
 static void
-finalize_file_removal(int fd, void * extra) {
-    int r;
+finalize_file_removal(DICTIONARY_ID dict_id, void * extra) {
     toku_ltm *ltm = (toku_ltm*) extra;
     if (ltm) {
-        toku_db_id *id;
-        r = toku_db_id_create(&id, fd);
-        assert(r==0);
-
         //Poison the lock tree to prevent a future file from re-using it.
-        toku_ltm_invalidate_lt(ltm, id);
-        toku_db_id_remove_ref(&id);
+        toku_ltm_invalidate_lt(ltm, dict_id);
     }
 }
 
-static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
+//static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 
 static int
 toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
@@ -4791,7 +4785,9 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
     return r;
 }
 
-static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+//static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+// needed by loader.c
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
 
@@ -5042,8 +5038,13 @@ static int locked_db_set_pagesize(DB *db, u_int32_t pagesize) {
     toku_ydb_lock(); int r = toku_db_set_pagesize(db, pagesize); toku_ydb_unlock(); return r;
 }
 
-static int locked_db_fd(DB *db, int *fdp) {
-    toku_ydb_lock(); int r = toku_db_fd(db, fdp); toku_ydb_unlock(); return r;
+// TODO 2216 delete this
+static int locked_db_fd(DB * UU(db), int * UU(fdp)) {
+    //    toku_ydb_lock(); 
+    // int r = toku_db_fd(db, fdp); 
+    //    toku_ydb_unlock(); 
+    //    return r;
+    return 0;
 }
 
 
@@ -5163,6 +5164,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
+    result->i->dict_id = DICTIONARY_ID_NONE;
     result->i->db = result;
     result->i->freed = 0;
     result->i->opened = 0;
@@ -5310,16 +5312,21 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 // It is the caller's responsibility to free them.
 // Return 0 on success (could fail if write lock not available).
 int
-ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames[N]) {
+ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], char * new_inames_in_cwd[N]) {
     int rval;
     int i;
     
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     DB_TXN * child = NULL;
-    u_int64_t xid = 0;
+    TXNID xid = 0;
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds new iname
     
+    for (i=0; i<N; i++) {
+	new_inames_in_env[i] = NULL;
+	new_inames_in_cwd[i] = NULL;
+    }
+
     // begin child (unless transactionless)
     if (using_txns) {
 	rval = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1);
@@ -5332,11 +5339,12 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 	// now create new iname
 	char hint[strlen(dname) + 1];
 	create_iname_hint(dname, hint);
-	char * new_iname = create_iname(env, xid, hint, i);
-	new_inames[i] = new_iname;
-        toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);
+	char * new_iname = create_iname(env, xid, hint, i);               // allocates memory for iname_in_env
+        toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
 	if (rval) break;
+	new_inames_in_env[i] = new_iname;
+	new_inames_in_cwd[i] = construct_full_name(2, env->i->dir, new_iname); // allocates memory for iname_in_cwd
     }
 	
     if (using_txns) {
@@ -5349,9 +5357,13 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 	    int r2 = toku_txn_abort(child, NULL, NULL);
 	    assert(r2==0);
 	    for (i=0; i<N; i++) {
-		if (new_inames[i]) {
-		    toku_free(new_inames[i]);
-		    new_inames[i] = NULL;
+		if (new_inames_in_env[i]) {
+		    toku_free(new_inames_in_env[i]);
+		    new_inames_in_env[i] = NULL;
+		}
+		if (new_inames_in_cwd[i]) {
+		    toku_free(new_inames_in_cwd[i]);
+		    new_inames_in_cwd[i] = NULL;
 		}
 	    }
 	}
@@ -5360,3 +5372,31 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     return rval;
 }
 
+// TODO 2216:  Patch out this (dangerous) function when loader is working and 
+//             we don't need to test the low-level redirect anymore.
+// for use by test programs only, just a wrapper around brt call:
+int
+test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
+    int r;
+    DBT dname_dbt;
+    DBT iname_dbt;
+    char * new_iname_in_env;
+    char * new_iname_in_cwd;
+
+    BRT brt = db->i->brt;
+    TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
+
+    toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);
+    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
+    assert(r==0);
+    new_iname_in_env = iname_dbt.data;
+    new_iname_in_cwd = construct_full_name(2, db->dbenv->i->dir, new_iname_in_env); // allocates memory for new_iname_in_cwd
+    assert(new_iname_in_cwd);
+
+    r = toku_dictionary_redirect(new_iname_in_env, new_iname_in_cwd, brt, tokutxn);
+
+    toku_free(new_iname_in_env);
+    toku_free(new_iname_in_cwd);
+    return r;
+}

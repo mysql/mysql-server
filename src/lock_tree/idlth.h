@@ -15,7 +15,6 @@
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
-#include <db_id.h>
 
 #if !defined(TOKU_LOCKTREE_DEFINE)
 #define TOKU_LOCKTREE_DEFINE
@@ -24,7 +23,7 @@ typedef struct __toku_lock_tree toku_lock_tree;
 
 typedef struct __toku_lt_map toku_lt_map;
 struct __toku_lt_map {
-    toku_db_id*     db_id;
+    DICTIONARY_ID   dict_id;
     toku_lock_tree* tree;
 };
 
@@ -57,17 +56,17 @@ int  toku_idlth_create(toku_idlth** ptable,
                        void  (*user_free)   (void*),
                        void* (*user_realloc)(void*, size_t));
 
-toku_lt_map*    toku_idlth_find       (toku_idlth* table, toku_db_id* key);
+toku_lt_map*    toku_idlth_find       (toku_idlth* table, DICTIONARY_ID dict_id);
 
 void            toku_idlth_start_scan (toku_idlth* table);
 
 toku_lt_map*    toku_idlth_next       (toku_idlth* table);
 
-void            toku_idlth_delete     (toku_idlth* table, toku_db_id* key);
+void            toku_idlth_delete     (toku_idlth* table, DICTIONARY_ID dict_id);
 
 void            toku_idlth_close      (toku_idlth* table);
 
-int             toku_idlth_insert     (toku_idlth* table, toku_db_id* key);
+int             toku_idlth_insert     (toku_idlth* table, DICTIONARY_ID dict_id);
 
 void            toku_idlth_clear      (toku_idlth* idlth);
 

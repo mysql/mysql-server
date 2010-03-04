@@ -19,7 +19,12 @@
 // The new inames are returned to the caller.  
 // It is the caller's responsibility to free them.
 // Return 0 on success (could fail if write lock not available).
-int ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames[N]);
+int ydb_load_inames(DB_ENV * env,
+		    DB_TXN * txn,
+		    int N,
+		    DB * dbs[/*N*/],
+		    /*out*/ char * new_inames_in_env[N],
+		    /*out*/ char * new_inames_in_cwd[N]);
 
 
 #endif

@@ -12,14 +12,13 @@ static int evicted_keys = 0;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
-       CACHEKEY k  __attribute__((__unused__)),
+       CACHEKEY k,
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       LSN m       __attribute__((__unused__)),
-       BOOL r      __attribute__((__unused__))
+       BOOL w,
+       BOOL keep,
+       BOOL f_ckpt __attribute__((__unused__))
        ) {
     assert(w == FALSE);
     flush_calls++;
@@ -34,12 +33,11 @@ static int fetch_calls = 0;
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
-       CACHEKEY k         __attribute__((__unused__)),
+       CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
-       void *extraargs    __attribute__((__unused__)),
-       LSN *written_lsn    __attribute__((__unused__))
+       void **value,
+       long *sizep,
+       void *extraargs    __attribute__((__unused__))
        ) {
 
     fetch_calls++;
@@ -47,7 +45,6 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 
     *value = 0;
     *sizep = 1;
-    *written_lsn = ZERO_LSN;
 
     return 0;
 }
@@ -60,7 +57,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int i;
 
@@ -86,10 +83,16 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
 
     // wait for everything to finish
     sleep(10);
+#if 0 //If we flush using reader thread.
     assert(flush_evict_calls == cachetable_size_limit);
     assert(evicted_keys == (1 << cachetable_size_limit)-1);
+#else
+    assert(flush_evict_calls == 0);
+    assert(evicted_keys == 0);
+#endif
 
-    r = toku_cachefile_close(&f1, NULL_LOGGER, 0); assert(r == 0 && f1 == 0);
+    char *error_string;
+    r = toku_cachefile_close(&f1, &error_string, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     if (verbose) printf("%s:%d 0x%x 0x%x\n", __FUNCTION__, __LINE__,
 	evicted_keys, (1 << (2*cachetable_size_limit))-1);
     assert(evicted_keys == (1 << (2*cachetable_size_limit))-1);

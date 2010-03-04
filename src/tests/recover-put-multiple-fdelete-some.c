@@ -28,6 +28,7 @@ crash_on_upgrade(DB* db,
     new_key = new_key;
     new_val = new_val;
     assert(FALSE);
+    return 0;
 }
 
 static int

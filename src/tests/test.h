@@ -43,6 +43,11 @@ int verbose=0;
 #define CKERR2(r,r2) do { if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, db_strerror(r), r2); assert(r==r2); } while (0)
 #define CKERR2s(r,r2,r3) do { if (r!=r2 && r!=r3) fprintf(stderr, "%s:%d error %d %s, expected %d or %d\n", __FILE__, __LINE__, r, db_strerror(r), r2,r3); assert(r==r2||r==r3); } while (0)
 
+#define DEBUG_LINE do { \
+    fprintf(stderr, "%s() %s:%d\n", __FUNCTION__, __FILE__, __LINE__); \
+    fflush(stderr); \
+} while (0)
+
 // If the error code depends on BDB vs TDB use this
 #ifdef USE_TDB
 #define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,tdbexpect)

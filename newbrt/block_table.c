@@ -35,13 +35,6 @@ struct translation { //This is the BTT (block translation table)
     // location_on is stored in block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff
 };
 
-//Unmovable reserved first, then reallocable.
-// We reserve one blocknum for the translation table itself.
-enum {RESERVED_BLOCKNUM_NULL       =0,
-      RESERVED_BLOCKNUM_TRANSLATION=1,
-      RESERVED_BLOCKNUM_DESCRIPTOR =2,
-      RESERVED_BLOCKNUMS};
-
 static const BLOCKNUM freelist_null  = {-1}; // in a freelist, this indicates end of list
 static const DISKOFF  size_is_free   = (DISKOFF)-1;  // value of block_translation_pair.size if blocknum is unused
 static const DISKOFF  diskoff_unused = (DISKOFF)-2;  // value of block_translation_pair.u.diskoff if blocknum is used but does not yet have a diskblock
@@ -114,7 +107,6 @@ toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, struct brt_header *h) {
     toku_maybe_truncate_cachefile(h->cf, size_needed);
     unlock_for_blocktable(bt);
 }
-
 
 
 static void
@@ -876,4 +868,3 @@ toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATIO
 
     block_allocator_get_unused_statistics(bt->block_allocator, report);
 }
-

@@ -1038,7 +1038,7 @@ toku_logger_get_next_lsn(TOKULOGGER logger) {
 
 // called from toku_env_open()
 void 
-toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(int, void *), void * extra) {
+toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra) {
     logger->remove_finalize_callback = funcp;
     logger->remove_finalize_callback_extra = extra;
 }
@@ -1047,7 +1047,7 @@ toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(int, v
 // when a transaction that created a file is aborted.
 // During recovery, there is no ydb layer, so no callback exists.
 void
-toku_logger_call_remove_finalize_callback(TOKULOGGER logger, int fd) {
+toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id) {
     if (logger->remove_finalize_callback)
-        logger->remove_finalize_callback(fd, logger->remove_finalize_callback_extra);
+        logger->remove_finalize_callback(dict_id, logger->remove_finalize_callback_extra);
 }

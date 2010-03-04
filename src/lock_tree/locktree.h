@@ -120,8 +120,8 @@ struct __toku_lock_tree {
     u_int32_t          curr_locks;
     /** The number of references held by DB instances and transactions to this lock tree*/
     u_int32_t          ref_count;
-    /** db_id associated with the lock tree */
-    toku_db_id*        db_id;
+    /** DICTIONARY_ID associated with the lock tree */
+    DICTIONARY_ID      dict_id;
     TXNID              table_lock_owner;
     BOOL               table_is_locked;
 };
@@ -220,12 +220,12 @@ int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
                    void* (*user_realloc)(void*, size_t));
 
 /**
-    Gets a lock tree for a given DB with id db_id
+    Gets a lock tree for a given DB with id dict_id
 */
 int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    BOOL duplicates, toku_db_id* db_id);
+                    BOOL duplicates, DICTIONARY_ID dict_id);
 
-void toku_ltm_invalidate_lt(toku_ltm* mgr, toku_db_id* db_id);
+void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
 
 /**
    Closes and frees a lock tree.

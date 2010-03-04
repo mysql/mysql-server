@@ -149,6 +149,7 @@ static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
     }
 }
 
+// Look up file info: given FILENUM, return file_map_tuple (or DB_NOTFOUND)
 static int file_map_find(struct file_map *fmap, FILENUM fnum, struct file_map_tuple **file_map_tuple) {
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx, NULL);
@@ -249,9 +250,6 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_c
     if (!(treeflags & TOKU_DB_VALCMP_BUILTIN) && renv->dup_compare)
         toku_brt_set_dup_compare(brt, renv->dup_compare);
 
-    // bind to filenum when opened
-    toku_brt_set_filenum(brt, filenum);
-
     // TODO mode (FUTURE FEATURE)
     mode = mode;
 
@@ -263,7 +261,7 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_c
         r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt, abort_on_upgrade);
         if (r!=0) goto close_brt;
     }
-    r = toku_brt_open_recovery(brt, iname, iname, must_create, must_create, renv->ct, txn, fake_db, recovery_force_fcreate);
+    r = toku_brt_open_recovery(brt, iname, iname, must_create, must_create, renv->ct, txn, fake_db, recovery_force_fcreate, filenum);
     if (r != 0) {
     close_brt:
         ;
@@ -371,12 +369,13 @@ static int toku_recover_backward_fopen (struct logtype_fopen *l, RECOVER_ENV ren
     return 0;
 }
 
+// if file referred to in l is open, close it
 static int toku_recover_fclose (struct logtype_fclose *l, RECOVER_ENV renv) {
     struct file_map_tuple *tuple = NULL;
     int r = file_map_find(&renv->fmap, l->filenum, &tuple);
-    if (r == 0) {
+    if (r == 0) {  // if file is open
         char *iname = fixup_fname(&l->iname);
-        assert(strcmp(tuple->iname, iname) == 0);
+        assert(strcmp(tuple->iname, iname) == 0);  // verify that file_map has same iname as log entry
         toku_free(iname);
 
         DB *fake_db = tuple->brt->db; //Need to free the fake db that was malloced
@@ -553,8 +552,10 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
         assert(r==0);
         r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE, BRT_INSERT);
         assert(r == 0);
-        //flags==0 indicates the return values are stored in temporary memory that does
-        //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
+        //flags==0 means generate_row_for_put callback changed it
+        //(and freed any memory necessary to do so) so that values are now stored
+        //in temporary memory that does not need to be freed.  We need to continue
+        //using DB_DBT_REALLOC however.
         if (dest_key.flags == 0) {
             toku_init_dbt(&dest_key);
             dest_key.flags = DB_DBT_REALLOC;
@@ -564,8 +565,8 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
             dest_val.flags = DB_DBT_REALLOC;
         }
     }
-    if (dest_key.flags & DB_DBT_REALLOC && dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
-    if (dest_val.flags & DB_DBT_REALLOC && dest_val.data) toku_free(dest_val.data); //TODO: #2321 May need windows hack
+    if (dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
+    if (dest_val.data) toku_free(dest_val.data); //TODO: #2321 May need windows hack
 
     return 0;
 }

@@ -96,7 +96,7 @@ toku_os_full_write (int fd, const void *buf, size_t len) {
     assert(len == 0);
 }
 
-ssize_t
+int
 toku_os_write (int fd, const void *buf, size_t len) {
     while (len > 0) {
         ssize_t r;
@@ -105,8 +105,8 @@ toku_os_write (int fd, const void *buf, size_t len) {
         } else {
             r = write(fd, buf, len);
         }
-        if (r <= 0)
-            return r;
+        if (r < 0)
+            return errno;
         len           -= r;
         buf           += r;
     }

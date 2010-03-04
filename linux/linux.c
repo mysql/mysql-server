@@ -86,7 +86,6 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     memset(id, 0, sizeof(*id));
     int r=fstat(fildes, &statbuf);
     if (r==0) {
-        memset(id, 0, sizeof(*id));
         id->st_dev = statbuf.st_dev;
         id->st_ino = statbuf.st_ino;
     }
