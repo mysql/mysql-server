@@ -191,12 +191,6 @@ int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, bool interacti
 {
   return m_cmd->execute(_line,_try_reconnect,interactive, error);
 }
-int
-Ndb_mgmclient::disconnect()
-{
-  return m_cmd->disconnect();
-}
-
 
 /*
  * The CommandInterpreter
