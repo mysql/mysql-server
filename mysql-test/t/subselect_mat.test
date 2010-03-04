@@ -110,7 +110,6 @@ insert into t3_16 values
 insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
-
 # single value transformer
 explain extended select left(a1,7), left(a2,7)
 from t1_16
@@ -281,7 +280,6 @@ insert into t3_1024 values
 insert into t3_1024 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
-
 # single value transformer
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
@@ -366,7 +364,6 @@ insert into t3_1025 values
  (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_1025 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
-
 
 # single value transformer
 explain extended select left(a1,7), left(a2,7)

@@ -131,6 +131,20 @@ void Item_singlerow_subselect::cleanup()
   DBUG_VOID_RETURN;
 }
 
+
+void Item_in_subselect::cleanup()
+{
+  DBUG_ENTER("Item_in_subselect::cleanup");
+  if (left_expr_cache)
+  {
+    left_expr_cache->delete_elements();
+    delete left_expr_cache;
+    left_expr_cache= NULL;
+  }
+  Item_subselect::cleanup();
+  DBUG_VOID_RETURN;
+}
+
 Item_subselect::~Item_subselect()
 {
   delete engine;
