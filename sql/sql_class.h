@@ -3060,7 +3060,8 @@ public:
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {

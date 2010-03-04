@@ -327,7 +327,7 @@ public:
     abort_on_null(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
     upper_item(0)
   {}
-
+  void cleanup();
   subs_type substype() { return IN_SUBS; }
   void reset() 
   {
