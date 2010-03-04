@@ -49,7 +49,7 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
     return 0;
 }
 
-static off_t lc_file_len(const char *name) {
+static toku_off_t lc_file_len(const char *name) {
    toku_struct_stat buf;
    int r = toku_stat(name, &buf); assert(r == 0);
    return buf.st_size;

@@ -1,6 +1,7 @@
 //rand_s requires _CRT_RAND_S be defined before including stdlib
 #define _CRT_RAND_S
 
+#include <toku_portability.h>
 #include <stdio.h>
 #include <toku_assert.h>
 #include <stdint.h>
