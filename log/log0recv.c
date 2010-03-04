@@ -3231,8 +3231,6 @@ void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
-	int		i;
-
 	/* Apply the hashed log records to the respective file pages */
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3280,11 +3278,16 @@ recv_recovery_from_checkpoint_finish(void)
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
 	trx_rollback_or_clean_recovered(FALSE);
+}
 
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
-	/* Drop temporary tables. */
-	row_mysql_drop_temp_tables();
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void)
+/*===============================*/
+{
+	int		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
@@ -3294,6 +3297,11 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = TRUE;
 #endif
+	/* Drop partially created indexes. */
+	row_merge_drop_temp_indexes();
+	/* Drop temporary tables. */
+	row_mysql_drop_temp_tables();
+
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
 		session */
