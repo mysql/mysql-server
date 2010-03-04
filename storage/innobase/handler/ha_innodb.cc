@@ -2652,9 +2652,9 @@ ha_innobase::innobase_initialize_autoinc()
 		auto_inc = innobase_get_int_col_max_value(field);
 	} else {
 		/* We have no idea what's been passed in to us as the
-		autoinc column. We set it to the MAX_INT of our table
-		autoinc type. */
-		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+		autoinc column. We set it to the 0, effectively disabling
+		updates to the table. */
+		auto_inc = 0;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
@@ -2663,7 +2663,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 		/* If the recovery level is set so high that writes
-		are disabled we force the AUTOINC counter to the MAX
+		are disabled we force the AUTOINC counter to 0
 		value effectively disabling writes to the table.
 		Secondly, we avoid reading the table in case the read
 		results in failure due to a corrupted table/index.
@@ -2672,7 +2672,10 @@ ha_innobase::innobase_initialize_autoinc()
 		tables can be dumped with minimal hassle.  If an error
 		were returned in this case, the first attempt to read
 		the table would fail and subsequent SELECTs would succeed. */
+		auto_inc = 0;
 	} else if (field == NULL) {
+		/* This is a far more serious error, best to avoid
+		opening the table and return failure. */
 		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
 	} else {
 		dict_index_t*	index;
@@ -2701,7 +2704,7 @@ ha_innobase::innobase_initialize_autoinc()
 				"InnoDB: Unable to find the AUTOINC column "
 				"%s in the InnoDB table %s.\n"
 				"InnoDB: We set the next AUTOINC column "
-				"value to the maximum possible value,\n"
+				"value to 0,\n"
 				"InnoDB: in effect disabling the AUTOINC "
 				"next value generation.\n"
 				"InnoDB: You can either set the next "
@@ -2710,7 +2713,13 @@ ha_innobase::innobase_initialize_autoinc()
 				"recreating the table.\n",
 				col_name, index->table->name);
 
-			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			/* This will disable the AUTOINC generation. */
+			auto_inc = 0;
+
+			/* We want the open to succeed, so that the user can
+			take corrective action. ie. reads should succeed but
+			updates should fail. */
+			err = DB_SUCCESS;
 			break;
 		default:
 			/* row_search_max_autoinc() should only return
@@ -3968,11 +3977,17 @@ no_commit:
 		prebuilt->autoinc_error = DB_SUCCESS;
 
 		if ((error = update_auto_increment())) {
-
 			/* We don't want to mask autoinc overflow errors. */
-			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = (int) prebuilt->autoinc_error;
 
+			/* Handle the case where the AUTOINC sub-system
+			failed during initialization. */
+			if (prebuilt->autoinc_error == DB_UNSUPPORTED) {
+				error_result = ER_AUTOINC_READ_FAILED;
+				/* Set the error message to report too. */
+				my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+				goto func_exit;
+			} else if (prebuilt->autoinc_error != DB_SUCCESS) {
+				error = (int) prebuilt->autoinc_error;
 				goto report_error;
 			}
 
@@ -7883,7 +7898,10 @@ ha_innobase::innobase_get_autoinc(
 		*value = dict_table_autoinc_read(prebuilt->table);
 
 		/* It should have been initialized during open. */
-		ut_a(*value != 0);
+		if (*value == 0) {
+			prebuilt->autoinc_error = DB_UNSUPPORTED;
+			dict_table_autoinc_unlock(prebuilt->table);
+		}
 	}
   
 	return(ulong(prebuilt->autoinc_error));
@@ -7963,6 +7981,11 @@ ha_innobase::get_auto_increment(
 	invoking this method. So we are not sure if it's guaranteed to
 	be 0 or not. */
 
+	/* We need the upper limit of the col type to check for
+	whether we update the table autoinc counter or not. */
+	ulonglong	col_max_value = innobase_get_int_col_max_value(
+		table->next_number_field);
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -7979,6 +8002,11 @@ ha_innobase::get_auto_increment(
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->autoinc_last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
+	/* Check for -ve values. */
+	} else if (*first_value > col_max_value && trx->n_autoinc_rows > 0) {
+		/* Set to next logical value. */
+		ut_a(autoinc > trx->n_autoinc_rows);
+		*first_value = (autoinc - trx->n_autoinc_rows) - 1;
 	}
 
 	*nb_reserved_values = trx->n_autoinc_rows;
@@ -7989,12 +8017,6 @@ ha_innobase::get_auto_increment(
 		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
-		ulonglong	col_max_value;
-
-		/* We need the upper limit of the col type to check for
-		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;

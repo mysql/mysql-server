@@ -902,6 +902,20 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool is_children_attached(void);
+  inline void set_keyread(bool flag)
+  {
+    DBUG_ASSERT(file);
+    if (flag && !key_read)
+    {
+      key_read= 1;
+      file->extra(HA_EXTRA_KEYREAD);
+    }
+    else if (!flag && key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+  }
 };
 
 enum enum_schema_table_state

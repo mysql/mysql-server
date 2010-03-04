@@ -3600,4 +3600,21 @@ SELECT 1 FROM t1 WHERE a <> SOME
 );
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #45989 take 2 : memory leak after explain encounters an 
+--echo # error in the query
+--echo #
+
+CREATE TABLE t1(a LONGTEXT);
+INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
+INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
+
+--error ER_BAD_FIELD_ERROR
+EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
+WHERE t1.a = d1.a;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests.

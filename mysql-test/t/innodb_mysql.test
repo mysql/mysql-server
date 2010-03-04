@@ -536,4 +536,26 @@ DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+
+--echo #
+--echo # Bug #49324: more valgrind errors in test_if_skip_sort_order
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
+--echo #should not cause valgrind warnings
+SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#50843: Filesort used instead of clustered index led to
+--echo #            performance degradation.
+--echo #
+create table t1(f1 int not null primary key, f2 int) engine=innodb;
+create table t2(f1 int not null, key (f1)) engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3);
+insert into t2 values (1),(2),(3);
+explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
+drop table t1,t2;
+--echo #
+
+
 --echo End of 5.1 tests

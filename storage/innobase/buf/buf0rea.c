@@ -299,30 +299,27 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible. */
-
-ulint
+ibool
 buf_read_page(
 /*==========*/
-			/* out: number of page read requests issued: this can
-			be > 1 if read-ahead occurred */
+			/* out: TRUE if success, FALSE otherwise */
 	ulint	space,	/* in: space id */
 	ulint	offset)	/* in: page number */
 {
 	ib_longlong	tablespace_version;
 	ulint		count;
-	ulint		count2;
 	ulint		err;
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_ahead_random(space, offset);
+	buf_read_ahead_random(space, offset);
 
 	/* We do the i/o in the synchronous aio mode to save thread
 	switches: hence TRUE */
 
-	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 				   tablespace_version, offset);
-	srv_buf_pool_reads+= count2;
+	srv_buf_pool_reads+= count;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -336,7 +333,7 @@ buf_read_page(
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 
-	return(count + count2);
+	return(count > 0);
 }
 
 /************************************************************************
