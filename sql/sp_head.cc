@@ -1848,6 +1848,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
   uint params = m_pcont->context_var_count();
+  /* Query start time may be reset in a multi-stmt SP; keep this for later. */
+  ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log= false;
@@ -2054,6 +2056,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   delete nctx;
   thd->spcont= save_spcont;
+  thd->utime_after_lock= utime_before_sp_exec;
 
   DBUG_RETURN(err_status);
 }
@@ -2825,7 +2828,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     and open and lock them before executing instructions core function.
   */
   if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables))
+      || open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;

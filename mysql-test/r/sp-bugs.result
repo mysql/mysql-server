@@ -44,4 +44,33 @@ SELECT f2 ();
 f2 ()
 NULL
 DROP SCHEMA testdb;
+USE test;
+#
+# Bug#50423: Crash on second call of a procedure dropping a trigger
+#
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS tr1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @aux = 1;
+CREATE PROCEDURE p1 () DROP TRIGGER tr1;
+CALL p1 ();
+CALL p1 ();
+ERROR HY000: Trigger does not exist
+DROP TABLE t1;
+DROP PROCEDURE p1;
+#
+# Bug#50423: Crash on second call of a procedure dropping a trigger
+#
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS tr1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @aux = 1;
+CREATE PROCEDURE p1 () DROP TRIGGER tr1;
+CALL p1 ();
+CALL p1 ();
+ERROR HY000: Trigger does not exist
+DROP TABLE t1;
+DROP PROCEDURE p1;
 End of 5.1 tests

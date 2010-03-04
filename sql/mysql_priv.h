@@ -218,7 +218,8 @@ extern CHARSET_INFO *error_message_charset_info;
 
 enum Derivation
 {
-  DERIVATION_IGNORABLE= 5,
+  DERIVATION_IGNORABLE= 6,
+  DERIVATION_NUMERIC= 5,
   DERIVATION_COERCIBLE= 4,
   DERIVATION_SYSCONST= 3,
   DERIVATION_IMPLICIT= 2,
@@ -226,6 +227,8 @@ enum Derivation
   DERIVATION_EXPLICIT= 0
 };
 
+#define my_charset_numeric      my_charset_latin1
+#define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 typedef struct my_locale_errmsgs
 {
@@ -870,6 +873,16 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "item.h"
 extern my_decimal decimal_zero;
 
+/* my_decimal.cc */
+bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
+                     uint fixed_dec, char filler, String *str,
+                     CHARSET_INFO *cs);
+inline bool str_set_decimal(const my_decimal *val, String *str,
+                            CHARSET_INFO *cs)
+{
+  return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
+}
+
 /* sql_parse.cc */
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -1192,7 +1205,7 @@ int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
 bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                   Item **ref_pointer_array);
+                   Item **ref_pointer_array, ORDER *group_list= NULL);
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
@@ -1562,26 +1575,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                 bool derived, uint flags,
-                                 Prelocking_strategy *prelocking_strategy);
-inline bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                        bool derived, uint flags)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                          bool derived, uint flags,
+                          Prelocking_strategy *prelocking_strategy);
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
 
-  return open_and_lock_tables_derived(thd, tables, derived, flags,
-                                      &prelocking_strategy);
-}
-/* simple open_and_lock_tables without derived handling */
-inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, FALSE, 0);
-}
-/* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, TRUE, 0);
+  return open_and_lock_tables(thd, tables, derived, flags,
+                              &prelocking_strategy);
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
@@ -1975,7 +1978,8 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
-extern ulong slave_net_timeout, slave_trans_retries;
+extern ulong slave_trans_retries;
+extern uint  slave_net_timeout;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -2015,7 +2019,7 @@ extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern bool opt_large_files, server_id_supplied;
-extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern bool opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
 extern ulonglong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
@@ -2171,11 +2175,17 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
   in parser.
 */
 #define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
+/**
+  When opening or locking the table, use the maximum timeout
+  (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
+*/
+#define MYSQL_LOCK_IGNORE_TIMEOUT               0x1000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
+                            MYSQL_LOCK_IGNORE_TIMEOUT |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_SKIP_TEMPORARY |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
@@ -2243,8 +2253,17 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
-timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+/* Character set-aware version of str_to_time() */
+bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+                 MYSQL_TIME *l_time, int *warning);
+/* Character set-aware version of str_to_datetime() */
+timestamp_type str_to_datetime(CHARSET_INFO *cs,
+                               const char *str, uint length,
+                               MYSQL_TIME *l_time, uint flags, int *was_cut);
+bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str,uint length,
+                           MYSQL_TIME *l_time);
+timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs,
+                                         const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);

@@ -438,13 +438,15 @@ Field *Item_func::tmp_table_field(TABLE *table)
 
   switch (result_type()) {
   case INT_RESULT:
-    if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
-      field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
+    if (max_char_length() > MY_INT32_NUM_DECIMAL_DIGITS)
+      field= new Field_longlong(max_char_length(), maybe_null, name,
+                                unsigned_flag);
     else
-      field= new Field_long(max_length, maybe_null, name, unsigned_flag);
+      field= new Field_long(max_char_length(), maybe_null, name,
+                            unsigned_flag);
     break;
   case REAL_RESULT:
-    field= new Field_double(max_length, maybe_null, name, decimals);
+    field= new Field_double(max_char_length(), maybe_null, name, decimals);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -485,7 +487,7 @@ String *Item_real_func::val_str(String *str)
   double nr= val_real();
   if (null_value)
     return 0; /* purecov: inspected */
-  str->set_real(nr,decimals, &my_charset_bin);
+  str->set_real(nr, decimals, collation.collation);
   return str;
 }
 
@@ -624,7 +626,7 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  str->set_int(nr, unsigned_flag, &my_charset_bin);
+  str->set_int(nr, unsigned_flag, collation.collation);
   return str;
 }
 
@@ -744,6 +746,7 @@ String *Item_func_numhybrid::val_str(String *str)
     if (!(val= decimal_op(&decimal_value)))
       return 0;                                 // null is set
     my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, FALSE, val);
+    str->set_charset(collation.collation);
     my_decimal2string(E_DEC_FATAL_ERROR, val, 0, 0, 0, str);
     break;
   }
@@ -752,7 +755,7 @@ String *Item_func_numhybrid::val_str(String *str)
     longlong nr= int_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set_int(nr, unsigned_flag, &my_charset_bin);
+    str->set_int(nr, unsigned_flag, collation.collation);
     break;
   }
   case REAL_RESULT:
@@ -760,7 +763,7 @@ String *Item_func_numhybrid::val_str(String *str)
     double nr= real_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set_real(nr,decimals,&my_charset_bin);
+    str->set_real(nr, decimals, collation.collation);
     break;
   }
   case STRING_RESULT:
@@ -895,6 +898,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   uint32 length;
   String tmp(buff,sizeof(buff), &my_charset_bin), *res;
   longlong value;
+  CHARSET_INFO *cs;
 
   /*
     For a string result, we must first get the string and then convert it
@@ -910,9 +914,10 @@ longlong Item_func_signed::val_int_from_str(int *error)
   null_value= 0;
   start= (char *)res->ptr();
   length= res->length();
+  cs= res->charset();
 
   end= start + length;
-  value= my_strtoll10(start, &end, error);
+  value= cs->cset->strtoll10(cs, start, &end, error);
   if (*error > 0 || end != start+ length)
   {
     char err_buff[128];
@@ -2263,7 +2268,7 @@ void Item_func_min_max::fix_length_and_dec()
   }
   if (cmp_type == STRING_RESULT)
   {
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
+    agg_arg_charsets_for_comparison(collation, args, arg_count);
     if (datetime_found)
     {
       thd= current_thd;
@@ -2271,9 +2276,13 @@ void Item_func_min_max::fix_length_and_dec()
     }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
-    max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
-                                                             decimals, decimals,
-                                                             unsigned_flag);
+  {
+    collation.set_numeric();
+    fix_char_length(my_decimal_precision_to_length_no_truncation(max_int_part +
+                                                                 decimals,
+                                                                 decimals,
+                                                                 unsigned_flag));
+  }
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -2343,7 +2352,7 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    str->set_int(nr, unsigned_flag, &my_charset_bin);
+    str->set_int(nr, unsigned_flag, collation.collation);
     return str;
   }
   case DECIMAL_RESULT:
@@ -2359,7 +2368,7 @@ String *Item_func_min_max::val_str(String *str)
     double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set_real(nr,decimals,&my_charset_bin);
+    str->set_real(nr, decimals, collation.collation);
     return str;
   }
   case STRING_RESULT:
@@ -2530,7 +2539,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
+  agg_arg_charsets_for_comparison(cmp_collation, args, 2);
 }
 
 
@@ -2654,7 +2663,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1);
+    agg_arg_charsets_for_comparison(cmp_collation, args, arg_count);
 }
 
 
@@ -2721,7 +2730,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
+  agg_arg_charsets_for_comparison(cmp_collation, args, 2);
 }
 
 static const char separator=',';
@@ -3960,7 +3969,9 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
   */
   null_item= (args[0]->type() == NULL_ITEM);
   if (!entry->collation.collation || !null_item)
-    entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
+    entry->collation.set(args[0]->collation.derivation == DERIVATION_NUMERIC ?
+                         default_charset() : args[0]->collation.collation,
+                         DERIVATION_IMPLICIT);
   collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
   return FALSE;
@@ -3971,9 +3982,15 @@ void
 Item_func_set_user_var::fix_length_and_dec()
 {
   maybe_null=args[0]->maybe_null;
-  max_length=args[0]->max_length;
   decimals=args[0]->decimals;
-  collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(DERIVATION_IMPLICIT);
+  if (args[0]->collation.derivation == DERIVATION_NUMERIC)
+    fix_length_and_charset(args[0]->max_char_length(), default_charset());
+  else
+  {
+    fix_length_and_charset(args[0]->max_char_length(),
+                           args[0]->collation.collation);
+  }
 }
 
 
@@ -4168,16 +4185,16 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
   switch (type) {
   case REAL_RESULT:
-    str->set_real(*(double*) value, decimals, &my_charset_bin);
+    str->set_real(*(double*) value, decimals, collation.collation);
     break;
   case INT_RESULT:
     if (!unsigned_flag)
-      str->set(*(longlong*) value, &my_charset_bin);
+      str->set(*(longlong*) value, collation.collation);
     else
-      str->set(*(ulonglong*) value, &my_charset_bin);
+      str->set(*(ulonglong*) value, collation.collation);
     break;
   case DECIMAL_RESULT:
-    my_decimal2string(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, 0, 0, str);
+    str_set_decimal((my_decimal *) value, str, collation.collation);
     break;
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
@@ -4335,13 +4352,13 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
+		     REAL_RESULT, default_charset(), DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-                     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     INT_RESULT, default_charset(), DERIVATION_IMPLICIT,
                      unsigned_flag);
     break;
   }
@@ -4365,7 +4382,7 @@ Item_func_set_user_var::update()
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_IMPLICIT, 0);
+                       default_charset(), DERIVATION_IMPLICIT, 0);
     break;
   }
   case ROW_RESULT:
@@ -4798,17 +4815,17 @@ void Item_func_get_user_var::fix_length_and_dec()
     collation.set(var_entry->collation);
     switch(m_cached_result_type) {
     case REAL_RESULT:
-      max_length= DBL_DIG + 8;
+      fix_char_length(DBL_DIG + 8);
       break;
     case INT_RESULT:
-      max_length= MAX_BIGINT_WIDTH;
+      fix_char_length(MAX_BIGINT_WIDTH);
       decimals=0;
       break;
     case STRING_RESULT:
       max_length= MAX_BLOB_WIDTH;
       break;
     case DECIMAL_RESULT:
-      max_length= DECIMAL_MAX_STR_LENGTH;
+      fix_char_length(DECIMAL_MAX_STR_LENGTH);
       decimals= DECIMAL_MAX_SCALE;
       break;
     case ROW_RESULT:                            // Keep compiler happy
@@ -4994,12 +5011,14 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_INT:
     case SHOW_HA_ROWS:
       unsigned_flag= TRUE;
-      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      collation.set_numeric();
+      fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
       break;
     case SHOW_LONGLONG:
       unsigned_flag= TRUE;
-      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      collation.set_numeric();
+      fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
       break;
     case SHOW_CHAR:
@@ -5033,13 +5052,15 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
       unsigned_flag= FALSE;
-      max_length= 1;
+      collation.set_numeric();
+      fix_char_length(1);
       decimals=0;
       break;
     case SHOW_DOUBLE:
       unsigned_flag= FALSE;
       decimals= 6;
-      max_length= DBL_DIG + 6;
+      collation.set_numeric();
+      fix_char_length(DBL_DIG + 6);
       break;
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
@@ -5401,8 +5422,8 @@ longlong Item_func_inet_aton::val_int()
   char buff[36];
   int dot_count= 0;
 
-  String *s,tmp(buff,sizeof(buff),&my_charset_bin);
-  if (!(s = args[0]->val_str(&tmp)))		// If null value
+  String *s, tmp(buff, sizeof(buff), &my_charset_latin1);
+  if (!(s = args[0]->val_str_ascii(&tmp)))       // If null value
     goto err;
   null_value=0;
 
@@ -5410,7 +5431,7 @@ longlong Item_func_inet_aton::val_int()
   while (p < end)
   {
     c = *p++;
-    int digit = (int) (c - '0');		// Assume ascii
+    int digit = (int) (c - '0');
     if (digit >= 0 && digit <= 9)
     {
       if ((byte_result = byte_result * 10 + digit) > 255)
@@ -5560,8 +5581,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return 1;
   }
   table->fulltext_searched=1;
-  return agg_arg_collations_for_comparison(cmp_collation,
-                                           args+1, arg_count-1, 0);
+  return agg_item_collations_for_comparison(cmp_collation, func_name(),
+                                            args+1, arg_count-1, 0);
 }
 
 bool Item_func_match::fix_index()

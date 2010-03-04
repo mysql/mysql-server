@@ -122,7 +122,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
 static bool tdc_wait_for_old_versions(THD *thd,
-                                      MDL_request_list *mdl_requests);
+                                      MDL_request_list *mdl_requests,
+                                      ulong timeout);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 
@@ -2225,6 +2226,7 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     mysql_cond_wait(cond, mutex);
 
@@ -2363,8 +2365,7 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     mdl_requests.push_front(mdl_request);
     mdl_requests.push_front(global_request);
 
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                       thd->variables.lock_wait_timeout))
+    if (thd->mdl_context.acquire_locks(&mdl_requests, ot_ctx->get_timeout()))
       return 1;
   }
   else
@@ -2556,16 +2557,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                          (int) table_list->lock_type);
 
           /*
-            If we are performing DDL operation we also should ensure
-            that we will find TABLE instance with upgradable metadata
-            lock,
-          */
-          if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-              table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
-              ! table->mdl_ticket->is_upgradable_or_exclusive())
-            distance= -1;
-
-          /*
             Find a table that either has the exact lock type requested,
             or has the best suitable lock. In case there is no locked
             table that has an equal or higher lock than requested,
@@ -2598,13 +2589,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     if (best_table)
     {
-      if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-          table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
-          ! best_table->mdl_ticket->is_upgradable_or_exclusive())
-      {
-        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), alias);
-        DBUG_RETURN(TRUE);
-      }
       table= best_table;
       table->query_id= thd->query_id;
       DBUG_PRINT("info",("Using locked table"));
@@ -3308,7 +3292,7 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
 bool
 Locked_tables_list::reopen_tables(THD *thd)
 {
-  Open_table_context ot_ctx_unused(thd);
+  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
   bool lt_refresh_unused;
   size_t reopen_count= 0;
   MYSQL_LOCK *lock;
@@ -3744,13 +3728,14 @@ end_with_lock_open:
 
 /** Open_table_context */
 
-Open_table_context::Open_table_context(THD *thd)
+Open_table_context::Open_table_context(THD *thd, ulong timeout)
   :m_action(OT_NO_ACTION),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
    m_has_locks((thd->in_multi_stmt_transaction() &&
                 thd->mdl_context.has_locks()) ||
                 thd->mdl_context.trans_sentinel()),
-   m_global_mdl_request(NULL)
+   m_global_mdl_request(NULL),
+   m_timeout(timeout)
 {}
 
 
@@ -3845,11 +3830,10 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
   switch (m_action)
   {
     case OT_WAIT_MDL_LOCK:
-      result= thd->mdl_context.wait_for_lock(mdl_request,
-                                             thd->variables.lock_wait_timeout);
+      result= thd->mdl_context.wait_for_lock(mdl_request, get_timeout());
       break;
     case OT_WAIT_TDC:
-      result= tdc_wait_for_old_versions(thd, &m_mdl_requests);
+      result= tdc_wait_for_old_versions(thd, &m_mdl_requests, get_timeout());
       DBUG_ASSERT(thd->mysys_var->current_mutex == NULL);
       break;
     case OT_DISCOVER:
@@ -3866,8 +3850,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
         mdl_requests.push_front(&mdl_global_request);
 
         if ((result=
-             thd->mdl_context.acquire_locks(&mdl_requests,
-                                            thd->variables.lock_wait_timeout)))
+             thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
@@ -3899,8 +3882,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
         mdl_requests.push_front(&mdl_global_request);
 
         if ((result=
-             thd->mdl_context.acquire_locks(&mdl_requests,
-                                            thd->variables.lock_wait_timeout)))
+             thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
           break;
 
         DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
@@ -4356,7 +4338,8 @@ end:
 
 /**
   Acquire upgradable (SNW, SNRW) metadata locks on tables to be opened
-  for LOCK TABLES or a DDL statement.
+  for LOCK TABLES or a DDL statement. Under LOCK TABLES, we can't take
+  new locks, so use open_tables_check_upgradable_mdl() instead.
 
   @param thd           Thread context.
   @param tables_start  Start of list of tables on which upgradable locks
@@ -4376,10 +4359,16 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
 
+  DBUG_ASSERT(!thd->locked_tables_mode);
+  DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
+
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        !(table->open_type == OT_TEMPORARY_ONLY ||
+          (table->open_type != OT_BASE_ONLY &&
+           find_temporary_table(thd, table))))
     {
       table->mdl_request.set_type(table->lock_type > TL_WRITE_ALLOW_READ ?
                                   MDL_SHARED_NO_READ_WRITE :
@@ -4397,8 +4386,7 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
     mdl_requests.push_front(global_request);
   }
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                     thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.acquire_locks(&mdl_requests, ot_ctx->get_timeout()))
     return TRUE;
 
   for (table= tables_start; table && table != tables_end;
@@ -4408,6 +4396,58 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
     {
       table->mdl_request.ticket= NULL;
       table->mdl_request.set_type(MDL_SHARED_WRITE);
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Check for upgradable (SNW, SNRW) metadata locks on tables to be opened
+  for a DDL statement. Under LOCK TABLES, we can't take new locks, so we
+  must check if appropriate locks were pre-acquired.
+
+  @param thd           Thread context.
+  @param tables_start  Start of list of tables on which upgradable locks
+                       should be searched for.
+  @param tables_end    End of list of tables.
+
+  @retval FALSE  Success.
+  @retval TRUE   Failure (e.g. connection was killed)
+*/
+
+static bool
+open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
+                                 TABLE_LIST *tables_end)
+{
+  TABLE_LIST *table;
+
+  DBUG_ASSERT(thd->locked_tables_mode);
+
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        !(table->open_type == OT_TEMPORARY_ONLY ||
+          (table->open_type != OT_BASE_ONLY &&
+           find_temporary_table(thd, table))))
+    {
+      /*
+        We don't need to do anything about the found TABLE instance as it
+        will be handled later in open_tables(), we only need to check that
+        an upgradable lock is already acquired. When we enter LOCK TABLES
+        mode, SNRW locks are acquired before all other locks. So if under
+        LOCK TABLES we find that there is TABLE instance with upgradeable
+        lock, all other instances of TABLE for the same table will have the
+        same ticket.
+
+        Note that find_table_for_mdl_upgrade() will report an error if a
+        ticket is not found.
+      */
+      if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
+                                      table->table_name, FALSE))
+        return TRUE;
     }
   }
 
@@ -4457,7 +4497,8 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   TABLE_LIST **table_to_open;
   Sroutine_hash_entry **sroutine_to_open;
   TABLE_LIST *tables;
-  Open_table_context ot_ctx(thd);
+  Open_table_context ot_ctx(thd, (flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
+                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
   bool error= FALSE;
   MEM_ROOT new_frm_mem;
   bool has_prelocking_list;
@@ -4500,12 +4541,31 @@ restart:
     lock will be reused (thanks to the fact that in recursive case
     metadata locks are acquired without waiting).
   */
-  if ((flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL) &&
-      ! thd->locked_tables_mode)
+  if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL)
   {
-    if (open_tables_acquire_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table(),
-                                           &ot_ctx))
+    /*
+      open_tables_acquire_upgradable_mdl() does not currenly handle
+      these two flags. At this point, that does not matter as they
+      are not used together with MYSQL_OPEN_TAKE_UPGRADABLE_MDL.
+    */
+    DBUG_ASSERT(!(flags & (MYSQL_OPEN_SKIP_TEMPORARY |
+                           MYSQL_OPEN_TEMPORARY_ONLY)));
+    if (thd->locked_tables_mode)
+    {
+      /*
+        Under LOCK TABLES, we can't acquire new locks, so we instead
+        need to check if appropriate locks were pre-acquired.
+      */
+      if (open_tables_check_upgradable_mdl(thd, *start,
+                                           thd->lex->first_not_own_table()))
+      {
+        error= TRUE;
+        goto err;
+      }
+    }
+    else if (open_tables_acquire_upgradable_mdl(thd, *start,
+                                                thd->lex->first_not_own_table(),
+                                                &ot_ctx))
     {
       error= TRUE;
       goto err;
@@ -4961,7 +5021,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->required_type= FRMTYPE_TABLE;
 
   /* Open the table. */
-  if (open_and_lock_tables_derived(thd, table_l, FALSE, flags))
+  if (open_and_lock_tables(thd, table_l, FALSE, flags))
     table_l->table= NULL; /* Just to be sure. */
 
   /* Restore list. */
@@ -4999,7 +5059,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
                    uint lock_flags)
 {
   TABLE *table;
-  Open_table_context ot_ctx(thd);
+  Open_table_context ot_ctx(thd, (lock_flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
+                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
   bool refresh;
   bool error;
   DBUG_ENTER("open_ltable");
@@ -5098,20 +5159,13 @@ end:
   @note
     The lock will automaticaly be freed by close_thread_tables()
 
-  @note
-    There are several convenience functions, e.g. :
-    - simple_open_n_lock_tables(thd, tables)  without derived handling
-    - open_and_lock_tables(thd, tables)       with derived handling
-    Both inline functions call open_and_lock_tables_derived() with
-    the third argument set appropriately.
-
   @retval FALSE  OK.
   @retval TRUE   Error
 */
 
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                  bool derived, uint flags,
-                                  Prelocking_strategy *prelocking_strategy)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                          bool derived, uint flags,
+                          Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
   bool need_reopen;
@@ -5125,7 +5179,7 @@ bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
     statement.
   */
   MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
-  DBUG_ENTER("open_and_lock_tables_derived");
+  DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
   for ( ; ; ) 
@@ -8536,16 +8590,18 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 
    @param thd      Thread context
    @param context  Metadata locking context with locks.
+   @param timeout  Seconds to wait before reporting ER_LOCK_WAIT_TIMEOUT.
 */
 
 static bool
-tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests)
+tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
+                          ulong timeout)
 {
   TABLE_SHARE *share;
   const char *old_msg;
   MDL_request *mdl_request;
   struct timespec abstime;
-  set_timespec(abstime, thd->variables.lock_wait_timeout);
+  set_timespec(abstime, timeout);
   int wait_result= 0;
 
   while (!thd->killed)
@@ -8812,8 +8868,9 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
-  if (open_and_lock_tables_derived(thd, table_list, FALSE,
-                                   MYSQL_LOCK_IGNORE_FLUSH))
+  if (open_and_lock_tables(thd, table_list, FALSE,
+                           MYSQL_LOCK_IGNORE_FLUSH |
+                           MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     lex->restore_backup_query_tables_list(&query_tables_list_backup);
     goto error;
@@ -8875,7 +8932,8 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
 {
   DBUG_ENTER("open_system_table_for_update");
 
-  TABLE *table= open_ltable(thd, one_table, one_table->lock_type, 0);
+  TABLE *table= open_ltable(thd, one_table, one_table->lock_type,
+                            MYSQL_LOCK_IGNORE_TIMEOUT);
   if (table)
   {
     DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_SYSTEM);
@@ -8902,6 +8960,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
   uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
                 MYSQL_LOCK_IGNORE_FLUSH |
+                MYSQL_LOCK_IGNORE_TIMEOUT |
                 MYSQL_LOCK_PERF_SCHEMA);
   TABLE *table;
   /* Save value that is changed in mysql_lock_tables() */

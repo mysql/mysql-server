@@ -56,6 +56,8 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   -h, --host=#         hostname for local server when connecting over TCP/IP
   -P, --port=#         port to use when connecting to local server with TCP/IP
   -S, --socket=#       socket to use when connecting to local server
+      --old_server     connect to old MySQL-server (before v5.5) which
+                       doesn't have FLUSH TABLES WITH READ LOCK fully implemented.
 
   --allowold           don\'t abort if target dir already exists (rename it _old)
   --addtodest          don\'t rename target dir if it exists, just add files to it
@@ -103,6 +105,7 @@ GetOptions( \%opt,
     "password|p=s",
     "port|P=s",
     "socket|S=s",
+    "old_server",
     "allowold!",
     "keepold!",
     "addtodest!",
@@ -441,21 +444,37 @@ if ( $opt{checkpoint} || $opt{record_log_pos} ) {
 my $hc_started = time;	# count from time lock is granted
 
 if ( $opt{dryrun} ) {
-    print "LOCK TABLES $hc_locks\n";
-    print "FLUSH TABLES /*!32323 $hc_tables */\n";
+    if ( $opt{old_server} ) {
+        print "LOCK TABLES $hc_locks\n";
+        print "FLUSH TABLES /*!32323 $hc_tables */\n";
+    }
+    else {
+        print "FLUSH TABLES $hc_tables WITH READ LOCK\n";
+    }
+    
     print "FLUSH LOGS\n" if ( $opt{flushlog} );
     print "RESET MASTER\n" if ( $opt{resetmaster} );
     print "RESET SLAVE\n" if ( $opt{resetslave} );
 }
 else {
     my $start = time;
-    $dbh->do("LOCK TABLES $hc_locks");
-    printf "Locked $num_tables tables in %d seconds.\n", time-$start unless $opt{quiet};
-    $hc_started = time;	# count from time lock is granted
+    if ( $opt{old_server} ) {
+        $dbh->do("LOCK TABLES $hc_locks");
+        printf "Locked $num_tables tables in %d seconds.\n", time-$start unless $opt{quiet};
+        $hc_started = time;	# count from time lock is granted
 
-    # flush tables to make on-disk copy up to date
-    $start = time;
-    $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
+        # flush tables to make on-disk copy up to date
+        $start = time;
+        $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
+    }
+    else {
+        $dbh->do("FLUSH TABLES $hc_tables WITH READ LOCK");
+        printf "Locked $num_tables tables in %d seconds.\n", time-$start unless $opt{quiet};
+        $hc_started = time;	# count from time lock is granted
+
+        # flush tables to make on-disk copy up to date
+        $start = time;
+    }
     printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
     $dbh->do( "RESET MASTER" ) if ( $opt{resetmaster} );
@@ -974,6 +993,10 @@ when using the --host option.
 =item -S, --socket=#         
 
 UNIX domain socket to use when connecting to local server.
+
+=item --old_server
+
+Use old server (pre v5.5) commands.
 
 =item  --noindices          
 
