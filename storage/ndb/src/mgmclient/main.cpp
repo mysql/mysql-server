@@ -85,8 +85,8 @@ static void usage()
   my_print_variables(my_long_options);
 }
 
-static int 
-read_and_execute(int _try_reconnect) 
+static bool
+read_and_execute(int _try_reconnect)
 {
   static char *line_read = (char *)NULL;
 
@@ -163,7 +163,8 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(_try_reconnect));
+    while(read_and_execute(_try_reconnect))
+      ;
 
 #ifdef HAVE_READLINE
     if (histfile.length())
@@ -183,6 +184,7 @@ int main(int argc, char** argv){
   delete com;
 
   ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
   return ret;
 }
 

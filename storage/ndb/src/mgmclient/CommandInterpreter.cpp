@@ -53,11 +53,12 @@ public:
    *
    *   @return true until quit/bye/exit has been typed
    */
-  int execute(const char *_line, int _try_reconnect=-1, bool interactive=1, int *error= 0);
+  bool execute(const char *line, int _try_reconnect = -1,
+               bool interactive = true, int *error = NULL);
 
 private:
   void printError();
-  int execute_impl(const char *_line, bool interactive=1);
+  bool execute_impl(const char *line, bool interactive);
 
   /**
    *   Analyse the command line, after the first token.
@@ -187,7 +188,8 @@ Ndb_mgmclient::~Ndb_mgmclient()
 {
   delete m_cmd;
 }
-int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, bool interactive, int *error)
+bool Ndb_mgmclient::execute(const char *_line, int _try_reconnect,
+                            bool interactive, int *error)
 {
   return m_cmd->execute(_line,_try_reconnect,interactive, error);
 }
@@ -1027,13 +1029,13 @@ CommandInterpreter::disconnect(void)
 //*****************************************************************************
 //*****************************************************************************
 
-int 
+bool
 CommandInterpreter::execute(const char *_line, int _try_reconnect,
-			    bool interactive, int *error) 
+			    bool interactive, int *error)
 {
   if (_try_reconnect >= 0)
     try_reconnect=_try_reconnect;
-  int result= execute_impl(_line, interactive);
+  bool result= execute_impl(_line, interactive);
   if (error)
     *error= m_error;
 
@@ -1127,19 +1129,19 @@ split_args(const char* line, Vector<BaseString>& args)
 }
 
 
-int 
-CommandInterpreter::execute_impl(const char *_line, bool interactive) 
+bool
+CommandInterpreter::execute_impl(const char *_line, bool interactive)
 {
   DBUG_ENTER("CommandInterpreter::execute_impl");
-  DBUG_PRINT("enter",("line=\"%s\"",_line));
+  DBUG_PRINT("enter",("line='%s'", _line));
   m_error= 0;
 
-  char * line;
   if(_line == NULL) {
     m_error = -1;
     DBUG_RETURN(false);
   }
-  line = my_strdup(_line,MYF(MY_WME));
+
+  char* line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
 
   int do_continue;
