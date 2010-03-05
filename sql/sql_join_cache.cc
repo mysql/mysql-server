@@ -407,8 +407,10 @@ void JOIN_CACHE::set_constants()
     However at this moment we don't know whether we have referenced fields for
     the cache or not. Later when a referenced field is registered for the cache
     we adjust the value of the flag 'with_length'.
-  */        
-  with_length= is_key_access() || with_match_flag;
+  */ 
+  with_length= is_key_access() || 
+               join_tab->is_inner_table_of_semi_join_with_first_match() ||
+               join_tab->is_inner_table_of_outer_join();
   /* 
      At this moment we don't know yet the value of 'referenced_fields',
      but in any case it can't be greater than the value of 'fields'.
@@ -1304,7 +1306,7 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     return prev_cache->get_match_flag_by_pos(prev_rec_ptr);
   } 
-  DBUG_ASSERT(1);
+  DBUG_ASSERT(0);
   return FALSE;
 }
 
@@ -1538,12 +1540,12 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
 
 bool JOIN_CACHE::skip_record_if_match()
 {
-  DBUG_ASSERT(with_match_flag && with_length);
+  DBUG_ASSERT(with_length);
   uint offset= size_of_rec_len;
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
   /* Check whether the match flag is on */
-  if (test(*(pos+offset)))
+  if (get_match_flag_by_pos(pos+offset))
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
