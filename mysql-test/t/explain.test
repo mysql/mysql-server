@@ -147,26 +147,6 @@ EXPLAIN SELECT DISTINCT 1 FROM t1,
          WHERE t1.a = d1.a;
 DROP TABLE t1;
 
-# End of 5.0 tests.
-
---echo #
---echo # Bug#37870: Usage of uninitialized value caused failed assertion.
---echo #
-create table t1 (dt datetime not null, t time not null);
-create table t2 (dt datetime not null);
-insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
-('2001-01-01 1:1:1', '1:1:1');
-insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
-flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
-flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
-flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
-flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
-drop tables t1, t2;
-
 --echo #
 --echo # Bug#48295:
 --echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
@@ -187,6 +167,26 @@ SET SESSION sql_mode=@old_sql_mode;
 
 DROP TABLE t1;
 
+--echo End of 5.0 tests.
+
+--echo #
+--echo # Bug#37870: Usage of uninitialized value caused failed assertion.
+--echo #
+create table t1 (dt datetime not null, t time not null);
+create table t2 (dt datetime not null);
+insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
+('2001-01-01 1:1:1', '1:1:1');
+insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
+flush tables;
+EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+flush tables;
+SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+flush tables;
+EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
+flush tables;
+SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+drop tables t1, t2;
+
 --echo #
 --echo # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
 --echo #
@@ -197,6 +197,5 @@ CREATE TABLE t2 (d int);
 INSERT INTO t2 VALUES (NULL), (0);
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
 DROP TABLE t1, t2;
-
 
 --echo End of 5.1 tests.
