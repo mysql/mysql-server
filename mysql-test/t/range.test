@@ -1314,3 +1314,12 @@ SELECT * FROM t1 FORCE INDEX (PRIMARY)
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+#
+# BUG#32262 fix: crash with decimal column...
+#
+
+CREATE TABLE t1 (c1 DECIMAL(10,0),INDEX(c1));
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT c1 FROM t1 WHERE c1 >= 'A' GROUP BY 1;
+DROP TABLE t1;
