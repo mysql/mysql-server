@@ -22,7 +22,7 @@ ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
-                     {CMAKE_SOURCE_DIR}/include)
+                    ${CMAKE_SOURCE_DIR}/include)
 
 SET(NDBCLIENT_LIBS
                 mysys dbug strings
