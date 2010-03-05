@@ -746,6 +746,26 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     }
   }
 
+  char safe_buffer[FN_REFLEN];
+  const char *safe_filename;
+
+  if (len >= FN_REFLEN)
+  {
+    /*
+      The instrumented code uses file names that exceeds FN_REFLEN.
+      This could be legal for instrumentation on non mysys APIs,
+      so we support it.
+      Truncate the file name so that:
+      - it fits into pfs->m_filename
+      - it is safe to use mysys apis to normalize the file name.
+    */
+    memcpy(safe_buffer, filename, FN_REFLEN - 2);
+    safe_buffer[FN_REFLEN - 1]= 0;
+    safe_filename= safe_buffer;
+  }
+  else
+    safe_filename= filename;
+
   /*
     Normalize the file name to avoid duplicates when using aliases:
     - absolute or relative paths
@@ -759,7 +779,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     Ignore errors, the file may not exist.
     my_realpath always provide a best effort result in buffer.
   */
-  (void) my_realpath(buffer, filename, MYF(0));
+  (void) my_realpath(buffer, safe_filename, MYF(0));
 
   normalized_filename= buffer;
   normalized_length= strlen(normalized_filename);
