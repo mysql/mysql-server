@@ -1079,6 +1079,31 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /* SPJ MERGE TODO Bug#51242:
+   * Manually applied bugfix for bug#51242 below:
+   *   - Showstopper to get on with SPJ testing
+   *   - Expect mergeconflict here later... :-(
+   */ 
+  /*
+    It's necessary to check const part of HAVING cond as
+    there is a chance that some cond parts may become
+    const items after make_join_statisctics(for example
+    when Item is a reference to cost table field from
+    outer join).
+  */
+  if (having && (having->used_tables() & ~const_table_map))
+  {
+    COND *const_cond= make_cond_for_table(having, const_table_map, 0);
+    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
+                                      QT_ORDINARY););
+    if (const_cond && !const_cond->val_int())
+    {
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      DBUG_RETURN(0);
+    }
+  }
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -1691,7 +1716,8 @@ JOIN::reinit()
   if (join_tab_save)
     memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
 
-  /* Manually applied bugfix for bug#48709 below:
+  /* SPJ MERGE TODO Bug#48709:
+   * Manually applied bugfix for bug#48709 below:
    *   - Showstopper to get on with SPJ testing
    *   - Expect mergeconflict here later... :-(
    */ 
@@ -6070,6 +6096,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   COND *tmp;
   DBUG_ASSERT(cond != 0);
   /**
+  /*  SPJ MERGE TODO Bug#48971:
    *  BEWARE: Temp fix for Bug#48971 in SPJ branch as permanent 
    *  fix has not been merged to this branch yet.
    *  Needed as this was a showstopper for further SPJ testing.
