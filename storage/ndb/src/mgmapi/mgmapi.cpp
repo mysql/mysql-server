@@ -3043,4 +3043,164 @@ err:
   DBUG_RETURN(retval);
 }
 
+
+/*
+  Compare function for qsort() to sort events in
+  "source_node_id" order
+*/
+
+static int
+cmp_event(const void *_a, const void *_b)
+{
+  const ndb_logevent *a = (const ndb_logevent*)_a;
+  const ndb_logevent *b = (const ndb_logevent*)_b;
+
+  // So far all events are of same type
+  assert(a->type == b->type);
+
+  // Primarily sort on source_nodeid
+  const unsigned diff = (a->source_nodeid - b->source_nodeid);
+  if (diff)
+    return diff;
+
+  // Equal nodeid, go into more detailed compare
+  // for some event types where order is important
+  switch(a->type){
+  case NDB_LE_MemoryUsage:
+    // Return DataMemory before IndexMemory (ie. TUP vs ACC)
+    return (b->MemoryUsage.block - a->MemoryUsage.block);
+    break;
+
+  default:
+    break;
+  }
+
+  return 0;
+}
+
+NdbLogEventHandle
+ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh);
+
+// Free memory allocated by 'ndb_mgm_create_logevent_handle_same_socket'
+// without closing the socket
+static void
+free_log_handle(NdbLogEventHandle log_handle)
+{
+  my_free(log_handle, 0);
+}
+
+
+extern "C"
+struct ndb_mgm_events*
+ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
+                    int no_of_nodes, const int * node_list)
+{
+  DBUG_ENTER("ndb_mgm_dump_events");
+  CHECK_HANDLE(handle, NULL);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_dump_events");
+  CHECK_CONNECTED(handle, NULL);
+
+  Properties args;
+  args.put("type", (Uint32)type);
+
+  if (no_of_nodes)
+  {
+    const char* separator = "";
+    BaseString nodes;
+    for(int node = 0; node < no_of_nodes; node++)
+    {
+      nodes.appfmt("%s%d", separator, node_list[node]);
+      separator = ",";
+    }
+    args.put("nodes", nodes.c_str());
+  }
+
+  const ParserRow<ParserDummy> dump_events_reply[] = {
+    MGM_CMD("dump events reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Ok or error message"),
+    MGM_ARG("events", Int, Optional, "Number of events that follows"),
+    MGM_END()
+  };
+  const Properties *reply = ndb_mgm_call(handle, dump_events_reply,
+                                         "dump events", &args);
+  CHECK_REPLY(handle, reply, NULL);
+
+  // Check the result for Ok or error
+  const char * result;
+  reply->get("result", &result);
+  if (strcmp(result, "Ok") != 0) {
+    SET_ERROR(handle, NDB_MGM_USAGE_ERROR, result);
+    delete reply;
+    DBUG_RETURN(NULL);
+  }
+
+  // Get number of events to read
+  Uint32 num_events;
+  if (!reply->get("events", &num_events))
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+              "Number of events missing");
+    delete reply;
+    DBUG_RETURN(NULL);
+  }
+
+  delete reply;
+
+  // Read the streamed events
+  ndb_mgm_events *events =
+    (ndb_mgm_events*)
+      malloc(sizeof(ndb_mgm_events) +
+             num_events*sizeof(ndb_logevent));
+  if(!events)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY,
+              "Allocating ndb_mgm_events struct");
+    DBUG_RETURN(NULL);
+  }
+
+  // Initialize log event handle to read the requested events
+  NdbLogEventHandle log_handle =
+    ndb_mgm_create_logevent_handle_same_socket(handle);
+  if(!log_handle)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "Creating logevent handle");
+    DBUG_RETURN(NULL);
+  }
+
+  Uint32 i = 0;
+  while (i < num_events)
+  {
+    int res = ndb_logevent_get_next(log_handle,
+                                    &(events->events[i]),
+                                    handle->timeout);
+    if (res == 0)
+    {
+      free(events);
+      free_log_handle(log_handle);
+      SET_ERROR(handle, ETIMEDOUT,
+                "Time out talking to management server");
+      DBUG_RETURN(NULL);
+    }
+    if (res == -1)
+    {
+      free(events);
+      free_log_handle(log_handle);
+      SET_ERROR(handle,
+                ndb_logevent_get_latest_error(log_handle),
+                ndb_logevent_get_latest_error_msg(log_handle));
+      DBUG_RETURN(NULL);
+    }
+
+    i++;
+  }
+  free_log_handle(log_handle);
+
+  // Successfully parsed the list of events, sort on nodeid and return them
+  events->no_of_events= num_events;
+  qsort(events->events, events->no_of_events,
+        sizeof(events->events[0]), cmp_event);
+  DBUG_RETURN(events);
+}
+
+
 template class Vector<const ParserRow<ParserDummy>*>;

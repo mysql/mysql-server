@@ -67,14 +67,14 @@ struct Chunk {
 };
 
 void
-Dbtup::reportMemoryUsage(Signal* signal, int incDec){
+Dbtup::reportMemoryUsage(Signal* signal, int incDec, BlockReference ref){
   signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(Page);
   signal->theData[3] = cnoOfAllocatedPages;
   signal->theData[4] = c_no_of_pages;
   signal->theData[5] = DBTUP;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+  sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
 
 #ifdef VM_TRACE
@@ -89,6 +89,13 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     reportMemoryUsage(signal, 0);
     return;
   }
+
+  if(type == DumpStateOrd::DumpPageMemory &&
+     signal->getLength() == 2){
+    reportMemoryUsage(signal, 0, signal->theData[1]);
+    return;
+  }
+
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
 
 #if 0

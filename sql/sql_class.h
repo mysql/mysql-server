@@ -89,6 +89,12 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT};
+enum enum_slave_type_conversions {
+  SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
+  SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+  SLAVE_TYPE_CONVERSIONS_COUNT
+};
+
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 

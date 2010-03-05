@@ -128,3 +128,45 @@ select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessno
 drop table t1;
 
 # End of 4.1 tests
+
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT ,
+b INT NOT NULL ,
+c VARCHAR ( 11 ) NOT NULL ,
+PRIMARY KEY ( a ) ,
+INDEX ( b )
+) ENGINE = NDB;
+ 
+INSERT INTO t1 (a ,b ,c) VALUES 
+(NULL , '1', 'test'), (NULL , '2', 'test'), (NULL , '1', 'test'), 
+(NULL , '2', 'test'), (NULL , '3', 'test'), (NULL , '4', 'test'), 
+(NULL , '5', 'test'), (NULL , '6', 'test'), (NULL , '1', 'test'),
+(NULL , '1', 'test');
+
+explain select count(a) from t1 group by a;
+explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+explain select count(b) from t1 group by b;
+explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+explain select distinct a from t1;
+explain select distinct a from t1 group by a;
+explain select distinct b from t1;
+explain select distinct b from t1 group by b;
+
+--sorted_result
+select count(a) from t1 group by a;
+--sorted_result
+select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+--sorted_result
+select count(b) from t1 group by b;
+--sorted_result
+select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+--sorted_result
+select distinct a from t1;
+--sorted_result
+select distinct a from t1 group by a;
+--sorted_result
+select distinct b from t1;
+--sorted_result
+select distinct b from t1 group by b;
+
+drop table t1;

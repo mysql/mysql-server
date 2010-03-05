@@ -36,6 +36,9 @@ sync_slave_with_master;
 STOP SLAVE;
 RESET SLAVE;
 
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+
 eval CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
                       d FLOAT DEFAULT '2.00', 
                       e CHAR(4) DEFAULT 'TEST') 
@@ -61,6 +64,8 @@ SELECT * FROM t1 ORDER BY a;
 --echo *** Select from slave ***
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
 --echo *** Drop t1  ***
 connection master;
@@ -495,7 +500,7 @@ sync_slave_with_master;
 --echo  *** Create t11 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
-eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
+eval CREATE TABLE t11 (a INT KEY, b BLOB, f INT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
 --echo *** Create t11 on Master ***

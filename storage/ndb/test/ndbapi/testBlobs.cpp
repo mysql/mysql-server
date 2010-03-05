@@ -1478,6 +1478,33 @@ verifyBlob()
   return 0;
 }
 
+static int
+rowIsLocked(Tup& tup)
+{
+  NdbTransaction* testTrans;
+  CHK((testTrans = g_ndb->startTransaction()) != 0);
+  
+  NdbOperation* testOp;
+  CHK((testOp = testTrans->getNdbOperation(g_opt.m_tname)) != 0);
+  
+  CHK(testOp->readTuple(NdbOperation::LM_Exclusive) == 0);
+  CHK(testOp->equal("PK1", tup.m_pk1) == 0);
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    CHK(testOp->equal("PK2", tup.m_pk2) == 0);
+    CHK(testOp->equal("PK3", tup.m_pk3) == 0);
+  }
+  setUDpartId(tup, testOp);
+  CHK(testOp->getValue("PK1") != 0);
+  
+  CHK(testTrans->execute(Commit) == -1);
+  CHK(testTrans->getNdbError().code == 266);
+  
+  testTrans->close();
+  
+  return 0;
+}
+
 // operations
 
 // pk ops
@@ -1605,13 +1632,22 @@ readPk(int style, int api)
       opState= Normal;
       DBG("readPk pk1=" << hex << tup.m_pk1);
       CHK((g_con = g_ndb->startTransaction()) != 0);
+      NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead;
+      switch(urandom(3))
+      {
+      case 0:
+        lm = NdbOperation::LM_Read;
+        break;
+      case 1:
+        lm = NdbOperation::LM_SimpleRead;
+        break;
+      default:
+        break;
+      }
       if (api == API_RECATTR)
       {
         CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-        if (urandom(2) == 0)
-          CHK(g_opr->readTuple() == 0);
-        else
-          CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
+        CHK(g_opr->readTuple(lm) == 0);
         CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
         if (g_opt.m_pk2chr.m_len != 0)
         {
@@ -1632,20 +1668,13 @@ readPk(int style, int api)
         setUDpartIdNdbRecord(tup,
                              g_ndb->getDictionary()->getTable(g_opt.m_tname),
                              opts);
-        if (urandom(2) == 0)
-          CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
-                                              g_blob_record, tup.m_row,
-                                              NdbOperation::LM_Read,
-                                              NULL,
-                                              &opts,
-                                              sizeof(opts))) != 0);
-        else
-          CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
-                                              g_blob_record, tup.m_row,
-                                              NdbOperation::LM_CommittedRead,
-                                              NULL,
-                                              &opts,
-                                              sizeof(opts))) != 0);
+        CHK((g_const_opr = g_con->readTuple(g_key_record, tup.m_key_row,
+                                            g_blob_record, tup.m_row,
+                                            lm,
+                                            NULL,
+                                            &opts,
+                                            sizeof(opts))) != 0);
+
         CHK(getBlobHandles(g_const_opr) == 0);
       }
       bool timeout= false;
@@ -1660,9 +1689,27 @@ readPk(int style, int api)
       }
       if (!timeout)
       {
-        if (g_con->execute(Commit) != 0)
+        if (urandom(200) == 0)
         {
-          CHK((timeout= conHasTimeoutError()) == true);
+          if (g_con->execute(NoCommit) == 0)
+          {
+            /* Verify row is locked */
+            //ndbout << "Checking row is locked for lm "
+            //       << lm << endl;
+            CHK(rowIsLocked(tup) == 0);
+            CHK(g_con->execute(Commit) == 0);
+          }
+          else
+          {
+            CHK((timeout= conHasTimeoutError()) == true);
+          }
+        }
+        else
+        {
+          if (g_con->execute(Commit) != 0)
+          {
+            CHK((timeout= conHasTimeoutError()) == true);
+          }
         }
       }
       if (timeout)
@@ -1678,7 +1725,7 @@ readPk(int style, int api)
       {
         // verify lock mode upgrade
         CHK((g_opr?g_opr:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
-    
+            
         if (style == 0 || style == 1) {
           CHK(verifyBlobValue(tup) == 0);
         }
@@ -2047,13 +2094,22 @@ readIdx(int style, int api)
       opState= Normal;
       DBG("readIdx pk1=" << hex << tup.m_pk1);
       CHK((g_con = g_ndb->startTransaction()) != 0);
+      NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead;
+      switch(urandom(3))
+      {
+      case 0:
+        lm = NdbOperation::LM_Read;
+        break;
+      case 1:
+        lm = NdbOperation::LM_SimpleRead;
+        break;
+      default:
+        break;
+      }
       if (api == API_RECATTR)
       {
         CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-        if (urandom(2) == 0)
-          CHK(g_opx->readTuple() == 0);
-        else
-          CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
+        CHK(g_opx->readTuple(lm) == 0);
         CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
         CHK(g_opx->equal("PK3", tup.m_pk3) == 0);
         /* No need to set partition Id for unique indexes */
@@ -2064,13 +2120,9 @@ readIdx(int style, int api)
         memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
         memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
         /* No need to set partition Id for unique indexes */
-        if (urandom(2) == 0)
-          CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
-                                             g_blob_record, tup.m_row)) != 0);
-        else
-          CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
-                                             g_blob_record, tup.m_row,
-                                             NdbOperation::LM_CommittedRead)) != 0);
+        CHK((g_const_opr= g_con->readTuple(g_idx_record, tup.m_key_row,
+                                           g_blob_record, tup.m_row,
+                                           lm)) != 0);
         CHK(getBlobHandles(g_const_opr) == 0);
       }
 
@@ -2353,6 +2405,18 @@ readScan(int style, int api, bool idx)
   {
     opState= Normal;
     CHK((g_con = g_ndb->startTransaction()) != 0);
+    NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead;
+    switch(urandom(3))
+    {
+    case 0:
+      lm = NdbOperation::LM_Read;
+      break;
+    case 1:
+      lm = NdbOperation::LM_SimpleRead;
+      break;
+    default:
+      break;
+    }
     if (api == API_RECATTR)
     {
       if (! idx) {
@@ -2360,16 +2424,10 @@ readScan(int style, int api, bool idx)
       } else {
         CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
       }
-      if (urandom(2) == 0)
-        CHK(g_ops->readTuples(NdbOperation::LM_Read,
-                              g_scanFlags,
-                              g_batchSize,
-                              g_parallel) == 0);
-      else
-        CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead,
-                              g_scanFlags,
-                              g_batchSize,
-                              g_parallel) == 0);
+      CHK(g_ops->readTuples(lm,
+                            g_scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
       CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
       if (g_opt.m_pk2chr.m_len != 0)
       {
@@ -2382,20 +2440,12 @@ readScan(int style, int api, bool idx)
     else
     {
       /* Don't bother setting UserDefined partitions for scan tests */
-      if (urandom(2) == 0)
-        if (! idx)
-          CHK((g_ops= g_con->scanTable(g_full_record,
-                                       NdbOperation::LM_Read)) != 0);
-        else 
-          CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
-                                       NdbOperation::LM_Read)) != 0);
-      else
-        if (! idx)
-          CHK((g_ops= g_con->scanTable(g_full_record,
-                                       NdbOperation::LM_CommittedRead)) != 0);
-        else
-          CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
-                                       NdbOperation::LM_CommittedRead)) != 0);
+      if (! idx)
+        CHK((g_ops= g_con->scanTable(g_full_record,
+                                     lm)) != 0);
+      else 
+        CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
+                                     lm)) != 0);
       CHK(getBlobHandles(g_ops) == 0);
     }
 
