@@ -24,7 +24,7 @@ ADD_SUBDIRECTORY(mgmsrv)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                      {CMAKE_SOURCE_DIR}/include)
 
-MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
+SET(NDBCLIENT_LIBS
                 mysys dbug strings
                 ndbapi
                 ndbtransport
@@ -35,6 +35,8 @@ MERGE_LIBRARIES(ndbclient STATIC NOINSTALL
                 ndblogger
                 ndbportlib
                 ndbgeneral
-                ndbconf
-)
+                ndbconf)
+
+MERGE_STATIC_LIBS(ndbclient ndbclient "${NDBCLIENT_LIBS}")
+
 TARGET_LINK_LIBRARIES(ndbclient ws2_32)
