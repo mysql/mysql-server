@@ -1080,14 +1080,10 @@ public:
       SR_FOURTH_PHASE_STARTED = 6,    ///< Finding the log tail and head 
                                       ///< is the fourth phase.
       SR_FOURTH_PHASE_COMPLETED = 7,
-      FILE_CHANGE_PROBLEM = 8,        ///< For some reason the write to 
+      FILE_CHANGE_PROBLEM = 8         ///< For some reason the write to 
                                       ///< page zero in file zero have not   
                                       ///< finished after 15 mbyte of 
                                       ///< log data have been written
-      TAIL_PROBLEM = 9                ///< Only 1 mbyte of log left. 
-                                      ///< No operations allowed to enter the 
-                                      ///< log. Only special log records 
-                                      ///< are allowed
     };
     enum WaitWriteGciLog {
       WWGL_TRUE = 0,
@@ -1219,6 +1215,12 @@ public:
      *       The current state of this log part.                               
      */
     LogPartState logPartState;
+
+    /**
+     * does current log-part have tail-problem (i.e 410)
+     */
+    bool m_tail_problem;
+
     /**
      *       A timer that is set every time a log page is sent to disk.
      *       Ensures that log pages are not kept in main memory for
