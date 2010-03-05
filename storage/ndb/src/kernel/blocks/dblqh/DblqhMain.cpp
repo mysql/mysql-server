@@ -15302,6 +15302,7 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
 
     for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++)
     {
+      jam();
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
       LogFileRecordPtr logFile;
       logFile.i = logPartPtr.p->currentLogfile;
