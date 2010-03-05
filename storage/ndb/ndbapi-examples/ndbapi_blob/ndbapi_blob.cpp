@@ -113,7 +113,7 @@ const char *text_quote=
 */
 void drop_table(MYSQL &mysql)
 {
-  if (mysql_query(&mysql, "DROP TABLE my_text"))
+  if (mysql_query(&mysql, "DROP TABLE api_blob"))
     MYSQLERROR(mysql);
 }
 
@@ -125,7 +125,7 @@ int try_create_table(MYSQL &mysql)
 {
   return mysql_query(&mysql,
                      "CREATE TABLE"
-                     "  my_text"
+                     "  api_blob"
                      "    (my_id INT UNSIGNED NOT NULL,"
                      "     my_text TEXT NOT NULL,"
                      "     PRIMARY KEY USING HASH (my_id))"
@@ -138,7 +138,7 @@ void create_table(MYSQL &mysql)
   {
     if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
       MYSQLERROR(mysql);
-    std::cout << "MySQL Cluster already has example table: my_text. "
+    std::cout << "MySQL Cluster already has example table: api_blob. "
               << "Dropping it..." << std::endl;
     /******************
      * Recreate table *
@@ -152,7 +152,7 @@ void create_table(MYSQL &mysql)
 int populate(Ndb *myNdb)
 {
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -184,7 +184,7 @@ int update_key(Ndb *myNdb)
     at once.
   */
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -263,7 +263,7 @@ int update_scan(Ndb *myNdb)
   char buffer[10000];
 
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -343,7 +343,7 @@ int fetch_key(Ndb *myNdb)
     Fetch and show the blob field, using setActiveHook().
   */
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -386,7 +386,7 @@ int update2_key(Ndb *myNdb)
 
   /* Simple setValue() update. */
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -418,7 +418,7 @@ int delete_key(Ndb *myNdb)
 {
   /* Deletion of blob row. */
   const NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("my_text");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_blob");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -462,8 +462,8 @@ int main(int argc, char**argv)
                              0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "CREATE DATABASE TEST_DB");
-    if (mysql_query(&mysql, "USE TEST_DB") != 0)
+    mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+    if (mysql_query(&mysql, "USE ndb_examples") != 0)
       MYSQLERROR(mysql);
 
     create_table(mysql);
@@ -484,7 +484,7 @@ int main(int argc, char**argv)
     exit(-1);
   }
 
-  Ndb myNdb(&cluster_connection,"TEST_DB");
+  Ndb myNdb(&cluster_connection,"ndb_examples");
   if (myNdb.init(1024) == -1) {      // Set max 1024 parallel transactions
     APIERROR(myNdb.getNdbError());
     exit(-1);
@@ -507,9 +507,6 @@ int main(int argc, char**argv)
 
   if(delete_key(&myNdb) > 0)
     std::cout << "delete_key: Success!" << std::endl;
-
-  /* Drop table. */
-  drop_table(mysql);
 
   return 0;
 }
