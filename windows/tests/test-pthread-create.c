@@ -20,7 +20,7 @@ static void *myfunc2(void *arg) {
     return arg;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
 #define N 10
     toku_pthread_t t[N];
     int i;

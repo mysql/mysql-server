@@ -49,6 +49,8 @@ toku_portability_init(void) {
     if (r==0)
         r = toku_fsync_init();
     if (r==0)
+        r = toku_mkstemp_init();
+    if (r==0)
         _fmode = _O_BINARY; //Default open file is BINARY
     return r;
 }
@@ -56,6 +58,8 @@ toku_portability_init(void) {
 int
 toku_portability_destroy(void) {
     int r = 0;
+    if (r==0)
+        r = toku_mkstemp_destroy();
     if (r==0)
         r = toku_fsync_destroy();
     if (r==0)
@@ -115,6 +119,7 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     HANDLE filehandle;
 
     memset(id, 0, sizeof(*id));
+    memset(&info, 0, sizeof(info));
     filehandle = (HANDLE)_get_osfhandle(fildes);
     if (filehandle==INVALID_HANDLE_VALUE) {
         r = errno; assert(r!=0);
@@ -123,15 +128,28 @@ toku_os_get_unique_file_id(int fildes, struct fileid *id) {
     r = GetFileInformationByHandle(filehandle, &info);
     if (r==0) { //0 is error here.
         r = GetLastError(); assert(r!=0);
+        if (r==ERROR_INVALID_FUNCTION && info.dwVolumeSerialNumber == 0 &&
+            info.nFileIndexHigh == 0 &&  info.nFileIndexLow        == 0) {
+            //"NUL" will return this.
+            //TODO: Remove this hack somehow
+            r = 0;
+            goto continue_dev_null;
+        }
         goto cleanup;
     }
+    //Make sure only "NUL" returns all zeros.
+    assert(info.dwVolumeSerialNumber!=0 || info.nFileIndexHigh!=0 || info.nFileIndexLow!=0);
+continue_dev_null: //Skip zeros check (its allowed here).
     id->st_dev     = info.dwVolumeSerialNumber;
     id->st_ino     = info.nFileIndexHigh;
     id->st_ino   <<= 32;
     id->st_ino    |= info.nFileIndexLow;
     r = 0;
 cleanup:
-    if (r!=0) errno = r;
+    if (r!=0) {
+        errno = r;
+        r = -1;
+    }
     return r;
 }
 

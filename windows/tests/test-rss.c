@@ -1,10 +1,10 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <toku_assert.h>
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <test.h>
 #include <toku_os.h>
 
 static void do_mallocs(void) {
@@ -16,7 +16,7 @@ static void do_mallocs(void) {
     }
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int64_t rss;
 
     toku_os_get_max_rss(&rss);

@@ -68,7 +68,7 @@ static void *reader(void *arg) {
     return arg;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     void *ret;
     toku_pthread_t t[2];

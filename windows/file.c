@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <toku_atomic.h>
 #include <toku_time.h>
+#include <fcntl.h>
 
 int64_t
 pread(int fildes, void *buf, size_t nbyte, int64_t offset) {
@@ -189,6 +190,25 @@ toku_os_full_write (int fd, const void *org_buf, size_t len) {
     assert(len == 0);
 }
 
+int
+toku_os_write (int fd, const void *org_buf, size_t len) {
+    const uint8_t *buf = org_buf;
+    while (len > 0) {
+        ssize_t r;
+        if (t_write) {
+            r = t_write(fd, buf, len);
+        } else {
+            r = write(fd, buf, len);
+        }
+        if (r < 0)
+            return errno;
+        len           -= r;
+        buf           += r;
+    }
+    return 0;
+}
+
+
 // t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
@@ -264,5 +284,40 @@ void
 toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = toku_fsync_count;
     *fsync_time = toku_fsync_time;
+}
+
+static toku_pthread_mutex_t mkstemp_lock;
+
+int
+toku_mkstemp_init(void) {
+    int r = 0;
+    r = toku_pthread_mutex_init(&mkstemp_lock, NULL); assert(r == 0);
+    return r;
+}
+
+int
+toku_mkstemp_destroy(void) {
+    int r = 0;
+    r = toku_pthread_mutex_destroy(&mkstemp_lock); assert(r == 0);
+    return r;
+}
+
+int mkstemp (char * template) {
+    int fd;
+    int r_mutex;
+    r_mutex = toku_pthread_mutex_lock(&mkstemp_lock);
+    assert(r_mutex == 0);
+    errno_t err = _mktemp_s(template, strlen(template)+1);
+    if (err!=0) {
+        fd = -1;
+        errno = err;
+        goto cleanup;
+    }
+    assert(err==0);
+    fd = open(template, _O_BINARY|_O_CREAT|_O_SHORT_LIVED|_O_EXCL|_O_RDWR, _S_IREAD|_S_IWRITE);
+cleanup:
+    r_mutex = toku_pthread_mutex_unlock(&mkstemp_lock);
+    assert(r_mutex == 0);
+    return fd;
 }
 

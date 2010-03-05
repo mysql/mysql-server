@@ -1,5 +1,5 @@
-#include <toku_assert.h>
 #include <test.h>
+#include <toku_assert.h>
 #include <toku_pthread.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -15,7 +15,7 @@ static void *f(void *arg) {
     return arg;
 }
 
-int test_main(int argc  __attribute__((__unused__)), char *const argv[]  __attribute__((__unused__))) {
+int test_main(int argc, char *const argv[]) {
     int r;
     toku_pthread_rwlock_t rwlock;
     toku_pthread_t tid;

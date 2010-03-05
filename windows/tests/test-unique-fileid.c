@@ -1,10 +1,10 @@
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <toku_assert.h>
 #include <fcntl.h>
-#include <test.h>
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int r;
     int fd;
     struct fileid fid;

@@ -1,10 +1,10 @@
 #define _CRT_SECURE_NO_DEPRECATE
+#include <test.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <toku_assert.h>
 #include <fcntl.h>
-#include <test.h>
 #include "toku_os.h"
 #include <dirent.h>
 
@@ -33,7 +33,7 @@ static int walk(const char *dirname) {
     return otherfound;
 }
 
-int test_main(int argc, char *argv[]) {
+int test_main(int argc, char *const argv[]) {
     int i;
     int found;
     int fd;

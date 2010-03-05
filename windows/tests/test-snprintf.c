@@ -1,13 +1,13 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include <test.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <toku_os.h>
-#include <test.h>
 
 static void
 check_snprintf(int i) {
@@ -37,7 +37,7 @@ check_snprintf(int i) {
 }
 
 
-int test_main(int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+int test_main(int argc, char *const argv[]) {
     int i;
     for (i = 0; i < 8; i++) {
         check_snprintf(i);
