@@ -122,7 +122,6 @@ int main(int argc, char** argv)
 
 static void init_ndbrecord_info(Ndb &);
 static void create_table(MYSQL &);
-static void drop_table(MYSQL &);
 static void do_insert(Ndb &, ApiType);
 static void do_update(Ndb &, ApiType);
 static void do_delete(Ndb &, ApiType);
@@ -172,15 +171,15 @@ static void run_application(MYSQL &mysql,
   /********************************************
    * Connect to database via mysql-c          *
    ********************************************/
-  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
-  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+  if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
   create_table(mysql);
 
   /********************************************
    * Connect to database via NdbApi           *
    ********************************************/
   // Object representing the database
-  Ndb myNdb( &cluster_connection, "TEST_DB_1" );
+  Ndb myNdb( &cluster_connection, "ndb_examples" );
   if (myNdb.init()) APIERROR(myNdb.getNdbError());
 
   init_ndbrecord_info(myNdb);
@@ -210,23 +209,21 @@ static void run_application(MYSQL &mysql,
   do_interpreted_scan(myNdb, accessType);
   do_read_using_default(myNdb);
   do_scan(myNdb, accessType);
-  drop_table(mysql);
-  mysql_query(&mysql, "DROP DATABASE TEST_DB_1");
 }
 
 /*********************************************************
- * Create a table named MYTABLENAME if it does not exist *
+ * Create a table named api_recattr_vs_record if it does not exist *
  *********************************************************/
 static void create_table(MYSQL &mysql)
 {
   if (mysql_query(&mysql, 
 		  "DROP TABLE IF EXISTS"
-		  "  MYTABLENAME"))
+		  "  api_recattr_vs_record"))
     MYSQLERROR(mysql);
 
   if (mysql_query(&mysql, 
 		  "CREATE TABLE"
-		  "  MYTABLENAME"
+		  "  api_recattr_vs_record"
 		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
 		  "     ATTR2 INT UNSIGNED NOT NULL,"
                   "     ATTR3 INT UNSIGNED NOT NULL)"
@@ -237,23 +234,11 @@ static void create_table(MYSQL &mysql)
   if (mysql_query(&mysql,
                   "CREATE INDEX"
                   "  MYINDEXNAME"
-                  "  ON MYTABLENAME"
+                  "  ON api_recattr_vs_record"
                   "  (ATTR3, ATTR2)"))
     MYSQLERROR(mysql);
 }
 
-/***********************************
- * Drop a table named MYTABLENAME 
- ***********************************/
-static void drop_table(MYSQL &mysql)
-{
-  if (mysql_query(&mysql, 
-		  "DROP TABLE"
-		  "  MYTABLENAME"))
-    MYSQLERROR(mysql);
-
-  // Index should be dropped by table drop.
-}
 
 /* Clunky statics for shared NdbRecord stuff */
 static const NdbDictionary::Column *pattr1Col;
@@ -275,13 +260,13 @@ static int attr3ColNum;
 static void init_ndbrecord_info(Ndb &myNdb)
 {
   /* Here we create various NdbRecord structures for accessing
-   * data using the tables and indexes on MYTABLENAME
+   * data using the tables and indexes on api_recattr_vs_record
    * We could use the default NdbRecord structures, but then
    * we wouldn't have the nice ability to read and write rows
    * to and from the RowData and IndexRow structs
    */
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
   
   NdbDictionary::RecordSpecification recordSpec[3];
 
@@ -330,7 +315,7 @@ static void init_ndbrecord_info(Ndb &myNdb)
   if (pallColsRecord == NULL) APIERROR(myDict->getNdbError());
 
   /* Create NdbRecord for primary index access */
-  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "MYTABLENAME");
+  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "api_recattr_vs_record");
 
   if (myPIndex == NULL)
     APIERROR(myDict->getNdbError());
@@ -344,7 +329,7 @@ static void init_ndbrecord_info(Ndb &myNdb)
    * Note that we use the columns from the table to define the index
    * access record
    */
-  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "MYTABLENAME");
+  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "api_recattr_vs_record");
 
   recordSpec[0].column= pattr3Col;
   recordSpec[0].offset= offsetof(IndexRow, attr3);
@@ -376,7 +361,7 @@ static void init_ndbrecord_info(Ndb &myNdb)
 static void do_insert(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   std::cout << "Running do_insert\n";
 
@@ -448,7 +433,7 @@ static void do_insert(Ndb &myNdb, ApiType accessType)
 static void do_update(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   std::cout << "Running do_update\n";
 
@@ -512,7 +497,7 @@ static void do_update(Ndb &myNdb, ApiType accessType)
 static void do_delete(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   std::cout << "Running do_delete\n";
 
@@ -624,7 +609,7 @@ static void do_mixed_update(Ndb &myNdb)
 static void do_read(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   std::cout << "Running do_read\n";
 
@@ -811,7 +796,7 @@ static void do_mixed_read(Ndb &myNdb)
 static void do_scan(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
   
   std::cout << "Running do_scan\n";
   
@@ -1001,7 +986,7 @@ static void do_mixed_scan(Ndb &myNdb)
 static void do_indexScan(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "MYTABLENAME");
+  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "api_recattr_vs_record");
 
   std::cout << "Running do_indexScan\n";
 
@@ -1218,7 +1203,7 @@ static void do_indexScan(Ndb &myNdb, ApiType accessType)
 static void do_mixed_indexScan(Ndb &myNdb)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "MYTABLENAME");
+  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "api_recattr_vs_record");
 
   std::cout << "Running do_mixed_indexScan\n";
 
@@ -1410,7 +1395,7 @@ static const int NEED_TO_FETCH_ROWS= 2;
 static void do_scan_update(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -1588,7 +1573,7 @@ static void do_scan_update(Ndb &myNdb, ApiType accessType)
 static void do_scan_delete(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -1817,7 +1802,7 @@ static void do_scan_delete(Ndb &myNdb, ApiType accessType)
 static void do_scan_lock_reread(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -2132,7 +2117,7 @@ static void do_all_extras_read(Ndb &myNdb)
 static void do_secondary_indexScan(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "MYTABLENAME");
+  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "api_recattr_vs_record");
 
   std::cout << "Running do_secondary_indexScan\n";
   std::cout << "ATTR1 ATTR2 ATTR3" << std::endl;
@@ -2298,7 +2283,7 @@ static void do_secondary_indexScan(Ndb &myNdb, ApiType accessType)
 static void do_secondary_indexScanEqual(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "MYTABLENAME");
+  const NdbDictionary::Index *mySIndex= myDict->getIndex("MYINDEXNAME", "api_recattr_vs_record");
 
   std::cout << "Running do_secondary_indexScanEqual\n";
   std::cout << "ATTR1 ATTR2 ATTR3" << std::endl;
@@ -2451,8 +2436,8 @@ static void do_secondary_indexScanEqual(Ndb &myNdb, ApiType accessType)
 static void do_interpreted_update(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
-  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
+  const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", "api_recattr_vs_record");
 
   std::cout << "Running do_interpreted_update\n";
 
@@ -2981,7 +2966,7 @@ static void do_interpreted_update(Ndb &myNdb, ApiType accessType)
 static void do_interpreted_scan(Ndb &myNdb, ApiType accessType)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
 
   std::cout << "Running do_interpreted_scan\n";
 
@@ -3141,7 +3126,7 @@ static void do_interpreted_scan(Ndb &myNdb, ApiType accessType)
 static void do_read_using_default(Ndb &myNdb)
 {
   NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_recattr_vs_record");
   const NdbRecord* tableRec= myTable->getDefaultRecord();
 
   if (myTable == NULL) 

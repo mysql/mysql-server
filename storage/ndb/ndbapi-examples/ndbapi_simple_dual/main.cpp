@@ -138,8 +138,8 @@ int main(int argc, char** argv)
       MYSQLERROR(mysql2);
     
     // run the application code
-    run_application(mysql1, cluster1_connection, "MYTABLENAME1", "TEST_DB_1");
-    run_application(mysql2, cluster2_connection, "MYTABLENAME2", "TEST_DB_2");
+    run_application(mysql1, cluster1_connection, "api_simple_dual_1", "ndb_examples");
+    run_application(mysql2, cluster2_connection, "api_simple_dual_2", "ndb_examples");
   }
   // Note: all connections must have been destroyed before calling ndb_end()
   ndb_end(0);
@@ -148,7 +148,6 @@ int main(int argc, char** argv)
 }
 
 static void create_table(MYSQL &, const char* table);
-static void drop_table(MYSQL &, const char* table);
 static void do_insert(Ndb &, const char* table);
 static void do_update(Ndb &, const char* table);
 static void do_delete(Ndb &, const char* table);
@@ -186,8 +185,6 @@ static void run_application(MYSQL &mysql,
   /*
    * Drop the table
    */
-  drop_table(mysql, table);
- sprintf(db_stmt, "DROP DATABASE %s\n", db);
   mysql_query(&mysql, db_stmt);
 }
 
@@ -206,17 +203,6 @@ static void create_table(MYSQL &mysql, const char* table)
     MYSQLERROR(mysql);
 }
 
-/*******************************
- * Drop a table named by table
- *******************************/
-static void drop_table(MYSQL &mysql, const char* table)
-{
-  char drop_stmt[256];
-
-  sprintf(drop_stmt, "DROP TABLE IF EXISTS %s", table);
-  if (mysql_query(&mysql, drop_stmt)) 
-    MYSQLERROR(mysql);
-}
 
 /**************************************************************************
  * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *

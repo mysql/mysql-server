@@ -64,7 +64,7 @@
   exit(1); }
 
 /* C struct representing layout of data from table
- * MYTABLENAME in memory
+ * api_s_i_ndbrecord in memory
  * This can make it easier to work with rows in the application,
  * but is not necessary - NdbRecord can map columns to any 
  * pattern of offsets.
@@ -103,14 +103,14 @@ int main(int argc, char** argv)
                              0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
-    if (mysql_query(&mysql, "USE TEST_DB_1") != 0)
+    mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+    if (mysql_query(&mysql, "USE ndb_examples") != 0)
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "DROP TABLE MYTABLENAME");
+    mysql_query(&mysql, "DROP TABLE api_s_i_ndbrecord");
     if (mysql_query(&mysql,
                     "CREATE TABLE"
-                    "  MYTABLENAME"
+                    "  api_s_i_ndbrecord"
                     "    (ATTR1 INT UNSIGNED,"
                     "     ATTR2 INT UNSIGNED NOT NULL,"
                     "     PRIMARY KEY USING HASH (ATTR1),"
@@ -139,17 +139,17 @@ int main(int argc, char** argv)
   }
 
   Ndb* myNdb = new Ndb( cluster_connection,
-                        "TEST_DB_1" );  // Object representing the database
+                        "ndb_examples" );  // Object representing the database
   if (myNdb->init() == -1) {
     APIERROR(myNdb->getNdbError());
     exit(1);
   }
 
   NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_s_i_ndbrecord");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
-  const NdbDictionary::Index *myIndex= myDict->getIndex("MYINDEXNAME$unique","MYTABLENAME");
+  const NdbDictionary::Index *myIndex= myDict->getIndex("MYINDEXNAME$unique","api_s_i_ndbrecord");
   if (myIndex == NULL)
     APIERROR(myDict->getNdbError());
 
@@ -369,12 +369,6 @@ int main(int argc, char** argv)
     }
   }
   
-  /**************
-   * Drop table *
-   **************/
-  if (mysql_query(&mysql, "DROP TABLE MYTABLENAME"))
-    MYSQLERROR(mysql);
-
   delete myNdb;
   delete cluster_connection;
 
