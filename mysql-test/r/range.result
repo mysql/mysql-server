@@ -1654,3 +1654,14 @@ a	b
 1	1
 DROP TABLE t1;
 End of 5.1 tests
+CREATE TABLE t1 (c1 DECIMAL(10,0),INDEX(c1));
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT c1 FROM t1 WHERE c1 >= 'A' GROUP BY 1;
+c1
+1
+2
+3
+Warnings:
+Warning	1366	Incorrect decimal value: 'A' for column 'c1' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: 'A'
+DROP TABLE t1;
