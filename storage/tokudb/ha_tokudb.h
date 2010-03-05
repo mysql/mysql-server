@@ -321,9 +321,8 @@ public:
     // Returns a bit mask of capabilities of storage engine. Capabilities 
     // defined in sql/handler.h
     //
-    ulonglong table_flags(void) const {
-        return int_table_flags;
-    } 
+    ulonglong table_flags(void) const;
+    
     ulong index_flags(uint inx, uint part, bool all_parts) const;
 
     //

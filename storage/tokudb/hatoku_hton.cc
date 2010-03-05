@@ -72,6 +72,16 @@ static MYSQL_THDVAR_ULONGLONG(read_lock_wait,
   ULONGLONG_MAX, // max
   1 // blocksize
   );
+static MYSQL_THDVAR_UINT(pk_insert_mode,
+  0,
+  "set the primary key insert mode",
+  NULL, 
+  NULL, 
+  1, // default
+  0, // min?
+  2, // max
+  1 // blocksize
+  );
 
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
@@ -462,6 +472,10 @@ ulonglong get_write_lock_wait_time (THD* thd) {
 ulonglong get_read_lock_wait_time (THD* thd) {
     ulonglong ret_val = THDVAR(thd, read_lock_wait);
     return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
+}
+
+uint get_pk_insert_mode(THD* thd) {
+    return THDVAR(thd, pk_insert_mode);
 }
 
 
@@ -1105,6 +1119,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(commit_sync),
     MYSQL_SYSVAR(write_lock_wait),
     MYSQL_SYSVAR(read_lock_wait),
+    MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),

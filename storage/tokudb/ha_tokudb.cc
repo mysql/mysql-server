@@ -271,6 +271,34 @@ const char **ha_tokudb::bas_ext() const {
     DBUG_RETURN(ha_tokudb_exts);
 }
 
+static inline bool is_insert_ignore (THD* thd) {
+    //
+    // from http://lists.mysql.com/internals/37735
+    //
+    return thd->lex->ignore && thd->lex->duplicates == DUP_ERROR;
+}
+
+static inline bool is_replace_into(THD* thd) {
+    return (thd_sql_command(thd) == SQLCOM_REPLACE) || 
+        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
+
+}
+
+static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, uint curr_num_DBs) {
+    uint pk_insert_mode = get_pk_insert_mode(thd);
+    return ( 
+        (is_replace_into(thd) || is_insert_ignore(thd)) && 
+        curr_num_DBs <=1 && 
+        ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0)
+        );
+}
+
+ulonglong ha_tokudb::table_flags() const {
+    return (table && do_ignore_flag_optimization(ha_thd(),table,table->s->keys + test(hidden_primary_key)) ? 
+        int_table_flags | HA_BINLOG_STMT_CAPABLE : 
+        int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
+}
+
 //
 // Returns a bit mask of capabilities of the key or its part specified by 
 // the arguments. The capabilities are defined in sql/handler.h.
@@ -1091,7 +1119,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     // flags defined in sql\handler.h
 {
     int_table_flags = HA_REC_NOT_IN_SEQ  | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
-                    HA_FILE_BASED | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
+                    HA_FILE_BASED | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX;
     alloc_ptr = NULL;
     rec_buff = NULL;
     transaction = NULL;
@@ -1427,13 +1455,6 @@ int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_
     }
 exit:
     return error;
-}
-
-static bool is_insert_ignore (THD* thd) {
-    //
-    // from http://lists.mysql.com/internals/37735
-    //
-    return thd->lex->ignore && thd->lex->duplicates == DUP_ERROR;
 }
 
 
@@ -3024,18 +3045,15 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     int error;
     u_int32_t put_flags;
     THD *thd = ha_thd();
-    bool is_replace_into;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
+    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,curr_num_DBs);
 
     assert(curr_num_DBs == 1);
     
-    is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
-        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
-
     put_flags = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
     //
-    // optimization for "REPLACE INTO..." command
+    // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
     // is the main table, then we can simply insert the element
     // with DB_YESOVERWRITE. If the element does not exist,
@@ -3044,11 +3062,19 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     // to do. We cannot do this if curr_num_DBs > 1, because then we lose
     // consistency between indexes
     //
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) || is_replace_into) {
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && 
+        !is_replace_into(thd) && 
+        !is_insert_ignore(thd)) 
+    {
+printf("yes overwrite due to unique checks");
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
     }
-
-    if (is_insert_ignore(thd)) {
+    else if (do_ignore_opt && is_replace_into(thd)) {
+printf("doing replace into opt!\n");
+        put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
+    }
+    else if (do_ignore_opt && is_insert_ignore(thd)) {
+printf("doing insert ignore opt!\n");
         put_flags = DB_NOOVERWRITE_NO_ERROR;
     }
 
@@ -3074,13 +3100,12 @@ cleanup:
 
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error;
-    bool is_replace_into;
+    bool is_replace;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
-    is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
-        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
+    is_replace = is_replace_into(thd);
 
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace_into) {
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace && !is_insert_ignore(thd)) {
         share->mult_put_flags[primary_key] = DB_YESOVERWRITE;
     }
     else {
@@ -3133,8 +3158,6 @@ int ha_tokudb::write_row(uchar * record) {
     tokudb_trx_data *trx = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     bool create_sub_trans = false;
-    bool is_replace_into = (thd_sql_command(thd) == SQLCOM_REPLACE) || 
-        (thd_sql_command(thd) == SQLCOM_REPLACE_SELECT);
 
     //
     // some crap that needs to be done because MySQL does not properly abstract
@@ -3190,7 +3213,7 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    create_sub_trans = (using_ignore && !(is_replace_into && curr_num_DBs == 1));
+    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,curr_num_DBs)));
     if (create_sub_trans) {
         error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
