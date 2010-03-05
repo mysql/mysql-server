@@ -1526,15 +1526,15 @@ insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
 explain select distinct a from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
-select distinct a from t1;
-a
-e
+SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t1) AS t2;
+COUNT(*)
+1
 explain select a from t1 group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
-select a from t1 group by a;
-a
-e
+SELECT COUNT(*) FROM (SELECT a FROM t1 GROUP BY a) AS t2;
+COUNT(*)
+1
 drop table t1;
 create table t1(a char(10)) default charset utf8mb4 engine InnoDB;
 insert into t1 values ('123'), ('456');
