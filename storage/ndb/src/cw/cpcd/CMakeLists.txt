@@ -22,13 +22,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
                     ${CMAKE_SOURCE_DIR}/sql)
 
-LINK_LIBRARIES(ndbmgmclient
-               ndbclient
-               dbug
-               mysys
-               strings
-               ndbgeneral
-               ndbportlib)
 
 ADD_EXECUTABLE(ndb_cpcd
         APIService.cpp
@@ -37,5 +30,14 @@ ADD_EXECUTABLE(ndb_cpcd
         Process.cpp
         common.cpp
         main.cpp)
+
+TARGET_LINK_LIBRARIES(ndb_cpcd
+               ndbmgmclient
+               ndbclient
+               dbug
+               mysys
+               strings
+               ndbgeneral
+               ndbportlib)
 
 INSTALL(TARGETS ndb_cpcd DESTINATION bin)

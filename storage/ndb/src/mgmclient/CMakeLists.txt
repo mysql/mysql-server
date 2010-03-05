@@ -20,7 +20,12 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
 ADD_LIBRARY(ndbmgmclient STATIC
             CommandInterpreter.cpp)
 
-LINK_LIBRARIES(ndbmgmclient
+
+ADD_EXECUTABLE(ndb_mgm
+               main.cpp)
+
+TARGET_LINK_LIBRARIES(ndb_mgm
+               ndbmgmclient
                ndbmgmapi
                ndblogger
                ndbtrace
@@ -29,8 +34,5 @@ LINK_LIBRARIES(ndbmgmclient
                dbug
                mysys
                strings)
-
-ADD_EXECUTABLE(ndb_mgm
-               main.cpp)
 
 INSTALL(TARGETS ndb_mgm DESTINATION bin)
