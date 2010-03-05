@@ -2256,7 +2256,7 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using where; Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
+2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

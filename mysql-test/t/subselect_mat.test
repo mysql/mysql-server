@@ -4,7 +4,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t1i, t2i, t3i;
 --enable_warnings
 
 create table t1 (a1 char(8), a2 char(8));
@@ -16,6 +16,8 @@ insert into t1 values ('1 - 01', '2 - 01');
 insert into t1 values ('1 - 02', '2 - 02');
 
 insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 02');
 insert into t2 values ('1 - 02', '2 - 02');
 insert into t2 values ('1 - 03', '2 - 03');
 
@@ -24,6 +26,26 @@ insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
 
+# Indexed columns
+create table t1i (a1 char(8), a2 char(8));
+create table t2i (b1 char(8), b2 char(8));
+create table t3i (c1 char(8), c2 char(8));
+create index it1i1 on t1i (a1);
+create index it1i2 on t1i (a2);
+create index it1i3 on t1i (a1, a2);
+
+create index it2i1 on t2i (b1);
+create index it2i2 on t2i (b2);
+create index it2i3 on t2i (b1, b2);
+
+create index it3i1 on t3i (c1);
+create index it3i2 on t3i (c2);
+create index it3i3 on t3i (c1, c2);
+
+insert into t1i select * from t1;
+insert into t2i select * from t2;
+insert into t3i select * from t3;
+
 set @optimizer_switch= @@optimizer_switch;
 # force the use of materialization --
 set @@optimizer_switch="semijoin=off";
@@ -31,6 +53,22 @@ set @@optimizer_switch="semijoin=off";
 /******************************************************************************
 * Simple tests.                                                               *
 ******************************************************************************/
+
+# BUG#31639: Wrong plan for uncorrelated subquery when loose scan is applicable.
+explain extended
+select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
+select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
+
+prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
+execute st1;
+execute st1;
+prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
+execute st2;
+execute st2;
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 
 # test re-optimization/re-execution with different execution methods
 # prepare once, exec with different modes
@@ -44,20 +82,20 @@ set @@optimizer_switch="semijoin=off";
 
 # materialize the result of subquery over temp-table view
 
- 
+drop table t1, t2, t3, t1i, t2i, t3i;
+
 /******************************************************************************
 * Test the cache of the left operand of IN.                                   *
 ******************************************************************************/
 
 # Test that default values of Cached_item are not used for comparison
-drop table if exists t1, t2;
 create table t1 (s1 int);
 create table t2 (s2 int);
 insert into t1 values (5),(1),(0);
 insert into t2 values (0), (1);
 select s2 from t2 where s2 in (select s1 from t1);
+drop table t1, t2;
 
-drop table if exists t1, t2, t3;
 create table t1 (a int not null, b int not null);
 create table t2 (c int not null, d int not null);
 create table t3 (e int not null);

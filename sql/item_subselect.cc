@@ -752,7 +752,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 					     bool all_arg)
   :Item_in_subselect(), func_creator(fc), all(all_arg)
 {
-  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
   init(select_lex, new select_exists_subselect(this));
@@ -1867,8 +1867,20 @@ bool Item_in_subselect::setup_engine()
   }
 
   /* Initilizations done in runtime memory, repeated for each execution. */
-  if (new_engine && (res= new_engine->init_runtime()))
-    DBUG_RETURN(res);
+  if (new_engine)
+  {
+    /*
+      Reset the LIMIT 1 set in Item_exists_subselect::fix_length_and_dec.
+      TODO:
+      Currently we set the subquery LIMIT to infinity, and this is correct
+      because we forbid at parse time LIMIT inside IN subqueries (see
+      Item_in_subselect::test_limit). However, once we allow this, here
+      we should set the correct limit if given in the query.
+    */
+    unit->global_parameters->select_limit= NULL;
+    if ((res= new_engine->init_runtime()))
+      DBUG_RETURN(res);
+  }
 
   DBUG_RETURN(res);
 }
@@ -3194,9 +3206,15 @@ int subselect_hash_sj_engine::exec()
   */
   if (!is_materialized)
   {
-    if (materialize_join->optimize())
-      DBUG_RETURN(TRUE);     
+    int res= 0;
+    SELECT_LEX *save_select= thd->lex->current_select;
+    thd->lex->current_select= materialize_engine->select_lex;
+    if ((res= materialize_join->optimize()))
+      goto err;
     materialize_join->exec();
+    if ((res= test(materialize_join->error || thd->is_fatal_error)))
+      goto err;
+
     /*
       TODO:
       - Unlock all subquery tables as we don't need them. To implement this
@@ -3225,6 +3243,11 @@ int subselect_hash_sj_engine::exec()
     tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);
     if (tmp_param && !tmp_param->copy_field)
       tmp_param= NULL;
+
+err:
+    thd->lex->current_select= save_select;
+    if (res)
+      DBUG_RETURN(res);
   }
 
   /*
