@@ -121,12 +121,12 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
         c_operation_pool.getEntrySize(),
         c_operation_pool.getUsedHi(),
         { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 }},
-      { "Page",
-        c_page_pool.getUsed(),
-        c_page_pool.getSize(),
-        c_page_pool.getEntrySize(),
-        c_page_pool.getUsedHi(),
-        { 0,0,0,0 }},
+      { "Data memory",
+        m_pages_allocated,
+        0, // Allocated from global resource group RG_DATAMEM
+        sizeof(Page),
+        m_pages_allocated_max,
+        { CFG_DB_DATA_MEM,0,0,0 }},
       { NULL, 0,0,0,0, { 0,0,0,0 }}
     };
 
