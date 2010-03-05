@@ -41,6 +41,15 @@ public class AllTests {
         return false;
     } 
 
+    private static boolean isDisabledTestAnnotationPresent(Class candidate) {
+        for (Annotation annotation: candidate.getAnnotations()) {
+            if (annotation.getClass().getName().contains("DisabledTest")) {
+                return true;
+            }
+        }
+        return false;
+    } 
+
     private static boolean isTestClass(Class klass) {
         return klass.getName().endsWith("Test")
             && !klass.getName().contains("Abstract")
@@ -49,6 +58,10 @@ public class AllTests {
 
     private static boolean isSlowTest(Class klass) {
 	return isSlowTestAnnotationPresent(klass);
+    }
+
+    private static boolean isTestDisabled(Class klass) {
+	return isDisabledTestAnnotationPresent(klass);
     }
 
     private static List<Class> getClasses(File jarFile) throws IOException, ClassNotFoundException {
@@ -88,7 +101,7 @@ public class AllTests {
 
         List<Class> classes = getClasses(new File(jarFile));
         for (Class klass : classes) {
-	    if (isTestClass(klass)) {
+	    if (isTestClass(klass) && !isTestDisabled(klass)) {
 		if ((isSlowTest(klass) && onlyRunSlowTests)
 		    || (!isSlowTest(klass) && !onlyRunSlowTests)) {
 		    suite.addTestSuite(klass);
