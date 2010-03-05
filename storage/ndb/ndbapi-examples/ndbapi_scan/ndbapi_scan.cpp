@@ -122,7 +122,7 @@ struct Car
  */
 void drop_table(MYSQL &mysql)
 {
-  if (mysql_query(&mysql, "DROP TABLE IF EXISTS garage"))
+  if (mysql_query(&mysql, "DROP TABLE IF EXISTS api_scan"))
     MYSQLERROR(mysql);
 }
 
@@ -134,7 +134,7 @@ void create_table(MYSQL &mysql)
 {
   while (mysql_query(&mysql, 
 		  "CREATE TABLE"
-		  "  garage"
+		  "  api_scan"
 		  "    (REG_NO INT UNSIGNED NOT NULL,"
 		  "     BRAND CHAR(20) NOT NULL,"
 		  "     COLOR CHAR(20) NOT NULL,"
@@ -143,11 +143,8 @@ void create_table(MYSQL &mysql)
   {
     if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
       MYSQLERROR(mysql);
-    std::cout << "MySQL Cluster already has example table: garage. "
+    std::cout << "MySQL Cluster already has example table: api_scan. "
 	      << "Dropping it..." << std::endl; 
-    /******************
-     * Recreate table *
-     ******************/
     drop_table(mysql);
   }
 }
@@ -158,7 +155,7 @@ int populate(Ndb * myNdb)
   Car cars[15];
 
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("garage");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_scan");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -232,7 +229,7 @@ int scan_delete(Ndb* myNdb,
   NdbScanOperation	*myScanOp;
 
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("garage");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_scan");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -415,7 +412,7 @@ int scan_update(Ndb* myNdb,
   NdbScanOperation	*myScanOp;
 
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("garage");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_scan");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -606,7 +603,7 @@ int scan_print(Ndb * myNdb)
   NdbRecAttr *    	myRecAttr[3];   
 
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("garage");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_scan");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -761,8 +758,8 @@ int main(int argc, char** argv)
 			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "CREATE DATABASE TEST_DB");
-    if (mysql_query(&mysql, "USE TEST_DB") != 0) MYSQLERROR(mysql);
+    mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+    if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
 
     create_table(mysql);
   }
@@ -784,7 +781,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
-  Ndb myNdb(&cluster_connection,"test_db");
+  Ndb myNdb(&cluster_connection,"ndb_examples");
   if (myNdb.init(1024) == -1) {      // Set max 1024  parallel transactions
     APIERROR(myNdb.getNdbError());
     exit(-1);
@@ -796,7 +793,7 @@ int main(int argc, char** argv)
   int column_color;
   {
     const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-    const NdbDictionary::Table *t= myDict->getTable("garage");
+    const NdbDictionary::Table *t= myDict->getTable("api_scan");
     if(t == NULL) 
     {
       std::cout << "Dictionary::getTable() failed.";
