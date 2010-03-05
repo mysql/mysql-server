@@ -6021,7 +6021,9 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
   UintR tcurrentFilepage;
   TcConnectionrecPtr tmpTcConnectptr;
 
-  if (cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION || ERROR_INSERTED(5032)) {
+  if (unlikely(cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION) || 
+      ERROR_INSERTED(5032))
+  {
     jam();
     if(ERROR_INSERTED(5032)){
       CLEAR_ERROR_INSERT_VALUE;
@@ -6035,6 +6037,7 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
     abortErrorLab(signal);
     return;
   }//if
+
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   logPartPtr.i = regTcPtr->m_log_part_ptr_i;
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -6047,6 +6050,14 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
 /*       RESTART WHEN THE LOG PART IS FREE AGAIN.     */
 /* -------------------------------------------------- */
   LogPartRecord * const regLogPartPtr = logPartPtr.p;
+
+  if (unlikely(regLogPartPtr->m_tail_problem))
+  {
+    jam();
+    terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
+    abortErrorLab(signal);
+    return;
+  }
 
   if(ERROR_INSERTED(5033)){
     jam();
@@ -6096,14 +6107,8 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
       signal->theData[1] = logPartPtr.i;
       sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
     }//if
-    if (regLogPartPtr->logPartState == LogPartRecord::TAIL_PROBLEM) {
-      jam();
-      terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
-    } else {
-      ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
-      jam();
-      terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
-    }//if
+    ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
+    terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
     abortErrorLab(signal);
     return;
   }//if
@@ -13466,19 +13471,7 @@ retry:
       if (tailmoved && mb > c_free_mb_tail_problem_limit)
       {
         jam();
-        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM)
-        {
-          if (sltLogPartPtr.p->firstLogQueue == RNIL)
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::IDLE;
-          }
-          else
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-          }
-        }
+        sltLogPartPtr.p->m_tail_problem = false;
       }
       else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
       {
@@ -14515,7 +14508,6 @@ void Dblqh::timeSup(Signal* signal)
       return;
       break;
     case LogPartRecord::IDLE:
-    case LogPartRecord::TAIL_PROBLEM:
       jam();
 /*---------------------------------------------------------------------------*/
 /* IDLE AND NOT WRITTEN TO DISK IN A SECOND. ALSO WHEN WE HAVE A TAIL PROBLEM*/
@@ -14821,6 +14813,15 @@ void Dblqh::writePageZeroLab(Signal* signal, Uint32 from)
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
+      if (logPartPtr.p->LogLqhKeyReqSent == ZFALSE)
+      {
+        jam();
+
+        logPartPtr.p->LogLqhKeyReqSent = ZTRUE;
+        signal->theData[0] = ZLOG_LQHKEYREQ;
+        signal->theData[1] = logPartPtr.i;
+        sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+      }
     }
   }
   
@@ -16229,6 +16230,25 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   if (tableId >= ctabrecFileSize)
   {
     jam();
+
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+      
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      if (mb <= c_free_mb_tail_problem_limit)
+      {
+        jam();
+        logPartPtr.p->m_tail_problem = true;
+      }
+    }
+    
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = cstartRecReqData;
@@ -19507,7 +19527,7 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->headFileNo = ZNIL;
   logPartPtr.p->headPageNo = ZNIL;
   logPartPtr.p->headPageIndex = ZNIL;
-
+  logPartPtr.p->m_tail_problem = 0;
   NdbLogPartInfo lpinfo(instance());
   ndbrequire(lpinfo.partCount == clogPartFileSize);
   logPartPtr.p->logPartNo = lpinfo.partNo[logPartPtr.i];
@@ -20922,10 +20942,12 @@ void Dblqh::writeNextLog(Signal* signal)
       char buf[100];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
-                           " file: %u mbyte: %u",
+                           " file: %u mbyte: %u state: %u tail-problem: %u",
                            logPartPtr.i,
                            logFilePtr.p->fileNo,
-                           logFilePtr.p->currentMbyte);
+                           logFilePtr.p->currentMbyte,
+                           logPartPtr.p->logPartState,
+                           logPartPtr.p->m_tail_problem);
 
 
       signal->theData[0] = 2398;
@@ -20957,14 +20979,10 @@ void Dblqh::writeNextLog(Signal* signal)
     force_lcp(signal);
   }
 
-  if (logPartPtr.p->logPartState == LogPartRecord::ACTIVE ||
-      logPartPtr.p->logPartState == LogPartRecord::IDLE)
+  if (free_mb <= c_free_mb_tail_problem_limit)
   {
-    if (free_mb <= c_free_mb_tail_problem_limit)
-    {
-      jam();
-      logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
-    }
+    jam();
+    logPartPtr.p->m_tail_problem = true;
   }
 }//Dblqh::writeNextLog()
 
