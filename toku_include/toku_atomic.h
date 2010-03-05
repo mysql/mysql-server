@@ -10,12 +10,18 @@ toku_sync_fetch_and_add_uint32(volatile uint32_t *a, uint32_t b) {
 
 static inline uint32_t
 toku_sync_fetch_and_increment_uint32(volatile uint32_t *a) {
-    return _InterlockedIncrement((LONG*)a);
+    uint32_t r = _InterlockedIncrement((LONG*)a);
+    //InterlockedIncrement returns the result, not original.
+    //Return the original.
+    return r - 1;
 }
 
 static inline uint32_t
 toku_sync_fetch_and_decrement_uint32(volatile uint32_t *a) {
-    return _InterlockedDecrement((LONG*)a);
+    uint32_t r = _InterlockedDecrement((LONG*)a);
+    //InterlockedDecrement returns the result, not original.
+    //Return the original.
+    return r + 1;
 }
 
 static inline int32_t
@@ -53,19 +59,22 @@ toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
     //Temporarily just use 32 bit atomic instructions (treat the values as 32
     //bit only).  For now this is ok, the values are only used in show engine
     //status.
-    return _InterlockedExchangeAdd((LONG*)a, b);
+    return toku_sync_fetch_and_add_uint32((uint32_t*)a, b);
 #endif
 }
 
 static inline uint64_t
 toku_sync_fetch_and_increment_uint64(volatile uint64_t *a) {
 #if TOKU_WINDOWS_HAS_ATOMIC_64
-    return _InterlockedIncrement64((int64_t*)a);
+    uint64_t r = _InterlockedIncrement64((int64_t*)a);
+    //InterlockedIncrement64 returns the result, not original.
+    //Return the original.
+    return r - 1;
 #else
     //Temporarily just use 32 bit atomic instructions (treat the values as 32
     //bit only).  For now this is ok, the values are only used in show engine
     //status.
-    return _InterlockedIncrement((LONG*)a);
+    return toku_sync_fetch_and_increment_uint32((uint32_t*)a);
 #endif
 }
 
