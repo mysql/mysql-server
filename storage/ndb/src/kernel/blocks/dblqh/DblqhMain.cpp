@@ -436,6 +436,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     gcpPtr.i = 0;
     ptrAss(gcpPtr, gcpRecord);
     initGcpRecLab(signal);
+    startTimeSupervision(signal);
     return;
     break;
   case ZCHECK_LCP_STOP_BLOCKED:
@@ -4022,7 +4023,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
      * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
      * --------------------------------------------------------------------- */
-    Uint8 tmp = (TdistKey - tfragDistKey) & 255;
+    Int8 tmp = (TdistKey - tfragDistKey);
+    tmp = (tmp < 0 ? - tmp : tmp);
     if ((tmp <= 1) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0);
       return;
@@ -5315,7 +5317,9 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
   UintR tcurrentFilepage;
   TcConnectionrecPtr tmpTcConnectptr;
 
-  if (cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION || ERROR_INSERTED(5032)) {
+  if (unlikely(cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION) || 
+      ERROR_INSERTED(5032))
+  {
     jam();
     if(ERROR_INSERTED(5032)){
       CLEAR_ERROR_INSERT_VALUE;
@@ -5329,6 +5333,7 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
     abortErrorLab(signal);
     return;
   }//if
+
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   logPartPtr.i = regTcPtr->m_log_part_ptr_i;
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -5341,6 +5346,14 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
 /*       RESTART WHEN THE LOG PART IS FREE AGAIN.     */
 /* -------------------------------------------------- */
   LogPartRecord * const regLogPartPtr = logPartPtr.p;
+
+  if (unlikely(regLogPartPtr->m_tail_problem))
+  {
+    jam();
+    terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
+    abortErrorLab(signal);
+    return;
+  }
 
   if(ERROR_INSERTED(5033)){
     jam();
@@ -5390,14 +5403,8 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
       signal->theData[1] = logPartPtr.i;
       sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
     }//if
-    if (regLogPartPtr->logPartState == LogPartRecord::TAIL_PROBLEM) {
-      jam();
-      terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
-    } else {
-      ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
-      jam();
-      terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
-    }//if
+    ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
+    terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
     abortErrorLab(signal);
     return;
   }//if
@@ -12623,19 +12630,7 @@ retry:
       if (tailmoved && mb > c_free_mb_tail_problem_limit)
       {
         jam();
-        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM)
-        {
-          if (sltLogPartPtr.p->firstLogQueue == RNIL)
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::IDLE;
-          }
-          else
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-          }
-        }
+        sltLogPartPtr.p->m_tail_problem = false;
       }
       else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
       {
@@ -12968,16 +12963,19 @@ void Dblqh::initGcpRecLab(Signal* signal)
 /*      DISK WRITE.                                                          */
 /*                                                                           */
 /*       SUBROUTINE SHORT NAME = CGC                                         */
+/* return: true if gcp was completed */
 /* ========================================================================= */
-void Dblqh::checkGcpCompleted(Signal* signal,
-                              Uint32 tcgcPageWritten,
-                              Uint32 tcgcWordWritten) 
+bool
+Dblqh::checkGcpCompleted(Signal* signal,
+                         Uint32 tcgcPageWritten,
+                         Uint32 tcgcWordWritten) 
 {
   UintR tcgcFlag;
   UintR tcgcJ;
 
   gcpPtr.i = logPartPtr.p->gcprec;
-  if (gcpPtr.i != RNIL) {
+  if (gcpPtr.i != RNIL)
+  {
     jam();
 /* ------------------------------------------------------------------------- */
 /* IF THE GLOBAL CHECKPOINT IS NOT WAITING FOR COMPLETION THEN WE CAN QUIT   */
@@ -12994,7 +12992,7 @@ void Dblqh::checkGcpCompleted(Signal* signal,
 /* ------------------------------------------------------------------------- */
 /* THIS LOG PART HAVE NOT YET WRITTEN THE GLOBAL CHECKPOINT TO DISK.         */
 /* ------------------------------------------------------------------------- */
-        return;
+        return false;
       } else {
         if (tcgcPageWritten == gcpPtr.p->gcpPageNo[logPartPtr.i]) {
           if (tcgcWordWritten < gcpPtr.p->gcpWordNo[logPartPtr.i]) {
@@ -13002,7 +13000,7 @@ void Dblqh::checkGcpCompleted(Signal* signal,
 /* ------------------------------------------------------------------------- */
 /* THIS LOG PART HAVE NOT YET WRITTEN THE GLOBAL CHECKPOINT TO DISK.         */
 /* ------------------------------------------------------------------------- */
-            return;
+            return false;
           }//if
         }//if
       }//if
@@ -13012,7 +13010,8 @@ void Dblqh::checkGcpCompleted(Signal* signal,
       logPartPtr.p->gcprec = RNIL;
       gcpPtr.p->gcpLogPartState[logPartPtr.i] = ZON_DISK;
       tcgcFlag = ZTRUE;
-      for (tcgcJ = 0; tcgcJ <= 3; tcgcJ++) {
+      for (tcgcJ = 0; tcgcJ <= 3; tcgcJ++)
+      {
         jam();
         if (gcpPtr.p->gcpLogPartState[tcgcJ] != ZON_DISK) {
           jam();
@@ -13023,7 +13022,13 @@ void Dblqh::checkGcpCompleted(Signal* signal,
           tcgcFlag = ZFALSE;
         }//if
       }//for
-      if (tcgcFlag == ZTRUE) {
+      if (tcgcFlag == ZFALSE)
+      {
+        return false;
+      }
+
+      if (tcgcFlag == ZTRUE)
+      {
         jam();
 /* ------------------------------------------------------------------------- */
 /*WE HAVE FOUND A COMPLETED GLOBAL CHECKPOINT OPERATION. WE NOW NEED TO SEND */
@@ -13054,10 +13059,11 @@ void Dblqh::checkGcpCompleted(Signal* signal,
             execFSSYNCCONF(signal);
           }//if
         }//for
-        return;
       }//if
     }//if
+    return true;
   }//if
+  return false;
 }//Dblqh::checkGcpCompleted()
 
 void
@@ -13405,7 +13411,8 @@ void Dblqh::execFSWRITECONF(Signal* signal)
     return;
   case LogFileOperationRecord::WRITE_PAGE_ZERO:
     jam();
-    writePageZeroLab(signal);
+    writePageZeroLab(signal, __LINE__);
+    releaseLfo(signal);
     return;
   case LogFileOperationRecord::LAST_WRITE_IN_FILE:
     jam();
@@ -13606,7 +13613,6 @@ void Dblqh::timeSup(Signal* signal)
       return;
       break;
     case LogPartRecord::IDLE:
-    case LogPartRecord::TAIL_PROBLEM:
       jam();
 /*---------------------------------------------------------------------------*/
 /* IDLE AND NOT WRITTEN TO DISK IN A SECOND. ALSO WHEN WE HAVE A TAIL PROBLEM*/
@@ -13782,7 +13788,8 @@ void Dblqh::firstPageWriteLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* IF THE NEW FILE WAS 0 THEN WE HAVE ALREADY WRITTEN PAGE ZERO IN FILE 0.   */
 /*---------------------------------------------------------------------------*/
-      logFilePtr.p->fileChangeState = LogFileRecord::NOT_ONGOING;
+      // use writePageZeroLab to make sure that same code as normal is run
+      writePageZeroLab(signal, __LINE__);
       return;
     } else {
       jam();
@@ -13871,7 +13878,8 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* IF THE NEW FILE WAS 0 THEN WE HAVE ALREADY WRITTEN PAGE ZERO IN FILE 0.   */
 /*---------------------------------------------------------------------------*/
-      logFilePtr.p->fileChangeState = LogFileRecord::NOT_ONGOING;
+      // use writePageZeroLab to make sure that same code as normal is run
+      writePageZeroLab(signal, __LINE__);
       return;
     } else {
       jam();
@@ -13897,7 +13905,7 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
   }//if
 }//Dblqh::lastWriteInFileLab()
 
-void Dblqh::writePageZeroLab(Signal* signal) 
+void Dblqh::writePageZeroLab(Signal* signal, Uint32 from) 
 {
   if (logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
   {
@@ -13910,19 +13918,36 @@ void Dblqh::writePageZeroLab(Signal* signal)
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
+      if (logPartPtr.p->LogLqhKeyReqSent == ZFALSE)
+      {
+        jam();
+
+        logPartPtr.p->LogLqhKeyReqSent = ZTRUE;
+        signal->theData[0] = ZLOG_LQHKEYREQ;
+        signal->theData[1] = logPartPtr.i;
+        sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+      }
     }
   }
   
   logFilePtr.p->fileChangeState = LogFileRecord::NOT_ONGOING;
+
 /*---------------------------------------------------------------------------*/
 /* IT COULD HAVE ARRIVED PAGE WRITES TO THE CURRENT FILE WHILE WE WERE       */
 /* WAITING FOR THIS DISK WRITE TO COMPLETE. THEY COULD NOT CHECK FOR         */
 /* COMPLETED GLOBAL CHECKPOINTS. THUS WE SHOULD DO THAT NOW INSTEAD.         */
 /*---------------------------------------------------------------------------*/
-  checkGcpCompleted(signal,
-                    logFilePtr.p->lastPageWritten,
-                    logFilePtr.p->lastWordWritten);
-  releaseLfo(signal);
+  bool res = checkGcpCompleted(signal,
+                               logFilePtr.p->lastPageWritten,
+                               logFilePtr.p->lastWordWritten);
+  if (res && false)
+  {
+    gcpPtr.i = ccurrentGcprec;
+    ptrCheckGuard(gcpPtr, cgcprecFileSize, gcpRecord);
+    
+    infoEvent("KESO completing GCP %u in writePageZeroLab from %u", 
+              gcpPtr.p->gcpId, from);
+  }
   return;
 }//Dblqh::writePageZeroLab()
 
@@ -15274,6 +15299,26 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   if (tableId >= ctabrecFileSize)
   {
     jam();
+
+    for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++)
+    {
+      jam();
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+      
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      if (mb <= c_free_mb_tail_problem_limit)
+      {
+        jam();
+        logPartPtr.p->m_tail_problem = true;
+      }
+    }
+    
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = cstartRecReqData;
@@ -15491,6 +15536,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
    *  LOG EXECUTION.
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_conf.clear();
+  cnoFragmentsExecSr = 0;
 
   /* ------------------------------------------------------------------------
    *  NOW CHECK IF ALL FRAGMENTS IN THIS PHASE HAVE COMPLETED. IF SO START THE
@@ -18213,6 +18259,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     csrPhasesCompleted = 0;
     cmasterDihBlockref = 0;
     cnoFragmentsExecSr = 0;
+    cnoOutstandingExecFragReq = 0;
     clcpCompletedState = LCP_IDLE;
     csrExecUndoLogState = EULS_IDLE;
     c_lcpId = 0;
@@ -18525,6 +18572,7 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->headFileNo = ZNIL;
   logPartPtr.p->headPageNo = ZNIL;
   logPartPtr.p->headPageIndex = ZNIL;
+  logPartPtr.p->m_tail_problem = 0;
 }//Dblqh::initLogpart()
 
 /* ========================================================================== 
@@ -19533,8 +19581,6 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
  * ------------------------------------------------------------------------- */
 void Dblqh::startExecSr(Signal* signal) 
 {
-  cnoFragmentsExecSr = 0;
-  cnoOutstandingExecFragReq = 0;
   c_lcp_complete_fragments.first(fragptr);
   signal->theData[0] = fragptr.i;
   sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
@@ -19893,10 +19939,12 @@ void Dblqh::writeNextLog(Signal* signal)
       char buf[100];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
-                           " file: %u mbyte: %u",
+                           " file: %u mbyte: %u state: %u tail-problem: %u",
                            logPartPtr.i,
                            logFilePtr.p->fileNo,
-                           logFilePtr.p->currentMbyte);
+                           logFilePtr.p->currentMbyte,
+                           logPartPtr.p->logPartState,
+                           logPartPtr.p->m_tail_problem);
 
 
       signal->theData[0] = 2398;
@@ -19931,8 +19979,8 @@ void Dblqh::writeNextLog(Signal* signal)
   if (free_mb <= c_free_mb_tail_problem_limit)
   {
     jam();
-    logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
-  }//if
+    logPartPtr.p->m_tail_problem = true;
+  }
 }//Dblqh::writeNextLog()
 
 bool
@@ -20365,26 +20413,29 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   {
     jam();
     Uint32 i;
+    void * logPartPtr = 0;
+    (void)logPartPtr;
     GcpRecordPtr gcp; gcp.i = RNIL;
     for(i = 0; i<4; i++)
     {
-      logPartPtr.i = i;
-      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      Ptr<LogPartRecord> lp;
+      lp.i = i;
+      ptrCheckGuard(lp, clogPartFileSize, logPartRecord);
       ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
 	       i,
-	       logPartPtr.p->logPartState,
-	       logPartPtr.p->waitWriteGciLog,
-	       logPartPtr.p->gcprec,
-	       logPartPtr.p->firstLogQueue,
-	       logPartPtr.p->currentLogfile,
-	       logPartPtr.p->logTailFileNo,
-	       logPartPtr.p->logTailMbyte);
+	       lp.p->logPartState,
+	       lp.p->waitWriteGciLog,
+	       lp.p->gcprec,
+	       lp.p->firstLogQueue,
+	       lp.p->currentLogfile,
+	       lp.p->logTailFileNo,
+	       lp.p->logTailMbyte);
       
-      if(gcp.i == RNIL && logPartPtr.p->gcprec != RNIL)
-	gcp.i = logPartPtr.p->gcprec;
+      if(gcp.i == RNIL && lp.p->gcprec != RNIL)
+	gcp.i = lp.p->gcprec;
 
       LogFileRecordPtr logFilePtr;
-      Uint32 first= logFilePtr.i= logPartPtr.p->firstLogfile;
+      Uint32 first= logFilePtr.i= lp.p->firstLogfile;
       do
       {
 	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);

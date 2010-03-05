@@ -58,6 +58,8 @@ public:
   Uint32 getNoOfConnectedNodes() const;
 
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
+  SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
+                        Uint16 recBlock, Uint16 gsn, Uint32 len);
   
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);

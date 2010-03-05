@@ -52,6 +52,23 @@ struct ndb_logevent_handle {
   enum ndb_logevent_handle_error m_error;
 };
 
+
+/*
+  Create a new NdbLogEventHandle for reading events from
+  the same socket as the NdbMgmHandle
+*/
+
+NdbLogEventHandle
+ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh)
+{
+  NdbLogEventHandle h=
+    (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
+
+  h->socket= ndb_mgm_get_fd(mh);
+
+  return h;
+}
+
 extern "C"
 NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
