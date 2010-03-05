@@ -142,15 +142,16 @@ struct view {
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
    },
   { "memoryusage",
-    "SELECT node_id, \"DATA_MEMORY\", "
-    "used, max "
-    "FROM <NDBINFO_DB>.<TABLE_PREFIX>resources "
-    "WHERE resource_id = 3 "
-    "UNION "
-    "SELECT node_id, \"INDEX_MEMORY\", "
-    "used, total "
+    "SELECT node_id,"
+    "  pool_name AS memory_type,"
+    "  SUM(used*entry_size) AS used,"
+    "  SUM(used) AS used_pages,"
+    "  SUM(total*entry_size) AS total,"
+    "  SUM(total) AS total_pages "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>pools "
-    "WHERE block_number = 248 AND pool_name = \"Index memory\" "
+    "WHERE block_number IN (248, 254) AND "
+    "  (pool_name = \"Index memory\" OR pool_name = \"Data memory\") "
+    "GROUP BY node_id, memory_type"
   }
 };
 
