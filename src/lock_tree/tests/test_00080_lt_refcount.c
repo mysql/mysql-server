@@ -120,7 +120,7 @@ static void initial_setup(void) {
         lts[i] = NULL;
         char name[sizeof(TESTDIR) + 256];
         sprintf(name, TESTDIR "/file%05x.db", i);
-        dict_ids[i].dictid = i;
+        dict_ids[i].dictid = i+1;
         assert(dict_ids[i].dictid != DICTIONARY_ID_NONE.dictid);
         lt_refs[i] = 0;
     }

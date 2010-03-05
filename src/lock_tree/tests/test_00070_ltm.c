@@ -41,8 +41,8 @@ static void close_ltm(void) {
 }
 
 static void run_test(BOOL dups) {
-    DICTIONARY_ID dict_id1 = {0};
-    DICTIONARY_ID dict_id2 = {1};
+    DICTIONARY_ID dict_id1 = {1};
+    DICTIONARY_ID dict_id2 = {2};
     DICTIONARY_ID dict_id3 = dict_id1;
 
 
