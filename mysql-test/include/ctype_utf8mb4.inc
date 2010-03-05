@@ -1255,11 +1255,9 @@ eval create table t1(a char(200) collate utf8mb4_unicode_ci NOT NULL default '')
   default charset=utf8mb4 collate=utf8mb4_unicode_ci engine $engine;
 insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
 explain select distinct a from t1;
---sorted_result
-select distinct a from t1;
+SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t1) AS t2;
 explain select a from t1 group by a;
---sorted_result
-select a from t1 group by a;
+SELECT COUNT(*) FROM (SELECT a FROM t1 GROUP BY a) AS t2;
 drop table t1;
 
 #
