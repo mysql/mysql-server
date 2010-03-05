@@ -25,8 +25,7 @@ ADD_SUBDIRECTORY(ndbjtie)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/include)
 
-
-SET(NDBCLIENT_LIBS 
+SET(NDBCLIENT_LIBS
                 mysys dbug strings
                 ndbapi
                 ndbtransport
@@ -38,8 +37,6 @@ SET(NDBCLIENT_LIBS
                 ndbportlib
                 ndbgeneral
                 ndbconf)
-
-
 
 IF(HAVE_JDK AND HAVE_JAVA)
 
@@ -60,8 +57,7 @@ IF(HAVE_JDK AND HAVE_JAVA)
   TARGET_LINK_LIBRARIES(ndbclient ${NDBCLIENT_LIBS})
 
 ELSE()
-  MERGE_STATIC_LIBS(ndbclient ndbclient ${NDBCLIENT_LIBS})
+  MERGE_STATIC_LIBS(ndbclient ndbclient "${NDBCLIENT_LIBS}")
 ENDIF()
-
 
 TARGET_LINK_LIBRARIES(ndbclient ws2_32)
