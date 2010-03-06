@@ -198,13 +198,13 @@ callback(int result, NdbTransaction* trans, void* aObject)
 
 
 /**
- * Create table "GARAGE"
+ * Create table "api_async"
  */
 void create_table(MYSQL &mysql) 
 {
   while (mysql_query(&mysql, 
 		  "CREATE TABLE"
-		  "  GARAGE"
+		  "  api_async"
 		  "    (REG_NO INT UNSIGNED NOT NULL,"
 		  "     BRAND CHAR(20) NOT NULL,"
 		  "     COLOR CHAR(20) NOT NULL,"
@@ -213,19 +213,18 @@ void create_table(MYSQL &mysql)
   {
     if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
       MYSQLERROR(mysql);
-    std::cout << "MySQL Cluster already has example table: GARAGE. "
+    std::cout << "MySQL Cluster already has example table: api_async. "
 	      << "Dropping it..." << std::endl; 
     drop_table(mysql);
-    create_table(mysql);
   }
 }
 
 /**
- * Drop table GARAGE
+ * Drop table api_async
  */
 void drop_table(MYSQL &mysql)
 {
-  if (mysql_query(&mysql, "DROP TABLE GARAGE"))
+  if (mysql_query(&mysql, "DROP TABLE api_async"))
     MYSQLERROR(mysql);
 }
 
@@ -304,7 +303,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 
   NdbOperation*   myNdbOperation;       // For operations
   const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("GARAGE");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_async");
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
 
@@ -439,8 +438,8 @@ int main(int argc, char** argv)
 			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "CREATE DATABASE TEST_DB");
-    if (mysql_query(&mysql, "USE TEST_DB") != 0) MYSQLERROR(mysql);
+    mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+    if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
 
     create_table(mysql);
   }
@@ -462,7 +461,7 @@ int main(int argc, char** argv)
   }
 
   Ndb* myNdb = new Ndb( &cluster_connection,
-			"TEST_DB" );  // Object representing the database
+			"ndb_examples" );  // Object representing the database
   if (myNdb->init(1024) == -1) {      // Set max 1024 parallel transactions
     APIERROR(myNdb->getNdbError());
   }
@@ -489,6 +488,4 @@ int main(int argc, char** argv)
   }
   std::cout << "Number of temporary errors: " << tempErrors << std::endl;
   delete myNdb; 
-
-  drop_table(mysql);
 }
