@@ -528,5 +528,14 @@ from t1
 where fid IN (select fid from t2 where (id between 7502 and 8420) order by fid );
 
 drop table t1, t2;
-
+ 
+#
+# BUG#36137 "virtual longlong Item_in_subselect::val_int(): Assertion `0' failed."
+#
+create table t1 (a int, b int, key (a), key (b));
+insert into t1 values (2,4),(2,4),(2,4);
+select t1.a from t1 
+where 
+  t1.a in (select 1 from t1 where t1.a in (select 1 from t1) group by  t1.a);
+drop table t1;
 
