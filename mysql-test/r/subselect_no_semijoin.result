@@ -4472,6 +4472,202 @@ pk	int_key
 7	3
 DROP TABLE t1,t2;
 End of 5.0 tests.
+create table t_out (subcase char(3),
+a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+insert into t_out values ('A.1','2a', NULL, '2a');
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+
+Test general IN semantics (not top-level)
+
+case A.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+subcase	pred_in	pred_not_in
+A.1	0	1
+case A.2 - impossible
+case A.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+subcase	pred_in	pred_not_in
+A.3	NULL	NULL
+case A.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+subcase	pred_in	pred_not_in
+A.4	0	1
+case B.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+subcase	pred_in	pred_not_in
+B.1	0	1
+case B.2
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+subcase	pred_in	pred_not_in
+B.2	1	0
+case B.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+subcase	pred_in	pred_not_in
+B.3	NULL	NULL
+case B.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+subcase	pred_in	pred_not_in
+B.4	0	1
+
+Test IN as top-level predicate, and
+
+case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+drop table t_out;
+drop table t_in;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;

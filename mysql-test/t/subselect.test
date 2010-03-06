@@ -3390,6 +3390,183 @@ DROP TABLE t1,t2;
 --echo End of 5.0 tests.
 
 #
+#  Test [NOT] IN truth table (both as top-level and general predicate).
+#
+
+create table t_out (subcase char(3),
+                    a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+
+insert into t_out values ('A.1','2a', NULL, '2a');
+# -------------------------- A.2 - impossible
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+-- echo 
+-- echo Test general IN semantics (not top-level)
+-- echo 
+-- echo case A.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+
+-- echo case A.2 - impossible
+
+-- echo case A.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+
+-- echo case A.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+
+-- echo case B.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+
+-- echo case B.2
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+
+-- echo case B.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+
+-- echo case B.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+
+-- echo 
+-- echo Test IN as top-level predicate, and
+-- echo as non-top level for cases A.3, B.3 (the only cases with NULL result).
+-- echo 
+-- echo case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+-- echo test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+-- echo test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+drop table t_out;
+drop table t_in;
+
+
+#
 # Bug#27348 SET FUNCTION used in  a subquery from WHERE condition
 #
 

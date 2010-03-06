@@ -3080,3 +3080,10 @@ libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
+storage/archive/archive_performance
+storage/archive/concurrency_test
+libmysql_r/client_settings.h
+libmysqld/scheduler.cc
+libmysqld/sql_connect.cc
+libmysqld/sql_tablespace.cc
+mysql-test/dump.txt

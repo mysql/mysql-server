@@ -5,6 +5,7 @@
 
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
+drop view if exists v1, v2, v1m, v2m;
 --enable_warnings
 
 create table t1 (a1 char(8), a2 char(8));
@@ -51,8 +52,45 @@ set @optimizer_switch= @@optimizer_switch;
 set @@optimizer_switch="semijoin=off";
 
 /******************************************************************************
-* Simple tests.                                                               *
+* Simple tests.
 ******************************************************************************/
+# non-indexed nullable fields
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
+
+# indexed columns
+explain extended
+select * from t1i where a1 in (select b1 from t2i where b1 > '0');
+select * from t1i where a1 in (select b1 from t2i where b1 > '0');
+
+explain extended
+select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
+
+explain extended
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
+
+explain extended
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
+
+explain extended
+select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 
 # BUG#31639: Wrong plan for uncorrelated subquery when loose scan is applicable.
 explain extended
@@ -69,118 +107,223 @@ execute st2;
 explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+-- error 1235
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
 
 # test re-optimization/re-execution with different execution methods
 # prepare once, exec with different modes
-
-# run query
+set @@optimizer_switch=@optimizer_switch;
 set @@optimizer_switch="semijoin=off";
-# run query
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch="semijoin=on,materialization=off";
+execute st1;
+set @@optimizer_switch="semijoin=off,materialization=on";
+execute st1;
 
-# materialize the result of temp tables
-# GROUP BY a1,a2 ORDER BY a2
+set @@optimizer_switch=@optimizer_switch;
+set @@optimizer_switch="materialization=off";
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch="semijoin=off,materialization=on";
+execute st1;
+set @@optimizer_switch="semijoin=on,materialization=off";
+execute st1;
 
+set @@optimizer_switch="semijoin=off,materialization=on";
+# materialize the result of ORDER BY
+# non-indexed fields
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
+select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
+# indexed fields
+explain extended
+select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
+select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
+
+/******************************************************************************
+* Views, UNIONs, several levels of nesting.
+******************************************************************************/
 # materialize the result of subquery over temp-table view
 
-drop table t1, t2, t3, t1i, t2i, t3i;
+create algorithm=merge view v1 as
+select b1, c2 from t2, t3 where b2 > c2;
+
+create algorithm=merge view v2 as
+select b1, c2 from t2, t3 group by b2, c2;
+
+create algorithm=temptable view v1m as
+select b1, c2 from t2, t3 where b2 > c2;
+
+create algorithm=temptable view v2m as
+select b1, c2 from t2, t3 group by b2, c2;
+
+select * from v1 where (c2, b1) in (select c2, b1 from v2 where b1 is not null);
+select * from v1 where (c2, b1) in (select distinct c2, b1 from v2 where b1 is not null);
+
+select * from v1m where (c2, b1) in (select c2, b1 from v2m where b1 is not null);
+select * from v1m where (c2, b1) in (select distinct c2, b1 from v2m where b1 is not null);
+
+drop view v1, v2, v1m, v2m;
+
+# nested subqueries, views
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+explain extended
+select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+# as above with correlated innermost subquery
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+
+# multiple levels of nesting subqueries, unions
+explain extended
+(select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')
+                   group by b1, b2) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')))
+UNION
+(select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
+
+(select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')
+                   group by b1, b2) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')))
+UNION
+(select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
+
+
+# UNION of subqueries as a subquery (thus it is not computed via materialization)
+explain extended
+select * from t1
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+# as above, with a join conditon between the outer references
+explain extended
+select * from t1, t3
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (c1, c2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
+       a1 = c1;
+select * from t1, t3
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (c1, c2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
+       a1 = c1;
+
 
 /******************************************************************************
-* Test the cache of the left operand of IN.                                   *
+* Negative tests, where materialization should not be applied.
+******************************************************************************/
+# UNION in a subquery
+explain extended
+select * from t3
+where c1 in (select a1 from t1 where a1 > '0' UNION select b1 from t2 where b1 < '9');
+select * from t3
+where c1 in (select a1 from t1 where a1 > '0' UNION select b1 from t2 where b1 < '9');
+
+# correlation
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0' or b2 = a2));
+
+# subquery has no tables
+explain extended
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
+explain extended
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
+
+
+/******************************************************************************
+* Subqueries in other uncovered clauses.
 ******************************************************************************/
 
-# Test that default values of Cached_item are not used for comparison
-create table t1 (s1 int);
-create table t2 (s2 int);
-insert into t1 values (5),(1),(0);
-insert into t2 values (0), (1);
-select s2 from t2 where s2 in (select s1 from t1);
-drop table t1, t2;
+/* SELECT clause */
+select ((a1,a2) IN (select * from t2 where b2 > '0')) IS NULL from t1;
 
-create table t1 (a int not null, b int not null);
-create table t2 (c int not null, d int not null);
-create table t3 (e int not null);
-
-# the first outer row has no matching inner row
-insert into t1 values (1,10);
-insert into t1 values (1,20);
-insert into t1 values (2,10);
-insert into t1 values (2,20);
-insert into t1 values (2,30);
-insert into t1 values (3,20);
-insert into t1 values (4,40);
-
-insert into t2 values (2,10);
-insert into t2 values (2,20);
-insert into t2 values (2,40);
-insert into t2 values (3,20);
-insert into t2 values (4,10);
-insert into t2 values (5,10);
-
-insert into t3 values (10);
-insert into t3 values (10);
-insert into t3 values (20);
-insert into t3 values (30);
+/* GROUP BY clause */
+create table columns (col int key);
+insert into columns values (1), (2);
 
 explain extended
-select a from t1 where a in (select c from t2 where d >= 20);
-select a from t1 where a in (select c from t2 where d >= 20);
-
-create index it1a on t1(a);
+select * from t1 group by (select col from columns limit 1);
+select * from t1 group by (select col from columns limit 1);
 
 explain extended
-select a from t1 where a in (select c from t2 where d >= 20);
-select a from t1 where a in (select c from t2 where d >= 20);
+select * from t1 group by (a1 in (select col from columns));
+select * from t1 group by (a1 in (select col from columns));
 
-# the first outer row has a matching inner row
-insert into t2 values (1,10);
-
+/* ORDER BY clause */
 explain extended
-select a from t1 where a in (select c from t2 where d >= 20);
-select a from t1 where a in (select c from t2 where d >= 20);
-
-# cacheing for IN predicates inside a having clause - here the cached
-# items are changed to point to temporary tables.
-explain extended
-select a from t1 group by a having a in (select c from t2 where d >= 20);
-select a from t1 group by a having a in (select c from t2 where d >= 20);
-
-# create an index that can be used for the outer query GROUP BY 
-create index iab on t1(a, b);
-explain extended
-select a from t1 group by a having a in (select c from t2 where d >= 20);
-select a from t1 group by a having a in (select c from t2 where d >= 20);
-
-explain extended
-select a from t1 group by a
-having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
-select a from t1 group by a
-having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
-explain extended
-select a from t1
-where a in (select c from t2 where d >= some(select e from t3 where b=e));
-select a from t1
-where a in (select c from t2 where d >= some(select e from t3 where b=e));
-
+select * from t1 order by (select col from columns limit 1);
+select * from t1 order by (select col from columns limit 1);
 
 /******************************************************************************
-* Test NULL semantics.                                                        *
-******************************************************************************/
-
-/******************************************************************************
-* Several levels of nesting.                                                  *
-******************************************************************************/
-
-/******************************************************************************
-* UNIONs with subqueries.                                                     *
-******************************************************************************/
-
-# simple queries
-
-# multiple levels of nesting of subqueries and unions
-
-
-/******************************************************************************
-* Column types/sizes that affect materialization.                             *
+* Column types/sizes that affect materialization.
 ******************************************************************************/
 
 /*
@@ -195,10 +338,6 @@ set @prefix_len = 6;
 # BLOB == 16 (small blobs that could be stored in HEAP tables)
 set @blob_len = 16;
 set @suffix_len = @blob_len - @prefix_len;
-
---disable_warnings
-drop table if exists t1_16, t2_16, t3_16;
---enable_warnings
 
 create table t1_16 (a1 blob(16), a2 blob(16));
 create table t2_16 (b1 blob(16), b2 blob(16));
@@ -275,15 +414,23 @@ select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 
+# BLOB column at the second (intermediate) level of nesting
+explain extended
+select * from t1
+where concat(a1,'x') IN
+      (select left(a1,8) from t1_16
+       where (a1, a2) IN
+             (select t2_16.b1, t2_16.b2 from t2_16, t2
+              where t2.b2 = substring(t2_16.b2,1,6) and
+                    t2.b1 IN (select c1 from t3 where c2 > '0')));
+
+
 drop table t1_16, t2_16, t3_16;
+
 
 # BLOB == 512 (CONVERT_IF_BIGGER_TO_BLOB == 512)
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
-
---disable_warnings
-drop table if exists t1_512, t2_512, t3_512;
---enable_warnings
 
 create table t1_512 (a1 blob(512), a2 blob(512));
 create table t2_512 (b1 blob(512), b2 blob(512));
@@ -362,13 +509,10 @@ where a1 in (select group_concat(b1) from t2_512 group by b2);
 
 drop table t1_512, t2_512, t3_512;
 
+
 # BLOB == 1024 (group_concat_max_len == 1024)
 set @blob_len = 1024;
 set @suffix_len = @blob_len - @prefix_len;
-
---disable_warnings
-drop table if exists t1_1024, t2_1024, t3_1024;
---enable_warnings
 
 create table t1_1024 (a1 blob(1024), a2 blob(1024));
 create table t2_1024 (b1 blob(1024), b2 blob(1024));
@@ -447,13 +591,10 @@ where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
 drop table t1_1024, t2_1024, t3_1024;
 
+
 # BLOB == 1025
 set @blob_len = 1025;
 set @suffix_len = @blob_len - @prefix_len;
-
---disable_warnings
-drop table if exists t1_1025, t2_1025, t3_1025;
---enable_warnings
 
 create table t1_1025 (a1 blob(1025), a2 blob(1025));
 create table t2_1025 (b1 blob(1025), b2 blob(1025));
@@ -580,39 +721,84 @@ from t1bb
 where (a1, a2) in (select b1, b2 from t2bb);
 
 drop table t1bb, t2bb;
-
-
-/******************************************************************************
-* IN=>EXISTS transformation produces 'ref' lookups.                           *
-******************************************************************************/
+drop table t1, t2, t3, t1i, t2i, t3i, columns;
 
 /******************************************************************************
-* Subqueries in various clauses.                                              *
+* Test the cache of the left operand of IN.
 ******************************************************************************/
+set @@optimizer_switch="semijoin=off";
 
-/* SELECT clause */
-# These queries used to crash
-# select ((a,b) IN (select * from sq2 where d > 0)) IS NULL from sq1;
-# select * from sq1 where ((a,b) IN (select * from sq2 where d > 0)) IS NULL;
+# Test that default values of Cached_item are not used for comparison
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (5),(1),(0);
+insert into t2 values (0), (1);
+select s2 from t2 where s2 in (select s1 from t1);
+drop table t1, t2;
 
-/* FROM clause */
+create table t1 (a int not null, b int not null);
+create table t2 (c int not null, d int not null);
+create table t3 (e int not null);
 
-/* GROUP BY clause */
-# explain extended
-# select * from t1 group by (select col_pos from columns limit 1);
+# the first outer row has no matching inner row
+insert into t1 values (1,10);
+insert into t1 values (1,20);
+insert into t1 values (2,10);
+insert into t1 values (2,20);
+insert into t1 values (2,30);
+insert into t1 values (3,20);
+insert into t1 values (4,40);
 
-# TODO: possibly bug - the result contains only the last row of t1.
-# explain extended
-# select * from t1
-# group by (select col_name from columns limit 1);
+insert into t2 values (2,10);
+insert into t2 values (2,20);
+insert into t2 values (2,40);
+insert into t2 values (3,20);
+insert into t2 values (4,10);
+insert into t2 values (5,10);
 
-# explain extended
-# select * from t1 group by a1 in (select col_name from columns);
+insert into t3 values (10);
+insert into t3 values (10);
+insert into t3 values (20);
+insert into t3 values (30);
 
-/* ORDER BY clause */
-# TODO: this must be a: it should be imppossible to have subqueries
-# with > 1 rows in GROUP BY.
-# explain extended
-# select * from t1 order by (select col_pos from columns);
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+create index it1a on t1(a);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# the first outer row has a matching inner row
+insert into t2 values (1,10);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# cacheing for IN predicates inside a having clause - here the cached
+# items are changed to point to temporary tables.
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+# create an index that can be used for the outer query GROUP BY 
+create index iab on t1(a, b);
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+explain extended
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+explain extended
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
 
 drop table t1, t2, t3;
