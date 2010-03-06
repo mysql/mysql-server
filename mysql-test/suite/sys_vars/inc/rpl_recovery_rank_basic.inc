@@ -93,8 +93,8 @@ SET @@global.rpl_recovery_rank = -2147483648;
 SELECT @@global.rpl_recovery_rank;
 SET @@global.rpl_recovery_rank = -2147483649;
 SELECT @@global.rpl_recovery_rank;
---Error ER_PARSE_ERROR
-SET @@global.rpl_recovery_rank = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.rpl_recovery_rank = 65530.34;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.rpl_recovery_rank = 2147483649.56;
 --Error ER_WRONG_TYPE_FOR_VAR

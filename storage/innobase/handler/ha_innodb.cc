@@ -2035,13 +2035,6 @@ innobase_init(
 
 	ut_a(default_path);
 
-	if (specialflag & SPECIAL_NO_PRIOR) {
-		srv_set_thread_priorities = FALSE;
-	} else {
-		srv_set_thread_priorities = TRUE;
-		srv_query_thread_priority = QUERY_PRIOR;
-	}
-
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
@@ -7933,6 +7926,7 @@ ha_innobase::external_lock(
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
 		if (tx_isolation <= ISO_READ_COMMITTED
                    && binlog_format == BINLOG_FORMAT_STMT
+	           && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 #if MYSQL_VERSION_ID > 50140
                    && thd_binlog_filter_ok(thd)
 #endif /* MYSQL_VERSION_ID > 50140 */
@@ -7944,8 +7938,15 @@ ha_innobase::external_lock(
 				    " InnoDB is not safe for binlog mode '%s'",
 				    tx_isolation_names[tx_isolation],
 				    binlog_format_names[binlog_format]);
-			my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
-			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+			/* The error may be suppressed by test cases, by setting
+			the no_innodb_binlog_errors debug symbol. */
+			if (DBUG_EVALUATE_IF("no_innodb_binlog_errors", 0, 1)) {
+				my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
+				" InnoDB is limited to row-logging when "
+				"transaction isolation level is "
+				"READ COMMITTED or READ UNCOMMITTED.");
+			        DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+                        }
 		}
 	}
 

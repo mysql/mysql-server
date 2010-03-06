@@ -102,6 +102,7 @@ typedef struct st_key {
     int  bdb_return_if_eq;
   } handler;
   TABLE *table;
+  LEX_STRING comment;
 } KEY;
 
 
@@ -141,8 +142,6 @@ typedef struct st_known_date_time_format {
   const char *datetime_format;
   const char *time_format;
 } KNOWN_DATE_TIME_FORMAT;
-
-enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 
 extern const char *show_comp_option_name[];
 

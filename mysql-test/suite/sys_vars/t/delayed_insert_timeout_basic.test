@@ -79,8 +79,6 @@ SET @@global.delayed_insert_timeout = -1024;
 SELECT @@global.delayed_insert_timeout;
 SET @@global.delayed_insert_timeout = 42949672950;
 SELECT @@global.delayed_insert_timeout;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.delayed_insert_timeout = 429496729.5;

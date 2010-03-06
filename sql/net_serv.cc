@@ -64,14 +64,16 @@
   The following handles the differences when this is linked between the
   client and the server.
 
-  This gives an error if a too big packet is found
-  The server can change this with the -O switch, but because the client
-  can't normally do this the client should have a bigger max_allowed_packet.
+  This gives an error if a too big packet is found.
+  The server can change this, but because the client can't normally do this
+  the client should have a bigger max_allowed_packet.
 */
 
 #if defined(__WIN__) || !defined(MYSQL_SERVER)
   /* The following is because alarms doesn't work on windows. */
+#ifndef NO_ALARM
 #define NO_ALARM
+#endif
 #endif
 
 #ifndef NO_ALARM

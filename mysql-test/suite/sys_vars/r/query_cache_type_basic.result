@@ -59,10 +59,7 @@ ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'ONDEMAND'
 SET @@global.query_cache_type = 'ON,OFF';
 ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'ON,OFF'
 SET @@global.query_cache_type = 'OF';
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-OFF
-'Bug# 34828: OF is taken as OFF.'
+ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'OF'
 SET @@global.query_cache_type = YES;
 ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'YES'
 SET @@global.query_cache_type = ' ';
@@ -93,35 +90,7 @@ SELECT @@global.query_cache_type;
 @@global.query_cache_type
 DEMAND
 SET @@global.query_cache_type = 0.4;
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-OFF
-SET @@global.query_cache_type = 1.0;
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-ON
-SET @@global.query_cache_type = 1.1;
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-ON
-SET @@global.query_cache_type = 1.5;
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-DEMAND
-SET @@global.query_cache_type = 2.49;
-SELECT @@global.query_cache_type;
-@@global.query_cache_type
-DEMAND
-SET @@session.query_cache_type = 0.5;
-SELECT @@session.query_cache_type;
-@@session.query_cache_type
-ON
-SET @@session.query_cache_type = 1.6;
-SELECT @@session.query_cache_type;
-@@session.query_cache_type
-DEMAND
-'Bug: Decimal values can be used within the range [0.0-2.5). Values';
-'are rounded to 0,1,2 as evident from outcome.';
+ERROR 42000: Incorrect argument type to variable 'query_cache_type'
 SET @@global.query_cache_type = 3;
 ERROR 42000: Variable 'query_cache_type' can't be set to the value of '3'
 '#---------------------FN_DYNVARS_134_08----------------------#'

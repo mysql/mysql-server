@@ -208,7 +208,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #endif
 
     r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
-                  IF_WIN(const char*, void*) &nodelay,
+                  IF_WIN((const char*), (void*)) &nodelay,
                   sizeof(nodelay));
 
   }
@@ -240,11 +240,20 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 
 
 my_bool
-vio_should_retry(Vio * vio __attribute__((unused)))
+vio_should_retry(Vio * vio)
 {
   int en = socket_errno;
-  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
-	  en == SOCKET_EWOULDBLOCK);
+  /*
+    man 2 read write
+      EAGAIN or EWOULDBLOCK when a socket is a non-blocking mode means
+      that the read/write would block.
+    man 7 socket
+      EAGAIN or EWOULDBLOCK when a socket is in a blocking mode means
+      that the corresponding receiving or sending timeout was reached.
+  */
+  return  en == SOCKET_EINTR ||
+          (!vio_is_blocking(vio) &&
+            (en == SOCKET_EAGAIN || en == SOCKET_EWOULDBLOCK));
 }
 
 
@@ -300,75 +309,367 @@ my_socket vio_fd(Vio* vio)
   return vio->sd;
 }
 
+/**
+  Convert a sock-address (AF_INET or AF_INET6) into the "normalized" form,
+  which is the IPv4 form for IPv4-mapped or IPv4-compatible IPv6 addresses.
 
-my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
+  @note Background: when IPv4 and IPv6 are used simultaneously, IPv4
+  addresses may be written in a form of IPv4-mapped or IPv4-compatible IPv6
+  addresses. That means, one address (a.b.c.d) can be written in three forms:
+    - IPv4: a.b.c.d;
+    - IPv4-compatible IPv6: ::a.b.c.d;
+    - IPv4-mapped IPv4: ::ffff:a.b.c.d;
+
+  Having three forms of one address makes it a little difficult to compare
+  addresses with each other (the IPv4-compatible IPv6-address of foo.bar
+  will be different from the IPv4-mapped IPv6-address of foo.bar).
+
+  @note This function can be made public when it's needed.
+
+  @param src        [in] source IP address (AF_INET or AF_INET6).
+  @param src_length [in] length of the src.
+  @param dst        [out] a buffer to store normalized IP address
+                          (sockaddr_storage).
+  @param dst_length [out] actual length of the normalized IP address.
+*/
+static void vio_get_normalized_ip(const struct sockaddr *src,
+                                  int src_length,
+                                  struct sockaddr *dst,
+                                  int *dst_length)
+{
+  switch (src->sa_family) {
+  case AF_INET:
+    memcpy(dst, src, src_length);
+    *dst_length= src_length;
+    break;
+
+#ifdef HAVE_IPV6
+  case AF_INET6:
+  {
+    const struct sockaddr_in6 *src_addr6= (const struct sockaddr_in6 *) src;
+    const struct in6_addr *src_ip6= &(src_addr6->sin6_addr);
+    const uint32 *src_ip6_int32= (uint32 *) src_ip6->s6_addr;
+
+    if (IN6_IS_ADDR_V4MAPPED(src_ip6) || IN6_IS_ADDR_V4COMPAT(src_ip6))
+    {
+      struct sockaddr_in *dst_ip4= (struct sockaddr_in *) dst;
+
+      /*
+        This is an IPv4-mapped or IPv4-compatible IPv6 address. It should
+        be converted to the IPv4 form.
+      */
+
+      *dst_length= sizeof (struct sockaddr_in);
+
+      memset(dst_ip4, 0, *dst_length);
+      dst_ip4->sin_family= AF_INET;
+      dst_ip4->sin_port= src_addr6->sin6_port;
+
+      /*
+        In an IPv4 mapped or compatible address, the last 32 bits represent
+        the IPv4 address. The byte orders for IPv6 and IPv4 addresses are
+        the same, so a simple copy is possible.
+      */
+      dst_ip4->sin_addr.s_addr= src_ip6_int32[3];
+    }
+    else
+    {
+      /* This is a "native" IPv6 address. */
+
+      memcpy(dst, src, src_length);
+      *dst_length= src_length;
+    }
+
+    break;
+  }
+#endif /* HAVE_IPV6 */
+  }
+}
+
+
+/**
+  Return the normalized IP address string for a sock-address.
+
+  The idea is to return an IPv4-address for an IPv4-mapped and
+  IPv4-compatible IPv6 address.
+
+  The function writes the normalized IP address to the given buffer.
+  The buffer should have enough space, otherwise error flag is returned.
+  The system constant INET6_ADDRSTRLEN can be used to reserve buffers of
+  the right size.
+
+  @param addr           [in]  sockaddr object (AF_INET or AF_INET6).
+  @param addr_length    [in]  length of the addr.
+  @param ip_string      [out] buffer to write normalized IP address.
+  @param ip_string_size [in]  size of the ip_string.
+
+  @return Error status.
+  @retval TRUE in case of error (the ip_string buffer is not enough).
+  @retval FALSE on success.
+*/
+
+my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
+                                     int addr_length,
+                                     char *ip_string,
+                                     size_t ip_string_size)
+{
+  struct sockaddr_storage norm_addr_storage;
+  struct sockaddr *norm_addr= (struct sockaddr *) &norm_addr_storage;
+  int norm_addr_length;
+  int err_code;
+
+  vio_get_normalized_ip(addr, addr_length, norm_addr, &norm_addr_length);
+
+  err_code= vio_getnameinfo(norm_addr, ip_string, ip_string_size, NULL, 0,
+                            NI_NUMERICHOST);
+
+  if (!err_code)
+    return FALSE;
+
+  DBUG_PRINT("error", ("getnameinfo() failed with %d (%s).",
+                       (int) err_code,
+                       (const char *) gai_strerror(err_code)));
+  return TRUE;
+}
+
+
+/**
+  Return IP address and port of a VIO client socket.
+
+  The function returns an IPv4 address if IPv6 support is disabled.
+
+  The function returns an IPv4 address if the client socket is associated
+  with an IPv4-compatible or IPv4-mapped IPv6 address. Otherwise, the native
+  IPv6 address is returned.
+*/
+
+my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
+                      size_t ip_buffer_size)
 {
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("sd: %d", vio->sd));
+  DBUG_PRINT("enter", ("Client socked fd: %d", (int) vio->sd));
+
   if (vio->localhost)
   {
-    strmov(buf,"127.0.0.1");
+    /*
+      Initialize vio->remote and vio->addLen. Set vio->remote to IPv4 loopback
+      address.
+    */
+    struct in_addr *ip4= &((struct sockaddr_in *) &(vio->remote))->sin_addr;
+
+    vio->remote.ss_family= AF_INET;
+    vio->addrLen= sizeof (struct sockaddr_in);
+
+    ip4->s_addr= htonl(INADDR_LOOPBACK);
+
+    /* Initialize ip_buffer and port. */
+
+    strmov(ip_buffer, "127.0.0.1");
     *port= 0;
   }
   else
   {
-    size_socket addrLen = sizeof(vio->remote);
-    if (getpeername(vio->sd, (struct sockaddr *) (&vio->remote),
-		    &addrLen) != 0)
+    int err_code;
+    char port_buffer[NI_MAXSERV];
+
+    struct sockaddr_storage addr_storage;
+    struct sockaddr *addr= (struct sockaddr *) &addr_storage;
+    size_socket addr_length= sizeof (addr_storage);
+
+    /* Get sockaddr by socked fd. */
+
+    err_code= getpeername(vio->sd, addr, &addr_length);
+
+    if (err_code)
     {
-      DBUG_PRINT("exit", ("getpeername gave error: %d", socket_errno));
-      DBUG_RETURN(1);
+      DBUG_PRINT("exit", ("getpeername() gave error: %d", socket_errno));
+      DBUG_RETURN(TRUE);
     }
-    my_inet_ntoa(vio->remote.sin_addr,buf);
-    *port= ntohs(vio->remote.sin_port);
+
+    /* Normalize IP address. */
+
+    vio_get_normalized_ip(addr, addr_length,
+                          (struct sockaddr *) &vio->remote, &vio->addrLen);
+
+    /* Get IP address & port number. */
+
+    err_code= vio_getnameinfo((struct sockaddr *) &vio->remote,
+                              ip_buffer, ip_buffer_size,
+                              port_buffer, NI_MAXSERV,
+                              NI_NUMERICHOST | NI_NUMERICSERV);
+
+    if (err_code)
+    {
+      DBUG_PRINT("exit", ("getnameinfo() gave error: %s",
+                          gai_strerror(err_code)));
+      DBUG_RETURN(TRUE);
+    }
+
+    *port= (uint16) strtol(port_buffer, NULL, 10);
   }
-  DBUG_PRINT("exit", ("addr: %s", buf));
-  DBUG_RETURN(0);
+
+  DBUG_PRINT("exit", ("Client IP address: %s; port: %d",
+                      (const char *) ip_buffer,
+                      (int) *port));
+  DBUG_RETURN(FALSE);
 }
 
 
-/*
-  Get in_addr for a TCP/IP connection
+/**
+  Indicate whether there is data to read on a given socket.
 
-  SYNOPSIS
-    vio_in_addr()
-    vio		vio handle
-    in		put in_addr here
+  @note An exceptional condition event and/or errors are
+        interpreted as if there is data to read.
 
-  NOTES
-    one must call vio_peer_addr() before calling this one
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to poll.
+
+  @retval FALSE   There is data to read.
+  @retval TRUE    There is no data to read.
 */
 
-void vio_in_addr(Vio *vio, struct in_addr *in)
+static my_bool socket_poll_read(my_socket sd, uint timeout)
 {
-  DBUG_ENTER("vio_in_addr");
-  if (vio->localhost)
-    bzero((char*) in, sizeof(*in));
-  else
-    *in=vio->remote.sin_addr;
-  DBUG_VOID_RETURN;
-}
-
-
-/* Return 0 if there is data to be read */
-
-my_bool vio_poll_read(Vio *vio,uint timeout)
-{
-#ifndef HAVE_POLL
-  return 0;
-#else
+#ifdef __WIN__
+  int res;
+  my_socket fd= sd;
+  fd_set readfds, errorfds;
+  struct timeval tm;
+  DBUG_ENTER("socket_poll_read");
+  tm.tv_sec= timeout;
+  tm.tv_usec= 0;
+  FD_ZERO(&readfds);
+  FD_ZERO(&errorfds);
+  FD_SET(fd, &readfds);
+  FD_SET(fd, &errorfds);
+  /* The first argument is ignored on Windows, so a conversion to int is OK */
+  if ((res= select((int) fd, &readfds, NULL, &errorfds, &tm) <= 0))
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);
+  }
+  res= FD_ISSET(fd, &readfds) || FD_ISSET(fd, &errorfds);
+  DBUG_RETURN(!res);
+#elif defined(HAVE_POLL)
   struct pollfd fds;
   int res;
-  DBUG_ENTER("vio_poll");
-  fds.fd=vio->sd;
+  DBUG_ENTER("socket_poll_read");
+  fds.fd=sd;
   fds.events=POLLIN;
   fds.revents=0;
   if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
   {
     DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
   }
-  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+  DBUG_RETURN(fds.revents & (POLLIN | POLLERR | POLLHUP) ? 0 : 1);
+#else
+  return 0;
 #endif
+}
+
+
+/**
+  Retrieve the amount of data that can be read from a socket.
+
+  @param vio          A VIO object.
+  @param bytes[out]   The amount of bytes available.
+
+  @retval FALSE   Success.
+  @retval TRUE    Failure.
+*/
+
+static my_bool socket_peek_read(Vio *vio, uint *bytes)
+{
+#ifdef __WIN__
+  int len;
+  if (ioctlsocket(vio->sd, FIONREAD, &len))
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#elif FIONREAD_IN_SYS_IOCTL
+  int len;
+  if (ioctl(vio->sd, FIONREAD, &len) < 0)
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#else
+  char buf[1024];
+  ssize_t res= recv(vio->sd, &buf, sizeof(buf), MSG_PEEK);
+  if (res < 0)
+    return TRUE;
+  *bytes= res;
+  return FALSE;
+#endif
+}
+
+
+/**
+  Indicate whether there is data to read on a given socket.
+
+  @remark Errors are interpreted as if there is data to read.
+
+  @param sd       A connected socket.
+  @param timeout  Maximum time in seconds to wait.
+
+  @retval FALSE   There is data (or EOF) to read. Also FALSE if error.
+  @retval TRUE    There is _NO_ data to read or timed out.
+*/
+
+my_bool vio_poll_read(Vio *vio, uint timeout)
+{
+  my_socket sd= vio->sd;
+  DBUG_ENTER("vio_poll_read");
+#ifdef HAVE_OPENSSL
+  if (vio->type == VIO_TYPE_SSL)
+    sd= SSL_get_fd((SSL*) vio->ssl_arg);
+#endif
+  DBUG_RETURN(socket_poll_read(sd, timeout));
+}
+
+
+/**
+  Determine if the endpoint of a connection is still available.
+
+  @remark The socket is assumed to be disconnected if an EOF
+          condition is encountered.
+
+  @param vio      The VIO object.
+
+  @retval TRUE    EOF condition not found.
+  @retval FALSE   EOF condition is signaled.
+*/
+
+my_bool vio_is_connected(Vio *vio)
+{
+  uint bytes= 0;
+  DBUG_ENTER("vio_is_connected");
+
+  /* In the presence of errors the socket is assumed to be connected. */
+
+  /*
+    The first step of detecting a EOF condition is veryfing
+    whether there is data to read. Data in this case would
+    be the EOF.
+  */
+  if (vio_poll_read(vio, 0))
+    DBUG_RETURN(TRUE);
+
+  /*
+    The second step is read() or recv() from the socket returning
+    0 (EOF). Unfortunelly, it's not possible to call read directly
+    as we could inadvertently read meaningful connection data.
+    Simulate a read by retrieving the number of bytes available to
+    read -- 0 meaning EOF.
+  */
+  if (socket_peek_read(vio, &bytes))
+    DBUG_RETURN(TRUE);
+
+#ifdef HAVE_OPENSSL
+  /* There might be buffered data at the SSL layer. */
+  if (!bytes && vio->type == VIO_TYPE_SSL)
+    bytes= SSL_pending((SSL*) vio->ssl_arg);
+#endif
+
+  DBUG_RETURN(bytes ? TRUE : FALSE);
 }
 
 
@@ -390,15 +691,13 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 #endif
 
   r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                IF_WIN(const char*, const void*)&wait_timeout,
+                IF_WIN((const char*), (const void*))&wait_timeout,
                 sizeof(wait_timeout));
 
   }
 
-#ifndef DBUG_OFF
   if (r != 0)
     DBUG_PRINT("error", ("setsockopt failed: %d, errno: %d", r, socket_errno));
-#endif
 
   DBUG_VOID_RETURN;
 #else
@@ -503,11 +802,21 @@ size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 }
 
 
+my_bool vio_is_connected_pipe(Vio *vio)
+{
+  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
+    return TRUE;
+  else
+    return (GetLastError() != ERROR_BROKEN_PIPE);
+}
+
+
 int vio_close_pipe(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close_pipe");
 
+  CancelIo(vio->hPipe);
   CloseHandle(vio->pipe_overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
   r= CloseHandle(vio->hPipe);
@@ -653,6 +962,12 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 }
 
 
+my_bool vio_is_connected_shared_memory(Vio *vio)
+{
+  return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
+}
+
+
 /**
  Close shared memory and DBUG_PRINT any errors that happen on closing.
  @return Zero if all closing functions succeed, and nonzero otherwise.
@@ -714,3 +1029,60 @@ int vio_close_shared_memory(Vio * vio)
 }
 #endif /* HAVE_SMEM */
 #endif /* __WIN__ */
+
+
+/**
+  Number of bytes in the read buffer.
+
+  @return number of bytes in the read buffer or < 0 if error.
+*/
+
+ssize_t vio_pending(Vio *vio)
+{
+#ifdef HAVE_OPENSSL
+  SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
+
+  if (vio->read_pos < vio->read_end)
+    return vio->read_end - vio->read_pos;
+
+#ifdef HAVE_OPENSSL
+  if (ssl)
+    return SSL_pending(ssl);
+#endif
+
+  return 0;
+}
+
+
+/**
+  This is a wrapper for the system getnameinfo(), because different OS
+  differ in the getnameinfo() implementation. For instance, Solaris 10
+  requires that the 2nd argument (salen) must match the actual size of the
+  struct sockaddr_storage passed to it.
+*/
+
+int vio_getnameinfo(const struct sockaddr *sa,
+                    char *hostname, size_t hostname_size,
+                    char *port, size_t port_size,
+                    int flags)
+{
+  int sa_length= 0;
+
+  switch (sa->sa_family) {
+  case AF_INET:
+    sa_length= sizeof (struct sockaddr_in);
+    break;
+
+#ifdef HAVE_IPV6
+  case AF_INET6:
+    sa_length= sizeof (struct sockaddr_in6);
+    break;
+#endif /* HAVE_IPV6 */
+  }
+
+  return getnameinfo(sa, sa_length,
+                     hostname, hostname_size,
+                     port, port_size,
+                     flags);
+}

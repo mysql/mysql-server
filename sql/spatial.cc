@@ -17,28 +17,7 @@
 
 #ifdef HAVE_SPATIAL
 
-/* 
-  exponential notation :
-  1   sign
-  1   number before the decimal point
-  1   decimal point
-  14  number of significant digits (see String::qs_append(double))
-  1   'e' sign
-  1   exponent sign
-  3   exponent digits
-  ==
-  22
-
-  "f" notation :
-  1   optional 0
-  1   sign
-  14  number significant digits (see String::qs_append(double) )
-  1   decimal point
-  ==
-  17
-*/
-
-#define MAX_DIGITS_IN_DOUBLE 22
+#define MAX_DIGITS_IN_DOUBLE MY_GCVT_MAX_FIELD_WIDTH
 
 /***************************** Gis_class_info *******************************/
 
@@ -1633,9 +1612,8 @@ int Gis_multi_polygon::area(double *ar,  const char **end_of_data) const
 int Gis_multi_polygon::centroid(String *result) const
 {
   uint32 n_polygons;
-  bool first_loop= 1;
   Gis_polygon p;
-  double UNINIT_VAR(res_area), UNINIT_VAR(res_cx), UNINIT_VAR(res_cy);
+  double res_area= 0.0, res_cx= 0.0, res_cy= 0.0;
   double cur_area, cur_cx, cur_cy;
   const char *data= m_data;
 
@@ -1652,20 +1630,13 @@ int Gis_multi_polygon::centroid(String *result) const
 	p.centroid_xy(&cur_cx, &cur_cy))
       return 1;
 
-    if (!first_loop)
-    {
-      double sum_area= res_area + cur_area;
-      res_cx= (res_area * res_cx + cur_area * cur_cx) / sum_area;
-      res_cy= (res_area * res_cy + cur_area * cur_cy) / sum_area;
-    }
-    else
-    {
-      first_loop= 0;
-      res_area= cur_area;
-      res_cx= cur_cx;
-      res_cy= cur_cy;
-    }
+    res_area+= cur_area;
+    res_cx+= cur_area * cur_cx;
+    res_cy+= cur_area * cur_cy;
   }
+   
+  res_cx/= res_area;
+  res_cy/= res_area;
 
   return create_point(result, res_cx, res_cy);
 }

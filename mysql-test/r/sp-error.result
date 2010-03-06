@@ -46,7 +46,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Note	1305	PROCEDURE foo does not exist
+Note	1305	PROCEDURE test.foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 show create function foo|
@@ -512,7 +512,7 @@ select * from t1;
 end|
 lock table t1 read|
 alter procedure bug9566 comment 'Some comment'|
-ERROR HY000: Table 'proc' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables|
 drop procedure bug9566|
 drop procedure if exists bug7299|
@@ -921,10 +921,6 @@ CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; EN
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN DROP TRIGGER test1; return 1; END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
-CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN load table t1 from master; END |
-ERROR 0A000: LOAD TABLE is not allowed in stored procedures
-CREATE FUNCTION bug_13627_f() returns int BEGIN load table t1 from master; return 1; END |
-ERROR 0A000: LOAD TABLE is not allowed in stored procedures
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create table t2 (a int); END |
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 CREATE FUNCTION bug_13627_f() returns int BEGIN create table t2 (a int); return 1; END |
@@ -1032,7 +1028,7 @@ drop table t1|
 drop function bug_13627_f|
 drop function if exists bug12329;
 Warnings:
-Note	1305	FUNCTION bug12329 does not exist
+Note	1305	FUNCTION test.bug12329 does not exist
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);
@@ -1112,18 +1108,6 @@ DROP FUNCTION IF EXISTS bug13012|
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
 REPAIR TABLE t1;
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-BACKUP TABLE t1 TO '/tmp';
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-RESTORE TABLE t1 FROM '/tmp';
 RETURN 1;
 END|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -1639,11 +1623,9 @@ DROP TABLE t1|
 drop procedure if exists p1;
 create procedure p1()
 begin
-create table t1 (a int) type=MyISAM;
+create table t1 (a int) engine=MyISAM;
 drop table t1;
 end|
-Warnings:
-Warning	1287	'TYPE=storage_engine' is deprecated and will be removed in a future release. Please use 'ENGINE=storage_engine' instead
 call p1();
 call p1();
 drop procedure p1;
@@ -1659,6 +1641,41 @@ begin
 declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
+drop procedure if exists proc_36510;
+create procedure proc_36510()
+begin
+declare should_be_illegal condition for sqlstate '00123';
+declare continue handler for should_be_illegal set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00123'
+create procedure proc_36510()
+begin
+declare continue handler for sqlstate '00123' set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00123'
+create procedure proc_36510()
+begin
+declare should_be_illegal condition for 0;
+declare continue handler for should_be_illegal set @x=0;
+end$$
+ERROR HY000: Incorrect CONDITION value: '0'
+create procedure proc_36510()
+begin
+declare continue handler for 0 set @x=0;
+end$$
+ERROR HY000: Incorrect CONDITION value: '0'
+drop procedure if exists p1;
+set @old_recursion_depth = @@max_sp_recursion_depth;
+set @@max_sp_recursion_depth = 255;
+create procedure p1(a int)
+begin
+declare continue handler for 1436 -- ER_STACK_OVERRUN_NEED_MORE
+select 'exception';
+call p1(a+1);
+end|
+call p1(1);
+set @@max_sp_recursion_depth = @old_recursion_depth;
+drop procedure p1;
 LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -1669,6 +1686,17 @@ AVG (a)
 NULL
 SELECT non_existent (a) FROM t1 WHERE b = 999999;
 ERROR 42000: FUNCTION test.non_existent does not exist
+DROP TABLE t1;
+CREATE TABLE t1 ( f2 INTEGER, f3 INTEGER );
+INSERT INTO t1 VALUES  ( 1, 1 );
+CREATE FUNCTION func_1 () RETURNS INTEGER
+BEGIN
+INSERT INTO t1 SELECT * FROM t1 ;
+RETURN 1 ;
+END|
+INSERT INTO t1 SELECT * FROM (SELECT 2 AS f1, 2 AS f2) AS A WHERE func_1() = 5;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP FUNCTION func_1;
 DROP TABLE t1;
 #
 # Bug #47788: Crash in TABLE_LIST::hide_view_error on UPDATE + VIEW + 

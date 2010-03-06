@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -388,7 +388,7 @@
 
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
-pthread_mutex_t federated_mutex;                // To init the hash
+mysql_mutex_t federated_mutex;                // To init the hash
 static char ident_quote_char= '`';              // Character for quoting
                                                 // identifiers
 static char value_quote_char= '\'';             // Character for quoting
@@ -427,6 +427,28 @@ static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
   return (uchar*) share->share_key;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
+
+static PSI_mutex_info all_federated_mutexes[]=
+{
+  { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL},
+  { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0}
+};
+
+static void init_federated_psi_keys(void)
+{
+  const char* category= "federated";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_federated_mutexes);
+  PSI_server->register_mutex(category, all_federated_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 /*
   Initialize the federated handler.
 
@@ -442,6 +464,11 @@ static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
 int federated_db_init(void *p)
 {
   DBUG_ENTER("federated_db_init");
+
+#ifdef HAVE_PSI_INTERFACE
+  init_federated_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
   handlerton *federated_hton= (handlerton *)p;
   federated_hton->state= SHOW_OPTION_YES;
   federated_hton->db_type= DB_TYPE_FEDERATED_DB;
@@ -457,7 +484,8 @@ int federated_db_init(void *p)
   federated_hton->commit= 0;
   federated_hton->rollback= 0;
 
-  if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
+  if (mysql_mutex_init(fe_key_mutex_federated,
+                       &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
                     (my_hash_get_key) federated_get_key, 0, 0))
@@ -465,7 +493,7 @@ int federated_db_init(void *p)
     DBUG_RETURN(FALSE);
   }
 
-  VOID(pthread_mutex_destroy(&federated_mutex));
+  mysql_mutex_destroy(&federated_mutex);
 error:
   DBUG_RETURN(TRUE);
 }
@@ -484,7 +512,7 @@ error:
 int federated_done(void *p)
 {
   my_hash_free(&federated_open_tables);
-  VOID(pthread_mutex_destroy(&federated_mutex));
+  mysql_mutex_destroy(&federated_mutex);
 
   return 0;
 }
@@ -1487,7 +1515,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   init_alloc_root(&mem_root, 256, 0);
 
-  pthread_mutex_lock(&federated_mutex);
+  mysql_mutex_lock(&federated_mutex);
 
   tmp_share.share_key= table_name;
   tmp_share.share_key_length= (uint) strlen(table_name);
@@ -1529,18 +1557,19 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     if (my_hash_insert(&federated_open_tables, (uchar*) share))
       goto error;
     thr_lock_init(&share->lock);
-    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(fe_key_mutex_FEDERATED_SHARE_mutex,
+                     &share->mutex, MY_MUTEX_INIT_FAST);
   }
   else
     free_root(&mem_root, MYF(0)); /* prevents memory leak */
 
   share->use_count++;
-  pthread_mutex_unlock(&federated_mutex);
+  mysql_mutex_unlock(&federated_mutex);
 
   DBUG_RETURN(share);
 
 error:
-  pthread_mutex_unlock(&federated_mutex);
+  mysql_mutex_unlock(&federated_mutex);
   free_root(&mem_root, MYF(0));
   DBUG_RETURN(NULL);
 }
@@ -1557,15 +1586,15 @@ static int free_share(FEDERATED_SHARE *share)
   MEM_ROOT mem_root= share->mem_root;
   DBUG_ENTER("free_share");
 
-  pthread_mutex_lock(&federated_mutex);
+  mysql_mutex_lock(&federated_mutex);
   if (!--share->use_count)
   {
     my_hash_delete(&federated_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
-    VOID(pthread_mutex_destroy(&share->mutex));
+    mysql_mutex_destroy(&share->mutex);
     free_root(&mem_root, MYF(0));
   }
-  pthread_mutex_unlock(&federated_mutex);
+  mysql_mutex_unlock(&federated_mutex);
 
   DBUG_RETURN(0);
 }
@@ -3112,7 +3141,7 @@ int ha_federated::real_connect()
     to establish Federated connection to guard against a trivial
     Denial of Service scenerio.
   */
-  safe_mutex_assert_not_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_ASSERT(mysql == NULL);
 

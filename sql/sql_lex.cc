@@ -24,6 +24,8 @@
 #include "sp.h"
 #include "sp_head.h"
 
+static int lex_one_token(void *arg, void *yythd);
+
 /*
   We are using pointer to this variable for distinguishing between assignment
   to NEW row field (when parsing trigger definition) and structured variable.
@@ -36,6 +38,23 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 */
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= { (char*) "", 0 };
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in enum_binlog_stmt_unsafe.
+*/
+const int
+Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
+{
+  ER_BINLOG_UNSAFE_LIMIT,
+  ER_BINLOG_UNSAFE_INSERT_DELAYED,
+  ER_BINLOG_UNSAFE_SYSTEM_TABLE,
+  ER_BINLOG_UNSAFE_AUTOINC_COLUMNS,
+  ER_BINLOG_UNSAFE_UDF,
+  ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
+  ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
+  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+};
+
 
 /* Longest standard keyword name */
 
@@ -124,6 +143,8 @@ Lex_input_stream::Lex_input_stream(THD *thd,
   yylineno(1),
   yytoklen(0),
   yylval(NULL),
+  lookahead_token(-1),
+  lookahead_yylval(NULL),
   m_ptr(buffer),
   m_tok_start(NULL),
   m_tok_end(NULL),
@@ -787,6 +808,60 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 */
 
 int MYSQLlex(void *arg, void *yythd)
+{
+  THD *thd= (THD *)yythd;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
+  YYSTYPE *yylval=(YYSTYPE*) arg;
+  int token;
+
+  if (lip->lookahead_token >= 0)
+  {
+    /*
+      The next token was already parsed in advance,
+      return it.
+    */
+    token= lip->lookahead_token;
+    lip->lookahead_token= -1;
+    *yylval= *(lip->lookahead_yylval);
+    lip->lookahead_yylval= NULL;
+    return token;
+  }
+
+  token= lex_one_token(arg, yythd);
+
+  switch(token) {
+  case WITH:
+    /*
+      Parsing 'WITH' 'ROLLUP' or 'WITH' 'CUBE' requires 2 look ups,
+      which makes the grammar LALR(2).
+      Replace by a single 'WITH_ROLLUP' or 'WITH_CUBE' token,
+      to transform the grammar into a LALR(1) grammar,
+      which sql_yacc.yy can process.
+    */
+    token= lex_one_token(arg, yythd);
+    switch(token) {
+    case CUBE_SYM:
+      return WITH_CUBE_SYM;
+    case ROLLUP_SYM:
+      return WITH_ROLLUP_SYM;
+    default:
+      /*
+        Save the token following 'WITH'
+      */
+      lip->lookahead_yylval= lip->yylval;
+      lip->yylval= NULL;
+      lip->lookahead_token= token;
+      return WITH;
+    }
+    break;
+  default:
+    break;
+  }
+
+  return token;
+}
+
+int lex_one_token(void *arg, void *yythd)
 {
   reg1	uchar c= 0;
   bool comment_closed;
@@ -1615,7 +1690,6 @@ void st_select_lex::init_query()
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
   max_equal_elems= 0;
-  conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_where_fields= 0;
   select_n_having_items= 0;

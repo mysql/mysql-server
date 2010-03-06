@@ -1,7 +1,7 @@
 #
 # Test rows with length above > 16M
 # Note that for this to work, you should start mysqld with
-# -O max_allowed_packet=32M
+# --max_allowed_packet=32M
 #
 
 drop table if exists t1;

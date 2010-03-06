@@ -54,9 +54,6 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
-/* Version numbers for deprecation messages */
-#define VER_CELOSIA "5.6"
-
 void* sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -103,7 +100,7 @@ extern "C" {
 #define vidattr(A) {}			// Can't get this to work
 #endif
 
-#ifdef FN_NO_CASE_SENCE
+#ifdef FN_NO_CASE_SENSE
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
 #else
 #define cmp_database(cs,A,B) strcmp((A),(B))
@@ -146,6 +143,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
+               auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
                ignore_spaces= 0;
 static my_bool debug_info_flag, debug_check_flag;
@@ -188,6 +186,7 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
+unsigned short terminal_width= 80;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -241,6 +240,8 @@ static const char* construct_prompt();
 static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
+static int get_result_width(MYSQL_RES *res);
+static int get_field_disp_length(MYSQL_FIELD * field);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -456,7 +457,6 @@ static COMMANDS commands[] = {
   { "FORCE", 0, 0, 0, ""},
   { "FOREIGN", 0, 0, 0, ""},
   { "FOUND", 0, 0, 0, ""},
-  { "FRAC_SECOND", 0, 0, 0, ""},
   { "FROM", 0, 0, 0, ""},
   { "FULL", 0, 0, 0, ""},
   { "FULLTEXT", 0, 0, 0, ""},
@@ -701,7 +701,6 @@ static COMMANDS commands[] = {
   { "SQL_NO_CACHE", 0, 0, 0, ""},
   { "SQL_SMALL_RESULT", 0, 0, 0, ""},
   { "SQL_THREAD", 0, 0, 0, ""},
-  { "SQL_TSI_FRAC_SECOND", 0, 0, 0, ""},
   { "SQL_TSI_SECOND", 0, 0, 0, ""},
   { "SQL_TSI_MINUTE", 0, 0, 0, ""},
   { "SQL_TSI_HOUR", 0, 0, 0, ""},
@@ -1068,6 +1067,10 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
 extern "C" sig_handler handle_sigint(int sig);
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+static sig_handler window_resize(int sig);
+#endif
+
 
 int main(int argc,char *argv[])
 {
@@ -1117,7 +1120,11 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+  {
+    my_end(0);
+    exit(1);
+  }
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
@@ -1147,8 +1154,8 @@ int main(int argc,char *argv[])
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
-    quick=1;					// Avoid history
-    status.exit_status=1;
+    quick= 1;					// Avoid history
+    status.exit_status= 1;
     mysql_end(-1);
   }
   if (!status.batch)
@@ -1159,6 +1166,13 @@ int main(int argc,char *argv[])
   else
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+  /* Readline will call this if it installs a handler */
+  signal(SIGWINCH, window_resize);
+  /* call the SIGWINCH handler to get the default term width */
+  window_resize(0);
+#endif
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
@@ -1332,6 +1346,16 @@ err:
 }
 
 
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
+sig_handler window_resize(int sig)
+{
+  struct winsize window_size;
+
+  if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
+    terminal_width= window_size.ws_col;
+}
+#endif
+
 static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -1349,6 +1373,9 @@ static struct my_option my_long_options[] =
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
+    "Automatically switch to vertical output mode if the result is wider than the terminal width.",
+    (uchar**) &auto_vertical_output, (uchar**) &auto_vertical_output, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent.)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -1396,13 +1423,6 @@ static struct my_option my_long_options[] =
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
    (uchar**) &named_cmds, (uchar**) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"no-named-commands", 'g',
-   "Named commands are disabled. Use \\* form only, or use named commands "
-   "only in the beginning of a line ending with a semicolon (;). Since "
-   "version 10.9, the client now starts with this option ENABLED by default. "
-   "Disable with '-G'. Long format commands still work from the first line. "
-   "WARNING: option deprecated; use --disable-named-commands instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-spaces", 'i', "Ignore space after function names.",
    (uchar**) &ignore_spaces, (uchar**) &ignore_spaces, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -1434,9 +1454,6 @@ static struct my_option my_long_options[] =
   {"skip-column-names", 'N',
    "Don't write column names in results.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sigint-ignore", OPT_SIGINT_IGNORE, "Ignore SIGINT (CTRL-C).",
    (uchar**) &opt_sigint_ignore,  (uchar**) &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1447,9 +1464,6 @@ static struct my_option my_long_options[] =
   {"pager", OPT_PAGER,
    "Pager to use to display results. If you don't supply an option, the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode. Disable with --disable-pager. This option is disabled by default.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-pager", OPT_NOPAGER,
-   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
@@ -1495,8 +1509,6 @@ static struct my_option my_long_options[] =
   {"tee", OPT_TEE,
    "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode. Disable with --disable-tee. This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: Option deprecated; use --disable-tee instead.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (uchar**) &current_user,
    (uchar**) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1635,11 +1647,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       init_tee(argument);
     break;
-  case OPT_NOTEE:
-    WARN_DEPRECATED(VER_CELOSIA, "--no-tee", "--disable-tee");
-    if (opt_outfile)
-      end_tee();
-    break;
   case OPT_PAGER:
     if (argument == disabled_my_option)
       opt_nopager= 1;
@@ -1657,10 +1664,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       else
 	opt_nopager= 1;
     }
-    break;
-  case OPT_NOPAGER:
-    WARN_DEPRECATED(VER_CELOSIA, "--no-pager", "--disable-pager");
-    opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
 #ifndef EMBEDDED_LIBRARY
@@ -1705,17 +1708,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
     break;
-  case 'g':
-    WARN_DEPRECATED(VER_CELOSIA, "-g, --no-named-commands", "--skip-named-commands");
-    break;
   case 'o':
     if (argument == disabled_my_option)
       one_database= 0;
     else
       one_database= skip_updates= 1;
-    break;
-  case 'O':
-    WARN_DEPRECATED(VER_CELOSIA, "-O, --set-variable", "--variable-name=value");
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -3065,7 +3062,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_table_data_html(result);
 	else if (opt_xml)
 	  print_table_data_xml(result);
-	else if (vertical)
+  else if (vertical || (auto_vertical_output && (terminal_width < get_result_width(result))))
 	  print_table_data_vertically(result);
 	else if (opt_silent && verbose <= 2 && !output_tables)
 	  print_tab_data(result);
@@ -3396,6 +3393,65 @@ print_table_data(MYSQL_RES *result)
   my_afree((uchar*) num_flag);
 }
 
+/**
+  Return the length of a field after it would be rendered into text.
+
+  This doesn't know or care about multibyte characters.  Assume we're
+  using such a charset.  We can't know that all of the upcoming rows 
+  for this column will have bytes that each render into some fraction
+  of a character.  It's at least possible that a row has bytes that 
+  all render into one character each, and so the maximum length is 
+  still the number of bytes.  (Assumption 1:  This can't be better 
+  because we can never know the number of characters that the DB is 
+  going to send -- only the number of bytes.  2: Chars <= Bytes.)
+
+  @param  field  Pointer to a field to be inspected
+
+  @returns  number of character positions to be used, at most
+*/
+static int get_field_disp_length(MYSQL_FIELD *field)
+{
+  uint length= column_names ? field->name_length : 0;
+
+  if (quick)
+    length= max(length, field->length);
+  else
+    length= max(length, field->max_length);
+
+  if (length < 4 && !IS_NOT_NULL(field->flags))
+    length= 4;				/* Room for "NULL" */
+
+  return length;
+}
+
+/**
+  For a new result, return the max number of characters that any
+  upcoming row may return.
+
+  @param  result  Pointer to the result to judge
+
+  @returns  The max number of characters in any row of this result
+*/
+static int get_result_width(MYSQL_RES *result)
+{
+  unsigned int len= 0;
+  MYSQL_FIELD *field;
+  MYSQL_FIELD_OFFSET offset;
+  
+#ifndef DBUG_OFF
+  offset= mysql_field_tell(result);
+  DBUG_ASSERT(offset == 0);
+#else
+  offset= 0;
+#endif
+
+  while ((field= mysql_fetch_field(result)) != NULL)
+    len+= get_field_disp_length(field) + 3; /* plus bar, space, & final space */
+
+  (void) mysql_field_seek(result, offset);	
+
+  return len + 1; /* plus final bar. */
+}
 
 static void
 tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
@@ -3575,7 +3631,7 @@ static void print_warnings()
   mysql_store_result_for_lazy(&result);
 
   /* Bail out when no warnings */
-  if (!(num_rows= mysql_num_rows(result)))
+  if (!result || !(num_rows= mysql_num_rows(result)))
     goto end;
 
   cur= mysql_fetch_row(result);

@@ -19,7 +19,8 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
-			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+			README COPYING EXCEPTIONS-CLIENT \
+                        CMakeLists.txt configure.cmake config.h.cmake BUILD-CMAKE
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
@@ -28,8 +29,8 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
-			win
-
+			win \
+			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
 			pstack libservices \
@@ -38,6 +39,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			netware libmysqld \
 			mysql-test support-files sql-bench \
 			win \
+			cmake \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
@@ -58,6 +60,7 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
+	test ! -f configure.am  || $(INSTALL_DATA)  configure.am $(distdir)
 
 all-local:		@ABI_CHECK@	
 
@@ -129,14 +132,14 @@ smoke:
 test-full:	test test-nr test-ps
 
 test-force:
-	$(MAKE) force=--force test
+	$(MAKE) -k force=--force test
 
 test-force-full:
-	$(MAKE) force=--force test-full
+	$(MAKE) -k force=--force test-full
 
 #used by autopush.pl to run memory based tests
 test-force-mem:
-	$(MAKE) force=--force mem=--mem test
+	$(MAKE) -k force=--force mem=--mem test
 
 EXP = --experimental=collections/default.experimental
 
@@ -204,10 +207,6 @@ test-bt-debug:
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
 	        --skip-ndbcluster --skip-rpl --report-features $(EXP)
 
-test-bt-debug-fast:
-
-test-bt-debug-fast:
-
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
@@ -265,11 +264,12 @@ test-full-qa:
 #
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                           $(top_srcdir)/include/mysql.h
+			$(top_srcdir)/include/mysql.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
+			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
 
-TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
-                            $(top_srcdir)/sql/mysql_priv.h \
-                            $(top_srcdir)/include/mysql.h
+TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
+			$(top_srcdir)/sql/mysql_priv.h
 
 #
 # Rules for checking that the abi/api has not changed.

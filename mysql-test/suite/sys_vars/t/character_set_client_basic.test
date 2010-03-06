@@ -27,6 +27,9 @@
 --source include/have_sjis.inc
 --source include/have_utf8.inc
 --source include/have_ucs2.inc
+--source include/have_utf8mb4.inc
+--source include/have_utf16.inc
+--source include/have_utf32.inc
 
 --source include/load_sysvars.inc
 ###################################################
@@ -163,15 +166,15 @@ SET @@character_set_client = armscii8;
 SELECT @@character_set_client;
 SET @@character_set_client = utf8;
 SELECT @@character_set_client;
+SET @@character_set_client = utf8mb4;
+SELECT @@character_set_client;
 
-#SET @@character_set_client = ucs2;
-#--Error ER_PARSE_ERROR
-#SELECT @@session.character_set_client;
---echo 'Bug: Assignment of ucs2 to session character-set does not raise error';
---echo 'but selecting variable after setting it does.'; 
---echo 'Even catching this does not allow any further character-set to be set.';
---echo 'Offending querry seems to be:';
---echo 'SET @@character_set_client = ucs2;'
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@character_set_client = ucs2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@character_set_client = utf16;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@character_set_client = utf32;
 
 SET @@character_set_client = cp866;
 SELECT @@character_set_client;
@@ -256,9 +259,6 @@ SET @@global.character_set_client = 100;
 
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
---echo 'Bug # 34843: character sets are mapped in such a way that 100 and following';
---echo 'numbers gives error, and before 100 the 36 mapped wraps arround';
---echo 'several times.';
 
 --echo '#--------------------FN_DYNVARS_010_10-------------------------#'
 ###############################################################################

@@ -2117,7 +2117,7 @@ static void test_prepare_field_result()
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_field_result(int_c int, "
-                         "var_c varchar(50), ts_c timestamp(14), "
+                         "var_c varchar(50), ts_c timestamp, "
                          "char_c char(4), date_c date, extra tinyint)");
   myquery(rc);
 
@@ -4878,11 +4878,11 @@ static void test_fetch_date()
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 date, c2 time, \
-                                                        c3 timestamp(14), \
+                                                        c3 timestamp, \
                                                         c4 year, \
                                                         c5 datetime, \
-                                                        c6 timestamp(4), \
-                                                        c7 timestamp(6))");
+                                                        c6 timestamp, \
+                                                        c7 timestamp)");
   myquery(rc);
 
   rc= mysql_query(mysql, "SET SQL_MODE=''");
@@ -5196,7 +5196,7 @@ static void test_prepare_ext()
                " c12 numeric(8, 4),"
                " c13 date,"
                " c14 datetime,"
-               " c15 timestamp(14),"
+               " c15 timestamp,"
                " c16 time,"
                " c17 year,"
                " c18 bit,"
@@ -5673,7 +5673,7 @@ static void test_stmt_close()
 }
 
 
-/* Test simple set-variable prepare */
+/* Test simple set variable prepare */
 
 static void test_set_variable()
 {
@@ -6230,7 +6230,7 @@ static void test_manual_sample()
   }
   if (mysql_query(mysql, "CREATE TABLE test_table(col1 int, col2 varchar(50), \
                                                  col3 smallint, \
-                                                 col4 timestamp(14))"))
+                                                 col4 timestamp)"))
   {
     fprintf(stderr, "\n create table failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
@@ -7140,7 +7140,7 @@ static void test_date()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP(14), \
+  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP, \
                                                  c2 TIME, \
                                                  c3 DATETIME, \
                                                  c4 DATE)");
@@ -7206,10 +7206,10 @@ static void test_date_ts()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP(10), \
-                                                 c2 TIMESTAMP(14), \
+  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP, \
+                                                 c2 TIMESTAMP, \
                                                  c3 TIMESTAMP, \
-                                                 c4 TIMESTAMP(6))");
+                                                 c4 TIMESTAMP)");
 
   myquery(rc);
 
@@ -8897,7 +8897,7 @@ static void test_fetch_seek()
 
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp(14))");
+  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp)");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t1(c2) values('venu'), ('mysql'), ('open'), ('source')");
@@ -17692,9 +17692,9 @@ static void test_bug20023()
     SQL_BIG_SELECTS will be 1.
   ***********************************************************************/
 
-  /* Set MAX_JOIN_SIZE to the default value (-1). */
+  /* Set MAX_JOIN_SIZE to the default value (2^64-1). */
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = cast(-1 as unsigned int)"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -17725,7 +17725,7 @@ static void test_bug20023()
 
   DIE_IF(mysql_query(&con, query_buffer));
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = cast(-1 as unsigned int)"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -18392,8 +18392,103 @@ static void test_wl4166_4()
 }
 
 /**
-  Bug#38486 Crash when using cursor protocol
+  Bug#36004 mysql_stmt_prepare resets the list of warnings
 */
+
+static void test_bug36004()
+{
+  int rc, warning_count= 0;
+  MYSQL_STMT *stmt;
+
+  DBUG_ENTER("test_bug36004");
+  myheader("test_bug36004");
+
+  rc= mysql_query(mysql, "drop table if exists inexistant");
+  myquery(rc);
+
+  DIE_UNLESS(mysql_warning_count(mysql) == 1);
+  query_int_variable(mysql, "@@warning_count", &warning_count);
+  DIE_UNLESS(warning_count);
+
+  stmt= mysql_simple_prepare(mysql, "select 1");
+  check_stmt(stmt);
+
+  DIE_UNLESS(mysql_warning_count(mysql) == 0);
+  query_int_variable(mysql, "@@warning_count", &warning_count);
+  DIE_UNLESS(warning_count);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(mysql_warning_count(mysql) == 0);
+  mysql_stmt_close(stmt);
+
+  query_int_variable(mysql, "@@warning_count", &warning_count);
+  DIE_UNLESS(warning_count);
+
+  stmt= mysql_simple_prepare(mysql, "drop table if exists inexistant");
+  check_stmt(stmt);
+
+  query_int_variable(mysql, "@@warning_count", &warning_count);
+  DIE_UNLESS(warning_count == 0);
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Test that COM_REFRESH issues a implicit commit.
+*/
+
+static void test_wl4284_1()
+{
+  int rc;
+  MYSQL_ROW row;
+  MYSQL_RES *result;
+
+  DBUG_ENTER("test_wl4284_1");
+  myheader("test_wl4284_1");
+
+  /* set AUTOCOMMIT to OFF */
+  rc= mysql_autocommit(mysql, FALSE);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS trans");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE trans (a INT) ENGINE= InnoDB");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "INSERT INTO trans VALUES(1)");
+  myquery(rc);
+
+  rc= mysql_refresh(mysql, REFRESH_GRANT | REFRESH_TABLES);
+  myquery(rc);
+
+  rc= mysql_rollback(mysql);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "SELECT * FROM trans");
+  myquery(rc);
+
+  result= mysql_use_result(mysql);
+  mytest(result);
+
+  row= mysql_fetch_row(result);
+  mytest(row);
+
+  mysql_free_result(result);
+
+  /* set AUTOCOMMIT to ON */
+  rc= mysql_autocommit(mysql, TRUE);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP TABLE trans");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 
 static void test_bug38486(void)
 {
@@ -18542,6 +18637,8 @@ static void test_bug40365(void)
       DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
+  rc= mysql_commit(mysql);
+  myquery(rc);
 
   DBUG_VOID_RETURN;
 }
@@ -18833,6 +18930,115 @@ static void test_bug44495()
   mysql_close(&con);
 
   rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Bug#49972: Crash in prepared statements.
+
+  The following case lead to a server crash:
+    - Use binary protocol;
+    - Prepare a statement with OUT-parameter;
+    - Execute the statement;
+    - Cause re-prepare of the statement (change dependencies);
+    - Execute the statement again -- crash here.
+*/
+
+static void test_bug49972()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+
+  MYSQL_BIND in_param_bind;
+  MYSQL_BIND out_param_bind;
+  int int_data;
+  my_bool is_null;
+
+  DBUG_ENTER("test_bug49972");
+  myheader("test_49972");
+
+  rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE FUNCTION f1() RETURNS INT RETURN 1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE PROCEDURE p1(IN a INT, OUT b INT) SET b = a");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "CALL p1((SELECT f1()), ?)");
+  check_stmt(stmt);
+
+  bzero((char *) &in_param_bind, sizeof (in_param_bind));
+
+  in_param_bind.buffer_type= MYSQL_TYPE_LONG;
+  in_param_bind.buffer= (char *) &int_data;
+  in_param_bind.length= 0;
+  in_param_bind.is_null= 0;
+
+  rc= mysql_stmt_bind_param(stmt, &in_param_bind);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  {
+    bzero(&out_param_bind, sizeof (out_param_bind));
+
+    out_param_bind.buffer_type= MYSQL_TYPE_LONG;
+    out_param_bind.is_null= &is_null;
+    out_param_bind.buffer= &int_data;
+    out_param_bind.buffer_length= sizeof (int_data);
+
+    rc= mysql_stmt_bind_result(stmt, &out_param_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    rc= mysql_stmt_fetch(stmt);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+
+    mysql_stmt_next_result(stmt);
+    mysql_stmt_fetch(stmt);
+  }
+
+  rc= mysql_query(mysql, "DROP FUNCTION f1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE FUNCTION f1() RETURNS INT RETURN 1");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  {
+    bzero(&out_param_bind, sizeof (out_param_bind));
+
+    out_param_bind.buffer_type= MYSQL_TYPE_LONG;
+    out_param_bind.is_null= &is_null;
+    out_param_bind.buffer= &int_data;
+    out_param_bind.buffer_length= sizeof (int_data);
+
+    rc= mysql_stmt_bind_result(stmt, &out_param_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_fetch(stmt);
+    rc= mysql_stmt_fetch(stmt);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+
+    mysql_stmt_next_result(stmt);
+    mysql_stmt_fetch(stmt);
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP PROCEDURE p1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "DROP FUNCTION f1");
   myquery(rc);
 
   DBUG_VOID_RETURN;
@@ -19154,7 +19360,9 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4166_2", test_wl4166_2 },
   { "test_wl4166_3", test_wl4166_3 },
   { "test_wl4166_4", test_wl4166_4 },
-/*   { "test_wl4435",   test_wl4435 }, */
+  { "test_bug36004", test_bug36004 },
+  { "test_wl4284_1", test_wl4284_1 },
+  { "test_wl4435",   test_wl4435 },
   { "test_wl4435_2", test_wl4435_2 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
@@ -19165,6 +19373,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
+  /* XXX { "test_bug49972", test_bug49972 }, */
   { 0, 0 }
 };
 
@@ -19280,7 +19489,9 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  load_defaults("my", client_test_load_default_groups, &argc, &argv);
+  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+    exit(1);
+
   defaults_argv= argv;
   get_options(&argc, &argv);
 

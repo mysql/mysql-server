@@ -134,7 +134,7 @@ connection default
 SHOW VARIABLES LIKE 'have_query_cache';
 Variable_name	Value
 have_query_cache	YES
-SET GLOBAL query_cache_size = 200000;
+SET GLOBAL query_cache_size = 204800;
 flush status;
 SET @@autocommit=1;
 SET SESSION STORAGE_ENGINE = InnoDB;

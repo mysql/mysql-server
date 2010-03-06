@@ -31,7 +31,7 @@ void test1(const char *res, const char *fmt, ...)
 
 int main(void)
 {
-  plan(47);
+  plan(54);
 
   test1("Constant string",
         "Constant string");
@@ -46,12 +46,18 @@ int main(void)
         "Format specifier d %d", 1);
   test1("Format specifier u 2",
         "Format specifier u %u", 2);
+  test1("Format specifier o 375",
+        "Format specifier o %o", 0375);
   test1("Format specifier x a",
         "Format specifier x %x", 10);
   test1("Format specifier X B",
         "Format specifier X %X", 11);
   test1("Format specifier p 0x5",
         "Format specifier p %p", 5);
+  test1("Format specifier f 3.141593",
+        "Format specifier f %f", 3.1415926);
+  test1("Format specifier g 3.1416",
+        "Format specifier g %g", 3.1415926);
 
   test1("Flag '-' is ignored <   1>",
         "Flag '-' is ignored <%-4d>", 1);
@@ -70,6 +76,9 @@ int main(void)
 
   test1("Length modifiers work: 1 * -1 * 2 * 3",
         "Length modifiers work: %d * %ld * %lld * %zd", 1, -1L, 2LL, (size_t)3);
+
+  test1("long long X: 123456789abcdef0",
+        "long long X: %llx", 0x123456789abcdef0LL);
 
   test1("(null) pointer is fine",
         "%s pointer is fine", NULL);
@@ -93,12 +102,18 @@ int main(void)
   test1("Positional arguments and a width: <0000ab>",
         "Positional arguments and a width: <%1$06x>", 0xab);
 
+  test1("Positional arguments octal: <7777>",
+        "Positional arguments octal: <%1$o>", 07777);
+
   test1("Padding and %p <0x12> <0x034> <0x0000ab> <    0xcd>",
         "Padding and %%p <%04p> <%05p> <%08p> <%8p>", 0x12, 0x34, 0xab, 0xcd);
 
-#if MYSQL_VERSION_ID > 60000
-#error %f/%g tests go here
-#endif
+  test1("F with a width (ignored) and precision: <12.34568>",
+        "F with a width (ignored) and precision: <%10.5f>", 12.3456789);
+  test1("G with a width (ignored) and precision: <12.35>",
+        "G with a width (ignored) and precision: <%10.5g>", 12.3456789);
+
+  diag("================================================================");
 
   test1("Hello",
         "Hello");

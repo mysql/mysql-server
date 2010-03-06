@@ -121,7 +121,7 @@ int main(int argc, char **argv)
   if (re_open_count)
     printf("Had to do %d re-open because of too few possibly open files\n",
 	   re_open_count);
-  VOID(mi_panic(HA_PANIC_CLOSE));
+  (void) mi_panic(HA_PANIC_CLOSE);
   my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
@@ -292,8 +292,8 @@ static void get_options(register int *argc, register char ***argv)
   }
   return;
  err:
-  VOID(fprintf(stderr,"option \"%c\" used without or with wrong argument\n",
-	       option));
+  (void) fprintf(stderr,"option \"%c\" used without or with wrong argument\n",
+	       option);
   exit(1);
 }
 
@@ -332,8 +332,8 @@ static int examine_log(char * file_name, char **table_names)
   bzero((uchar*) com_count,sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
-  VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
-                      0, 0));
+  (void) init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
+                      0, 0);
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
@@ -412,8 +412,8 @@ static int examine_log(char * file_name, char **table_names)
       }
       open_param.name=file_info.name;
       open_param.max_id=0;
-      VOID(tree_walk(&tree,(tree_walk_action) test_if_open,(void*) &open_param,
-		     left_root_right));
+      (void) tree_walk(&tree,(tree_walk_action) test_if_open,(void*) &open_param,
+		     left_root_right);
       file_info.id=open_param.max_id+1;
       /*
        * In the line below +10 is added to accomodate '<' and '>' chars
@@ -458,7 +458,7 @@ static int examine_log(char * file_name, char **table_names)
 	files_open++;
 	file_info.closed=0;
       }
-      VOID(tree_insert(&tree, (uchar*) &file_info, 0, tree.custom_arg));
+      (void) tree_insert(&tree, (uchar*) &file_info, 0, tree.custom_arg);
       if (file_info.used)
       {
 	if (verbose && !record_pos_file)
@@ -477,7 +477,7 @@ static int examine_log(char * file_name, char **table_names)
       {
 	if (!curr_file_info->closed)
 	  files_open--;
-        VOID(tree_delete(&tree, (uchar*) curr_file_info, 0, tree.custom_arg));
+        (void) tree_delete(&tree, (uchar*) curr_file_info, 0, tree.custom_arg);
       }
       break;
     case MI_LOG_EXTRA:
@@ -493,10 +493,10 @@ static int examine_log(char * file_name, char **table_names)
 	if (mi_extra(curr_file_info->isam, extra_command, 0) != (int) result)
 	{
 	  fflush(stdout);
-	  VOID(fprintf(stderr,
+	  (void) fprintf(stderr,
 		       "Warning: error %d, expected %d on command %s at %s\n",
 		       my_errno,result,command_name[command],
-		       llstr(isamlog_filepos,llbuff)));
+		       llstr(isamlog_filepos,llbuff));
 	  fflush(stderr);
 	}
       }
@@ -641,39 +641,39 @@ static int examine_log(char * file_name, char **table_names)
       break;
     default:
       fflush(stdout);
-      VOID(fprintf(stderr,
+      (void) fprintf(stderr,
 		   "Error: found unknown command %d in logfile, aborted\n",
-		   command));
+		   command);
       fflush(stderr);
       goto end;
     }
   }
   end_key_cache(dflt_key_cache,1);
   delete_tree(&tree);
-  VOID(end_io_cache(&cache));
-  VOID(my_close(file,MYF(0)));
+  (void) end_io_cache(&cache);
+  (void) my_close(file,MYF(0));
   if (write_file && my_fclose(write_file,MYF(MY_WME)))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 
  err:
   fflush(stdout);
-  VOID(fprintf(stderr,"Got error %d when reading from logfile\n",my_errno));
+  (void) fprintf(stderr,"Got error %d when reading from logfile\n",my_errno);
   fflush(stderr);
   goto end;
  com_err:
   fflush(stdout);
-  VOID(fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
+  (void) fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
 	       my_errno,result,command_name[command],
-	       llstr(isamlog_filepos,llbuff)));
+	       llstr(isamlog_filepos,llbuff));
   fflush(stderr);
  end:
   end_key_cache(dflt_key_cache, 1);
   delete_tree(&tree);
-  VOID(end_io_cache(&cache));
-  VOID(my_close(file,MYF(0)));
+  (void) end_io_cache(&cache);
+  (void) my_close(file,MYF(0));
   if (write_file)
-    VOID(my_fclose(write_file,MYF(MY_WME)));
+    (void) my_fclose(write_file,MYF(MY_WME));
   DBUG_RETURN(1);
 }
 
@@ -757,7 +757,7 @@ static void file_info_free(struct file_info *fileinfo)
   if (update)
   {
     if (!fileinfo->closed)
-      VOID(mi_close(fileinfo->isam));
+      (void) mi_close(fileinfo->isam);
     if (fileinfo->record)
       my_free(fileinfo->record,MYF(0));
   }
@@ -775,8 +775,8 @@ static int close_some_file(TREE *tree)
   access_param.min_accessed=LONG_MAX;
   access_param.found=0;
 
-  VOID(tree_walk(tree,(tree_walk_action) test_when_accessed,
-		 (void*) &access_param,left_root_right));
+  (void) tree_walk(tree,(tree_walk_action) test_when_accessed,
+		 (void*) &access_param,left_root_right);
   if (!access_param.found)
     return 1;			/* No open file that is possibly to close */
   if (mi_close(access_param.found->isam))
@@ -815,7 +815,7 @@ static int find_record_with_key(struct file_info *file_info, uchar *record)
     if (mi_is_key_active(info->s->state.key_map, key) &&
 	info->s->keyinfo[key].flag & HA_NOSAME)
     {
-      VOID(_mi_make_key(info,key,tmp_key,record,0L));
+      (void) _mi_make_key(info,key,tmp_key,record,0L);
       return mi_rkey(info,file_info->record,(int) key,tmp_key,0,
 		     HA_READ_KEY_EXACT);
     }
@@ -845,3 +845,5 @@ static my_bool cmp_filename(struct file_info *file_info, char * name)
     return 1;
   return strcmp(file_info->name,name) ? 1 : 0;
 }
+
+#include "mi_extrafunc.h"

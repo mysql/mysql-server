@@ -1,0 +1,1166 @@
+source include/have_innodb.inc;
+source include/not_embedded.inc;
+
+SET GLOBAL EVENT_SCHEDULER = OFF;
+SET BINLOG_FORMAT = STATEMENT;
+
+LET $OLD_DB= `SELECT DATABASE()`;
+
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (a INT, KEY a(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+CREATE TABLE t3 (a INT) ENGINE=MyISAM;
+INSERT INTO t3 SELECT * FROM t1;
+CREATE TABLE trans (a INT) ENGINE=INNODB;
+
+DELIMITER |;
+
+CREATE PROCEDURE test_if_commit()
+BEGIN
+  ROLLBACK;
+  SELECT IF (COUNT(*) > 0, "YES", "NO") AS "IMPLICIT COMMIT" FROM trans;
+  DELETE FROM trans;
+  COMMIT;
+END|
+
+DELIMITER ;|
+
+SET AUTOCOMMIT = FALSE;
+
+--echo #
+--echo # SQLCOM_SELECT
+--echo #
+
+let $statement=
+  select 1 as res from t1 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_TABLE LIKE
+--echo #
+
+let $statement=
+  create table t2 like t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE
+--echo #
+
+let $statement=
+  show create table t2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_TABLE
+--echo #
+
+let $statement=
+  drop table t2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_TABLE TEMPORARY
+--echo #
+
+let $statement=
+  create temporary table t2 as select * from t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_TABLE TEMPORARY
+--echo #
+
+let $statement=
+  drop temporary table t2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_TABLE
+--echo #
+
+let $statement=
+  create table t2 as select * from t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_UPDATE
+--echo #
+
+let $statement=
+  update t2 set a=a+1 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_INSERT
+--echo #
+
+let $statement=
+  insert into t2 set a=((1) in (select * from t1));
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_INSERT_SELECT
+--echo #
+
+let $statement=
+  insert into t2 select * from t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_REPLACE
+--echo #
+
+let $statement=
+  replace t2 set a=((1) in (select * from t1));
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_REPLACE_SELECT
+--echo #
+
+let $statement=
+  replace t2 select * from t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DELETE
+--echo #
+
+let $statement=
+  delete from t2 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DELETE_MULTI
+--echo #
+
+let $statement=
+  delete t2, t3 from t2, t3 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_UPDATE_MULTI
+--echo #
+
+select * from t2;
+let $statement=
+  update t2, t3 set t3.a=t2.a, t2.a=null where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_LOAD
+--echo #
+
+create table t4 (a varchar(100));
+
+let $statement=
+  load data infile '../../std_data/words.dat' into table t4;
+source include/implicit_commit_helper.inc;
+
+drop table t4;
+
+--echo #
+--echo # SQLCOM_SHOW_DATABASES
+--echo #
+
+let $statement=
+  show databases where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_TABLES
+--echo #
+
+let $statement=
+  show tables where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_FIELDS
+--echo #
+
+let $statement=
+  show fields from t1 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_KEYS
+--echo #
+
+let $statement=
+  show keys from t1 where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_VARIABLES
+--echo #
+
+let $statement=
+  show variables where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STATUS
+--echo #
+
+let $statement=
+  show status where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_ENGINE_MUTEX
+--echo #
+
+let $statement=
+  show engine all mutex;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_PROCESSLIST
+--echo #
+
+let $statement=
+  show processlist;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_ENGINE_LOGS
+--echo #
+
+let $statement=
+  show engine all logs;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_ENGINE_STATUS
+--echo #
+
+let $statement=
+  show engine all status;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CHARSETS
+--echo #
+
+let $statement=
+  show charset where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_COLLATIONS
+--echo #
+
+let $statement=
+  show collation where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_TABLE_STATUS
+--echo #
+
+let $statement=
+  show table status where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_TRIGGERS
+--echo #
+
+let $statement=
+  show triggers where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_OPEN_TABLES
+--echo #
+
+let $statement=
+  show open tables where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STATUS_PROC
+--echo #
+
+let $statement=
+  show procedure status where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STATUS_FUNC
+--echo #
+
+let $statement=
+  show function status where (1) in (select * from t1);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SET_OPTION
+--echo #
+
+let $statement=
+  set @a=((1) in (select * from t1));
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DO
+--echo #
+
+let $statement=
+  do ((1) in (select * from t1));
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CALL
+--echo #
+
+create procedure p1(a int) begin end;
+
+let $statement=
+  call p1((1) in (select * from t1));
+source include/implicit_commit_helper.inc;
+
+drop procedure p1;
+
+--echo #
+--echo # SQLCOM_CREATE_VIEW
+--echo #
+
+let $statement=
+  create view v1 as select * from t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_VIEW
+--echo #
+
+let $statement=
+  alter view v1 as select 2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_VIEW
+--echo #
+
+let $statement=
+  drop view v1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_INDEX
+--echo #
+
+let $statement=
+  create index idx1 on t1(a);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_INDEX
+--echo #
+
+let $statement=
+  drop index idx1 on t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_TABLE
+--echo #
+
+let $statement=
+  alter table t1 add column b int;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  alter table t1 change b c int;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  alter table t1 drop column c;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_TABLE TEMPORARY
+--echo #
+
+create temporary table t4 (a int);
+
+let $statement=
+  alter table t1 add column b int;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  alter table t1 change b c int;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  alter table t1 drop column c;
+source include/implicit_commit_helper.inc;
+
+drop table t4;
+
+--echo #
+--echo # SQLCOM_TRUNCATE
+--echo #
+
+insert into t2 select * from t1;
+let $statement=
+  truncate table t2;
+source include/implicit_commit_helper.inc;
+insert into t2 select * from t1;
+
+--echo #
+--echo # SQLCOM_TRUNCATE TEMPORARY
+--echo #
+
+create temporary table t4 as select * from t1;
+let $statement=
+  truncate table t4;
+source include/implicit_commit_helper.inc;
+drop temporary table t4;
+
+--echo #
+--echo # SQLCOM_SHOW_MASTER_STAT
+--echo #
+
+let $statement=
+  show master status;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_SLAVE_STAT
+--echo #
+
+let $statement=
+  show slave status;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_GRANT
+--echo #
+
+let $statement=
+  grant all on test.t1 to mysqltest_2@localhost with grant option;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_REVOKE
+--echo #
+let $statement=
+  revoke select on test.t1 from mysqltest_2@localhost;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_REVOKE_ALL
+--echo #
+
+let $statement=
+  revoke all on test.t1 from mysqltest_2@localhost;
+source include/implicit_commit_helper.inc;
+
+drop user mysqltest_2@localhost;
+
+--echo #
+--echo # SQLCOM_SHOW_GRANTS
+--echo #
+
+let $statement=
+  show grants;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  show grants for current_user();
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_LOCK_TABLES
+--echo #
+
+let $statement=
+  lock tables t1 write, trans write;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_UNLOCK_TABLES
+--echo #
+
+let $statement=
+  unlock tables;
+source include/implicit_commit_helper.inc;
+
+#
+# Missing test for lock tables transactional.
+#
+
+--echo #
+--echo # SQLCOM_CREATE_DB
+--echo #
+
+let $statement=
+  create database db2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CHANGE_DB
+--echo #
+
+create table db2.t1 (a int);
+insert into db2.t1 values (1);
+commit;
+
+let $statement=
+  use db2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE_DB
+--echo #
+
+let $statement=
+  show create database db2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_DB
+--echo #
+
+#let $statement=
+#  alter database db2 character set koi8r;
+#source include/implicit_commit_helper.inc;
+
+#let $statement=
+#  alter database db2 collate cp1251_general_cs;
+#source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_DB_UPGRADE
+--echo #
+
+#let $statement=
+#  alter database `#mysql50#db3` upgrade data directory name;
+#source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_DB
+--echo #
+
+use db1;
+
+let $statement=
+  drop database db2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_REPAIR
+--echo #
+
+let $statement=
+  repair table t2;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  repair table t2 use_frm;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_OPTIMIZE
+--echo #
+
+let $statement=
+  optimize table t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CHECK
+--echo #
+
+let $statement=
+  check table t1;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  check table t1 extended;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ASSIGN_TO_KEYCACHE
+--echo #
+
+set global keycache.key_buffer_size=128*1024;
+
+let $statement=
+  cache index t3 in keycache;
+source include/implicit_commit_helper.inc;
+
+set global keycache.key_buffer_size=0;
+
+--echo #
+--echo # SQLCOM_PRELOAD_KEYS
+--echo #
+
+let $statement=
+  load index into cache t3;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_FLUSH
+--echo #
+
+let $statement=
+  flush local privileges;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  flush privileges;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_KILL
+--echo #
+
+--echo #
+--echo # SQLCOM_ANALYZE
+--echo #
+
+let $statement=
+  analyze table t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ROLLBACK
+--echo #
+
+let $statement=
+  rollback;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ROLLBACK_TO_SAVEPOINT
+--echo #
+
+
+--echo #
+--echo # SQLCOM_COMMIT
+--echo #
+
+let $statement=
+  commit;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SAVEPOINT
+--echo #
+
+let $statement=
+  savepoint sp1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_RELEASE_SAVEPOINT
+--echo #
+
+--echo #
+--echo # SQLCOM_SLAVE_START
+--echo #
+
+--echo #
+--echo # SQLCOM_SLAVE_STOP
+--echo #
+
+--echo #
+--echo # SQLCOM_BEGIN
+--echo #
+
+let $statement=
+  begin;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CHANGE_MASTER
+--echo #
+
+--echo #
+--echo # SQLCOM_RENAME_TABLE
+--echo #
+
+let $statement=
+  rename table t3 to t4;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  rename table t4 to t3;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_RESET
+--echo #
+
+let $statement=
+  reset query cache;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_PURGE
+--echo #
+
+--echo #
+--echo # SQLCOM_PURGE_BEFORE
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_BINLOGS
+--echo #
+
+--echo #
+--echo # SQLCOM_HA_OPEN
+--echo #
+
+let $statement=
+  handler t1 open as ha1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_HA_READ
+--echo #
+
+let $statement=
+  handler ha1 read a first;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_HA_CLOSE
+--echo #
+
+let $statement=
+  handler ha1 close;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_SLAVE_HOSTS
+--echo #
+
+let $statement=
+  show slave hosts;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_BINLOG_EVENTS
+--echo #
+
+let $statement=
+  show binlog events;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_NEW_MASTER
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_WARNS
+--echo #
+
+let $statement=
+  show warnings;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_EMPTY_QUERY
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_ERRORS
+--echo #
+
+let $statement=
+  show errors;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STORAGE_ENGINES
+--echo #
+
+let $statement=
+  show engines;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_PRIVILEGES
+--echo #
+
+let $statement=
+  show privileges;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_HELP
+--echo #
+
+let $statement=
+  help 'foo';
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_USER
+--echo #
+
+let $statement=
+  create user trxusr1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_RENAME_USER
+--echo #
+
+let $statement=
+  rename user 'trxusr1' to 'trxusr2';
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_USER
+--echo #
+
+let $statement=
+  drop user trxusr2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CHECKSUM
+--echo #
+
+let $statement=
+  checksum table t1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_PROCEDURE
+--echo #
+
+let $statement=
+  create procedure p1(a int) begin end;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_PROCEDURE
+--echo #
+
+let $statement=
+  alter procedure p1 comment 'foobar';
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE_PROC
+--echo #
+
+let $statement=
+  show create procedure p1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STATUS_PROC
+--echo #
+
+let $statement=
+  show procedure status;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_PROC_CODE
+--echo #
+
+#
+# Available only on servers with debugging support.
+#
+
+--disable_abort_on_error
+let $statement=
+  show procedure code p1;
+source include/implicit_commit_helper.inc;
+--enable_abort_on_error
+
+--echo #
+--echo # SQLCOM_DROP_PROCEDURE
+--echo #
+
+let $statement=
+  drop procedure p1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_FUNCTION
+--echo #
+
+--echo #
+--echo # SQLCOM_DROP_FUNCTION
+--echo #
+
+--echo #
+--echo # SQLCOM_CREATE_SPFUNCTION
+--echo #
+
+let $statement=
+  create function f1() returns int return 69;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_FUNCTION
+--echo #
+
+let $statement=
+  alter function f1 comment 'comment';
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE_FUNC
+--echo #
+
+let $statement=
+  show create function f1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_STATUS_FUNC
+--echo #
+
+let $statement=
+  show function status like '%f%';
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_FUNC_CODE
+--echo #
+
+#
+# Available only on servers with debugging support.
+#
+
+--disable_abort_on_error
+let $statement=
+  show function code f1;
+source include/implicit_commit_helper.inc;
+--enable_abort_on_error
+
+--echo #
+--echo # SQLCOM_PREPARE
+--echo #
+
+let $statement=
+  prepare stmt1 from "insert into t1 values (5)";
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_EXECUTE
+--echo #
+
+let $statement=
+  execute stmt1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DEALLOCATE_PREPARE
+--echo #
+
+let $statement=
+  deallocate prepare stmt1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_TRIGGER
+--echo #
+
+let $statement=
+  create trigger trg1 before insert on t1 for each row set @a:=1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE_TRIGGER
+--echo #
+
+let $statement=
+  show create trigger trg1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_TRIGGER
+--echo #
+
+let $statement=
+  drop trigger trg1;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_XA_START
+--echo #
+
+--echo #
+--echo # SQLCOM_XA_END
+--echo #
+
+--echo #
+--echo # SQLCOM_XA_PREPARE
+--echo #
+
+--echo #
+--echo # SQLCOM_XA_COMMIT
+--echo #
+
+--echo #
+--echo # SQLCOM_XA_ROLLBACK
+--echo #
+
+--echo #
+--echo # SQLCOM_XA_RECOVER
+--echo #
+
+--echo #
+--echo # SQLCOM_ALTER_TABLESPACE
+--echo #
+
+--echo #
+--echo # SQLCOM_INSTALL_PLUGIN
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_PLUGINS
+--echo #
+
+--echo #
+--echo # SQLCOM_UNINSTALL_PLUGIN
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_AUTHORS
+--echo #
+
+let $statement=
+  show authors;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_BINLOG_BASE64_EVENT
+--echo #
+
+--echo #
+--echo # SQLCOM_SHOW_CONTRIBUTORS
+--echo #
+
+let $statement=
+  show contributors;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_CREATE_SERVER
+--echo #
+
+--echo #
+--echo # SQLCOM_ALTER_SERVER
+--echo #
+
+--echo #
+--echo # SQLCOM_DROP_SERVER
+--echo #
+
+--echo #
+--echo # SQLCOM_CREATE_EVENT
+--echo #
+
+let $statement=
+  create event ev1 on schedule every 1 second do insert into t1 values (6);
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_ALTER_EVENT
+--echo #
+
+let $statement=
+  alter event ev1 rename to ev2 disable;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_CREATE_EVENT
+--echo #
+
+let $statement=
+  show create event ev2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_EVENTS
+--echo #
+
+let $statement=
+  show events;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_DROP_EVENT
+--echo #
+
+let $statement=
+  drop event ev2;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_BACKUP
+--echo #
+
+#create database backup_db;
+#
+#let $statement=
+#  backup database db1 to 'backup_db1.ba';
+#source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_ARCHIVE
+--echo #
+
+#
+# --error ER_NOT_ALLOWED_COMMAND
+#
+#let $statement=
+#  show backup 'backup_db1.ba';
+#source include/implicit_commit_helper.inc;
+#
+
+--echo #
+--echo # SQLCOM_RESTORE
+--echo #
+
+#let $statement=
+#  restore from 'backup_db1.ba';
+#source include/implicit_commit_helper.inc;
+
+#--remove_file $MYSQLTEST_VARDIR/master-data/backup_db1.ba
+#
+#drop database backup_db;
+
+--echo #
+--echo # SQLCOM_BACKUP_TEST
+--echo #
+
+# BACKUP_TEST
+
+--echo #
+--echo # SQLCOM_SHOW_PROFILE
+--echo #
+
+let $statement=
+  show profile memory;
+source include/implicit_commit_helper.inc;
+
+--echo #
+--echo # SQLCOM_SHOW_PROFILES
+--echo #
+
+let $statement=
+  show profiles;
+source include/implicit_commit_helper.inc;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+eval USE $OLD_DB;
+DROP DATABASE db1;
+
+--echo End of tests

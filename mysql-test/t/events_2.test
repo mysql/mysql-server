@@ -25,15 +25,6 @@ set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
 drop event задачка;
 
-# event_scheduler is a global var
---error ER_GLOBAL_VARIABLE
-set event_scheduler=off;
-# event_scheduler could be only either 1 or 2
---error ER_WRONG_VALUE_FOR_VAR
-set global event_scheduler=3;
---error ER_WRONG_VALUE_FOR_VAR
-set global event_scheduler=disabled;
-
 --echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
 set global event_scheduler=off;
 select definer, name, db from mysql.event;

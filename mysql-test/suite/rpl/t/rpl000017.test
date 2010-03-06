@@ -1,12 +1,23 @@
+# The test manually replaces the relay-log.info file with connection
+# information which the slave then should pick up. However, to avoid
+# overwriting the file, no CHANGE MASTER TO nor RESET SLAVE statements
+# should be executed.
+#
+# Starting replication before granting a replication user privileges
+# to replicate will cause the start slave to fail, so we shouldn't do
+#  that.
+
+let $no_change_master = 1;
+let $skip_slave_start = 1;
 source include/master-slave.inc;
-connection slave;
-stop slave;
+
 connection master;
 grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
 grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 connection slave;
 start slave;
 source include/wait_for_slave_to_start.inc;
+
 connection master;
 --disable_warnings
 drop table if exists t1;

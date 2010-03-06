@@ -1,17 +1,17 @@
 ############## mysql-test\t\max_insert_delayed_threads_basic.test ###############
 #                                                                             #
-# Variable Name: max_insert_delayed_threads                                     #
+# Variable Name: max_insert_delayed_threads                                          #
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
-# Data Type: numeric                                                        #
-# Default Value:  -                                                            #
-# Range:          -                                                            #
+# Data Type: numeric                                                          #
+# Default Value:  20                                                          #
+# Range:  0-16384                                                             #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
-# Author:  Salman                                                     #
+# Author:  Salman                                                             #
 #                                                                             #
-# Description: Test Cases of Dynamic System Variable max_insert_delayed_threads #
+# Description: Test Cases of Dynamic System Variable max_insert_delayed_threads      #
 #              that checks the behavior of this variable in the following ways#
 #              * Default Value                                                #
 #              * Valid & Invalid values                                       #
@@ -26,7 +26,7 @@
 --source include/load_sysvars.inc
 
 ##################################################################
-#           START OF max_insert_delayed_threads TESTS            #
+#           START OF max_insert_delayed_threads TESTS                   #
 ##################################################################
 
 
@@ -40,47 +40,42 @@ SET @start_session_value = @@session.max_insert_delayed_threads;
 SELECT @start_session_value;
 
 
---echo '#--------------------FN_DYNVARS_078_01-------------------------#'
+--echo '#--------------------FN_DYNVARS_075_01-------------------------#'
 ##################################################################
-#   Display the DEFAULT value of max_insert_delayed_threads      #
+#     Display the DEFAULT value of max_insert_delayed_threads           #
 ##################################################################
 
 SET @@global.max_insert_delayed_threads = 1000;
---Error ER_NO_DEFAULT
 SET @@global.max_insert_delayed_threads = DEFAULT;
 SELECT @@global.max_insert_delayed_threads;
 
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = 1000;
 SET @@session.max_insert_delayed_threads = DEFAULT;
 SELECT @@session.max_insert_delayed_threads;
 
 
---echo '#--------------------FN_DYNVARS_078_02-------------------------#'
+--echo '#--------------------FN_DYNVARS_075_02-------------------------#'
 ##################################################################
-#     Check the DEFAULT value of max_insert_delayed_threads      #
+#     Check the DEFAULT value of max_insert_delayed_threads             #
 ##################################################################
 
---Error ER_NO_DEFAULT
 SET @@global.max_insert_delayed_threads = DEFAULT;
 SELECT @@global.max_insert_delayed_threads = 20;
 
 SET @@session.max_insert_delayed_threads = DEFAULT;
 SELECT @@session.max_insert_delayed_threads = 20;
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
 
 
---echo '#--------------------FN_DYNVARS_078_03-------------------------#'
-###############################################################$$$$$$$$#############
+--echo '#--------------------FN_DYNVARS_075_03-------------------------#'
+############################################################################
 # Change the value of max_insert_delayed_threads to a valid value for GLOBAL Scope #
-###############################################################$$$$$$$$#############
+############################################################################
 
 SET @@global.max_insert_delayed_threads = 1;
 SELECT @@global.max_insert_delayed_threads;
 SET @@global.max_insert_delayed_threads = 1025;
 SELECT @@global.max_insert_delayed_threads;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
 SET @@global.max_insert_delayed_threads = 0;
 SELECT @@global.max_insert_delayed_threads;
 SET @@global.max_insert_delayed_threads = 16384;
@@ -88,10 +83,10 @@ SELECT @@global.max_insert_delayed_threads;
 SET @@global.max_insert_delayed_threads = 16383;
 SELECT @@global.max_insert_delayed_threads;
 
---echo '#--------------------FN_DYNVARS_078_04-------------------------#'
-#####################################################################################
+--echo '#--------------------FN_DYNVARS_075_04-------------------------#'
+#############################################################################
 # Change the value of max_insert_delayed_threads to a valid value for SESSION Scope #
-#####################################################################################
+#############################################################################
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = 1;
@@ -99,7 +94,7 @@ SELECT @@session.max_insert_delayed_threads;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = 1025;
 SELECT @@session.max_insert_delayed_threads;
-
+	
 SET @@session.max_insert_delayed_threads = 0;
 SELECT @@session.max_insert_delayed_threads;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -110,10 +105,10 @@ SET @@session.max_insert_delayed_threads = 16383;
 SELECT @@session.max_insert_delayed_threads;
 
 
---echo '#------------------FN_DYNVARS_078_05-----------------------#'
-######################################################################
+--echo '#------------------FN_DYNVARS_075_05-----------------------#'
+##############################################################
 # Change the value of max_insert_delayed_threads to an invalid value #
-######################################################################
+##############################################################
 
 SET @@global.max_insert_delayed_threads = -1024;
 SELECT @@global.max_insert_delayed_threads;
@@ -121,24 +116,20 @@ SET @@global.max_insert_delayed_threads = -1;
 SELECT @@global.max_insert_delayed_threads;
 SET @@global.max_insert_delayed_threads = 16385;
 SELECT @@global.max_insert_delayed_threads;
---Error ER_PARSE_ERROR
-SET @@global.max_insert_delayed_threads = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_insert_delayed_threads = 65530.34;
 SELECT @@global.max_insert_delayed_threads;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_insert_delayed_threads = test;
 SELECT @@global.max_insert_delayed_threads;
---Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = 16385;
 SELECT @@session.max_insert_delayed_threads;
---Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = -1;
 SELECT @@session.max_insert_delayed_threads;
---Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.max_insert_delayed_threads = -2;
 SELECT @@session.max_insert_delayed_threads;
---Error ER_PARSE_ERROR
-SET @@session.max_insert_delayed_threads = 65530.34.;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_insert_delayed_threads = 65530.34;
 SET @@session.max_insert_delayed_threads = 10737418241;
 SELECT @@session.max_insert_delayed_threads;
 
@@ -148,7 +139,7 @@ SET @@session.max_insert_delayed_threads = test;
 SELECT @@session.max_insert_delayed_threads;
 
 
---echo '#------------------FN_DYNVARS_078_06-----------------------#'
+--echo '#------------------FN_DYNVARS_075_06-----------------------#'
 ####################################################################
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
@@ -158,7 +149,7 @@ SELECT @@global.max_insert_delayed_threads = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_insert_delayed_threads';
 
---echo '#------------------FN_DYNVARS_078_07-----------------------#'
+--echo '#------------------FN_DYNVARS_075_07-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
@@ -168,7 +159,7 @@ FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='max_insert_delayed_threads';
 
 
---echo '#------------------FN_DYNVARS_078_08-----------------------#'
+--echo '#------------------FN_DYNVARS_075_08-----------------------#'
 ####################################################################
 #     Check if TRUE and FALSE values can be used on variable       #
 ####################################################################
@@ -179,7 +170,7 @@ SET @@global.max_insert_delayed_threads = FALSE;
 SELECT @@global.max_insert_delayed_threads;
 
 
---echo '#---------------------FN_DYNVARS_078_09----------------------#'
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
 #################################################################################
 #  Check if accessing variable with and without GLOBAL point to same variable   #
 #################################################################################
@@ -188,7 +179,7 @@ SET @@global.max_insert_delayed_threads = 2048;
 SELECT @@max_insert_delayed_threads = @@global.max_insert_delayed_threads;
 
 
---echo '#---------------------FN_DYNVARS_078_10----------------------#'
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
 ########################################################################################################
 #    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
 ########################################################################################################
@@ -199,10 +190,10 @@ SELECT @@max_insert_delayed_threads = @@local.max_insert_delayed_threads;
 SELECT @@local.max_insert_delayed_threads = @@session.max_insert_delayed_threads;
 
 
---echo '#---------------------FN_DYNVARS_078_11----------------------#'
-#####################################################################################
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+#############################################################################
 #   Check if max_insert_delayed_threads can be accessed with and without @@ sign    #
-#####################################################################################
+#############################################################################
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET max_insert_delayed_threads = 1024;
@@ -225,7 +216,7 @@ SET @@session.max_insert_delayed_threads = @start_session_value;
 SELECT @@session.max_insert_delayed_threads;
 
 
-###############################################################
+#######################################################
 #                 END OF max_insert_delayed_threads TESTS     #
-###############################################################
+#######################################################
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,8 +63,8 @@ static unsigned int __stdcall pthread_start(void *p)
 }
 
 
-int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
-     pthread_handler func, void *param)
+int pthread_create(pthread_t *thread_id, const pthread_attr_t *attr,
+                   pthread_handler func, void *param)
 {
   uintptr_t handle;
   struct thread_start_parameter *par;
@@ -129,6 +129,24 @@ error_return:
   return -1;
 }
 
+int pthread_cancel(pthread_t thread)
+{
+
+  HANDLE handle= 0;
+  BOOL ok= FALSE;
+
+  handle= OpenThread(THREAD_TERMINATE, FALSE, thread);
+  if (handle)
+  {
+     ok= TerminateThread(handle,0);
+     CloseHandle(handle);
+  }
+  if (ok)
+    return 0;
+
+  errno= EINVAL;
+  return -1;
+}
 
 /*
  One time initialization. For simplicity, we assume initializer thread
@@ -160,5 +178,4 @@ int my_pthread_once(my_pthread_once_t *once_control,
   }
   return 0;
 }
-
 #endif

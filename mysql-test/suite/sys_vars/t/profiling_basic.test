@@ -1,0 +1,52 @@
+
+#
+# 2010-01-20 OBN - Added check for I_S values after variable value change
+#
+
+--source include/have_profiling.inc
+
+SET @start_global_value = @@global.profiling;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.profiling;
+select @@session.profiling;
+show global variables like 'profiling';
+show session variables like 'profiling';
+select * from information_schema.global_variables where variable_name='profiling';
+select * from information_schema.session_variables where variable_name='profiling';
+
+#
+# show that it's writable
+#
+set global profiling=1;
+set session profiling=ON;
+select @@global.profiling;
+select @@session.profiling;
+show global variables like 'profiling';
+show session variables like 'profiling';
+select * from information_schema.global_variables where variable_name='profiling';
+select * from information_schema.session_variables where variable_name='profiling';
+set global profiling=0;
+set session profiling=OFF;
+select @@global.profiling;
+select @@session.profiling;
+show global variables like 'profiling';
+show session variables like 'profiling';
+select * from information_schema.global_variables where variable_name='profiling';
+select * from information_schema.session_variables where variable_name='profiling';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global profiling=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global profiling=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global profiling="foo";
+
+SET @@global.profiling = @start_global_value;
+SELECT @@global.profiling;

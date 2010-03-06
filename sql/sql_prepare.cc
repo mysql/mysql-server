@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB
+/* Copyright (C) 1995-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ When one supplies long data for a placeholder:
 */
 
 #include "mysql_priv.h"
+#include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_select.h" // for JOIN
 #include "sql_cursor.h"
@@ -173,8 +174,6 @@ private:
     SELECT_LEX and other classes).
   */
   MEM_ROOT main_mem_root;
-  /* Version of the stored functions cache at the time of prepare. */
-  ulong m_sp_cache_version;
 private:
   bool set_db(const char *db, uint db_length);
   bool set_parameters(String *expanded_query,
@@ -1206,7 +1205,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if ((values= its++))
@@ -1287,7 +1287,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
-      open_tables(thd, &table_list, &table_count, 0))
+      open_tables(thd, &table_list, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (table_list->multitable_view)
@@ -1364,7 +1364,8 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list, 0))
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (!table_list->table)
@@ -1413,7 +1414,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     if (check_table_access(thd, privilege, tables, FALSE, UINT_MAX, FALSE))
       goto error;
   }
-  else if (check_access(thd, privilege, any_db,0,0,0,0))
+  else if (check_access(thd, privilege, any_db, NULL, NULL, 0, 0))
     goto error;
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
@@ -1422,7 +1423,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1483,7 +1484,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1513,7 +1514,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   while ((var= it++))
@@ -1550,7 +1551,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   while ((item= it++))
@@ -1633,7 +1634,8 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_normal_and_derived_tables(stmt->thd, tables, 0))
+  if (open_normal_and_derived_tables(stmt->thd, tables,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1660,35 +1662,40 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   bool res= FALSE;
-  /* Skip first table, which is the table we are creating */
   bool link_to_local;
-  TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
-  TABLE_LIST *tables= lex->query_tables;
+  TABLE_LIST *create_table= lex->query_tables;
+  TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
 
+   /*
+     The open and lock strategies will be set again once the
+     statement is executed. These values are only meaningful
+     for the prepare phase.
+   */
+  create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  create_table->lock_strategy= TABLE_LIST::SHARED_MDL;
+
   if (select_lex->item_list.elements)
   {
+    /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
-    {
-      lex->link_first_table_back(create_table, link_to_local);
-      create_table->create= TRUE;
-      /* Base table and temporary table are not in the same name space. */
-      create_table->skip_temporary= true;
-    }
+      create_table->open_type= OT_BASE_ONLY;
 
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
-
-    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
-      create_table= lex->unlink_first_table(&link_to_local);
 
     select_lex->context.resolve_in_select_list= TRUE;
 
+    lex->unlink_first_table(&link_to_local);
+
     res= select_like_stmt_test(stmt, 0, 0);
+
+    lex->link_first_table_back(create_table, &link_to_local);
   }
-  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  else
   {
     /*
       Check that the source table exist, and also record
@@ -1696,12 +1703,11 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
   }
 
-  /* put tables back for PS rexecuting */
-  lex->link_first_table_back(create_table, link_to_local);
   DBUG_RETURN(res);
 }
 
@@ -1731,7 +1737,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   lex->view_prepare_mode= 1;
@@ -2140,9 +2146,6 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
-
   thd->protocol= &thd->protocol_binary;
 
   if (stmt->prepare(packet, packet_length))
@@ -2421,6 +2424,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     tables->reinit_before_use(thd);
   }
+
+  /* Reset MDL tickets for procedures/functions */
+  for (Sroutine_hash_entry *rt=
+         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+       rt; rt= rt->next)
+    rt->mdl_request.ticket= NULL;
+
   /*
     Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
     (multi-delete).  We do a full clean up, although at the moment all we
@@ -2513,9 +2523,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 #endif
   DBUG_PRINT("exec_query", ("%s", stmt->query()));
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
-
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
 
   open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
@@ -2617,13 +2624,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   thd->stmt_arena= stmt;
   thd->set_n_backup_statement(stmt, &stmt_backup);
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), QUERY_PRIOR);
-
   cursor->fetch(num_rows);
-
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   if (!cursor->is_open())
   {
@@ -2972,8 +2973,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_array(0),
   param_count(0),
   last_errno(0),
-  flags((uint) IS_IN_USE),
-  m_sp_cache_version(0)
+  flags((uint) IS_IN_USE)
 {
   init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
                   thd_arg->variables.query_prealloc_size);
@@ -3138,6 +3138,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
+  MDL_ticket *mdl_savepoint= NULL;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3196,6 +3197,12 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   DBUG_ASSERT(thd->change_list.is_empty());
 
+  /*
+    Marker used to release metadata locks acquired while the prepared
+    statement is being checked.
+  */
+  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+
   /* 
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
@@ -3219,6 +3226,13 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   lex_end(lex);
   cleanup_stmt();
+  /*
+    If not inside a multi-statement transaction, the metadata
+    locks have already been released and our savepoint points
+    to ticket which has been released as well.
+  */
+  if (thd->in_multi_stmt_transaction())
+    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
@@ -3228,20 +3242,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     init_stmt_after_parse(lex);
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
-    /*
-      This is for prepared statement validation purposes.
-      A statement looks up and pre-loads all its stored functions
-      at prepare. Later on, if a function is gone from the cache,
-      execute may fail.
-      Remember the cache version to be able to invalidate the prepared
-      statement at execute if it changes.
-      We only need to care about version of the stored functions cache:
-      if a prepared statement uses a stored procedure, it's indirect,
-      via a stored function. The only exception is SQLCOM_CALL,
-      but the latter one looks up the stored procedure each time
-      it's invoked, rather than once at prepare.
-    */
-    m_sp_cache_version= sp_cache_version(&thd->sp_func_cache);
 
     /* 
       Log COM_EXECUTE to the general log. Note, that in case of SQL
@@ -3388,13 +3388,7 @@ reexecute:
     thd->m_reprepare_observer = &reprepare_observer;
   }
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
-
   error= execute(expanded_query, open_cursor) || thd->is_error();
-
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   thd->m_reprepare_observer= NULL;
 
@@ -3423,7 +3417,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   bool error;
   Query_arena *save_stmt_arena= thd->stmt_arena;
   Item_change_list save_change_list;
-  thd->change_list= save_change_list;
+  thd->change_list.move_elements_to(&save_change_list);
 
   state= CONVENTIONAL_EXECUTION;
 
@@ -3447,7 +3441,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= save_stmt_arena;
 
-  save_change_list= thd->change_list;
+  save_change_list.move_elements_to(&thd->change_list);
 
   /* Items and memory will freed in destructor */
 
@@ -3588,13 +3582,12 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
     is allocated in the old arena.
   */
   swap_variables(Item_param **, param_array, copy->param_array);
-  /* Swap flags: this is perhaps unnecessary */
-  swap_variables(uint, flags, copy->flags);
+  /* Don't swap flags: the copy has IS_SQL_PREPARE always set. */
+  /* swap_variables(uint, flags, copy->flags); */
   /* Swap names, the old name is allocated in the wrong memory root */
   swap_variables(LEX_STRING, name, copy->name);
   /* Ditto */
   swap_variables(char *, db, copy->db);
-  swap_variables(ulong, m_sp_cache_version, copy->m_sp_cache_version);
 
   DBUG_ASSERT(db_length == copy->db_length);
   DBUG_ASSERT(param_count == copy->param_count);
@@ -3652,19 +3645,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return TRUE;
   }
-
-  /*
-    Reprepare the statement if we're using stored functions
-    and the version of the stored routines cache has changed.
-  */
-  if (lex->uses_stored_routines() &&
-      m_sp_cache_version != sp_cache_version(&thd->sp_func_cache) &&
-      thd->m_reprepare_observer &&
-      thd->m_reprepare_observer->report_error(thd))
-  {
-    return TRUE;
-  }
-
 
   /*
     For SHOW VARIABLES lex->result is NULL, as it's a non-SELECT

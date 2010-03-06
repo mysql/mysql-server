@@ -1,0 +1,1 @@
+--optimizer-switch=engine_condition_pushdown=off --engine-condition-pushdown=1

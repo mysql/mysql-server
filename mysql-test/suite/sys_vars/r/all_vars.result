@@ -1,0 +1,14 @@
+create table t1 (test_name text);
+create table t2 (variable_name text);
+load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+insert into t2 select variable_name from information_schema.global_variables;
+insert into t2 select variable_name from information_schema.session_variables;
+update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
+select variable_name as `There should be *no* long test name listed below:` from t2
+where length(variable_name) > 50;
+There should be *no* long test name listed below:
+select variable_name as `There should be *no* variables listed below:` from t2
+left join t1 on variable_name=test_name where test_name is null;
+There should be *no* variables listed below:
+drop table t1;
+drop table t2;

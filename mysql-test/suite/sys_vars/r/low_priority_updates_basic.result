@@ -94,7 +94,7 @@ ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '-1024
 SET @@global.low_priority_updates = 65536;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '65536'
 SET @@global.low_priority_updates = 65530.34;
-ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '65530'
+ERROR 42000: Incorrect argument type to variable 'low_priority_updates'
 SET @@global.low_priority_updates = test;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'test'
 SET @@session.low_priority_updates = ONN;
@@ -102,19 +102,15 @@ ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'ONN'
 SET @@session.low_priority_updates = ONF;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'ONF'
 SET @@session.low_priority_updates = OF;
-SELECT @@session.low_priority_updates;
-@@session.low_priority_updates
-0
-'Bug# 34828: OF is also working as OFF and no error is coming';
+ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'OF'
 SET @@session.low_priority_updates = 'OFN';
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'OFN'
 SET @@session.low_priority_updates = -2;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '-2'
-SET @@session.low_priority_updates = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.low_priority_updates = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'low_priority_updates'
 SET @@session.low_priority_updates = 65550;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of '65550'
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.low_priority_updates = test;
 ERROR 42000: Variable 'low_priority_updates' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_069_06-----------------------#'

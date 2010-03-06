@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
+   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ static int gettimeofday(struct timeval *tv, void *tz)
  *
  ******************************************************************************/
 
-ActiveTranx::ActiveTranx(pthread_mutex_t *lock,
+ActiveTranx::ActiveTranx(mysql_mutex_t *lock,
 			 unsigned long trace_level)
   : Trace(trace_level), allocator_(max_connections),
     num_entries_(max_connections << 1), /* Transaction hash table size
@@ -360,8 +360,10 @@ int ReplSemiSyncMaster::initObject()
   setTraceLevel(rpl_semi_sync_master_trace_level);
 
   /* Mutex initialization can only be done after MY_INIT(). */
-  pthread_mutex_init(&LOCK_binlog_, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_binlog_send_, NULL);
+  mysql_mutex_init(key_ss_mutex_LOCK_binlog_,
+                   &LOCK_binlog_, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_ss_cond_COND_binlog_send_,
+                  &COND_binlog_send_, NULL);
 
   if (rpl_semi_sync_master_enabled)
     result = enableMaster();
@@ -436,8 +438,8 @@ ReplSemiSyncMaster::~ReplSemiSyncMaster()
 {
   if (init_done_)
   {
-    pthread_mutex_destroy(&LOCK_binlog_);
-    pthread_cond_destroy(&COND_binlog_send_);
+    mysql_mutex_destroy(&LOCK_binlog_);
+    mysql_cond_destroy(&COND_binlog_send_);
   }
 
   delete active_tranxs_;
@@ -445,17 +447,17 @@ ReplSemiSyncMaster::~ReplSemiSyncMaster()
 
 void ReplSemiSyncMaster::lock()
 {
-  pthread_mutex_lock(&LOCK_binlog_);
+  mysql_mutex_lock(&LOCK_binlog_);
 }
 
 void ReplSemiSyncMaster::unlock()
 {
-  pthread_mutex_unlock(&LOCK_binlog_);
+  mysql_mutex_unlock(&LOCK_binlog_);
 }
 
 void ReplSemiSyncMaster::cond_broadcast()
 {
-  pthread_cond_broadcast(&COND_binlog_send_);
+  mysql_cond_broadcast(&COND_binlog_send_);
 }
 
 int ReplSemiSyncMaster::cond_timewait(struct timespec *wait_time)
@@ -464,8 +466,8 @@ int ReplSemiSyncMaster::cond_timewait(struct timespec *wait_time)
   int wait_res;
 
   function_enter(kWho);
-  wait_res = pthread_cond_timedwait(&COND_binlog_send_,
-                                    &LOCK_binlog_, wait_time);
+  wait_res= mysql_cond_timedwait(&COND_binlog_send_,
+                                 &LOCK_binlog_, wait_time);
   return function_exit(kWho, wait_res);
 }
 
