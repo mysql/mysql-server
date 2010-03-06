@@ -4199,9 +4199,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       all select distinct fields participate in one index.
     */
     add_group_and_distinct_keys(join, s);
-
-    if (!s->const_keys.is_clear_all() &&
-        !s->table->pos_in_table_list->embedding)
+    
+    /*
+      Perform range analysis if there are keys it could use (1). 
+      Don't do range analysis if we're on the inner side of an outer join (2).
+      Do range analysis if we're on the inner side of a semi-join (3).
+    */
+    if (!s->const_keys.is_clear_all() &&                        // (1)
+        (!s->table->pos_in_table_list->embedding ||             // (2)
+         (s->table->pos_in_table_list->embedding &&             // (3)
+          s->table->pos_in_table_list->embedding->sj_on_expr))) // (3)
     {
       ha_rows records;
       SQL_SELECT *select;
