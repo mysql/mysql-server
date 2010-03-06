@@ -3726,31 +3726,53 @@ int pull_out_semijoin_tables(JOIN *join)
     } while (pulled_a_table);
  
     child_li.rewind();
-    if ((sj_nest)->nested_join->used_tables == pulled_tables)
+    /*
+      Action #3: Move the pulled out TABLE_LIST elements to the parents.
+    */
+    table_map inner_tables= sj_nest->nested_join->used_tables & 
+                            ~pulled_tables;
+    /* Record the bitmap of inner tables */
+    sj_nest->sj_inner_tables= inner_tables;
+    if (pulled_tables)
     {
-      DBUG_PRINT("info", ("All semi-join nest tables were pulled out"));
-      (sj_nest)->sj_inner_tables= 0;
-      while ((tbl= child_li++))
-      {
-        if (tbl->table)
-          tbl->table->reginfo.join_tab->emb_sj_nest= NULL;
-      }
-    }
-    else
-    {
-      /* Record the bitmap of inner tables, mark the inner tables */
-      table_map inner_tables=(sj_nest)->nested_join->used_tables & 
-                             ~pulled_tables;
-      (sj_nest)->sj_inner_tables= inner_tables;
+      List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL)?
+                                           (&sj_nest->embedding->nested_join->join_list): 
+                                           (&join->select_lex->top_join_list);
       while ((tbl= child_li++))
       {
         if (tbl->table)
         {
           if (inner_tables & tbl->table->map)
-            tbl->table->reginfo.join_tab->emb_sj_nest= (sj_nest);
+          {
+            // This table is not pulled out
+            tbl->table->reginfo.join_tab->emb_sj_nest= sj_nest;
+          }
           else
+          {
+            /* 
+              This table has been pulled out of the semi-join nest
+            */
             tbl->table->reginfo.join_tab->emb_sj_nest= NULL;
+            /*
+              Pull the table up in the same way as simplify_joins() does:
+              update join_list and embedding pointers but keep next[_local]
+              pointers.
+            */
+            child_li.remove();
+            upper_join_list->push_back(tbl);
+            tbl->join_list= upper_join_list;
+            tbl->embedding= sj_nest->embedding;
+          }
         }
+      }
+
+      /* Remove the sj-nest itself if we've removed everything from it*/
+      if (!inner_tables)
+      {
+        List_iterator<TABLE_LIST> li(*upper_join_list);
+        /* Find the sj_nest in the list. */
+        while (sj_nest != li++);
+        li.remove();
       }
     }
   }

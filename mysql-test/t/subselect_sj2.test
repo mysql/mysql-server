@@ -484,3 +484,25 @@ SELECT Name FROM t1
     SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 
 drop table t1, t2;
+
+
+#
+# BUG#35160 "Subquery optimization: table pullout is not reflected in EXPLAIN EXTENDED"
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4);
+
+create table t1 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+
+create table t2 (a int, b int, primary key(a));
+insert into t2 select * from t1;
+
+# Table t2 should be pulled out because t2.a=t0.a equality
+--echo Table t2, unlike table t1, should be displayed as pulled out
+explain extended select * from t0
+where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
+t1.b=t2.b);
+
+drop table t0, t1, t2;
+
