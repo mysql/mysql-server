@@ -507,3 +507,26 @@ t1.b=t2.b);
 
 drop table t0, t1, t2;
 
+#
+# BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
+#
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  PRIMARY KEY (id));
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL,
+  fid int(11) NOT NULL,
+  PRIMARY KEY (id));
+
+insert into t1 values(1);
+insert into t2 values(1,7503),(2,1);
+
+--error 1054
+explain select count(*) 
+from t1 
+where fid IN (select fid from t2 where (id between 7502 and 8420) order by fid );
+
+drop table t1, t2;
+
+
