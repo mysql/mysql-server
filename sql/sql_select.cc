@@ -591,11 +591,18 @@ JOIN::prepare(Item ***rref_pointer_array,
 
         if (thd->stmt_arena->state != Query_arena::PREPARED)
         {
-          if (!in_subs->left_expr->fixed &&
-               in_subs->left_expr->fix_fields(thd, &in_subs->left_expr))
-          {
+          SELECT_LEX *current= thd->lex->current_select;
+          thd->lex->current_select= current->return_after_parsing();
+          char const *save_where= thd->where;
+          thd->where= "IN/ALL/ANY subquery";
+          
+          bool failure= !in_subs->left_expr->fixed &&
+                         in_subs->left_expr->fix_fields(thd, 
+                                                        &in_subs->left_expr);
+          thd->lex->current_select= current;
+          thd->where= save_where;
+          if (failure)
             DBUG_RETURN(-1);
-          }
           /*
             Check that the right part of the subselect contains no more than one
             column. E.g. in SELECT 1 IN (SELECT * ..) the right part is (SELECT * ...)

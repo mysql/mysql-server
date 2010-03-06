@@ -372,3 +372,17 @@ Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
 drop table t0, t1, t2;
+CREATE TABLE t1 (
+id int(11) NOT NULL,
+PRIMARY KEY (id));
+CREATE TABLE t2 (
+id int(11) NOT NULL,
+fid int(11) NOT NULL,
+PRIMARY KEY (id));
+insert into t1 values(1);
+insert into t2 values(1,7503),(2,1);
+explain select count(*) 
+from t1 
+where fid IN (select fid from t2 where (id between 7502 and 8420) order by fid );
+ERROR 42S22: Unknown column 'fid' in 'IN/ALL/ANY subquery'
+drop table t1, t2;
