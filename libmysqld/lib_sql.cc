@@ -118,8 +118,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   net_clear_error(net);
   thd->current_stmt= stmt;
 
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();				// Fix if more than one connect
-  lex_start(thd);
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
      for new query. In the case of embedded server we collect field data
@@ -138,6 +138,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   result= dispatch_command(command, thd, (char *) arg, arg_length);
   thd->cur_data= 0;
+  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
@@ -501,11 +502,26 @@ int init_embedded_server(int argc, char **argv, char **groups)
   */
   logger.init_base();
 
-  if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
+  orig_argc= *argcp;
+  orig_argv= *argvp;
+  load_defaults("my", (const char **)groups, argcp, argvp);
+  defaults_argc= *argcp;
+  defaults_argv= *argvp;
+  remaining_argc= argc;
+  remaining_argv= argv;
+
+  /* Must be initialized early for comparison of options name */
+  system_charset_info= &my_charset_utf8_general_ci;
+  sys_var_init();
+
+  if (init_common_variables())
   {
     mysql_server_end();
     return 1;
   }
+
+  mysql_data_home= mysql_real_data_home;
+  mysql_data_home_len= mysql_real_data_home_len;
     
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
@@ -614,7 +630,7 @@ void *create_embedded_thd(int client_flag)
   /* TODO - add init_connect command execution */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
+    thd->variables.option_bits |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;
@@ -731,11 +747,6 @@ void THD::clear_data_list()
   cur_data= 0;
 }
 
-void THD::clear_error()
-{
-  if (stmt_da->is_error())
-    stmt_da->reset_diagnostics_area();
-}
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
@@ -926,10 +937,10 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
                                          strlen(server_field.org_table_name), cs, thd_cs);
     client_field->org_name= dup_str_aux(field_alloc, server_field.org_col_name,
                                         strlen(server_field.org_col_name), cs, thd_cs);
-    if (item->collation.collation == &my_charset_bin || thd_cs == NULL)
+    if (item->charset_for_protocol() == &my_charset_bin || thd_cs == NULL)
     {
       /* No conversion */
-      client_field->charsetnr= server_field.charsetnr;
+      client_field->charsetnr= item->charset_for_protocol()->number;
       client_field->length= server_field.length;
     }
     else

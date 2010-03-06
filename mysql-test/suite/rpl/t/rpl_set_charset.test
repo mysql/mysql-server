@@ -20,16 +20,12 @@ INSERT INTO t1 VALUES ('אבגדהוזחטיךכלםמן','E0');
 INSERT INTO t1 VALUES ('נסעףפץצקרשתûü‎‏ÿ','F0');
 select "--- on master ---";
 select hex(a),b from t1 order by b;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 use mysqltest1;
 select "--- on slave ---";
 select hex(a),b from t1 order by b;
 connection master;
 drop database mysqltest1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests

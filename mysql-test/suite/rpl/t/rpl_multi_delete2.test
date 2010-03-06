@@ -25,13 +25,11 @@ INSERT INTO a VALUES(1);
 DELETE alias FROM a alias WHERE alias.i=1;
 SELECT * FROM a;
 insert into a values(2),(3);
-delete a alias FROM a alias where alias.i=2;
+delete alias FROM a alias where alias.i=2;
 select * from a;
-save_master_pos;
-connection slave;
+sync_slave_with_master;
 
 use mysqltest_to;
-sync_with_master;
 select * from a;
 
 # BUG#3461

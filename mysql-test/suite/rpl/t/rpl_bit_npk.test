@@ -76,10 +76,8 @@ SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
 SELECT hex(bit1) from test.t1 ORDER BY bit1;
 SELECT hex(bit2) from test.t1 ORDER BY bit2;
 SELECT hex(bit3) from test.t1 ORDER BY bit3;
-save_master_pos;
+sync_slave_with_master;
 
-connection slave;
-sync_with_master;
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
     FROM test.t1
     ORDER BY oSupp, sSuppD, GSuppDf, VNotSupp, x034;
@@ -100,10 +98,8 @@ UPDATE test.t3 SET a = 2 WHERE b = 0;
 
 SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
 SELECT * FROM test.t3 ORDER BY a,b;
-save_master_pos;
+sync_slave_with_master;
 
-connection slave;
-sync_with_master;
 SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
 SELECT * FROM test.t3 ORDER BY a,b;
 

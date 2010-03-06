@@ -72,9 +72,9 @@ SELECT @@session.read_buffer_size = 131072;
 ################################################################################
 
 SET @@global.read_buffer_size = 8201;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
+SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = 8200;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
+SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = 2147479552;
 SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = 2147479551;
@@ -86,9 +86,9 @@ SELECT @@global.read_buffer_size;
 ###################################################################################
  
 SET @@session.read_buffer_size = 8200;
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
+SELECT @@session.read_buffer_size;
 SET @@session.read_buffer_size = 8201;
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
+SELECT @@session.read_buffer_size;
 SET @@session.read_buffer_size = 2147479552;
 SELECT @@session.read_buffer_size;
 SET @@session.read_buffer_size = 2147479551;
@@ -101,27 +101,26 @@ SELECT @@session.read_buffer_size;
 ##################################################################
 
 SET @@global.read_buffer_size = 8199;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
+SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = -1024;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
+SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = 2147479553;
 SELECT @@global.read_buffer_size;
---Error ER_PARSE_ERROR
-SET @@global.read_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.read_buffer_size = 65530.34;
 SELECT @@global.read_buffer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.read_buffer_size = test;
 SELECT @@global.read_buffer_size;
 
 SET @@session.read_buffer_size = 8199;
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
+SELECT @@session.read_buffer_size;
 SET @@session.read_buffer_size = -2;
-SELECT @@session.read_buffer_size= 8200 OR @@session.read_buffer_size= 8228 ;
---Error ER_PARSE_ERROR
-SET @@session.read_buffer_size = 65530.34.;
+SELECT @@session.read_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.read_buffer_size = 65530.34;
 SET @@session.read_buffer_size = 2147479553;
 SELECT @@session.read_buffer_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.read_buffer_size = test;
@@ -154,11 +153,9 @@ WHERE VARIABLE_NAME='read_buffer_size';
 ####################################################################
 
 SET @@global.read_buffer_size = TRUE;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
+SELECT @@global.read_buffer_size;
 SET @@global.read_buffer_size = FALSE;
-SELECT @@global.read_buffer_size= 8200 OR @@global.read_buffer_size= 8228 ;
-echo 'Bug: FN_DYNVARS_138_08- Errors are not coming on assigning TRUE/FALSE to variable';
-
+SELECT @@global.read_buffer_size;
 
 --echo '#---------------------FN_DYNVARS_138_09----------------------#'
 #################################################################################### 
@@ -185,7 +182,7 @@ SELECT @@local.read_buffer_size = @@session.read_buffer_size;
 ###################################################################################
 
 SET read_buffer_size = 9100;
-SELECT @@read_buffer_size= 8200 OR @@read_buffer_size= 8228 ;
+SELECT @@read_buffer_size;
 --Error ER_UNKNOWN_TABLE
 SELECT local.read_buffer_size;
 --Error ER_UNKNOWN_TABLE

@@ -1,6 +1,8 @@
 # Testing if "flush logs" command bouncing resulting in logs created in a loop 
 # in case of bi-directional replication
 -- source include/master-slave.inc
+# Use wait_for_slave_to_(start|stop) for current connections
+let $keep_connection= 1;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
@@ -9,18 +11,20 @@ show variables like 'relay_log%';
 connection slave;
 --disable_warnings
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
 start slave;
-
+--source include/wait_for_slave_to_start.inc
 #
 #  Start replication slave -> master
 #
 connection master;
 --disable_warnings
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --enable_warnings
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',

@@ -112,11 +112,6 @@ show variables like 'max_error_count';
 drop table t1;
 
 #
-# Test for deprecated table_type variable
-#
-set table_type=MYISAM;
-
-#
 # Tests for show warnings limit a, b
 #
 create table t1 (a int);

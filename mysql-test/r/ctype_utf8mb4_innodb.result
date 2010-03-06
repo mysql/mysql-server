@@ -1,0 +1,2407 @@
+drop table if exists t1,t2;
+#
+# Start of 5.5 tests
+#
+set names utf8mb4;
+select left(_utf8mb4 0xD0B0D0B1D0B2,1);
+left(_utf8mb4 0xD0B0D0B1D0B2,1)
+а
+select right(_utf8mb4 0xD0B0D0B2D0B2,1);
+right(_utf8mb4 0xD0B0D0B2D0B2,1)
+в
+select locate('he','hello');
+locate('he','hello')
+1
+select locate('he','hello',2);
+locate('he','hello',2)
+0
+select locate('lo','hello',2);
+locate('lo','hello',2)
+4
+select locate('HE','hello');
+locate('HE','hello')
+1
+select locate('HE','hello',2);
+locate('HE','hello',2)
+0
+select locate('LO','hello',2);
+locate('LO','hello',2)
+4
+select locate('HE','hello' collate utf8mb4_bin);
+locate('HE','hello' collate utf8mb4_bin)
+0
+select locate('HE','hello' collate utf8mb4_bin,2);
+locate('HE','hello' collate utf8mb4_bin,2)
+0
+select locate('LO','hello' collate utf8mb4_bin,2);
+locate('LO','hello' collate utf8mb4_bin,2)
+0
+select locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D0B1D0B2);
+locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D0B1D0B2)
+2
+select locate(_utf8mb4 0xD091, _utf8mb4 0xD0B0D0B1D0B2);
+locate(_utf8mb4 0xD091, _utf8mb4 0xD0B0D0B1D0B2)
+2
+select locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D091D0B2);
+locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D091D0B2)
+2
+select locate(_utf8mb4 0xD091, _utf8mb4 0xD0B0D0B1D0B2 collate utf8mb4_bin);
+locate(_utf8mb4 0xD091, _utf8mb4 0xD0B0D0B1D0B2 collate utf8mb4_bin)
+0
+select locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D091D0B2 collate utf8mb4_bin);
+locate(_utf8mb4 0xD0B1, _utf8mb4 0xD0B0D091D0B2 collate utf8mb4_bin)
+0
+select length(_utf8mb4 0xD0B1), bit_length(_utf8mb4 0xD0B1), char_length(_utf8mb4 0xD0B1);
+length(_utf8mb4 0xD0B1)	bit_length(_utf8mb4 0xD0B1)	char_length(_utf8mb4 0xD0B1)
+2	16	1
+select 'a' like 'a';
+'a' like 'a'
+1
+select 'A' like 'a';
+'A' like 'a'
+1
+select 'A' like 'a' collate utf8mb4_bin;
+'A' like 'a' collate utf8mb4_bin
+0
+select _utf8mb4 0xD0B0D0B1D0B2 like concat(_utf8mb4'%',_utf8mb4 0xD0B1,_utf8mb4 '%');
+_utf8mb4 0xD0B0D0B1D0B2 like concat(_utf8mb4'%',_utf8mb4 0xD0B1,_utf8mb4 '%')
+1
+select convert(_latin1'G�nter Andr�' using utf8mb4) like CONVERT(_latin1'G�NTER%' USING utf8mb4);
+convert(_latin1'G?nter Andr?' using utf8mb4) like CONVERT(_latin1'G?NTER%' USING utf8mb4)
+1
+select CONVERT(_koi8r'����' USING utf8mb4) LIKE CONVERT(_koi8r'����' USING utf8mb4);
+CONVERT(_koi8r'????' USING utf8mb4) LIKE CONVERT(_koi8r'????' USING utf8mb4)
+1
+select CONVERT(_koi8r'����' USING utf8mb4) LIKE CONVERT(_koi8r'����' USING utf8mb4);
+CONVERT(_koi8r'????' USING utf8mb4) LIKE CONVERT(_koi8r'????' USING utf8mb4)
+1
+SELECT 'a' = 'a ';
+'a' = 'a '
+1
+SELECT 'a\0' < 'a';
+'a\0' < 'a'
+1
+SELECT 'a\0' < 'a ';
+'a\0' < 'a '
+1
+SELECT 'a\t' < 'a';
+'a\t' < 'a'
+1
+SELECT 'a\t' < 'a ';
+'a\t' < 'a '
+1
+SELECT 'a' = 'a ' collate utf8mb4_bin;
+'a' = 'a ' collate utf8mb4_bin
+1
+SELECT 'a\0' < 'a' collate utf8mb4_bin;
+'a\0' < 'a' collate utf8mb4_bin
+1
+SELECT 'a\0' < 'a ' collate utf8mb4_bin;
+'a\0' < 'a ' collate utf8mb4_bin
+1
+SELECT 'a\t' < 'a' collate utf8mb4_bin;
+'a\t' < 'a' collate utf8mb4_bin
+1
+SELECT 'a\t' < 'a ' collate utf8mb4_bin;
+'a\t' < 'a ' collate utf8mb4_bin
+1
+CREATE TABLE t1 (a char(10) character set utf8mb4 not null) ENGINE InnoDB;
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
+61	0	0
+61	0	0
+6100	-1	-1
+6109	-1	-1
+DROP TABLE t1;
+select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
+insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
+this	is a	test
+select insert("aa",100,1,"b"),insert("aa",1,3,"b");
+insert("aa",100,1,"b")	insert("aa",1,3,"b")
+aa	b
+select char_length(left(@a:='тест',5)), length(@a), @a;
+char_length(left(@a:='тест',5))	length(@a)	@a
+4	8	тест
+create table t1 ENGINE InnoDB select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select * from t1;
+date_format("2004-01-19 10:10:10", "%Y-%m-%d")
+2004-01-19
+drop table t1;
+set names utf8mb4;
+set LC_TIME_NAMES='fr_FR';
+create table t1 (s1 char(20) character set latin1) engine InnoDB;
+insert into t1 values (date_format('2004-02-02','%M'));
+select hex(s1) from t1;
+hex(s1)
+66E97672696572
+drop table t1;
+create table t1 (s1 char(20) character set koi8r) engine InnoDB;
+set LC_TIME_NAMES='ru_RU';
+insert into t1 values (date_format('2004-02-02','%M'));
+insert into t1 values (date_format('2004-02-02','%b'));
+insert into t1 values (date_format('2004-02-02','%W'));
+insert into t1 values (date_format('2004-02-02','%a'));
+select hex(s1), s1 from t1;
+hex(s1)	s1
+E6C5D7	Фев
+E6C5D7D2C1CCD1	Февраля
+F0CEC4	Пнд
+F0CFCEC5C4C5CCD8CEC9CB	Понедельник
+drop table t1;
+set LC_TIME_NAMES='en_US';
+set names koi8r;
+create table t1 (s1 char(1) character set utf8mb4) engine InnoDB;
+insert into t1 values (_koi8r'��');
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
+s1	hex(s1)	char_length(s1)	octet_length(s1)
+�	D0B0	1	2
+drop table t1;
+create table t1 (s1 tinytext character set utf8mb4) engine InnoDB;
+insert into t1 select repeat('a',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('a�',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�a',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('��',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161
+61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F
+D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61
+D18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18F
+D18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18F
+select length(s1),char_length(s1) from t1;
+length(s1)	char_length(s1)
+254	127
+254	127
+255	170
+255	170
+255	255
+drop table t1;
+create table t1 (s1 text character set utf8mb4) engine InnoDB;
+insert into t1 select repeat('a',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('a�',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�a',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('��',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select length(s1),char_length(s1) from t1;
+length(s1)	char_length(s1)
+65534	32767
+65534	32767
+65535	43690
+65535	43690
+65535	65535
+drop table t1;
+create table t1 (s1 char(10) character set utf8mb4) engine InnoDB;
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (s1 varchar(10) character set utf8mb4) engine InnoDB;
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (s1 text character set utf8mb4) engine InnoDB;
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (a text character set utf8mb4, primary key(a(371))) engine InnoDB;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES ( 'test' );
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = 'test' and b.a = 'test';
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a and a.a = 'test';
+a	a
+test	test
+DROP TABLE t1;
+create table t1 (a char(255) character set utf8mb4) engine InnoDB;
+insert into t1 values('b'),('b');
+select * from t1 where a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a != 'b';
+a
+drop table t1;
+set collation_connection=utf8mb4_general_ci;
+drop table if exists t1;
+create table t1 as
+select repeat(' ', 64) as s1, repeat(' ',64) as s2
+union
+select null, null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+delete from t1;
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
+s1 regexp s2
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+NULL
+NULL
+NULL
+NULL
+drop table t1;
+set names utf8mb4;
+set names utf8mb4;
+select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+'вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+'вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+' вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася ' rlike '[[:<:]]вася[[:>:]]';
+' вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+'васяz' rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+'zвася'  rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
+'zвасяz' rlike '[[:<:]]вася[[:>:]]'
+0
+CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8mb4_unicode_ci) ENGINE InnoDB;
+ALTER TABLE t1 ADD COLUMN b CHAR(20);
+DROP TABLE t1;
+set names utf8mb4;
+create table t1 (a enum('aaaa','проба') character set utf8mb4) engine InnoDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('aaaa','проба') CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('проба');
+select * from t1;
+a
+проба
+create table t2 engine InnoDB select ifnull(a,a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ifnull(a,a)` varchar(5) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select * from t2;
+ifnull(a,a)
+проба
+drop table t1;
+drop table t2;
+create table t1 (c varchar(30) character set utf8mb4, unique(c(10))) engine InnoDB;
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+insert into t1 values ('aaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values ('aaaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+c1
+1
+select c c2 from t1 where c='2';
+c2
+2
+select c c3 from t1 where c='3';
+c3
+3
+select c cx from t1 where c='x';
+cx
+x
+select c cy from t1 where c='y';
+cy
+y
+select c cz from t1 where c='z';
+cz
+z
+select c ca10 from t1 where c='aaaaaaaaaa';
+ca10
+aaaaaaaaaa
+select c cb20 from t1 where c=repeat('b',20);
+cb20
+bbbbbbbbbbbbbbbbbbbb
+drop table t1;
+create table t1 (c varchar(30) character set utf8mb4, unique(c(10))) engine=InnoDB;
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+insert into t1 values ('aaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values ('aaaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+c1
+1
+select c c2 from t1 where c='2';
+c2
+2
+select c c3 from t1 where c='3';
+c3
+3
+select c cx from t1 where c='x';
+cx
+x
+select c cy from t1 where c='y';
+cy
+y
+select c cz from t1 where c='z';
+cz
+z
+select c ca10 from t1 where c='aaaaaaaaaa';
+ca10
+aaaaaaaaaa
+select c cb20 from t1 where c=repeat('b',20);
+cb20
+bbbbbbbbbbbbbbbbbbbb
+drop table t1;
+create table t1 (c char(3) character set utf8mb4, unique (c(2))) engine InnoDB;
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aa' for key 'c'
+insert into t1 values ('b');
+insert into t1 values ('bb');
+insert into t1 values ('bbb');
+ERROR 23000: Duplicate entry 'bb' for key 'c'
+insert into t1 values ('а');
+insert into t1 values ('аа');
+insert into t1 values ('ааа');
+ERROR 23000: Duplicate entry 'аа' for key 'c'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'бб' for key 'c'
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+insert into t1 values ('ꪪꪪꪪ');
+ERROR 23000: Duplicate entry 'ꪪꪪ' for key 'c'
+drop table t1;
+create table t1 (c char(3) character set utf8mb4, unique (c(2))) engine=InnoDB;
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aa' for key 'c'
+insert into t1 values ('b');
+insert into t1 values ('bb');
+insert into t1 values ('bbb');
+ERROR 23000: Duplicate entry 'bb' for key 'c'
+insert into t1 values ('а');
+insert into t1 values ('аа');
+insert into t1 values ('ааа');
+ERROR 23000: Duplicate entry 'аа' for key 'c'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'бб' for key 'c'
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+insert into t1 values ('ꪪꪪꪪ');
+ERROR 23000: Duplicate entry 'ꪪꪪ' for key 'c'
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4,
+unique key a using hash (c(1))
+) engine=InnoDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8mb4 DEFAULT NULL,
+  UNIQUE KEY `a` (`c`(1)) USING HASH
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4,
+unique key a using btree (c(1))
+) engine=InnoDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8mb4 DEFAULT NULL,
+  UNIQUE KEY `a` (`c`(1)) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4,
+unique key a (c(1))
+) engine=InnoDB;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (c varchar(30) character set utf8mb4 collate utf8mb4_bin, unique(c(10))) engine InnoDB;
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+insert into t1 values ('aaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values ('aaaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaa' for key 'c'
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+c1
+1
+select c c2 from t1 where c='2';
+c2
+2
+select c c3 from t1 where c='3';
+c3
+3
+select c cx from t1 where c='x';
+cx
+x
+select c cy from t1 where c='y';
+cy
+y
+select c cz from t1 where c='z';
+cz
+z
+select c ca10 from t1 where c='aaaaaaaaaa';
+ca10
+aaaaaaaaaa
+select c cb20 from t1 where c=repeat('b',20);
+cb20
+bbbbbbbbbbbbbbbbbbbb
+drop table t1;
+create table t1 (c char(3) character set utf8mb4 collate utf8mb4_bin, unique (c(2))) engine InnoDB;
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aa' for key 'c'
+insert into t1 values ('b');
+insert into t1 values ('bb');
+insert into t1 values ('bbb');
+ERROR 23000: Duplicate entry 'bb' for key 'c'
+insert into t1 values ('а');
+insert into t1 values ('аа');
+insert into t1 values ('ааа');
+ERROR 23000: Duplicate entry 'аа' for key 'c'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'бб' for key 'c'
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+insert into t1 values ('ꪪꪪꪪ');
+ERROR 23000: Duplicate entry 'ꪪꪪ' for key 'c'
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4 collate utf8mb4_bin,
+unique key a using hash (c(1))
+) engine=InnoDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  UNIQUE KEY `a` (`c`(1)) USING HASH
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4 collate utf8mb4_bin,
+unique key a using btree (c(1))
+) engine=InnoDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  UNIQUE KEY `a` (`c`(1)) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+c char(10) character set utf8mb4 collate utf8mb4_bin,
+unique key a (c(1))
+) engine=InnoDB;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б' for key 'a'
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8mb4 not null,
+key str  (str(2))
+) engine=InnoDB;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8mb4 not null,
+key str  (str(2))
+) engine=InnoDB;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8mb4 not null,
+key str using btree (str(2))
+) engine=InnoDB;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8mb4 not null,
+key str using hash (str(2))
+) engine=InnoDB;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8mb4 not null,
+key str (str(2))
+) engine= InnoDB;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES ('test');
+SELECT a FROM t1 WHERE a LIKE '%te';
+a
+DROP TABLE t1;
+SET NAMES utf8mb4;
+CREATE TABLE t1 (
+subject varchar(255) character set utf8mb4 collate utf8mb4_unicode_ci,
+p varchar(15) character set utf8mb4
+) ENGINE= InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
+INSERT INTO t1 VALUES ('aaa','bbb');
+SELECT length(subject) FROM t1;
+length(subject)
+3
+432
+SELECT length(subject) FROM t1 ORDER BY 1;
+length(subject)
+3
+432
+DROP TABLE t1;
+CREATE TABLE t1 (
+id       int unsigned NOT NULL auto_increment,
+list_id  smallint unsigned NOT NULL,
+term     TEXT NOT NULL,
+PRIMARY KEY(id),
+INDEX(list_id, term(4))
+) ENGINE=InnoDB CHARSET=utf8mb4;
+INSERT INTO t1 SET list_id = 1, term = "letterc";
+INSERT INTO t1 SET list_id = 1, term = "letterb";
+INSERT INTO t1 SET list_id = 1, term = "lettera";
+INSERT INTO t1 SET list_id = 1, term = "letterd";
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterc");
+id
+1
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
+id
+2
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
+id
+3
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
+id
+4
+DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 (
+id int unsigned NOT NULL auto_increment,
+list_id smallint unsigned NOT NULL,
+term text NOT NULL,
+PRIMARY KEY(id),
+INDEX(list_id, term(19))
+) ENGINE=InnoDB CHARSET=utf8mb4;
+INSERT INTO t1 set list_id = 1, term = "test�test";
+INSERT INTO t1 set list_id = 1, term = "testetest";
+INSERT INTO t1 set list_id = 1, term = "test�test";
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+id	term
+1	test�test
+2	testetest
+3	test�test
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
+id	term
+1	test�test
+2	testetest
+3	test�test
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+id	term
+1	test�test
+2	testetest
+3	test�test
+DROP TABLE t1;
+set names utf8mb4;
+create table t1 (
+a int primary key,
+b varchar(6),
+index b3(b(3))
+) engine=InnoDB character set=utf8mb4;
+insert into t1 values(1,'foo'),(2,'foobar');
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+alter table t1 engine=innodb;
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+drop table t1;
+create table t1 (
+a enum('петя','вася','анюта') character set utf8mb4 not null default 'анюта',
+b set('петя','вася','анюта') character set utf8mb4 not null default 'анюта'
+) engine InnoDB;
+create table t2 engine InnoDB select concat(a,_utf8mb4'') as a, concat(b,_utf8mb4'')as b from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(5) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `b` varchar(15) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+drop table t1;
+select 'c' like '\_' as want0;
+want0
+0
+SELECT SUBSTR('вася',-2);
+SUBSTR('вася',-2)
+ся
+create table t1 (id integer, a varchar(100) character set utf8mb4 collate utf8mb4_unicode_ci) engine InnoDB;
+insert into t1 values (1, 'Test');
+select * from t1 where soundex(a) = soundex('Test');
+id	a
+1	Test
+select * from t1 where soundex(a) = soundex('TEST');
+id	a
+1	Test
+select * from t1 where soundex(a) = soundex('test');
+id	a
+1	Test
+drop table t1;
+select soundex(_utf8mb4 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB);
+soundex(_utf8mb4 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB)
+阅000
+select hex(soundex(_utf8mb4 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB));
+hex(soundex(_utf8mb4 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB))
+E99885303030
+select soundex(_utf8mb4 0xD091D092D093);
+soundex(_utf8mb4 0xD091D092D093)
+Б000
+select hex(soundex(_utf8mb4 0xD091D092D093));
+hex(soundex(_utf8mb4 0xD091D092D093))
+D091303030
+SET collation_connection='utf8mb4_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8mb4_general_ci	6109
+utf8mb4_general_ci	61
+utf8mb4_general_ci	6120
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8mb4_general_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+utf8mb4_general_ci
+delete from t1;
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	61
+ä	C3A4
+ae	6165
+o	6F
+ö	C3B6
+oe	6F65
+s	73
+ß	C39F
+ss	7373
+u	75
+ü	C3BC
+ue	7565
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a,ä
+ae
+o,ö
+oe
+s,ß
+ss
+u,ü
+ue
+drop table t1;
+SET collation_connection='utf8mb4_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8mb4_bin	6109
+utf8mb4_bin	61
+utf8mb4_bin	6120
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8mb4_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
+CREATE TABLE t1 (
+user varchar(255) NOT NULL default ''
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('one'),('two');
+SELECT CHARSET('a');
+CHARSET('a')
+utf8mb4
+SELECT user, CONCAT('<', user, '>') AS c FROM t1;
+user	c
+one	<one>
+two	<two>
+DROP TABLE t1;
+create table t1 (f1 varchar(1) not null) default charset utf8mb4 engine InnoDB;
+insert into t1 values (''), ('');
+select concat(concat(_latin1'->',f1),_latin1'<-') from t1;
+concat(concat(_latin1'->',f1),_latin1'<-')
+-><-
+-><-
+drop table t1;
+select convert(_koi8r'�' using utf8mb4) < convert(_koi8r'�' using utf8mb4);
+convert(_koi8r'?' using utf8mb4) < convert(_koi8r'?' using utf8mb4)
+1
+set names latin1;
+create table t1 (a varchar(10)) character set utf8mb4 engine InnoDB;
+insert into t1 values ('test');
+select ifnull(a,'') from t1;
+ifnull(a,'')
+test
+drop table t1;
+select repeat(_utf8mb4'+',3) as h union select NULL;
+h
++++
+NULL
+select ifnull(NULL, _utf8mb4'string');
+ifnull(NULL, _utf8mb4'string')
+string
+set names utf8mb4;
+create table t1 (s1 char(5) character set utf8mb4 collate utf8mb4_lithuanian_ci) engine InnoDB;
+insert into t1 values ('I'),('K'),('Y');
+select * from t1 where s1 < 'K' and s1 = 'Y';
+s1
+I
+Y
+select * from t1 where 'K' > s1 and s1 = 'Y';
+s1
+I
+Y
+drop table t1;
+create table t1 (s1 char(5) character set utf8mb4 collate utf8mb4_czech_ci) engine InnoDB;
+insert into t1 values ('c'),('d'),('h'),('ch'),('CH'),('cH'),('Ch'),('i');
+select * from t1 where s1 > 'd' and s1 = 'CH';
+s1
+CH
+Ch
+ch
+select * from t1 where 'd' < s1 and s1 = 'CH';
+s1
+CH
+Ch
+ch
+select * from t1 where s1 = 'cH' and s1 <> 'ch';
+s1
+cH
+select * from t1 where 'cH' = s1 and s1 <> 'ch';
+s1
+cH
+drop table t1;
+create table t1 (a varchar(255)) default character set utf8mb4 engine InnoDB;
+insert into t1 values (1.0);
+drop table t1;
+create table t1 (
+id int not null,
+city varchar(20) not null,
+key (city(7),id)
+) character set=utf8mb4 engine InnoDB;
+insert into t1 values (1,'Durban North');
+insert into t1 values (2,'Durban');
+select * from t1 where city = 'Durban';
+id	city
+2	Durban
+select * from t1 where city = 'Durban ';
+id	city
+2	Durban
+drop table t1;
+create table t1 (x set('A', 'B') default 0) character set utf8mb4 engine InnoDB;
+ERROR 42000: Invalid default value for 'x'
+create table t1 (x enum('A', 'B') default 0) character set utf8mb4 engine InnoDB;
+ERROR 42000: Invalid default value for 'x'
+SET NAMES UTF8;
+CREATE TABLE t1 (
+`id` int(20) NOT NULL auto_increment,
+`country` varchar(100) NOT NULL default '',
+`shortcode` varchar(100) NOT NULL default '',
+`operator` varchar(100) NOT NULL default '',
+`momid` varchar(30) NOT NULL default '',
+`keyword` varchar(160) NOT NULL default '',
+`content` varchar(160) NOT NULL default '',
+`second_token` varchar(160) default NULL,
+`gateway_id` int(11) NOT NULL default '0',
+`created` datetime NOT NULL default '0000-00-00 00:00:00',
+`msisdn` varchar(15) NOT NULL default '',
+PRIMARY KEY  (`id`),
+UNIQUE KEY `MSCCSPK_20030521130957121` (`momid`),
+KEY `IX_mobile_originated_message_keyword` (`keyword`),
+KEY `IX_mobile_originated_message_created` (`created`),
+KEY `IX_mobile_originated_message_support` (`msisdn`,`momid`,`keyword`,`gateway_id`,`created`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES 
+(1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
+(2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
+CREATE TABLE t2 (
+`msisdn` varchar(15) NOT NULL default '',
+`operator_id` int(11) NOT NULL default '0',
+`created` datetime NOT NULL default '0000-00-00 00:00:00',
+UNIQUE KEY `PK_user` (`msisdn`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
+SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
+content	msisdn
+ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми	1234567890
+11 g	1234567890
+DROP TABLE t1,t2;
+create table t1 (a char(20) character set utf8mb4) engine InnoDB;
+insert into t1 values ('123456'),('андрей');
+alter table t1 modify a char(2) character set utf8mb4;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+select char_length(a), length(a), a from t1 order by a;
+char_length(a)	length(a)	a
+2	2	12
+2	4	ан
+drop table t1;
+set names utf8mb4;
+select 'andre%' like 'andreñ%' escape 'ñ';
+'andre%' like 'andreñ%' escape 'ñ'
+1
+set names utf8mb4;
+select 'a\\' like 'a\\';
+'a\\' like 'a\\'
+1
+select 'aa\\' like 'a%\\';
+'aa\\' like 'a%\\'
+1
+create table t1 (a char(10), key(a)) character set utf8mb4 engine InnoDB;
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like concat("abc","%");
+a
+abc
+abcd
+select * from t1 where a like "ABC%";
+a
+abc
+abcd
+select * from t1 where a like "test%";
+a
+test
+select * from t1 where a like "te_t";
+a
+test
+select * from t1 where a like "%a%";
+a
+a
+abc
+abcd
+select * from t1 where a like "%abcd%";
+a
+abcd
+select * from t1 where a like "%abc\d%";
+a
+abcd
+drop table t1;
+CREATE TABLE t1 (
+a varchar(255) NOT NULL default '',
+KEY a (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+insert into t1 values (_utf8mb4 0xe880bd);
+insert into t1 values (_utf8mb4 0x5b);
+select hex(a) from t1;
+hex(a)
+5B
+E880BD
+drop table t1;
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8mb4 engine InnoDB;
+select * from t1 where find_in_set('-1', a);
+a
+drop table t1;
+create table t1 (a int) engine InnoDB;
+insert into t1 values (48),(49),(50);
+set names utf8mb4;
+select distinct char(a) from t1;
+char(a)
+0
+1
+2
+drop table t1;
+CREATE TABLE t1 (t TINYTEXT CHARACTER SET utf8mb4) ENGINE InnoDB;
+INSERT INTO t1 VALUES(REPEAT('a', 100));
+CREATE TEMPORARY TABLE t2 ENGINE InnoDB SELECT COALESCE(t) AS bug FROM t1;
+SELECT LENGTH(bug) FROM t2;
+LENGTH(bug)
+100
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (item varchar(255)) default character set utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES (N'\\');
+INSERT INTO t1 VALUES (_utf8mb4'\\');
+INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+INSERT INTO t1 VALUES (_utf8mb4'Cote d\'Ivoire');
+SELECT item FROM t1 ORDER BY item;
+item
+Cote d'Ivoire
+Cote d'Ivoire
+\
+\
+DROP TABLE t1;
+SET NAMES utf8mb4;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO t1 VALUES('uu');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('uU');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('uu');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('uuABC');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('UuABC');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('uuABC');
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+alter table t1 add b int;
+INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',1);
+INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',2);
+delete from t1 where b=1;
+INSERT INTO t1 VALUES('UUABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',1);
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',3);
+INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',4);
+delete from t1 where b=3;
+INSERT INTO t1 VALUES('uUABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',3);
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+set names utf8mb4;
+create table t1 (s1 char(5) character set utf8mb4) engine InnoDB;
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_general_ci from t1 where s1 like 'ペテ%';
+before_delete_general_ci
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_general_ci from t1 where s1 like 'ペテ%';
+after_delete_general_ci
+ペテルグル
+drop table t1;
+set names utf8mb4;
+create table t1 (s1 char(5) character set utf8mb4 collate utf8mb4_unicode_ci) engine InnoDB;
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_unicode_ci from t1 where s1 like 'ペテ%';
+before_delete_unicode_ci
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_unicode_ci from t1 where s1 like 'ペテ%';
+after_delete_unicode_ci
+ペテルグル
+drop table t1;
+set names utf8mb4;
+create table t1 (s1 char(5) character set utf8mb4 collate utf8mb4_bin) engine InnoDB;
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_bin from t1 where s1 like 'ペテ%';
+before_delete_bin
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_bin from t1 where s1 like 'ペテ%';
+after_delete_bin
+ペテルグル
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(30) not null primary key)
+engine=InnoDB default character set utf8mb4 collate utf8mb4_general_ci;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+gci1
+さしすせそかきくけこあいうえお
+select a as gci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+gci2
+あいうえおかきくけこさしすせそ
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(30) not null primary key)
+engine=InnoDB default character set utf8mb4 collate utf8mb4_unicode_ci;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+uci1
+さしすせそかきくけこあいうえお
+select a as uci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+uci2
+あいうえおかきくけこさしすせそ
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(30) not null primary key)
+engine=InnoDB default character set utf8mb4 collate utf8mb4_bin;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+bin1
+さしすせそかきくけこあいうえお
+select a as bin2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+bin2
+あいうえおかきくけこさしすせそ
+drop table t1;
+SET NAMES utf8mb4;
+CREATE TABLE t1 (id int PRIMARY KEY,
+a varchar(16) collate utf8mb4_unicode_ci NOT NULL default '',
+b int,
+f varchar(128) default 'XXX',
+INDEX (a(4))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO t1(id, a, b) VALUES
+(1, 'cccc', 50), (2, 'cccc', 70), (3, 'cccc', 30),
+(4, 'cccc', 30), (5, 'cccc', 20), (6, 'bbbbbb', 40),
+(7, 'dddd', 30), (8, 'aaaa', 10), (9, 'aaaa', 50),
+(10, 'eeeee', 40), (11, 'bbbbbb', 60);
+SELECT id, a, b FROM t1;
+id	a	b
+1	cccc	50
+10	eeeee	40
+11	bbbbbb	60
+2	cccc	70
+3	cccc	30
+4	cccc	30
+5	cccc	20
+6	bbbbbb	40
+7	dddd	30
+8	aaaa	10
+9	aaaa	50
+SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
+id	a	b
+11	bbbbbb	60
+6	bbbbbb	40
+8	aaaa	10
+9	aaaa	50
+SELECT id, a FROM t1 WHERE a='bbbbbb';
+id	a
+11	bbbbbb
+6	bbbbbb
+SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
+id	a
+6	bbbbbb
+11	bbbbbb
+DROP TABLE t1;
+SET NAMES utf8mb4;
+CREATE TABLE t1 (
+a CHAR(13) DEFAULT '',
+INDEX(a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES 
+('Käli Käli 2-4'), ('Käli Käli 2-4'),
+('Käli Käli 2+4'), ('Käli Käli 2+4'),
+('Käli Käli 2-6'), ('Käli Käli 2-6');
+INSERT INTO t1 SELECT * FROM t1;
+CREATE TABLE t2 (
+a CHAR(13) DEFAULT '',
+INDEX(a)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO t2 VALUES
+('Kali Kali 2-4'), ('Kali Kali 2-4'),
+('Kali Kali 2+4'), ('Kali Kali 2+4'),
+('Kali Kali 2-6'), ('Kali Kali 2-6');
+INSERT INTO t2 SELECT * FROM t2;
+SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+a
+Käli Käli 2+4
+Käli Käli 2+4
+Käli Käli 2+4
+Käli Käli 2+4
+SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+a
+Kali Kali 2+4
+Kali Kali 2+4
+Kali Kali 2+4
+Kali Kali 2+4
+EXPLAIN SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	53	NULL	4	Using where; Using index
+EXPLAIN SELECT a FROM t1 WHERE a = 'Käli Käli 2+4';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	53	const	4	Using where; Using index
+EXPLAIN SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	14	NULL	4	Using where; Using index
+EXPLAIN SELECT a FROM t2 WHERE a = 'Kali Kali 2+4';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	14	const	4	Using where; Using index
+DROP TABLE t1,t2;
+CREATE TABLE t1 (
+a char(255) DEFAULT '', 
+KEY(a(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+a
+Käli Käli 2-4
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+a
+Käli Käli 2-4
+Käli Käli 2-4
+DROP TABLE t1;
+CREATE TABLE t1 (
+a char(255) DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+a
+Käli Käli 2-4
+Käli Käli 2-4
+ALTER TABLE t1 ADD KEY (a(10));
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+a
+Käli Käli 2-4
+Käli Käli 2-4
+DROP TABLE t1;
+SET NAMES latin2;
+CREATE TABLE t1 (
+id int(11) NOT NULL default '0',
+tid int(11) NOT NULL default '0',
+val text NOT NULL,
+INDEX idx(tid, val(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES
+(40988,72,'VOLN� ADSL'),(41009,72,'VOLN� ADSL'),
+(41032,72,'VOLN� ADSL'),(41038,72,'VOLN� ADSL'),
+(41063,72,'VOLN� ADSL'),(41537,72,'VOLN� ADSL Office'),
+(42141,72,'VOLN� ADSL'),(42565,72,'VOLN� ADSL Combi'),
+(42749,72,'VOLN� ADSL'),(44205,72,'VOLN� ADSL');
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNY ADSL';
+id	tid	val
+40988	72	VOLN� ADSL
+41009	72	VOLN� ADSL
+41032	72	VOLN� ADSL
+41038	72	VOLN� ADSL
+41063	72	VOLN� ADSL
+42141	72	VOLN� ADSL
+42749	72	VOLN� ADSL
+44205	72	VOLN� ADSL
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLN� ADSL';
+id	tid	val
+40988	72	VOLN� ADSL
+41009	72	VOLN� ADSL
+41032	72	VOLN� ADSL
+41038	72	VOLN� ADSL
+41063	72	VOLN� ADSL
+42141	72	VOLN� ADSL
+42749	72	VOLN� ADSL
+44205	72	VOLN� ADSL
+SELECT * FROM t1 WHERE tid=72 and val LIKE '%VOLN� ADSL';
+id	tid	val
+40988	72	VOLN� ADSL
+41009	72	VOLN� ADSL
+41032	72	VOLN� ADSL
+41038	72	VOLN� ADSL
+41063	72	VOLN� ADSL
+42141	72	VOLN� ADSL
+42749	72	VOLN� ADSL
+44205	72	VOLN� ADSL
+ALTER TABLE t1 DROP KEY idx;
+ALTER TABLE t1 ADD KEY idx (tid,val(11));
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLN� ADSL';
+id	tid	val
+40988	72	VOLN� ADSL
+41009	72	VOLN� ADSL
+41032	72	VOLN� ADSL
+41038	72	VOLN� ADSL
+41063	72	VOLN� ADSL
+42141	72	VOLN� ADSL
+42749	72	VOLN� ADSL
+44205	72	VOLN� ADSL
+DROP TABLE t1;
+create table t1(a char(200) collate utf8mb4_unicode_ci NOT NULL default '')
+default charset=utf8mb4 collate=utf8mb4_unicode_ci engine InnoDB;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t1) AS t2;
+COUNT(*)
+1
+explain select a from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+SELECT COUNT(*) FROM (SELECT a FROM t1 GROUP BY a) AS t2;
+COUNT(*)
+1
+drop table t1;
+create table t1(a char(10)) default charset utf8mb4 engine InnoDB;
+insert into t1 values ('123'), ('456');
+explain
+select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
+substr(Z.a,-1)	a
+3	123
+6	456
+drop table t1;
+SET CHARACTER SET utf8mb4;
+SHOW VARIABLES LIKE 'character\_set\_%';
+Variable_name	Value
+character_set_client	utf8mb4
+character_set_connection	latin1
+character_set_database	latin1
+character_set_filesystem	binary
+character_set_results	utf8mb4
+character_set_server	latin1
+character_set_system	utf8
+CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+USE crashtest;
+CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4 ENGINE InnoDB;
+INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
+SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
+crash
+35
+36
+37
+INSERT INTO crashtest VALUES ('-1000');
+EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	crashtest	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
+crash
+-1000
+35
+36
+37
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FFFFFC'
+DROP TABLE crashtest;
+DROP DATABASE crashtest;
+USE test;
+SET CHARACTER SET default;
+CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
+SELECT id FROM t1;
+id
+aa
+aa
+xxx
+yyy
+SELECT DISTINCT id FROM t1;
+id
+aa
+xxx
+yyy
+SELECT DISTINCT id FROM t1 ORDER BY id;
+id
+aa
+xxx
+yyy
+DROP TABLE t1;
+create table t1 (
+a varchar(26) not null
+) default character set utf8mb4 ENGINE InnoDB;
+insert into t1 (a) values ('abcdefghijklmnopqrstuvwxyz');
+select * from t1;
+a
+abcdefghijklmnopqrstuvwxyz
+alter table t1 change a a varchar(20) character set utf8mb4 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghijklmnopqrst
+alter table t1 change a a char(15) character set utf8mb4 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghijklmno
+alter table t1 change a a char(10) character set utf8mb4 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcdefghij
+alter table t1 change a a varchar(5) character set utf8mb4 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+abcde
+drop table t1;
+create table t1 (
+a varchar(4000) not null
+) default character set utf8mb4 engine InnoDB;
+insert into t1 values (repeat('a',4000));
+alter table t1 change a a varchar(3000) character set utf8mb4 not null;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select length(a) from t1;
+length(a)
+3000
+drop table t1;
+set names utf8mb4;
+select hex(char(1 using utf8mb4));
+hex(char(1 using utf8mb4))
+01
+select char(0xd1,0x8f using utf8mb4);
+char(0xd1,0x8f using utf8mb4)
+я
+select char(0xd18f using utf8mb4);
+char(0xd18f using utf8mb4)
+я
+select char(53647 using utf8mb4);
+char(53647 using utf8mb4)
+я
+select char(0xff,0x8f using utf8mb4);
+char(0xff,0x8f using utf8mb4)
+
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF8F'
+select convert(char(0xff,0x8f) using utf8mb4);
+convert(char(0xff,0x8f) using utf8mb4)
+
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF8F'
+set sql_mode=traditional;
+select char(0xff,0x8f using utf8mb4);
+char(0xff,0x8f using utf8mb4)
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF8F'
+select char(195 using utf8mb4);
+char(195 using utf8mb4)
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'C3'
+select char(196 using utf8mb4);
+char(196 using utf8mb4)
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'C4'
+select char(2557 using utf8mb4);
+char(2557 using utf8mb4)
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FD'
+select convert(char(0xff,0x8f) using utf8mb4);
+convert(char(0xff,0x8f) using utf8mb4)
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF8F'
+select hex(convert(char(2557 using latin1) using utf8mb4));
+hex(convert(char(2557 using latin1) using utf8mb4))
+09C3BD
+select hex(char(195));
+hex(char(195))
+C3
+select hex(char(196));
+hex(char(196))
+C4
+select hex(char(2557));
+hex(char(2557))
+09FD
+set names utf8mb4;
+create table t1 (a char(1)) default character set utf8mb4 engine InnoDB;
+create table t2 (a char(1)) default character set utf8mb4 engine InnoDB;
+insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
+insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
+select * from t1 union distinct select * from t2;
+a
+a
+i
+あ
+い
+drop table t1,t2;
+set names utf8mb4;
+create table t1 (a char(10), b varchar(10)) engine InnoDB;
+insert into t1 values ('bar','kostja');
+insert into t1 values ('kostja','bar');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+a	b
+bar	kostja
+set @a:='kostja';
+execute my_stmt using @a;
+a	b
+kostja	bar
+set @a:=null;
+execute my_stmt using @a;
+a	b
+drop table if exists t1;
+drop table if exists t1;
+drop view if exists v1, v2;
+set names utf8mb4;
+create table t1(col1 varchar(12) character set utf8mb4 collate utf8mb4_unicode_ci) engine InnoDB;
+insert into t1 values('t1_val');
+create view v1 as select 'v1_val' as col1;
+select coercibility(col1), collation(col1) from v1;
+coercibility(col1)	collation(col1)
+4	utf8mb4_general_ci
+create view v2 as select col1 from v1 union select col1 from t1;
+select coercibility(col1), collation(col1)from v2;
+coercibility(col1)	collation(col1)
+2	utf8mb4_unicode_ci
+2	utf8mb4_unicode_ci
+drop view v1, v2;
+create view v1 as select 'v1_val' collate utf8mb4_swedish_ci as col1;
+select coercibility(col1), collation(col1) from v1;
+coercibility(col1)	collation(col1)
+0	utf8mb4_swedish_ci
+create view v2 as select col1 from v1 union select col1 from t1;
+select coercibility(col1), collation(col1) from v2;
+coercibility(col1)	collation(col1)
+0	utf8mb4_swedish_ci
+0	utf8mb4_swedish_ci
+drop view v1, v2;
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
+insert into t1 values ('a',1);
+select concat(a, if(b>10, N'x', N'y')) from t1;
+concat(a, if(b>10, N'x', N'y'))
+ay
+select concat(a, if(b>10, N'æ', N'ß')) from t1;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
+insert into t1 values ('a',1);
+select concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y')) from t1;
+concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y'))
+ay
+select concat(a, if(b>10, _utf8mb4'æ', _utf8mb4'ß')) from t1;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
+insert into t1 values ('a',1);
+select concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79)) from t1;
+concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79))
+ay
+select concat(a, if(b>10, _utf8mb4 0xC3A6, _utf8mb4 0xC3AF)) from t1;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+drop table t1;
+set names utf8mb4;
+create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
+insert into t1 values ('a',1);
+select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
+concat(a, if(b>10, 'x' 'x', 'y' 'y'))
+ayy
+select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+drop table t1;
+CREATE TABLE t1 (
+colA int(11) NOT NULL,
+colB varchar(255) character set utf8mb4 NOT NULL,
+PRIMARY KEY  (colA)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 (colA, colB) VALUES (1, 'foo'), (2, 'foo bar');
+CREATE TABLE t2 (
+colA int(11) NOT NULL,
+colB varchar(255) character set utf8mb4 NOT NULL,
+KEY bad  (colA,colB(3))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
+SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
+WHERE t1.colA < 3;
+colA	colB	colA	colB
+1	foo	1	foo
+2	foo bar	2	foo bar
+DROP TABLE t1, t2;
+SELECT 'н1234567890' UNION SELECT _binary '1';
+н1234567890
+н1234567890
+1
+SELECT 'н1234567890' UNION SELECT 1;
+н1234567890
+н1234567890
+1
+SELECT '1' UNION SELECT 'н1234567890';
+1
+1
+н1234567890
+SELECT 1 UNION SELECT 'н1234567890';
+1
+1
+н1234567890
+CREATE TABLE t1 (c VARCHAR(11)) CHARACTER SET utf8mb4 ENGINE InnoDB;
+CREATE TABLE t2 (b CHAR(1) CHARACTER SET binary, i INT) ENGINE InnoDB;
+INSERT INTO t1 (c) VALUES ('н1234567890');
+INSERT INTO t2 (b, i) VALUES ('1', 1);
+SELECT c FROM t1 UNION SELECT b FROM t2;
+c
+н1234567890
+1
+SELECT c FROM t1 UNION SELECT i FROM t2;
+c
+н1234567890
+1
+SELECT b FROM t2 UNION SELECT c FROM t1;
+b
+1
+н1234567890
+SELECT i FROM t2 UNION SELECT c FROM t1;
+i
+1
+н1234567890
+DROP TABLE t1, t2;
+set sql_mode=traditional;
+select hex(char(0xFF using utf8mb4));
+hex(char(0xFF using utf8mb4))
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+select hex(convert(0xFF using utf8mb4));
+hex(convert(0xFF using utf8mb4))
+NULL
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 0x616263FF);
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 X'616263FF');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 B'001111111111');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select (_utf8mb4 X'616263FF');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+set sql_mode=default;
+select hex(char(0xFF using utf8mb4));
+hex(char(0xFF using utf8mb4))
+
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+select hex(convert(0xFF using utf8mb4));
+hex(convert(0xFF using utf8mb4))
+
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 0x616263FF);
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 X'616263FF');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select hex(_utf8mb4 B'001111111111');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+select (_utf8mb4 X'616263FF');
+ERROR HY000: Invalid utf8mb4 character string: 'FF'
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL) ENGINE InnoDB;
+INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
+SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+CONVERT(a, CHAR)	CONVERT(b, CHAR)
+70000	1092
+70001	1085
+70002	1065
+SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
+CONVERT(a, CHAR)	CONVERT(b, CHAR)
+70000	1092
+70001	1085
+70002	1065
+ALTER TABLE t1 ADD UNIQUE (b);
+SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+CONVERT(a, CHAR)	CONVERT(b, CHAR)
+70000	1092
+70001	1085
+70002	1065
+DROP INDEX b ON t1;
+SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+CONVERT(a, CHAR)	CONVERT(b, CHAR)
+70000	1092
+70001	1085
+70002	1065
+ALTER TABLE t1 ADD INDEX (b);
+SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
+CONVERT(a, CHAR)	CONVERT(b, CHAR)
+70000	1092
+70001	1085
+70002	1065
+DROP TABLE t1;
+#
+# Bug#26474: Add Sinhala script (Sri Lanka) collation to MySQL
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+predicted_order int NOT NULL,
+utf8mb4_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES (19, x'E0B696'), (30, x'E0B69AE0B798'), (61, x'E0B6AF'), (93, x'E0B799'), (52, x'E0B6A6'), (73, x'E0B6BBE0B78AE2808D'), (3, x'E0B686'), (56, x'E0B6AA'), (55, x'E0B6A9'), (70, x'E0B6B9'), (94, x'E0B79A'), (80, x'E0B785'), (25, x'E0B69AE0B791'), (48, x'E0B6A2'), (13, x'E0B690'), (86, x'E0B793'), (91, x'E0B79F'), (81, x'E0B786'), (79, x'E0B784'), (14, x'E0B691'), (99, x'E0B78A'), (8, x'E0B68B'), (68, x'E0B6B7'), (22, x'E0B69A'), (16, x'E0B693'), (33, x'E0B69AE0B7B3'), (38, x'E0B69AE0B79D'), (21, x'E0B683'), (11, x'E0B68E'), (77, x'E0B782'), (40, x'E0B69AE0B78A'), (101, x'E0B78AE2808DE0B6BB'), (35, x'E0B69AE0B79A'), (1, x'E0B7B4'), (9, x'E0B68C'), (96, x'E0B79C'), (6, x'E0B689'), (95, x'E0B79B'), (88, x'E0B796'), (64, x'E0B6B3'), (26, x'E0B69AE0B792'), (82, x'E0B78F'), (28, x'E0B69AE0B794'), (39, x'E0B69AE0B79E'), (97, x'E0B79D'), (2, x'E0B685'), (75, x'E0B780'), (34, x'E0B69AE0B799'), (69, x'E0B6B8'), (83, x'E0B790'), (18, x'E0B695'), (90, x'E0B7B2'), (17, x'E0B694'), (72, x'E0B6BB'), (66, x'E0B6B5'), (59, x'E0B6AD'), (44, x'E0B69E'), (15, x'E0B692'), (23, x'E0B69AE0B78F'), (65, x'E0B6B4'), (42, x'E0B69C'), (63, x'E0B6B1'), (85, x'E0B792'), (47, x'E0B6A1'), (49, x'E0B6A3'), (92, x'E0B7B3'), (78, x'E0B783'), (36, x'E0B69AE0B79B'), (4, x'E0B687'), (24, x'E0B69AE0B790'), (87, x'E0B794'), (37, x'E0B69AE0B79C'), (32, x'E0B69AE0B79F'), (29, x'E0B69AE0B796'), (43, x'E0B69D'), (62, x'E0B6B0'), (100, x'E0B78AE2808DE0B6BA'), (60, x'E0B6AE'), (45, x'E0B69F'), (12, x'E0B68F'), (46, x'E0B6A0'), (50, x'E0B6A5'), (51, x'E0B6A4'), (5, x'E0B688'), (76, x'E0B781'), (89, x'E0B798'), (74, x'E0B6BD'), (10, x'E0B68D'), (57, x'E0B6AB'), (71, x'E0B6BA'), (58, x'E0B6AC'), (27, x'E0B69AE0B793'), (54, x'E0B6A8'), (84, x'E0B791'), (31, x'E0B69AE0B7B2'), (98, x'E0B79E'), (53, x'E0B6A7'), (41, x'E0B69B'), (67, x'E0B6B6'), (7, x'E0B68A'), (20, x'E0B682');
+SELECT predicted_order, hex(utf8mb4_encoding) FROM t1 ORDER BY utf8mb4_encoding COLLATE utf8mb4_sinhala_ci;
+predicted_order	hex(utf8mb4_encoding)
+1	E0B7B4
+2	E0B685
+3	E0B686
+4	E0B687
+5	E0B688
+6	E0B689
+7	E0B68A
+8	E0B68B
+9	E0B68C
+10	E0B68D
+11	E0B68E
+12	E0B68F
+13	E0B690
+14	E0B691
+15	E0B692
+16	E0B693
+17	E0B694
+18	E0B695
+19	E0B696
+20	E0B682
+21	E0B683
+22	E0B69A
+23	E0B69AE0B78F
+24	E0B69AE0B790
+25	E0B69AE0B791
+26	E0B69AE0B792
+27	E0B69AE0B793
+28	E0B69AE0B794
+29	E0B69AE0B796
+30	E0B69AE0B798
+31	E0B69AE0B7B2
+32	E0B69AE0B79F
+33	E0B69AE0B7B3
+34	E0B69AE0B799
+35	E0B69AE0B79A
+36	E0B69AE0B79B
+37	E0B69AE0B79C
+38	E0B69AE0B79D
+39	E0B69AE0B79E
+40	E0B69AE0B78A
+41	E0B69B
+42	E0B69C
+43	E0B69D
+44	E0B69E
+45	E0B69F
+46	E0B6A0
+47	E0B6A1
+48	E0B6A2
+49	E0B6A3
+50	E0B6A5
+51	E0B6A4
+52	E0B6A6
+53	E0B6A7
+54	E0B6A8
+55	E0B6A9
+56	E0B6AA
+57	E0B6AB
+58	E0B6AC
+59	E0B6AD
+60	E0B6AE
+61	E0B6AF
+62	E0B6B0
+63	E0B6B1
+64	E0B6B3
+65	E0B6B4
+66	E0B6B5
+67	E0B6B6
+68	E0B6B7
+69	E0B6B8
+70	E0B6B9
+71	E0B6BA
+72	E0B6BB
+73	E0B6BBE0B78AE2808D
+74	E0B6BD
+75	E0B780
+76	E0B781
+77	E0B782
+78	E0B783
+79	E0B784
+80	E0B785
+81	E0B786
+82	E0B78F
+83	E0B790
+84	E0B791
+85	E0B792
+86	E0B793
+87	E0B794
+88	E0B796
+89	E0B798
+90	E0B7B2
+91	E0B79F
+92	E0B7B3
+93	E0B799
+94	E0B79A
+95	E0B79B
+96	E0B79C
+97	E0B79D
+98	E0B79E
+99	E0B78A
+100	E0B78AE2808DE0B6BA
+101	E0B78AE2808DE0B6BB
+DROP TABLE t1;
+#
+# Bug#32914 Character sets: illegal characters in utf8mb4 and utf32 columns
+#
+create table t1 (utf8mb4 char(1) character set utf8mb4) engine InnoDB;
+Testing [F0][90..BF][80..BF][80..BF]
+insert into t1 values (0xF0908080);
+insert into t1 values (0xF0BFBFBF);
+insert into t1 values (0xF08F8080);
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x8F\x80\x80' for column 'utf8mb4' at row 1
+select hex(utf8mb4) from t1;
+hex(utf8mb4)
+
+F0908080
+F0BFBFBF
+delete from t1;
+Testing [F2..F3][80..BF][80..BF][80..BF]
+insert into t1 values (0xF2808080);
+insert into t1 values (0xF2BFBFBF);
+select hex(utf8mb4) from t1;
+hex(utf8mb4)
+F2808080
+F2BFBFBF
+delete from t1;
+Testing [F4][80..8F][80..BF][80..BF]
+insert into t1 values (0xF4808080);
+insert into t1 values (0xF48F8080);
+insert into t1 values (0xF4908080);
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\x90\x80\x80' for column 'utf8mb4' at row 1
+select hex(utf8mb4) from t1;
+hex(utf8mb4)
+
+F4808080
+F48F8080
+drop table t1;
+#
+# Check strnxfrm() with odd length
+#
+set max_sort_length=5;
+select @@max_sort_length;
+@@max_sort_length
+5
+create table t1 (a varchar(128) character set utf8mb4 collate utf8mb4_general_ci) engine InnoDB;
+insert into t1 values ('a'),('b'),('c');
+select * from t1 order by a;
+a
+a
+b
+c
+alter table t1 modify a varchar(128) character set utf8mb4 collate utf8mb4_bin;
+select * from t1 order by a;
+a
+a
+b
+c
+drop table t1;
+set max_sort_length=default;
+#
+# Bug#26180: Can't add columns to tables created with utf8mb4 text indexes
+#
+CREATE TABLE t1 (
+clipid INT NOT NULL,
+Tape TINYTEXT,
+PRIMARY KEY (clipid),
+KEY tape(Tape(255))
+) CHARACTER SET=utf8mb4 ENGINE InnoDB;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `clipid` int(11) NOT NULL,
+  `mos` tinyint(4) DEFAULT '0',
+  `Tape` tinytext,
+  PRIMARY KEY (`clipid`),
+  KEY `tape` (`Tape`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+#
+# Testing 4-byte values.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+u_decimal int NOT NULL,
+utf8mb4_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb4 ENGINE InnoDB;
+INSERT INTO t1 VALUES (119040, x'f09d8480'),
+# G CLEF
+(119070, x'f09d849e'),
+# HALF NOTE
+(119134, x'f09d859e'),
+# MUSICAL SYMBOL CROIX
+(119247, x'f09d878f'),
+# MATHEMATICAL BOLD ITALIC CAPITAL DELTA
+(120607, x'f09d9c9f'),
+# SANS-SERIF BOLD ITALIC CAPITAL PI
+(120735, x'f09d9e9f'),
+# <Plane 16 Private Use, Last> (last 4 byte character)
+(1114111, x'f48fbfbf'),
+# VARIATION SELECTOR-256
+(917999, x'f3a087af');
+INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480');
+INSERT INTO t1 VALUES (65131, x'efb9abf09d849ef09d859ef09d859ef09d8480f09d859fefb9abefb9abf09d85a0efb9ab');
+INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480f09d85a0');
+Warnings:
+Warning	1265	Data truncated for column 'utf8mb4_encoding' at row 1
+SELECT u_decimal, hex(utf8mb4_encoding) FROM t1 ORDER BY utf8mb4_encoding COLLATE utf8mb4_general_ci, BINARY utf8mb4_encoding;
+u_decimal	hex(utf8mb4_encoding)
+1114111	F48FBFBF
+119040	F09D8480
+119070	F09D849E
+119070	F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+119070	F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+119134	F09D859E
+119247	F09D878F
+120607	F09D9C9F
+120735	F09D9E9F
+65131	EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9AB
+917999	F3A087AF
+INSERT INTO t1 VALUES (1114111, x'f5808080');
+Warnings:
+Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+table_name= 't1' AND column_name= 'utf8mb4_encoding';
+character_maximum_length	character_octet_length
+10	40
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+u_decimal int NOT NULL,
+utf8mb3_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb3 ENGINE InnoDB;
+INSERT INTO t2 VALUES (42856, x'ea9da8');
+INSERT INTO t2 VALUES (65131, x'efb9ab');
+INSERT INTO t2 VALUES (1114111, x'f48fbfbf');
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb3_encoding' at row 1
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+table_name= 't2' AND column_name= 'utf8mb3_encoding';
+character_maximum_length	character_octet_length
+10	30
+UPDATE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBD' for column 'utf8mb3_encoding' at row 1
+UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
+SELECT HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8')) FROM t1;
+HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8'))
+EA9DA8
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEA9DA8
+F09D8480EA9DA8
+F09D849EEA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D859EEA9DA8
+F09D878FEA9DA8
+F09D9C9FEA9DA8
+F09D9E9FEA9DA8
+F3A087AFEA9DA8
+F48FBFBFEA9DA8
+SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
+HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding))
+
+EA9DA8
+EFB9AB
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9AB
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEA9DA8
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEFB9AB
+F09D8480
+F09D8480EA9DA8
+F09D8480EFB9AB
+F09D849E
+F09D849EEA9DA8
+F09D849EEFB9AB
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EFB9AB
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EFB9AB
+F09D859E
+F09D859EEA9DA8
+F09D859EEFB9AB
+F09D878F
+F09D878FEA9DA8
+F09D878FEFB9AB
+F09D9C9F
+F09D9C9FEA9DA8
+F09D9C9FEFB9AB
+F09D9E9F
+F09D9E9FEA9DA8
+F09D9E9FEFB9AB
+F3A087AF
+F3A087AFEA9DA8
+F3A087AFEFB9AB
+F48FBFBF
+F48FBFBFEA9DA8
+F48FBFBFEFB9AB
+SELECT count(*) FROM t1, t2
+WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
+count(*)
+33
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb4_encoding` varchar(10) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
+u_decimal	hex(utf8mb4_encoding)	utf8mb4_encoding
+1114111		
+1114111	3F	?
+119040	3F	?
+119070	3F	?
+119070	3F3F3F3F3F3F3F3F3F3F	??????????
+119070	3F3F3F3F3F3F3F3F3F3F	??????????
+119134	3F	?
+119247	3F	?
+120607	3F	?
+120735	3F	?
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB	﹫?????﹫﹫?﹫
+917999	3F	?
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb3_encoding` varchar(10) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+1114111	
+42856	EA9DA8
+65131	EFB9AB
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb3;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb3_encoding` varchar(10) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+1114111	
+42856	EA9DA8
+65131	EFB9AB
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb3;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb4_encoding` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+u_decimal	hex(utf8mb4_encoding)
+1114111	
+1114111	3F
+119040	3F
+119070	3F
+119070	3F3F3F3F3F3F3F3F3F3F
+119070	3F3F3F3F3F3F3F3F3F3F
+119134	3F
+119247	3F
+120607	3F
+120735	3F
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB
+917999	3F
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+u_decimal	hex(utf8mb4_encoding)
+1114111	
+1114111	3F
+119040	3F
+119070	3F
+119070	3F3F3F3F3F3F3F3F3F3F
+119070	3F3F3F3F3F3F3F3F3F3F
+119134	3F
+119247	3F
+120607	3F
+120735	3F
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB
+917999	3F
+ALTER TABLE t2 MODIFY utf8mb3_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+1114111	
+42856	EA9DA8
+65131	EFB9AB
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3 (
+u_decimal int NOT NULL,
+utf8mb3_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8 ENGINE InnoDB;
+INSERT INTO t3 SELECT * FROM t1;
+DROP TABLE IF EXISTS t4;
+CREATE TABLE t4 (
+u_decimal int NOT NULL,
+utf8mb4_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb4 ENGINE InnoDB;
+INSERT INTO t3 SELECT * FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+#
+# Testing that mixing utf8 and utf8mb4 collations returns utf8mb4
+#
+SELECT CHARSET(CONCAT(_utf8mb4'a',_utf8'b'));
+CHARSET(CONCAT(_utf8mb4'a',_utf8'b'))
+utf8mb4
+CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4 NOT NULL) ENGINE InnoDB;
+INSERT INTO t1 VALUES (x'ea9da8'),(x'f48fbfbf');
+SELECT CONCAT(utf8mb4, _utf8 x'ea9da8') FROM t1 LIMIT 0;
+CONCAT(utf8mb4, _utf8 x'ea9da8')
+CREATE TABLE t2 (utf8mb3 VARCHAR(10) CHARACTER SET utf8mb3 NOT NULL) ENGINE InnoDB;
+INSERT INTO t2 VALUES (x'ea9da8');
+SELECT HEX(CONCAT(utf8mb4, utf8mb3)) FROM t1,t2 ORDER BY 1;
+HEX(CONCAT(utf8mb4, utf8mb3))
+EA9DA8EA9DA8
+F48FBFBFEA9DA8
+SELECT CHARSET(CONCAT(utf8mb4, utf8mb3)) FROM t1, t2 LIMIT 1;
+CHARSET(CONCAT(utf8mb4, utf8mb3))
+utf8mb4
+CREATE TEMPORARY TABLE t3 ENGINE InnoDB AS SELECT *, concat(utf8mb4,utf8mb3) FROM t1, t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `utf8mb4` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
+  `utf8mb3` varchar(10) CHARACTER SET utf8 NOT NULL,
+  `concat(utf8mb4,utf8mb3)` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TEMPORARY TABLE t3;
+SELECT * FROM t1, t2 WHERE t1.utf8mb4 > t2.utf8mb3;
+utf8mb4	utf8mb3
+􏿿	Ꝩ
+SELECT * FROM t1, t2 WHERE t1.utf8mb4 = t2.utf8mb3;
+utf8mb4	utf8mb3
+Ꝩ	Ꝩ
+SELECT * FROM t1, t2 WHERE t1.utf8mb4 < t2.utf8mb3;
+utf8mb4	utf8mb3
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Check that mixing utf8mb4 with an invalid utf8 constant returns error
+#
+CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4) ENGINE InnoDB;
+INSERT INTO t1 VALUES (x'f48fbfbf');
+SELECT CONCAT(utf8mb4, _utf8 '�') FROM t1;
+ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+SELECT CONCAT('a', _utf8 '�') FROM t1;
+ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,COERCIBLE) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
+#
+# End of tests
+#

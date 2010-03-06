@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 */
 
 #include "mysql_priv.h"
+#include "sql_audit.h"
 #include "probes_mysql.h"
 
 #ifdef HAVE_OPENSSL
@@ -60,7 +61,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
 					       (uchar*) temp_user, temp_len)))
   {
@@ -91,7 +92,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   thd->user_connect=uc;
   uc->connections++;
 end:
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   return return_val;
 
 }
@@ -120,9 +121,10 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
 
-  (void) pthread_mutex_lock(&LOCK_user_conn);
-  if (max_user_connections && !uc->user_resources.user_conn &&
-      max_user_connections < (uint) uc->connections)
+  mysql_mutex_lock(&LOCK_user_conn);
+  if (global_system_variables.max_user_connections &&
+      !uc->user_resources.user_conn &&
+      global_system_variables.max_user_connections < (uint) uc->connections)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error=1;
@@ -160,7 +162,7 @@ end:
     */
     thd->user_connect= NULL;
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
@@ -186,14 +188,14 @@ end:
 void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
     (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
 
@@ -241,7 +243,7 @@ bool check_mqh(THD *thd, uint check_command)
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
 
   time_out_user_resource_limits(thd, uc);
 
@@ -268,7 +270,7 @@ bool check_mqh(THD *thd, uint check_command)
     }
   }
 end:
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
@@ -329,9 +331,9 @@ check_user(THD *thd, enum enum_server_command command,
 #else
 
   my_bool opt_secure_auth_local;
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   opt_secure_auth_local= opt_secure_auth;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   
   /*
     If the server is running in secure auth mode, short scrambles are 
@@ -377,7 +379,8 @@ check_user(THD *thd, enum enum_server_command command,
     if (send_old_password_request(thd) ||
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -407,10 +410,10 @@ check_user(THD *thd, enum enum_server_command command,
 
       if (check_count)
       {
-        pthread_mutex_lock(&LOCK_connection_count);
+        mysql_mutex_lock(&LOCK_connection_count);
         bool count_ok= connection_count <= max_connections ||
                        (thd->main_security_ctx.master_access & SUPER_ACL);
-        VOID(pthread_mutex_unlock(&LOCK_connection_count));
+        mysql_mutex_unlock(&LOCK_connection_count);
 
         if (!count_ok)
         {                                         // too many connections
@@ -442,7 +445,7 @@ check_user(THD *thd, enum enum_server_command command,
 
       /* Don't allow user to connect if he has done too many queries */
       if ((ur.questions || ur.updates || ur.conn_per_hour || ur.user_conn ||
-	   max_user_connections) &&
+	   global_system_variables.max_user_connections) &&
 	  get_or_create_user_conn(thd,
             (opt_old_style_user_limits ? thd->main_security_ctx.user :
              thd->main_security_ctx.priv_user),
@@ -456,7 +459,7 @@ check_user(THD *thd, enum enum_server_command command,
       if (thd->user_connect &&
 	  (thd->user_connect->user_resources.conn_per_hour ||
 	   thd->user_connect->user_resources.user_conn ||
-	   max_user_connections) &&
+	   global_system_variables.max_user_connections) &&
 	  check_for_max_user_connections(thd, thd->user_connect))
       {
         /* The error is set in check_for_max_user_connections(). */
@@ -498,9 +501,9 @@ check_user(THD *thd, enum enum_server_command command,
                     thd->main_security_ctx.host_or_ip,
                     passwd_len ? ER(ER_YES) : ER(ER_NO));
   /*
-    log access denied messages to the error log when log-warnings = 2
+    Log access denied messages to the error log when log-warnings = 2
     so that the overhead of the general query log is not required to track
-    failed connections
+    failed connections.
   */
   if (global_system_variables.log_warnings > 1)
   {
@@ -555,7 +558,7 @@ void free_max_user_conn(void)
 void reset_mqh(LEX_USER *lu, bool get_them= 0)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  (void) pthread_mutex_lock(&LOCK_user_conn);
+  mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
     USER_CONN *uc;
@@ -589,7 +592,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
       uc->conn_per_hour=0;
     }
   }
-  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  mysql_mutex_unlock(&LOCK_user_conn);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
@@ -666,9 +669,9 @@ static int check_connection(THD *thd)
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
-    char ip[30];
+    char ip[NI_MAXHOST];
 
-    if (vio_peer_addr(net->vio, ip, &thd->peer_port))
+    if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
       my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
@@ -676,12 +679,15 @@ static int check_connection(THD *thd)
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
       return 1; /* The error is set by my_strdup(). */
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
-    vio_in_addr(net->vio,&thd->remote.sin_addr);
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      vio_in_addr(net->vio,&thd->remote.sin_addr);
-      thd->main_security_ctx.host=
-        ip_to_hostname(&thd->remote.sin_addr, &connect_errors);
+      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
+                         &thd->main_security_ctx.host, &connect_errors))
+      {
+        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        return 1;
+      }
+
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->main_security_ctx.host)
       {
@@ -714,7 +720,7 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
     thd->main_security_ctx.ip= 0;
     /* Reset sin_addr */
-    bzero((char*) &thd->remote, sizeof(thd->remote));
+    bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
   }
   vio_keepalive(net->vio, TRUE);
   
@@ -769,7 +775,8 @@ static int check_connection(THD *thd)
 	(pkt_len= my_net_read(net)) == packet_error ||
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0),
                thd->main_security_ctx.host_or_ip);
       return 1;
@@ -779,7 +786,7 @@ static int check_connection(THD *thd)
 #include "_cust_sql_parse.h"
 #endif
   if (connect_errors)
-    reset_host_errors(&thd->remote.sin_addr);
+    reset_host_errors(thd->main_security_ctx.ip);
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
@@ -813,7 +820,7 @@ static int check_connection(THD *thd)
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
     {
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -821,7 +828,8 @@ static int check_connection(THD *thd)
     if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -831,7 +839,8 @@ static int check_connection(THD *thd)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
-      inc_host_errors(&thd->remote.sin_addr);
+      inc_host_errors(thd->main_security_ctx.ip);
+
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
       return 1;
     }
@@ -840,7 +849,8 @@ static int check_connection(THD *thd)
 
   if (end >= (char*) net->read_pos+ pkt_len +2)
   {
-    inc_host_errors(&thd->remote.sin_addr);
+    inc_host_errors(thd->main_security_ctx.ip);
+
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
@@ -878,7 +888,8 @@ static int check_connection(THD *thd)
 
   if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
   {
-    inc_host_errors(&thd->remote.sin_addr);
+    inc_host_errors(thd->main_security_ctx.ip);
+
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
@@ -1043,8 +1054,6 @@ static void prepare_new_connection_state(THD* thd)
   netware_reg_user(sctx->ip, sctx->user, "MySQL");
 #endif
 
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
@@ -1059,9 +1068,9 @@ static void prepare_new_connection_state(THD* thd)
   thd->set_time();
   thd->init_for_queries();
 
-  if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
+  if (opt_init_connect.length && !(sctx->master_access & SUPER_ACL))
   {
-    execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
+    execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
       thd->killed= THD::KILL_CONNECTION;
@@ -1099,6 +1108,16 @@ pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
 
+  mysql_thread_set_psi_id(thd->thread_id);
+
+  do_handle_one_connection(thd);
+  return 0;
+}
+
+void do_handle_one_connection(THD *thd_arg)
+{
+  THD *thd= thd_arg;
+
   thd->thr_create_utime= my_micro_time();
 
   if (thread_scheduler.init_new_connection_thread())
@@ -1106,7 +1125,7 @@ pthread_handler_t handle_one_connection(void *arg)
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
     thread_scheduler.end_thread(thd,0);
-    return 0;
+    return;
   }
 
   /*
@@ -1133,7 +1152,7 @@ pthread_handler_t handle_one_connection(void *arg)
   */
   thd->thread_stack= (char*) &thd;
   if (setup_connection_thread_globals(thd))
-    return 0;
+    return;
 
   for (;;)
   {
@@ -1151,6 +1170,7 @@ pthread_handler_t handle_one_connection(void *arg)
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {
+      mysql_audit_release(thd);
       if (do_command(thd))
 	break;
     }
@@ -1159,7 +1179,7 @@ pthread_handler_t handle_one_connection(void *arg)
 end_thread:
     close_connection(thd, 0, 1);
     if (thread_scheduler.end_thread(thd,1))
-      return 0;                                 // Probably no-threads
+      return;                                 // Probably no-threads
 
     /*
       If end_thread() returns, we are either running with

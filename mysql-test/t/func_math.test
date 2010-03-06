@@ -309,4 +309,15 @@ DROP TABLE t1;
 
 --echo #
 
+#
+# Bug #8457: Precision math:
+#            DIV returns incorrect result with large decimal value
+# Bug #46606:Casting error for large numbers in 5.4 when 'div' is used
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
+--error ER_WARN_DATA_OUT_OF_RANGE
+select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x; 
+SHOW WARNINGS;
+
 --echo End of 5.1 tests

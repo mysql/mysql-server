@@ -8,11 +8,15 @@ SELECT @start_session_value;
 8192
 '#--------------------FN_DYNVARS_130_01-------------------------#'
 SET @@global.query_alloc_block_size = 10000;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '10000'
 SET @@global.query_alloc_block_size = DEFAULT;
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 8192
 SET @@session.query_alloc_block_size = 20000;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '20000'
 SET @@session.query_alloc_block_size = DEFAULT;
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
@@ -32,14 +36,20 @@ SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 1024
 SET @@global.query_alloc_block_size = 1025;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '1025'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 1024
 SET @@global.query_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967295'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 4294966272
 SET @@global.query_alloc_block_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967294'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 4294966272
@@ -47,25 +57,32 @@ SET @@global.query_alloc_block_size = 65536;
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 65536
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_130_04-------------------------#'
 SET @@session.query_alloc_block_size = 1024;
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
 SET @@session.query_alloc_block_size = 1025;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '1025'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
 SET @@session.query_alloc_block_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967295'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 4294966272
 SET @@session.query_alloc_block_size = 4294967294;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967294'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 4294966272
 SET @@session.query_alloc_block_size = 655536;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '655536'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 655360
@@ -92,8 +109,8 @@ SET @@global.query_alloc_block_size = 4294967296;
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 4294967296
-SET @@global.query_alloc_block_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.query_alloc_block_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'query_alloc_block_size'
 SELECT @@global.query_alloc_block_size;
 @@global.query_alloc_block_size
 4294967296
@@ -114,26 +131,20 @@ Warning	1292	Truncated incorrect query_alloc_block_size value: '-2'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
-SET @@session.query_alloc_block_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.query_alloc_block_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'query_alloc_block_size'
 SET @@session.query_alloc_block_size = 1023;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '1023'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
-SET @@session.query_alloc_block_size = 4294967296;
-SELECT @@session.query_alloc_block_size;
-@@session.query_alloc_block_size
-4294967296
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.query_alloc_block_size = test;
 ERROR 42000: Incorrect argument type to variable 'query_alloc_block_size'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
-4294967296
+1024
 '#------------------FN_DYNVARS_130_06-----------------------#'
-'Bug# 34877: OutOFMemeory errors are coming if we dont assign these values to variable before comparision statement';
 SET @@global.query_alloc_block_size = 1;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '1'
@@ -172,6 +183,8 @@ SELECT @@query_alloc_block_size = @@global.query_alloc_block_size;
 0
 '#---------------------FN_DYNVARS_130_10----------------------#'
 SET @@query_alloc_block_size = 5000;
+Warnings:
+Warning	1292	Truncated incorrect query_alloc_block_size value: '5000'
 SELECT @@query_alloc_block_size = @@local.query_alloc_block_size;
 @@query_alloc_block_size = @@local.query_alloc_block_size
 1

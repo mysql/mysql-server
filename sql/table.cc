@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
+
+/* PERFORMANCE_SCHEMA name */
+LEX_STRING PERFORMANCE_SCHEMA_DB_NAME= {C_STRING_WITH_LEN("performance_schema")};
 
 /* MYSQL_SCHEMA name */
 LEX_STRING MYSQL_SCHEMA_NAME= {C_STRING_WITH_LEN("mysql")};
@@ -212,36 +215,34 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
   DBUG_ASSERT(db != NULL);
   DBUG_ASSERT(name != NULL);
 
-  if (is_schema_db(db->str, db->length))
-  {
+  if (is_infoschema_db(db->str, db->length))
     return TABLE_CATEGORY_INFORMATION;
-  }
+
+  if ((db->length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
+      (my_strcasecmp(system_charset_info,
+                     PERFORMANCE_SCHEMA_DB_NAME.str,
+                     db->str) == 0))
+    return TABLE_CATEGORY_PERFORMANCE;
 
   if ((db->length == MYSQL_SCHEMA_NAME.length) &&
       (my_strcasecmp(system_charset_info,
-                    MYSQL_SCHEMA_NAME.str,
-                    db->str) == 0))
+                     MYSQL_SCHEMA_NAME.str,
+                     db->str) == 0))
   {
     if (is_system_table_name(name->str, name->length))
-    {
       return TABLE_CATEGORY_SYSTEM;
-    }
 
     if ((name->length == GENERAL_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
-                      GENERAL_LOG_NAME.str,
-                      name->str) == 0))
-    {
-      return TABLE_CATEGORY_PERFORMANCE;
-    }
+                       GENERAL_LOG_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_LOG;
 
     if ((name->length == SLOW_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
-                      SLOW_LOG_NAME.str,
-                      name->str) == 0))
-    {
-      return TABLE_CATEGORY_PERFORMANCE;
-    }
+                       SLOW_LOG_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_LOG;
   }
 
   return TABLE_CATEGORY_USER;
@@ -313,9 +314,12 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->table_map_id= ~0UL;
     share->cached_row_logging_check= -1;
 
+    share->used_tables.empty();
+    share->free_tables.empty();
+
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
-    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&share->cond, NULL);
+    mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
+                     &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
   }
   DBUG_RETURN(share);
 }
@@ -379,6 +383,9 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   */
   share->table_map_id= (ulong) thd->query_id;
 
+  share->used_tables.empty();
+  share->free_tables.empty();
+
   DBUG_VOID_RETURN;
 }
 
@@ -403,25 +410,11 @@ void free_table_share(TABLE_SHARE *share)
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
 
-  /*
-    If someone is waiting for this to be deleted, inform it about this.
-    Don't do a delete until we know that no one is refering to this anymore.
-  */
+  /* The mutex is initialized only for shares that are part of the TDC */
   if (share->tmp_table == NO_TMP_TABLE)
-  {
-    /* share->mutex is locked in release_table_share() */
-    while (share->waiting_on_cond)
-    {
-      pthread_cond_broadcast(&share->cond);
-      pthread_cond_wait(&share->cond, &share->mutex);
-    }
-    /* No thread refers to this anymore */
-    pthread_mutex_unlock(&share->mutex);
-    pthread_mutex_destroy(&share->mutex);
-    pthread_cond_destroy(&share->cond);
-  }
+    mysql_mutex_destroy(&share->LOCK_ha_data);
   my_hash_free(&share->name_hash);
-  
+
   plugin_unlock(NULL, share->db_plugin);
   share->db_plugin= NULL;
 
@@ -524,7 +517,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[288], *disk_buff;
+  uchar head[64], *disk_buff;
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -536,7 +529,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
     /*
       We don't try to open 5.0 unencoded name, if
@@ -547,7 +541,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         
       - non-encoded db or table name contain "#mysql50#" prefix.
         This kind of tables must have been opened only by the
-        my_open() above.
+        mysql_file_open() above.
     */
     if (strchr(share->table_name.str, '@') ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -573,7 +567,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       so no need to check the old file name.
     */
     if (length == share->normalized_path.length ||
-        ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0))
+        ((file= mysql_file_open(key_file_frm,
+                                path, O_RDONLY | O_SHARE, MYF(0))) < 0))
       goto err_not_open;
 
     /* Unencoded 5.0 table name found */
@@ -583,7 +578,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   }
 
   error= 4;
-  if (my_read(file, head, 64, MYF(MY_NABP)))
+  if (mysql_file_read(file, head, 64, MYF(MY_NABP)))
     goto err;
 
   if (head[0] == (uchar) 254 && head[1] == 1)
@@ -636,7 +631,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     thd->status_var.opened_shares++;
 
 err:
-  my_close(file, MYF(MY_WME));
+  mysql_file_close(file, MYF(MY_WME));
 
 err_not_open:
   if (error && !error_given)
@@ -665,6 +660,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint i,j;
   bool use_hash;
   char *keynames, *names, *comment_pos;
+  uchar forminfo[288];
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
@@ -687,6 +683,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
     goto err;                                   /* purecov: inspected */
 
+  mysql_file_seek(file,pos,MY_SEEK_SET,MYF(0));
+  if (mysql_file_read(file, forminfo,288,MYF(MY_NABP)))
+    goto err;
   share->frm_version= head[2];
   /*
     Check if .frm file created by MySQL 5.0. In this case we want to
@@ -750,7 +749,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   /* Read keyinformation */
   key_info_length= (uint) uint2korr(head+28);
-  VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
+  mysql_file_seek(file, (ulong) uint2korr(head+6), MY_SEEK_SET, MYF(0));
   if (read_string(file,(uchar**) &disk_buff,key_info_length))
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
@@ -832,6 +831,20 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
 
+  //reading index comments
+  for (keyinfo= share->key_info, i=0; i < keys; i++, keyinfo++)
+  {
+    if (keyinfo->flags & HA_USES_COMMENT)
+    {
+      keyinfo->comment.length= uint2korr(strpos);
+      keyinfo->comment.str= strmake_root(&share->mem_root, (char*) strpos+2,
+                                         keyinfo->comment.length);
+      strpos+= 2 + keyinfo->comment.length;
+    } 
+    DBUG_ASSERT(test(keyinfo->flags & HA_USES_COMMENT) == 
+               (keyinfo->comment.length > 0));
+  }
+
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
@@ -854,8 +867,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
     if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    if (my_pread(file, buff, n_length, record_offset + share->reclength,
-                 MYF(MY_NABP)))
+    if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
+                         MYF(MY_NABP)))
     {
       my_free(buff, MYF(0));
       goto err;
@@ -931,6 +944,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         /* purecov: begin inspected */
         error= 8;
+        name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
         my_free(buff, MYF(0));
         goto err;
@@ -1011,6 +1025,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
     }
+    if (forminfo[46] == (uchar)255)
+    {
+      //reading long table comment
+      if (next_chunk + 2 > buff_end)
+      {
+          DBUG_PRINT("error",
+                     ("long table comment is not defined in .frm"));
+          my_free(buff, MYF(0));
+          goto err;
+      }
+      share->comment.length = uint2korr(next_chunk);
+      if (! (share->comment.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->comment.length)))
+      {
+          my_free(buff, MYF(0));
+          goto err;
+      }
+      next_chunk+= 2 + share->comment.length;
+    }
     my_free(buff, MYF(0));
   }
   share->key_block_size= uint2korr(head+62);
@@ -1023,33 +1056,34 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                      rec_buff_length)))
     goto err;                                   /* purecov: inspected */
   share->default_values= record;
-  if (my_pread(file, record, (size_t) share->reclength,
-               record_offset, MYF(MY_NABP)))
+  if (mysql_file_pread(file, record, (size_t) share->reclength,
+                       record_offset, MYF(MY_NABP)))
     goto err;                                   /* purecov: inspected */
 
-  VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
-  if (my_read(file, head,288,MYF(MY_NABP)))
-    goto err;
+  mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
-    crypted->decode((char*) head+256,288-256);
-    if (sint2korr(head+284) != 0)		// Should be 0
+    crypted->decode((char*) forminfo+256,288-256);
+    if (sint2korr(forminfo+284) != 0)		// Should be 0
       goto err;                                 // Wrong password
   }
 #endif
 
-  share->fields= uint2korr(head+258);
-  pos= uint2korr(head+260);			/* Length of all screens */
-  n_length= uint2korr(head+268);
-  interval_count= uint2korr(head+270);
-  interval_parts= uint2korr(head+272);
-  int_length= uint2korr(head+274);
-  share->null_fields= uint2korr(head+282);
-  com_length= uint2korr(head+284);
-  share->comment.length=  (int) (head[46]);
-  share->comment.str= strmake_root(&share->mem_root, (char*) head+47,
-                                   share->comment.length);
+  share->fields= uint2korr(forminfo+258);
+  pos= uint2korr(forminfo+260);   /* Length of all screens */
+  n_length= uint2korr(forminfo+268);
+  interval_count= uint2korr(forminfo+270);
+  interval_parts= uint2korr(forminfo+272);
+  int_length= uint2korr(forminfo+274);
+  share->null_fields= uint2korr(forminfo+282);
+  com_length= uint2korr(forminfo+284);
+  if (forminfo[46] != (uchar)255)
+  {
+    share->comment.length=  (int) (forminfo[46]);
+    share->comment.str= strmake_root(&share->mem_root, (char*) forminfo+47,
+                                     share->comment.length);
+  }
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
 
@@ -1403,12 +1437,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
           keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
-          /*
-            Mark that there may be many matching values for one key
-            combination ('a', 'a ', 'a  '...)
-          */
-          if (!(field->flags & BINARY_FLAG))
-            keyinfo->flags|= HA_END_SPACE_KEY;
         }
         if (field->type() == MYSQL_TYPE_BIT)
           key_part->key_part_flag|= HA_BIT_PART;
@@ -1653,9 +1681,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
-
-  /* Parsing of partitioning information from .frm needs thd->lex set up. */
-  DBUG_ASSERT(thd->lex->is_lex_started);
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2000,7 +2025,7 @@ int closefrm(register TABLE *table, bool free_share)
   if (free_share)
   {
     if (table->s->tmp_table == NO_TMP_TABLE)
-      release_table_share(table->s, RELEASE_NORMAL);
+      release_table_share(table->s);
     else
       free_table_share(table->s);
   }
@@ -2064,11 +2089,11 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   if (names)
   {
     length=uint2korr(head+4);
-    VOID(my_seek(file,64L,MY_SEEK_SET,MYF(0)));
+    mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
     if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
 				  MYF(MY_WME))) ||
-	my_read(file, buf+a_length, (size_t) (length+names*4),
-		MYF(MY_NABP)))
+        mysql_file_read(file, buf+a_length, (size_t) (length+names*4),
+                        MYF(MY_NABP)))
     {						/* purecov: inspected */
       x_free((uchar*) buf);			/* purecov: inspected */
       DBUG_RETURN(0L);				/* purecov: inspected */
@@ -2106,7 +2131,7 @@ int read_string(File file, uchar**to, size_t length)
 
   x_free(*to);
   if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
-      my_read(file, *to, length,MYF(MY_NABP)))
+      mysql_file_read(file, *to, length, MYF(MY_NABP)))
   {
     x_free(*to);                              /* purecov: inspected */
     *to= 0;                                   /* purecov: inspected */
@@ -2138,23 +2163,24 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   {						/* Expand file */
     newpos+=IO_SIZE;
     int4store(fileinfo+10,newpos);
-    endpos=(ulong) my_seek(file,0L,MY_SEEK_END,MYF(0));/* Copy from file-end */
+    /* Copy from file-end */
+    endpos= (ulong) mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
     bufflength= (uint) (endpos & (IO_SIZE-1));	/* IO_SIZE is a power of 2 */
 
     while (endpos > maxlength)
     {
-      VOID(my_seek(file,(ulong) (endpos-bufflength),MY_SEEK_SET,MYF(0)));
-      if (my_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
+      mysql_file_seek(file, (ulong) (endpos-bufflength), MY_SEEK_SET, MYF(0));
+      if (mysql_file_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
-      VOID(my_seek(file,(ulong) (endpos-bufflength+IO_SIZE),MY_SEEK_SET,
-		   MYF(0)));
-      if ((my_write(file, buff,bufflength,MYF(MY_NABP+MY_WME))))
+      mysql_file_seek(file, (ulong) (endpos-bufflength+IO_SIZE), MY_SEEK_SET,
+                      MYF(0));
+      if ((mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME))))
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
     bzero(buff,IO_SIZE);			/* Null new block */
-    VOID(my_seek(file,(ulong) maxlength,MY_SEEK_SET,MYF(0)));
-    if (my_write(file,buff,bufflength,MYF(MY_NABP+MY_WME)))
+    mysql_file_seek(file, (ulong) maxlength, MY_SEEK_SET, MYF(0));
+    if (mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
     maxlength+=IO_SIZE;				/* Fix old ref */
     int2store(fileinfo+6,maxlength);
@@ -2169,20 +2195,21 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   if (n_length == 1 )
   {						/* First name */
     length++;
-    VOID(strxmov((char*) buff,"/",newname,"/",NullS));
+    (void) strxmov((char*) buff,"/",newname,"/",NullS);
   }
   else
-    VOID(strxmov((char*) buff,newname,"/",NullS)); /* purecov: inspected */
-  VOID(my_seek(file,63L+(ulong) n_length,MY_SEEK_SET,MYF(0)));
-  if (my_write(file, buff, (size_t) length+1,MYF(MY_NABP+MY_WME)) ||
-      (names && my_write(file,(uchar*) (*formnames->type_names+n_length-1),
-			 names*4, MYF(MY_NABP+MY_WME))) ||
-      my_write(file, fileinfo+10, 4,MYF(MY_NABP+MY_WME)))
+    (void) strxmov((char*) buff,newname,"/",NullS); /* purecov: inspected */
+  mysql_file_seek(file, 63L+(ulong) n_length, MY_SEEK_SET, MYF(0));
+  if (mysql_file_write(file, buff, (size_t) length+1, MYF(MY_NABP+MY_WME)) ||
+      (names && mysql_file_write(file,
+                                 (uchar*) (*formnames->type_names+n_length-1),
+                                 names*4, MYF(MY_NABP+MY_WME))) ||
+      mysql_file_write(file, fileinfo+10, 4, MYF(MY_NABP+MY_WME)))
     DBUG_RETURN(0L); /* purecov: inspected */
 
   int2store(fileinfo+8,names+1);
   int2store(fileinfo+4,n_length+length);
-  VOID(my_chsize(file, newpos, 0, MYF(MY_WME)));/* Append file with '\0' */
+  (void) mysql_file_chsize(file, newpos, 0, MYF(MY_WME));/* Append file with '\0' */
   DBUG_RETURN(newpos);
 } /* make_new_entry */
 
@@ -2448,12 +2475,14 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
-  		HA_CREATE_INFO *create_info, uint keys)
+  		HA_CREATE_INFO *create_info, uint keys, KEY *key_info)
 {
   register File file;
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
+  ulong key_comment_total_bytes= 0;
+  uint i;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
@@ -2464,7 +2493,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if (create_info->min_rows > UINT_MAX32)
     create_info->min_rows= UINT_MAX32;
 
-  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
+  if ((file= mysql_file_create(key_file_frm,
+                               name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     uint key_length, tmp_key_length, tmp, csid;
     bzero((char*) fileinfo,64);
@@ -2489,7 +2519,17 @@ File create_frm(THD *thd, const char *name, const char *db,
       1 byte for the NAMES_SEP_CHAR (after the last name)
       9 extra bytes (padding for safety? alignment?)
     */
-    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16;
+    for (i= 0; i < keys; i++)
+    {
+      DBUG_ASSERT(test(key_info[i].flags & HA_USES_COMMENT) == 
+                 (key_info[i].comment.length > 0));
+      if (key_info[i].flags & HA_USES_COMMENT)
+        key_comment_total_bytes += 2 + key_info[i].comment.length;
+    }
+
+    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16
+                + key_comment_total_bytes;
+
     length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
@@ -2534,10 +2574,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
-      if (my_write(file,fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
+      if (mysql_file_write(file, fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
       {
-	VOID(my_close(file,MYF(0)));
-	VOID(my_delete(name,MYF(0)));
+        (void) mysql_file_close(file, MYF(0));
+        (void) mysql_file_delete(key_file_frm, name, MYF(0));
 	return(-1);
       }
     }
@@ -2574,9 +2614,9 @@ int
 rename_file_ext(const char * from,const char * to,const char * ext)
 {
   char from_b[FN_REFLEN],to_b[FN_REFLEN];
-  VOID(strxmov(from_b,from,ext,NullS));
-  VOID(strxmov(to_b,to,ext,NullS));
-  return (my_rename(from_b,to_b,MYF(MY_WME)));
+  (void) strxmov(from_b,from,ext,NullS);
+  (void) strxmov(to_b,to,ext,NullS);
+  return (mysql_file_rename(key_file_frm, from_b, to_b, MYF(MY_WME)));
 }
 
 
@@ -3940,7 +3980,8 @@ const char *Natural_join_column::db_name()
   DBUG_ASSERT(!strcmp(table_ref->db,
                       table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               is_schema_db(table_ref->table->s->db.str)));
+               is_infoschema_db(table_ref->table->s->db.str,
+                                table_ref->table->s->db.length)));
   return table_ref->db;
 }
 
@@ -4158,7 +4199,8 @@ const char *Field_iterator_table_ref::get_db_name()
   */
   DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
-               is_schema_db(table_ref->table->s->db.str)));
+               is_infoschema_db(table_ref->table->s->db.str,
+                                table_ref->table->s->db.length)));
 
   return table_ref->db;
 }
@@ -4576,24 +4618,6 @@ void TABLE::mark_columns_needed_for_insert()
 }
 
 
-/**
-  @brief Check if this is part of a MERGE table with attached children.
-
-  @return       status
-    @retval     TRUE            children are attached
-    @retval     FALSE           no MERGE part or children not attached
-
-  @detail
-    A MERGE table consists of a parent TABLE and zero or more child
-    TABLEs. Each of these TABLEs is called a part of a MERGE table.
-*/
-
-bool TABLE::is_children_attached(void)
-{
-  return((child_l && children_attached) ||
-         (parent && parent->children_attached));
-}
-
 /*
   Cleanup this table for re-execution.
 
@@ -4622,6 +4646,15 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   }
   while (parent_embedding &&
          parent_embedding->nested_join->join_list.head() == embedded);
+
+  mdl_request.ticket= NULL;
+  /*
+    Since we manipulate with the metadata lock type in open_table(),
+    we need to reset it to the parser default, to restore things back
+    to first-execution state.
+  */
+  mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                       MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 /*
@@ -4843,6 +4876,22 @@ size_t max_row_length(TABLE *table, const uchar *data)
   }
   return length;
 }
+
+
+/**
+   Helper function which allows to allocate metadata lock request
+   objects for all elements of table list.
+*/
+
+void init_mdl_requests(TABLE_LIST *table_list)
+{
+  for ( ; table_list ; table_list= table_list->next_global)
+    table_list->mdl_request.init(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
+                                 table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+}
+
 
 /*****************************************************************************
 ** Instansiate templates

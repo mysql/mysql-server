@@ -1,0 +1,47 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+--source include/not_embedded.inc
+--source suite/perfschema_stress/include/settings.inc
+
+let $have_table= `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'`;
+
+if (`SELECT ($have_table = 0)`) {
+    --source suite/perfschema_stress/t/setup.test
+}
+
+--replace_result $num_stress_rows <num_stress_rows>
+eval SET @rowid = ROUND(RAND() * $num_stress_rows);
+
+let $conn_id= `SELECT CONNECTION_ID()`;
+let $conn_nr= conn_$conn_id;
+
+START TRANSACTION;
+UPDATE t1 SET b = 'changed' WHERE id=@rowid;
+SELECT b FROM t1 WHERE id=@rowid;
+COMMIT;
+
+START TRANSACTION;
+DELETE FROM t1 WHERE id=@rowid;
+INSERT INTO t1 (id, b) VALUES (@rowid, 'newly_inserted');
+SELECT b FROM t1 WHERE id=@rowid;
+COMMIT;
+
+--replace_result $conn_nr <conn_nr>
+eval CREATE TABLE tw_$conn_nr AS SELECT * FROM t1;
+
+--replace_result $conn_nr <conn_nr>
+eval DROP TABLE tw_$conn_nr;

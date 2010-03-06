@@ -16,7 +16,7 @@ DELETE alias FROM a alias WHERE alias.i=1;
 SELECT * FROM a;
 i
 insert into a values(2),(3);
-delete a alias FROM a alias where alias.i=2;
+delete alias FROM a alias where alias.i=2;
 select * from a;
 i
 3

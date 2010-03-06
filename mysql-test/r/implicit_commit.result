@@ -1,0 +1,1066 @@
+SET GLOBAL EVENT_SCHEDULER = OFF;
+SET BINLOG_FORMAT = STATEMENT;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (a INT, KEY a(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+CREATE TABLE t3 (a INT) ENGINE=MyISAM;
+INSERT INTO t3 SELECT * FROM t1;
+CREATE TABLE trans (a INT) ENGINE=INNODB;
+CREATE PROCEDURE test_if_commit()
+BEGIN
+ROLLBACK;
+SELECT IF (COUNT(*) > 0, "YES", "NO") AS "IMPLICIT COMMIT" FROM trans;
+DELETE FROM trans;
+COMMIT;
+END|
+SET AUTOCOMMIT = FALSE;
+#
+# SQLCOM_SELECT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+select 1 as res from t1 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_TABLE LIKE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create table t2 like t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SHOW_CREATE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create table t2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DROP_TABLE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop table t2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CREATE_TABLE TEMPORARY
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create temporary table t2 as select * from t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DROP_TABLE TEMPORARY
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop temporary table t2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_TABLE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create table t2 as select * from t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_UPDATE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+update t2 set a=a+1 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_INSERT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+insert into t2 set a=((1) in (select * from t1));
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_INSERT_SELECT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+insert into t2 select * from t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_REPLACE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+replace t2 set a=((1) in (select * from t1));
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_REPLACE_SELECT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+replace t2 select * from t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DELETE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+delete from t2 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DELETE_MULTI
+#
+INSERT INTO db1.trans (a) VALUES (1);
+delete t2, t3 from t2, t3 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_UPDATE_MULTI
+#
+select * from t2;
+a
+INSERT INTO db1.trans (a) VALUES (1);
+update t2, t3 set t3.a=t2.a, t2.a=null where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_LOAD
+#
+create table t4 (a varchar(100));
+INSERT INTO db1.trans (a) VALUES (1);
+load data infile '../../std_data/words.dat' into table t4;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+drop table t4;
+#
+# SQLCOM_SHOW_DATABASES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show databases where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_TABLES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show tables where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_FIELDS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show fields from t1 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_KEYS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show keys from t1 where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_VARIABLES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show variables where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STATUS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show status where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_ENGINE_MUTEX
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show engine all mutex;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_PROCESSLIST
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show processlist;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_ENGINE_LOGS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show engine all logs;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_ENGINE_STATUS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show engine all status;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_CHARSETS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show charset where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_COLLATIONS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show collation where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_TABLE_STATUS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show table status where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_TRIGGERS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show triggers where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_OPEN_TABLES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show open tables where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STATUS_PROC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show procedure status where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STATUS_FUNC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show function status where (1) in (select * from t1);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SET_OPTION
+#
+INSERT INTO db1.trans (a) VALUES (1);
+set @a=((1) in (select * from t1));
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DO
+#
+INSERT INTO db1.trans (a) VALUES (1);
+do ((1) in (select * from t1));
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CALL
+#
+create procedure p1(a int) begin end;
+INSERT INTO db1.trans (a) VALUES (1);
+call p1((1) in (select * from t1));
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+drop procedure p1;
+#
+# SQLCOM_CREATE_VIEW
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create view v1 as select * from t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_VIEW
+#
+INSERT INTO db1.trans (a) VALUES (1);
+alter view v1 as select 2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_DROP_VIEW
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop view v1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CREATE_INDEX
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create index idx1 on t1(a);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_DROP_INDEX
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop index idx1 on t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_TABLE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 add column b int;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 change b c int;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 drop column c;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_TABLE TEMPORARY
+#
+create temporary table t4 (a int);
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 add column b int;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 change b c int;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+alter table t1 drop column c;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+drop table t4;
+#
+# SQLCOM_TRUNCATE
+#
+insert into t2 select * from t1;
+INSERT INTO db1.trans (a) VALUES (1);
+truncate table t2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+insert into t2 select * from t1;
+#
+# SQLCOM_TRUNCATE TEMPORARY
+#
+create temporary table t4 as select * from t1;
+INSERT INTO db1.trans (a) VALUES (1);
+truncate table t4;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+drop temporary table t4;
+#
+# SQLCOM_SHOW_MASTER_STAT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show master status;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_SLAVE_STAT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show slave status;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_GRANT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+grant all on test.t1 to mysqltest_2@localhost with grant option;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_REVOKE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+revoke select on test.t1 from mysqltest_2@localhost;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_REVOKE_ALL
+#
+INSERT INTO db1.trans (a) VALUES (1);
+revoke all on test.t1 from mysqltest_2@localhost;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+drop user mysqltest_2@localhost;
+#
+# SQLCOM_SHOW_GRANTS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show grants;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+INSERT INTO db1.trans (a) VALUES (1);
+show grants for current_user();
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_LOCK_TABLES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+lock tables t1 write, trans write;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_UNLOCK_TABLES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+unlock tables;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CREATE_DB
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create database db2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CHANGE_DB
+#
+create table db2.t1 (a int);
+insert into db2.t1 values (1);
+commit;
+INSERT INTO db1.trans (a) VALUES (1);
+use db2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_CREATE_DB
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create database db2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_ALTER_DB
+#
+#
+# SQLCOM_ALTER_DB_UPGRADE
+#
+#
+# SQLCOM_DROP_DB
+#
+use db1;
+INSERT INTO db1.trans (a) VALUES (1);
+drop database db2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_REPAIR
+#
+INSERT INTO db1.trans (a) VALUES (1);
+repair table t2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+repair table t2 use_frm;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_OPTIMIZE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+optimize table t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CHECK
+#
+INSERT INTO db1.trans (a) VALUES (1);
+check table t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+check table t1 extended;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ASSIGN_TO_KEYCACHE
+#
+set global keycache.key_buffer_size=128*1024;
+INSERT INTO db1.trans (a) VALUES (1);
+cache index t3 in keycache;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+set global keycache.key_buffer_size=0;
+#
+# SQLCOM_PRELOAD_KEYS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+load index into cache t3;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_FLUSH
+#
+INSERT INTO db1.trans (a) VALUES (1);
+flush local privileges;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+flush privileges;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_KILL
+#
+#
+# SQLCOM_ANALYZE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+analyze table t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ROLLBACK
+#
+INSERT INTO db1.trans (a) VALUES (1);
+rollback;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_ROLLBACK_TO_SAVEPOINT
+#
+#
+# SQLCOM_COMMIT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+commit;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SAVEPOINT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+savepoint sp1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_RELEASE_SAVEPOINT
+#
+#
+# SQLCOM_SLAVE_START
+#
+#
+# SQLCOM_SLAVE_STOP
+#
+#
+# SQLCOM_BEGIN
+#
+INSERT INTO db1.trans (a) VALUES (1);
+begin;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CHANGE_MASTER
+#
+#
+# SQLCOM_RENAME_TABLE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+rename table t3 to t4;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+INSERT INTO db1.trans (a) VALUES (1);
+rename table t4 to t3;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_RESET
+#
+INSERT INTO db1.trans (a) VALUES (1);
+reset query cache;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_PURGE
+#
+#
+# SQLCOM_PURGE_BEFORE
+#
+#
+# SQLCOM_SHOW_BINLOGS
+#
+#
+# SQLCOM_HA_OPEN
+#
+INSERT INTO db1.trans (a) VALUES (1);
+handler t1 open as ha1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_HA_READ
+#
+INSERT INTO db1.trans (a) VALUES (1);
+handler ha1 read a first;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_HA_CLOSE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+handler ha1 close;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_SLAVE_HOSTS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show slave hosts;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_BINLOG_EVENTS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show binlog events;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_NEW_MASTER
+#
+#
+# SQLCOM_SHOW_WARNS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show warnings;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_EMPTY_QUERY
+#
+#
+# SQLCOM_SHOW_ERRORS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show errors;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STORAGE_ENGINES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show engines;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_PRIVILEGES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show privileges;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_HELP
+#
+INSERT INTO db1.trans (a) VALUES (1);
+help 'foo';
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_USER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create user trxusr1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_RENAME_USER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+rename user 'trxusr1' to 'trxusr2';
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_DROP_USER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop user trxusr2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CHECKSUM
+#
+INSERT INTO db1.trans (a) VALUES (1);
+checksum table t1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_PROCEDURE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create procedure p1(a int) begin end;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_PROCEDURE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+alter procedure p1 comment 'foobar';
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SHOW_CREATE_PROC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create procedure p1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STATUS_PROC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show procedure status;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_PROC_CODE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show procedure code p1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DROP_PROCEDURE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop procedure p1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_CREATE_FUNCTION
+#
+#
+# SQLCOM_DROP_FUNCTION
+#
+#
+# SQLCOM_CREATE_SPFUNCTION
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create function f1() returns int return 69;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_FUNCTION
+#
+INSERT INTO db1.trans (a) VALUES (1);
+alter function f1 comment 'comment';
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SHOW_CREATE_FUNC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create function f1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_STATUS_FUNC
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show function status like '%f%';
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_FUNC_CODE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show function code f1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_PREPARE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+prepare stmt1 from "insert into t1 values (5)";
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_EXECUTE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+execute stmt1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DEALLOCATE_PREPARE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+deallocate prepare stmt1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_TRIGGER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create trigger trg1 before insert on t1 for each row set @a:=1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SHOW_CREATE_TRIGGER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create trigger trg1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DROP_TRIGGER
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop trigger trg1;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_XA_START
+#
+#
+# SQLCOM_XA_END
+#
+#
+# SQLCOM_XA_PREPARE
+#
+#
+# SQLCOM_XA_COMMIT
+#
+#
+# SQLCOM_XA_ROLLBACK
+#
+#
+# SQLCOM_XA_RECOVER
+#
+#
+# SQLCOM_ALTER_TABLESPACE
+#
+#
+# SQLCOM_INSTALL_PLUGIN
+#
+#
+# SQLCOM_SHOW_PLUGINS
+#
+#
+# SQLCOM_UNINSTALL_PLUGIN
+#
+#
+# SQLCOM_SHOW_AUTHORS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show authors;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_BINLOG_BASE64_EVENT
+#
+#
+# SQLCOM_SHOW_CONTRIBUTORS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show contributors;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_CREATE_SERVER
+#
+#
+# SQLCOM_ALTER_SERVER
+#
+#
+# SQLCOM_DROP_SERVER
+#
+#
+# SQLCOM_CREATE_EVENT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+create event ev1 on schedule every 1 second do insert into t1 values (6);
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_ALTER_EVENT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+alter event ev1 rename to ev2 disable;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_SHOW_CREATE_EVENT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show create event ev2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_EVENTS
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show events;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_DROP_EVENT
+#
+INSERT INTO db1.trans (a) VALUES (1);
+drop event ev2;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+YES
+#
+# SQLCOM_BACKUP
+#
+#
+# SQLCOM_SHOW_ARCHIVE
+#
+#
+# SQLCOM_RESTORE
+#
+#
+# SQLCOM_BACKUP_TEST
+#
+#
+# SQLCOM_SHOW_PROFILE
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show profile memory;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+#
+# SQLCOM_SHOW_PROFILES
+#
+INSERT INTO db1.trans (a) VALUES (1);
+show profiles;
+CALL db1.test_if_commit();
+IMPLICIT COMMIT
+NO
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+USE test;
+DROP DATABASE db1;
+End of tests

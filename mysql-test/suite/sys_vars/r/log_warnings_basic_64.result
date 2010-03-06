@@ -79,8 +79,8 @@ Warning	1292	Truncated incorrect log_warnings value: '-1024'
 SELECT @@global.log_warnings;
 @@global.log_warnings
 0
-SET @@global.log_warnings = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.log_warnings = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'log_warnings'
 SELECT @@global.log_warnings;
 @@global.log_warnings
 0
@@ -99,9 +99,8 @@ Warning	1292	Truncated incorrect log_warnings value: '-2'
 SELECT @@session.log_warnings;
 @@session.log_warnings
 0
-SET @@session.log_warnings = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+SET @@session.log_warnings = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'log_warnings'
 SET @@session.log_warnings = test;
 ERROR 42000: Incorrect argument type to variable 'log_warnings'
 SELECT @@session.log_warnings;

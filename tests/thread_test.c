@@ -77,7 +77,7 @@ end:
   mysql_close(mysql);
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+  pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_exit(0);
   return 0;
@@ -176,9 +176,8 @@ static void get_options(int argc, char **argv)
 {
   int ho_error;
 
-  load_defaults("my",load_default_groups,&argc,&argv);
-
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error= load_defaults("my",load_default_groups,&argc,&argv)) ||
+      (ho_error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   free_defaults(argv);

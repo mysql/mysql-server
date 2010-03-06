@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #include <stdarg.h>
 #include <typelib.h>
+#ifdef _WIN32
+#include <malloc.h> /*for alloca*/
+#endif
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
@@ -60,7 +63,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
+#define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -235,6 +238,9 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
+extern const char *(*proc_info_hook)(void *, const char *, const char *,
+                                     const char *, const unsigned int);
+
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;
 extern uint    my_large_page_size;
@@ -338,7 +344,7 @@ struct st_my_file_info
 #endif
   enum   file_type	type;
 #if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
-  pthread_mutex_t	mutex;
+  mysql_mutex_t mutex;
 #endif
 };
 
@@ -358,7 +364,7 @@ typedef struct st_my_tmpdir
   char **list;
   uint cur, max;
 #ifdef THREAD
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
 #endif
 } MY_TMPDIR;
 
@@ -374,9 +380,9 @@ typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 #ifdef THREAD
 typedef struct st_io_cache_share
 {
-  pthread_mutex_t       mutex;           /* To sync on reads into buffer. */
-  pthread_cond_t        cond;            /* To wait for signals. */
-  pthread_cond_t        cond_writer;     /* For a synchronized writer. */
+  mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
+  mysql_cond_t        cond;            /* To wait for signals. */
+  mysql_cond_t        cond_writer;     /* For a synchronized writer. */
   /* Offset in file corresponding to the first byte of buffer. */
   my_off_t              pos_in_file;
   /* If a synchronized write cache is the source of the data. */
@@ -437,7 +443,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     The lock is for append buffer used in SEQ_READ_APPEND cache
     need mutex copying from append buffer to read buffer.
   */
-  pthread_mutex_t append_buffer_lock;
+  mysql_mutex_t append_buffer_lock;
   /*
     The following is used when several threads are reading the
     same file in parallel. They are synchronized on disk
@@ -691,6 +697,7 @@ extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern void my_message_curses(uint my_err, const char *str,myf MyFlags);
+extern my_bool my_basic_init(void);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
@@ -1016,6 +1023,16 @@ char* my_cgets(char *string, size_t clen, size_t* plen);
 void netware_reg_user(const char *ip, const char *user,
 		      const char *application);
 #endif
+
+#include <mysql/psi/psi.h>
+
+#ifdef HAVE_PSI_INTERFACE
+extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;
+void my_init_mysys_psi_keys(void);
+#endif
+
+struct st_mysql_file;
+extern struct st_mysql_file *mysql_stdin;
 
 C_MODE_END
 #endif /* _my_sys_h */

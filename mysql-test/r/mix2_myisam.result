@@ -169,10 +169,10 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE	
-t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE	
-t1	1	level	1	level	A	#	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE		
+t1	1	parent_id	1	parent_id	A	#	NULL	NULL		BTREE		
+t1	1	level	1	level	A	#	NULL	NULL		BTREE		
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -212,8 +212,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	skr	1	a	A	#	NULL	NULL	YES	BTREE		
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) engine=MyISAM;
 insert into t1 values (1,""), (2,"testing");
@@ -257,13 +257,13 @@ drop table t1;
 CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b)) ENGINE = MyISAM;
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE	
-t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE	
-t1	0	c	1	c	A	#	NULL	NULL		BTREE	
-t1	0	b	1	b	A	#	NULL	NULL		BTREE	
-t1	1	a	1	a	A	#	NULL	NULL		BTREE	
-t1	1	a_2	1	a	A	#	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
+t1	0	PRIMARY	2	b	A	#	NULL	NULL		BTREE		
+t1	0	c	1	c	A	#	NULL	NULL		BTREE		
+t1	0	b	1	b	A	#	NULL	NULL		BTREE		
+t1	1	a	1	a	A	#	NULL	NULL		BTREE		
+t1	1	a_2	1	a	A	#	NULL	NULL		BTREE		
 drop table t1;
 create table t1 (col1 int not null, col2 char(4) not null, primary key(col1)) ENGINE = MEMORY;
 alter table t1 engine=MyISAM;
@@ -635,8 +635,8 @@ optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
 drop table t1;
 create table t1 (i int, j int ) ENGINE=MyISAM;
 insert into t1 values (1,2);
@@ -2063,6 +2063,7 @@ insert into t1(a) values (1),(2),(3);
 commit;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
+commit;
 create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 set autocommit = 0;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
@@ -2105,6 +2106,7 @@ update t2 set b = b + 5 where a = 1;
 update t3 set b = b + 5 where a = 1;
 update t4 set b = b + 5 where a = 1;
 insert into t5(a) values(20);
+commit;
 set autocommit = 0;
 insert into t1(a) values(7);
 insert into t2(a) values(8);

@@ -333,21 +333,29 @@ select count(*)- 4 from t1 use index (v) where v  >  0000965.00042;
 
 drop table t1;
 
+#
+# Disabled due to WL#4284
+#
+# Needs to be reworked. It's not possible anymore to do a non-fast alter table
+# on a table that is being used by a pending transaction (transaction holds a
+# metadata lock on the table).
+#
 # bug#7798
-create table t1(a int primary key, b int not null, index(b));
-insert into t1 values (1,1), (2,2);
-connect (con1,localhost,root,,test);
-connect (con2,localhost,root,,test);
-connection con1;
-set autocommit=0;
-begin;
-select count(*) from t1;
-connection con2;
-ALTER TABLE t1 ADD COLUMN c int;
-connection con1;
-select a from t1 where b = 2;
-show tables;
-drop table t1;
+# create table t1(a int primary key, b int not null, c int, index(b));
+# insert into t1 values (1,1,1), (2,2,2);
+# connect (con1,localhost,root,,test);
+# connect (con2,localhost,root,,test);
+# connection con1;
+# set autocommit=0;
+# begin;
+# select count(*) from t1;
+# connection con2;
+# ALTER TABLE t1 ADD COLUMN c int
+# connection con1;
+# select a from t1 where b = 2;
+# show tables;
+# drop table t1;
+#
 
 # mysqld 5.0.13 crash, no bug#
 create table t1 (a int, c varchar(10),

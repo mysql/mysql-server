@@ -120,8 +120,7 @@ static COND *optimize_cond(JOIN *join, COND *conds,
 			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
-static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options);
+static bool create_myisam_tmp_table(TABLE *,TMP_TABLE_PARAM *, ulonglong, my_bool);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -267,7 +266,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		      (ORDER*) select_lex->group_list.first,
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
-		      select_lex->options | thd->options |
+		      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
 		      result, unit, select_lex);
   }
@@ -1051,7 +1050,7 @@ JOIN::optimize()
     error= 0;
     DBUG_RETURN(0);
   }
-  if (!(thd->options & OPTION_BIG_SELECTS) &&
+  if (!(thd->variables.option_bits & OPTION_BIG_SELECTS) &&
       best_read > (double) thd->variables.max_join_size &&
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
@@ -1059,7 +1058,7 @@ JOIN::optimize()
     error= -1;
     DBUG_RETURN(1);
   }
-  if (const_tables && !thd->locked_tables &&
+  if (const_tables && !thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK))
     mysql_unlock_some_tables(thd, all_tables, const_tables);
   if (!conds && outer_join)
@@ -1116,6 +1115,10 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /* Cache constant expressions in WHERE, HAVING, ON clauses. */
+  cache_const_exprs();
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -1535,15 +1538,10 @@ JOIN::optimize()
 
     if (!(exec_tmp_table1=
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
-                           tmp_group,
-			   group_list ? 0 : select_distinct,
+                           tmp_group, group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   select_options,
-                           tmp_rows_limit,
-			   (char *) "")))
-		{
+			   select_options, tmp_rows_limit, "")))
       DBUG_RETURN(1);
-    }
 
     /*
       We don't have to store rows in temp table that doesn't match HAVING if:
@@ -2017,8 +2015,7 @@ JOIN::exec()
 						curr_join->select_distinct && 
 						!curr_join->group_list,
 						1, curr_join->select_options,
-						HA_POS_ERROR,
-						(char *) "")))
+						HA_POS_ERROR, "")))
 	  DBUG_VOID_RETURN;
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
@@ -2545,9 +2542,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
-#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
   uchar buff[STACK_BUFF_ALLOC];
-#endif
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(0);                           // Fatal error flag is set
   if (select)
@@ -2870,8 +2865,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
               !table->fulltext_searched && 
               !table->pos_in_table_list->embedding)
 	  {
-            if ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY))
-                 == HA_NOSAME)
+            if (table->key_info[key].flags & HA_NOSAME)
             {
 	      if (const_ref == eq_part)
 	      {					// Found everything for ref.
@@ -4004,7 +3998,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       save_pos++;
     }
     i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    VOID(set_dynamic(keyuse,(uchar*) &key_end,i));
+    (void) set_dynamic(keyuse,(uchar*) &key_end,i);
     keyuse->elements=i;
   }
   return FALSE;
@@ -4422,7 +4416,7 @@ best_access_path(JOIN      *join,
               */
               if (table->quick_keys.is_set(key) &&
                   (const_part & ((1 << table->quick_key_parts[key])-1)) ==
-                  ((1 << table->quick_key_parts[key])-1) &&
+                  (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
               {
@@ -5851,8 +5845,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     DBUG_RETURN(0);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
-			       HA_END_SPACE_KEY)) != HA_NOSAME) ||
+  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
 	   keyparts != keyinfo->key_parts || null_ref_key)
   {
     /* Must read with repeat */
@@ -6398,7 +6391,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown)
+	  if (thd->variables.optimizer_switch &
+              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map);
@@ -6986,7 +6980,7 @@ void JOIN::join_free()
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (can_unlock && lock && thd->lock &&
+  if (can_unlock && lock && thd->lock && ! thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
       (select_lex == (thd->lex->unit.fake_select_lex ?
@@ -9231,18 +9225,26 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
 
 
 /**
-  Remove const and eq items.
+  Handles the reqursive job for remove_eq_conds()
 
-  @return
-    Return new item, or NULL if no condition @n
-    cond_value is set to according:
-    - COND_OK     : query is possible (field = constant)
-    - COND_TRUE   : always true	( 1 = 1 )
-    - COND_FALSE  : always false	( 1 = 2 )
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  RETURN
+    *COND with the simplified condition
 */
 
-COND *
-remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+static COND *
+internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -9256,12 +9258,12 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=remove_eq_conds(thd, item, &tmp_cond_value);
+      Item *new_item=internal_remove_eq_conds(thd, item, &tmp_cond_value);
       if (!new_item)
 	li.remove();
       else if (item != new_item)
       {
-	VOID(li.replace(new_item));
+	(void) li.replace(new_item);
 	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)
@@ -9305,54 +9307,19 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   else if (cond->type() == Item::FUNC_ITEM &&
 	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
   {
-    /*
-      Handles this special case for some ODBC applications:
-      The are requesting the row that was just updated with a auto_increment
-      value with this construct:
-
-      SELECT * from table_name where auto_increment_column IS NULL
-      This will be changed to:
-      SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
-    */
-
     Item_func_isnull *func=(Item_func_isnull*) cond;
     Item **args= func->arguments();
     if (args[0]->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) args[0])->field;
-      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
-	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
-           thd->substitute_null_with_insert_id))
-      {
-#ifdef HAVE_QUERY_CACHE
-	query_cache_abort(&thd->query_cache_tls);
-#endif
-	COND *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],
-					new Item_int("last_insert_id()",
-                                                     thd->read_first_successful_insert_id_in_prev_stmt(),
-                                                     MY_INT64_NUM_DECIMAL_DIGITS))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
-        /*
-          IS NULL should be mapped to LAST_INSERT_ID only for first row, so
-          clear for next row
-        */
-        thd->substitute_null_with_insert_id= FALSE;
-      }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      else if (((field->type() == MYSQL_TYPE_DATE) ||
-		(field->type() == MYSQL_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG) &&
-	       !field->table->maybe_null)
+      /*
+        datetime_field IS NULL has to be modified to
+        datetime_field == 0
+      */
+      if (((field->type() == MYSQL_TYPE_DATE) ||
+           (field->type() == MYSQL_TYPE_DATETIME)) &&
+          (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
       {
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
@@ -9392,6 +9359,85 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   *cond_value=Item::COND_OK;
   return cond;					// Point at next and level
 }
+
+
+/**
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
+
+  SYNPOSIS
+    remove_eq_conds()
+    thd 			THD environment
+    cond                        the condition to handle
+    cond_value                  the resulting value of the condition
+
+  NOTES
+    calls the inner_remove_eq_conds to check all the tree reqursively
+
+  RETURN
+    *COND with the simplified condition
+*/
+
+COND *
+remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+{
+  if (cond->type() == Item::FUNC_ITEM &&
+      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+  {
+    /*
+      Handles this special case for some ODBC applications:
+      The are requesting the row that was just updated with a auto_increment
+      value with this construct:
+
+      SELECT * from table_name where auto_increment_column IS NULL
+      This will be changed to:
+      SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
+    */
+
+    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item **args= func->arguments();
+    if (args[0]->type() == Item::FIELD_ITEM)
+    {
+      Field *field=((Item_field*) args[0])->field;
+      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
+	  (thd->variables.option_bits & OPTION_AUTO_IS_NULL) &&
+	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
+           thd->substitute_null_with_insert_id))
+      {
+#ifdef HAVE_QUERY_CACHE
+	query_cache_abort(&thd->query_cache_tls);
+#endif
+	COND *new_cond;
+	if ((new_cond= new Item_func_eq(args[0],
+					new Item_int("last_insert_id()",
+                                                     thd->read_first_successful_insert_id_in_prev_stmt(),
+                                                     MY_INT64_NUM_DECIMAL_DIGITS))))
+	{
+	  cond=new_cond;
+          /*
+            Item_func_eq can't be fixed after creation so we do not check
+            cond->fixed, also it do not need tables so we use 0 as second
+            argument.
+          */
+	  cond->fix_fields(thd, &cond);
+	}
+        /*
+          IS NULL should be mapped to LAST_INSERT_ID only for first row, so
+          clear for next row
+        */
+        thd->substitute_null_with_insert_id= FALSE;
+
+        *cond_value= Item::COND_OK;
+        return cond;
+      }
+    }
+  }
+  return internal_remove_eq_conds(thd, cond, cond_value); // Scan all the condition
+}
+
 
 /* 
   Check if equality can be used in removing components of GROUP BY/DISTINCT
@@ -9741,7 +9787,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     Item_sum *item_sum=(Item_sum*) item;
     result= item_sum->create_tmp_field(group, table, convert_blob_length);
     if (!result)
-      thd->fatal_error();
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
     return result;
   }
   case Item::FIELD_ITEM:
@@ -9907,7 +9953,7 @@ TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
-		 char *table_alias)
+		 const char *table_alias)
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
@@ -10234,9 +10280,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   /* If result table is small; use a heap */
   /* future: storage engine selection can be made dynamic? */
-  if (blob_count || using_unique_constraint ||
-      (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
+  if (blob_count || using_unique_constraint
+      || (thd->variables.big_tables && !(select_options & SELECT_SMALL_RESULT))
+      || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     share->db_plugin= ha_lock_engine(0, myisam_hton);
     table->file= get_new_handler(share, &table->mem_root,
@@ -10564,7 +10610,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->db_record_offset= 1;
   if (share->db_type() == myisam_hton)
   {
-    if (create_myisam_tmp_table(table,param,select_options))
+    if (create_myisam_tmp_table(table, param, select_options,
+                                thd->variables.big_tables))
       goto err;
   }
   if (open_tmp_table(table))
@@ -10635,6 +10682,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   share->blob_field= blob_field;
   share->fields= field_count;
   share->blob_ptr_size= portable_sizeof_char_ptr;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
@@ -10699,6 +10747,18 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit= 1;
         }
       }
+      if (cur_field->type() == MYSQL_TYPE_BIT &&
+          cur_field->key_type() == HA_KEYTYPE_BIT)
+      {
+        /* This is a Field_bit since key_type is HA_KEYTYPE_BIT */
+        static_cast<Field_bit*>(cur_field)->set_bit_ptr(null_pos, null_bit);
+        null_bit+= cur_field->field_length & 7;
+        if (null_bit > 7)
+        {
+          null_pos++;
+          null_bit-= 8;
+        }
+      }
       cur_field->reset();
 
       field_pos+= cur_field->pack_length();
@@ -10728,7 +10788,7 @@ static bool open_tmp_table(TABLE *table)
 
 
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options)
+				    ulonglong options, my_bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
@@ -10815,8 +10875,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
 
-  if ((options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+  if (big_tables && !(options & SELECT_SMALL_RESULT))
     create_info.data_file_length= ~(ulonglong) 0;
 
   if ((error=mi_create(share->table_name.str, share->keys, &keydef,
@@ -10898,8 +10957,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
       We don't want this error to be converted to a warning, e.g. in case of
       INSERT IGNORE ... SELECT.
     */
-    thd->fatal_error();
-    table->file->print_error(error,MYF(0));
+    table->file->print_error(error, MYF(ME_FATALERROR));
     DBUG_RETURN(1);
   }
 
@@ -10918,7 +10976,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   thd_proc_info(thd, "converting HEAP to MyISAM");
 
   if (create_myisam_tmp_table(&new_table, param,
-			      thd->lex->select_lex.options | thd->options))
+			      thd->lex->select_lex.options | thd->variables.option_bits,
+                              thd->variables.big_tables))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
@@ -11102,7 +11161,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 
   if (table)
   {
-    VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
+    (void) table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
@@ -11143,6 +11202,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
                                  fields);
       rc= join->result->send_data(*columns_list);
     }
+    /*
+      An error can happen when evaluating the conds 
+      (the join condition and piece of where clause 
+      relevant to this join table).
+    */
+    if (join->thd->is_error())
+      error= NESTED_LOOP_ERROR;
   }
   else
   {
@@ -12465,7 +12531,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      VOID(test_if_group_changed(join->group_fields));
+      (void) test_if_group_changed(join->group_fields);
     }
     if (idx < (int) join->send_group_parts)
     {
@@ -12728,7 +12794,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-      VOID(test_if_group_changed(join->group_fields));
+      (void) test_if_group_changed(join->group_fields);
     }
     if (idx < (int) join->send_group_parts)
     {
@@ -15154,8 +15220,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
       default:
         /* This case should never be choosen */
         DBUG_ASSERT(0);
-        my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        join->thd->fatal_error();
+        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       }
     }
     parts++;
@@ -16682,7 +16747,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
 
-            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            if ((thd->variables.optimizer_switch &
+                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));
@@ -16830,7 +16896,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			(ORDER*) first->group_list.first,
 			first->having,
 			(ORDER*) thd->lex->proc_list.first,
-			first->options | thd->options | SELECT_DESCRIBE,
+			first->options | thd->variables.option_bits | SELECT_DESCRIBE,
 			result, unit, first);
   }
   DBUG_RETURN(res || thd->is_error());
@@ -17186,6 +17252,41 @@ bool JOIN::change_result(select_result *res)
   }
   DBUG_RETURN(FALSE);
 }
+
+/**
+  Cache constant expressions in WHERE, HAVING, ON conditions.
+*/
+
+void JOIN::cache_const_exprs()
+{
+  bool cache_flag= FALSE;
+  bool *analyzer_arg= &cache_flag;
+
+  /* No need in cache if all tables are constant. */
+  if (const_tables == tables)
+    return;
+
+  if (conds)
+    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
+  cache_flag= FALSE;
+  if (having)
+    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
+
+  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  {
+    if (*tab->on_expr_ref)
+    {
+      cache_flag= FALSE;
+      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
+                                 (uchar **)&analyzer_arg,
+                                 &Item::cache_const_expr_transformer,
+                                 (uchar *)&cache_flag);
+    }
+  }
+}
+
 
 /**
   @} (end of group Query_Optimizer)

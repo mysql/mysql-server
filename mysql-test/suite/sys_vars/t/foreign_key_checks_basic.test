@@ -46,7 +46,6 @@ SET @@session.foreign_key_checks = 1;
 SET @@session.foreign_key_checks = DEFAULT;
 SELECT @@session.foreign_key_checks;
 
---echo 'Bug# 34878: No DEFAULT value for variable. Also setting DEFAULT does not give error'
 
 --echo '#---------------------FN_DYNVARS_032_02-------------------------#'
 ############################################################################# 
@@ -94,12 +93,8 @@ SET @@session.foreign_key_checks = "Y";
 SET @@session.foreign_key_checks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = OF;
-SELECT @@session.foreign_key_checks;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -113,11 +108,9 @@ SET @@session.foreign_key_checks = NO;
 #       Test if accessing global foreign_key_checks gives error           #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
 SET @@global.foreign_key_checks = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@global.foreign_key_checks;
+SET @@global.foreign_key_checks = 1;
 
 --echo '#----------------------FN_DYNVARS_032_06------------------------#'
 ######################################################################### 

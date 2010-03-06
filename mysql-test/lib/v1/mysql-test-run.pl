@@ -152,7 +152,6 @@ our $exe_mysqldump;
 our $exe_mysqlslap;
 our $exe_mysqlimport;
 our $exe_mysqlshow;
-our $exe_mysql_fix_system_tables;
 our $file_mysql_fix_privilege_tables;
 our $exe_mysqltest;
 our $exe_ndbd;
@@ -805,7 +804,7 @@ sub command_line_setup () {
                                     "$glob_basedir/sql/share",
                                     "$glob_basedir/share");
 
-  $path_language=      mtr_path_exists("$path_share/english");
+  $path_language=      mtr_path_exists("$path_share");
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
 
@@ -1468,7 +1467,7 @@ sub collect_mysqld_features () {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
+  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --lc-messages-dir=$path_language --skip-grant-tables --verbose --help`;
 
   foreach my $line (split('\n', $list))
   {
@@ -1680,14 +1679,6 @@ sub executable_setup () {
       $exe_mysql_upgrade= "";
     }
 
-    if ( ! $glob_win32 )
-    {
-      # Look for mysql_fix_system_table script
-      $exe_mysql_fix_system_tables=
-        mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
-  			"$path_client_bindir/mysql_fix_privilege_tables");
-    }
-
     # Look for mysql_fix_privilege_tables.sql script
     $file_mysql_fix_privilege_tables=
       mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
@@ -1812,7 +1803,7 @@ sub mysql_client_test_arguments()
   if ( $glob_use_embedded_server )
   {
     mtr_add_arg($args,
-      " -A --language=$path_language");
+      " -A --lc-messages-dir=$path_language");
     mtr_add_arg($args,
       " -A --datadir=$slave->[0]->{'path_myddir'}");
     mtr_add_arg($args,
@@ -2159,20 +2150,6 @@ sub environment_setup () {
     $ENV{'MYSQL_UPGRADE'}= mysql_upgrade_arguments();
   }
 
-  # ----------------------------------------------------
-  # Setup env so childs can execute mysql_fix_system_tables
-  # ----------------------------------------------------
-  if ( !$opt_extern && ! $glob_win32 )
-  {
-    my $cmdline_mysql_fix_system_tables=
-      "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
-      "--user=root --password= " .
-      "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
-      "--port=$master->[0]->{'port'} " .
-      "--socket=$master->[0]->{'path_sock'}";
-    $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
-
-  }
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
@@ -3163,7 +3140,7 @@ sub install_db ($$) {
 
   if ( ! $glob_netware )
   {
-    mtr_add_arg($args, "--language=%s", $path_language);
+    mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
     mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   }
 
@@ -3288,10 +3265,10 @@ socket              = $instance->{path_sock}
 pid-file            = $instance->{path_pid}
 port                = $instance->{port}
 datadir             = $instance->{path_datadir}
+lc-messages-dir     = $path_language
 log                 = $instance->{path_datadir}/mysqld$server_id.log
 log-error           = $instance->{path_datadir}/mysqld$server_id.err.log
 log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
-language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
 server_id           = $server_id
@@ -3898,8 +3875,8 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   }
 
-  mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
-  mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
+  mtr_add_arg($args, "%s--character-set-server=latin1", $prefix);
+  mtr_add_arg($args, "%s--lc-messages-dir=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
   # Increase default connect_timeout to avoid intermittent
@@ -3918,7 +3895,7 @@ sub mysqld_arguments ($$$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+    mtr_add_arg($args, "%s--loose-skip-safemalloc", $prefix);
 
     if ( $mysql_version_id < 50100 )
     {
@@ -4020,7 +3997,7 @@ sub mysqld_arguments ($$$$) {
     my $slave_load_path= "../tmp";
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $slave_load_path);
-    mtr_add_arg($args, "%s--set-variable=slave_net_timeout=120", $prefix);
+    mtr_add_arg($args, "%s--slave_net_timeout=120", $prefix);
 
     if ( @$slave_master_info )
     {
@@ -4031,15 +4008,26 @@ sub mysqld_arguments ($$$$) {
     }
     else
     {
-      if ($mysql_version_id < 50200)
-      {
-        mtr_add_arg($args, "%s--master-user=root", $prefix);
-        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
-        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
-        mtr_add_arg($args, "%s--master-password=", $prefix);
-        mtr_add_arg($args, "%s--master-port=%d", $prefix,
-    	            $master->[0]->{'port'}); # First master
-      }
+#      NOTE: the backport (see BUG#48048) originally removed the
+#            commented out lines below. However, given that they are
+#            protected with a version check (< 50200) now, it should be 
+#            safe to keep them. The problem is that the backported patch 
+#            was into a 5.1 GA codebase - mysql-5.1-rep+2 tree - so 
+#            version is 501XX, consequently check becomes worthless. It 
+#            should be safe to uncomment them when merging up to 5.5.
+#
+#            RQG semisync test runs on the 5.1 GA tree and needs MTR v1.
+#            This was causing the test to fail (slave would not start
+#            due to unrecognized option(s)).
+#      if ($mysql_version_id < 50200)
+#      {
+#        mtr_add_arg($args, "%s--master-user=root", $prefix);
+#        mtr_add_arg($args, "%s--master-connect-retry=1", $prefix);
+#        mtr_add_arg($args, "%s--master-host=127.0.0.1", $prefix);
+#        mtr_add_arg($args, "%s--master-password=", $prefix);
+#        mtr_add_arg($args, "%s--master-port=%d", $prefix,
+#    	            $master->[0]->{'port'}); # First master
+#      }
       my $slave_server_id=  2 + $idx;
       my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
@@ -5204,7 +5192,6 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--alignment=8");
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)

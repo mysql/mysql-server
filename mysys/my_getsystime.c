@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,7 +150,10 @@ ulonglong my_micro_time()
     Value in microseconds from some undefined point in time
 */
 
-#define DELTA_FOR_SECONDS LL(500000000)  /* Half a second */
+#define DELTA_FOR_SECONDS 500000000LL  /* Half a second */
+
+/* Difference between GetSystemTimeAsFileTime() and now() */
+#define OFFSET_TO_EPOCH 116444736000000000ULL
 
 ulonglong my_micro_time_and_time(time_t *time_arg)
 {
@@ -168,7 +171,7 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   static time_t cur_time= 0;
   hrtime_t cur_gethrtime;
 
-  pthread_mutex_lock(&THR_LOCK_time);
+  mysql_mutex_lock(&THR_LOCK_time);
   cur_gethrtime= gethrtime();
   if ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS)
   {
@@ -176,7 +179,7 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
     prev_gethrtime= cur_gethrtime;
   }
   *time_arg= cur_time;
-  pthread_mutex_unlock(&THR_LOCK_time);
+  mysql_mutex_unlock(&THR_LOCK_time);
   return cur_gethrtime/1000;
 #else
   ulonglong newtime;

@@ -862,7 +862,7 @@ reads:      %10lu\n",
 err:
   printf("got error: %d when using MyISAM-database\n",my_errno);
   if (file)
-    VOID(mi_close(file));
+    (void) mi_close(file);
   return(1);
 } /* main */
 
@@ -1055,3 +1055,5 @@ static void copy_key(MI_INFO *info,uint inx,uchar *rec,uchar *key_buff)
   }
   return;
 }
+
+#include "mi_extrafunc.h"

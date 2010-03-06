@@ -282,3 +282,33 @@ TIMEDIFF(TIME('17:59:00'),TIME('17:00:00')),
 TIMEDIFF(TIME('17:00:00'),TIME('17:59:00'));
 1Eq	1NEq1	1NEq2	2Eq	2NEq1	2NEq2	3Eq	3NEq1	3NEq2	Time0	Time00	Literal0000	TIMEDIFF(TIME('17:59:00'),TIME('17:00:00'))	TIMEDIFF(TIME('17:00:00'),TIME('17:59:00'))
 1	0	0	1	0	0	1	0	0	00:00:00	00:00:00	00:00:00	00:59:00	-00:59:00
+SELECT sec_to_time(3020399)=TIME('838:59:59');
+sec_to_time(3020399)=TIME('838:59:59')
+1
+SELECT sec_to_time(-3020399)=TIME('-838:59:59');
+sec_to_time(-3020399)=TIME('-838:59:59')
+1
+SELECT sec_to_time(-3020399)='-838:59:59';
+sec_to_time(-3020399)='-838:59:59'
+1
+SELECT time(sec_to_time(-3020399))=TIME('-838:59:59');
+time(sec_to_time(-3020399))=TIME('-838:59:59')
+1
+SELECT time(sec_to_time(-3020399))=TIME('-838:59:58');
+time(sec_to_time(-3020399))=TIME('-838:59:58')
+0
+SELECT maketime(-1,0,1)='-01:00:01';
+maketime(-1,0,1)='-01:00:01'
+1
+SELECT TIME(maketime(-1,0,1))=CAST('-01:00:01' AS TIME);
+TIME(maketime(-1,0,1))=CAST('-01:00:01' AS TIME)
+1
+SELECT maketime(-1,0,1)=CAST('-01:00:01' AS TIME);
+maketime(-1,0,1)=CAST('-01:00:01' AS TIME)
+1
+SELECT maketime(1,0,1)=CAST('01:00:01' AS TIME);
+maketime(1,0,1)=CAST('01:00:01' AS TIME)
+1
+SELECT maketime(1,0,1)=CAST('01:00:02' AS TIME);
+maketime(1,0,1)=CAST('01:00:02' AS TIME)
+0

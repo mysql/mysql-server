@@ -199,11 +199,34 @@ int main(int argc, char *argv[])
 }
 
 
+static void print_escaped_string(FILE *f, const char *str)
+{
+  const char *tmp = str;
+
+  while (tmp[0] != 0)
+  {
+    switch (tmp[0])
+    {
+      case '\\': fprintf(f, "\\\\"); break;
+      case '\'': fprintf(f, "\\\'"); break;
+      case '\"': fprintf(f, "\\\""); break;
+      case '\n': fprintf(f, "\\n"); break;
+      case '\r': fprintf(f, "\\r"); break;
+      default: fprintf(f, "%c", tmp[0]);
+    }
+    tmp++;
+  }
+}
+
+
 static int create_header_files(struct errors *error_head)
 {
   uint er_last;
   FILE *er_definef, *sql_statef, *er_namef;
   struct errors *tmp_error;
+  struct message *er_msg;
+  const char *er_text;
+
   DBUG_ENTER("create_header_files");
   LINT_INIT(er_last);
 
@@ -245,9 +268,12 @@ static int create_header_files(struct errors *error_head)
 	      "{ %-40s,\"%s\", \"%s\" },\n", tmp_error->er_name,
 	      tmp_error->sql_code1, tmp_error->sql_code2);
     /*generating er_name file */
-    fprintf(er_namef, "{ \"%s\", %d },\n", tmp_error->er_name,
-	    tmp_error->d_code);
-
+    er_msg= find_message(tmp_error, default_language, 0);
+    er_text = (er_msg ? er_msg->text : "");
+    fprintf(er_namef, "{ \"%s\", %d, \"", tmp_error->er_name,
+            tmp_error->d_code);
+    print_escaped_string(er_namef, er_text);
+    fprintf(er_namef, "\" },\n");
   }
   /* finishing off with mysqld_error.h */
   fprintf(er_definef, "#define ER_ERROR_LAST %d\n", er_last);
@@ -1041,11 +1067,11 @@ static char *parse_text_line(char *pos)
       switch (*++pos) {
       case '\\':
       case '"':
-	VOID(memmove (pos - 1, pos, len - (row - pos)));
+	(void) memmove (pos - 1, pos, len - (row - pos));
 	break;
       case 'n':
 	pos[-1]= '\n';
-	VOID(memmove (pos, pos + 1, len - (row - pos)));
+	(void) memmove (pos, pos + 1, len - (row - pos));
 	break;
       default:
 	if (*pos >= '0' && *pos < '8')
@@ -1055,10 +1081,10 @@ static char *parse_text_line(char *pos)
 	    nr= nr * 8 + (*(pos++) - '0');
 	  pos -= i;
 	  pos[-1]= nr;
-	  VOID(memmove (pos, pos + i, len - (row - pos)));
+	  (void) memmove (pos, pos + i, len - (row - pos));
 	}
 	else if (*pos)
-	  VOID(memmove (pos - 1, pos, len - (row - pos)));		/* Remove '\' */
+          (void) memmove (pos - 1, pos, len - (row - pos));             /* Remove '\' */
       }
     }
     else

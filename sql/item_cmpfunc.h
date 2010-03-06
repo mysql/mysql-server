@@ -637,6 +637,11 @@ public:
   {
     Item_func::print(str, query_type);
   }
+  void fix_length_and_dec()
+  {
+    Item_bool_func2::fix_length_and_dec();
+    fix_char_length(2); // returns "1" or "0" or "-1"
+  }
 };
 
 
@@ -1759,5 +1764,4 @@ Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
-
 #endif /* ITEM_CMPFUNC_INCLUDED */

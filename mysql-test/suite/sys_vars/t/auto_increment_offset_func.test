@@ -111,8 +111,6 @@ SELECT * from t1;
 --echo ## Setting value of variable less than last insert id ##
 SET @@session.auto_increment_offset = 5;
 INSERT into t1(name) values('Record_9');
---echo 'Bug#35367: Random value of id is increasing on assigning value to';
---echo 'variable that is less than current offset';
 INSERT into t1(name) values('Record_10');
 INSERT into t1(name) values('Record_11');
 INSERT into t1(name) values('Record_12');
@@ -133,9 +131,6 @@ SET @@auto_increment_increment = 10;
 INSERT into t1(name) values('Record_13');
 INSERT into t1(name) values('Record_14');
 SELECT * from t1;
---echo 'Bug#35369: Some invalid value of id is increasing on assigning value to';
---echo 'variable that is greater than auto_increment_increment';
-
 
 --echo '#--------------------FN_DYNVARS_002_06-------------------------#'
 ###############################################################################
@@ -165,8 +160,6 @@ SELECT @@auto_increment_offset = -10;
 INSERT into t1(name) values('Record_17');	
 INSERT into t1(name) values('Record_18');	
 SELECT * from t1;
---echo 'Bug#35370: Some invalid value of id is increasing on assigning negative';
---echo ' value in variable';
 
 --echo ## Assigning value that is out of range of variable ##
 SET @@auto_increment_offset = 65536;
