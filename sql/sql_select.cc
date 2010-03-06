@@ -1316,18 +1316,41 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, uint no_jbuf_
 }
 
 
-static void cleanup_sj_tmp_tables(JOIN *join)
+/*
+  Destroy all temporary tables created by NL-semijoin runtime.
+*/
+
+static void destroy_sj_tmp_tables(JOIN *join)
 {
   for (SJ_TMP_TABLE *sj_tbl= join->sj_tmp_tables; sj_tbl; 
        sj_tbl= sj_tbl->next)
   {
     if (sj_tbl->tmp_table)
-    {
       free_tmp_table(join->thd, sj_tbl->tmp_table);
-    }
   }
   join->sj_tmp_tables= NULL;
 }
+
+
+/*
+  Remove all records from all temp tables used by NL-semijoin runtime
+*/
+
+static int clear_sj_tmp_tables(JOIN *join)
+{
+  int res;
+  for (SJ_TMP_TABLE *sj_tbl= join->sj_tmp_tables; sj_tbl; 
+       sj_tbl= sj_tbl->next)
+  {
+    if (sj_tbl->tmp_table)
+    {
+      if ((res= sj_tbl->tmp_table->file->ha_delete_all_rows()))
+        return res;
+    }
+  }
+  return 0;
+}
+
 
 uint make_join_orderinfo(JOIN *join);
 
@@ -2216,6 +2239,7 @@ JOIN::reinit()
     free_io_cache(exec_tmp_table2);
     filesort_free_buffers(exec_tmp_table2,0);
   }
+  clear_sj_tmp_tables(this);
   if (items0)
     set_items_ref_array(items0);
 
@@ -2922,6 +2946,7 @@ JOIN::destroy()
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
     free_tmp_table(thd, exec_tmp_table2);
+  destroy_sj_tmp_tables(this);
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
@@ -8544,7 +8569,7 @@ void JOIN::cleanup(bool full)
           tab->table->file->ha_index_or_rnd_end();
       }
     }
-    cleanup_sj_tmp_tables(this);//
+    //was: cleanup_sj_tmp_tables(this);//
   }
   /*
     We are not using tables anymore
