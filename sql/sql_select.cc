@@ -2562,6 +2562,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
+  table_map no_rows_const_tables= 0;
   SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
   DBUG_ENTER("make_join_statistics");
@@ -2622,6 +2623,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
+        no_rows_const_tables |= table->map;
 	set_position(join,const_count++,s,(KEYUSE*) 0);
 	continue;
       }
@@ -2658,6 +2660,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
         !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
+      no_rows_const_tables |= table->map;
     }
   }
   stat_vector[i]=0;
@@ -2703,9 +2706,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
 
-  join->const_table_map= 0;
+  join->const_table_map= no_rows_const_tables;
   join->const_tables= const_count;
   eliminate_tables(join);
+  join->const_table_map &= ~no_rows_const_tables;
   const_count= join->const_tables;
   found_const_table_map= join->const_table_map;
 
