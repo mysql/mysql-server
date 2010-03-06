@@ -154,7 +154,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     if ((res= check_duplicate_names(unit->types, 0)))
       goto exit;
 
-    create_options= (first_select->options | thd->options |
+    create_options= (first_select->options | thd->variables.option_bits |
                      TMP_TABLE_ALL_COLUMNS);
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
@@ -289,7 +289,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 			(ORDER *) first_select->order_list.first,
 			(ORDER *) first_select->group_list.first,
 			first_select->having, (ORDER*) NULL,
-			(first_select->options | thd->options |
+			(first_select->options | thd->variables.option_bits |
 			 SELECT_NO_UNLOCK),
 			derived_result, unit, first_select);
     }

@@ -86,11 +86,6 @@ connection test_con2;
 --echo ## Key_reads must be zero (no disk access) ##
 show status like 'Key_reads';
 
-CONNECTION default;
---disable_warnings
-SET @@global.key_buffer_size = 36;
---enable_warnings
-
 --echo ## Connecting with connection test_con1 ##
 CONNECTION test_con1;
 

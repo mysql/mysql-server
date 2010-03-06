@@ -101,9 +101,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
 			log_event.h rpl_record.h \
 			log_event_old.h rpl_record_old.h \
-			sql_sort.h sql_cache.h set_var.h \
+			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
-			tztime.h my_decimal.h\
+			tztime.h my_decimal.h keycaches.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h events.h scheduler.h \
@@ -111,8 +111,10 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_plugin.h authors.h event_parse_data.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
+			sql_audit.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
-			sql_prepare.h rpl_handler.h replication.h
+			sql_prepare.h rpl_handler.h replication.h mdl.h \
+			sql_plist.h transaction.h sys_vars.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
@@ -123,9 +125,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			net_serv.cc protocol.cc sql_state.c \
 			lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
-			mysqld.cc password.c hash_filo.cc hostname.cc \
+			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
-			set_var.cc sql_yacc.yy \
+			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
@@ -158,7 +160,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc sql_signal.cc \
-			rpl_handler.cc
+			rpl_handler.cc mdl.cc transaction.cc sql_audit.cc 
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 

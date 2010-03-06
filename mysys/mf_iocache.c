@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,9 +58,9 @@ static void my_aiowait(my_aio_result *result);
 
 #ifdef THREAD
 #define lock_append_buffer(info) \
- pthread_mutex_lock(&(info)->append_buffer_lock)
+  mysql_mutex_lock(&(info)->append_buffer_lock)
 #define unlock_append_buffer(info) \
- pthread_mutex_unlock(&(info)->append_buffer_lock)
+  mysql_mutex_unlock(&(info)->append_buffer_lock)
 #else
 #define lock_append_buffer(info)
 #define unlock_append_buffer(info)
@@ -265,7 +265,8 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
     info->append_read_pos = info->write_pos = info->write_buffer;
     info->write_end = info->write_buffer + info->buffer_length;
 #ifdef THREAD
-    pthread_mutex_init(&info->append_buffer_lock,MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_IO_CACHE_append_buffer_lock,
+                     &info->append_buffer_lock, MY_MUTEX_INIT_FAST);
 #endif
   }
 #if defined(SAFE_MUTEX) && defined(THREAD)
@@ -639,9 +640,10 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
   DBUG_ASSERT(read_cache->type == READ_CACHE);
   DBUG_ASSERT(!write_cache || (write_cache->type == WRITE_CACHE));
 
-  pthread_mutex_init(&cshare->mutex, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&cshare->cond, 0);
-  pthread_cond_init(&cshare->cond_writer, 0);
+  mysql_mutex_init(key_IO_CACHE_SHARE_mutex,
+                   &cshare->mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_IO_CACHE_SHARE_cond, &cshare->cond, 0);
+  mysql_cond_init(key_IO_CACHE_SHARE_cond_writer, &cshare->cond_writer, 0);
 
   cshare->running_threads= num_threads;
   cshare->total_threads=   num_threads;
@@ -692,7 +694,7 @@ void remove_io_thread(IO_CACHE *cache)
   if (cache == cshare->source_cache)
     flush_io_cache(cache);
 
-  pthread_mutex_lock(&cshare->mutex);
+  mysql_mutex_lock(&cshare->mutex);
   DBUG_PRINT("io_cache_share", ("%s: 0x%lx",
                                 (cache == cshare->source_cache) ?
                                 "writer" : "reader", (long) cache));
@@ -715,18 +717,18 @@ void remove_io_thread(IO_CACHE *cache)
   if (!--cshare->running_threads)
   {
     DBUG_PRINT("io_cache_share", ("the last running thread leaves, wake all"));
-    pthread_cond_signal(&cshare->cond_writer);
-    pthread_cond_broadcast(&cshare->cond);
+    mysql_cond_signal(&cshare->cond_writer);
+    mysql_cond_broadcast(&cshare->cond);
   }
 
-  pthread_mutex_unlock(&cshare->mutex);
+  mysql_mutex_unlock(&cshare->mutex);
 
   if (!total)
   {
     DBUG_PRINT("io_cache_share", ("last thread removed, destroy share"));
-    pthread_cond_destroy (&cshare->cond_writer);
-    pthread_cond_destroy (&cshare->cond);
-    pthread_mutex_destroy(&cshare->mutex);
+    mysql_cond_destroy (&cshare->cond_writer);
+    mysql_cond_destroy (&cshare->cond);
+    mysql_mutex_destroy(&cshare->mutex);
   }
 
   DBUG_VOID_RETURN;
@@ -767,7 +769,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
   DBUG_ENTER("lock_io_cache");
 
   /* Enter the lock. */
-  pthread_mutex_lock(&cshare->mutex);
+  mysql_mutex_lock(&cshare->mutex);
   cshare->running_threads--;
   DBUG_PRINT("io_cache_share", ("%s: 0x%lx  pos: %lu  running: %u",
                                 (cache == cshare->source_cache) ?
@@ -784,7 +786,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
       while (cshare->running_threads)
       {
         DBUG_PRINT("io_cache_share", ("writer waits in lock"));
-        pthread_cond_wait(&cshare->cond_writer, &cshare->mutex);
+        mysql_cond_wait(&cshare->cond_writer, &cshare->mutex);
       }
       DBUG_PRINT("io_cache_share", ("writer awoke, going to copy"));
 
@@ -796,7 +798,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
     if (!cshare->running_threads)
     {
       DBUG_PRINT("io_cache_share", ("waking writer"));
-      pthread_cond_signal(&cshare->cond_writer);
+      mysql_cond_signal(&cshare->cond_writer);
     }
 
     /*
@@ -808,7 +810,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
            cshare->source_cache)
     {
       DBUG_PRINT("io_cache_share", ("reader waits in lock"));
-      pthread_cond_wait(&cshare->cond, &cshare->mutex);
+      mysql_cond_wait(&cshare->cond, &cshare->mutex);
     }
 
     /*
@@ -850,7 +852,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
            cshare->running_threads)
     {
       DBUG_PRINT("io_cache_share", ("reader waits in lock"));
-      pthread_cond_wait(&cshare->cond, &cshare->mutex);
+      mysql_cond_wait(&cshare->cond, &cshare->mutex);
     }
 
     /* If the block is not yet read, continue with a locked cache and read. */
@@ -872,7 +874,7 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
     Leave the lock. Do not call unlock_io_cache() later. The thread that
     filled the buffer did this and marked all threads as running.
   */
-  pthread_mutex_unlock(&cshare->mutex);
+  mysql_mutex_unlock(&cshare->mutex);
   DBUG_RETURN(0);
 }
 
@@ -915,8 +917,8 @@ static void unlock_io_cache(IO_CACHE *cache)
                                 cshare->total_threads));
 
   cshare->running_threads= cshare->total_threads;
-  pthread_cond_broadcast(&cshare->cond);
-  pthread_mutex_unlock(&cshare->mutex);
+  mysql_cond_broadcast(&cshare->cond);
+  mysql_mutex_unlock(&cshare->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1837,7 +1839,7 @@ int end_io_cache(IO_CACHE *info)
     /* Destroy allocated mutex */
     info->type= TYPE_NOT_SET;
 #ifdef THREAD
-    pthread_mutex_destroy(&info->append_buffer_lock);
+    mysql_mutex_destroy(&info->append_buffer_lock);
 #endif
   }
   DBUG_RETURN(error);

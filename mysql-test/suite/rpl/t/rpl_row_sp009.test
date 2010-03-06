@@ -71,9 +71,7 @@ delimiter ;|
 
 CALL test.p1('a');
 SELECT * FROM test.t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t2 ORDER BY a;
 connection master;
 truncate test.t2;
@@ -81,17 +79,13 @@ truncate test.t2;
 # this next call fails, but should not
 call test.p1('b');
 select * from test.t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t2 ORDER BY a;
 
 connection master;
 truncate test.t2;
 SELECT * FROM test.t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t2 ORDER BY a;
 
 # Cleanup

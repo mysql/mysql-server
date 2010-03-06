@@ -119,7 +119,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 #ifdef EINTR
       if (errno == EINTR)
       {
-	VOID(my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0)));
+	(void) my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0));
 	continue;
       }
 #endif
@@ -133,7 +133,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
       {
         wait_for_free_space("[stream]", errors);
         errors++;
-        VOID(my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0)));
+        (void) my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0));
         continue;
       }
 #endif

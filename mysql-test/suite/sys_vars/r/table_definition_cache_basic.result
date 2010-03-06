@@ -61,7 +61,6 @@ Warning	1292	Truncated incorrect table_definition_cache value: '42949672950'
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
 524288
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.table_definition_cache = 21221204.10;
 ERROR 42000: Incorrect argument type to variable 'table_definition_cache'
 SET @@global.table_definition_cache = ON;

@@ -62,6 +62,17 @@ size_t my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 }
 
 
+static inline MY_UNICASE_INFO*
+get_case_info_for_ch(CHARSET_INFO *cs, uint page, uint offs)
+{
+  MY_UNICASE_INFO *p;
+  return cs->caseinfo ? ((p= cs->caseinfo[page]) ? &p[offs] : NULL) :  NULL;
+}
+
+
+/*
+  For character sets which don't change octet length in case conversion.
+*/
 size_t my_caseup_mb(CHARSET_INFO * cs, char *src, size_t srclen,
                     char *dst __attribute__((unused)),
                     size_t dstlen __attribute__((unused)))
@@ -70,11 +81,23 @@ size_t my_caseup_mb(CHARSET_INFO * cs, char *src, size_t srclen,
   register char *srcend= src + srclen;
   register uchar *map= cs->to_upper;
 
+  DBUG_ASSERT(cs->caseup_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);
+  DBUG_ASSERT(cs->mbmaxlen == 2);
+  
   while (src < srcend)
   {
     if ((l=my_ismbchar(cs, src, srcend)))
-      src+= l;
+    {
+      MY_UNICASE_INFO *ch;
+      if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
+      {
+        *src++= ch->toupper >> 8;
+        *src++= ch->toupper & 0xFF;
+      }
+      else
+        src+= l;
+    }
     else 
     {
       *src=(char) map[(uchar) *src];
@@ -93,11 +116,23 @@ size_t my_casedn_mb(CHARSET_INFO * cs, char *src, size_t srclen,
   register char *srcend= src + srclen;
   register uchar *map=cs->to_lower;
 
+  DBUG_ASSERT(cs->casedn_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);  
+  DBUG_ASSERT(cs->mbmaxlen == 2);
+  
   while (src < srcend)
   {
     if ((l= my_ismbchar(cs, src, srcend)))
-      src+= l;
+    {
+      MY_UNICASE_INFO *ch;
+      if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
+      {
+        *src++= ch->tolower >> 8;
+        *src++= ch->tolower & 0xFF;
+      }
+      else
+        src+= l;
+    }
     else
     {
       *src= (char) map[(uchar)*src];
@@ -105,6 +140,75 @@ size_t my_casedn_mb(CHARSET_INFO * cs, char *src, size_t srclen,
     }
   }
   return srclen;
+}
+
+
+/*
+  Case folding functions for character set
+  where case conversion can change string octet length.
+  For example, in EUCKR,
+    _euckr 0xA9A5 == "LATIN LETTER DOTLESS I" (Turkish letter)
+  is upper-cased to to
+    _euckr 0x49 "LATIN CAPITAL LETTER I"  ('usual' letter I)
+  Length is reduced in this example from two bytes to one byte.
+*/
+static size_t
+my_casefold_mb_varlen(CHARSET_INFO *cs,
+                      char *src, size_t srclen,
+                      char *dst, size_t dstlen __attribute__((unused)),
+                      uchar *map,
+                      size_t is_upper)
+{
+  char *srcend= src + srclen, *dst0= dst;
+
+  DBUG_ASSERT(cs->mbmaxlen == 2);
+
+  while (src < srcend)
+  {
+    size_t mblen= my_ismbchar(cs, src, srcend);
+    if (mblen)
+    {
+      MY_UNICASE_INFO *ch;
+      if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
+      {
+        int code= is_upper ? ch->toupper : ch->tolower;
+        src+= 2;
+        if (code > 0xFF)
+          *dst++= code >> 8;
+        *dst++= code & 0xFF;
+      }
+      else
+      {
+        *dst++= *src++;
+        *dst++= *src++;
+      }
+    }
+    else
+    {
+      *dst++= (char) map[(uchar) *src++];
+    }
+  }
+  return (size_t) (dst - dst0);
+}
+
+
+size_t
+my_casedn_mb_varlen(CHARSET_INFO * cs, char *src, size_t srclen,
+                    char *dst, size_t dstlen)
+{
+  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply); 
+  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  return my_casefold_mb_varlen(cs, src, srclen, dst, dstlen, cs->to_lower, 0);
+}
+
+
+size_t
+my_caseup_mb_varlen(CHARSET_INFO * cs, char *src, size_t srclen,
+                    char *dst, size_t dstlen)
+{
+  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
+  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  return my_casefold_mb_varlen(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
 }
 
 
@@ -363,10 +467,11 @@ uint my_instr_mb(CHARSET_INFO *cs,
 
 /* BINARY collations handlers for MB charsets */
 
-static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-				const uchar *s, size_t slen,
-				const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+int
+my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                    const uchar *s, size_t slen,
+                    const uchar *t, size_t tlen,
+                    my_bool t_is_prefix)
 {
   size_t len=min(slen,tlen);
   int cmp= memcmp(s,t,len);
@@ -399,10 +504,11 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     0 if strings are equal
 */
 
-static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-                                 const uchar *a, size_t a_length, 
-                                 const uchar *b, size_t b_length,
-                                 my_bool diff_if_only_endspace_difference)
+int
+my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                      const uchar *a, size_t a_length, 
+                      const uchar *b, size_t b_length,
+                      my_bool diff_if_only_endspace_difference)
 {
   const uchar *end;
   size_t length;
@@ -458,25 +564,25 @@ static size_t my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
-		      const char *s, const char *t)
+int
+my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                     const char *s, const char *t)
 {
   return strcmp(s,t);
 }
 
-static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-		      const uchar *key, size_t len,ulong *nr1, ulong *nr2)
+
+void
+my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
+                    const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
-  
-  key+= len;
   
   /*
      Remove trailing spaces. We have to do this to be able to compare
     'A ' and 'A' as identical
   */
-  while (key > pos && key[-1] == ' ')
-    key--;
+  key= skip_trailing_space(key, len);
   
   for (; pos < (uchar*) key ; pos++)
   {
@@ -686,10 +792,11 @@ fill_max_and_min:
 }
 
 
-static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
-		  const char *str,const char *str_end,
-		  const char *wildstr,const char *wildend,
-		  int escape, int w_one, int w_many)
+int
+my_wildcmp_mb_bin(CHARSET_INFO *cs,
+                  const char *str,const char *str_end,
+                  const char *wildstr,const char *wildend,
+                  int escape, int w_one, int w_many)
 {
   int result= -1;				/* Not found, using wildcards */
 

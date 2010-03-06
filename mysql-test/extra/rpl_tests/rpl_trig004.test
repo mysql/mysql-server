@@ -35,9 +35,8 @@ INSERT INTO test.t2 VALUES (1, 0.0);
 #show binlog events; 
 select * from test.t1;
 select * from test.t2;
-# Have to sleep for a few seconds to allow 
-# NDB injector thread to populate binlog
-sleep 10;
+let $wait_time= 10;
+--source include/wait_for_ndb_to_binlog.inc
 sync_slave_with_master;
 connection slave;
 select * from test.t1;

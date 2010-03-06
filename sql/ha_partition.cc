@@ -500,9 +500,9 @@ int ha_partition::create_handler_files(const char *path,
     strxmov(name, path, ha_par_ext, NullS);
     strxmov(old_name, old_path, ha_par_ext, NullS);
     if ((action_flag == CHF_DELETE_FLAG &&
-         my_delete(name, MYF(MY_WME))) ||
+         mysql_file_delete(key_file_partition, name, MYF(MY_WME))) ||
         (action_flag == CHF_RENAME_FLAG &&
-         my_rename(old_name, name, MYF(MY_WME))))
+         mysql_file_rename(key_file_partition, old_name, name, MYF(MY_WME))))
     {
       DBUG_RETURN(TRUE);
     }
@@ -641,7 +641,7 @@ int ha_partition::drop_partitions(const char *path)
         part_elem->part_state= PART_IS_DROPPED;
     }
   } while (++i < num_parts);
-  VOID(sync_ddl_log());
+  (void) sync_ddl_log();
   DBUG_RETURN(error);
 }
 
@@ -739,7 +739,7 @@ int ha_partition::rename_partitions(const char *path)
           part_elem->log_entry= NULL; /* Indicate success */
       }
     } while (++i < temp_partitions);
-    VOID(sync_ddl_log());
+    (void) sync_ddl_log();
   }
   i= 0;
   do
@@ -791,7 +791,7 @@ int ha_partition::rename_partitions(const char *path)
               error= ret_error;
             else if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
               error= 1;
-            VOID(sync_ddl_log());
+            (void) sync_ddl_log();
           }
           file= m_new_file[part];
           create_subpartition_name(part_name_buff, path,
@@ -822,7 +822,7 @@ int ha_partition::rename_partitions(const char *path)
             error= ret_error;
           else if (deactivate_ddl_log_entry(part_elem->log_entry->entry_pos))
             error= 1;
-          VOID(sync_ddl_log());
+          (void) sync_ddl_log();
         }
         file= m_new_file[i];
         create_partition_name(part_name_buff, path,
@@ -840,7 +840,7 @@ int ha_partition::rename_partitions(const char *path)
       }
     }
   } while (++i < num_parts);
-  VOID(sync_ddl_log());
+  (void) sync_ddl_log();
   DBUG_RETURN(error);
 }
 
@@ -1145,7 +1145,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
             {
               if (part_elem->part_state == PART_ADMIN)
                 part_elem->part_state= PART_NORMAL;
-            } while (part_elem= part_it++);
+            } while ((part_elem= part_it++));
             DBUG_RETURN(error);
           }
         } while (++j < num_subparts);
@@ -1177,7 +1177,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           {
             if (part_elem->part_state == PART_ADMIN)
               part_elem->part_state= PART_NORMAL;
-          } while (part_elem= part_it++);
+          } while ((part_elem= part_it++));
           DBUG_RETURN(error);
         }
       }
@@ -1306,9 +1306,9 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
 
   DBUG_RETURN(0);
 error_external_lock:
-  VOID(file->close());
+  (void) file->close();
 error_open:
-  VOID(file->ha_delete_table(part_name));
+  (void) file->ha_delete_table(part_name);
 error_create:
   DBUG_RETURN(error);
 }
@@ -1894,7 +1894,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
   DBUG_ASSERT(m_file_buffer);
-  DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
+  DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to ? to : "(nil)"));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
   if (to == NULL && table_arg == NULL)
@@ -2017,8 +2017,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
       return part_elem;
   }
   DBUG_ASSERT(0);
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
-  current_thd->fatal_error();                   // Abort
+  my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
   return NULL;
 }
 
@@ -2243,12 +2242,13 @@ bool ha_partition::create_handler_file(const char *name)
     to be used at open, delete_table and rename_table
   */
   fn_format(file_name, name, "", ha_par_ext, MY_APPEND_EXT);
-  if ((file= my_create(file_name, CREATE_MODE, O_RDWR | O_TRUNC,
-		       MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_create(key_file_partition,
+                               file_name, CREATE_MODE, O_RDWR | O_TRUNC,
+                               MYF(MY_WME))) >= 0)
   {
-    result= my_write(file, (uchar *) file_buffer, tot_len_byte,
-                     MYF(MY_WME | MY_NABP)) != 0;
-    VOID(my_close(file, MYF(0)));
+    result= mysql_file_write(file, (uchar *) file_buffer, tot_len_byte,
+                             MYF(MY_WME | MY_NABP)) != 0;
+    (void) mysql_file_close(file, MYF(0));
   }
   else
     result= TRUE;
@@ -2425,17 +2425,18 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
     DBUG_RETURN(FALSE);
   fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
 
-  /* Following could be done with my_stat to read in whole file */
-  if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  /* Following could be done with mysql_file_stat to read in whole file */
+  if ((file= mysql_file_open(key_file_partition,
+                             buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(TRUE);
-  if (my_read(file, (uchar *) & buff[0], 8, MYF(MY_NABP)))
+  if (mysql_file_read(file, (uchar *) &buff[0], 8, MYF(MY_NABP)))
     goto err1;
   len_words= uint4korr(buff);
   len_bytes= 4 * len_words;
   if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
     goto err1;
-  VOID(my_seek(file, 0, MY_SEEK_SET, MYF(0)));
-  if (my_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
+  mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
+  if (mysql_file_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
     goto err2;
 
   chksum= 0;
@@ -2456,7 +2457,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   if (len_words != (tot_partition_words + tot_name_words + 4))
     goto err3;
   name_buffer_ptr= file_buffer + 16 + 4 * tot_partition_words;
-  VOID(my_close(file, MYF(0)));
+  (void) mysql_file_close(file, MYF(0));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
   
@@ -2481,7 +2482,7 @@ err3:
 err2:
   my_free(file_buffer, MYF(0));
 err1:
-  VOID(my_close(file, MYF(0)));
+  (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -2644,7 +2645,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     for the same table.
   */
   if (is_not_tmp_table)
-    pthread_mutex_lock(&table_share->mutex);
+    mysql_mutex_lock(&table_share->LOCK_ha_data);
   if (!table_share->ha_data)
   {
     HA_DATA_PARTITION *ha_data;
@@ -2655,7 +2656,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if (!ha_data)
     {
       if (is_not_tmp_table)
-        pthread_mutex_unlock(&table_share->mutex);
+        mysql_mutex_unlock(&table_share->LOCK_ha_data);
       goto err_handler;
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
@@ -2664,7 +2665,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     pthread_mutex_init(&ha_data->mutex, MY_MUTEX_INIT_FAST);
   }
   if (is_not_tmp_table)
-    pthread_mutex_unlock(&table_share->mutex);
+    mysql_mutex_unlock(&table_share->LOCK_ha_data);
   /*
     Some handlers update statistics as part of the open call. This will in
     some cases corrupt the statistics of the partition handler and thus
@@ -5303,34 +5304,35 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
 }
 
 
-/*
-  General function to prepare handler for certain behavior
+/**
+  General function to prepare handler for certain behavior.
 
-  SYNOPSIS
-    extra()
+  @param[in]    operation       operation to execute
     operation              Operation type for extra call
 
-  RETURN VALUE
-    >0                     Error code
-    0                      Success
+  @return       status
+    @retval     0               success
+    @retval     >0              error code
 
-  DESCRIPTION
+  @detail
+
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.
 
   We divide the parameters into the following categories:
-  1) Parameters used by most handlers
-  2) Parameters used by some non-MyISAM handlers
-  3) Parameters used only by MyISAM
-  4) Parameters only used by temporary tables for query processing
-  5) Parameters only used by MyISAM internally
-  6) Parameters not used at all
-  7) Parameters only used by federated tables for query processing
-  8) Parameters only used by NDB
+  1) Operations used by most handlers
+  2) Operations used by some non-MyISAM handlers
+  3) Operations used only by MyISAM
+  4) Operations only used by temporary tables for query processing
+  5) Operations only used by MyISAM internally
+  6) Operations not used at all
+  7) Operations only used by federated tables for query processing
+  8) Operations only used by NDB
+  9) Operations only used by MERGE
 
   The partition handler need to handle category 1), 2) and 3).
 
-  1) Parameters used by most handlers
+  1) Operations used by most handlers
   -----------------------------------
   HA_EXTRA_RESET:
     This option is used by most handlers and it resets the handler state
@@ -5369,7 +5371,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     ensure disk based tables are flushed at end of query execution.
     Currently is never used.
 
-  2) Parameters used by some non-MyISAM handlers
+  2) Operations used by some non-MyISAM handlers
   ----------------------------------------------
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
     This is a strictly InnoDB feature that is more or less undocumented.
@@ -5388,7 +5390,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     SQL constructs.
     Not used by MyISAM.
 
-  3) Parameters used only by MyISAM
+  3) Operations used only by MyISAM
   ---------------------------------
   HA_EXTRA_NORMAL:
     Only used in MyISAM to reset quick mode, not implemented by any other
@@ -5519,7 +5521,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     Only used by MyISAM, called when altering table, closing tables to
     enforce a reopen of the table files.
 
-  4) Parameters only used by temporary tables for query processing
+  4) Operations only used by temporary tables for query processing
   ----------------------------------------------------------------
   HA_EXTRA_RESET_STATE:
     Same as reset() except that buffers are not released. If there is
@@ -5550,7 +5552,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     tables used in query processing.
     Not handled by partition handler.
 
-  5) Parameters only used by MyISAM internally
+  5) Operations only used by MyISAM internally
   --------------------------------------------
   HA_EXTRA_REINIT_CACHE:
     This call reinitializes the READ CACHE described above if there is one
@@ -5585,19 +5587,19 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
     Only used by MyISAM, never called.
 
-  6) Parameters not used at all
+  6) Operations not used at all
   -----------------------------
   HA_EXTRA_KEY_CACHE:
   HA_EXTRA_NO_KEY_CACHE:
     This parameters are no longer used and could be removed.
 
-  7) Parameters only used by federated tables for query processing
+  7) Operations only used by federated tables for query processing
   ----------------------------------------------------------------
   HA_EXTRA_INSERT_WITH_UPDATE:
     Inform handler that an "INSERT...ON DUPLICATE KEY UPDATE" will be
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
 
-  8) Parameters only used by NDB
+  8) Operations only used by NDB
   ------------------------------
   HA_EXTRA_DELETE_CANNOT_BATCH:
   HA_EXTRA_UPDATE_CANNOT_BATCH:
@@ -5605,6 +5607,14 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
     and should perform them immediately. This may be needed when table has 
     AFTER DELETE/UPDATE triggers which access to subject table.
     These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
+
+  9) Operations only used by MERGE
+  ------------------------------
+  HA_EXTRA_ADD_CHILDREN_LIST:
+  HA_EXTRA_ATTACH_CHILDREN:
+  HA_EXTRA_IS_ATTACHED_CHILDREN:
+  HA_EXTRA_DETACH_CHILDREN:
+    Special actions for MERGE tables. Ignore.
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -5697,11 +5707,20 @@ int ha_partition::extra(enum ha_extra_function operation)
     /* Category 7), used by federated handlers */
   case HA_EXTRA_INSERT_WITH_UPDATE:
     DBUG_RETURN(loop_extra(operation));
-    /* Category 8) Parameters only used by NDB */
+    /* Category 8) Operations only used by NDB */
   case HA_EXTRA_DELETE_CANNOT_BATCH:
   case HA_EXTRA_UPDATE_CANNOT_BATCH:
   {
     /* Currently only NDB use the *_CANNOT_BATCH */
+    break;
+  }
+    /* Category 9) Operations only used by MERGE */
+  case HA_EXTRA_ADD_CHILDREN_LIST:
+  case HA_EXTRA_ATTACH_CHILDREN:
+  case HA_EXTRA_IS_ATTACHED_CHILDREN:
+  case HA_EXTRA_DETACH_CHILDREN:
+  {
+    /* Special actions for MERGE tables. Ignore. */
     break;
   }
   /*
@@ -5882,9 +5901,9 @@ void ha_partition::late_extra_cache(uint partition_id)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
   if (m_extra_cache_size == 0)
-    VOID(file->extra(HA_EXTRA_CACHE));
+    (void) file->extra(HA_EXTRA_CACHE);
   else
-    VOID(file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size));
+    (void) file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size);
   DBUG_VOID_RETURN;
 }
 
@@ -5908,7 +5927,7 @@ void ha_partition::late_extra_no_cache(uint partition_id)
   if (!m_extra_cache)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
-  VOID(file->extra(HA_EXTRA_NO_CACHE));
+  (void) file->extra(HA_EXTRA_NO_CACHE);
   DBUG_VOID_RETURN;
 }
 
@@ -6573,8 +6592,8 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     if (!auto_increment_safe_stmt_log_lock &&
         thd->lex->sql_command != SQLCOM_INSERT &&
         mysql_bin_log.is_open() &&
-        !thd->current_stmt_binlog_row_based &&
-        (thd->options & OPTION_BIN_LOG))
+        !thd->is_current_stmt_binlog_format_row() &&
+        (thd->variables.option_bits & OPTION_BIN_LOG))
     {
       DBUG_PRINT("info", ("locking auto_increment_safe_stmt_log_lock"));
       auto_increment_safe_stmt_log_lock= TRUE;
@@ -6724,7 +6743,7 @@ int ha_partition::indexes_are_disabled(void)
 
 #ifdef NOT_USED
 static HASH partition_open_tables;
-static pthread_mutex_t partition_mutex;
+static mysql_mutex_t partition_mutex;
 static int partition_init= 0;
 
 
@@ -6762,17 +6781,17 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
   if (!partition_init)
   {
     /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
+    mysql_mutex_lock(&LOCK_mysql_create_db);
     if (!partition_init)
     {
       partition_init++;
-      VOID(pthread_mutex_init(&partition_mutex, MY_MUTEX_INIT_FAST));
+      mysql_mutex_init(INSTRUMENT_ME, &partition_mutex, MY_MUTEX_INIT_FAST);
       (void) hash_init(&partition_open_tables, system_charset_info, 32, 0, 0,
 		       (hash_get_key) partition_get_key, 0, 0);
     }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
+    mysql_mutex_unlock(&LOCK_mysql_create_db);
   }
-  pthread_mutex_lock(&partition_mutex);
+  mysql_mutex_lock(&partition_mutex);
   length= (uint) strlen(table_name);
 
   if (!(share= (PARTITION_SHARE *) hash_search(&partition_open_tables,
@@ -6783,7 +6802,7 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
 			  &share, (uint) sizeof(*share),
 			  &tmp_name, (uint) length + 1, NullS)))
     {
-      pthread_mutex_unlock(&partition_mutex);
+      mysql_mutex_unlock(&partition_mutex);
       return NULL;
     }
 
@@ -6794,15 +6813,15 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE *table)
     if (my_hash_insert(&partition_open_tables, (uchar *) share))
       goto error;
     thr_lock_init(&share->lock);
-    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
   }
   share->use_count++;
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
 
   return share;
 
 error:
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
   my_free((uchar*) share, MYF(0));
 
   return NULL;
@@ -6817,15 +6836,15 @@ error:
 
 static int free_share(PARTITION_SHARE *share)
 {
-  pthread_mutex_lock(&partition_mutex);
+  mysql_mutex_lock(&partition_mutex);
   if (!--share->use_count)
   {
     hash_delete(&partition_open_tables, (uchar *) share);
     thr_lock_delete(&share->lock);
-    pthread_mutex_destroy(&share->mutex);
+    mysql_mutex_destroy(&share->mutex);
     my_free((uchar*) share, MYF(0));
   }
-  pthread_mutex_unlock(&partition_mutex);
+  mysql_mutex_unlock(&partition_mutex);
 
   return 0;
 }

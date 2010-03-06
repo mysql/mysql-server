@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,13 +252,35 @@ static int add_collation(CHARSET_INFO *cs)
         newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif        
       }
-      else if (!strcmp(cs->csname, "utf8"))
+      else if (!strcmp(cs->csname, "utf8") || !strcmp(cs->csname, "utf8mb3"))
       {
 #if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
         newcs->ctype= my_charset_utf8_unicode_ci.ctype;
         if (init_state_maps(newcs))
           return MY_XML_ERROR;
+#endif
+      }
+      else if (!strcmp(cs->csname, "utf8mb4"))
+      {
+#if defined (HAVE_CHARSET_utf8mb4) && defined(HAVE_UCA_COLLATIONS)
+        copy_uca_collation(newcs, &my_charset_utf8mb4_unicode_ci);
+        newcs->ctype= my_charset_utf8mb4_unicode_ci.ctype;
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
+#endif
+      }
+      else if (!strcmp(cs->csname, "utf16"))
+      {
+#if defined (HAVE_CHARSET_utf16) && defined(HAVE_UCA_COLLATIONS)
+        copy_uca_collation(newcs, &my_charset_utf16_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
+#endif
+      }
+      else if (!strcmp(cs->csname, "utf32"))
+      {
+#if defined (HAVE_CHARSET_utf32) && defined(HAVE_UCA_COLLATIONS)
+        copy_uca_collation(newcs, &my_charset_utf32_unicode_ci);
+        newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif
       }
       else
@@ -342,10 +364,10 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
        !(buf= (uchar*) my_malloc(len,myflags)))
     return TRUE;
   
-  if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
+  if ((fd= mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
     goto error;
-  tmp_len=my_read(fd, buf, len, myflags);
-  my_close(fd,myflags);
+  tmp_len= mysql_file_read(fd, buf, len, myflags);
+  mysql_file_close(fd, myflags);
   if (tmp_len != len)
     goto error;
   
@@ -414,7 +436,7 @@ static void init_available_charsets(void)
 
   bzero(&all_charsets,sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
-      
+
   /* Copy compiled charsets */
   for (cs=all_charsets;
        cs < all_charsets+array_elements(all_charsets)-1 ;
@@ -427,23 +449,41 @@ static void init_available_charsets(void)
           *cs= NULL;
     }
   }
-      
+
   strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(fname, MYF(0));
 }
 
 
-uint get_collation_number(const char *name)
+static const char*
+get_collation_name_alias(const char *name, char *buf, size_t bufsize)
 {
-  my_pthread_once(&charsets_initialized, init_available_charsets);
-  return get_collation_number_internal(name);
+  if (!strncasecmp(name, "utf8mb3_", 8))
+  {
+    my_snprintf(buf, bufsize, "utf8_%s", name + 8);
+    return buf;
+  }
+  return NULL;
 }
 
 
-uint get_charset_number(const char *charset_name, uint cs_flags)
+uint get_collation_number(const char *name)
+{
+  uint id;
+  char alias[64];
+  my_pthread_once(&charsets_initialized, init_available_charsets);
+  if ((id= get_collation_number_internal(name)))
+    return id;
+  if ((name= get_collation_name_alias(name, alias, sizeof(alias))))
+    return get_collation_number_internal(name);
+  return 0;
+}
+
+
+static uint
+get_charset_number_internal(const char *charset_name, uint cs_flags)
 {
   CHARSET_INFO **cs;
-  my_pthread_once(&charsets_initialized, init_available_charsets);
   
   for (cs= all_charsets;
        cs < all_charsets + array_elements(all_charsets);
@@ -456,6 +496,27 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
   return 0;
 }
 
+
+static const char*
+get_charset_name_alias(const char *name)
+{
+  if (!my_strcasecmp(&my_charset_latin1, name, "utf8mb3"))
+    return "utf8";
+  return NULL;
+}
+
+
+uint get_charset_number(const char *charset_name, uint cs_flags)
+{
+  uint id;
+  my_pthread_once(&charsets_initialized, init_available_charsets);
+  if ((id= get_charset_number_internal(charset_name, cs_flags)))
+    return id;
+  if ((charset_name= get_charset_name_alias(charset_name)))
+    return get_charset_number_internal(charset_name, cs_flags);
+  return 0;
+}
+                  
 
 const char *get_charset_name(uint charset_number)
 {
@@ -484,7 +545,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
       To make things thread safe we are not allowing other threads to interfere
       while we may changing the cs_info_table
     */
-    pthread_mutex_lock(&THR_LOCK_charset);
+    mysql_mutex_lock(&THR_LOCK_charset);
 
     if (!(cs->state & (MY_CS_COMPILED|MY_CS_LOADED))) /* if CS is not in memory */
     {
@@ -506,7 +567,7 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
     else
       cs= NULL;
 
-    pthread_mutex_unlock(&THR_LOCK_charset);
+    mysql_mutex_unlock(&THR_LOCK_charset);
   }
   return cs;
 }

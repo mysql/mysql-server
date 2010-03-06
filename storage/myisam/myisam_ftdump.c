@@ -274,3 +274,5 @@ static void complain(int val) /* Kinda assert :-)  */
     exit(1);
   }
 }
+
+#include "mi_extrafunc.h"

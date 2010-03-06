@@ -1,0 +1,50 @@
+
+#
+# note, the default is 1800 on windows, 0 everywhere else
+#
+
+SET @start_global_value = @@global.flush_time;
+
+#
+# exists as global only
+#
+--replace_result 1800 0
+select @@global.flush_time;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.flush_time;
+--replace_result 1800 0
+show global variables like 'flush_time';
+--replace_result 1800 0
+show session variables like 'flush_time';
+--replace_result 1800 0
+select * from information_schema.global_variables where variable_name='flush_time';
+--replace_result 1800 0
+select * from information_schema.session_variables where variable_name='flush_time';
+
+#
+# show that it's writable
+#
+set global flush_time=1;
+select @@global.flush_time;
+--error ER_GLOBAL_VARIABLE
+set session flush_time=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global flush_time=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global flush_time=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global flush_time="foo";
+
+#
+# min/max values
+#
+set global flush_time=0;
+select @@global.flush_time;
+set global flush_time=cast(-1 as unsigned int);
+select @@global.flush_time;
+
+SET @@global.flush_time = @start_global_value;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2003 MySQL AB
+/* Copyright (C) 2000-2001, 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,17 +30,17 @@ int mi_panic(enum ha_panic_function flag)
   MI_INFO *info;
   DBUG_ENTER("mi_panic");
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
+  mysql_mutex_lock(&THR_LOCK_myisam);
   for (list_element=myisam_open_list ; list_element ; list_element=next_open)
   {
     next_open=list_element->next;		/* Save if close */
     info=(MI_INFO*) list_element->data;
     switch (flag) {
     case HA_PANIC_CLOSE:
-      pthread_mutex_unlock(&THR_LOCK_myisam);	/* Not exactly right... */
+      mysql_mutex_unlock(&THR_LOCK_myisam);     /* Not exactly right... */
       if (mi_close(info))
 	error=my_errno;
-      pthread_mutex_lock(&THR_LOCK_myisam);
+      mysql_mutex_lock(&THR_LOCK_myisam);
       break;
     case HA_PANIC_WRITE:		/* Do this to free databases */
 #ifdef CANT_OPEN_FILES_TWICE
@@ -66,9 +66,9 @@ int mi_panic(enum ha_panic_function flag)
 	  error=my_errno;
       }
 #ifdef CANT_OPEN_FILES_TWICE
-      if (info->s->kfile >= 0 && my_close(info->s->kfile,MYF(0)))
+      if (info->s->kfile >= 0 && mysql_file_close(info->s->kfile, MYF(0)))
 	error = my_errno;
-      if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
+      if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
 	error = my_errno;
       info->s->kfile=info->dfile= -1;	/* Files aren't open anymore */
       break;
@@ -78,15 +78,19 @@ int mi_panic(enum ha_panic_function flag)
       {					/* Open closed files */
 	char name_buff[FN_REFLEN];
 	if (info->s->kfile < 0)
-	  if ((info->s->kfile= my_open(fn_format(name_buff,info->filename,"",
-					      N_NAME_IEXT,4),info->mode,
-				    MYF(MY_WME))) < 0)
+          if ((info->s->kfile= mysql_file_open(mi_key_file_kfile,
+                                               fn_format(name_buff,
+                                                         info->filename, "",
+                                                         N_NAME_IEXT, 4),
+                                               info->mode, MYF(MY_WME))) < 0)
 	    error = my_errno;
 	if (info->dfile < 0)
 	{
-	  if ((info->dfile= my_open(fn_format(name_buff,info->filename,"",
-					      N_NAME_DEXT,4),info->mode,
-				    MYF(MY_WME))) < 0)
+          if ((info->dfile= mysql_file_open(mi_key_file_dfile,
+                                            fn_format(name_buff,
+                                                      info->filename, "",
+                                                      N_NAME_DEXT, 4),
+                                            info->mode, MYF(MY_WME))) < 0)
 	    error = my_errno;
 	  info->rec_cache.file=info->dfile;
 	}
@@ -103,10 +107,10 @@ int mi_panic(enum ha_panic_function flag)
   }
   if (flag == HA_PANIC_CLOSE)
   {
-    VOID(mi_log(0));				/* Close log if neaded */
+    (void) mi_log(0);				/* Close log if neaded */
     ft_free_stopwords();
   }
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   if (!error)
     DBUG_RETURN(0);
   DBUG_RETURN(my_errno=error);

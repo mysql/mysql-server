@@ -43,7 +43,8 @@ SET @start_value = @@global.slow_query_log_file;
 ############################################### 
 
 SET @@global.slow_query_log_file = DEFAULT;
-SELECT RIGHT(@@global.slow_query_log_file,15);
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '-slow.log');
+SELECT RIGHT(@@global.slow_query_log_file, length(@a)) = @a;
 
 
 --echo '#--------------------FN_DYNVARS_004_02------------------------#'

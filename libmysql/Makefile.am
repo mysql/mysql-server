@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2004 MySQL AB
+# Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of version 2 GNU General Public License as
@@ -21,7 +21,9 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target =	libmysqlclient.la
-target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
+target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDONT_USE_RAID \
+		-DDISABLE_MYSQL_THREAD_H @LIB_EXTRA_CCFLAGS@
+
 LIBS =		@CLIENT_LIBS@ 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 		$(openssl_includes) @ZLIB_INCLUDES@

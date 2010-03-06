@@ -107,8 +107,9 @@ SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2
 cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
 SELECT HIGH_PRIORITY cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY surname, firstname;
 cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
-drop table t1,t2;
+drop table t2;
 unlock tables;
+drop table t1;
 CREATE TABLE t1 (
 bug_id mediumint(9) NOT NULL auto_increment,
 groupset bigint(20) DEFAULT '0' NOT NULL,

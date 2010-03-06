@@ -730,7 +730,7 @@ class SQL_SELECT :public Sql_alloc {
 class FT_SELECT: public QUICK_RANGE_SELECT {
 public:
   FT_SELECT(THD *thd, TABLE *table, uint key) :
-      QUICK_RANGE_SELECT (thd, table, key, 1) { VOID(init()); }
+      QUICK_RANGE_SELECT (thd, table, key, 1) { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
   int init() { return error=file->ft_init(); }
   int reset() { return 0; }

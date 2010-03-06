@@ -2,6 +2,8 @@ SET @start_global_value = @@global.net_buffer_length;
 SET @@global.net_buffer_length = DEFAULT;
 '#--------------------FN_DYNVARS_109_01-------------------------#'
 SET @@global.net_buffer_length = 10000;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '10000'
 SET @@global.net_buffer_length = DEFAULT;
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
@@ -9,7 +11,7 @@ SELECT @@global.net_buffer_length;
 SET @@session.net_buffer_length = 20000;
 ERROR HY000: SESSION variable 'net_buffer_length' is read-only. Use SET GLOBAL to assign the value
 SET @@session.net_buffer_length = DEFAULT;
-ERROR 42000: Variable 'net_buffer_length' doesn't have a default value
+ERROR HY000: SESSION variable 'net_buffer_length' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.net_buffer_length;
 @@session.net_buffer_length
 16384
@@ -24,6 +26,8 @@ SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1024
 SET @@global.net_buffer_length = 1025;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '1025'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1024
@@ -32,14 +36,17 @@ SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
 SET @@global.net_buffer_length = 1048575;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '1048575'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1047552
 SET @@global.net_buffer_length = 65535;
+Warnings:
+Warning	1292	Truncated incorrect net_buffer_length value: '65535'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 64512
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_109_04-------------------------#'
 '#------------------FN_DYNVARS_109_05-----------------------#'
 SET @@global.net_buffer_length = 0;
@@ -72,8 +79,8 @@ Warning	1292	Truncated incorrect net_buffer_length value: '104857633'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
-SET @@global.net_buffer_length = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.net_buffer_length = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
@@ -82,7 +89,6 @@ ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.net_buffer_length = test;
 ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
 SELECT @@session.net_buffer_length;

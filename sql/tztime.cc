@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "tzfile.h"
 #include <m_string.h>
 #include <my_dir.h>
+#include <mysql/psi/mysql_file.h>
 
 /*
   Now we don't use abbreviations in server but we will do this in future.
@@ -156,9 +157,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
   uchar *p;
   int read_from_file;
   uint i;
-  FILE *file;
+  MYSQL_FILE *file;
 
-  if (!(file= my_fopen(name, O_RDONLY|O_BINARY, MYF(MY_WME))))
+  if (!(file= mysql_file_fopen(0, name, O_RDONLY|O_BINARY, MYF(MY_WME))))
     return 1;
   {
     union
@@ -175,9 +176,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     uint ttisgmtcnt;
     char *tzinfo_buf;
 
-    read_from_file= my_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
+    read_from_file= mysql_file_fread(file, u.buf, sizeof(u.buf), MYF(MY_WME));
 
-    if (my_fclose(file, MYF(MY_WME)) != 0)
+    if (mysql_file_fclose(file, MYF(MY_WME)) != 0)
       return 1;
 
     if (read_from_file < (int)sizeof(struct tzhead))
@@ -1432,7 +1433,7 @@ static MEM_ROOT tz_storage;
   time zone in offset_tzs or creating if it didn't existed before in
   tz_storage. So contention is low.
 */
-static pthread_mutex_t tz_LOCK;
+static mysql_mutex_t tz_LOCK;
 static bool tz_inited= 0;
 
 /*
@@ -1532,6 +1533,27 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
   }
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_tz_LOCK;
+
+static PSI_mutex_info all_tz_mutexes[]=
+{
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL}
+};
+
+static void init_tz_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_tz_mutexes);
+  PSI_server->register_mutex(category, all_tz_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 
 /*
   Initialize time zone support infrastructure.
@@ -1563,13 +1585,16 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
   TABLE_LIST tz_tables[1+MY_TZ_TABLES_COUNT];
-  Open_tables_state open_tables_state_backup;
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
   char db[]= "mysql";
   int res;
   DBUG_ENTER("my_tz_init");
+
+#ifdef HAVE_PSI_INTERFACE
+  init_tz_psi_keys();
+#endif
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -1578,7 +1603,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     DBUG_RETURN(1);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  lex_start(thd);
 
   /* Init all memory structures that require explicit destruction */
   if (my_hash_init(&tz_names, &my_charset_latin1, 20,
@@ -1594,8 +1618,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     my_hash_free(&tz_names);
     goto end;
   }
-  init_alloc_root(&tz_storage, 32 * 1024, 0);
-  VOID(pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST));
+  init_sql_alloc(&tz_storage, 32 * 1024, 0);
+  mysql_mutex_init(key_tz_LOCK, &tz_LOCK, MY_MUTEX_INIT_FAST);
   tz_inited= 1;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
@@ -1637,12 +1661,14 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_init_table_list(tz_tables+1);
   tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];
   tz_tables[1].prev_global= &tz_tables[0].next_global;
+  init_mdl_requests(tz_tables);
 
   /*
     We need to open only mysql.time_zone_leap_second, but we try to
     open all time zone tables to see if they exist.
   */
-  if (open_system_tables_for_read(thd, tz_tables, &open_tables_state_backup))
+  if (open_and_lock_tables(thd, tz_tables, FALSE,
+                           MYSQL_LOCK_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them", thd->stmt_da->message());
@@ -1650,6 +1676,9 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
   }
+
+  for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
+    tl->table->use_all_columns();
 
   /*
     Now we are going to load leap seconds descriptions that are shared
@@ -1739,7 +1768,8 @@ end_with_close:
   if (time_zone_tables_exist)
   {
     thd->version--; /* Force close to free memory */
-    close_system_tables(thd, &open_tables_state_backup);
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
   }
 
 end_with_cleanup:
@@ -1757,6 +1787,10 @@ end:
     my_pthread_setspecific_ptr(THR_THD,  0);
     my_pthread_setspecific_ptr(THR_MALLOC,  0);
   }
+  
+  default_tz= default_tz_name ? global_system_variables.time_zone
+                              : my_tz_SYSTEM;
+
   DBUG_RETURN(return_val);
 }
 
@@ -1773,7 +1807,7 @@ void my_tz_free()
   if (tz_inited)
   {
     tz_inited= 0;
-    VOID(pthread_mutex_destroy(&tz_LOCK));
+    mysql_mutex_destroy(&tz_LOCK);
     my_hash_free(&offset_tzs);
     my_hash_free(&tz_names);
     free_root(&tz_storage, MYF(0));
@@ -2262,7 +2296,7 @@ my_tz_find(THD *thd, const String *name)
   if (!name)
     DBUG_RETURN(0);
 
-  VOID(pthread_mutex_lock(&tz_LOCK));
+  mysql_mutex_lock(&tz_LOCK);
 
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
@@ -2293,9 +2327,10 @@ my_tz_find(THD *thd, const String *name)
     else if (time_zone_tables_exist)
     {
       TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
-      Open_tables_state open_tables_state_backup;
+      Open_tables_backup open_tables_state_backup;
 
       tz_init_table_list(tz_tables);
+      init_mdl_requests(tz_tables);
       if (!open_system_tables_for_read(thd, tz_tables,
                                        &open_tables_state_backup))
       {
@@ -2305,7 +2340,7 @@ my_tz_find(THD *thd, const String *name)
     }
   }
 
-  VOID(pthread_mutex_unlock(&tz_LOCK));
+  mysql_mutex_unlock(&tz_LOCK);
 
   DBUG_RETURN(result_tz);
 }

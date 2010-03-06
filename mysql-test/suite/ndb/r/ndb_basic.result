@@ -18,11 +18,15 @@ Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_cache_check_time	#
 ndb_connectstring	#
+ndb_distribution	#
 ndb_extra_logging	#
 ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_mgmd_host	#
+ndb_nodeid	#
+ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_use_copying_alter_table	#
@@ -35,12 +39,12 @@ attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE		
 INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	pk1	A	2	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	pk1	A	2	NULL	NULL		BTREE		
 SELECT pk1 FROM t1 ORDER BY pk1;
 pk1
 9410
@@ -783,6 +787,7 @@ f1	f2	f3
 222222	bbbbbb	2
 drop table t1;
 Illegal ndb error code: 1186
+MySQL error code 1186 (ER_FLUSH_MASTER_BINLOG_CLOSED): Binlog closed, cannot RESET MASTER
 CREATE TABLE t1 (
 a VARBINARY(40) NOT NULL,
 b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,

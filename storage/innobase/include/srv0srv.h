@@ -207,9 +207,6 @@ extern unsigned long long	srv_stats_sample_pages;
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
 
-extern ibool	srv_set_thread_priorities;
-extern int	srv_query_thread_priority;
-
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 

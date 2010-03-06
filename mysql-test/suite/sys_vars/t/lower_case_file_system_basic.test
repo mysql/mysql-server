@@ -1,0 +1,31 @@
+#
+# only global
+#
+# 2010-01-20 OBN - Modified to include check for valid values
+#                - Added check for variable value matching I_S tables
+#
+select @@global.lower_case_file_system=2;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lower_case_file_system;
+
+# Show variable has a valid value
+SELECT @@global.lower_case_file_system in (0,1);
+
+# Show that value of the variable matches the value in the GLOBAL I_S table
+SELECT IF(@@global.lower_case_file_system, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='lower_case_file_system';
+
+# Show that value of the variable matches the value in the SESSION I_S table
+SELECT IF(@@global.lower_case_file_system, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='lower_case_file_system';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lower_case_file_system=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lower_case_file_system=1;
+

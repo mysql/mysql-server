@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2006 MySQL AB
+/* Copyright (C) 2001-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ struct Query_cache_block
 struct Query_cache_query
 {
   ulonglong limit_found_rows;
-  rw_lock_t lock;
+  mysql_rwlock_t lock;
   Query_cache_block *res;
   Query_cache_tls *wri;
   ulong len;
@@ -277,7 +277,7 @@ private:
 #ifndef DBUG_OFF
   my_thread_id m_cache_lock_thread_id;
 #endif
-  pthread_cond_t COND_cache_status_changed;
+  mysql_cond_t COND_cache_status_changed;
   enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
   Cache_lock_status m_cache_lock_status;
 
@@ -302,7 +302,7 @@ protected:
     is other threads that were going to do cache flush---they'll wait
     till the end of a flush operation.
   */
-  pthread_mutex_t structure_guard_mutex;
+  mysql_mutex_t structure_guard_mutex;
   uchar *cache;					// cache memory
   Query_cache_block *first_block;		// physical location block list
   Query_cache_block *queries_blocks;		// query list (LIFO)
@@ -503,5 +503,4 @@ protected:
 };
 
 extern Query_cache query_cache;
-extern TYPELIB query_cache_type_typelib;
 #endif

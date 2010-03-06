@@ -460,7 +460,11 @@ dnl Although this is "pretty", it breaks libmysqld build
         ])
        ])
       ])
-      mysql_plugin_defs="$mysql_plugin_defs, [builtin_]$2[_plugin]"
+      m4_ifdef([$9],[
+        mysql_mandatory_plugins="$mysql_mandatory_plugins [builtin_]$2[_plugin],"
+      ],[
+        mysql_optional_plugins="$mysql_optional_plugins [builtin_]$2[_plugin],"
+      ])
       [with_plugin_]$2=yes
       AC_MSG_RESULT([yes])
       m4_ifdef([$11],[

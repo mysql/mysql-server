@@ -1,9 +1,13 @@
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
 use test;
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
 
 #
 # some basic test of views and its functionality
@@ -1016,6 +1020,7 @@ lock tables t1 read, v1 read;
 select * from v1;
 -- error ER_TABLE_NOT_LOCKED
 select * from t2;
+unlock tables;
 drop view v1;
 drop table t1, t2;
 
@@ -3951,3 +3956,147 @@ DROP TABLE t1;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+
+#
+# Bug#9801 (Views: imperfect error message)
+#
+
+--disable_warnings
+drop table if exists t_9801;
+drop view if exists v_9801;
+--enable_warnings
+
+create table t_9801 (s1 int);
+
+--error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 with check option;
+
+--error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 group by s1 with check option;
+
+ --error ER_VIEW_NONUPD_CHECK
+create view v_9801 as
+  select sum(s1) from t_9801 group by s1 with rollup with check option;
+
+drop table t_9801;
+
+--echo #
+--echo # Bug #47335 assert in get_table_share
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (id INT);
+--error ER_NO_SUCH_TABLE
+ALTER VIEW t1 AS SELECT 1 AS f1;
+DROP TABLE t1;
+
+CREATE VIEW v1 AS SELECT 1 AS f1;
+CREATE TEMPORARY TABLE v1 (id INT);
+ALTER VIEW v1 AS SELECT 2 AS f1;
+DROP TABLE v1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+
+--echo #
+--echo # Bug #47635 assert in start_waiting_global_read_lock 
+--echo #            during CREATE VIEW
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1 (f1 integer);
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (f1 integer);
+CREATE TEMPORARY TABLE t2 (f1 integer);
+DROP TABLE t1;
+FLUSH TABLES WITH READ LOCK;
+--error ER_CANT_UPDATE_WITH_READLOCK
+CREATE VIEW t2 AS SELECT * FROM t1;
+
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#48315 Metadata lock is not taken for merged views that
+--echo #           use an INFORMATION_SCHEMA table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection default
+connection default;
+
+CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
+CREATE TABLE t1 (str VARCHAR(50));
+CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+
+--echo # CALL p1() so the view is merged.
+CALL p1();
+
+--echo # Connection 3
+connection con3;
+LOCK TABLE t1 READ;
+
+--echo # Connection default
+connection default;
+--echo # Try to CALL p1() again, this time it should block for t1.
+--echo # Sending:
+--send CALL p1()
+
+--echo # Connection 2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 from information_schema.processlist
+  WHERE state = "Table lock" AND info = "INSERT INTO t1 SELECT * FROM v1";
+--source include/wait_condition.inc
+--echo # ... then try to drop the view. This should block.
+--echo # Sending:
+--send DROP VIEW v1
+
+--echo # Connection 3
+connection con3;
+let $wait_condition=
+  SELECT COUNT(*) = 1 from information_schema.processlist
+  WHERE state = "Waiting for table" AND info = "DROP VIEW v1";
+--source include/wait_condition.inc
+--echo # Now allow CALL p1() to complete
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CALL p1()
+--reap
+
+--echo # Connection 2
+connection con2;
+--echo # Reaping: DROP VIEW v1
+--reap
+
+--echo # Connection default
+connection default;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+disconnect con2;
+disconnect con3;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

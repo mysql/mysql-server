@@ -14,6 +14,8 @@
 # Change: Splitted the test in two different parts (increasing/decreasing col) #
 ################################################################################
 
+if (!$only_part_2)
+{
 --echo
 --echo #========================================================================
 --echo #  1     Increase the size of the column used in the partitioning
@@ -89,13 +91,16 @@ if ($more_pk_ui_tests)
    let $unique= , UNIQUE INDEX uidx (f_int1);
    --source suite/parts/inc/partition_alter_11.inc
    let $unique= , UNIQUE INDEX uidx (f_int1,f_int2);
-   --source suite/parts/inc/partition_alter_11.inc
+   #--source suite/parts/inc/partition_alter_11.inc
    --source suite/parts/inc/partition_alter_13.inc
    let $unique= , UNIQUE INDEX uidx (f_int2,f_int1);
-   --source suite/parts/inc/partition_alter_11.inc
+   #--source suite/parts/inc/partition_alter_11.inc
    --source suite/parts/inc/partition_alter_13.inc
 }
+}
 #
+if (!$only_part_1)
+{
 --echo #------------------------------------------------------------------------
 --echo #  1.3   ALTER column f_int1 and f_int2
 --echo #        f_int1 or (f_int1 and f_int2) used in partitioning function
@@ -105,7 +110,7 @@ if ($more_pk_ui_tests)
 let $alter= ALTER TABLE t1 MODIFY f_int1 BIGINT, MODIFY f_int2 BIGINT;
 --echo #  1.3.1 no PRIMARY KEY or UNIQUE INDEX exists
 let $unique= ;
---source suite/parts/inc/partition_alter_11.inc
+#--source suite/parts/inc/partition_alter_11.inc
 --source suite/parts/inc/partition_alter_13.inc
 #
 if ($do_pk_tests)
@@ -119,10 +124,10 @@ if ($do_pk_tests)
       --source suite/parts/inc/partition_alter_11.inc
    }
    let $unique= , PRIMARY KEY (f_int1,f_int2);
-   --source suite/parts/inc/partition_alter_11.inc
+   #--source suite/parts/inc/partition_alter_11.inc
    --source suite/parts/inc/partition_alter_13.inc
    let $unique= , PRIMARY KEY (f_int2,f_int1);
-   --source suite/parts/inc/partition_alter_11.inc
+   #--source suite/parts/inc/partition_alter_11.inc
    --source suite/parts/inc/partition_alter_13.inc
 }
 #
@@ -135,11 +140,12 @@ if ($more_pk_ui_tests)
    --source suite/parts/inc/partition_alter_11.inc
 }
 let $unique= , UNIQUE INDEX uidx (f_int1,f_int2);
---source suite/parts/inc/partition_alter_11.inc
+#--source suite/parts/inc/partition_alter_11.inc
 --source suite/parts/inc/partition_alter_13.inc
 let $unique= , UNIQUE INDEX uidx (f_int2,f_int1);
---source suite/parts/inc/partition_alter_11.inc
+#--source suite/parts/inc/partition_alter_11.inc
 --source suite/parts/inc/partition_alter_13.inc
+}
 
 if (0)
 {

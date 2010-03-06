@@ -577,6 +577,7 @@ public:
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
+  void cache_const_exprs();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -599,7 +600,7 @@ bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,
-			char* alias);
+			const char* alias);
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
@@ -665,7 +666,7 @@ public:
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
-    ulong sql_mode= thd->variables.sql_mode;
+    ulonglong sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
