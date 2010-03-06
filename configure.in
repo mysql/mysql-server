@@ -27,7 +27,7 @@ AC_PREREQ(2.59)
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().
-AC_INIT([MySQL Server], [5.5.99-m3], [], [mysql])
+AC_INIT([MySQL Server], [5.5.3-m3], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
