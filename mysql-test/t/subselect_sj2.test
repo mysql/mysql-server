@@ -146,8 +146,9 @@ drop table t0, t1,t2,t3;
 
 #
 # Bug #27348: Assertion abort for a query with two subqueries to be flattened  
-#  
-
+# Bug #35674: Range optimizer ignores conditions on inner tables in
+#             semi-join IN subqueries 
+#
 CREATE TABLE t1 (
   ID int(11) NOT NULL auto_increment,
   Name char(35) NOT NULL default '',
