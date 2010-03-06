@@ -36,6 +36,7 @@
  */
 
 #include <mysql.h>
+#include <mysqld_error.h>
 #include <NdbApi.hpp>
 // Used for cout
 #include <stdio.h>
@@ -107,7 +108,6 @@ int main(int argc, char** argv)
 }
 
 static void create_table(MYSQL &);
-static void drop_table(MYSQL &);
 static void do_insert(Ndb &);
 static void do_update(Ndb &);
 static void do_delete(Ndb &);
@@ -117,17 +117,17 @@ static void run_application(MYSQL &mysql,
 			    Ndb_cluster_connection &cluster_connection)
 {
   /********************************************
-   * Connect to database via mysql-c          *
+   * Connect to database via mysql-c          *ndb_examples
    ********************************************/
-  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
-  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  mysql_query(&mysql, "CREATE DATABASE ndb_examples");
+  if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
   create_table(mysql);
 
   /********************************************
    * Connect to database via NdbApi           *
    ********************************************/
   // Object representing the database
-  Ndb myNdb( &cluster_connection, "TEST_DB_1" );
+  Ndb myNdb( &cluster_connection, "ndb_examples" );
   if (myNdb.init()) APIERROR(myNdb.getNdbError());
 
   /*
@@ -137,33 +137,28 @@ static void run_application(MYSQL &mysql,
   do_update(myNdb);
   do_delete(myNdb);
   do_read(myNdb);
-  drop_table(mysql);
-  mysql_query(&mysql, "DROP DATABASE TEST_DB_1");
 }
 
 /*********************************************************
- * Create a table named MYTABLENAME if it does not exist *
+ * Create a table named api_simple if it does not exist *
  *********************************************************/
 static void create_table(MYSQL &mysql)
 {
-  if (mysql_query(&mysql, 
+  while (mysql_query(&mysql, 
 		  "CREATE TABLE"
-		  "  MYTABLENAME"
+		  "  api_simple"
 		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
 		  "     ATTR2 INT UNSIGNED NOT NULL)"
 		  "  ENGINE=NDB"))
-    MYSQLERROR(mysql);
-}
-
-/***********************************
- * Drop a table named MYTABLENAME 
- ***********************************/
-static void drop_table(MYSQL &mysql)
-{
-  if (mysql_query(&mysql, 
-		  "DROP TABLE"
-		  "  MYTABLENAME"))
-    MYSQLERROR(mysql);
+  {
+    if (mysql_errno(&mysql) == ER_TABLE_EXISTS_ERROR) 
+    {
+      std::cout << "MySQL Cluster already has example table: api_simple. "
+      << "Dropping it..." << std::endl; 
+      mysql_query(&mysql, "DROP TABLE api_simple");
+    }
+    else MYSQLERROR(mysql);
+  }
 }
 
 /**************************************************************************
@@ -172,7 +167,7 @@ static void drop_table(MYSQL &mysql)
 static void do_insert(Ndb &myNdb)
 {
   const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_simple");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -208,7 +203,7 @@ static void do_insert(Ndb &myNdb)
 static void do_update(Ndb &myNdb)
 {
   const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_simple");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -237,7 +232,7 @@ static void do_update(Ndb &myNdb)
 static void do_delete(Ndb &myNdb)
 {
   const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_simple");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
@@ -263,7 +258,7 @@ static void do_delete(Ndb &myNdb)
 static void do_read(Ndb &myNdb)
 {
   const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-  const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
+  const NdbDictionary::Table *myTable= myDict->getTable("api_simple");
 
   if (myTable == NULL) 
     APIERROR(myDict->getNdbError());
