@@ -31,6 +31,8 @@
 #include "sql_select.h"
 #include "opt_subselect.h"
 
+#define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
+
 
 /*****************************************************************************
  *  Join cache module
@@ -1237,7 +1239,7 @@ bool JOIN_CACHE::get_record()
     prev_rec_ptr= prev_cache->get_rec_ref(pos);
   }
   curr_rec_pos= pos;
-  if (!(res= read_all_record_fields() == 0))
+  if (!(res= read_all_record_fields() == NO_MORE_RECORDS_IN_BUFFER))
   {
     pos+= referenced_fields*size_of_fld_ofs;
     if (prev_cache)
@@ -1326,7 +1328,8 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     read data. 
 
   RETURN
-    length of the data read from the join buffer
+    (-1) - if there is no more records in the join buffer
+    length of the data read from the join buffer - otherwise
 */
 
 uint JOIN_CACHE::read_all_record_fields()
@@ -1334,7 +1337,7 @@ uint JOIN_CACHE::read_all_record_fields()
   uchar *init_pos= pos;
   
   if (pos > last_rec_pos || !records)
-    return 0;
+    return NO_MORE_RECORDS_IN_BUFFER;
 
   /* First match flag, read null bitmaps and null_row flag for each table */
   read_flag_fields();

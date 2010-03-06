@@ -4142,3 +4142,46 @@ c1	c2	c1	c2	LENGTH(t2.c1)	LENGTH(t2.c2)
 2	2	tt	uu	2	2
 set join_cache_level=default;
 DROP TABLE t1,t2;
+#
+# Bug #51092: linked join buffer is used for a 3-way cross join query 
+#             that selects only records of the first table
+#
+create table t1 (a int, b int);
+insert into t1 values (1,1),(2,2);
+create table t2 (a int, b int);
+insert into t2 values (1,1),(2,2);
+create table t3 (a int, b int);
+insert into t3 values (1,1),(2,2);
+explain select t1.* from t1,t2,t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+select t1.* from t1,t2,t3;
+a	b
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+set join_cache_level=2;
+explain select t1.* from t1,t2,t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+select t1.* from t1,t2,t3;
+a	b
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+set join_cache_level=default;
+drop table t1,t2,t3;
