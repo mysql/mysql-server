@@ -1,0 +1,20 @@
+# Test for BUG#51215 "log-error partially works with version 5.5"
+# when --log-error is used without argument
+
+# check displayed value. We can check only the base name, the rest
+# depends on paths, symbolic links, --vardir, etc...
+select (@err_log:=variable_value)*0 from information_schema.global_variables where variable_name="log_error";
+select instr(@err_log, "some_random_name5435413.err")>0;
+
+# Check file's existence. The displayed value may be relative or not.
+let $err_log=`select @err_log`;
+let $err_log_relative=`select instr(@err_log, ".")=1`;
+if ($err_log_relative)
+{
+  let $MYSQLD_DATADIR= `SELECT @@datadir`;
+  file_exists $MYSQLD_DATADIR/$err_log;
+}
+if (!$err_log_relative)
+{
+  file_exists $err_log;
+}
