@@ -3035,10 +3035,24 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           forwards, but do not destroy other duplicate elimination methods.
         */
         uint first_table= i;
+        uint join_cache_level= join->thd->variables.join_cache_level;
         for (uint j= i; j < i + pos->n_sj_tables; j++)
         {
-          if (join->best_positions[j].use_join_buffer && j <= no_jbuf_after)
+          /*
+            When we'll properly take join buffering into account during
+            join optimization, the below check should be changed to 
+            "if (join->best_positions[j].use_join_buffer && 
+                 j <= no_jbuf_after)".
+            For now, use a rough criteria:
+          */
+          JOIN_TAB *js_tab=join->join_tab + j; 
+          if (j != join->const_tables && js_tab->use_quick != 2 &&
+              j <= no_jbuf_after &&
+              ((js_tab->type == JT_ALL && join_cache_level != 0) ||
+               (join_cache_level > 4 && (tab->type == JT_REF || 
+                                         tab->type == JT_EQ_REF))))
           {
+            /* Looks like we'll be using join buffer */
             first_table= join->const_tables;
             break;
           }
@@ -3116,7 +3130,12 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         JOIN_TAB *j, *jump_to= tab-1;
         for (j= tab; j != tab + pos->n_sj_tables; j++)
         {
-          if (!tab->emb_sj_nest)
+          /*
+            NOTE: this loop probably doesn't do the right thing for the case 
+            where FirstMatch's duplicate-generating range is interleaved with
+            "unrelated" tables (as specified in WL#3750, section 2.2).
+          */
+          if (!j->emb_sj_nest)
             jump_to= tab;
           else
           {

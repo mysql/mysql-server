@@ -5632,7 +5632,11 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
     uint blob_length=(uint) (join_tab->table->file->stats.mean_rec_length-
 			     (join_tab->table->s->reclength-rec_length));
     rec_length+=(uint) max(4,blob_length);
-  }
+  }  
+  /*
+    psergey-todo: why we don't count here rowid that we might need to store
+    when using DuplicateElimination?
+  */
   join_tab->used_fields=fields;
   join_tab->used_fieldlength=rec_length;
   join_tab->used_blobs=blobs;

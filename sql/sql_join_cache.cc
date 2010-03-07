@@ -608,7 +608,12 @@ int JOIN_CACHE_BKA::init()
       copy_end= cache->field_descr+cache->fields;
       for (copy= cache->field_descr+cache->flag_fields; copy < copy_end; copy++)
       {
-        if (copy->field->table == tab->table &&
+        /*
+          (1) - when we store rowids for DuplicateWeedout, they have
+                copy->field==NULL
+        */
+        if (copy->field &&  // (1)
+            copy->field->table == tab->table &&
             bitmap_is_set(key_read_set, copy->field->field_index))
         {
           *copy_ptr++= copy; 
