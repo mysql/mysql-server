@@ -19,6 +19,54 @@
 #include <hash.h>
 #include <mysqld_error.h>
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_MDL_map_mutex;
+static PSI_mutex_key key_MDL_context_signal_mutex;
+
+static PSI_mutex_info all_mdl_mutexes[]=
+{
+  { &key_MDL_map_mutex, "MDL_map::mutex", PSI_FLAG_GLOBAL},
+  { &key_MDL_context_signal_mutex, "MDL_context::signal", 0}
+};
+
+static PSI_rwlock_key key_MDL_lock_rwlock;
+static PSI_rwlock_key key_MDL_context_waiting_for_rwlock;
+
+static PSI_rwlock_info all_mdl_rwlocks[]=
+{
+  { &key_MDL_lock_rwlock, "MDL_lock::rwlock", 0},
+  { &key_MDL_context_waiting_for_rwlock, "MDL_context::waiting_for_lock", 0}
+};
+
+static PSI_cond_key key_MDL_context_signal_cond;
+
+static PSI_cond_info all_mdl_conds[]=
+{
+  { &key_MDL_context_signal_cond, "MDL_context::signal", 0}
+};
+
+/**
+  Initialise all the performance schema instrumentation points
+  used by the MDL subsystem.
+*/
+static void init_mdl_psi_keys(void)
+{
+  const char *category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_mdl_mutexes);
+  PSI_server->register_mutex(category, all_mdl_mutexes, count);
+
+  count= array_elements(all_mdl_rwlocks);
+  PSI_server->register_rwlock(category, all_mdl_rwlocks, count);
+
+  count= array_elements(all_mdl_conds);
+  PSI_server->register_cond(category, all_mdl_conds, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
 
 void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket);
 
@@ -178,7 +226,7 @@ public:
           If m_wrlock prefers readers (actually ignoring pending writers is
           enough) ctxA and ctxB will continue and no deadlock will occur.
   */
-  rw_pr_lock_t m_rwlock;
+  mysql_prlock_t m_rwlock;
 
   bool is_empty() const
   {
@@ -240,12 +288,12 @@ public:
     m_ref_release(0),
     m_is_destroyed(FALSE)
   {
-    rw_pr_init(&m_rwlock);
+    mysql_prlock_init(key_MDL_lock_rwlock, &m_rwlock);
   }
 
   virtual ~MDL_lock()
   {
-    rw_pr_destroy(&m_rwlock);
+    mysql_prlock_destroy(&m_rwlock);
   }
   inline static void destroy(MDL_lock *lock);
 public:
@@ -368,6 +416,11 @@ void mdl_init()
 {
   DBUG_ASSERT(! mdl_initialized);
   mdl_initialized= TRUE;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_mdl_psi_keys();
+#endif
+
   mdl_locks.init();
 }
 
@@ -393,7 +446,7 @@ void mdl_destroy()
 
 void MDL_map::init()
 {
-  mysql_mutex_init(NULL /* pfs key */,&m_mutex, NULL);
+  mysql_mutex_init(key_MDL_map_mutex, &m_mutex, NULL);
   my_hash_init(&m_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
                mdl_locks_key, 0, 0);
 }
@@ -507,7 +560,7 @@ bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
   lock->m_ref_usage++;
   mysql_mutex_unlock(&m_mutex);
 
-  rw_pr_wrlock(&lock->m_rwlock);
+  mysql_prlock_wrlock(&lock->m_rwlock);
   lock->m_ref_release++;
   if (unlikely(lock->m_is_destroyed))
   {
@@ -522,7 +575,7 @@ bool MDL_map::move_from_hash_to_lock_mutex(MDL_lock *lock)
     */
     uint ref_usage= lock->m_ref_usage;
     uint ref_release= lock->m_ref_release;
-    rw_pr_unlock(&lock->m_rwlock);
+    mysql_prlock_unlock(&lock->m_rwlock);
     if (ref_usage == ref_release)
       MDL_lock::destroy(lock);
     return TRUE;
@@ -565,7 +618,7 @@ void MDL_map::remove(MDL_lock *lock)
   lock->m_is_destroyed= TRUE;
   ref_usage= lock->m_ref_usage;
   ref_release= lock->m_ref_release;
-  rw_pr_unlock(&lock->m_rwlock);
+  mysql_prlock_unlock(&lock->m_rwlock);
   mysql_mutex_unlock(&m_mutex);
   if (ref_usage == ref_release)
     MDL_lock::destroy(lock);
@@ -586,9 +639,9 @@ MDL_context::MDL_context()
   m_deadlock_weight(0),
   m_signal(NO_WAKE_UP)
 {
-  rw_pr_init(&m_waiting_for_lock);
-  mysql_mutex_init(NULL /* pfs key */, &m_signal_lock, NULL);
-  mysql_cond_init(NULL /* pfs key */, &m_signal_cond, NULL);
+  mysql_prlock_init(key_MDL_context_waiting_for_rwlock, &m_waiting_for_lock);
+  mysql_mutex_init(key_MDL_context_signal_mutex, &m_signal_lock, NULL);
+  mysql_cond_init(key_MDL_context_signal_mutex, &m_signal_cond, NULL);
 }
 
 
@@ -608,7 +661,7 @@ void MDL_context::destroy()
 {
   DBUG_ASSERT(m_tickets.is_empty());
 
-  rw_pr_destroy(&m_waiting_for_lock);
+  mysql_prlock_destroy(&m_waiting_for_lock);
   mysql_mutex_destroy(&m_signal_lock);
   mysql_cond_destroy(&m_signal_cond);
 }
@@ -1098,7 +1151,7 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 
 void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
 {
-  rw_pr_wrlock(&m_rwlock);
+  mysql_prlock_wrlock(&m_rwlock);
   (this->*list).remove_ticket(ticket);
   if (is_empty())
     mdl_locks.remove(this);
@@ -1109,7 +1162,7 @@ void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
       which now might be able to do it. Wake them up!
     */
     wake_up_waiters();
-    rw_pr_unlock(&m_rwlock);
+    mysql_prlock_unlock(&m_rwlock);
   }
 }
 
@@ -1129,9 +1182,9 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type)
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  rw_pr_rdlock(&m_rwlock);
+  mysql_prlock_rdlock(&m_rwlock);
   result= (m_waiting.bitmap() & incompatible_granted_types_bitmap()[type]);
-  rw_pr_unlock(&m_rwlock);
+  mysql_prlock_unlock(&m_rwlock);
   return result;
 }
 
@@ -1325,7 +1378,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   {
     ticket->m_lock= lock;
     lock->m_granted.add_ticket(ticket);
-    rw_pr_unlock(&lock->m_rwlock);
+    mysql_prlock_unlock(&lock->m_rwlock);
 
     m_tickets.push_front(ticket);
 
@@ -1335,7 +1388,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   {
     /* We can't get here if we allocated a new lock. */
     DBUG_ASSERT(! lock->is_empty());
-    rw_pr_unlock(&lock->m_rwlock);
+    mysql_prlock_unlock(&lock->m_rwlock);
     MDL_ticket::destroy(ticket);
   }
 
@@ -1376,9 +1429,9 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   ticket->m_lock= mdl_request->ticket->m_lock;
   mdl_request->ticket= ticket;
 
-  rw_pr_wrlock(&ticket->m_lock->m_rwlock);
+  mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
   ticket->m_lock->m_granted.add_ticket(ticket);
-  rw_pr_unlock(&ticket->m_lock->m_rwlock);
+  mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
 
   m_tickets.push_front(ticket);
 
@@ -1484,7 +1537,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
     if (ticket->is_upgradable_or_exclusive())
       lock->notify_shared_locks(this);
 
-    rw_pr_unlock(&lock->m_rwlock);
+    mysql_prlock_unlock(&lock->m_rwlock);
 
     set_deadlock_weight(mdl_request->get_deadlock_weight());
     will_wait_for(ticket);
@@ -1519,7 +1572,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       return TRUE;
     }
-    rw_pr_wrlock(&lock->m_rwlock);
+    mysql_prlock_wrlock(&lock->m_rwlock);
   }
 
   lock->m_waiting.remove_ticket(ticket);
@@ -1529,7 +1582,7 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
     (*lock->cached_object_release_hook)(lock->cached_object);
   lock->cached_object= NULL;
 
-  rw_pr_unlock(&lock->m_rwlock);
+  mysql_prlock_unlock(&lock->m_rwlock);
 
   m_tickets.push_front(ticket);
 
@@ -1674,7 +1727,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
   is_new_ticket= ! has_lock(mdl_svp, mdl_xlock_request.ticket);
 
   /* Merge the acquired and the original lock. @todo: move to a method. */
-  rw_pr_wrlock(&mdl_ticket->m_lock->m_rwlock);
+  mysql_prlock_wrlock(&mdl_ticket->m_lock->m_rwlock);
   if (is_new_ticket)
     mdl_ticket->m_lock->m_granted.remove_ticket(mdl_xlock_request.ticket);
   /*
@@ -1686,7 +1739,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
   mdl_ticket->m_type= MDL_EXCLUSIVE;
   mdl_ticket->m_lock->m_granted.add_ticket(mdl_ticket);
 
-  rw_pr_unlock(&mdl_ticket->m_lock->m_rwlock);
+  mysql_prlock_unlock(&mdl_ticket->m_lock->m_rwlock);
 
   if (is_new_ticket)
   {
@@ -1704,7 +1757,7 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   MDL_ticket *ticket;
   bool result= FALSE;
 
-  rw_pr_rdlock(&m_rwlock);
+  mysql_prlock_rdlock(&m_rwlock);
 
   Ticket_iterator granted_it(m_granted);
   Ticket_iterator waiting_it(m_waiting);
@@ -1756,7 +1809,7 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   }
 
 end:
-  rw_pr_unlock(&m_rwlock);
+  mysql_prlock_unlock(&m_rwlock);
   return result;
 }
 
@@ -1765,7 +1818,7 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
 {
   bool result= FALSE;
 
-  rw_pr_rdlock(&m_waiting_for_lock);
+  mysql_prlock_rdlock(&m_waiting_for_lock);
 
   if (m_waiting_for)
   {
@@ -1794,14 +1847,14 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
       deadlock_ctx->victim= this;
     else if (deadlock_ctx->victim->m_deadlock_weight >= m_deadlock_weight)
     {
-      rw_pr_unlock(&deadlock_ctx->victim->m_waiting_for_lock);
+      mysql_prlock_unlock(&deadlock_ctx->victim->m_waiting_for_lock);
       deadlock_ctx->victim= this;
     }
     else
-      rw_pr_unlock(&m_waiting_for_lock);
+      mysql_prlock_unlock(&m_waiting_for_lock);
   }
   else
-    rw_pr_unlock(&m_waiting_for_lock);
+    mysql_prlock_unlock(&m_waiting_for_lock);
 
   return result;
 }
@@ -1827,7 +1880,7 @@ bool MDL_context::find_deadlock()
     if (deadlock_ctx.victim != this)
     {
       deadlock_ctx.victim->awake(VICTIM_WAKE_UP);
-      rw_pr_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      mysql_prlock_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
       /*
         After adding new arc to waiting graph we found that it participates
         in some loop (i.e. there is a deadlock). We decided to destroy this
@@ -1840,7 +1893,7 @@ bool MDL_context::find_deadlock()
     else
     {
       DBUG_ASSERT(&deadlock_ctx.victim->m_waiting_for_lock == &m_waiting_for_lock);
-      rw_pr_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      mysql_prlock_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
       return TRUE;
     }
   }
@@ -1897,14 +1950,14 @@ MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
     if (lock->can_grant_lock(mdl_request->type, this))
     {
-      rw_pr_unlock(&lock->m_rwlock);
+      mysql_prlock_unlock(&lock->m_rwlock);
       return FALSE;
     }
 
     MDL_ticket *pending_ticket;
     if (! (pending_ticket= MDL_ticket::create(this, mdl_request->type)))
     {
-      rw_pr_unlock(&lock->m_rwlock);
+      mysql_prlock_unlock(&lock->m_rwlock);
       return TRUE;
     }
 
@@ -1913,7 +1966,7 @@ MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     lock->m_waiting.add_ticket(pending_ticket);
 
     wait_reset();
-    rw_pr_unlock(&lock->m_rwlock);
+    mysql_prlock_unlock(&lock->m_rwlock);
 
     set_deadlock_weight(MDL_DEADLOCK_WEIGHT_DML);
     will_wait_for(pending_ticket);
@@ -2064,7 +2117,7 @@ void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
   if (m_type != MDL_EXCLUSIVE)
     return;
 
-  rw_pr_wrlock(&m_lock->m_rwlock);
+  mysql_prlock_wrlock(&m_lock->m_rwlock);
   /*
     To update state of MDL_lock object correctly we need to temporarily
     exclude ticket from the granted queue and then include it back.
@@ -2073,7 +2126,7 @@ void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
   m_type= type;
   m_lock->m_granted.add_ticket(this);
   m_lock->wake_up_waiters();
-  rw_pr_unlock(&m_lock->m_rwlock);
+  mysql_prlock_unlock(&m_lock->m_rwlock);
 }
 
 
