@@ -55,7 +55,10 @@ static toku_off_t lc_file_len(const char *name) {
    return buf.st_size;
 }
 
-static void catfile(const char *fname, void *buffer, size_t buffer_size) {
+// Cat the file and throw away the contents.  This brings the file into the file system cache
+// and makes subsequent accesses to it fast.  The intention is to speed up backward scans of the
+// file.
+static void lc_catfile(const char *fname, void *buffer, size_t buffer_size) {
     int fd = open(fname, O_RDONLY);
     if (fd >= 0) {
         while (1) {
@@ -63,15 +66,15 @@ static void catfile(const char *fname, void *buffer, size_t buffer_size) {
             if ((int)r <= 0)
                 break;
         }
+        close(fd);
     }
-    close(fd);
 }
 
 static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
     int r=0;
     assert( !lc->is_open );
     if( index == -1 || index >= lc->n_logfiles) return DB_NOTFOUND;
-    catfile(lc->logfiles[index], lc->buffer, lc->buffer_size);
+    lc_catfile(lc->logfiles[index], lc->buffer, lc->buffer_size);
     lc->cur_fp = fopen(lc->logfiles[index], "rb");
     if ( lc->cur_fp == NULL ) 
         return DB_NOTFOUND;

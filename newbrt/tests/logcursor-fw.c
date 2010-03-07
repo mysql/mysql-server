@@ -21,7 +21,7 @@ test_main (int argc, const char *argv[]) {
 
     // verify the log backwards
     TOKULOGCURSOR lc = NULL;
-    r = toku_logcursor_create(&lc, "/tmp");
+    r = toku_logcursor_create(&lc, ".");
     assert(r == 0 && lc != NULL);
 
     int n = 0;
