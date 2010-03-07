@@ -1720,9 +1720,6 @@ MY_UNICASE_INFO *my_unicase_turkish[256]=
 };
 
 
-#define REPLACEMENT_CHAR 0xFFFD;
-
-
 static inline void
 my_tosort_unicode(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 {
@@ -1734,7 +1731,7 @@ my_tosort_unicode(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
   }
   else
   {
-    *wc= REPLACEMENT_CHAR;
+    *wc= MY_CS_REPLACEMENT_CHARACTER;
   }
 }
 
@@ -1757,7 +1754,7 @@ my_wildcmp_unicode(CHARSET_INFO *cs,
 {
   int result= -1;                             /* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
-  int scan, plane;
+  int scan;
   int (*mb_wc)(struct charset_info_st *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
