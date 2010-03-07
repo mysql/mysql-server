@@ -196,7 +196,7 @@ ENDIF()
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF (MSVC AND CMAKE_SIZEOF_VOIDP EQUAL 8)
+IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF()
