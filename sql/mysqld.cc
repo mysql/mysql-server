@@ -3962,6 +3962,11 @@ static int init_server_components()
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
                 MY_UNPACK_FILENAME | MY_SAFE_PATH);
+    /*
+      _ptr may have been set to my_disabled_option or "" if no argument was
+      passed, but we need to show the real name in SHOW VARIABLES:
+    */
+    log_error_file_ptr= log_error_file;
     if (!log_error_file[0])
       opt_error_log= 0;                         // Too long file name
     else
@@ -7356,6 +7361,14 @@ mysqld_get_one_option(int optid,
     else
       global_system_variables.optimizer_switch&=
         ~OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
+    break;
+  case OPT_LOG_ERROR:
+    /*
+      "No --log-error" == "write errors to stderr",
+      "--log-error without argument" == "write errors to a file".
+    */
+    if (argument == NULL) /* no argument */
+      log_error_file_ptr= const_cast<char*>("");
     break;
   }
   return 0;
