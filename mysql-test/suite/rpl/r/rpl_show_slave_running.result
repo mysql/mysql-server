@@ -1,0 +1,42 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+include/stop_slave.inc
+SELECT GET_LOCK("debug_lock.before_get_running_status_yes", 1000);
+GET_LOCK("debug_lock.before_get_running_status_yes", 1000)
+1
+set global debug= 'd,debug_lock.before_get_running_status_yes';
+Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= No
+Slave_SQL_Running= No
+start slave io_thread;
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= No
+Slave_SQL_Running= No
+SELECT RELEASE_LOCK("debug_lock.before_get_running_status_yes");
+RELEASE_LOCK("debug_lock.before_get_running_status_yes")
+1
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= Yes
+Slave_SQL_Running= No
+start slave sql_thread;
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	ON
+Slave_IO_Running= Yes
+Slave_SQL_Running= Yes
+set global debug= '';
+End of tests

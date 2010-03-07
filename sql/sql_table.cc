@@ -7994,22 +7994,28 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-        enum_field_types field_type= f->type();
-        /*
-          BLOB and VARCHAR have pointers in their field, we must convert
-          to string; GEOMETRY is implemented on top of BLOB.
-        */
-        if ((field_type == MYSQL_TYPE_BLOB) ||
-            (field_type == MYSQL_TYPE_VARCHAR) ||
-            (field_type == MYSQL_TYPE_GEOMETRY))
-	      {
-		String tmp;
-		f->val_str(&tmp);
-		row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(), tmp.length());
+
+             /*
+               BLOB and VARCHAR have pointers in their field, we must convert
+               to string; GEOMETRY is implemented on top of BLOB.
+               BIT may store its data among NULL bits, convert as well.
+             */
+              switch (f->type()) {
+                case MYSQL_TYPE_BLOB:
+                case MYSQL_TYPE_VARCHAR:
+                case MYSQL_TYPE_GEOMETRY:
+                case MYSQL_TYPE_BIT:
+                {
+                  String tmp;
+                  f->val_str(&tmp);
+                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                           tmp.length());
+                  break;
+                }
+                default:
+                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  break;
 	      }
-	      else
-		row_crc= my_checksum(row_crc, f->ptr,
-				     f->pack_length());
 	    }
 
 	    crc+= row_crc;

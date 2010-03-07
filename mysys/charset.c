@@ -406,6 +406,7 @@ static void *cs_alloc(size_t size)
 
 
 static my_pthread_once_t charsets_initialized= MY_PTHREAD_ONCE_INIT;
+static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
 
 static void init_available_charsets(void)
 {
@@ -432,6 +433,11 @@ static void init_available_charsets(void)
   my_read_charset_file(fname, MYF(0));
 }
 
+
+void free_charsets(void)
+{
+  charsets_initialized= charsets_template;
+}
 
 uint get_collation_number(const char *name)
 {

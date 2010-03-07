@@ -2339,4 +2339,21 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+#
+# Bug#51304: checksum table gives different results
+# for same data when using bit fields
+#
+CREATE TABLE t1(a INT, b BIT(1));
+INSERT INTO t1 VALUES(1, 0), (2, 1);
+CREATE TABLE t2 SELECT * FROM t1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	3775188275
+CHECKSUM TABLE t2 EXTENDED;
+Table	Checksum
+test.t2	3775188275
+CHECKSUM TABLE t3 EXTENDED;
+Table	Checksum
+test.t3	3775188275
+DROP TABLE t1, t2, t3;
 End of 5.1 tests

@@ -2877,6 +2877,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
 connected:
 
+  DBUG_SYNC_POINT("debug_lock.before_get_running_status_yes", 10);
   // TODO: the assignment below should be under mutex (5.0)
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
