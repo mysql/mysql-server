@@ -109,6 +109,7 @@ our $glob_use_embedded_server=    0;
 our @glob_test_mode;
 
 our $glob_basedir;
+our $glob_bindir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
@@ -157,7 +158,6 @@ our $exe_mysqltest;
 our $exe_ndbd;
 our $exe_ndb_mgmd;
 our $exe_slave_mysqld;
-our $exe_im;
 our $exe_my_print_defaults;
 our $exe_perror;
 our $lib_udf_example;
@@ -720,13 +720,21 @@ sub command_line_setup () {
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     chomp($glob_mysql_test_dir);
   }
-  $default_vardir= "$glob_mysql_test_dir/var";
+  if (defined $ENV{MTR_BINDIR}) 
+  {
+    $default_vardir= "$ENV{MTR_BINDIR}/mysql-test/var";
+  }
+  else
+  {
+    $default_vardir= "$glob_mysql_test_dir/var";
+  }
 
   # In most cases, the base directory we find everything relative to,
   # is the parent directory of the "mysql-test" directory. For source
   # distributions, TAR binary distributions and some other packages.
   $glob_basedir= dirname($glob_mysql_test_dir);
 
+  $glob_bindir= $ENV{'MTR_BINDIR'} || $glob_basedir;
   # In the RPM case, binaries and libraries are installed in the
   # default system locations, instead of having our own private base
   # directory. And we install "/usr/share/mysql-test". Moving up one
@@ -792,36 +800,37 @@ sub command_line_setup () {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-					 "$glob_basedir/client_debug",
+    $path_client_bindir= mtr_path_exists("$glob_bindir/client_release",
+					 "$glob_bindir/client_debug",
 					 vs_config_dirs('client', ''),
-					 "$glob_basedir/client",
-					 "$glob_basedir/bin");
+					 "$glob_bindir/client",
+					 "$glob_bindir/bin");
   }
   
   # Look for language files and charsetsdir, use same share
-  $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
-                                    "$glob_basedir/sql/share",
-                                    "$glob_basedir/share");
+  $path_share=      mtr_path_exists("$glob_bindir/share/mysql",
+                                    "$glob_bindir/sql/share",
+                                    "$glob_bindir/share");
 
   $path_language=      mtr_path_exists("$path_share");
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
-
+  $path_charsetsdir =   mtr_path_exists("$glob_basedir/share/mysql/charsets",
+                                    "$glob_basedir/sql/share/charsets",
+                                    "$glob_basedir/share/charsets");
 
   if (!$opt_extern)
   {
     $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
                                        vs_config_dirs('sql', 'mysqld-debug'),
-				       "$glob_basedir/sql/mysqld",
+				       "$glob_bindir/sql/mysqld",
 				       "$path_client_bindir/mysqld-max-nt",
 				       "$path_client_bindir/mysqld-max",
 				       "$path_client_bindir/mysqld-nt",
 				       "$path_client_bindir/mysqld",
 				       "$path_client_bindir/mysqld-debug",
 				       "$path_client_bindir/mysqld-max",
-				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/bin/mysqld",
-				       "$glob_basedir/sbin/mysqld");
+				       "$glob_bindir/libexec/mysqld",
+				       "$glob_bindir/bin/mysqld",
+				       "$glob_bindir/sbin/mysqld");
 
     # Use the mysqld found above to find out what features are available
     collect_mysqld_features();
@@ -1563,37 +1572,24 @@ sub collect_mysqld_features_from_running_server ()
   }
 }
 
-sub executable_setup_im () {
-
-  # Look for instance manager binary - mysqlmanager
-  $exe_im=
-    mtr_exe_maybe_exists(
-      "$glob_basedir/server-tools/instance-manager/mysqlmanager",
-      "$glob_basedir/libexec/mysqlmanager",
-      "$glob_basedir/bin/mysqlmanager",
-      "$glob_basedir/sbin/mysqlmanager");
-
-  return ($exe_im eq "");
-}
-
 sub executable_setup_ndb () {
 
   # Look for ndb tols and binaries
-  my $ndb_path= mtr_file_exists("$glob_basedir/ndb",
-				"$glob_basedir/storage/ndb",
-				"$glob_basedir/bin");
+  my $ndb_path= mtr_file_exists("$glob_bindir/ndb",
+				"$glob_bindir/storage/ndb",
+				"$glob_bindir/bin");
 
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
 			 "$ndb_path/ndbd",
-			 "$glob_basedir/libexec/ndbd");
+			 "$glob_bindir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
 			 "$ndb_path/ndb_mgmd",
-			 "$glob_basedir/libexec/ndb_mgmd");
+			 "$glob_bindir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
@@ -1636,11 +1632,11 @@ sub executable_setup () {
   $exe_my_print_defaults=
     mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
 		           "$path_client_bindir/my_print_defaults",
-		           "$glob_basedir/extra/my_print_defaults");
+		           "$glob_bindir/extra/my_print_defaults");
 
   # Look for perror
   $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
-			                  "$glob_basedir/extra/perror",
+			                  "$glob_bindir/extra/perror",
 			                  "$path_client_bindir/perror");
 
   # Look for the client binaries
@@ -1697,23 +1693,15 @@ sub executable_setup () {
       }
     }
 
-    if ( ! $opt_skip_im and executable_setup_im())
-    {
-      mtr_warning("Could not find all required instance manager binaries, " .
-  		"all im tests will fail, use --skip-im to " .
-  		"continue without instance manager");
-      $instance_manager->{"executable_setup_failed"}= 1;
-    }
-
     # Look for the udf_example library
     $lib_udf_example=
       mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-                      "$glob_basedir/sql/.libs/udf_example.so",);
+                      "$glob_bindir/sql/.libs/udf_example.so",);
 
     # Look for the ha_example library
     $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example', 'ha_example.dll'),
-                      "$glob_basedir/storage/example/.libs/ha_example.so",);
+                      "$glob_bindir/storage/example/.libs/ha_example.so",);
 
   }
 
@@ -1722,7 +1710,7 @@ sub executable_setup () {
   {
     $exe_mysqltest=
       mtr_exe_exists(vs_config_dirs('libmysqld/examples','mysqltest_embedded'),
-                     "$glob_basedir/libmysqld/examples/mysqltest_embedded",
+                     "$glob_bindir/libmysqld/examples/mysqltest_embedded",
                      "$path_client_bindir/mysqltest_embedded");
   }
   else
@@ -1737,21 +1725,21 @@ sub executable_setup () {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(
         vs_config_dirs('libmysqld/examples', 'mysql_client_test_embedded'),
-        "$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+        "$glob_bindir/libmysqld/examples/mysql_client_test_embedded");
   }
   else
   {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-                           "$glob_basedir/tests/mysql_client_test",
-                           "$glob_basedir/bin/mysql_client_test");
+                           "$glob_bindir/tests/mysql_client_test",
+                           "$glob_bindir/bin/mysql_client_test");
   }
 
   # Look for bug25714 executable which may _not_ exist in
   # some versions, test using it should be skipped
   $exe_bug25714=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
-                           "$glob_basedir/tests/bug25714");
+                           "$glob_bindir/tests/bug25714");
 }
 
 
@@ -1860,13 +1848,13 @@ sub environment_setup () {
     # are used in favor of the system installed ones
     if ( $source_dist )
     {
-      push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
-	   "$glob_basedir/libmysql_r/.libs/",
-	   "$glob_basedir/zlib.libs/");
+      push(@ld_library_paths, "$glob_bindir/libmysql/.libs/",
+	   "$glob_bindir/libmysql_r/.libs/",
+	   "$glob_bindir/zlib.libs/");
     }
     else
     {
-      push(@ld_library_paths, "$glob_basedir/lib");
+      push(@ld_library_paths, "$glob_bindir/lib");
     }
   }
 
@@ -1875,7 +1863,7 @@ sub environment_setup () {
   # --------------------------------------------------------------------------
   if ( $glob_ndbcluster_supported )
   {
-    push(@ld_library_paths,  "$glob_basedir/storage/ndb/src/.libs");
+    push(@ld_library_paths,  "$glob_bindir/storage/ndb/src/.libs");
   }
 
   # --------------------------------------------------------------------------
@@ -1993,7 +1981,6 @@ sub environment_setup () {
   # ----------------------------------------------------
   if ( ! $opt_skip_im )
   {
-    $ENV{'IM_EXE'}=             $exe_im;
     $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
     $ENV{'IM_PATH_ANGEL_PID'}=  $instance_manager->{path_angel_pid};
     $ENV{'IM_PORT'}=            $instance_manager->{port};
@@ -2190,14 +2177,14 @@ sub environment_setup () {
                        vs_config_dirs('storage/myisam', 'myisamchk'),
                        vs_config_dirs('myisam', 'myisamchk'),
                        "$path_client_bindir/myisamchk",
-                       "$glob_basedir/storage/myisam/myisamchk",
-                       "$glob_basedir/myisam/myisamchk"));
+                       "$glob_bindir/storage/myisam/myisamchk",
+                       "$glob_bindir/myisam/myisamchk"));
   $ENV{'MYISAMPACK'}= mtr_native_path(mtr_exe_exists(
                         vs_config_dirs('storage/myisam', 'myisampack'),
                         vs_config_dirs('myisam', 'myisampack'),
                         "$path_client_bindir/myisampack",
-                        "$glob_basedir/storage/myisam/myisampack",
-                        "$glob_basedir/myisam/myisampack"));
+                        "$glob_bindir/storage/myisam/myisampack",
+                        "$glob_bindir/myisam/myisampack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -2548,12 +2535,12 @@ sub vs_config_dirs ($$) {
 
   if ($opt_vs_config)
   {
-    return ("$glob_basedir/$path_part/$opt_vs_config/$exe");
+    return ("$glob_bindir/$path_part/$opt_vs_config/$exe");
   }
 
-  return ("$glob_basedir/$path_part/release/$exe",
-          "$glob_basedir/$path_part/relwithdebinfo/$exe",
-          "$glob_basedir/$path_part/debug/$exe");
+  return ("$glob_bindir/$path_part/release/$exe",
+          "$glob_bindir/$path_part/relwithdebinfo/$exe",
+          "$glob_bindir/$path_part/debug/$exe");
 }
 
 ##############################################################################
