@@ -12,4 +12,5 @@
 
 rpl_get_master_version_and_clock:  # Bug#46931 2009-10-17 joro rpl.rpl_get_master_version_and_clock fails
 rpl_row_create_table            : Bug#45576 2009-12-01 joro rpl_row_create_table fails on PB2
+rpl_row_create_table : Bug#51574 Feb 27 2010 andrei failed different way than earlier with bug#45576
 rpl_spec_variables		: BUG#47661 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux

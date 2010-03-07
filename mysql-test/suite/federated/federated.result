@@ -2153,6 +2153,29 @@ DROP TABLE t1;
 End of 5.0 tests
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
+#
+# Bug #32426: FEDERATED query returns corrupt results for ORDER BY on a TEXT
+#
+CREATE TABLE federated.t1(a TEXT);
+INSERT INTO federated.t1 VALUES('abc'), ('gh'), ('f'), ('ijk'), ('de');
+CREATE TABLE federated.t1(a TEXT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT * FROM federated.t1 ORDER BY A;
+a
+abc
+de
+f
+gh
+ijk
+SELECT * FROM federated.t1 ORDER BY A DESC;
+a
+ijk
+gh
+f
+de
+abc
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
 End of 5.1 tests
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
