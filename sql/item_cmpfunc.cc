@@ -4143,13 +4143,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  void *orig_thd_marker= thd->thd_marker;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
   if (functype() == COND_OR_FUNC)
-    thd->thd_marker= 0;
+    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4208,7 +4208,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker= orig_thd_marker;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;

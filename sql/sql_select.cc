@@ -268,7 +268,6 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
     unit->set_limit(unit->global_parameters);
-    thd->thd_marker= 0;
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
       every PS/SP execution new, we will not need reset this flag if 
@@ -580,7 +579,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           !select_lex->master_unit()->first_select()->next_select() &&  // 2
           !select_lex->group_list.elements && !order &&                 // 3
           !having && !select_lex->with_sum_func &&                      // 4
-          thd->thd_marker &&                                            // 5
+          thd->thd_marker.emb_on_expr_nest &&                           // 5
           select_lex->outer_select()->join &&                           // (*)
           select_lex->master_unit()->first_select()->leaf_tables &&     // (**) 
           select_lex->outer_select()->leaf_tables &&
@@ -618,7 +617,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
         /* Register the subquery for further processing */
         select_lex->outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
-        in_subs->expr_join_nest= (TABLE_LIST*)thd->thd_marker;
+        in_subs->expr_join_nest= thd->thd_marker.emb_on_expr_nest;
       }
       else
       {
