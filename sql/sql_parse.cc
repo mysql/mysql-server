@@ -4523,6 +4523,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
+  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables)))
   {
     if (lex->describe)

@@ -1618,7 +1618,18 @@ public:
   Ha_data ha_data[MAX_HA];
 
   /* Place to store various things */
-  void *thd_marker;
+  union 
+  { 
+    /*
+      Used by subquery optimizations to inform subquery->fix_fields() calls 
+      where the subquery predicates are located.
+        (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
+        join nest pointer - the predicate is an AND-part of ON expression
+                            of a join nest   
+        NULL              - for all other locations
+    */
+    TABLE_LIST *emb_on_expr_nest;
+  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
