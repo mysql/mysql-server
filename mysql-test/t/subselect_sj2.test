@@ -669,3 +669,25 @@ select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 
 drop table t0, t1, t2, t3;
 
+#
+# BUG#34799: crash or/and memory overrun with dependant subquery and some joins
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a char(200), b char(200), c char(200), primary key (a,b,c)) engine=innodb;
+insert into t2 select concat(a, repeat('X',198)),repeat('B',200),repeat('B',200) from t1;
+insert into t2 select concat(a, repeat('Y',198)),repeat('B',200),repeat('B',200) from t1;
+alter table t2 add filler1 int;
+
+insert into t1 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+
+set @save_join_buffer_size=@@join_buffer_size; 
+--disable_warnings
+set join_buffer_size=1;
+--enable_warnings
+
+select * from t2 where filler1 in ( select a from t1);
+set join_buffer_size=@save_join_buffer_size;
+
+drop table t1, t2; 

@@ -16691,6 +16691,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
       copy->strip=0;
       copy->blob_field=0;
       copy->get_rowid= NULL;
+      length+=copy->length;
       if (tables[i].rowid_keep_flags & JOIN_TAB::CALL_POSITION)
       {
         /* We will need to call h->position(): */
