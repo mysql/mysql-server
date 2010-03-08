@@ -1014,3 +1014,10 @@ Note	1276	Field or reference 'test.t2.v' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`i` AS `i`,`test`.`t2`.`v` AS `v`,(select count(distinct `test`.`t1`.`i`) AS `COUNT(DISTINCT i)` from `test`.`t1` where (`test`.`t1`.`v` = `test`.`t2`.`v`)) AS `subsel` from `test`.`t2`
 DROP TABLE t1,t2;
 End of 5.6 tests
+#  
+# BUG#36896: Server crash on SELECT FROM DUAL
+# 
+create table t1 (a int);
+select 1 as res from dual where (1) in (select * from t1);
+res
+drop table t1;
